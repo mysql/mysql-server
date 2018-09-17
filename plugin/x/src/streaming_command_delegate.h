@@ -25,12 +25,15 @@
 #ifndef PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 #define PLUGIN_X_SRC_STREAMING_COMMAND_DELEGATE_H_
 
+#include <vector>
+
 #include <sys/types.h>
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/command_delegate.h"
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 
 namespace ngs {
 
@@ -51,7 +54,7 @@ class Streaming_command_delegate : public ngs::Command_delegate {
 
   virtual void reset();
 
- private:
+ protected:
   virtual int start_result_metadata(uint num_cols, uint flags,
                                     const CHARSET_INFO *resultcs);
   virtual int field_metadata(struct st_send_field *field,
@@ -75,16 +78,19 @@ class Streaming_command_delegate : public ngs::Command_delegate {
   virtual void handle_ok(uint server_status, uint statement_warn_count,
                          ulonglong affected_rows, ulonglong last_insert_id,
                          const char *const message);
+  void handle_error(uint sql_errno, const char *const err_msg,
+                    const char *const sqlstate);
 
   virtual enum cs_text_or_binary representation() const {
     return CS_BINARY_REPRESENTATION;
   }
 
   ngs::Protocol_encoder_interface *m_proto;
-  ngs::Notice_output_queue_interface *m_notice_queue{nullptr};
-  const CHARSET_INFO *m_resultcs;
-  bool m_sent_result;
-  bool m_compact_metadata;
+  const CHARSET_INFO *m_resultcs = nullptr;
+  ngs::Notice_output_queue_interface *m_notice_queue = nullptr;
+  bool m_sent_result = false;
+  bool m_compact_metadata = false;
+  bool m_handle_ok_received = false;
 };
 
 }  // namespace xpl

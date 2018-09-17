@@ -77,6 +77,7 @@ class Session_holder {
 
   xcl::XSession *get_session();
 
+  void clear_received_messages();
   bool try_get_number_of_received_messages(const std::string message_name,
                                            uint64_t *value) const;
   void remove_notice_handler();

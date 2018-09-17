@@ -564,6 +564,72 @@ class XProtocol {
   */
   virtual XError send(const Mysqlx::Connection::Close &m) = 0;
 
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Cursor::Open &m) = 0;
+
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Cursor::Close &m) = 0;
+
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Cursor::Fetch &m) = 0;
+
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Prepare::Prepare &m) = 0;
+
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Prepare::Execute &m) = 0;
+
+  /**
+    Serialize and send protobuf message.
+
+    @param m      message to be serialized and sent
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     I/O error occurred
+  */
+  virtual XError send(const Mysqlx::Prepare::Deallocate &m) = 0;
+
   /*
     Methods that execute different message flows
     with the server
@@ -716,6 +782,51 @@ class XProtocol {
   */
   virtual std::unique_ptr<XQuery_result> execute_delete(
       const Mysqlx::Crud::Delete &msg, XError *out_error) = 0;
+
+  /**
+    Send prepared stmt execute and expect resultset as response.
+
+    @param msg             "Execute" message to be serialized and sent
+    @param[out] out_error  in case of error, the method is going to return error
+                           code and description
+    @return Object responsible for fetching "resultset/s" from the server
+      @retval != nullptr  OK
+      @retval == nullptr  I/O error, timeout error, dispatch error
+                          or received "Mysqlx.Error" message
+  */
+  virtual std::unique_ptr<XQuery_result> execute_prep_stmt(
+      const Mysqlx::Prepare::Execute &msg, XError *out_error) = 0;
+
+  /**
+    Send cursor open and expect resultset as response.
+
+    @param msg             "Cursor::Open" message to be serialized and sent
+    @param[out] out_error  in case of error, the method is going to return error
+                           code and description
+    @return Object responsible for fetching "resultset/s" from the server
+      @retval != nullptr  OK
+      @retval == nullptr  I/O error, timeout error, dispatch error
+                          or received "Mysqlx.Error" message
+  */
+  virtual std::unique_ptr<XQuery_result> execute_cursor_open(
+      const Mysqlx::Cursor::Open &msg, XError *out_error) = 0;
+
+  /**
+    Send cursor fetch and expect resultset as response.
+
+    @param msg                 "Cursor::Fetch" message to be serialized and sent
+    @param cursor_open_result  result of a Cursor.Open operation which should
+                               contain metadata used by the fetch command
+    @param[out] out_error      in case of error, the method is going to return
+                               error code and description
+    @return Object responsible for fetching "resultset/s" from the server
+      @retval != nullptr  OK
+      @retval == nullptr  I/O error, timeout error, dispatch error
+                          or received "Mysqlx.Error" message
+  */
+  virtual std::unique_ptr<XQuery_result> execute_cursor_fetch(
+      const Mysqlx::Cursor::Fetch &msg,
+      std::unique_ptr<XQuery_result> cursor_open_result, XError *out_error) = 0;
 
   /**
     Send "CapabilitiesGet" and expect Capabilities as response.

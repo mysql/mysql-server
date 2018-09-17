@@ -28,7 +28,7 @@
 
 using namespace ngs;
 
-void Notice_builder::encode_frame(Output_buffer *out_buffer, uint32 type,
+void Notice_builder::encode_frame(Page_output_stream *out_buffer, uint32 type,
                                   const std::string &data, int scope) {
   start_message(out_buffer, Mysqlx::ServerMessages::NOTICE);
 
@@ -42,7 +42,7 @@ void Notice_builder::encode_frame(Output_buffer *out_buffer, uint32 type,
   end_message();
 }
 
-void Notice_builder::encode_rows_affected(Output_buffer *out_buffer,
+void Notice_builder::encode_rows_affected(Page_output_stream *out_buffer,
                                           uint64 value) {
   int32 param = Mysqlx::Notice::SessionStateChanged::ROWS_AFFECTED;
   int32 type = Mysqlx::Datatypes::Scalar_Type_V_UINT;

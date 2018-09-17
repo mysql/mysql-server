@@ -38,6 +38,7 @@ namespace test {
 class Mock_query_result : public XQuery_result {
  public:
   MOCK_METHOD1(get_metadata, const Metadata &(XError *out_error));
+  MOCK_METHOD1(set_metadata, void(const Metadata &));
   MOCK_METHOD0(get_warnings, const Warnings &());
   MOCK_METHOD2(get_next_row, bool(const XRow **out_row, XError *out_error));
   MOCK_METHOD1(get_next_row, const XRow *(XError *));
@@ -49,6 +50,7 @@ class Mock_query_result : public XQuery_result {
   MOCK_CONST_METHOD1(try_get_generated_document_ids,
                      bool(std::vector<std::string> *));
   MOCK_METHOD1(has_resultset, bool(XError *));
+  MOCK_CONST_METHOD0(is_out_parameter_resultset, bool());
 
  private:
   std::unique_ptr<XQuery_result::Row> get_next_row_raw(

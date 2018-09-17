@@ -121,6 +121,11 @@ TEST_F(Xcl_protocol_impl_error_tests, execute_close) {
   ASSERT_EQ(expected_error_code, out_error.error());
   ASSERT_STREQ(expected_error_txt, out_error.what());
 
+  ASSERT_EQ(nullptr,
+            m_sut->execute_prep_stmt(Mysqlx::Prepare::Execute(), &out_error));
+  ASSERT_EQ(expected_error_code, out_error.error());
+  ASSERT_STREQ(expected_error_txt, out_error.what());
+
   ASSERT_EQ(nullptr, m_sut->execute_fetch_capabilities(&out_error));
   ASSERT_EQ(expected_error_code, out_error.error());
   ASSERT_STREQ(expected_error_txt, out_error.what());

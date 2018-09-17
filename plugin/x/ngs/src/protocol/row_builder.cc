@@ -36,7 +36,7 @@
 #include "my_macros.h"
 #include "plugin/x/client/mysqlxclient/xdatetime.h"
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
@@ -56,12 +56,12 @@ Row_builder::~Row_builder() { abort_row(); }
 void Row_builder::abort_row() {
   if (m_row_processing) {
     reset_stream();
-    m_out_buffer->rollback();
+    m_out_page_stream->restore_position();
     m_row_processing = false;
   }
 }
 
-void Row_builder::start_row(Output_buffer *out_buffer) {
+void Row_builder::start_row(Page_output_stream *out_buffer) {
   m_num_fields = 0;
   abort_row();
 

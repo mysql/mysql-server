@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <string>
 
+#include "plugin/x/generated/mysqlx_error.h"
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
@@ -38,6 +39,9 @@ namespace xpl {
 
 class Statement_builder {
  public:
+  template <typename T>
+  using Repeated_field_list = Expression_generator::Repeated_field_list<T>;
+
   explicit Statement_builder(const Expression_generator &gen)
       : m_builder(gen) {}
 
@@ -45,6 +49,7 @@ class Statement_builder {
   using Collection = ::Mysqlx::Crud::Collection;
 
   void add_collection(const Collection &table) const;
+  bool is_prep_stmt_mode() const { return m_builder.m_gen.is_prep_stmt_mode(); }
 
   template <typename T>
   void add_alias(const T &item) const {
@@ -93,10 +98,10 @@ class Statement_builder {
     }
 
     template <typename T>
-    const Generator &put_list(
-        const ::google::protobuf::RepeatedPtrField<T> &list,
-        const Generator &(Generator::*put_fun)(const T &)const,
-        const std::string &separator = ",") const {
+    const Generator &put_list(const Repeated_field_list<T> &list,
+                              const Generator &(Generator::*put_fun)(const T &)
+                                  const,
+                              const std::string &separator = ",") const {
       return put_list(list.begin(), list.end(),
                       ngs::bind(put_fun, this, ngs::placeholders::_1),
                       separator);
@@ -128,7 +133,7 @@ class Statement_builder {
       return *this;
     }
 
-    Expression_generator::Args args() const { return m_gen.args(); }
+    Expression_generator::Arg_list args() const { return m_gen.args(); }
 
     const Expression_generator &m_gen;
     Query_string_builder &m_qb;
@@ -143,18 +148,34 @@ class Crud_statement_builder : public Statement_builder {
  protected:
   using Filter = ::Mysqlx::Expr::Expr;
   using Limit = ::Mysqlx::Crud::Limit;
+  using LimitExpr = ::Mysqlx::Crud::LimitExpr;
   using Order_item = ::Mysqlx::Crud::Order;
-  using Order_list = ::google::protobuf::RepeatedPtrField<Order_item>;
+  using Order_list = Repeated_field_list<Order_item>;
 
   void add_filter(const Filter &filter) const;
   void add_order(const Order_list &order) const;
-  void add_limit(const Limit &limit, const bool no_offset) const;
+  void add_limit_field(const Limit &limit, const bool disallow_offset) const;
+  void add_limit_expr_field(const LimitExpr &limit,
+                            const bool disallow_offset) const;
   void add_order_item(const Order_item &item) const;
+
+  template <typename Message>
+  void add_limit(const Message &msg, const bool disallow_offset) const;
 };
 
-template <typename T>
-inline bool is_table_data_model(const T &msg) {
-  return msg.data_model() == ::Mysqlx::Crud::TABLE;
+template <typename Message>
+void Crud_statement_builder::add_limit(const Message &msg,
+                                       const bool disallow_offset) const {
+  if (msg.has_limit() && msg.has_limit_expr()) {
+    throw ngs::Error_code(ER_X_BAD_MESSAGE,
+                          "Invalid message, one of 'limit' and 'limit_expr' "
+                          "fields is allowed. Received both");
+  }
+
+  if (msg.has_limit()) add_limit_field(msg.limit(), disallow_offset);
+
+  if (msg.has_limit_expr())
+    add_limit_expr_field(msg.limit_expr(), disallow_offset);
 }
 
 }  // namespace xpl

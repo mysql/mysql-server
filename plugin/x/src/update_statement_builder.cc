@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
@@ -37,7 +36,7 @@ void Update_statement_builder::build(const Update &msg) const {
   add_operation(msg.operation(), is_table_data_model(msg));
   add_filter(msg.criteria());
   add_order(msg.order());
-  add_limit(msg.limit(), true);
+  add_limit(msg, true);
 }
 
 void Update_statement_builder::add_operation(const Operation_list &operation,

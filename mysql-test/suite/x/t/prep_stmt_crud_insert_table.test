@@ -1,0 +1,346 @@
+## Test of general functionality of prepare statement crud insert message
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_insert.xpl
+-->import assert_variable.macro
+-->import assert_select.macro
+-->quiet
+
+-->macro Assert_is_exist	%PATTERN%
+callmacro Assert_select
+	count
+	1
+	SELECT count(*) as count FROM xtest.xtable WHERE phrase LIKE %PATTERN%;
+-->endmacro
+
+
+
+-->title =Stmt 1: Prepare malformed insert stmt (no schema)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xtable" schema: "nonexistent" }
+      data_model: TABLE
+      row {
+        field {
+          type: OPERATOR operator { name: "default" }
+        }
+      }
+    }
+  }
+}
+-->recverror ER_BAD_DB_ERROR
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	1
+
+-->title =Stmt 1: Try to execute
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	1
+
+-->title =Stmt 1: Try to deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	1
+
+
+
+-->title =Stmt 2: Prepare correct insert stmt (no placeholders)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      row {
+        field {
+          type: LITERAL literal {
+            type: V_STRING v_string {
+              value: "Alice has a cat"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	2
+
+
+-->title =Stmt 2: Execute (no params)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Alice%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	2
+
+-->title =Stmt 2: Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 2
+}
+-->recvok
+
+
+-->title =Stmt 3: Prepare correct stmt (one placeholder)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      row {
+        field {
+          type: PLACEHOLDER position: 0
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	3
+
+
+-->title =Stmt 3: Try to execute (no params)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	3
+
+
+-->title =Stmt 3: Execute with param
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Bob has a dog"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Bob%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	4
+
+
+-->title =Stmt 3: Execute with params (one extra to ignore)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Christina has a hamster"
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "123"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Christina%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	5
+
+
+-->title =Stmt 3: Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 3
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	3
+
+
+
+-->title =Stmt 4: Prepare correct stmt (two placeholders)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      row {
+        field {
+          type: PLACEHOLDER position: 0
+        }
+      }
+      row {
+        field {
+          type: PLACEHOLDER position: 1
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	4
+
+
+-->title =Stmt 4: Execute with params
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "David has a parot"
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Eva has a fish"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'David%'
+-->callmacro Assert_is_exist	'Eva%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	6
+
+
+-->title =Stmt 4: Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 4
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	4
+
+
+
+-->title =Stmt 5: Prepare correct stmt (two placeholders in expr)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 5
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xtable" schema: "xtest" }
+      data_model: TABLE
+      row {
+        field {
+          type: FUNC_CALL function_call {
+            name { name: "concat" }
+            param {
+              type: PLACEHOLDER position: 0
+            }
+            param {
+              type: PLACEHOLDER position: 1
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	5
+
+
+-->title =Stmt 5: Execute with params
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 5
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Felix has "
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "a lizard"
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Felix%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	7
+
+
+-->title =Stmt 5: Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 5
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	5
+
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+CREATE TABLE xtable (phrase VARCHAR(30));
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/prep_stmt_insert.xpl 2>&1;
+
+
+
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

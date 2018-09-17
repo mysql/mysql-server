@@ -40,7 +40,7 @@ class Update_statement_builder : public Crud_statement_builder {
 
  protected:
   using Update_operation = ::Mysqlx::Crud::UpdateOperation;
-  using Operation_list = ::google::protobuf::RepeatedPtrField<Update_operation>;
+  using Operation_list = Repeated_field_list<Update_operation>;
   using Operation_iterator = Operation_list::const_iterator;
 
   void add_operation(const Operation_list &operation,

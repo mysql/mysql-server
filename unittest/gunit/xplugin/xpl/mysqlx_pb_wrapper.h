@@ -36,7 +36,7 @@ namespace xpl {
 namespace test {
 
 class Operator;
-class FunctionCall;
+class Function_call;
 class Object;
 class Array;
 
@@ -51,11 +51,11 @@ class Wrapper {
 };
 
 template <typename T, typename B = typename T::Base>
-class RepeatedPtrField
+class Repeated_field_list
     : public Wrapper<::google::protobuf::RepeatedPtrField<B>> {
  public:
-  RepeatedPtrField() = default;
-  RepeatedPtrField(const std::initializer_list<T> &list) {
+  Repeated_field_list() = default;
+  Repeated_field_list(const std::initializer_list<T> &list) {
     for (const T &e : list) *this->m_base.Add() = e;
   }
 };
@@ -81,14 +81,14 @@ class Document_path_item : public Wrapper<::Mysqlx::Expr::DocumentPathItem> {
   }
 };
 
-using Document_path = RepeatedPtrField<Document_path_item>;
+using Document_path = Repeated_field_list<Document_path_item>;
 
-class ColumnIdentifier : public Wrapper<::Mysqlx::Expr::ColumnIdentifier> {
+class Column_identifier : public Wrapper<::Mysqlx::Expr::ColumnIdentifier> {
  public:
-  ColumnIdentifier(
+  Column_identifier(
       const std::string &name = "", const std::string &table_name = "",
       const std::string &schema_name = "");  // NOLINT(runtime/explicit)
-  ColumnIdentifier(
+  Column_identifier(
       const Document_path &path, const std::string &name = "",
       const std::string &table_name = "",
       const std::string &schema_name = "");  // NOLINT(runtime/explicit)
@@ -171,15 +171,15 @@ class Expr : public Wrapper<::Mysqlx::Expr::Expr> {
   template <typename T>
   Expr(const T &value)  // NOLINT(runtime/explicit)
       : Expr(Scalar(value)) {}
-  Expr(const Scalar &value);         // NOLINT(runtime/explicit)
-  Expr(const Operator &oper);        // NOLINT(runtime/explicit)
-  Expr(const Identifier &ident);     // NOLINT(runtime/explicit)
-  Expr(const FunctionCall &func);    // NOLINT(runtime/explicit)
-  Expr(const ColumnIdentifier &id);  // NOLINT(runtime/explicit)
-  Expr(const Object &obj);           // NOLINT(runtime/explicit)
-  Expr(const Array &arr);            // NOLINT(runtime/explicit)
-  Expr(const Placeholder &ph);       // NOLINT(runtime/explicit)
-  Expr(const Variable &var);         // NOLINT(runtime/explicit)
+  Expr(const Scalar &value);          // NOLINT(runtime/explicit)
+  Expr(const Operator &oper);         // NOLINT(runtime/explicit)
+  Expr(const Identifier &ident);      // NOLINT(runtime/explicit)
+  Expr(const Function_call &func);    // NOLINT(runtime/explicit)
+  Expr(const Column_identifier &id);  // NOLINT(runtime/explicit)
+  Expr(const Object &obj);            // NOLINT(runtime/explicit)
+  Expr(const Array &arr);             // NOLINT(runtime/explicit)
+  Expr(const Placeholder &ph);        // NOLINT(runtime/explicit)
+  Expr(const Variable &var);          // NOLINT(runtime/explicit)
 };
 
 class Operator : public Wrapper<::Mysqlx::Expr::Operator> {
@@ -204,22 +204,22 @@ class Operator : public Wrapper<::Mysqlx::Expr::Operator> {
   void add_param(const Expr &value) { *m_base.add_param() = value; }
 };
 
-class FunctionCall : public Wrapper<::Mysqlx::Expr::FunctionCall> {
+class Function_call : public Wrapper<::Mysqlx::Expr::FunctionCall> {
  public:
-  FunctionCall(const std::string &name) {  // NOLINT(runtime/explicit)
+  Function_call(const std::string &name) {  // NOLINT(runtime/explicit)
     m_base.mutable_name()->CopyFrom(Identifier(name));
   }
 
   template <typename... T>
-  FunctionCall(const Identifier &name,
-               T &&... params) {  // NOLINT(runtime/explicit)
+  Function_call(const Identifier &name,
+                T &&... params) {  // NOLINT(runtime/explicit)
     m_base.mutable_name()->CopyFrom(name);
     add_param(std::forward<T>(params)...);
   }
 
   template <typename... T>
-  FunctionCall(const std::string &name,
-               T &&... params) {  // NOLINT(runtime/explicit)
+  Function_call(const std::string &name,
+                T &&... params) {  // NOLINT(runtime/explicit)
     m_base.mutable_name()->CopyFrom(Identifier(name));
     add_param(std::forward<T>(params)...);
   }
@@ -291,29 +291,38 @@ class Limit : public Wrapper<::Mysqlx::Crud::Limit> {
         const uint64_t offset = 0);  // NOLINT(runtime/explicit)
 };
 
+class Limit_expr : public Wrapper<::Mysqlx::Crud::LimitExpr> {
+ public:
+  Limit_expr() {}
+  Limit_expr(const Expr &row_count);  // NOLINT(runtime/explicit)
+  Limit_expr(const Expr &row_count,
+             const Expr &offset);  // NOLINT(runtime/explicit)
+};
+
 class Update_operation : public Wrapper<::Mysqlx::Crud::UpdateOperation> {
  public:
   using Update_type = Base::UpdateType;
   Update_operation(const Update_type &update_type,
-                   const ColumnIdentifier &source, const Expr &value);
+                   const Column_identifier &source, const Expr &value);
   Update_operation(const Update_type &update_type,
-                   const ColumnIdentifier &source);
+                   const Column_identifier &source);
   Update_operation(const Update_type &update_type, const Document_path &source,
                    const Expr &value);
   Update_operation(const Update_type &update_type, const Document_path &source);
 };
 
 using Filter = Expr;
-using Group = Expr;
+using Grouping = Expr;
 using Grouping_criteria = Expr;
-using Column_projection_list = RepeatedPtrField<Column>;
-using Grouping_list = RepeatedPtrField<Group>;
-using Expression_args = RepeatedPtrField<Scalar>;
-using Field_list = RepeatedPtrField<Expr>;
-using Order_list = RepeatedPtrField<Order>;
-using Projection_list = RepeatedPtrField<Projection>;
-using Value_list = RepeatedPtrField<Expr>;
-using Operation_list = RepeatedPtrField<Update_operation>;
+using Column_projection_list = Repeated_field_list<Column>;
+using Grouping_list = Repeated_field_list<Grouping>;
+using Expression_list = Repeated_field_list<Scalar>;
+using Field_list = Repeated_field_list<Expr>;
+using Order_list = Repeated_field_list<Order>;
+using Projection_list = Repeated_field_list<Projection>;
+using Value_list = Repeated_field_list<Expr>;
+using Operation_list = Repeated_field_list<Update_operation>;
+using Any_list = Repeated_field_list<Any>;
 
 class Row_list : public Wrapper<::google::protobuf::RepeatedPtrField<
                      ::Mysqlx::Crud::Insert_TypedRow>> {
@@ -325,6 +334,164 @@ class Row_list : public Wrapper<::google::protobuf::RepeatedPtrField<
   Base::size_type size() const { return m_base.size(); }
 };
 
+class Find : public Wrapper<::Mysqlx::Crud::Find> {
+ public:
+  explicit Find(const Collection &coll,
+                const Data_model dm = ::Mysqlx::Crud::DOCUMENT) {
+    *m_base.mutable_collection() = coll;
+    m_base.set_data_model(dm);
+  }
+  Find &args(const Expression_list &arg) {
+    *m_base.mutable_args() = arg;
+    return *this;
+  }
+  Find &projection(const Projection_list &pl) {
+    *m_base.mutable_projection() = pl;
+    return *this;
+  }
+  Find &projection(const Projection &pl) {
+    *m_base.mutable_projection()->Add() = pl;
+    return *this;
+  }
+  Find &criteria(const Filter &ft) {
+    *m_base.mutable_criteria() = ft;
+    return *this;
+  }
+  Find &order(const Order_list &ol) {
+    *m_base.mutable_order() = ol;
+    return *this;
+  }
+  Find &order(const Order &ol) {
+    *m_base.mutable_order()->Add() = ol;
+    return *this;
+  }
+  Find &limit(const Limit &li) {
+    *m_base.mutable_limit() = li;
+    return *this;
+  }
+  Find &grouping(const Grouping_list &gl) {
+    *m_base.mutable_grouping() = gl;
+    return *this;
+  }
+  Find &grouping(const Grouping &gl) {
+    *m_base.mutable_grouping()->Add() = gl;
+    return *this;
+  }
+  Find &grouping_criteria(const Grouping_criteria &gc) {
+    *m_base.mutable_grouping_criteria() = gc;
+    return *this;
+  }
+  Find &locking(const Base::RowLock &rl) {
+    m_base.set_locking(rl);
+    return *this;
+  }
+};
+
+class Delete : public Wrapper<::Mysqlx::Crud::Delete> {
+ public:
+  explicit Delete(const Collection &coll,
+                  const Data_model dm = ::Mysqlx::Crud::DOCUMENT) {
+    *m_base.mutable_collection() = coll;
+    m_base.set_data_model(dm);
+  }
+  Delete &args(const Expression_list &arg) {
+    *m_base.mutable_args() = arg;
+    return *this;
+  }
+  Delete &criteria(const Filter &ft) {
+    *m_base.mutable_criteria() = ft;
+    return *this;
+  }
+  Delete &order(const Order_list &ol) {
+    *m_base.mutable_order() = ol;
+    return *this;
+  }
+  Delete &order(const Order &ol) {
+    *m_base.mutable_order()->Add() = ol;
+    return *this;
+  }
+  Delete &limit(const Limit &li) {
+    *m_base.mutable_limit() = li;
+    return *this;
+  }
+};
+
+class Update : public Wrapper<::Mysqlx::Crud::Update> {
+ public:
+  explicit Update(const Collection &coll,
+                  const Data_model dm = ::Mysqlx::Crud::DOCUMENT) {
+    *m_base.mutable_collection() = coll;
+    m_base.set_data_model(dm);
+  }
+  Update &args(const Expression_list &arg) {
+    *m_base.mutable_args() = arg;
+    return *this;
+  }
+  Update &operation(const Operation_list &ol) {
+    *m_base.mutable_operation() = ol;
+    return *this;
+  }
+  Update &operation(const Update_operation &uo) {
+    *m_base.mutable_operation()->Add() = uo;
+    return *this;
+  }
+  Update &criteria(const Filter &ft) {
+    *m_base.mutable_criteria() = ft;
+    return *this;
+  }
+  Update &order(const Order_list &ol) {
+    *m_base.mutable_order() = ol;
+    return *this;
+  }
+  Update &order(const Order &ol) {
+    *m_base.mutable_order()->Add() = ol;
+    return *this;
+  }
+  Update &limit(const Limit &li) {
+    *m_base.mutable_limit() = li;
+    return *this;
+  }
+};
+
+class Insert : public Wrapper<::Mysqlx::Crud::Insert> {
+ public:
+  explicit Insert(const Collection &coll,
+                  const Data_model dm = ::Mysqlx::Crud::DOCUMENT) {
+    *m_base.mutable_collection() = coll;
+    m_base.set_data_model(dm);
+  }
+  Insert &args(const Expression_list &arg) {
+    *m_base.mutable_args() = arg;
+    return *this;
+  }
+  Insert &projection(const Column_projection_list &pl) {
+    *m_base.mutable_projection() = pl;
+    return *this;
+  }
+  Insert &row(const Row_list &rl) {
+    *m_base.mutable_row() = rl;
+    return *this;
+  }
+  Insert &upsert(const bool f) {
+    m_base.set_upsert(f);
+    return *this;
+  }
+};
+
+class Stmt_execute : public Wrapper<::Mysqlx::Sql::StmtExecute> {
+ public:
+  explicit Stmt_execute(const std::string &stmt,
+                        const std::string &namespace_ = "sql",
+                        const bool compact_metadata = false) {
+    m_base.set_stmt(stmt);
+    m_base.set_namespace_(namespace_);
+    m_base.set_compact_metadata(compact_metadata);
+  }
+  Stmt_execute &args(const Any_list &arg) {
+    *m_base.mutable_args() = arg;
+    return *this;
+  }
+};
 }  // namespace test
 }  // namespace xpl
 

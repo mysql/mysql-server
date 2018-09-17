@@ -1,0 +1,27 @@
+#
+# WL9270 - 'limit', 'limit_expr' fields tests
+#
+
+## Test setup
+--source include/xplugin_create_user.inc
+--source include/xplugin_preamble.inc
+
+#
+## Test start here
+
+--echo
+--echo #
+--echo ## Test direct execution of Crud messages with limit field
+--let $crud_limit_macros=test_crud_limit.macro
+--source ../include/crud_limit.inc
+
+
+--echo
+--echo #
+--echo ## Test prepared execution of Crud messages with limit field
+--let $crud_limit_macros=test_prep_stmt_crud_limit.macro
+--source ../include/crud_limit.inc
+
+#
+## Cleanup
+--source include/xplugin_drop_user.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,5 +31,5 @@ void xpl::Delete_statement_builder::build(const Delete &msg) const {
   add_collection(msg.collection());
   add_filter(msg.criteria());
   add_order(msg.order());
-  add_limit(msg.limit(), true);
+  add_limit(msg, true);
 }

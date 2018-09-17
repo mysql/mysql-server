@@ -35,7 +35,9 @@ using Msg_types = ::testing::Types<
     ::Mysqlx::Crud::CreateView, ::Mysqlx::Crud::ModifyView,
     ::Mysqlx::Crud::DropView, ::Mysqlx::Expect::Open, ::Mysqlx::Expect::Close,
     ::Mysqlx::Connection::CapabilitiesGet,
-    ::Mysqlx::Connection::CapabilitiesSet, ::Mysqlx::Connection::Close>;
+    ::Mysqlx::Connection::CapabilitiesSet, ::Mysqlx::Connection::Close,
+    ::Mysqlx::Prepare::Prepare, ::Mysqlx::Prepare::Execute,
+    ::Mysqlx::Prepare::Deallocate>;
 
 TYPED_TEST_CASE(Xcl_protocol_impl_tests_with_msg, Msg_types);
 

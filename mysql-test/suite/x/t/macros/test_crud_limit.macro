@@ -1,0 +1,204 @@
+## Following macros are defined in this file:
+#
+# * Setup_testcase
+# * Setup_collection_with_data
+# * Find_execute_and_expect_error
+# * Update_execute_and_expect_error
+# * Delete_execute_and_expect_error
+# * Find_execute_and_expect
+# * Update_execute_and_expect
+# * Delete_execute_and_expect
+#
+
+
+-->macro Setup_testcase
+varlet %ANY_START% ;
+varlet %ANY_END% ;
+-->endmacro
+
+
+-->macro Setup_collection_with_data
+echo;
+echo [Setup table coll];
+quiet;
+noquery_result;
+DROP TABLE IF EXISTS coll;
+stmtadmin ensure_collection	{"name":"coll"};
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":0, "group3": "test", "group2": 5}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":1, "group3": "test", "group2": 5}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":2, "group3": "test", "group2": 4}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":3, "group3": "dev", "group2": 4}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":4, "group3": "dev", "group2": 3}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":5, "group3": "dev", "group2": 3}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":6, "group3": "prod", "group2": 2}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":7, "group3": "prod", "group2": 2}';
+recvresult be-quiet;
+
+callmacro Crud_insert	Collection1	'coll'	Row_octet	'{"myid":8, "group3": "prod", "group2": 1}';
+recvresult be-quiet;
+
+noquiet;
+query_result;
+-->endmacro
+
+
+-->macro_varg Find_execute_and_expect_error	%ERROR%	%OPTIONS%
+echo [Assert Find operation returns an error, executed with %OPTIONS%];
+quiet;
+Mysqlx.Crud.Find {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+  %OPTIONS%
+  %VAR_ARGS%
+}
+expecterror %ERROR%;
+recvresult be-quiet;
+noquiet;
+-->endmacro
+
+
+-->macro_varg Delete_execute_and_expect_error	%ERROR%	%OPTIONS%
+echo [Assert Delete operation returns an error, executed with %OPTIONS%];
+quiet;
+Mysqlx.Crud.Delete {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+  %OPTIONS%
+  %VAR_ARGS%
+}
+expecterror %ERROR%;
+recvresult be-quiet;
+noquiet;
+-->endmacro
+
+
+-->macro_varg Update_execute_and_expect_error	%ERROR%	%OPTIONS%
+quiet;
+echo [Assert Update operation returns an error, executed with %OPTIONS%];
+Mysqlx.Crud.Update {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+
+  operation {
+    operation: ITEM_SET
+    source{
+      document_path {
+        type: MEMBER
+        value: "group2"
+      }
+    }
+    value {
+      type: OPERATOR
+      operator {
+        name: "sign_minus"
+        param {
+          type: IDENT
+          identifier {
+            document_path{
+              type: MEMBER
+              value: "group2"
+            }
+          }
+        }
+      }
+    }
+  }
+  %OPTIONS%
+  %VAR_ARGS%
+}
+expecterror %ERROR%;
+recvresult be-quiet;
+quiet;
+-->endmacro
+
+
+-->macro_varg Find_execute_and_expect	%EXPECT_ROWS%	%OPTIONS%
+echo [Assert Find operation and expect %EXPECT_ROWS% rows returned, executed with %OPTIONS%];
+clear_received;
+quiet;
+Mysqlx.Crud.Find {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+  %OPTIONS%
+  %VAR_ARGS%
+}
+recvresult be-quiet;
+received Mysqlx.Resultset.Row	%RESULTSET_ROWS%;
+assert_eq %EXPECT_ROWS%	%RESULTSET_ROWS%;
+noquiet;
+-->endmacro
+
+
+-->macro_varg Delete_execute_and_expect	%EXPECT_ROWS%	%OPTIONS%
+echo [Assert Delete operation and expect deletion of %EXPECT_ROWS% rows, executed with %OPTIONS%];
+quiet;
+clear_received;
+Mysqlx.Crud.Delete {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+
+  %OPTIONS%
+  %VAR_ARGS%
+}
+recvresult be-quiet;
+assert_eq %EXPECT_ROWS%	%RESULT_ROWS_AFFECTED%;
+noquiet;
+-->endmacro
+
+
+-->macro_varg Update_execute_and_expect	%EXPECT_ROWS%	%OPTIONS%
+quiet;
+echo [Assert Update operation and expect rows modified %EXPECT_ROWS%, executed with %OPTIONS%];
+clear_received;
+Mysqlx.Crud.Update {
+  collection { name: "coll" }
+  data_model: DOCUMENT
+
+  operation {
+    operation: ITEM_SET
+    source{
+      document_path {
+        type: MEMBER
+        value: "group2"
+      }
+    }
+    value {
+      type: OPERATOR
+      operator {
+        name: "sign_minus"
+        param {
+          type: IDENT
+          identifier {
+            document_path{
+              type: MEMBER
+              value: "group2"
+            }
+          }
+        }
+      }
+    }
+  }
+  %OPTIONS%
+  %VAR_ARGS%
+}
+recvresult be-quiet;
+assert_eq %EXPECT_ROWS%	%RESULT_ROWS_AFFECTED%;
+quiet;
+-->endmacro
+

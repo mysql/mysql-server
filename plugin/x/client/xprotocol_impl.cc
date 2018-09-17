@@ -203,6 +203,27 @@ std::unique_ptr<XQuery_result> Protocol_impl::execute_delete(
   return execute(m, out_error);
 }
 
+std::unique_ptr<XQuery_result> Protocol_impl::execute_prep_stmt(
+    const Mysqlx::Prepare::Execute &m, XError *out_error) {
+  return execute(m, out_error);
+}
+
+std::unique_ptr<XQuery_result> Protocol_impl::execute_cursor_open(
+    const Mysqlx::Cursor::Open &m, XError *out_error) {
+  return execute(m, out_error);
+}
+
+std::unique_ptr<XQuery_result> Protocol_impl::execute_cursor_fetch(
+    const Mysqlx::Cursor::Fetch &m,
+    std::unique_ptr<XQuery_result> cursor_open_result, XError *out_error) {
+  *out_error = send(m);
+  if (*out_error) return {};
+  auto metadata = cursor_open_result->get_metadata();
+  auto result = recv_resultset();
+  if (result) result->set_metadata(metadata);
+  return result;
+}
+
 XError Protocol_impl::authenticate_mysql41(const std::string &user,
                                            const std::string &pass,
                                            const std::string &db) {
@@ -610,6 +631,9 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
     case Mysqlx::ServerMessages::RESULTSET_ROW:
       ret_val.reset(new Mysqlx::Resultset::Row());
       break;
+    case Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED:
+      ret_val.reset(new Mysqlx::Resultset::FetchSuspended());
+      break;
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE:
       ret_val.reset(new Mysqlx::Resultset::FetchDone());
       break;
@@ -618,8 +642,6 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
       break;
     case Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK:
       ret_val.reset(new Mysqlx::Sql::StmtExecuteOk());
-      break;
-    case Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED:
       break;
     case Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS:
       ret_val.reset(new Mysqlx::Resultset::FetchDoneMoreOutParams());
@@ -641,6 +663,7 @@ std::unique_ptr<XProtocol::Message> Protocol_impl::deserialize_received_message(
 
   if (!ret_val->IsInitialized()) {
     std::string err(ERR_MSG_MESSAGE_NOT_INITIALIZED);
+    err += "Name:" + ret_val->GetTypeName() + ", ";
     err += ret_val->InitializationErrorString();
     *out_error = XError(CR_MALFORMED_PACKET, err);
 

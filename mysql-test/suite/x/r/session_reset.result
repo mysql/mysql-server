@@ -38,3 +38,48 @@ Mysqlx.Error {
 }
 
 ok
+send Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: STMT
+    stmt_execute {
+      stmt: "select 2"
+    }
+  }
+}
+
+RUN recvok
+send Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+
+2
+command ok
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 1]
+send Mysqlx.Session.Reset {
+}
+
+RUN recvok
+Login OK
+RUN SHOW STATUS LIKE 'Prepared_stmt_count';
+Verify [Status variable "Prepared_stmt_count" needs to have a value of 0]
+send Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+
+Got expected error: Statement with ID=2 was not prepared (code 5110)
+send Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+
+Got expected error: Cursor with ID=3 was not opened. (code 5111)
+Mysqlx.Ok {
+  msg: "bye!"
+}

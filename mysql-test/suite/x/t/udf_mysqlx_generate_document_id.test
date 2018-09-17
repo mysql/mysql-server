@@ -1,0 +1,200 @@
+## Test of user defined function mysqlx_generate_document_id
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/udf_mysqlx_generate_document_id.xpl
+
+-->stmtsql SELECT mysqlx_generate_document_id() FROM xtest.util;
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(16) FROM xtest.util;
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(16, 8) FROM xtest.util;
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(16, 8, 0) FROM xtest.util;
+-->recvresult
+
+-->stmtsql SELECT mysqlx_generate_document_id(16, 8, 1) FROM xtest.util;
+-->recvresult
+
+-->sql
+set auto_increment_offset = 16;
+set auto_increment_increment = 8;
+-->endsql
+
+-->stmtsql SELECT mysqlx_generate_document_id(@@auto_increment_offset, @@auto_increment_increment) FROM xtest.util;
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id();
+-->recvresult
+
+-->stmtsql CALL mysqlx_generate_document_id();
+-->expecterror ER_NO_DB_ERROR
+-->recvresult
+
+-->stmtsql USE xtest;
+-->recvresult
+
+-->stmtsql CALL mysqlx_generate_document_id();
+-->expecterror ER_SP_DOES_NOT_EXIST
+-->recvresult
+
+
+-->stmtsql DO mysqlx_generate_document_id('abc');
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(123.45);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 'abc');
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 123.45);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, 'abc');
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, 123.45);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, 1, 1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO mysqlx_generate_document_id(1, 1, 1, 1, 1);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->sql
+DELIMITER ||;
+CREATE PROCEDURE my_procedure(IN offset INT, IN increment INT)
+BEGIN
+  SELECT mysqlx_generate_document_id(offset, increment) AS document_id;
+END ||
+DELIMITER ;||
+
+CALL my_procedure(16, 8);
+-->endsql
+EOF
+
+
+--let DOC_ID_TIME_MASK= /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
+
+CREATE SCHEMA xtest;
+USE xtest;
+CREATE TABLE util(f INT);
+
+INSERT INTO util(f) VALUES(1),(2),(3),(4),(5);
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id() FROM util;
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(16) FROM util;
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(16, 8) FROM util;
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(16, 8, 0) FROM util;
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(16, 8, 1) FROM util;
+
+set auto_increment_offset = 16;
+set auto_increment_increment = 8;
+
+--replace_regex $DOC_ID_TIME_MASK
+SELECT mysqlx_generate_document_id(@@auto_increment_offset, @@auto_increment_increment) FROM util;
+
+DO mysqlx_generate_document_id();
+
+--error 1305
+CALL mysqlx_generate_document_id();
+
+--error 1123
+DO mysqlx_generate_document_id('abc');
+
+--error 1123
+DO mysqlx_generate_document_id(NULL);
+
+--error 1123
+DO mysqlx_generate_document_id(123.45);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 'abc');
+
+--error 1123
+DO mysqlx_generate_document_id(1, NULL);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 123.45);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, 'abc');
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, NULL);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, 123.45);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, 1, 1);
+
+--error 1123
+DO mysqlx_generate_document_id(1, 1, 1, 1, 1);
+
+
+DELIMITER ||;
+CREATE PROCEDURE my_procedure(IN offset INT, IN increment INT)
+BEGIN
+  SELECT mysqlx_generate_document_id(offset, increment) AS document_id;
+END ||
+DELIMITER ;||
+
+--replace_regex $DOC_ID_TIME_MASK
+CALL my_procedure(16, 8);
+
+
+--replace_regex $DOC_ID_TIME_MASK
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/udf_mysqlx_generate_document_id.xpl 2>&1;
+
+SET @doc = '{"a":1}';
+SELECT JSON_INSERT(@doc, '$.a', CONVERT(mysqlx_generate_document_id(1,1,JSON_CONTAINS_PATH(@doc, 'one', '$.a')) USING utf8mb4)) as doc;
+--replace_regex $DOC_ID_TIME_MASK
+SELECT JSON_INSERT(@doc, '$.b', CONVERT(mysqlx_generate_document_id(1,1,JSON_CONTAINS_PATH(@doc, 'one', '$.b')) USING utf8mb4)) as doc;
+
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
+DROP SCHEMA xtest;
+set auto_increment_increment = DEFAULT;
+set auto_increment_offset = DEFAULT;

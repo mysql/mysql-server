@@ -202,44 +202,45 @@ TEST(xpl_expr_generator, column_identifier) {
   Document_path doc_path{"docpath \"'"};
 
   EXPECT_EQ("`column ``\"'`",
-            generate_expression(ColumnIdentifier("column `\"'"), EMPTY_SCHEMA,
+            generate_expression(Column_identifier("column `\"'"), EMPTY_SCHEMA,
                                 DM_TABLE));
   EXPECT_EQ("`table ``\"'`.`column ``\"'`",
-            generate_expression(ColumnIdentifier("column `\"'", "table `\"'"),
+            generate_expression(Column_identifier("column `\"'", "table `\"'"),
                                 EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("`schema ``\"'`.`table ``\"'`.`column ``\"'`",
             generate_expression(
-                ColumnIdentifier("column `\"'", "table `\"'", "schema `\"'"),
+                Column_identifier("column `\"'", "table `\"'", "schema `\"'"),
                 EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_EQ("JSON_EXTRACT(doc,'$.\\\"docpath \\\\\\\"\\'\\\"')",
-            generate_expression(ColumnIdentifier(doc_path, EMPTY, EMPTY, EMPTY),
-                                EMPTY_SCHEMA, DM_TABLE));
+  EXPECT_EQ(
+      "JSON_EXTRACT(doc,'$.\\\"docpath \\\\\\\"\\'\\\"')",
+      generate_expression(Column_identifier(doc_path, EMPTY, EMPTY, EMPTY),
+                          EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ("JSON_EXTRACT(`\"'`` column`,'$.\\\"docpath \\\\\\\"\\'\\\"')",
             generate_expression(
-                ColumnIdentifier(doc_path, "\"'` column", EMPTY, EMPTY),
+                Column_identifier(doc_path, "\"'` column", EMPTY, EMPTY),
                 EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
       "JSON_EXTRACT(`\"'`` table`.`\"'`` column`,'$.\\\"docpath "
       "\\\\\\\"\\'\\\"')",
       generate_expression(
-          ColumnIdentifier(doc_path, "\"'` column", "\"'` table", EMPTY),
+          Column_identifier(doc_path, "\"'` column", "\"'` table", EMPTY),
           EMPTY_SCHEMA, DM_TABLE));
   EXPECT_EQ(
       "JSON_EXTRACT(`\"'`` schema`.`\"'`` table`."
       "`\"'`` column`,'$.\\\"docpath \\\\\\\"\\'\\\"')",
-      generate_expression(ColumnIdentifier(doc_path, "\"'` column",
-                                           "\"'` table", "\"'` schema"),
+      generate_expression(Column_identifier(doc_path, "\"'` column",
+                                            "\"'` table", "\"'` schema"),
                           EMPTY_SCHEMA, DM_TABLE));
-  EXPECT_THROW(generate_expression(ColumnIdentifier(EMPTY, "table"),
+  EXPECT_THROW(generate_expression(Column_identifier(EMPTY, "table"),
                                    EMPTY_SCHEMA, DM_TABLE),
                std::invalid_argument);
-  EXPECT_THROW(generate_expression(ColumnIdentifier("column", EMPTY, "schema"),
+  EXPECT_THROW(generate_expression(Column_identifier("column", EMPTY, "schema"),
                                    EMPTY_SCHEMA, DM_TABLE),
                std::invalid_argument);
 }
 
 TEST(xpl_expr_generator, column_identifier_doc_id) {
-  ColumnIdentifier ident(Document_path{"_id"});
+  Column_identifier ident(Document_path{"_id"});
   ASSERT_EQ("JSON_EXTRACT(doc,'$._id')",
             generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
   ASSERT_EQ("JSON_EXTRACT(doc,'$._id')",
@@ -247,7 +248,7 @@ TEST(xpl_expr_generator, column_identifier_doc_id) {
 }
 
 TEST(xpl_expr_generator, column_identifier_doc_id_names) {
-  ColumnIdentifier ident(Document_path{"_id"}, "field", "table", "schema");
+  Column_identifier ident(Document_path{"_id"}, "field", "table", "schema");
   ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')",
             generate_expression(ident, EMPTY_SCHEMA, DM_TABLE));
   ASSERT_EQ("JSON_EXTRACT(`schema`.`table`.`field`,'$._id')",
@@ -255,14 +256,14 @@ TEST(xpl_expr_generator, column_identifier_doc_id_names) {
 }
 
 TEST(xpl_expr_generator, column_identifier_no_column) {
-  ColumnIdentifier ident(EMPTY, "table");
+  Column_identifier ident(EMPTY, "table");
   ASSERT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_DOCUMENT),
                Expression_generator::Error);
 
   ASSERT_THROW(generate_expression(ident, EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 
-  ColumnIdentifier ident2(Document_path{"member"}, EMPTY, "table", EMPTY);
+  Column_identifier ident2(Document_path{"member"}, EMPTY, "table", EMPTY);
   ASSERT_EQ("JSON_EXTRACT(`table`.doc,'$.member')",
             generate_expression(ident2, EMPTY_SCHEMA, DM_DOCUMENT));
 }
@@ -400,7 +401,7 @@ TEST(xpl_expr_generator, like_expression) {
 TEST(xpl_expr_generator, complex_expressions) {
   EXPECT_EQ("(`schema`.`ident``` NOT LIKE 'string\\'' ESCAPE 'x')",
             generate_expression(
-                Expr(Operator("not_like", ColumnIdentifier("ident`", "schema"),
+                Expr(Operator("not_like", Column_identifier("ident`", "schema"),
                               "string'", "x")),
                 EMPTY_SCHEMA, DM_TABLE));
 
@@ -412,7 +413,7 @@ TEST(xpl_expr_generator, complex_expressions) {
   EXPECT_EQ("(`schema`.func(5,FALSE) IN (1,(+2),(-(7 - 0))))",
             generate_expression(
                 Expr(Operator(
-                    "in", FunctionCall(Identifier("func", "schema"), 5, false),
+                    "in", Function_call(Identifier("func", "schema"), 5, false),
                     1, Operator("sign_plus", 2),
                     Operator("sign_minus", Operator("-", 7, 0)))),
                 EMPTY_SCHEMA, DM_TABLE));
@@ -506,49 +507,49 @@ TEST(xpl_expr_generator, document_path_root_double_asterisk) {
 }
 
 TEST(xpl_expr_generator, placeholder_not_found) {
-  EXPECT_THROW(generate_expression(Expr(Placeholder{10}), Expression_args(),
+  EXPECT_THROW(generate_expression(Expr(Placeholder{10}), Expression_list(),
                                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, placeholder_found) {
-  EXPECT_EQ("2", generate_expression(Expr(Placeholder{0}), Expression_args{2},
+  EXPECT_EQ("2", generate_expression(Expr(Placeholder{0}), Expression_list{2},
                                      EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, placeholder_opearator_one_arg) {
   EXPECT_EQ("(1 + 2)",
             generate_expression(Operator("+", 1, Placeholder{0}),
-                                Expression_args{2}, EMPTY_SCHEMA, DM_TABLE));
+                                Expression_list{2}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, placeholder_opearator_two_args) {
   EXPECT_EQ("(1 + 2)",
             generate_expression(Operator("+", Placeholder{1}, Placeholder{0}),
-                                Expression_args{2, 1}, EMPTY_SCHEMA, DM_TABLE));
+                                Expression_list{2, 1}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, placeholder_function) {
   EXPECT_EQ(
       "xschema.bar(42,'foo')",
-      generate_expression(FunctionCall("bar", Placeholder{0}, Placeholder{1}),
-                          Expression_args{42, "foo"}, "xschema", true));
+      generate_expression(Function_call("bar", Placeholder{0}, Placeholder{1}),
+                          Expression_list{42, "foo"}, "xschema", true));
 }
 
 TEST(xpl_expr_generator, placeholder_function_and_operator) {
   EXPECT_EQ(
       "(xschema.bar(42,'foo') > 42)",
       generate_expression(
-          Operator(">", FunctionCall("bar", Placeholder{0}, Placeholder{1}),
+          Operator(">", Function_call("bar", Placeholder{0}, Placeholder{1}),
                    Placeholder{0}),
-          Expression_args{42, "foo"}, "xschema", true));
+          Expression_list{42, "foo"}, "xschema", true));
 }
 
 TEST(xpl_expr_generator, placeholder_operator_null) {
   EXPECT_EQ("(`bar` IS NOT NULL)",
             generate_expression(
-                Operator("is_not", ColumnIdentifier("bar"), Placeholder{0}),
-                Expression_args{Scalar::Null()}, EMPTY_SCHEMA, DM_TABLE));
+                Operator("is_not", Column_identifier("bar"), Placeholder{0}),
+                Expression_list{Scalar::Null()}, EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, cast_missing_param) {
@@ -578,7 +579,7 @@ TEST(xpl_expr_generator, cast_scalar_to_undefinied) {
 TEST(xpl_expr_generator, cast_expr_to_json) {
   EXPECT_EQ("CAST(`foo`.`bar` AS JSON)",
             generate_expression(
-                Operator("cast", ColumnIdentifier("bar", "foo"), "JSON"),
+                Operator("cast", Column_identifier("bar", "foo"), "JSON"),
                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -718,7 +719,7 @@ TEST(xpl_expr_generator, object_operator) {
 
 TEST(xpl_expr_generator, object_function) {
   EXPECT_EQ("JSON_OBJECT('result',foo('bar'))",
-            generate_expression(Object{{"result", FunctionCall("foo", "bar")}},
+            generate_expression(Object{{"result", Function_call("foo", "bar")}},
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -730,7 +731,7 @@ TEST(xpl_expr_generator, object_array) {
 
 TEST(xpl_expr_generator, object_in_function) {
   EXPECT_EQ("foo(JSON_OBJECT('first',1))",
-            generate_expression(FunctionCall("foo", Object{{"first", 1}}),
+            generate_expression(Function_call("foo", Object{{"first", 1}}),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -741,9 +742,9 @@ TEST(xpl_expr_generator, object_real_example) {
       "JSON_UNQUOTE(JSON_EXTRACT(doc,'$.last_name'))),'number',(1 + 1))",
       generate_expression(
           Object{{"name",
-                  FunctionCall(
-                      "concat", ColumnIdentifier(Document_path{"first_name"}),
-                      " ", ColumnIdentifier(Document_path{"last_name"}))},
+                  Function_call(
+                      "concat", Column_identifier(Document_path{"first_name"}),
+                      " ", Column_identifier(Document_path{"last_name"}))},
                  {"number", Operator("+", 1, 1)}},
           EMPTY_SCHEMA, DM_TABLE));
 }
@@ -788,13 +789,13 @@ TEST(xpl_expr_generator, array_operator) {
 
 TEST(xpl_expr_generator, array_function) {
   EXPECT_EQ("JSON_ARRAY(foo('bar'),'two')",
-            generate_expression(Array{FunctionCall("foo", "bar"), "two"},
+            generate_expression(Array{Function_call("foo", "bar"), "two"},
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
 TEST(xpl_expr_generator, array_in_function) {
   EXPECT_EQ("fun(JSON_ARRAY('foo','bar'))",
-            generate_expression(FunctionCall("fun", Array{"foo", "bar"}),
+            generate_expression(Function_call("fun", Array{"foo", "bar"}),
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
@@ -1006,7 +1007,7 @@ TEST(xpl_expr_generator, cont_in_expression_operators) {
 }
 
 TEST(xpl_expr_generator, cont_in_expression_functions) {
-  FunctionCall concat("concat", "foo", "bar");
+  Function_call concat("concat", "foo", "bar");
   EXPECT_THROW(generate_expression(Operator("cont_in", concat, concat),
                                    EMPTY_SCHEMA, DM_TABLE),
                Expression_generator::Error);
@@ -1014,17 +1015,18 @@ TEST(xpl_expr_generator, cont_in_expression_functions) {
       "JSON_CONTAINS(json_quote(concat('foo','bar')),"
       "json_quote(concat('foo','bar')))",
       generate_expression(
-          Operator("cont_in", FunctionCall("json_quote", concat),
-                   FunctionCall("json_quote", concat)),
+          Operator("cont_in", Function_call("json_quote", concat),
+                   Function_call("json_quote", concat)),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
-  EXPECT_THROW(generate_expression(Operator("cont_in", concat,
-                                            FunctionCall("json_quote", concat)),
-                                   EMPTY_SCHEMA, DM_TABLE),
-               Expression_generator::Error);
   EXPECT_THROW(
       generate_expression(
-          Operator("cont_in", FunctionCall("json_quote", concat), concat),
+          Operator("cont_in", concat, Function_call("json_quote", concat)),
+          EMPTY_SCHEMA, DM_TABLE),
+      Expression_generator::Error);
+  EXPECT_THROW(
+      generate_expression(
+          Operator("cont_in", Function_call("json_quote", concat), concat),
           EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
 }
@@ -1033,19 +1035,19 @@ TEST(xpl_expr_generator, cont_in_expression_placeholders) {
   EXPECT_STREQ(
       "JSON_CONTAINS(CAST(2 AS JSON),CAST(1 AS JSON))",
       generate_expression(Operator("cont_in", Placeholder(0), Placeholder(1)),
-                          Expression_args({1, 2}), EMPTY_SCHEMA, DM_TABLE)
+                          Expression_list({1, 2}), EMPTY_SCHEMA, DM_TABLE)
           .c_str());
   EXPECT_STREQ("JSON_CONTAINS(JSON_QUOTE('bar'),JSON_QUOTE('foo'))",
                generate_expression(
                    Operator("cont_in", Placeholder(0), Placeholder(1)),
-                   Expression_args({"foo", "bar"}), EMPTY_SCHEMA, DM_TABLE)
+                   Expression_list({"foo", "bar"}), EMPTY_SCHEMA, DM_TABLE)
                    .c_str());
   EXPECT_STREQ(
       "JSON_CONTAINS(CAST('{\\\"white\\\":2}' AS JSON),"
       "CAST('{\\\"black\\\":1}' AS JSON))",
       generate_expression(
           Operator("cont_in", Placeholder(0), Placeholder(1)),
-          Expression_args(
+          Expression_list(
               {Scalar::Octets("{\"black\":1}", Expression_generator::CT_JSON),
                Scalar::Octets("{\"white\":2}", Expression_generator::CT_JSON)}),
           EMPTY_SCHEMA, DM_TABLE)
@@ -1060,11 +1062,12 @@ TEST(xpl_expr_generator, cont_in_expression_identifier) {
   EXPECT_STREQ(
       "JSON_CONTAINS(CAST(42 AS JSON),"
       "JSON_EXTRACT(`schema`.`table`.`field`,'$.member'))",
-      generate_expression(Operator("cont_in",
-                                   ColumnIdentifier(Document_path{"member"},
-                                                    "field", "table", "schema"),
-                                   42),
-                          EMPTY_SCHEMA, DM_TABLE)
+      generate_expression(
+          Operator("cont_in",
+                   Column_identifier(Document_path{"member"}, "field", "table",
+                                     "schema"),
+                   42),
+          EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 
   EXPECT_STREQ(
@@ -1072,16 +1075,16 @@ TEST(xpl_expr_generator, cont_in_expression_identifier) {
       "CAST(42 AS JSON))",
       generate_expression(
           Operator("cont_in", 42,
-                   ColumnIdentifier(Document_path{"member"}, "field", "table",
-                                    "schema")),
+                   Column_identifier(Document_path{"member"}, "field", "table",
+                                     "schema")),
           EMPTY_SCHEMA, DM_TABLE)
           .c_str());
 
-  EXPECT_THROW(
-      generate_expression(
-          Operator("cont_in", 42, ColumnIdentifier("field", "table", "schema")),
-          EMPTY_SCHEMA, DM_TABLE),
-      Expression_generator::Error);
+  EXPECT_THROW(generate_expression(
+                   Operator("cont_in", 42,
+                            Column_identifier("field", "table", "schema")),
+                   EMPTY_SCHEMA, DM_TABLE),
+               Expression_generator::Error);
 }
 
 TEST(xpl_expr_generator, any_scalar) {
@@ -1103,7 +1106,7 @@ TEST(xpl_expr_generator, any_array) {
 
 struct Param_function_call {
   std::string expect;
-  FunctionCall func;
+  Function_call func;
   std::string schema;
 };
 
@@ -1117,40 +1120,89 @@ TEST_P(Function_call_test, function_call) {
 }
 
 Param_function_call function_call_param[] = {
-    {"func()", FunctionCall("func"), EMPTY_SCHEMA},
-    {"schema.func()", FunctionCall("func"), "schema"},
-    {"schema.func(FALSE,5)", FunctionCall("func", false, 5), "schema"},
-    {"concat(FALSE,5)", FunctionCall("concat", false, 5), "schema"},
-    {"CONCAT(FALSE,5)", FunctionCall("CONCAT", false, 5), "schema"},
-    {"CONCAT(FALSE,5)", FunctionCall("CONCAT", false, 5), EMPTY_SCHEMA},
-    {"ASCII('string')", FunctionCall("ASCII", "string"), EMPTY_SCHEMA},
-    {"ASCII(`column`)", FunctionCall("ASCII", ColumnIdentifier("column")),
+    {"func()", Function_call("func"), EMPTY_SCHEMA},
+    {"schema.func()", Function_call("func"), "schema"},
+    {"schema.func(FALSE,5)", Function_call("func", false, 5), "schema"},
+    {"concat(FALSE,5)", Function_call("concat", false, 5), "schema"},
+    {"CONCAT(FALSE,5)", Function_call("CONCAT", false, 5), "schema"},
+    {"CONCAT(FALSE,5)", Function_call("CONCAT", false, 5), EMPTY_SCHEMA},
+    {"ASCII('string')", Function_call("ASCII", "string"), EMPTY_SCHEMA},
+    {"ASCII(`column`)", Function_call("ASCII", Column_identifier("column")),
      EMPTY_SCHEMA},
     {"ASCII(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
-     FunctionCall("ASCII", ColumnIdentifier(Document_path{"path"})),
+     Function_call("ASCII", Column_identifier(Document_path{"path"})),
      EMPTY_SCHEMA},
-    {"ABS(42)", FunctionCall("ABS", 42), EMPTY_SCHEMA},
-    {"ABS(`column`)", FunctionCall("ABS", ColumnIdentifier("column")),
+    {"ABS(42)", Function_call("ABS", 42), EMPTY_SCHEMA},
+    {"ABS(`column`)", Function_call("ABS", Column_identifier("column")),
      EMPTY_SCHEMA},
     {"ABS(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
-     FunctionCall("ABS", ColumnIdentifier(Document_path{"path"})),
+     Function_call("ABS", Column_identifier(Document_path{"path"})),
      EMPTY_SCHEMA},
-    {"JSON_TYPE(42)", FunctionCall("JSON_TYPE", 42), EMPTY_SCHEMA},
+    {"JSON_TYPE(42)", Function_call("JSON_TYPE", 42), EMPTY_SCHEMA},
     {"JSON_TYPE(`column`)",
-     FunctionCall("JSON_TYPE", ColumnIdentifier("column")), EMPTY_SCHEMA},
+     Function_call("JSON_TYPE", Column_identifier("column")), EMPTY_SCHEMA},
     {"JSON_TYPE(JSON_EXTRACT(doc,'$.path'))",
-     FunctionCall("JSON_TYPE", ColumnIdentifier(Document_path{"path"})),
+     Function_call("JSON_TYPE", Column_identifier(Document_path{"path"})),
      EMPTY_SCHEMA},
-    {"JSON_KEYS('{\\\"a\\\":42}')", FunctionCall("JSON_KEYS", "{\"a\":42}"),
+    {"JSON_KEYS('{\\\"a\\\":42}')", Function_call("JSON_KEYS", "{\"a\":42}"),
      EMPTY_SCHEMA},
     {"JSON_KEYS(`column`)",
-     FunctionCall("JSON_KEYS", ColumnIdentifier("column")), EMPTY_SCHEMA},
+     Function_call("JSON_KEYS", Column_identifier("column")), EMPTY_SCHEMA},
     {"JSON_KEYS(JSON_EXTRACT(doc,'$.path'))",
-     FunctionCall("JSON_KEYS", ColumnIdentifier(Document_path{"path"})),
+     Function_call("JSON_KEYS", Column_identifier(Document_path{"path"})),
      EMPTY_SCHEMA}};
 
 INSTANTIATE_TEST_CASE_P(xpl_expr_generator_function_call, Function_call_test,
                         testing::ValuesIn(function_call_param));
+
+struct Param_placeholders {
+  std::string expect;
+  Expression_generator::Placeholder_id_list expect_ids;
+  Expression_list args;
+  Array expr;
+};
+
+class Placeholders_test : public testing::TestWithParam<Param_placeholders> {};
+
+TEST_P(Placeholders_test, placeholders) {
+  const Param_placeholders &param = GetParam();
+  Query_string_builder qb;
+  Expression_generator gen(&qb, param.args, EMPTY_SCHEMA, DM_TABLE);
+  Expression_generator::Placeholder_id_list ids;
+  gen.set_placeholder_id_list(&ids);
+  gen.feed(param.expr);
+
+  EXPECT_STREQ(param.expect.c_str(), qb.get().c_str());
+  EXPECT_EQ(param.expect_ids, ids);
+}
+
+#define PH Placeholder
+
+Param_placeholders placeholders_param[] = {
+    {"JSON_ARRAY(?)", {0}, {}, {PH{0}}},
+    {"JSON_ARRAY('a')", {}, {"a"}, {PH{0}}},
+    {"JSON_ARRAY(?)", {0}, {"a"}, {PH{1}}},
+    {"JSON_ARRAY(?,?)", {0, 0}, {}, {PH{0}, PH{0}}},
+    {"JSON_ARRAY(?,?)", {1, 0}, {}, {PH{1}, PH{0}}},
+    {"JSON_ARRAY('a',?)", {0}, {"a"}, {PH{0}, PH{1}}},
+    {"JSON_ARRAY(?,'a')", {0}, {"a"}, {PH{1}, PH{0}}},
+    {"JSON_ARRAY('a','b')", {}, {"a", "b"}, {PH{0}, PH{1}}},
+    {"JSON_ARRAY('a','b','a')", {}, {"a", "b"}, {PH{0}, PH{1}, PH{0}}},
+    {"JSON_ARRAY('a','b',?)", {0}, {"a", "b"}, {PH{0}, PH{1}, PH{2}}},
+    {"JSON_ARRAY('a',?,'b')", {0}, {"a", "b"}, {PH{0}, PH{2}, PH{1}}},
+    {"JSON_ARRAY(?,'a','b')", {0}, {"a", "b"}, {PH{2}, PH{0}, PH{1}}},
+    {"JSON_ARRAY(?,'a',?,'b',?)",
+     {0, 0, 0},
+     {"a", "b"},
+     {PH{2}, PH{0}, PH{2}, PH{1}, PH{2}}},
+    {"JSON_ARRAY(?,'a',?,'b',?)",
+     {0, 1, 0},
+     {"a", "b"},
+     {PH{2}, PH{0}, PH{3}, PH{1}, PH{2}}},
+};
+
+INSTANTIATE_TEST_CASE_P(xpl_expr_generator_placeholders, Placeholders_test,
+                        testing::ValuesIn(placeholders_param));
 
 }  // namespace test
 }  // namespace xpl

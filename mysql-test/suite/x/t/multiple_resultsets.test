@@ -1,0 +1,136 @@
+## Test of multi-resultsets and procedures output-parameters (part of WL9270).
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+##
+## Purpose of this test is:
+#
+# * validating out-params are transfered only in case of statements
+#   prepared with Mysqlx.Prepare.Prepare
+# * validate that out-variables are set in case SQL prepare and SQL execution
+#
+# The out-param behavior depends on method(way) how the SP was executed:
+#
+# |Method           |Sets out-params to user variables  |Transfers out-params through X Protocol |
+# |-----------------|-----------------------------------|----------------------------------------|
+# |Direct SQL call  |yes                                |no                                      |
+# |SQL prepare call |yes                                |no                                      |
+# |MySQLX prep call |no                                 |yes                                     |
+#
+# Please consider that macro 'Test_assert_user_variable' in some test executions is going to
+# ignore second parameter and use in its place '-1'.
+#
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.xpl
+
+import assert_variable.macro;
+import %IMPORT_FILE%;
+
+callmacro Test_prepare_and_execute_proc_arg0	`empty`();
+callmacro Test_prepare_and_execute_proc_arg0	one_results_set();
+callmacro Test_prepare_and_execute_proc_arg0	three_results_sets();
+
+callmacro Test_reset_variables;
+callmacro Test_prepare_and_execute_proc_arg1	out_param_no_select(@in_val,?)	@res;
+callmacro Test_assert_user_variable	res	10;
+
+callmacro Test_prepare_and_execute_proc_arg2	out_params_with_select(?,?)	@min_val	@max_val;
+callmacro Test_assert_user_variable	min_val	1979-11-24 00:00:00;
+callmacro Test_assert_user_variable	max_val	2013-06-15 00:00:00;
+
+callmacro Test_prepare_and_execute_proc_arg0	update_no_select();
+callmacro Test_prepare_and_execute_proc_arg0	update_and_select();
+callmacro Test_prepare_and_execute_proc_arg1	update_and_out_param(?)	@max_val;
+callmacro Test_assert_user_variable	max_val	6;
+callmacro Test_prepare_and_execute_proc_arg1	update_and_out_param_and_select(?)	@max_val;
+callmacro Test_assert_user_variable	max_val	12;
+
+callmacro Test_prepare_and_execute_proc_arg0	insert_no_select();
+callmacro Test_prepare_and_execute_proc_arg0	insert_and_select();
+callmacro Test_prepare_and_execute_proc_arg1	insert_and_out_param(?)	@max_val;
+callmacro Test_assert_user_variable	max_val	9999;
+callmacro Test_prepare_and_execute_proc_arg1	insert_and_out_param_and_select(?)	@max_val;
+callmacro Test_assert_user_variable	max_val	19999;
+
+callmacro Test_prepare_and_execute_proc_arg0	error()	-->expecterror ER_NO_SUCH_TABLE;
+callmacro Test_prepare_and_execute_proc_arg0	select_and_error()	-->expecterror ER_NO_SUCH_TABLE;
+
+callmacro Test_reset_variables;
+callmacro Test_prepare_and_execute_proc_arg1	out_param_and_error(?)	@min_val	-->expecterror ER_NO_SUCH_TABLE;
+callmacro Test_assert_user_variable	min_val	-1;
+
+callmacro Test_prepare_and_execute_proc_arg1	select_out_param_and_error(?)	@min_val	-->expecterror ER_NO_SUCH_TABLE;
+callmacro Test_assert_user_variable	min_val	-1;
+
+callmacro Test_prepare_and_execute_proc_arg0	with_warning()	-->expectwarnings ER_WARN_DATA_OUT_OF_RANGE;
+
+callmacro Test_prepare_and_execute_proc_arg0	select_and_warning()	-->expectwarnings ER_WARN_DATA_OUT_OF_RANGE;
+callmacro Test_prepare_and_execute_proc_arg1	out_param_and_warning(?)	@vavg	-->expectwarnings ER_WARN_DATA_OUT_OF_RANGE;
+SELECT @vavg;
+
+callmacro Test_prepare_and_execute_proc_arg0	select_out_param_and_warning(@min_val)	-->expectwarnings WARN_DATA_TRUNCATED;
+callmacro Assert_user_variable	min_val	3;
+
+EOF
+
+SET @@sql_mode = "";
+--let $STORED_PROC_DB_NAME=xtest
+
+--echo
+--echo
+--echo ## I. Validate direct SP calls that generate multiple-results and uses out-params
+--echo #
+--echo # 1. Assert that result-file doesn't contain out-params inside the resultsets.
+--echo # 2. Assert that out-params set their assigned user variables
+--echo
+--echo ## II. Validate SQL prepared SP calls that generate multiple-results and uses out-params
+--echo #
+--echo # 1. Assert that result-file doesn't contain out-params inside the resultsets.
+--echo # 2. Assert that out-params set their assigned user variables
+--echo
+--echo ## III. Validate Mysqlx prepared SP calls that generate multiple-results and uses out-params
+--echo #
+--echo # 1. Assert that result-file contain out-params inside the resultsets.
+--echo # 2. Assert that out-params don't set their assigned user variables
+--echo
+
+--echo
+--echo #
+--echo # I.
+eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
+--source ../include/stored_procedures.inc
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=$STORED_PROC_DB_NAME
+  -v%IMPORT_FILE%=test_multiple_resultsets_sql.macro
+  --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.xpl 2>&1;
+
+--echo
+--echo #
+--echo # II.
+eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
+source ../include/stored_procedures.inc;
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=$STORED_PROC_DB_NAME
+  -v%IMPORT_FILE%=test_multiple_resultsets_sql_prepare.macro
+  --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.xpl 2>&1;
+
+--echo
+--echo #
+--echo # III.
+eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
+source ../include/stored_procedures.inc;
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --schema=$STORED_PROC_DB_NAME
+  -v%IMPORT_FILE%=test_multiple_resultsets_mysqlx_prepare.macro
+  --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.xpl 2>&1;
+
+## Cleanup
+eval DROP SCHEMA IF EXISTS $STORED_PROC_DB_NAME;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

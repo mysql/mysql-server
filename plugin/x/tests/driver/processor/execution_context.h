@@ -74,6 +74,7 @@ class Execution_context {
   Expected_warnings m_expected_warnings;
   const Console &m_console;
   Macro_container m_macros;
+  std::map<std::string, std::vector<xcl::Column_metadata>> m_stored_metadata;
 
   xcl::XSession *session() { return m_connection->active_xsession(); }
 

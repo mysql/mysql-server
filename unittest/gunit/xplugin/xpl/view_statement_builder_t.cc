@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -49,17 +49,17 @@ class View_statement_builder_test : public ::testing::Test {
     *find.mutable_collection() = Collection("A");
   }
 
-  Expression_generator::Args args;
+  Expression_generator::Arg_list args;
   Query_string_builder query;
   std::string schema;
   Expression_generator expr_gen;
   View_statement_builder_impl builder;
   Find_statement_builder::Find find;
 
-  typedef View_statement_builder_impl::View_drop View_delete;
-  typedef View_statement_builder_impl::View_create View_create;
-  typedef View_statement_builder_impl::View_modify View_modify;
-  typedef RepeatedPtrField<std::string, std::string> Column_list;
+  using View_delete = View_statement_builder_impl::View_drop;
+  using View_create = View_statement_builder_impl::View_create;
+  using View_modify = View_statement_builder_impl::View_modify;
+  using Column_list = Repeated_field_list<std::string, std::string>;
 };
 
 TEST_F(View_statement_builder_test, add_definer_empty) {

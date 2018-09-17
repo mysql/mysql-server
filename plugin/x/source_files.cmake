@@ -92,11 +92,19 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
   "${MYSQLX_PROJECT_DIR}/src/services/service_registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/prepared_statement_builder.h"
+  "${MYSQLX_PROJECT_DIR}/src/prepare_command_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_group_membership_listener.h"
+  "${MYSQLX_PROJECT_DIR}/src/stmt_command_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/services/mysqlx_maintenance.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registry.h"
   "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_generate_document_id.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_get_prepared_statement_id.h"
   "${MYSQLX_PROJECT_DIR}/src/global_timeouts.h"
+  "${MYSQLX_PROJECT_DIR}/src/sql_statement_builder.h"
+  "${MYSQLX_PROJECT_DIR}/src/document_id_aggregator.h"
   ${ngs_HDRS}
 )
 
@@ -161,8 +169,16 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/view_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
+  "${MYSQLX_PROJECT_DIR}/src/prepared_statement_builder.cc"
+  "${MYSQLX_PROJECT_DIR}/src/prepare_command_handler.cc"
+  "${MYSQLX_PROJECT_DIR}/src/stmt_command_handler.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registry.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_generate_document_id.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_get_prepared_statement_id.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
+  "${MYSQLX_PROJECT_DIR}/src/sql_statement_builder.cc"
+  "${MYSQLX_PROJECT_DIR}/src/document_id_aggregator.cc"
   ${ngs_SRC}
 )
 

@@ -92,6 +92,24 @@ Message *Message_decoder::alloc_message(int8 type, Error_code &ret_error,
       case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
         msg = &m_crud_drop_view;
         break;
+      case Mysqlx::ClientMessages::CURSOR_OPEN:
+        msg = &m_cursor_open;
+        break;
+      case Mysqlx::ClientMessages::CURSOR_CLOSE:
+        msg = &m_cursor_close;
+        break;
+      case Mysqlx::ClientMessages::CURSOR_FETCH:
+        msg = &m_cursor_fetch;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_PREPARE:
+        msg = &m_prepare_prepare;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_EXECUTE:
+        msg = &m_prepare_execute;
+        break;
+      case Mysqlx::ClientMessages::PREPARE_DEALLOCATE:
+        msg = &m_prepare_deallocate;
+        break;
 
       default:
         log_debug("Cannot decode message of unknown type %i", type);

@@ -30,17 +30,27 @@
 
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 namespace ngs {
 
 class Output_buffer;
+struct Encode_column_info;
 
 class Metadata_builder : public Message_builder {
  public:
-  void encode_metadata(Output_buffer *out_buffer,
-                       const Encode_column_info *column_info);
+  Metadata_builder() : Message_builder(false) {}
+
+  void start_metadata_encoding();
+  void encode_metadata(const Encode_column_info *column_info);
+  const std::string &stop_metadata_encoding() const;
+
+ private:
+  void begin_metadata_message(const uint8 type_id);
+  void end_metadata_message();
+  std::string m_metadata;
+  uint32 m_metadata_start = 0;
 };
 
 }  // namespace ngs

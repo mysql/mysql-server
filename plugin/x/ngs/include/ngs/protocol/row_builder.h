@@ -47,7 +47,7 @@ class Row_builder : public Message_builder {
   Row_builder();
   ~Row_builder();
 
-  void start_row(Output_buffer *out_buffer);
+  void start_row(Page_output_stream *out_buffer);
   void abort_row();
   void end_row();
 

@@ -85,7 +85,7 @@ class Callback_command_delegate : public ngs::Command_delegate {
  private:
   Start_row_callback m_start_row;
   End_row_callback m_end_row;
-  Row_data *m_current_row;
+  Row_data *m_current_row = nullptr;
 
  private:
   virtual int start_row();

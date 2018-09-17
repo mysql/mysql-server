@@ -1,0 +1,531 @@
+## Test of general functionality of prepare statement crud insert message
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_insert.xpl
+-->import assert_variable.macro
+-->import assert_select.macro
+-->quiet
+
+-->macro Assert_is_exist	%PATTERN%
+callmacro Assert_select
+	count
+	1
+	SELECT count(*) as count FROM xtest.xcol WHERE doc->>'$.pupil' LIKE %PATTERN%;
+-->endmacro
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"xcol"}
+-->recvresult
+
+-->echo
+-->echo ## 1. Prepare malformed insert stmt (no schema)
+-->echo #   a. Try to execute
+-->echo #   b. Try to deallocate
+-->echo ## 2. Prepare correct insert stmt (no placeholders)
+-->echo #   a. Execute (no params)
+-->echo #   b. Deallocate
+-->echo ## 3. Prepare correct stmt (one placeholder)
+-->echo #   a. Try to execute (no params)
+-->echo #   b. Execute with param
+-->echo #   c. Execute with params (one extra to ignore)
+-->echo #   d. Deallocate
+-->echo ## 4. Prepare correct stmt (two placeholders)
+-->echo #   a. Execute with params
+-->echo #   b. Deallocate
+-->echo ## 5. Prepare correct stmt (two placeholders in expr)
+-->echo #   a. Execute with params
+-->echo #   b. Deallocate
+-->echo ## 6. Prepare correct stmt (placeholder on _id)
+-->echo #   a. Execute with param
+-->echo #   b. Deallocate
+-->echo ## 7. Prepare correct stmt with upsert (placeholder on "type" field)
+-->echo #   a. Execute with param "dog" (insert - "dog")
+-->echo #   b. Execute with param "cat" (update from "dog" to "cat")
+-->echo #   c. Deallocate
+
+
+-->title =Stmt 1: Prepare malformed insert stmt (no schema)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "nonexistent" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: LITERAL literal {
+            type: V_STRING v_string {
+              value: '{"pupil":"Alice", "pet":"cat"}'
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recverror ER_BAD_DB_ERROR
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	1
+
+-->title =Stmt 1.a. Try to execute
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	1
+
+-->title =Stmt 1.b. Try to deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recverror ER_X_BAD_STATEMENT_ID
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	1
+
+
+
+-->title =Stmt 2: Prepare correct insert stmt (no placeholders)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: LITERAL literal {
+            type: V_STRING v_string {
+              value: '{"pupil":"Alice", "pet":"cat"}'
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	2
+
+
+-->title =Stmt 2.a. Execute (no params)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Alice%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	2
+
+-->title =Stmt 2.b.: Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 2
+}
+-->recvok
+
+
+-->title =Stmt 3: Prepare correct stmt (one placeholder)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: PLACEHOLDER position: 0
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	3
+
+
+-->title =Stmt 3.a. Try to execute (no params)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+}
+-->expecterror ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY
+-->recvresult
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	3
+
+
+-->title =Stmt 3.b. Execute with param
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: '{"pupil":"Bob", "pet":"dog"}'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Bob%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	4
+
+
+-->title =Stmt 3.c. Execute with params (one extra to ignore)
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: '{"pupil":"Christina", "pet":"hamster"}'
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: '{"pupil":"Charlie"}'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'Ch%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	5
+
+
+-->title =Stmt 3.d. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 3
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	3
+
+
+
+-->title =Stmt 4: Prepare correct stmt (two placeholders)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: PLACEHOLDER position: 0
+        }
+      }
+      row {
+        field {
+          type: PLACEHOLDER position: 1
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	4
+
+
+-->title =Stmt 4.a. Execute with params
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: '{"pupil":"David", "pet":"parot"}'
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: '{"_id":"abc123", "pupil":"Eva", "pet":"fish"}'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_is_exist	'David%'
+-->callmacro Assert_is_exist	'Eva%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	6
+
+
+-->title =Stmt 4.b. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 4
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	4
+
+
+
+-->title =Stmt 5: Prepare correct stmt (two placeholders in expr)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 5
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: OBJECT object {
+            fld {
+              key: "pupil"
+              value {
+                type: PLACEHOLDER position: 0
+              }
+            }
+            fld {
+              key: "pet"
+              value {
+                type: PLACEHOLDER position: 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	5
+
+
+-->title =Stmt 5.a. Execute with params
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 5
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Felix"
+      }
+    }
+  }
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "lizard"
+      }
+    }
+  }
+}
+-->recvmessage Mysqlx.Notice.Frame {type:3 scope:LOCAL payload:"param: ROWS_AFFECTED value {v_unsigned_int: 1}"}
+-->recvmessage Mysqlx.Notice.Frame {type:3 scope:LOCAL payload:"param: GENERATED_DOCUMENT_IDS"}
+-->recvmessage Mysqlx.Sql.StmtExecuteOk {}
+
+
+-->callmacro Assert_is_exist	'Felix%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	7
+
+
+-->title =Stmt 5.b. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 5
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	5
+
+-->title =Stmt 6: Prepare correct stmt (placeholder on _id)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 6
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: OBJECT object {
+            fld {
+              key: "_id"
+              value {
+                type: PLACEHOLDER position: 0
+              }
+            }
+            fld {
+              key: "pet"
+              value {
+                type: LITERAL literal {type: V_STRING v_string{ value: "dog"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	6
+
+
+-->title =Stmt 6.a. Execute with params
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 6
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Felix"
+      }
+    }
+  }
+}
+-->recvmessage Mysqlx.Notice.Frame {type:3 scope:LOCAL payload:"param: ROWS_AFFECTED value {v_unsigned_int: 1}"}
+-->recvmessage Mysqlx.Sql.StmtExecuteOk {}
+
+
+-->callmacro Assert_is_exist	'Felix%'
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	8
+
+
+-->title =Stmt 6.b. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 6
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	6
+
+-->title =Stmt 7: Prepare correct stmt with upsert (placeholder on "type" field)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 7
+  stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "xcol" schema: "xtest" }
+      data_model: DOCUMENT
+      upsert: true
+      row {
+        field {
+          type: OBJECT object {
+            fld {
+              key: "type"
+              value {
+                type: PLACEHOLDER position: 0
+              }
+            }
+            fld {
+              key: "_id"
+              value {
+                type: LITERAL literal {type: V_STRING v_string{ value: "animal"}}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_prepare	7
+
+
+-->title =Stmt 7.a. Execute with param "dog" (insert - "dog")
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Dog"
+      }
+    }
+  }
+}
+-->recvmessage Mysqlx.Notice.Frame {type:3 scope:LOCAL payload:"param: ROWS_AFFECTED value {v_unsigned_int: 1}"}
+-->recvmessage Mysqlx.Sql.StmtExecuteOk {}
+
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	9
+
+-->title =Stmt 7.b. Execute with param "cat" (update from "dog" to "cat")
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 7
+  args {
+    type: SCALAR scalar {
+      type: V_STRING v_string {
+        value: "Cat"
+      }
+    }
+  }
+}
+-->recvmessage Mysqlx.Notice.Frame {type:3 scope:LOCAL payload:"param: ROWS_AFFECTED value {}"}
+-->recvmessage Mysqlx.Sql.StmtExecuteOk {}
+
+-->callmacro Assert_status_variable	Mysqlx_prep_execute	10
+
+
+-->title =Stmt 7.c. Deallocate
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 7
+}
+-->recvok
+
+-->callmacro Assert_status_variable	Mysqlx_prep_deallocate	7
+
+EOF
+
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+
+
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
+exec $MYSQLXTEST
+  -ux_root --password='' --schema=xtest
+  --file=$MYSQL_TMP_DIR/prep_stmt_insert.xpl 2>&1;
+
+
+
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

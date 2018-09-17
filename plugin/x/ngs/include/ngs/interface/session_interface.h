@@ -26,8 +26,10 @@
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SESSION_INTERFACE_H_
 
 #include <memory>
+#include <string>
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/notice_configuration_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
@@ -52,8 +54,15 @@ class Session_interface {
     Closing
   };
 
+  class Options {
+   public:
+    virtual ~Options() = default;
+    virtual void set(const uint64_t opt, const bool flag) = 0;
+    virtual bool is_set(const uint64_t opt) const = 0;
+  };
+
  public:
-  virtual ~Session_interface() {}
+  virtual ~Session_interface() = default;
 
   virtual Session_id session_id() const = 0;
   virtual Error_code init() = 0;
@@ -69,12 +78,12 @@ class Session_interface {
   // handle a single message, returns true if message was handled false if not
   virtual bool handle_message(Message_request &command) = 0;
 
- public:
   virtual State state() const = 0;
   virtual State state_before_close() const = 0;
 
   virtual Client_interface &client() = 0;
   virtual const Client_interface &client() const = 0;
+  virtual bool can_see_user(const std::string &user) const = 0;
 
   virtual Notice_output_queue_interface &get_notice_output_queue() = 0;
   virtual Notice_configuration_interface &get_notice_configuration() = 0;
@@ -83,6 +92,12 @@ class Session_interface {
   virtual THD *get_thd() const = 0;
   virtual Sql_session_interface &data_context() = 0;
   virtual Protocol_encoder_interface &proto() = 0;
+  virtual bool get_prepared_statement_id(const uint32_t client_stmt_id,
+                                         uint32_t *stmt_id) const = 0;
+  virtual void update_status(
+      Common_status_variables::Variable Common_status_variables::*variable) = 0;
+
+  virtual Document_id_aggregator_interface &get_document_id_aggregator() = 0;
 };
 
 }  // namespace ngs

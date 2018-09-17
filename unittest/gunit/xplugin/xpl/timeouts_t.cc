@@ -69,7 +69,11 @@ class Timers_test_suite : public ::testing::Test {
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   ngs::shared_ptr<xpl::test::Mock_ngs_client> sut;
+  Page_pool m_pool{{1000, 1000, 1000}};
+  Page_output_stream m_page_stream{m_pool};
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
+  Protocol_flusher flusher{&m_page_stream, &mock_protocol_monitor, mock_vio,
+                           [](int) {}};
 };
 
 ACTION_P2(SetSocketErrnoAndReturn, err, result) {
@@ -239,9 +243,8 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
   EXPECT_CALL(mock_protocol_monitor, on_receive(_)).Times(0);
 
   auto encoder = ngs::allocate_object<Mock_protocol_encoder>();
-  EXPECT_CALL(*encoder,
-              set_write_timeout(Global_timeouts::Default::k_write_timeout));
 
+  EXPECT_CALL(*encoder, get_flusher()).WillRepeatedly(Return(&flusher));
   sut->set_encoder(encoder);
 
   EXPECT_CALL(*encoder,
@@ -262,7 +265,7 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
 
   auto stub_error_handler = [](int) {};
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_vio, stub_error_handler, std::ref(mock_protocol_monitor));
+      mock_vio, stub_error_handler, &mock_protocol_monitor);
   sut->set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 }
@@ -282,7 +285,7 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
 
   auto stub_error_handler = [](int) {};
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      temp_vio, stub_error_handler, std::ref(mock_protocol_monitor));
+      temp_vio, stub_error_handler, &mock_protocol_monitor);
   client.set_encoder(encoder);
   encoder->send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok(), false);
 
@@ -301,7 +304,7 @@ TEST_F(Timers_test_suite, send_message_failed_write) {
   struct CustomExpection {};
   auto stub_error_handler = [](int) { throw CustomExpection(); };
   auto encoder = ngs::allocate_object<Protocol_encoder>(
-      mock_vio, stub_error_handler, std::ref(mock_protocol_monitor));
+      mock_vio, stub_error_handler, &mock_protocol_monitor);
   sut->set_encoder(encoder);
 
   // write failed so error_handler should be used

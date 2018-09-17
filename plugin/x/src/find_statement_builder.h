@@ -31,7 +31,7 @@ namespace xpl {
 
 class Find_statement_builder : public Crud_statement_builder {
  public:
-  typedef ::Mysqlx::Crud::Find Find;
+  using Find = ::Mysqlx::Crud::Find;
 
   explicit Find_statement_builder(const Expression_generator &gen)
       : Crud_statement_builder(gen) {}
@@ -39,13 +39,12 @@ class Find_statement_builder : public Crud_statement_builder {
   void build(const Find &msg) const;
 
  protected:
-  typedef ::Mysqlx::Crud::Projection Projection;
-  typedef ::google::protobuf::RepeatedPtrField<Projection> Projection_list;
-  typedef ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::Expr>
-      Grouping_list;
-  typedef ::Mysqlx::Expr::Expr Grouping_criteria;
-  typedef void (Find_statement_builder::*Object_item_adder)(
-      const Projection &item) const;
+  using Projection = ::Mysqlx::Crud::Projection;
+  using Projection_list = Repeated_field_list<Projection>;
+  using Grouping_list = Repeated_field_list<::Mysqlx::Expr::Expr>;
+  using Grouping_criteria = ::Mysqlx::Expr::Expr;
+  using Object_item_adder =
+      void (Find_statement_builder::*)(const Projection &item) const;
 
   void add_statement_common(const Find &msg) const;
   void add_document_statement_with_grouping(const Find &msg) const;

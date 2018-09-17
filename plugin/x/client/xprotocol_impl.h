@@ -153,6 +153,30 @@ class Protocol_impl : public XProtocol,
     return send(Mysqlx::ClientMessages::EXPECT_CLOSE, m);
   }
 
+  XError send(const Mysqlx::Cursor::Open &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_OPEN, m);
+  }
+
+  XError send(const Mysqlx::Cursor::Close &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_CLOSE, m);
+  }
+
+  XError send(const Mysqlx::Cursor::Fetch &m) override {
+    return send(Mysqlx::ClientMessages::CURSOR_FETCH, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Prepare &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_PREPARE, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Execute &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_EXECUTE, m);
+  }
+
+  XError send(const Mysqlx::Prepare::Deallocate &m) override {
+    return send(Mysqlx::ClientMessages::PREPARE_DEALLOCATE, m);
+  }
+
   XError recv(Header_message_type_id *out_mid, uint8_t **buffer,
               std::size_t *buffer_size) override;
 
@@ -187,6 +211,17 @@ class Protocol_impl : public XProtocol,
 
   std::unique_ptr<XQuery_result> execute_delete(const Mysqlx::Crud::Delete &m,
                                                 XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_prep_stmt(
+      const Mysqlx::Prepare::Execute &m, XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_cursor_open(
+      const Mysqlx::Cursor::Open &m, XError *out_error) override;
+
+  std::unique_ptr<XQuery_result> execute_cursor_fetch(
+      const Mysqlx::Cursor::Fetch &m,
+      std::unique_ptr<XQuery_result> cursor_open_result,
+      XError *out_error) override;
 
   std::unique_ptr<Capabilities> execute_fetch_capabilities(
       XError *out_error) override;

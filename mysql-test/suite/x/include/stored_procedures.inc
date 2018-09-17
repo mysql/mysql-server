@@ -1,15 +1,12 @@
-## generated
-## Test multiple resultsets and SP output params
+--disable_result_log
+--disable_query_log
 
-## Preamble
---source include/xplugin_preamble.inc
---source include/xplugin_create_user.inc
-## Test starts here
---write_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp
+--echo #
+--echo ## Setup tests: tables and stored procedures
+## CURRENT CONTENT OF stored_procedure.inc##
 
--->sql
-create schema xtest;
-use xtest;
+eval CREATE SCHEMA IF NOT EXISTS $STORED_PROC_DB_NAME;
+eval USE $STORED_PROC_DB_NAME;
 
 CREATE TABLE tab_1 (c1t1 INT UNSIGNED, c2t1 VARCHAR(10));
 INSERT INTO tab_1 VALUES (1, "ONE"), (2, "TWO"), (3, "THREE");
@@ -17,7 +14,7 @@ INSERT INTO tab_1 VALUES (1, "ONE"), (2, "TWO"), (3, "THREE");
 CREATE TABLE tab_2 (c1t2 DATETIME);
 INSERT INTO tab_2 VALUES ('2006-07-03'), ('2013-06-15'), ('2012-11-24'), ('1979-11-24');
 
-DELIMITER //
+DELIMITER //;
 
 CREATE PROCEDURE `empty`()
 BEGIN
@@ -155,83 +152,7 @@ BEGIN
   SET c = "TOO LONG";
 END //
 
-DELIMITER ;
+DELIMITER ;//
 
-CALL `empty`();
-
-CALL one_results_set();
-CALL three_results_sets();
-
-CALL out_param_no_select(5,@res);
-CALL out_params_with_select(@min_val, @max_val);
-
-SELECT @res, @min_val, @max_val;
-
-CALL update_no_select();
-CALL update_and_select();
-CALL update_and_out_param(@max_val);
-SELECT @max_val;
-CALL update_and_out_param_and_select(@max_val);
-SELECT @max_val;
-
-CALL insert_no_select();
-CALL insert_and_select();
-CALL insert_and_out_param(@max_val);
-SELECT @max_val;
-CALL insert_and_out_param_and_select(@max_val);
-SELECT @max_val;
-
--->endsql
--->expecterror ER_NO_SUCH_TABLE
--->sql
-CALL error();
--->endsql
--->expecterror ER_NO_SUCH_TABLE
--->sql
-CALL select_and_error();
--->endsql
--->expecterror ER_NO_SUCH_TABLE
--->sql
-CALL out_param_and_error(@min_val);
-SELECT @min_val;
--->endsql
--->expecterror ER_NO_SUCH_TABLE
--->sql
-CALL select_out_param_and_error(@min_val);
-SELECT @min_val;
-
--->endsql
--->expecterror ER_WARN_DATA_OUT_OF_RANGE
--->sql
-CALL with_warning();
-SHOW WARNINGS;
--->endsql
--->expecterror ER_WARN_DATA_OUT_OF_RANGE
--->sql
-CALL select_and_warning();
-SHOW WARNINGS;
--->endsql
--->expecterror ER_WARN_DATA_OUT_OF_RANGE
--->sql
-CALL out_param_and_warning(@vavg);
-SHOW WARNINGS;
-SELECT @vavg;
--->endsql
--->expecterror ER_DATA_TOO_LONG
--->sql
-CALL select_out_param_and_warning(@min_val);
-SHOW WARNINGS;
-SELECT @min_val;
-
-
-drop schema if exists xtest;
-
--->endsql
-
-EOF
-
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp 2>&1
-
-## Cleanup
---remove_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp
---source include/xplugin_drop_user.inc
+--enable_result_log
+--enable_query_log

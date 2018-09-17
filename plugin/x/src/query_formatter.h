@@ -61,11 +61,21 @@ class Query_formatter {
     return put(value);
   }
 
+  std::size_t count_tags() const;
+
  private:
   template <typename Value_type>
   Query_formatter &put(const Value_type &value) {
     validate_next_tag();
     std::string string_value = ngs::to_string(value);
+    put_value(string_value.c_str(), string_value.length());
+
+    return *this;
+  }
+
+  Query_formatter &put(const bool value) {
+    validate_next_tag();
+    std::string string_value = value ? "true" : "false";
     put_value(string_value.c_str(), string_value.length());
 
     return *this;

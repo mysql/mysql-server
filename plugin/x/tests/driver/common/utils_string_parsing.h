@@ -25,9 +25,11 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 #define PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 
-#include <stdio.h>
 #include <stdexcept>
 #include <string>
+
+#include <limits.h>
+#include <stdio.h>
 
 namespace aux {
 
@@ -92,7 +94,7 @@ void split(Container_type &result, const std::string &input,
 }
 
 int replace_all(std::string &input, const std::string &to_find,
-                const std::string &change_to);
+                const std::string &change_to, int limit = INT_MAX);
 
 void trim(std::string &value, const std::string &whitespace = " \t");
 

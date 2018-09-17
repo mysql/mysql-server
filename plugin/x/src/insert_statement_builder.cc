@@ -26,7 +26,6 @@
 
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/json_utils.h"
-#include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 
@@ -96,6 +95,18 @@ void Insert_statement_builder::add_document(const Field_list &row) const {
     throw ngs::Error_code(ER_X_BAD_INSERT_DATA,
                           "Wrong number of fields in row being inserted");
   const Mysqlx::Expr::Expr &doc = row.Get(0);
+  if (is_prep_stmt_mode()) {
+    m_builder
+        .put(
+            "((SELECT JSON_INSERT(`_DERIVED_TABLE_`.`value`,'$._id',"
+            "CONVERT(MYSQLX_GENERATE_DOCUMENT_ID(@@AUTO_INCREMENT_OFFSET,"
+            "@@AUTO_INCREMENT_INCREMENT,"
+            "JSON_CONTAINS_PATH(`_DERIVED_TABLE_`.`value`,'one','$._id')) "
+            "USING utf8mb4)) FROM (SELECT ")
+        .put_expr(doc)
+        .put(" AS `value`) AS `_DERIVED_TABLE_`))");
+    return;
+  }
   switch (doc.type()) {
     case Mysqlx::Expr::Expr::LITERAL:
       if (add_document_literal(doc.literal())) return;
@@ -184,41 +195,6 @@ void Insert_statement_builder::add_document_object(
         .put(", '$._id', ")
         .put_quote(m_document_id_aggregator->generate_id())
         .put("))");
-}
-
-Insert_statement_builder::Document_id_aggregator::Document_id_aggregator(
-    ngs::Document_id_generator_interface *base_gen, Document_id_list *ids)
-    : m_base_id_generator(base_gen), m_document_ids(ids) {}
-
-const std::string &
-Insert_statement_builder::Document_id_aggregator::generate_id() const {
-  add_id(m_base_id_generator->generate(m_variables));
-  return m_document_ids->back();
-}
-
-ngs::Error_code Insert_statement_builder::Document_id_aggregator::configue(
-    ngs::Sql_session_interface *data_context) {
-  using Variables = ngs::Document_id_generator_interface::Variables;
-  Sql_data_result result(*data_context);
-  try {
-    result.query(
-        "SELECT @@mysqlx_document_id_unique_prefix,"
-        "@@auto_increment_offset,@@auto_increment_increment");
-    if (result.size() != 1) {
-      log_error(ER_XPLUGIN_FAILED_TO_GET_SYS_VAR,
-                "mysqlx_document_id_unique_prefix', "
-                "'auto_increment_offset', 'auto_increment_increment");
-      return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
-    }
-    uint16_t prefix = 0, offset = 0, increment = 0;
-    result.get(&prefix).get(&offset).get(&increment);
-    m_variables = Variables{prefix, offset, increment};
-  } catch (const ngs::Error_code &e) {
-    log_debug("Unable to get document id variables; exception message: '%s'",
-              e.message.c_str());
-    return e;
-  }
-  return ngs::Success();
 }
 
 }  // namespace xpl

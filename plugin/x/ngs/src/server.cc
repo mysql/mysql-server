@@ -389,4 +389,13 @@ bool Server::reset_globals() {
   return true;
 }
 
+Client_ptr Server::get_client(const THD *thd) {
+  std::vector<Client_ptr> clients;
+  get_client_list().get_all_clients(clients);
+
+  for (auto &c : clients)
+    if (c->is_handler_thd(thd)) return c;
+  return {};
+}
+
 }  // namespace ngs

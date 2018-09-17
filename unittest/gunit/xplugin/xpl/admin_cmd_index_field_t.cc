@@ -71,8 +71,9 @@ TEST_P(Index_field_create_test, fail_on_create) {
   Admin_command_arguments_object args(param.constraint);
 
   ngs::Error_code error;
-  std::unique_ptr<const Index_field> field(Index_field::create(
-      Admin_command_handler::MYSQLX_NAMESPACE, true, "DEFAULT", &args, &error));
+  std::unique_ptr<const Index_field> field(
+      Index_field::create(Admin_command_handler::k_mysqlx_namespace, true,
+                          "DEFAULT", &args, &error));
   ASSERT_ERROR_CODE(param.expect_error, error);
 }
 
@@ -211,7 +212,7 @@ TEST_P(Index_field_add_field_test, add_field) {
   Query_string_builder qb;
   ngs::Error_code error;
   std::unique_ptr<const Index_field> field(Index_field::create(
-      Admin_command_handler::MYSQLX_NAMESPACE, true, "TEXT", &args, &error));
+      Admin_command_handler::k_mysqlx_namespace, true, "TEXT", &args, &error));
   ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
   field->add_field(&qb);
   ASSERT_STREQ(std::string("`" + param.expect + PATH_HASH "`").c_str(),
@@ -276,7 +277,7 @@ TEST_P(Index_field_add_column_test, add_column) {
   Query_string_builder qb;
   ngs::Error_code error;
   std::unique_ptr<const Index_field> field(
-      Index_field::create(Admin_command_handler::MYSQLX_NAMESPACE,
+      Index_field::create(Admin_command_handler::k_mysqlx_namespace,
                           param.virtual_supported, "TEXT", &args, &error));
   ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
   field->add_column(&qb);
@@ -330,7 +331,7 @@ class Index_field_is_column_exists_test : public ::testing::Test {
  public:
   void SetUp() {
     ngs::Error_code error;
-    field.reset(Index_field::create(Admin_command_handler::MYSQLX_NAMESPACE,
+    field.reset(Index_field::create(Admin_command_handler::k_mysqlx_namespace,
                                     true, "TEXT", &args, &error));
     ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
   }

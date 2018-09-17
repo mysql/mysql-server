@@ -30,6 +30,7 @@
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
 #include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/cursor_command_delegate.h"
 #include "plugin/x/src/streaming_command_delegate.h"
 
 namespace xpl {
@@ -127,6 +128,22 @@ class Streaming_resultset : public ngs::Resultset_interface {
 
  private:
   Streaming_command_delegate m_streaming_delegate;
+};
+
+class Cursor_resultset : public ngs::Resultset_interface {
+ public:
+  Cursor_resultset(ngs::Protocol_encoder_interface *proto,
+                   ngs::Notice_output_queue_interface *notice_queue,
+                   const bool compact_metadata,
+                   const bool ignore_fetch_suspended)
+      : m_cursor_delegate(proto, notice_queue, ignore_fetch_suspended) {
+    m_cursor_delegate.set_compact_metadata(compact_metadata);
+  }
+  ngs::Command_delegate &get_callbacks() override { return m_cursor_delegate; }
+  const Info &get_info() const override { return m_cursor_delegate.get_info(); }
+
+ private:
+  Cursor_command_delegate m_cursor_delegate;
 };
 
 }  // namespace xpl

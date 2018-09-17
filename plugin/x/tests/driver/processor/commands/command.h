@@ -38,6 +38,7 @@
 class Command {
  public:
   enum class Result { Continue, Stop_with_success, Stop_with_failure };
+  enum class Metadata_policy { Default, Store, Use_stored };
 
   using Any = ::Mysqlx::Datatypes::Any;
 
@@ -86,7 +87,8 @@ class Command {
   Result cmd_recvresult(std::istream &input, Execution_context *context,
                         const std::string &args);
   Result cmd_recvresult(std::istream &input, Execution_context *context,
-                        const std::string &args, Value_callback value_callback);
+                        const std::string &args, Value_callback value_callback,
+                        const Metadata_policy = Metadata_policy::Default);
   Result cmd_recvuntil(std::istream &input, Execution_context *context,
                        const std::string &args);
   Result cmd_do_ssl_handshake(std::istream &input, Execution_context *context,
@@ -158,6 +160,8 @@ class Command {
                      const std::string &args);
   Result cmd_varsub(std::istream &input, Execution_context *context,
                     const std::string &args);
+  Result cmd_varreplace(std::istream &input, Execution_context *context,
+                        const std::string &args);
   Result cmd_varlet(std::istream &input, Execution_context *context,
                     const std::string &args);
   Result cmd_varinc(std::istream &input, Execution_context *context,
@@ -197,6 +201,17 @@ class Command {
                     const std::string &args);
   Result cmd_received(std::istream &input, Execution_context *context,
                       const std::string &args);
+  Result cmd_clear_received(std::istream &input, Execution_context *context,
+                            const std::string &args);
+  Result cmd_recvresult_store_metadata(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args);
+  Result cmd_recv_with_stored_metadata(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args);
+  Result cmd_clear_stored_metadata(std::istream &input,
+                                   Execution_context *context,
+                                   const std::string &args);
 
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
@@ -205,7 +220,8 @@ class Command {
   bool json_string_to_any(const std::string &json_string, Any *any) const;
   void print_resultset(Execution_context *context, Result_fetcher *result,
                        const std::vector<std::string> &columns,
-                       Value_callback value_callback, const bool quiet);
+                       Value_callback value_callback, const bool quiet,
+                       const bool print_column_info);
 
   static bool put_variable_to(std::string *result, const std::string &value);
   static void try_result(Result result);

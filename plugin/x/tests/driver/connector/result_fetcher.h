@@ -42,6 +42,10 @@ class Result_fetcher {
   explicit Result_fetcher(XQuery_result_ptr query)
       : m_query(std::move(query)) {}
 
+  void set_metadata(const std::vector<xcl::Column_metadata> &metadata) {
+    m_query->set_metadata(metadata);
+  }
+
   std::vector<xcl::Column_metadata> column_metadata() {
     if (m_error) return {};
 
@@ -64,16 +68,18 @@ class Result_fetcher {
 
   bool next_data_set() {
     /* Skip empty resultsets */
-    while (m_query->next_resultset(&m_error)) {
+    if (m_query->next_resultset(&m_error)) {
       m_cached_row = m_query->get_next_row(&m_error);
 
-      if (nullptr != m_cached_row) return true;
+      return true;
     }
 
     return false;
   }
 
   xcl::XError get_last_error() const { return m_error; }
+
+  bool is_out_params() const { return m_query->is_out_parameter_resultset(); }
 
   int64_t last_insert_id() const {
     uint64_t result;

@@ -27,40 +27,34 @@
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_context.h"
 
 namespace xpl {
-class Session;
 
 class Crud_command_handler {
  public:
-  Crud_command_handler() : m_qb(1024) {}
+  explicit Crud_command_handler(ngs::Session_interface *session)
+      : m_session{session}, m_qb{1024} {}
 
-  ngs::Error_code execute_crud_insert(Session &session,
-                                      const Mysqlx::Crud::Insert &msg);
-  ngs::Error_code execute_crud_update(Session &session,
-                                      const Mysqlx::Crud::Update &msg);
-  ngs::Error_code execute_crud_find(Session &session,
-                                    const Mysqlx::Crud::Find &msg);
-  ngs::Error_code execute_crud_delete(Session &session,
-                                      const Mysqlx::Crud::Delete &msg);
+  ngs::Error_code execute_crud_insert(const Mysqlx::Crud::Insert &msg);
+  ngs::Error_code execute_crud_update(const Mysqlx::Crud::Update &msg);
+  ngs::Error_code execute_crud_find(const Mysqlx::Crud::Find &msg);
+  ngs::Error_code execute_crud_delete(const Mysqlx::Crud::Delete &msg);
 
-  ngs::Error_code execute_create_view(Session &session,
-                                      const Mysqlx::Crud::CreateView &msg);
-  ngs::Error_code execute_modify_view(Session &session,
-                                      const Mysqlx::Crud::ModifyView &msg);
-  ngs::Error_code execute_drop_view(Session &session,
-                                    const Mysqlx::Crud::DropView &msg);
+  ngs::Error_code execute_create_view(const Mysqlx::Crud::CreateView &msg);
+  ngs::Error_code execute_modify_view(const Mysqlx::Crud::ModifyView &msg);
+  ngs::Error_code execute_drop_view(const Mysqlx::Crud::DropView &msg);
 
  private:
   using Status_variable =
       ngs::Common_status_variables::Variable ngs::Common_status_variables::*;
 
   template <typename B, typename M>
-  ngs::Error_code execute(Session &session, const B &builder, const M &msg,
+  ngs::Error_code execute(const B &builder, const M &msg,
                           ngs::Resultset_interface &resultset,
                           Status_variable variable,
                           bool (ngs::Protocol_encoder_interface::*send_ok)());
@@ -72,13 +66,12 @@ class Crud_command_handler {
   }
 
   template <typename B, typename M>
-  void notice_handling(Session &session,
-                       const ngs::Resultset_interface::Info &info,
+  void notice_handling(const ngs::Resultset_interface::Info &info,
                        const B &builder, const M &msg) const;
 
-  void notice_handling_common(Session &session,
-                              const ngs::Resultset_interface::Info &info) const;
+  void notice_handling_common(const ngs::Resultset_interface::Info &info) const;
 
+  ngs::Session_interface *m_session;
   Query_string_builder m_qb;
 };
 

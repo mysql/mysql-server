@@ -22,58 +22,53 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_BUFFER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_BUFFER_H_
 
 #include <stdint.h>
-#include <list>
 #include <vector>
 
+#include "my_dbug.h"
+
+#include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 
 namespace ngs {
 
 enum Alloc_result { Memory_allocated, Memory_error, Memory_no_free_pages };
 
-class Buffer {
+class Page_visitor {
  public:
-  typedef Resource<Page> Buffer_page;
-  typedef std::list<Buffer_page> Page_list;
+  virtual ~Page_visitor() = default;
 
-  Buffer(Page_pool &page_pool);
+  virtual bool visit(const char *, ssize_t) = 0;
+};
 
-  virtual ~Buffer();
+class Page_buffer {
+ public:
+  using Buffer_page = Resource<Page>;
+  using Pages = std::vector<Buffer_page>;
 
-  Alloc_result reserve(size_t space);
-  Alloc_result add_pages(unsigned int npages);
+  Page_buffer(Page_pool &page_pool);
 
-  bool uint32_at(size_t offset, uint32_t &ret);
-  bool int32_at(size_t offset, int32_t &ret);
-  bool int8_at(size_t offset, int8_t &ret);
+  Page *get_current_page();
+  bool move_to_next_page_if_not_empty();
 
-  size_t capacity() const;
-  size_t length() const;
-  size_t available_space() const;
+  void visit(Page_visitor *visitor);
 
-  Page_list &pages() { return m_pages; }
-  void add_bytes_transferred(size_t nbytes);
-
-  Resource<Page> pop_front();
-  void push_back(const Resource<Page> &);
+  void backup();
+  void restore();
 
   void reset();
 
- protected:
-  size_t m_capacity;
-  size_t m_length;
-  Page_pool &m_page_pool;
-  Page_list m_pages;
-
  private:
-  Buffer(const Buffer &) = delete;
-  Buffer &operator=(const Buffer &) = delete;
+  Page_pool &m_page_pool;
+  Pages m_pages;
+  uint32_t m_current_page = 0;
+  uint32_t m_backup_page = 0;
+  uint32_t m_backup_page_data_length = 0;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_BUFFER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_BUFFER_H_

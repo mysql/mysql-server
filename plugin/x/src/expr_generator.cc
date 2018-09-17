@@ -271,14 +271,22 @@ void Expression_generator::generate(
   }
 }
 
-void Expression_generator::validate_placeholder(const Placeholder &arg) const {
-  if (arg >= static_cast<Placeholder>(m_args.size()))
+void Expression_generator::generate_placeholder(
+    const Placeholder &arg,
+    void (Expression_generator::*generate_fun)(
+        const Mysqlx::Datatypes::Scalar &) const) const {
+  if (arg < static_cast<Placeholder>(m_args.size())) {
+    (this->*generate_fun)(m_args.Get(arg));
+    return;
+  }
+  if (!is_prep_stmt_mode())
     throw Error(ER_X_EXPR_BAD_VALUE, "Invalid value of placeholder");
+  m_placeholder_ids->push_back(arg - static_cast<Placeholder>(m_args.size()));
+  m_qb->put("?");
 }
 
 void Expression_generator::generate(const Placeholder &arg) const {
-  validate_placeholder(arg);
-  generate(m_args.Get(arg));
+  generate_placeholder(arg, &Expression_generator::generate);
 }
 
 void Expression_generator::generate(const Mysqlx::Expr::Object &arg) const {
@@ -307,12 +315,11 @@ void Expression_generator::generate(const Mysqlx::Expr::Array &arg) const {
 
 template <typename T>
 void Expression_generator::generate_for_each(
-    const ::google::protobuf::RepeatedPtrField<T> &list,
+    const Repeated_field_list<T> &list,
     void (Expression_generator::*generate_fun)(const T &) const,
-    const typename ::google::protobuf::RepeatedPtrField<T>::size_type offset)
-    const {
+    const typename Repeated_field_list<T>::size_type offset) const {
   if (list.size() == 0) return;
-  using It = typename ::google::protobuf::RepeatedPtrField<T>::const_iterator;
+  using It = typename Repeated_field_list<T>::const_iterator;
   It end = list.end() - 1;
   for (It i = list.begin() + offset; i != end; ++i) {
     (this->*generate_fun)(*i);
@@ -488,8 +495,8 @@ void Expression_generator::generate_cont_in_param(
       break;
 
     case Mysqlx::Expr::Expr::PLACEHOLDER:
-      validate_placeholder(arg.position());
-      generate_json_literal_param(m_args.Get(arg.position()));
+      generate_placeholder(arg.position(),
+                           &Expression_generator::generate_json_literal_param);
       break;
 
     default:

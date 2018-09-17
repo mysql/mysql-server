@@ -1,3 +1,4 @@
+--source include/no_ps_protocol.inc
 --source include/restart_mysqld.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
@@ -107,10 +108,65 @@ EOF
 EOF
 
 
+--write_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp
+-->import assert_variable.macro
+
+## WL#9270 - ensure that session reset deallocates MySQL Servers
+##           prepared statements allocated by Mysqlx.Prepare messages
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "select 2"
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Cursor.Open {
+  cursor_id: 3
+  stmt: {
+    type: PREPARE_EXECUTE
+    prepare_execute {
+      stmt_id: 2
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	1
+
+Mysqlx.Session.Reset {
+}
+-->recvok
+
+-->login x_root
+
+-->callmacro Assert_status_variable	Prepared_stmt_count	0
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+}
+-->expecterror ER_X_BAD_STATEMENT_ID
+-->recvresult
+
+Mysqlx.Cursor.Fetch {
+  cursor_id: 3
+}
+-->expecterror ER_X_BAD_CURSOR_ID
+-->recvresult
+
+EOF
+
+
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/session_reset.tmp
 --remove_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
+--remove_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp
 --source include/xplugin_drop_user.inc

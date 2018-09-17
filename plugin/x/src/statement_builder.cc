@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,44 @@
 #include "plugin/x/src/statement_builder.h"
 
 #include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
-#include "plugin/x/src/xpl_error.h"
 
-void xpl::Statement_builder::add_collection(
-    const Collection &collection) const {
+namespace xpl {
+
+namespace {
+
+void validate_limit_expr(const Mysqlx::Expr::Expr &expr) {
+  if (Mysqlx::Expr::Expr_Type_LITERAL != expr.type() &&
+      Mysqlx::Expr::Expr_Type_PLACEHOLDER != expr.type()) {
+    throw ngs::Error(ER_X_INVALID_ARGUMENT,
+                     "Invalid expression type used in limit field: %i, "
+                     "expected types PLACEHOLDER or LITERAL",
+                     static_cast<int>(expr.type()));
+  }
+
+  if (Mysqlx::Expr::Expr_Type_LITERAL == expr.type()) {
+    switch (expr.literal().type()) {
+      case Mysqlx::Datatypes::Scalar_Type_V_SINT: {
+        if (expr.literal().v_signed_int() < 0)
+          throw ngs::Error(ER_X_INVALID_ARGUMENT,
+                           "Invalid value, limit fields "
+                           "doesn't allow negative values.");
+      } break;
+
+      case Mysqlx::Datatypes::Scalar_Type_V_UINT:
+        break;
+
+      default:
+        throw ngs::Error(ER_X_INVALID_ARGUMENT,
+                         "Invalid scalar type used in limit field: %i, "
+                         "expected types UINT, SINT",
+                         static_cast<int>(expr.literal().type()));
+    }
+  }
+}
+
+}  // namespace
+
+void Statement_builder::add_collection(const Collection &collection) const {
   if (!collection.has_name() || collection.name().empty())
     throw ngs::Error_code(ER_X_BAD_TABLE, "Invalid name of table/collection");
 
@@ -39,16 +72,16 @@ void xpl::Statement_builder::add_collection(
   m_builder.put_identifier(collection.name());
 }
 
-void xpl::Crud_statement_builder::add_filter(const Filter &filter) const {
+void Crud_statement_builder::add_filter(const Filter &filter) const {
   if (filter.IsInitialized()) m_builder.put(" WHERE ").put_expr(filter);
 }
 
-void xpl::Crud_statement_builder::add_order_item(const Order_item &item) const {
+void Crud_statement_builder::add_order_item(const Order_item &item) const {
   m_builder.put_expr(item.expr());
   if (item.direction() == ::Mysqlx::Crud::Order::DESC) m_builder.put(" DESC");
 }
 
-void xpl::Crud_statement_builder::add_order(const Order_list &order) const {
+void Crud_statement_builder::add_order(const Order_list &order) const {
   if (order.size() == 0) return;
 
   m_builder.put(" ORDER BY ")
@@ -56,17 +89,40 @@ void xpl::Crud_statement_builder::add_order(const Order_list &order) const {
                                  ngs::placeholders::_1));
 }
 
-void xpl::Crud_statement_builder::add_limit(const Limit &limit,
-                                            const bool no_offset) const {
+void Crud_statement_builder::add_limit_expr_field(
+    const LimitExpr &limit, const bool disallow_offset) const {
+  if (!limit.IsInitialized()) return;
+
+  m_builder.put(" LIMIT ");
+
+  if (limit.has_offset()) validate_limit_expr(limit.offset());
+  if (limit.has_row_count()) validate_limit_expr(limit.row_count());
+
+  if (limit.has_offset()) {
+    if (disallow_offset) {
+      throw ngs::Error_code(
+          ER_X_INVALID_ARGUMENT,
+          "Invalid parameter: offset value is not allowed for this operation");
+    }
+
+    if (!disallow_offset) m_builder.put_expr(limit.offset()).put(", ");
+  }
+  m_builder.put_expr(limit.row_count());
+}
+
+void Crud_statement_builder::add_limit_field(const Limit &limit,
+                                             const bool disallow_offset) const {
   if (!limit.IsInitialized()) return;
 
   m_builder.put(" LIMIT ");
   if (limit.has_offset()) {
-    if (no_offset && limit.offset() != 0)
+    if (disallow_offset && limit.offset() != 0)
       throw ngs::Error_code(ER_X_INVALID_ARGUMENT,
                             "Invalid parameter: non-zero offset "
-                            "value not allowed for this operation");
-    if (!no_offset) m_builder.put(limit.offset()).put(", ");
+                            "value is not allowed for this operation");
+    if (!disallow_offset) m_builder.put(limit.offset()).put(", ");
   }
   m_builder.put(limit.row_count());
 }
+
+}  // namespace xpl

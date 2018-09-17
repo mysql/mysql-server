@@ -136,7 +136,7 @@ void Client::on_auth_timeout() {
 
    The method can be called from different thread/xpl_client.
  */
-bool Client::is_handler_thd(THD *thd) {
+bool Client::is_handler_thd(const THD *thd) const {
   // When accessing the session we need to hold it in
   // shared_pointer to be sure that the session is
   // not reseted (by Mysqlx::Session::Reset) in middle

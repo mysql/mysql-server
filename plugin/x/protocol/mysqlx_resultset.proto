@@ -50,7 +50,7 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 // .. uml::
 //
 //   ...
-//   loop has more resultsets
+//   loop has more resultsets or not at end of fetch
 //     group resultset
 //       loop has more columns
 //         server --> client: ColumnMetaData
@@ -63,7 +63,7 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 //       server --> client: FetchDoneMoreResultsets
 //     end
 //   end
-//   loop has more OUT-paramsets
+//   loop has more OUT-paramsets or not at end of fetch
 //     server --> client: FetchDoneMoreOutParams
 //     group resultset
 //       loop has more columns
@@ -74,7 +74,11 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 //       end
 //     end
 //   end
-//   server --> client: FetchDone
+//   alt at end of all resultsets
+//     server --> client: FetchDone
+//   else cursor is opened
+//     server --> client: FetchSuspended
+//   end
 //   ...
 //
 // Examples
@@ -140,6 +144,11 @@ message FetchDoneMoreResultsets {
 // all resultsets are finished
 message FetchDone {
   option (server_message_id) = RESULTSET_FETCH_DONE; // comment_out_if PROTOBUF_LITE
+}
+
+// cursor is opened still the execution of PrepFetch or PrepExecute ended
+message FetchSuspended {
+  option (server_message_id) = RESULTSET_FETCH_SUSPENDED; // comment_out_if PROTOBUF_LITE
 }
 
 // meta data of a Column

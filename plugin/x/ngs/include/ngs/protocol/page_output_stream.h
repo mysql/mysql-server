@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,54 +22,43 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_OUTPUT_STREAM_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_OUTPUT_STREAM_H_
 
 #include <stdint.h>
-#include <vector>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "page_buffer.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace ngs {
 
-class Output_buffer;
-typedef ngs::Memory_instrumented<Output_buffer>::Unique_ptr
-    Output_buffer_unique_ptr;
-
-class Output_buffer : public Buffer,
-                      public google::protobuf::io::ZeroCopyOutputStream {
+class Page_output_stream : public google::protobuf::io::ZeroCopyOutputStream {
  public:
-  Output_buffer(Page_pool &page_pool);
+  Page_output_stream(ngs::Page_pool &pool);
 
-  bool add_int32(int32_t i);
-  bool add_int8(int8_t i);
-  bool add_bytes(const char *data, size_t length);
-
-  void save_state();
-  void rollback();  // restores last saved state
+  bool Next(void **data, int *size) override;
+  void BackUp(int count) override;
+  int64_t ByteCount() const override;
 
  public:
-  class Visitor {
-   public:
-    virtual ~Visitor() = default;
+  void visit_buffers(Page_visitor *visitor);
 
-    virtual bool visit(const char *, ssize_t) = 0;
-  };
+  void backup_current_position();
+  void restore_position();
 
-  void visit_buffers(Visitor *visitor);
-
- public:
-  virtual bool Next(void **data, int *size);
-  virtual void BackUp(int count);
-
-  virtual int64_t ByteCount() const;
+  void *reserve_space(const uint32_t size, const bool update_on_fail = true);
+  void reset();
 
  private:
-  size_t m_saved_length;
+  bool move_to_next_page();
+
+  Page_buffer m_buffer;
+  Page *m_page = nullptr;
+  int64_t m_bytes_total = 0;
+  int64_t m_backup_bytes_total = 0;
+  bool m_fatal = false;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_OUTPUT_STREAM_H_

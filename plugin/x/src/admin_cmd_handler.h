@@ -36,8 +36,6 @@
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 
 namespace xpl {
-class Session;
-class Session_options;
 
 class Admin_command_handler {
  public:
@@ -46,7 +44,7 @@ class Admin_command_handler {
     using Argument_list = std::vector<std::string>;
     using List = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
     using Argument_name_list = std::initializer_list<const char *const>;
-    static const char *const PLACEHOLDER;
+    static const char *const k_placeholder;
 
     virtual ~Command_arguments() {}
     virtual Command_arguments &string_arg(Argument_name_list name,
@@ -76,12 +74,12 @@ class Admin_command_handler {
     virtual const ngs::Error_code &error() const = 0;
   };
 
-  explicit Admin_command_handler(Session *session);
+  explicit Admin_command_handler(ngs::Session_interface *session);
 
   ngs::Error_code execute(const std::string &name_space,
                           const std::string &command, Command_arguments *args);
 
-  static const char *const MYSQLX_NAMESPACE;
+  static const char *const k_mysqlx_namespace;
 
  protected:
   using Argument_list = Command_arguments::Argument_list;
@@ -127,7 +125,7 @@ class Admin_command_handler {
                             Command_arguments *args) const;
   } m_command_handler;
 
-  Session *m_session;
+  ngs::Session_interface *m_session;
 };
 
 #define DOC_MEMBER_REGEX                                                     \

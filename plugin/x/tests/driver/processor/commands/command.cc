@@ -46,6 +46,7 @@
 #include "plugin/x/tests/driver/processor/indigestion_processor.h"
 #include "plugin/x/tests/driver/processor/macro_block_processor.h"
 #include "plugin/x/tests/driver/processor/stream_processor.h"
+#include "plugin/x/tests/driver/processor/variable_names.h"
 
 namespace {
 
@@ -155,6 +156,7 @@ Command::Command() {
   m_commands["varlet"] = &Command::cmd_varlet;
   m_commands["varinc"] = &Command::cmd_varinc;
   m_commands["varsub"] = &Command::cmd_varsub;
+  m_commands["varreplace"] = &Command::cmd_varreplace;
   m_commands["vargen"] = &Command::cmd_vargen;
   m_commands["varescape"] = &Command::cmd_varescape;
   m_commands["binsend"] = &Command::cmd_binsend;
@@ -172,6 +174,12 @@ Command::Command() {
   m_commands["noquery_result"] = &Command::cmd_noquery;
   m_commands["wait_for"] = &Command::cmd_wait_for;
   m_commands["received"] = &Command::cmd_received;
+  m_commands["clear_received"] = &Command::cmd_clear_received;
+  m_commands["recvresult_store_metadata"] =
+      &Command::cmd_recvresult_store_metadata;
+  m_commands["recv_with_stored_metadata"] =
+      &Command::cmd_recv_with_stored_metadata;
+  m_commands["clear_stored_metadata"] = &Command::cmd_clear_stored_metadata;
 }
 
 bool Command::is_command_registred(const std::string &command_line,
@@ -518,7 +526,11 @@ Command::Result Command::cmd_recvresult(std::istream &input,
 Command::Result Command::cmd_recvresult(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args,
-                                        Value_callback value_callback) {
+                                        Value_callback value_callback,
+                                        const Metadata_policy metadata_policy) {
+  context->m_variables->set(k_variable_result_rows_affected, "0");
+  context->m_variables->set(k_variable_result_last_insert_id, "0");
+
   try {
     std::vector<std::string> columns;
     std::string cmd_args = args;
@@ -537,10 +549,24 @@ Command::Result Command::cmd_recvresult(std::istream &input,
     if (quiet) columns.erase(i);
 
     Result_fetcher result{context->session()->get_protocol().recv_resultset()};
+    if (metadata_policy != Metadata_policy::Default) {
+      if (columns.size() == 0) {
+        context->print_error("No metadata tag given");
+        return Result::Stop_with_failure;
+      }
+      auto metadata_tag = *columns.begin();
+      columns.clear();
+      if (metadata_policy == Metadata_policy::Use_stored)
+        result.set_metadata(context->m_stored_metadata[metadata_tag]);
+      else if (metadata_policy == Metadata_policy::Store)
+        context->m_stored_metadata[metadata_tag] = result.column_metadata();
+    }
+
     std::vector<Warning> warnings;
 
     const bool force_quiet = !context->m_options.m_show_query_result || quiet;
-    print_resultset(context, &result, columns, value_callback, force_quiet);
+    print_resultset(context, &result, columns, value_callback, force_quiet,
+                    print_colinfo);
 
     auto error = result.get_last_error();
 
@@ -552,18 +578,22 @@ Command::Result Command::cmd_recvresult(std::istream &input,
       return Result::Continue;
     }
 
-    if (print_colinfo) context->print(result.column_metadata());
-
     context->m_variables->clear_unreplace();
 
+    const auto rows = result.affected_rows();
+    const auto insert_id = result.last_insert_id();
+
+    context->m_variables->set(k_variable_result_rows_affected,
+                              std::to_string(rows));
+    context->m_variables->set(k_variable_result_last_insert_id,
+                              std::to_string(insert_id));
+
     if (!force_quiet) {
-      int64_t x = result.affected_rows();
-      if (x >= 0)
-        context->print(x, " rows affected\n");
+      if (rows >= 0)
+        context->print(rows, " rows affected\n");
       else
         context->print("command ok\n");
-      if (result.last_insert_id() > 0)
-        context->print("last insert id: ", result.last_insert_id(), "\n");
+      if (insert_id > 0) context->print("last insert id: ", insert_id, "\n");
 
       std::vector<std::string> document_ids = result.generated_document_ids();
       if (!document_ids.empty()) {
@@ -1515,6 +1545,27 @@ Command::Result Command::cmd_varsub(std::istream &input,
   context->m_variables->push_unreplace(args);
   return Result::Continue;
 }
+Command::Result Command::cmd_varreplace(std::istream &input,
+                                        Execution_context *context,
+                                        const std::string &args) {
+  std::vector<std::string> argl;
+  aux::split(argl, args, "\t", true);
+
+  if (3 != argl.size()) {
+    context->print_error(
+        "'cmd_varreplace' command, requires three arguments, still received '",
+        args, "'\n");
+    return Result::Stop_with_failure;
+  }
+  context->m_variables->replace(&argl[1]);
+  context->m_variables->replace(&argl[2]);
+
+  std::string value = context->m_variables->get(argl[0]);
+  aux::replace_all(value, argl[1], argl[2], 1);
+  context->m_variables->set(argl[0], value);
+
+  return Result::Continue;
+}
 
 Command::Result Command::cmd_varlet(std::istream &input,
                                     Execution_context *context,
@@ -1984,6 +2035,14 @@ Command::Result Command::cmd_wait_for(std::istream &input,
   return Result::Continue;
 }
 
+Command::Result Command::cmd_clear_received(std::istream &input,
+                                            Execution_context *context,
+                                            const std::string &args) {
+  context->m_connection->active_holder().clear_received_messages();
+
+  return Result::Continue;
+}
+
 Command::Result Command::cmd_received(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
@@ -1995,7 +2054,7 @@ Command::Result Command::cmd_received(std::istream &input,
   if (2 != vargs.size()) {
     context->print_error(
         "Specified invalid number of arguments for command received:",
-        vargs.size(), " expecting 2\n");
+        vargs.size(), " expecting 2 or 1\n");
     return Result::Stop_with_failure;
   }
 
@@ -2037,6 +2096,36 @@ Command::Result Command::cmd_expectwarnings(std::istream &input,
     return Result::Stop_with_failure;
   }
 
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_recvresult_store_metadata(
+    std::istream &input, Execution_context *context, const std::string &args) {
+  return cmd_recvresult(input, context, args, Value_callback(),
+                        Metadata_policy::Store);
+}
+
+Command::Result Command::cmd_recv_with_stored_metadata(
+    std::istream &input, Execution_context *context, const std::string &args) {
+  if (args.empty()) {
+    context->print_error(
+        "'recv_with_stored_metadata' command requires one argument.\n");
+    return Result::Stop_with_failure;
+  }
+
+  std::string metadata_tag(args);
+  if (context->m_stored_metadata.count(args) == 0) {
+    context->print_error("No metadata stored with the given METADATA_TAG\n");
+    return Result::Stop_with_failure;
+  }
+  return cmd_recvresult(input, context, args, Value_callback(),
+                        Metadata_policy::Use_stored);
+}
+
+Command::Result Command::cmd_clear_stored_metadata(std::istream &input,
+                                                   Execution_context *context,
+                                                   const std::string &args) {
+  context->m_stored_metadata.clear();
   return Result::Continue;
 }
 
@@ -2104,61 +2193,68 @@ Command::Result Command::cmd_import(std::istream &input,
 void Command::print_resultset(Execution_context *context,
                               Result_fetcher *result,
                               const std::vector<std::string> &columns,
-                              Value_callback value_callback, const bool quiet) {
-  std::vector<xcl::Column_metadata> meta(result->column_metadata());
-  std::vector<int> column_indexes;
-  int column_index = -1;
-  bool first = true;
+                              Value_callback value_callback, const bool quiet,
+                              const bool print_column_info) {
+  do {
+    std::vector<xcl::Column_metadata> meta(result->column_metadata());
 
-  if (result->get_last_error()) return;
+    if (result->get_last_error()) return;
 
-  for (auto col = meta.begin(); col != meta.end(); ++col) {
-    ++column_index;
+    std::vector<int> column_indexes;
+    int column_index = -1;
+    bool first = true;
 
-    if (!first) {
-      if (!quiet) context->print("\t");
-    } else {
-      first = false;
-    }
+    for (auto col = meta.begin(); col != meta.end(); ++col) {
+      ++column_index;
 
-    if (!columns.empty() &&
-        columns.end() == std::find(columns.begin(), columns.end(), col->name))
-      continue;
-
-    column_indexes.push_back(column_index);
-    if (!quiet) context->print(col->name);
-  }
-  if (!quiet) context->print("\n");
-
-  for (;;) {
-    const xcl::XRow *row(result->next());
-
-    if (!row) break;
-
-    try {
-      std::vector<int>::iterator i = column_indexes.begin();
-      const auto field_count = row->get_number_of_fields();
-      for (; i != column_indexes.end() && (*i) < field_count; ++i) {
-        std::string out_result;
-
-        if (!row->get_field_as_string(*i, &out_result))
-          throw std::runtime_error("Data decoder failed");
-
-        int field = (*i);
-        if (field != 0)
-          if (!quiet) context->print("\t");
-        std::string str = context->m_variables->unreplace(out_result, false);
-        if (!quiet) context->print(str);
-        if (value_callback) {
-          value_callback(str);
-          Value_callback().swap(value_callback);
-        }
+      if (!first) {
+        if (!quiet) context->print("\t");
+      } else {
+        first = false;
       }
-    } catch (std::exception &e) {
-      context->print_error("ERROR: ", e, '\n');
+
+      if (!columns.empty() &&
+          columns.end() == std::find(columns.begin(), columns.end(), col->name))
+        continue;
+
+      column_indexes.push_back(column_index);
+      if (!quiet) context->print(col->name);
     }
     if (!quiet) context->print("\n");
-  }
+
+    for (;;) {
+      const xcl::XRow *row(result->next());
+
+      if (!row) break;
+
+      try {
+        std::vector<int>::iterator i = column_indexes.begin();
+        const auto field_count = row->get_number_of_fields();
+        for (; i != column_indexes.end() && (*i) < field_count; ++i) {
+          std::string out_result;
+
+          if (!row->get_field_as_string(*i, &out_result))
+            throw std::runtime_error("Data decoder failed");
+
+          int field = (*i);
+          if (field != 0)
+            if (!quiet) context->print("\t");
+          std::string str = context->m_variables->unreplace(out_result, false);
+          if (!quiet) context->print(str);
+          if (value_callback) {
+            value_callback(str);
+            Value_callback().swap(value_callback);
+          }
+        }
+      } catch (std::exception &e) {
+        context->print_error("ERROR: ", e, '\n');
+      }
+      if (!quiet) context->print("\n");
+    }
+
+    if (print_column_info) context->print(meta);
+
+  } while (result->next_data_set());
 }
 
 void print_help_commands() {
@@ -2334,6 +2430,9 @@ void print_help_commands() {
   std::cout << "  Add a variable to the list of variables to replace for "
                "the next recv or sql command (value is replaced by the "
                "name)\n";
+  std::cout << "-->varreplace <varname>\t<old_txt>\t<new_txt>\n";
+  std::cout << "  Replace all occurrence of <old_txt> with <new_txt> in "
+               "<varname> value.\n";
   std::cout << "-->varescape <varname>\n";
   std::cout << "  Escape end-line and backslash characters.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
@@ -2354,5 +2453,18 @@ void print_help_commands() {
   std::cout << "-->received <msgtype>\t<varname>\n";
   std::cout << "  Assigns number of received messages of indicated type (in "
                "active session) to a variable\n";
+  std::cout << "-->clear_received\n";
+  std::cout << "  Clear number of received messages.\n";
+  std::cout << "-->recvresult_store_metadata <METADATA_TAG> [print-columnsinfo]"
+               " ["
+            << CMD_ARG_BE_QUIET << "]\n";
+  std::cout << "  Receive result and store metadata for future use; if "
+               "print-columnsinfo is present also print short columns "
+               "status\n";
+  std::cout << "-->recv_with_stored_metadata <METADATA_TAG>\n";
+  std::cout << "  Receive a message using a previously stored metadata\n";
+  std::cout << "-->clear_stored_metadata\n";
+  std::cout << "  Clear metadata information stored by the "
+               "recvresult_store_metadata\n";
   std::cout << "# comment\n";
 }

@@ -25,16 +25,23 @@
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 #include "my_dbug.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+
+#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 namespace ngs {
 
-Message_builder::Message_builder()
-    : m_out_buffer(nullptr), m_out_stream(Stream_allocator().allocate(1)) {}
+using google::protobuf::io::ZeroCopyOutputStream;
+
+const int k_header_size = 5;
+
+Message_builder::Message_builder(const bool memory_managed)
+    : m_memory_managed(memory_managed) {
+  m_out_stream = Stream_allocator().allocate(1);
+}
 
 Message_builder::~Message_builder() {
-  Stream_allocator().deallocate(m_out_stream, 1);
+  if (m_memory_managed) Stream_allocator().deallocate(m_out_stream, 1);
 }
 
 void Message_builder::encode_uint32(const uint32 value, const bool write) {
@@ -91,53 +98,39 @@ void Message_builder::encode_string(const char *value, const bool write) {
 }
 
 void Message_builder::construct_stream() {
+  construct_stream(m_out_page_stream);
+}
+
+void Message_builder::construct_stream(ZeroCopyOutputStream *zero_stream) {
+  DBUG_ASSERT(m_memory_managed);
   if (m_valid_out_stream) reset_stream();
 
-  Stream_allocator().construct(m_out_stream, m_out_buffer);
+  Stream_allocator().construct(m_out_stream, zero_stream);
   m_valid_out_stream = true;
 }
 
 void Message_builder::reset_stream() {
+  DBUG_ASSERT(m_memory_managed);
+  DBUG_ASSERT(m_valid_out_stream);
   Stream_allocator().destroy(m_out_stream);
   m_valid_out_stream = false;
 }
 
-void Message_builder::start_message(Output_buffer *out_buffer,
+void Message_builder::start_message(Page_output_stream *out_buffer,
                                     const uint8 type) {
   m_field_number = 0;
 
-  m_out_buffer = out_buffer;
-  m_out_buffer->save_state();
-  m_out_buffer->reserve(5);
-  m_start_from = static_cast<uint32>(m_out_buffer->ByteCount());
+  m_out_page_stream = out_buffer;
+  m_out_page_stream->backup_current_position();
+  m_header_addr =
+      static_cast<uint8 *>(m_out_page_stream->reserve_space(k_header_size));
+
+  if (nullptr == m_header_addr) return;
+
+  m_header_addr[4] = type;
+  m_start_from = static_cast<uint32>(m_out_page_stream->ByteCount());
 
   construct_stream();
-
-  // at this point we don't know the size but we need to reserve the space for
-  // it it is possible that the size which is stored on 4-bytes will be split
-  // into 2 pages in that case we need to keep 2 addresses to be able to write
-  // the size when it is known
-  m_out_stream->GetDirectBufferPointer(reinterpret_cast<void **>(&m_size_addr1),
-                                       &m_size_addr1_size);
-
-  DBUG_ASSERT(m_size_addr1_size >= 1);
-
-  if (static_cast<size_t>(m_size_addr1_size) <
-      sizeof(google::protobuf::uint32)) {
-    int bytes_left = sizeof(google::protobuf::uint32) - m_size_addr1_size;
-    int size_addr2_size;
-    m_out_stream->Skip(m_size_addr1_size);
-    m_out_stream->GetDirectBufferPointer(
-        reinterpret_cast<void **>(&m_size_addr2), &size_addr2_size);
-    DBUG_ASSERT(size_addr2_size > bytes_left);
-    m_out_stream->Skip(bytes_left);
-  } else {
-    m_size_addr1_size = sizeof(google::protobuf::uint32);
-    m_out_stream->Skip(m_size_addr1_size);
-  }
-
-  // write message type
-  m_out_stream->WriteRaw(&type, 1);
 }
 
 void Message_builder::end_message() {
@@ -146,40 +139,25 @@ void Message_builder::end_message() {
   // buffer's BackUp() validating ByteCount
   reset_stream();
 
-  uint32 msg_size = static_cast<uint32>(m_out_buffer->ByteCount()) -
-                    m_start_from - sizeof(google::protobuf::uint32);
-  if (static_cast<size_t>(m_size_addr1_size) >=
-      sizeof(google::protobuf::uint32)) {
-    // easy case, whole size written into continuous memory
-    CodedOutputStream::WriteLittleEndian32ToArray(
-        msg_size, static_cast<google::protobuf::uint8 *>(m_size_addr1));
-  } else {
-    // message size is split into 2 pages
-    google::protobuf::uint8 source[4];
-    memcpy(source, &msg_size, sizeof(msg_size));
-#ifdef WORDS_BIGENDIAN
-    std::swap(source[0], source[3]);
-    std::swap(source[1], source[2]);
-#endif
-    google::protobuf::uint8 *target[4];
-    target[0] = m_size_addr1;
-    target[1] = (m_size_addr1_size > 1)
-                    ? (m_size_addr1 + 1)
-                    : (m_size_addr2 + 1 - m_size_addr1_size);
-    target[2] = (m_size_addr1_size > 2)
-                    ? (m_size_addr1 + 2)
-                    : (m_size_addr2 + 2 - m_size_addr1_size);
-    target[3] = m_size_addr2 + 3 - m_size_addr1_size;
-
-    for (size_t i = 0; i < 4; ++i) *target[i] = source[i];
-  }
+  uint32 msg_size =
+      static_cast<uint32>(m_out_page_stream->ByteCount()) - m_start_from + 1;
+  CodedOutputStream::WriteLittleEndian32ToArray(
+      msg_size, static_cast<google::protobuf::uint8 *>(m_header_addr));
 }
 
-void Message_builder::encode_empty_message(Output_buffer *out_buffer,
-                                           const uint8 type) {
+uint8 *Message_builder::encode_empty_message(Page_output_stream *out_buffer,
+                                             const uint8 type) {
+  uint8 *dst_ptr =
+      static_cast<uint8 *>(out_buffer->reserve_space(k_header_size));
   const uint32 MSG_SIZE = sizeof(uint8);
-  out_buffer->add_int32(MSG_SIZE);
-  out_buffer->add_int8(type);
+
+  if (nullptr == dst_ptr) return nullptr;
+
+  CodedOutputStream::WriteLittleEndian32ToArray(MSG_SIZE, dst_ptr);
+  dst_ptr += sizeof(uint32);
+  *(dst_ptr) = type;
+
+  return dst_ptr;
 }
 
 }  // namespace ngs

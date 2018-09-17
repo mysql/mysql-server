@@ -73,6 +73,20 @@ message Limit {
   optional uint64 offset = 2 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
 }
 
+// limit expression
+//
+// LimitExpr in comparison to Limit, is able to specify that row_count and
+// offset are placeholders.
+// This message support expressions of following types Expr/literal/UINT,
+// Expr/PLACEHOLDER.
+//
+// :param row_count: maximum rows to filter
+// :param offset: maximum rows to skip before applying the row_count
+message LimitExpr {
+  required Mysqlx.Expr.Expr row_count = 1;
+  optional Mysqlx.Expr.Expr offset = 2;
+}
+
 // sort order
 message Order {
   enum Direction {
@@ -120,12 +134,13 @@ message UpdateOperation {
 // :param projection: list of column projections that shall be returned
 // :param args: values for parameters used in filter expression
 // :param criteria: filter criteria
-// :param limit: numbers of rows that shall be skipped and returned
+// :param limit: numbers of rows that shall be skipped and returned (user can set one of: limit, limit_expr)
 // :param order: sort-order in which the rows/document shall be returned in
 // :param grouping: column expression list for aggregation (GROUP BY)
 // :param grouping_criteria: filter criteria for aggregated groups
 // :param locking: perform row locking on matches
 // :param locking_options: additional options how to handle locked rows
+// :param limit_expr: numbers of rows that shall be skipped and returned (user can set one of: limit, limit_expr)
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Find {
   enum RowLock {
@@ -144,12 +159,13 @@ message Find {
   repeated Projection projection = 4;
   optional Mysqlx.Expr.Expr criteria = 5;
   repeated Mysqlx.Datatypes.Scalar args = 11;
-  optional Limit limit = 6;
   repeated Order order = 7;
   repeated Mysqlx.Expr.Expr grouping = 8;
   optional Mysqlx.Expr.Expr grouping_criteria = 9;
   optional RowLock locking = 12;
   optional RowLockOptions locking_options = 13;
+  optional Limit limit = 6;
+  optional LimitExpr limit_expr = 14;
 
   option (client_message_id) = CRUD_FIND; // comment_out_if PROTOBUF_LITE
 };
@@ -185,9 +201,10 @@ message Insert {
 // :param data_model: datamodel that the operations refer to
 // :param criteria: filter expression to match rows that the operations will apply on
 // :param args: values for parameters used in filter expression
-// :param limit: limits the number of rows to match
+// :param limit: limits the number of rows to match (user can set one of: limit, limit_expr)
 // :param order: specifies order of matched rows
 // :param operation: list of operations to be applied. Valid operations will depend on the data_model.
+// :param limit_expr: limits the number of rows to match (user can set one of: limit, limit_expr)
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Update {
   required Collection collection = 2;
@@ -195,10 +212,12 @@ message Update {
   optional DataModel data_model = 3;
   optional Mysqlx.Expr.Expr criteria = 4;
   repeated Mysqlx.Datatypes.Scalar args = 8;
-  optional Limit limit = 5;
   repeated Order order = 6;
 
   repeated UpdateOperation operation = 7;
+
+  optional Limit limit = 5;
+  optional LimitExpr limit_expr = 9;
 
   option (client_message_id) = CRUD_UPDATE; // comment_out_if PROTOBUF_LITE
 };
@@ -209,8 +228,9 @@ message Update {
 // :param data_model: datamodel that the operations refer to
 // :param criteria: filter expression to match rows that the operations will apply on
 // :param args: values for parameters used in filter expression
-// :param limit: limits the number of rows to match
+// :param limit: limits the number of rows to match (user can set one of: limit, limit_expr)
 // :param order: specifies order of matched rows
+// :param limit_expr: limits the number of rows to match (user can set one of: limit, limit_expr)
 // :Returns: :protobuf:msg:`Mysqlx.Resultset::`
 message Delete {
   required Collection collection = 1;
@@ -218,8 +238,10 @@ message Delete {
   optional DataModel data_model = 2;
   optional Mysqlx.Expr.Expr criteria = 3;
   repeated Mysqlx.Datatypes.Scalar args = 6;
-  optional Limit limit = 4;
   repeated Order order = 5;
+
+  optional Limit limit = 4;
+  optional LimitExpr limit_expr = 7;
 
   option (client_message_id) = CRUD_DELETE; // comment_out_if PROTOBUF_LITE
 };

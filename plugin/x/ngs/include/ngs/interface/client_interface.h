@@ -30,6 +30,8 @@
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 
+class THD;
+
 namespace ngs {
 
 class Server_interface;
@@ -86,14 +88,15 @@ class Client_interface {
   virtual void set_wait_timeout(const uint32_t) = 0;
 
   virtual Session_interface *session() = 0;
-  virtual ngs::shared_ptr<ngs::Session_interface> session_smart_ptr() = 0;
+  virtual ngs::shared_ptr<ngs::Session_interface> session_smart_ptr() const = 0;
 
- public:
   virtual void on_session_reset(Session_interface &s) = 0;
   virtual void on_session_close(Session_interface &s) = 0;
   virtual void on_session_auth_success(Session_interface &s) = 0;
 
   virtual void disconnect_and_trigger_close() = 0;
+
+  virtual bool is_handler_thd(const THD *thd) const = 0;
 };
 
 }  // namespace ngs

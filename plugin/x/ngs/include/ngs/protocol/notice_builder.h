@@ -35,10 +35,10 @@ class Output_buffer;
 
 class Notice_builder : public Message_builder {
  public:
-  void encode_frame(Output_buffer *out_buffer, uint32 type,
+  void encode_frame(Page_output_stream *out_buffer, uint32 type,
                     const std::string &data, int scope);
 
-  void encode_rows_affected(Output_buffer *out_buffer, uint64 value);
+  void encode_rows_affected(Page_output_stream *out_buffer, uint64 value);
 };
 }  // namespace ngs
 

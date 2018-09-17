@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,20 +33,6 @@
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 
 using namespace ngs;
-
-/*
-NOTE: Commented for coverage. Uncomment when needed.
-
-Page_pool::Page_pool(const int32_t page_size)
-: m_pages_max(0),
-  m_pages_cache_max(0),
-  m_pages_allocated(0),
-  m_pages_cached(0),
-  m_page_size(page_size)
-{
-}
-
-*/
 
 Page_pool::Page_pool(const Pool_config &pool_config)
     : m_pages_max(pool_config.pages_max),

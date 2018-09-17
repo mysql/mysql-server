@@ -48,7 +48,7 @@ void xpl::Find_statement_builder::add_statement_common(const Find &msg) const {
   add_grouping(msg.grouping());
   add_grouping_criteria(msg.grouping_criteria());
   add_order(msg.order());
-  add_limit(msg.limit(), false);
+  add_limit(msg, false);
   add_row_locking(msg);
 }
 
@@ -75,7 +75,7 @@ void xpl::Find_statement_builder::add_document_statement_with_grouping(
   add_grouping(msg.grouping());
   add_grouping_criteria(msg.grouping_criteria());
   add_order(msg.order());
-  add_limit(msg.limit(), false);
+  add_limit(msg, false);
   m_builder.put(") AS ").put(DERIVED_TABLE_NAME);
   add_row_locking(msg);
 }
@@ -156,8 +156,8 @@ void xpl::Find_statement_builder::add_row_locking(const Find &msg) const {
   if (!msg.has_locking()) {
     if (msg.has_locking_options())
       throw ngs::Error(ER_X_BAD_LOCKING,
-                       "Invalid \"find\" message, \
-\"locking\" field is required when \"locking_options\" is set.");
+                       "Invalid \"find\" message, \"locking\" "
+                       "field is required when \"locking_options\" is set.");
     return;
   }
 

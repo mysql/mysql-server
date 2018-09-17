@@ -28,50 +28,28 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_aggregator_interface.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 #include "plugin/x/src/statement_builder.h"
-
-namespace ngs {
-class Sql_session_interface;
-}  // namespace ngs
 
 namespace xpl {
 
 class Insert_statement_builder : public Crud_statement_builder {
  public:
   using Insert = ::Mysqlx::Crud::Insert;
-  using Document_id_list = std::vector<std::string>;
+  using Document_id_list =
+      ngs::Document_id_aggregator_interface::Document_id_list;
 
-  class Document_id_aggregator {
-   public:
-    Document_id_aggregator(ngs::Document_id_generator_interface *base_gen,
-                           Document_id_list *document_ids);
-    const std::string &generate_id() const;
-    void add_id(const std::string &id) const { m_document_ids->push_back(id); }
-    const Document_id_list &get_ids() const { return *m_document_ids; }
-    ngs::Error_code configue(ngs::Sql_session_interface *data_context);
-
-   private:
-    ngs::Document_id_generator_interface *m_base_id_generator;
-    Document_id_list *m_document_ids;
-    ngs::Document_id_generator_interface::Variables m_variables;
-  };
-
-  explicit Insert_statement_builder(const Expression_generator &gen,
-                                    Document_id_aggregator *id_aggregator)
+  explicit Insert_statement_builder(
+      const Expression_generator &gen,
+      ngs::Document_id_aggregator_interface *id_aggregator = nullptr)
       : Crud_statement_builder(gen), m_document_id_aggregator(id_aggregator) {}
   void build(const Insert &msg) const;
-  const Document_id_list &get_document_ids() const {
-    return m_document_id_aggregator->get_ids();
-  }
 
  protected:
-  using Projection_list =
-      ::google::protobuf::RepeatedPtrField<::Mysqlx::Crud::Column>;
-  using Field_list = ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::Expr>;
-  using Row_list =
-      ::google::protobuf::RepeatedPtrField<::Mysqlx::Crud::Insert_TypedRow>;
+  using Projection_list = Repeated_field_list<::Mysqlx::Crud::Column>;
+  using Field_list = Repeated_field_list<::Mysqlx::Expr::Expr>;
+  using Row_list = Repeated_field_list<::Mysqlx::Crud::Insert_TypedRow>;
   using Placeholder = ::google::protobuf::uint32;
 
   void add_projection(const Projection_list &projection,
@@ -86,7 +64,7 @@ class Insert_statement_builder : public Crud_statement_builder {
   void add_document_object(const Mysqlx::Expr::Object &arg) const;
 
  private:
-  Document_id_aggregator *m_document_id_aggregator;
+  ngs::Document_id_aggregator_interface *m_document_id_aggregator;
 };
 
 }  // namespace xpl

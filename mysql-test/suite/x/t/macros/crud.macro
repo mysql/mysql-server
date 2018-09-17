@@ -33,3 +33,23 @@
 -->varlet %PAYLOAD% %PAYLOAD% data_model: DOCUMENT
 -->callmacro Crud %VAR_ARGS%
 -->endmacro
+
+-->macro_varg Crud_set_Limit1	%ROWS%
+-->varlet %PAYLOAD% %PAYLOAD% limit { row_count: %ROWS% }
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+-->macro_varg Crud_set_Limit2	%ROWS%	%OFFSET%
+-->varlet %PAYLOAD% %PAYLOAD% limit { row_count: %ROWS% offset: %OFFSET%}
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+-->macro_varg Crud_set_Limit_expr2	%ROWS%	%OFFSET%
+-->varlet %PAYLOAD% %PAYLOAD% limit_expr {row_count{type:LITERAL literal {type:V_SINT v_signed_int:%ROWS%}} offset{type:LITERAL literal {type:V_SINT v_signed_int:%OFFSET%}}}
+-->callmacro Crud %VAR_ARGS%
+-->endmacro
+
+-->macro_varg Crud_set_Limit_expr1	%ROWS%	%OFFSET%
+-->varlet %PAYLOAD% %PAYLOAD% limit_expr {row_count{type:LITERAL literal {type:V_SINT v_signed_int:%ROWS%}} }
+-->callmacro Crud %VAR_ARGS%
+-->endmacro

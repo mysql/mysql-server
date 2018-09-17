@@ -197,6 +197,8 @@ The following commands may appear in the input script:
   Increment the value of varname by n (assuming both convert to integral)
 -->varsub <varname>
   Add a variable to the list of variables to replace for the next recv or sql command (value is replaced by the name)
+-->varreplace <varname>	<old_txt>	<new_txt>
+  Replace all occurrence of <old_txt> with <new_txt> in <varname> value.
 -->varescape <varname>
   Escape end-line and backslash characters.
 -->binsend <bindump>[<bindump>...]
@@ -213,4 +215,12 @@ The following commands may appear in the input script:
   Toggle visibility for query results
 -->received <msgtype>	<varname>
   Assigns number of received messages of indicated type (in active session) to a variable
+-->clear_received
+  Clear number of received messages.
+-->recvresult_store_metadata <METADATA_TAG> [print-columnsinfo] [be-quiet]
+  Receive result and store metadata for future use; if print-columnsinfo is present also print short columns status
+-->recv_with_stored_metadata <METADATA_TAG>
+  Receive a message using a previously stored metadata
+-->clear_stored_metadata
+  Clear metadata information stored by the recvresult_store_metadata
 # comment

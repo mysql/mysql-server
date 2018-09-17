@@ -1,0 +1,187 @@
+## Test of visibility of prepare statement in prerformace schema
+
+## Preamble
+--source include/no_ps_protocol.inc
+--source ../include/have_performance_schema_statements.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_perf_schema.xpl
+-->import assert_select.macro
+-->import assert_variable.macro
+-->quiet
+
+-->macro_varg Prepare_and_verify_in_perf_schema	%SQL%
+echo # Prepare stmt;
+Mysqlx.Prepare.Prepare {
+  stmt_id: 42
+  %VAR_ARGS%
+}
+-->recvtype Mysqlx.Ok be-quiet
+
+callmacro Assert_select
+	sql_text
+	%SQL%
+	SELECT sql_text FROM performance_schema.prepared_statements_instances WHERE `STATEMENT_ID`=mysqlx_get_prepared_statement_id(42);
+
+
+echo # Deallocate the stmt;
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 42
+}
+-->recvtype Mysqlx.Ok be-quiet
+
+callmacro Assert_select
+	count_sql_text
+	0
+	SELECT count(sql_text) AS count_sql_text FROM performance_schema.prepared_statements_instances;
+
+-->endmacro
+
+-->echo
+-->echo ## 1. Verify SQL preparation in performance_schema
+-->echo ## 2. Verify Crud.Find preparation in performance_schema
+-->echo #   a. check find on a table
+-->echo #   b. check find on a collection
+-->echo ## 3. Verify Crud.Insert preparation in performance_schema
+-->echo #   a. success for execute with one parameter
+-->echo #   b. success for execute with two parameters (more than needed)
+
+
+title =Setup database;
+stmtadmin create_collection	{"schema": "xtest", "name":"coll"};
+recvresult;
+
+
+title = 1. Verify SQL;
+
+callmacro Prepare_and_verify_in_perf_schema
+	SELECT 1
+	stmt: {
+    type: STMT
+    stmt_execute: {
+      stmt: "SELECT 1"
+    }
+  };
+
+
+title = 2.a. Verify Crud.Find on a table;
+
+callmacro Prepare_and_verify_in_perf_schema
+	SELECT '42' FROM `mysql`.`user`
+	stmt: {
+    type: FIND
+    find: {
+      collection { name: "user" schema: "mysql" }
+      data_model: TABLE
+      projection {
+        source {
+          type: LITERAL literal {
+            type: V_OCTETS v_octets {
+              value: "42"
+            }
+          }
+        }
+      }
+    }
+  };
+
+
+title = 2.b. Verify Crud.Find on a collection;
+
+callmacro Prepare_and_verify_in_perf_schema
+	SELECT doc FROM `coll`
+	stmt: {
+    type: FIND
+    find: {
+      collection { name: "coll" }
+      data_model: DOCUMENT
+    }
+  };
+
+
+title = 3.a. Verify Crud.Insert on a table with literal;
+
+callmacro Prepare_and_verify_in_perf_schema
+	INSERT INTO `coll` (`doc`) VALUES ('{\"_id\":\"1\", \"pupil\":\"Alice\", \"pet\":\"cat\"}')
+	stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "coll" }
+      data_model: TABLE
+      projection { name: "doc" }
+      row {
+        field {
+          type: LITERAL literal {
+            type: V_STRING v_string {
+              value: '{"_id":"1", "pupil":"Alice", "pet":"cat"}'
+            }
+          }
+        }
+      }
+    }
+  };
+
+
+title = 3.b. Verify Crud.Insert on a collection with literal;
+
+callmacro Prepare_and_verify_in_perf_schema
+	INSERT INTO `coll` (doc) VALUES ((SELECT JSON_INSERT(`_DERIVED_TABLE_`.`value`,'$._id',CONVERT(MYSQLX_GENERATE_DOCUMENT_ID(@@AUTO_INCREMENT_OFFSET,@@AUTO_INCREMENT_INCREMENT,JSON_CONTAINS_PATH(`_DERIVED_TABLE_`.`value`,'one','$._id')) USING utf8mb4)) FROM (SELECT '{\"_id\":\"1\", \"pupil\":\"Alice\", \"pet\":\"cat\"}' AS `value`) AS `_DERIVED_TABLE_`))
+	stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "coll" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: LITERAL literal {
+            type: V_STRING v_string {
+              value: '{"_id":"1", "pupil":"Alice", "pet":"cat"}'
+            }
+          }
+        }
+      }
+    }
+  };
+
+
+title = 3.c. Verify Crud.Insert on a collection with object;
+
+callmacro Prepare_and_verify_in_perf_schema
+	INSERT INTO `coll` (doc) VALUES ((SELECT JSON_INSERT(`_DERIVED_TABLE_`.`value`,'$._id',CONVERT(MYSQLX_GENERATE_DOCUMENT_ID(@@AUTO_INCREMENT_OFFSET,@@AUTO_INCREMENT_INCREMENT,JSON_CONTAINS_PATH(`_DERIVED_TABLE_`.`value`,'one','$._id')) USING utf8mb4)) FROM (SELECT JSON_OBJECT('pupil',?,'pet',?) AS `value`) AS `_DERIVED_TABLE_`))
+	stmt: {
+    type: INSERT
+    insert: {
+      collection { name: "coll" }
+      data_model: DOCUMENT
+      row {
+        field {
+          type: OBJECT object {
+            fld {
+              key: "pupil"
+              value {
+                type: PLACEHOLDER position: 0
+              }
+            }
+            fld {
+              key: "pet"
+              value {
+                type: PLACEHOLDER position: 1
+              }
+            }
+          }
+        }
+      }
+    }
+  };
+
+EOF
+
+CREATE DATABASE xtest;
+--exec $MYSQLXTEST -ux_root --password='' --schema xtest --file=$MYSQL_TMP_DIR/prep_stmt_perf_schema.xpl 2>&1
+
+## Cleanup
+DROP DATABASE xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

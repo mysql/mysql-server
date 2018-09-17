@@ -49,6 +49,7 @@
 #include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/udf/registry.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_session.h"
@@ -75,10 +76,16 @@ class Server : public ngs::Server_delegate {
   static int exit(MYSQL_PLUGIN p);
   static bool reset();
   static void stop();
+  static std::string get_document_id(const THD *thd, const uint16_t offset,
+                                     const uint16_t increment);
+  static bool get_prepared_statement_id(const THD *thd,
+                                        const uint32_t client_stmt_id,
+                                        uint32_t *stmt_id);
 
   ngs::Server &server() { return m_server; }
 
-  ngs::Error_code kill_client(uint64_t client_id, Session &requester);
+  ngs::Error_code kill_client(uint64_t client_id,
+                              ngs::Session_interface &requester);
 
   std::string get_socket_file();
   std::string get_tcp_bind_address();
@@ -150,7 +157,7 @@ class Server : public ngs::Server_delegate {
   ngs::Server_properties m_properties;
   std::shared_ptr<Notice_input_queue> m_notice_input_queue;
   ngs::Server m_server;
-  std::set<std::string> m_udf_names;
+  udf::Registry m_udf_registry;
 
   static std::atomic<bool> exiting;
   static bool is_exiting();

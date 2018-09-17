@@ -38,14 +38,13 @@
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
-#include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
+#include "protocol/page_output_stream.h"
 
 namespace ngs {
 
@@ -53,12 +52,14 @@ class Output_buffer;
 
 class Protocol_encoder : public Protocol_encoder_interface {
  public:
-  typedef ngs::function<void(int error)> Error_handler;
-
   Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
-                   Error_handler ehandler, Protocol_monitor_interface &pmon);
+                   Error_handler ehandler, Protocol_monitor_interface *pmon);
 
-  ~Protocol_encoder() override;
+  Page_output_stream *get_buffer() override { return &m_page_output_stream; }
+  Protocol_flusher *get_flusher() override { return &m_flusher; }
+  Metadata_builder *get_metadata_builder() override {
+    return &m_metadata_builder;
+  }
 
   bool send_result(const Error_code &result) override;
 
@@ -77,7 +78,9 @@ class Protocol_encoder : public Protocol_encoder_interface {
 
   bool send_exec_ok() override;
   bool send_result_fetch_done() override;
+  bool send_result_fetch_suspended() override;
   bool send_result_fetch_done_more_results() override;
+  bool send_result_fetch_done_more_out_params() override;
 
   bool send_column_metadata(const Encode_column_info *column_info) override;
 
@@ -87,9 +90,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
   // sends the row that was written directly into Encoder's buffer
   bool send_row() override;
 
-  Output_buffer *get_buffer() override { return m_buffer.get(); }
-
-  virtual bool send_message(int8_t type, const Message &message,
+  virtual bool send_message(uint8_t type, const Message &message,
                             bool force_buffer_flush = false) override;
   virtual void on_error(int error) override;
 
@@ -98,40 +99,30 @@ class Protocol_encoder : public Protocol_encoder_interface {
   static void log_protobuf(const char *direction_name, const uint8 type,
                            const Message *msg);
   static void log_protobuf(const char *direction_name, const Message *request);
-  static void log_protobuf(int8_t type);
-
-  void set_write_timeout(const uint32_t timeout) override {
-    m_write_timeout = timeout;
-  }
+  static void log_protobuf(uint8_t type);
 
  private:
   Protocol_encoder(const Protocol_encoder &) = delete;
   Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
-  virtual bool send_empty_message(uint8_t message_id);
+  virtual bool send_empty_message(const uint8_t message_id);
 
   // Temporary solution for all io
   static const Pool_config m_default_pool_config;
   ngs::Page_pool m_pool;
-  ngs::shared_ptr<Vio_interface> m_socket;
   Error_handler m_error_handler;
   Protocol_monitor_interface *m_protocol_monitor;
 
-  Output_buffer_unique_ptr m_buffer;
+  Page_output_stream m_page_output_stream;
+  Protocol_flusher m_flusher;
 
   Row_builder m_row_builder;
   Metadata_builder m_metadata_builder;
   Message_builder m_empty_msg_builder;
   Notice_builder m_notice_builder;
 
-  uint32_t m_write_timeout =
-      static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
-
-  // add the m_out_buffer contents to the output queue... thread-safe
-  bool flush_buffer();  // ownership of buffer is taken
-
-  bool enqueue_buffer(int8_t type, bool force_flush = false);
-  bool send_raw_buffer(int8_t type);
+  bool on_message(const uint8_t type);
+  bool send_raw_buffer(const uint8_t type);
 };
 
 #ifdef XPLUGIN_LOG_PROTOBUF

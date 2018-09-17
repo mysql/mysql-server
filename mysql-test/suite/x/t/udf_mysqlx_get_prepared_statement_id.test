@@ -1,0 +1,110 @@
+## Test of user defined function mysqlx_get_prepared_statement_id
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/udf_mysqlx_get_prepared_statement_id.xpl
+-->import assert_select.macro
+-->quiet
+
+-->macro Prepare_stmt  %CLIENT_ID%
+Mysqlx.Prepare.Prepare {
+  stmt_id: %CLIENT_ID%
+  stmt: {
+    type: FIND
+    find: {
+      collection { name: "user" schema: "mysql" }
+      data_model: TABLE
+      projection {
+        source {
+          type: LITERAL literal {
+            type: V_OCTETS v_octets {
+              value: "%CLIENT_ID%"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+-->endmacro
+
+-->callmacro Prepare_stmt	4
+-->callmacro Prepare_stmt	6
+-->callmacro Prepare_stmt	8
+-->callmacro Prepare_stmt	10
+-->callmacro Prepare_stmt	12
+-->callmacro Prepare_stmt	14
+
+
+-->callmacro Assert_select	Value	null	SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(3) as Value
+
+-->callmacro Assert_select	Value	1	SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(4) as Value
+
+-->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID(6);
+-->recvresult
+
+-->stmtsql CALL MYSQLX_GET_PREPARED_STATEMENT_ID(8);
+-->expecterror ER_NO_DB_ERROR
+-->recvresult
+
+-->stmtsql USE test;
+-->recvresult
+
+-->stmtsql CALL MYSQLX_GET_PREPARED_STATEMENT_ID(10);
+-->expecterror ER_SP_DOES_NOT_EXIST
+-->recvresult
+
+-->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID(12, 1)
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID('abc')
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID(NULL);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->stmtsql DO MYSQLX_GET_PREPARED_STATEMENT_ID(123.45);
+-->expecterror ER_CANT_INITIALIZE_UDF
+-->recvresult
+
+-->sql
+DELIMITER ||
+CREATE PROCEDURE my_procedure(IN id INT)
+BEGIN
+  SELECT 'begin';
+  SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(id);
+  SELECT 'end';
+END ||
+DELIMITER ;
+
+CALL my_procedure(14);
+
+DROP PROCEDURE my_procedure;
+-->endsql
+EOF
+
+
+# there is no xplugin client; always NULL expected
+--let $assert_text= Validation of MYSQLX_GET_PREPARED_STATEMENT_ID(1)
+--let $assert_cond= [SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(1) AS Value, Value, 1] IS NULL
+--source include/assert.inc
+
+--let $assert_text= Validation of MYSQLX_GET_PREPARED_STATEMENT_ID(2)
+--let $assert_cond= [SELECT MYSQLX_GET_PREPARED_STATEMENT_ID(2) AS Value, Value, 1] IS NULL
+--source include/assert.inc
+
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/udf_mysqlx_get_prepared_statement_id.xpl 2>&1;
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

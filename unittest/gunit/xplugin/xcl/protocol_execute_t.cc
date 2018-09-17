@@ -177,12 +177,39 @@ class xcl_protocol_impl_tests_execute_msg
                                             XError *out_error) {
     return this->m_sut->execute_delete(m, out_error);
   }
+
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Cursor::Open &m,
+                                            XError *out_error) {
+    return this->m_sut->execute_cursor_open(m, out_error);
+  }
 };
+
+TEST_F(Xcl_protocol_impl_tests, cursor_fetch_msg_with_payload) {
+  using Send_desc = Client_message<::Mysqlx::Cursor::Fetch>;
+  auto msg_send = Send_desc::make_required();
+  XError out_error;
+
+  Mock_query_result *expected_result = new Mock_query_result();
+  expect_write_message(msg_send);
+
+  XQuery_result::Metadata metadata;
+  std::unique_ptr<Mock_query_result> open_result(new Mock_query_result());
+  EXPECT_CALL(*open_result.get(), get_metadata(_))
+      .WillOnce(ReturnRef(metadata));
+  EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))
+      .WillOnce(Return(expected_result));
+  EXPECT_CALL(*expected_result, set_metadata(_));
+  auto result =
+      m_sut->execute_cursor_fetch(msg_send, std::move(open_result), &out_error);
+
+  ASSERT_FALSE(out_error);
+  ASSERT_EQ(expected_result, result.get());
+}
 
 using Msg_vs_method_types =
     ::testing::Types<::Mysqlx::Sql::StmtExecute, ::Mysqlx::Crud::Find,
                      ::Mysqlx::Crud::Insert, ::Mysqlx::Crud::Update,
-                     ::Mysqlx::Crud::Delete>;
+                     ::Mysqlx::Crud::Delete, ::Mysqlx::Cursor::Open>;
 
 TYPED_TEST_CASE(xcl_protocol_impl_tests_execute_msg, Msg_vs_method_types);
 

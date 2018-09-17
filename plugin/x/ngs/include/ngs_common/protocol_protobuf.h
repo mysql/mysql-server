@@ -27,6 +27,7 @@
 
 #ifdef WIN32
 #pragma warning(push, 0)
+#undef DELETE
 #endif  // WIN32
 
 #include <google/protobuf/dynamic_message.h>
@@ -43,8 +44,10 @@
 #include "plugin/x/generated/protobuf/mysqlx.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_connection.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_crud.pb.h"
+#include "plugin/x/generated/protobuf/mysqlx_cursor.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_expect.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_notice.pb.h"
+#include "plugin/x/generated/protobuf/mysqlx_prepare.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_resultset.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_session.pb.h"
 #include "plugin/x/generated/protobuf/mysqlx_sql.pb.h"
@@ -52,8 +55,10 @@
 #include "plugin/x/generated/protobuf_lite/mysqlx.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_connection.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_crud.pb.h"
+#include "plugin/x/generated/protobuf_lite/mysqlx_cursor.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_expect.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_notice.pb.h"
+#include "plugin/x/generated/protobuf_lite/mysqlx_prepare.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_resultset.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_session.pb.h"
 #include "plugin/x/generated/protobuf_lite/mysqlx_sql.pb.h"

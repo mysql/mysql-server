@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ Identifier::Identifier(const std::string &name,
   if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
 }
 
-ColumnIdentifier::ColumnIdentifier(const std::string &name,
-                                   const std::string &table_name,
-                                   const std::string &schema_name) {
+Column_identifier::Column_identifier(const std::string &name,
+                                     const std::string &table_name,
+                                     const std::string &schema_name) {
   if (name.empty() == false) m_base.set_name(name);
 
   if (table_name.empty() == false) m_base.set_table_name(table_name);
@@ -46,10 +46,10 @@ ColumnIdentifier::ColumnIdentifier(const std::string &name,
   if (schema_name.empty() == false) m_base.set_schema_name(schema_name);
 }
 
-ColumnIdentifier::ColumnIdentifier(const Document_path &path,
-                                   const std::string &name,
-                                   const std::string &table_name,
-                                   const std::string &schema_name) {
+Column_identifier::Column_identifier(const Document_path &path,
+                                     const std::string &name,
+                                     const std::string &table_name,
+                                     const std::string &schema_name) {
   if (!name.empty()) m_base.set_name(name);
 
   if (!table_name.empty()) m_base.set_table_name(table_name);
@@ -135,12 +135,12 @@ Expr::Expr(const Operator &oper) {
   m_base.mutable_operator_()->CopyFrom(oper);
 }
 
-Expr::Expr(const FunctionCall &func) {
+Expr::Expr(const Function_call &func) {
   m_base.set_type(Mysqlx::Expr::Expr_Type_FUNC_CALL);
   m_base.mutable_function_call()->CopyFrom(func);
 }
 
-Expr::Expr(const ColumnIdentifier &id) {
+Expr::Expr(const Column_identifier &id) {
   m_base.set_type(Mysqlx::Expr::Expr_Type_IDENT);
   m_base.mutable_identifier()->CopyFrom(id);
 }
@@ -219,8 +219,17 @@ Limit::Limit(const uint64_t row_count, const uint64_t offset) {
   if (offset > 0) m_base.set_offset(offset);
 }
 
+Limit_expr::Limit_expr(const Expr &row_count) {
+  m_base.mutable_row_count()->CopyFrom(row_count);
+}
+
+Limit_expr::Limit_expr(const Expr &row_count, const Expr &offset) {
+  m_base.mutable_row_count()->CopyFrom(row_count);
+  m_base.mutable_offset()->CopyFrom(offset);
+}
+
 Update_operation::Update_operation(const Update_type &update_type,
-                                   const ColumnIdentifier &source,
+                                   const Column_identifier &source,
                                    const Expr &value) {
   m_base.set_operation(update_type);
   m_base.mutable_source()->CopyFrom(source);
@@ -231,18 +240,18 @@ Update_operation::Update_operation(const Update_type &update_type,
                                    const Document_path &source,
                                    const Expr &value) {
   m_base.set_operation(update_type);
-  m_base.mutable_source()->CopyFrom(ColumnIdentifier(source));
+  m_base.mutable_source()->CopyFrom(Column_identifier(source));
   m_base.mutable_value()->CopyFrom(value);
 }
 
 Update_operation::Update_operation(const Update_type &update_type,
                                    const Document_path &source) {
   m_base.set_operation(update_type);
-  m_base.mutable_source()->CopyFrom(ColumnIdentifier(source));
+  m_base.mutable_source()->CopyFrom(Column_identifier(source));
 }
 
 Update_operation::Update_operation(const Update_type &update_type,
-                                   const ColumnIdentifier &source) {
+                                   const Column_identifier &source) {
   m_base.set_operation(update_type);
   m_base.mutable_source()->CopyFrom(source);
 }

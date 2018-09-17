@@ -65,6 +65,10 @@ xcl::XError Session_holder::reconnect() {
   return setup_session();
 }
 
+void Session_holder::clear_received_messages() {
+  m_received_msg_counters.clear();
+}
+
 bool Session_holder::try_get_number_of_received_messages(
     const std::string message_name, uint64_t *value) const {
   assert(nullptr != value);

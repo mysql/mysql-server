@@ -32,11 +32,11 @@
 #include "plugin/x/ngs/include/ngs/client_session.h"
 #include "plugin/x/ngs/include/ngs/interface/notice_output_queue_interface.h"
 #include "plugin/x/ngs/include/ngs/session_status_variables.h"
-#include "plugin/x/src/crud_cmd_handler.h"
-#include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/mq/notice_configuration.h"
 #include "plugin/x/src/mq/notice_output_queue.h"
 #include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
 
 namespace xpl {
@@ -48,7 +48,7 @@ class Client;
 
 class Session : public ngs::Session {
  public:
-  Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto,
+  Session(ngs::Client_interface *client, ngs::Protocol_encoder_interface *proto,
           const Session_id session_id);
   ~Session() override;
 
@@ -61,6 +61,7 @@ class Session : public ngs::Session {
 
   void mark_as_tls_session() override;
   THD *get_thd() const override;
+  bool can_see_user(const std::string &user) const override;
   ngs::Sql_session_interface &data_context() override { return m_sql; }
   ngs::Notice_output_queue_interface &get_notice_output_queue() override {
     return m_notice_output_queue;
@@ -77,15 +78,13 @@ class Session : public ngs::Session {
     return m_status_variables;
   }
 
-  bool can_see_user(const std::string &user) const;
+  void update_status(Variable variable) override;
 
-  template <Variable variable>
-  void update_status();
-
-  template <Variable variable>
-  void update_status(long param);
-
-  void update_status(Variable variable);
+  bool get_prepared_statement_id(const uint32_t client_stmt_id,
+                                 uint32_t *out_stmt_id) const override;
+  ngs::Document_id_aggregator_interface &get_document_id_aggregator() override {
+    return m_document_id_aggregator;
+  }
 
  private:  // reimpl ngs::Session
   void on_kill() override;
@@ -95,28 +94,13 @@ class Session : public ngs::Session {
  private:
   Sql_data_context m_sql;
   Notice_configuration m_notice_configuration;
+  Dispatcher m_dispatcher{this};
   Notice_output_queue m_notice_output_queue;
-  Crud_command_handler m_crud_handler;
-  Expectation_stack m_expect_stack;
-
   ngs::Session_status_variables m_status_variables;
-
   bool m_was_authenticated;
+  Document_id_aggregator m_document_id_aggregator;
 };
 
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
-              *variable>
-void Session::update_status() {
-  ++(m_status_variables.*variable);
-  ++(Global_status_variables::instance().*variable);
-}
-
-template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
-              *variable>
-void Session::update_status(long param) {
-  (m_status_variables.*variable) += param;
-  (Global_status_variables::instance().*variable) += param;
-}
 }  // namespace xpl
 
 #endif  // PLUGIN_X_SRC_XPL_SESSION_H_

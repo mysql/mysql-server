@@ -29,8 +29,10 @@
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol_flusher.h"
 
 namespace ngs {
 
@@ -102,7 +104,9 @@ class Protocol_encoder_interface {
 
   virtual bool send_exec_ok() = 0;
   virtual bool send_result_fetch_done() = 0;
+  virtual bool send_result_fetch_suspended() = 0;
   virtual bool send_result_fetch_done_more_results() = 0;
+  virtual bool send_result_fetch_done_more_out_params() = 0;
   virtual bool send_column_metadata(const Encode_column_info *column_info) = 0;
 
   virtual Row_builder &row_builder() = 0;
@@ -111,15 +115,14 @@ class Protocol_encoder_interface {
   // sends the row that was written directly into Encoder's buffer
   virtual bool send_row() = 0;
 
-  virtual Output_buffer *get_buffer() = 0;
-
-  virtual bool send_message(int8_t type, const Message &message,
-                            bool force_buffer_flush = false) = 0;
-  virtual void on_error(int error) = 0;
-
+  virtual Page_output_stream *get_buffer() = 0;
+  virtual Protocol_flusher *get_flusher() = 0;
+  virtual Metadata_builder *get_metadata_builder() = 0;
   virtual Protocol_monitor_interface &get_protocol_monitor() = 0;
 
-  virtual void set_write_timeout(const uint32_t timeout) = 0;
+  virtual bool send_message(uint8_t type, const Message &message,
+                            bool force_buffer_flush = false) = 0;
+  virtual void on_error(int error) = 0;
 };
 
 }  // namespace ngs

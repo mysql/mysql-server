@@ -32,7 +32,7 @@ class Message;
 #else
 class MessageLite;
 #endif
-}
+}  // namespace protobuf
 }  // namespace google
 
 namespace Mysqlx {
@@ -54,6 +54,7 @@ namespace Crud {
 class Projection;
 class Column;
 class Limit;
+class LimitExpr;
 class Order;
 class Insert;
 class Insert_TypedRow;
@@ -69,7 +70,13 @@ class ModifyView;
 
 namespace Expr {
 class Expr;
-}
+}  // namespace Expr
+
+namespace Prepare {
+class Prepare;
+class Execute;
+class Deallocate;
+}  // namespace Prepare
 
 }  // namespace Mysqlx
 

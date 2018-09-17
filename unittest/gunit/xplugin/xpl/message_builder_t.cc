@@ -28,7 +28,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
@@ -36,48 +36,56 @@ namespace xpl {
 
 namespace test {
 
-typedef ngs::Output_buffer Output_buffer;
-typedef ngs::Message_builder Message_builder;
-typedef ngs::Metadata_builder Metadata_builder;
-typedef ngs::Notice_builder Notice_builder;
-typedef ngs::Page_pool Page_pool;
+using ngs::Message_builder;
+using ngs::Metadata_builder;
+using ngs::Notice_builder;
+using ngs::Page_output_stream;
+using ngs::Page_pool;
 
 const ngs::Pool_config default_pool_config = {0, 0, BUFFER_PAGE_SIZE};
 
-TEST(message_builder, encode_resultset_fetch_done) {
+template <typename T>
+class Message_builder_encode_resultset : public ::testing::Test {};
+
+template <typename ResultsetT, Mysqlx::ServerMessages::Type MessageId>
+struct Resultset_pair_type {
+  using ResultsetType = ResultsetT;
+  static constexpr decltype(MessageId) message_id = MessageId;
+};
+
+using Resultset_types = ::testing::Types<
+    Resultset_pair_type<Mysqlx::Resultset::FetchDone,
+                        Mysqlx::ServerMessages::RESULTSET_FETCH_DONE>,
+    Resultset_pair_type<
+        Mysqlx::Resultset::FetchDoneMoreResultsets,
+        Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS>,
+    Resultset_pair_type<
+        Mysqlx::Resultset::FetchDoneMoreOutParams,
+        Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS>,
+    Resultset_pair_type<Mysqlx::Resultset::FetchSuspended,
+                        Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED>>;
+
+TYPED_TEST_CASE(Message_builder_encode_resultset, Resultset_types);
+
+TYPED_TEST(Message_builder_encode_resultset, encode_resultset) {
   Message_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
-  mb.encode_empty_message(obuffer.get(),
-                          Mysqlx::ServerMessages::RESULTSET_FETCH_DONE);
-  ngs::unique_ptr<Mysqlx::Resultset::FetchDone> msg(
-      message_from_buffer<Mysqlx::Resultset::FetchDone>(obuffer.get()));
+  mb.encode_empty_message(obuffer.get(), TypeParam::message_id);
+  ngs::unique_ptr<typename TypeParam::ResultsetType> msg(
+      message_from_buffer<typename TypeParam::ResultsetType>(obuffer.get()));
 
-  ASSERT_TRUE(NULL != msg);
-  ASSERT_TRUE(msg->IsInitialized());
-}
-
-TEST(message_builder, encode_resultset_fetch_done_more_resultsets) {
-  Message_builder mb;
-  ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
-
-  mb.encode_empty_message(
-      obuffer.get(),
-      Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS);
-  ngs::unique_ptr<Mysqlx::Resultset::FetchDoneMoreResultsets> msg(
-      message_from_buffer<Mysqlx::Resultset::FetchDoneMoreResultsets>(
-          obuffer.get()));
-
-  ASSERT_TRUE(NULL != msg);
+  ASSERT_TRUE(nullptr != msg);
   ASSERT_TRUE(msg->IsInitialized());
 }
 
 TEST(message_builder, encode_stmt_execute_ok) {
   Message_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
   mb.encode_empty_message(obuffer.get(), Mysqlx::ServerMessages::OK);
   ngs::unique_ptr<Mysqlx::Sql::StmtExecuteOk> msg(
@@ -90,7 +98,8 @@ TEST(message_builder, encode_stmt_execute_ok) {
 TEST(message_builder, encode_compact_metadata) {
   Metadata_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
   const uint64 COLLATION = 1u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
@@ -107,10 +116,11 @@ TEST(message_builder, encode_compact_metadata) {
   column_info.set_length(LENGTH);
   column_info.set_type(TYPE);
   column_info.set_content_type(CONTENT_TYPE);
-  mb.encode_metadata(obuffer.get(), &column_info.get());
+  mb.encode_metadata(&column_info.get());
 
   ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
-      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
+      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(
+          mb.stop_metadata_encoding()));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -138,7 +148,8 @@ TEST(message_builder, encode_compact_metadata) {
 TEST(message_builder, encode_full_metadata) {
   Metadata_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
   const uint64 COLLATION = 2u;
   const auto TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
@@ -165,10 +176,11 @@ TEST(message_builder, encode_full_metadata) {
   column_info.set_type(TYPE);
   column_info.set_content_type(CONTENT_TYPE);
 
-  mb.encode_metadata(obuffer.get(), &column_info.get());
+  mb.encode_metadata(&column_info.get());
 
   ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(
-      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
+      message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(
+          mb.stop_metadata_encoding()));
 
   ASSERT_TRUE(NULL != msg);
 
@@ -201,7 +213,8 @@ TEST(message_builder, encode_full_metadata) {
 TEST(message_builder, encode_notice_frame) {
   Notice_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
   const uint32 TYPE = 2;
   const int SCOPE = Mysqlx::Notice::Frame_Scope_GLOBAL;
@@ -225,7 +238,8 @@ TEST(message_builder, encode_notice_frame) {
 TEST(message_builder, encode_notice_rows_affected) {
   Notice_builder mb;
   ngs::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
+  ngs::unique_ptr<Page_output_stream> obuffer(
+      new Page_output_stream(*page_pool));
 
   const uint64 ROWS_AFFECTED = 10001u;
 

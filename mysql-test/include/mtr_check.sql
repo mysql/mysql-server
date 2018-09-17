@@ -57,7 +57,8 @@ BEGIN
     SELECT * from performance_schema.prepared_statements_instances;
 
     -- Leave the user defined functions in the same state
-    SELECT * from performance_schema.user_defined_functions;
+    SELECT * from performance_schema.user_defined_functions
+      ORDER BY UDF_NAME;
   END;
   END IF;
 END||

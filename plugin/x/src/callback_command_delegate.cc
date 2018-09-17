@@ -145,7 +145,7 @@ void Callback_command_delegate::set_callbacks(Start_row_callback start_row,
 }
 
 void Callback_command_delegate::reset() {
-  m_current_row = NULL;
+  m_current_row = nullptr;
   Command_delegate::reset();
 }
 
@@ -154,7 +154,7 @@ int Callback_command_delegate::start_row() {
     m_current_row = m_start_row();
     if (!m_current_row) return true;
   } else
-    m_current_row = NULL;
+    m_current_row = nullptr;
   return false;
 }
 

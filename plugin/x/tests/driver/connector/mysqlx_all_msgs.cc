@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -132,5 +132,22 @@ static struct init_message_factory {
     client_message<Mysqlx::Sql::StmtExecute>(
         Mysqlx::ClientMessages::SQL_STMT_EXECUTE, "SQL_STMT_EXECUTE",
         "Mysqlx.Sql.StmtExecute");
+    client_message<Mysqlx::Prepare::Prepare>(
+        Mysqlx::ClientMessages::PREPARE_PREPARE, "PREPARE_PREPARE",
+        "Mysqlx.Prepare.Prepare");
+    client_message<Mysqlx::Prepare::Execute>(
+        Mysqlx::ClientMessages::PREPARE_EXECUTE, "PREPARE_EXECUTE",
+        "Mysqlx.Prepare.Execute");
+    client_message<Mysqlx::Prepare::Deallocate>(
+        Mysqlx::ClientMessages::PREPARE_DEALLOCATE, "PREPARE_DEALLOCATE",
+        "Mysqlx.Prepare.Deallocate");
+    client_message<Mysqlx::Cursor::Open>(Mysqlx::ClientMessages::CURSOR_OPEN,
+                                         "CURSOR_OPEN", "Mysqlx.Cursor.Open");
+    client_message<Mysqlx::Cursor::Fetch>(Mysqlx::ClientMessages::CURSOR_FETCH,
+                                          "CURSOR_FETCH",
+                                          "Mysqlx.Cursor.Fetch");
+    client_message<Mysqlx::Cursor::Close>(Mysqlx::ClientMessages::CURSOR_CLOSE,
+                                          "CURSOR_CLOSE",
+                                          "Mysqlx.Cursor.Close");
   }
 } init_message_factory;

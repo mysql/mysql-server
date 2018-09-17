@@ -58,7 +58,7 @@ class Client : public Client_interface {
 
   xpl::Mutex &get_session_exit_mutex() override { return m_session_exit_mutex; }
   Session_interface *session() override { return m_session.get(); }
-  ngs::shared_ptr<Session_interface> session_smart_ptr() override {
+  ngs::shared_ptr<Session_interface> session_smart_ptr() const override {
     return m_session;
   }
 
@@ -81,6 +81,7 @@ class Client : public Client_interface {
   void on_session_reset(Session_interface &s) override;
 
   void disconnect_and_trigger_close() override;
+  bool is_handler_thd(const THD *) const override { return false; }
 
   const char *client_address() const override { return m_client_addr.c_str(); }
   const char *client_hostname() const override { return m_client_host.c_str(); }

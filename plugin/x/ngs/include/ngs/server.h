@@ -105,6 +105,7 @@ class Server : public Server_interface {
   }
   Client_list &get_client_list() { return m_client_list; }
   xpl::Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
+  Client_ptr get_client(const THD *thd);
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,

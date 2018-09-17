@@ -371,6 +371,8 @@ ngs::Error_code Sql_data_context::execute_sql(const char *sql, size_t length,
 
   deleg->reset();
 
+  log_debug("Sql_data_context::execute_sql %s", sql);
+
   if (command_service_run_command(m_mysql_session, COM_QUERY, &data,
                                   mysqld::get_charset_utf8mb4_general_ci(),
                                   deleg->callbacks(), deleg->representation(),
@@ -434,6 +436,15 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
   return execute_sql(sql, sql_len, &rset->get_callbacks());
 }
 
+ngs::Error_code Sql_data_context::fetch_cursor(const std::uint32_t statement_id,
+                                               const std::uint32_t row_count,
+                                               ngs::Resultset_interface *rset) {
+  COM_DATA data;
+  data.com_stmt_fetch.stmt_id = statement_id;
+  data.com_stmt_fetch.num_rows = row_count;
+  return execute_server_command(COM_STMT_FETCH, data, rset);
+}
+
 ngs::Error_code Sql_data_context::attach() {
   THD *previous_thd = nullptr;
 
@@ -453,6 +464,51 @@ ngs::Error_code Sql_data_context::detach() {
   }
 
   return {};
+}
+
+ngs::Error_code Sql_data_context::prepare_prep_stmt(
+    const char *sql, std::size_t sql_len, ngs::Resultset_interface *rset) {
+  COM_DATA data;
+  data.com_stmt_prepare = {sql, static_cast<unsigned>(sql_len)};
+  return execute_server_command(COM_STMT_PREPARE, data, rset);
+}
+
+ngs::Error_code Sql_data_context::deallocate_prep_stmt(
+    const uint32_t stmt_id, ngs::Resultset_interface *rset) {
+  COM_DATA data;
+  data.com_stmt_close = {static_cast<unsigned>(stmt_id)};
+  return execute_server_command(COM_STMT_CLOSE, data, rset);
+}
+
+ngs::Error_code Sql_data_context::execute_prep_stmt(
+    const uint32_t stmt_id, const bool has_cursor, PS_PARAM *parameters,
+    const std::size_t parameters_count, ngs::Resultset_interface *rset) {
+  COM_DATA cmd;
+  cmd.com_stmt_execute = {static_cast<unsigned long>(stmt_id),
+                          static_cast<unsigned long>(has_cursor), parameters,
+                          static_cast<unsigned long>(parameters_count),
+                          static_cast<unsigned char>(true)};
+
+  return execute_server_command(COM_STMT_EXECUTE, cmd, rset);
+}
+
+ngs::Error_code Sql_data_context::execute_server_command(
+    const enum_server_command cmd, const COM_DATA &cmd_data,
+    ngs::Resultset_interface *rset) {
+  ngs::Command_delegate &deleg = rset->get_callbacks();
+  deleg.reset();
+  if (command_service_run_command(m_mysql_session, cmd, &cmd_data,
+                                  mysqld::get_charset_utf8mb4_general_ci(),
+                                  deleg.callbacks(), deleg.representation(),
+                                  &deleg)) {
+    return ngs::Error_code(ER_X_SERVICE_ERROR,
+                           "Internal error executing command");
+  }
+  const ngs::Error_code error = deleg.get_error();
+  if (error)
+    log_debug("Error running server command: (%i %s)", error.error,
+              error.message.c_str());
+  return error;
 }
 
 }  // namespace xpl

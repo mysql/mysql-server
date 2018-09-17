@@ -8,6 +8,26 @@ send Mysqlx.Expect.Open {
 
 ok
 
+[Verification of Mysqlx.Crud.Update::limit_expr (19.9)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "19.9"
+  }
+}
+
+ok
+
+[Verification of Mysqlx.Crud.Delete::limit_expr (20.7)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "20.7"
+  }
+}
+
+ok
+
 [Verification of Mysqlx.Crud.Find::locking (17.12)]
 send Mysqlx.Expect.Open {
   cond {
@@ -28,6 +48,16 @@ send Mysqlx.Expect.Open {
 
 ok
 
+[Verification of Mysqlx.Crud.Find::limit_expr (17.14)]
+send Mysqlx.Expect.Open {
+  cond {
+    condition_key: 2
+    condition_value: "17.14"
+  }
+}
+
+ok
+
 [Verification of all features in single request]
 send Mysqlx.Expect.Open {
   cond {
@@ -36,11 +66,23 @@ send Mysqlx.Expect.Open {
   }
   cond {
     condition_key: 2
+    condition_value: "19.9"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "20.7"
+  }
+  cond {
+    condition_key: 2
     condition_value: "17.12"
   }
   cond {
     condition_key: 2
     condition_value: "17.13"
+  }
+  cond {
+    condition_key: 2
+    condition_value: "17.14"
   }
 }
 

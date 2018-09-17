@@ -331,7 +331,7 @@ void Client::on_accept() {
   set_encoder(ngs::allocate_object<Protocol_encoder>(
       m_connection,
       ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1),
-      ngs::ref(*m_protocol_monitor)));
+      m_protocol_monitor));
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the
@@ -422,7 +422,7 @@ Protocol_monitor_interface &Client::get_protocol_monitor() {
 void Client::set_encoder(ngs::Protocol_encoder_interface *enc) {
   m_encoder =
       ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
-  m_encoder->set_write_timeout(m_write_timeout);
+  m_encoder->get_flusher()->set_write_timeout(m_write_timeout);
 }
 
 void Client::get_last_error(int *out_error_code, std::string *out_message) {
@@ -498,7 +498,7 @@ void Client::run(const bool skip_name_resolve) {
 }
 
 void Client::set_write_timeout(const uint32_t write_timeout) {
-  m_encoder->set_write_timeout(write_timeout);
+  m_encoder->get_flusher()->set_write_timeout(write_timeout);
 }
 
 void Client::set_read_timeout(const uint32_t read_timeout) {

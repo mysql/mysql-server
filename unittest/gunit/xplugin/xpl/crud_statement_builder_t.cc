@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,8 @@ class Crud_statement_builder_stub : public Crud_statement_builder {
   using Crud_statement_builder::add_collection;
   using Crud_statement_builder::add_filter;
   using Crud_statement_builder::add_limit;
+  using Crud_statement_builder::add_limit_expr_field;
+  using Crud_statement_builder::add_limit_field;
   using Crud_statement_builder::add_order;
 };
 
@@ -51,7 +53,7 @@ class Crud_statement_builder_test : public ::testing::Test {
     return *stub;
   }
 
-  Expression_generator::Args args;
+  Expression_generator::Arg_list args;
   Query_string_builder query;
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
@@ -83,33 +85,33 @@ TEST_F(Crud_statement_builder_test, add_filter_uninitialized) {
 
 TEST_F(Crud_statement_builder_test, add_filter_initialized_column) {
   ASSERT_NO_THROW(builder().add_filter(
-      Filter(Operator(">", ColumnIdentifier("A"), Scalar(1.0)))));
+      Filter(Operator(">", Column_identifier("A"), Scalar(1.0)))));
   EXPECT_EQ(" WHERE (`A` > 1)", query.get());
 }
 
 TEST_F(Crud_statement_builder_test, add_filter_initialized_column_and_memeber) {
   ASSERT_NO_THROW(builder().add_filter(Filter(Operator(
-      ">", ColumnIdentifier(Document_path{"first"}, "A"), Scalar(1.0)))));
+      ">", Column_identifier(Document_path{"first"}, "A"), Scalar(1.0)))));
   EXPECT_EQ(" WHERE (JSON_EXTRACT(`A`,'$.first') > 1)", query.get());
 }
 
 TEST_F(Crud_statement_builder_test, add_filter_bad_expression) {
-  ASSERT_THROW(builder().add_filter(Filter(Operator("><", ColumnIdentifier("A"),
-                                                    ColumnIdentifier("B")))),
+  ASSERT_THROW(builder().add_filter(Filter(Operator(
+                   "><", Column_identifier("A"), Column_identifier("B")))),
                Expression_generator::Error);
 }
 
 TEST_F(Crud_statement_builder_test, add_filter_with_arg) {
-  args = Expression_args{1.0};
+  args = Expression_list{1.0};
 
   ASSERT_NO_THROW(builder().add_filter(
-      Filter(Operator(">", ColumnIdentifier("A"), Placeholder(0)))));
+      Filter(Operator(">", Column_identifier("A"), Placeholder(0)))));
   EXPECT_EQ(" WHERE (`A` > 1)", query.get());
 }
 
 TEST_F(Crud_statement_builder_test, add_filter_missing_arg) {
   ASSERT_THROW(builder().add_filter(Filter(
-                   Operator(">", ColumnIdentifier("A"), Placeholder(0)))),
+                   Operator(">", Column_identifier("A"), Placeholder(0)))),
                Expression_generator::Error);
 }
 
@@ -120,42 +122,119 @@ TEST_F(Crud_statement_builder_test, add_order_empty_list) {
 
 TEST_F(Crud_statement_builder_test, add_order_one_item) {
   ASSERT_NO_THROW(
-      builder().add_order(Order_list{Order(ColumnIdentifier("A"))}));
+      builder().add_order(Order_list{Order(Column_identifier("A"))}));
   EXPECT_EQ(" ORDER BY `A`", query.get());
 }
 
 TEST_F(Crud_statement_builder_test, add_order_two_items) {
   ASSERT_NO_THROW(builder().add_order(
-      Order_list{{ColumnIdentifier("A"), Mysqlx::Crud::Order::DESC},
-                 {ColumnIdentifier("B")}}));
+      Order_list{{Column_identifier("A"), Mysqlx::Crud::Order::DESC},
+                 {Column_identifier("B")}}));
   EXPECT_EQ(" ORDER BY `A` DESC,`B`", query.get());
 }
 
 TEST_F(Crud_statement_builder_test, add_order_two_items_placeholder) {
-  args = Expression_args{2};
+  args = Expression_list{2};
 
   ASSERT_NO_THROW(builder().add_order(Order_list{
-      {ColumnIdentifier("A"), Mysqlx::Crud::Order::DESC}, {Placeholder(0)}}));
+      {Column_identifier("A"), Mysqlx::Crud::Order::DESC}, {Placeholder(0)}}));
   EXPECT_EQ(" ORDER BY `A` DESC,2", query.get());
 }
 
-TEST_F(Crud_statement_builder_test, add_limit_uninitialized) {
-  ASSERT_NO_THROW(builder().add_limit(Limit(), false));
+TEST_F(Crud_statement_builder_test, add_limit_expr_uninitialized) {
+  ASSERT_NO_THROW(builder().add_limit_field(Limit(), false));
   EXPECT_EQ("", query.get());
 }
 
-TEST_F(Crud_statement_builder_test, add_limit_only) {
-  ASSERT_NO_THROW(builder().add_limit(Limit(2), false));
+TEST_F(Crud_statement_builder_test, add_limit_field_only) {
+  ASSERT_NO_THROW(builder().add_limit_field(Limit(2), false));
   EXPECT_EQ(" LIMIT 2", query.get());
 }
 
-TEST_F(Crud_statement_builder_test, add_limit_and_offset) {
-  ASSERT_NO_THROW(builder().add_limit(Limit(2, 5), false));
+TEST_F(Crud_statement_builder_test, add_limit_field_and_offset) {
+  ASSERT_NO_THROW(builder().add_limit_field(Limit(2, 5), false));
   EXPECT_EQ(" LIMIT 5, 2", query.get());
 }
 
-TEST_F(Crud_statement_builder_test, add_limit_forbbiden_offset) {
-  EXPECT_THROW(builder().add_limit(Limit(2, 5), true), ngs::Error_code);
+TEST_F(Crud_statement_builder_test, add_limit_field_forbbiden_offset) {
+  EXPECT_THROW(builder().add_limit_field(Limit(2, 5), true), ngs::Error_code);
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_expr_field_uninitialized) {
+  ASSERT_NO_THROW(builder().add_limit_expr_field(Limit_expr(), false));
+  EXPECT_EQ("", query.get());
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_expr_field_only) {
+  ASSERT_NO_THROW(builder().add_limit_expr_field(Limit_expr(2), false));
+  EXPECT_EQ(" LIMIT 2", query.get());
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_expr_field_and_offset) {
+  ASSERT_NO_THROW(builder().add_limit_expr_field(Limit_expr(2, 5), false));
+  EXPECT_EQ(" LIMIT 5, 2", query.get());
+}
+
+TEST_F(Crud_statement_builder_test,
+       add_limit_expr_field_row_and_offset_placeholder_row) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+  ASSERT_NO_THROW(
+      sut.add_limit_expr_field(Limit_expr(Placeholder(2), 5), false));
+  EXPECT_EQ(" LIMIT 5, ?", query.get());
+}
+
+TEST_F(Crud_statement_builder_test,
+       add_limit_expr_field_row_and_offset_placeholder_both) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+
+  ASSERT_NO_THROW(sut.add_limit_expr_field(
+      Limit_expr(Placeholder(2), Placeholder(1)), false));
+  EXPECT_EQ(" LIMIT ?, ?", query.get());
+}
+
+TEST_F(Crud_statement_builder_test,
+       add_limit_expr_field_row_and_offset_placeholder_offset) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+
+  ASSERT_NO_THROW(
+      sut.add_limit_expr_field(Limit_expr(2, Placeholder(1)), false));
+  EXPECT_EQ(" LIMIT ?, 2", query.get());
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_expr_field_row_placeholder_row) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+
+  ASSERT_NO_THROW(sut.add_limit_expr_field(Limit_expr(Placeholder(1)), false));
+  EXPECT_EQ(" LIMIT ?", query.get());
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_expr_field_forbbiden_offset) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+
+  EXPECT_THROW(sut.add_limit_expr_field(Limit_expr(2, 5), true),
+               ngs::Error_code);
+}
+
+TEST_F(Crud_statement_builder_test, add_limit_and_limit_expr_fields_forbbiden) {
+  auto &sut = builder();
+  Expression_generator::Placeholder_id_list placeholders;
+  expr_gen->set_placeholder_id_list(&placeholders);
+  Mysqlx::Crud::Find find;
+
+  find.mutable_limit()->CopyFrom(Limit(2, 5));
+  find.mutable_limit_expr()->CopyFrom(Limit_expr(2, 5));
+
+  EXPECT_THROW(sut.add_limit(find, false), ngs::Error_code);
 }
 
 }  // namespace test

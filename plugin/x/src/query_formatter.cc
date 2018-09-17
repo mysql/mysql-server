@@ -259,3 +259,7 @@ void Query_formatter::put_value(const char *value, const std::size_t length) {
     m_query.resize(length_target);
   }
 }
+
+std::size_t Query_formatter::count_tags() const {
+  return std::count_if(m_query.begin(), m_query.end(), Sql_search_tags());
+}

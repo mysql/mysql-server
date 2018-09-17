@@ -74,6 +74,12 @@ class Message_decoder {
   Mysqlx::Crud::CreateView m_crud_create_view;
   Mysqlx::Crud::ModifyView m_crud_modify_view;
   Mysqlx::Crud::DropView m_crud_drop_view;
+  Mysqlx::Cursor::Open m_cursor_open;
+  Mysqlx::Cursor::Close m_cursor_close;
+  Mysqlx::Cursor::Fetch m_cursor_fetch;
+  Mysqlx::Prepare::Prepare m_prepare_prepare;
+  Mysqlx::Prepare::Execute m_prepare_execute;
+  Mysqlx::Prepare::Deallocate m_prepare_deallocate;
 };
 
 }  // namespace ngs

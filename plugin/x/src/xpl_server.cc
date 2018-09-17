@@ -54,7 +54,8 @@
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/udf/mysqlx_error.h"
-#include "plugin/x/src/udf/registrator.h"
+#include "plugin/x/src/udf/mysqlx_generate_document_id.h"
+#include "plugin/x/src/udf/mysqlx_get_prepared_statement_id.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
@@ -222,7 +223,7 @@ ngs::shared_ptr<ngs::Session_interface> xpl::Server::create_session(
     ngs::Client_interface &client, ngs::Protocol_encoder_interface &proto,
     const Session::Session_id session_id) {
   return ngs::shared_ptr<ngs::Session>(
-      ngs::allocate_shared<xpl::Session>(ngs::ref(client), &proto, session_id));
+      ngs::allocate_shared<xpl::Session>(&client, &proto, session_id));
 }
 
 void xpl::Server::on_client_closed(const ngs::Client_interface &) {
@@ -626,7 +627,7 @@ bool xpl::Server::on_net_startup() {
 }
 
 ngs::Error_code xpl::Server::kill_client(uint64_t client_id,
-                                         Session &requester) {
+                                         ngs::Session_interface &requester) {
   ngs::unique_ptr<Mutex_lock> lock(
       new Mutex_lock(server().get_client_exit_mutex(), __FILE__, __LINE__));
   ngs::Client_ptr found_client = server().get_client_list().find(client_id);
@@ -707,14 +708,14 @@ std::string xpl::Server::get_tcp_bind_address() {
 }
 
 void xpl::Server::register_udfs() {
-  udf::Registrator r;
-  r.registration(udf::get_mysqlx_error_record(), &m_udf_names);
+  m_udf_registry.insert({
+      UDF(mysqlx_error),
+      UDF(mysqlx_generate_document_id),
+      UDF(mysqlx_get_prepared_statement_id),
+  });
 }
 
-void xpl::Server::unregister_udfs() {
-  udf::Registrator r;
-  r.unregistration(&m_udf_names);
-}
+void xpl::Server::unregister_udfs() { m_udf_registry.drop(); }
 
 void xpl::Server::register_services() const {
   Service_registrator r;
@@ -756,4 +757,38 @@ bool xpl::Server::reset() {
 void xpl::Server::stop() {
   exiting = true;
   if (instance) instance->server().stop();
+}
+
+namespace {
+inline ngs::Session_interface *get_client_session(const THD *thd) {
+  auto server(xpl::Server::get_instance());
+  if (!server) return nullptr;
+
+  auto client((*server)->server().get_client(thd));
+  if (!client) return nullptr;
+
+  auto session(client->session());
+  return session ? session : nullptr;
+}
+
+}  // namespace
+
+std::string xpl::Server::get_document_id(const THD *thd, const uint16_t offset,
+                                         const uint16_t increment) {
+  using Variables = ngs::Document_id_generator_interface::Variables;
+  Variables vars{static_cast<uint16_t>(
+                     xpl::Plugin_system_variables::m_document_id_unique_prefix),
+                 offset, increment};
+  auto session = get_client_session(thd);
+  if (session) return session->get_document_id_aggregator().generate_id(vars);
+  auto server = xpl::Server::get_instance();
+  return (*server)->server().get_document_id_generator().generate(vars);
+}
+
+bool xpl::Server::get_prepared_statement_id(const THD *thd,
+                                            const uint32_t client_stmt_id,
+                                            uint32_t *stmt_id) {
+  auto session = get_client_session(thd);
+  return session ? session->get_prepared_statement_id(client_stmt_id, stmt_id)
+                 : false;
 }

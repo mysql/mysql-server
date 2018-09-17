@@ -1,3 +1,12 @@
+## Following macros are defined in this file:
+#
+# * Assert_status_variable
+# * Assert_received_notices
+# * Assert_global_variable
+# * Assert_session_variable
+# * Assert_user_variable
+#
+
 
 -->macro Assert_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->stmtsql SHOW STATUS LIKE '%VARIABLE_NAME%';
@@ -25,6 +34,7 @@
 -->noquiet
 -->endmacro
 
+
 -->macro Assert_session_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->quiet
 -->stmtsql SELECT @@%VARIABLE_NAME% as Value;
@@ -33,3 +43,14 @@
 -->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
 -->noquiet
 -->endmacro
+
+
+-->macro Assert_user_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->quiet
+-->stmtsql SELECT @%VARIABLE_NAME% as Value;
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [User variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->noquiet
+-->endmacro
+

@@ -83,6 +83,18 @@ class Sql_data_context : public ngs::Sql_session_interface {
   // can only be executed once authenticated
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
                           ngs::Resultset_interface *rset) override;
+  ngs::Error_code prepare_prep_stmt(const char *sql, std::size_t sql_len,
+                                    ngs::Resultset_interface *rset) override;
+  ngs::Error_code deallocate_prep_stmt(const uint32_t stmt_id,
+                                       ngs::Resultset_interface *rset) override;
+  ngs::Error_code execute_prep_stmt(const uint32_t stmt_id,
+                                    const bool has_cursor, PS_PARAM *parameters,
+                                    const std::size_t parameters_count,
+                                    ngs::Resultset_interface *rset) override;
+
+  ngs::Error_code fetch_cursor(const std::uint32_t id,
+                               const std::uint32_t row_count,
+                               ngs::Resultset_interface *rset) override;
 
   ngs::Error_code attach() override;
   ngs::Error_code detach() override;
@@ -118,6 +130,10 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
   static void default_completion_handler(void *ctx, unsigned int sql_errno,
                                          const char *err_msg);
+
+  ngs::Error_code execute_server_command(const enum_server_command cmd,
+                                         const COM_DATA &cmd_data,
+                                         ngs::Resultset_interface *rset);
 
   std::string m_username;
   std::string m_hostname;

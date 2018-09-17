@@ -79,7 +79,7 @@ class Client : public ngs::Client {
   void set_is_interactive(const bool flag) override;
 
  public:
-  bool is_handler_thd(THD *thd);
+  bool is_handler_thd(const THD *thd) const override;
 
   void get_status_ssl_cipher_list(SHOW_VAR *var);
 

@@ -94,3 +94,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *) { return 0; }
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
 
 int mysql_plugin_registry_release(SERVICE_TYPE(registry) *) { return 0; }
+
+thread_local THD *current_thd = nullptr;
+
+THD *thd_get_current_thd() { return current_thd; }

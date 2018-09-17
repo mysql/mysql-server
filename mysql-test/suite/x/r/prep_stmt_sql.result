@@ -1,0 +1,157 @@
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+CREATE TABLE xtable (phrase VARCHAR(30));
+INSERT INTO xtable (phrase) VALUES ('Alice has a cat');
+INSERT INTO xtable (phrase) VALUES ('Bob has a dog');
+
+Stmt 1: Prepare malformed stmt
+==============================
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'BLA BLA\' at line 1"
+  sql_state: "42000"
+}
+
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 1]
+
+Stmt 1: Try to execute
+======================
+Got expected error: Statement with ID=1 was not prepared (code 5110)
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 1]
+
+Stmt 1: Try to deallocate
+=========================
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5110
+  msg: "Statement with ID=1 was not prepared"
+  sql_state: "HY000"
+}
+
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 1]
+
+Stmt 2: Prepare correct stmt (no placeholders)
+==============================================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 2]
+
+Stmt 2: Execute (no params)
+===========================
+phrase
+Alice has a cat
+Bob has a dog
+0 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 2]
+
+Stmt 2: Execute (one extra param to ignore)
+===========================================
+phrase
+Alice has a cat
+Bob has a dog
+0 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 3]
+
+Stmt 2: Deallocate
+==================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 2]
+
+Stmt 3: Prepare correct stmt (one placeholder)
+==============================================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 3]
+
+Stmt 3: Try to execute (no params)
+==================================
+Got expected error: There is no argument for statement placeholder at position: 0 (code 5134)
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 4]
+
+Stmt 3: Execute with param
+==========================
+phrase
+Alice has a cat
+0 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 5]
+
+Stmt 3: Execute with params (one extra to ignore)
+=================================================
+phrase
+Bob has a dog
+0 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 6]
+
+Stmt 3: Deallocate
+==================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 3]
+
+Stmt 4: Prepare correct stmt (insert)
+=====================================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 4]
+
+Stmt 4: Execute (one param)
+===========================
+
+1 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 7]
+phrase
+Alice has a cat
+Bob has a dog
+Christina has a hamster
+0 rows affected
+
+Stmt 4: Deallocate
+==================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 4]
+
+Stmt 5: Prepare correct stmt (update)
+=====================================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 5]
+
+Stmt 5: Execute (one param)
+===========================
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 8]
+phrase
+David has a parot
+Bob has a dog
+Christina has a hamster
+0 rows affected
+
+Stmt 5: Deallocate
+==================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 5]
+
+Stmt 6: Prepare correct stmt (delete)
+=====================================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_prepare" needs to have a value of 6]
+
+Stmt 6: Execute (one param)
+===========================
+
+1 rows affected
+Verify [Status variable "Mysqlx_prep_execute" needs to have a value of 9]
+phrase
+David has a parot
+Christina has a hamster
+0 rows affected
+
+Stmt 5: Deallocate
+==================
+RUN recvok
+Verify [Status variable "Mysqlx_prep_deallocate" needs to have a value of 6]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;

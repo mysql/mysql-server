@@ -65,29 +65,6 @@ void check_exit_hook() {
   }
 }
 
-xpl::Client_ptr get_client_by_thd(xpl::Server::Server_ptr &server, THD *thd) {
-  struct Client_check_handler_thd {
-    Client_check_handler_thd(THD *thd) : m_thd(thd) {}
-
-    bool operator()(ngs::Client_ptr &client) {
-      xpl::Client *xpl_client = (xpl::Client *)client.get();
-
-      return xpl_client->is_handler_thd(m_thd);
-    }
-
-    THD *m_thd;
-  } client_check_thd(thd);
-
-  std::vector<ngs::Client_ptr> clients;
-  (*server)->server().get_client_list().get_all_clients(clients);
-
-  std::vector<ngs::Client_ptr>::iterator i =
-      std::find_if(clients.begin(), clients.end(), client_check_thd);
-  if (clients.end() != i) return ngs::dynamic_pointer_cast<xpl::Client>(*i);
-
-  return xpl::Client_ptr();
-}
-
 template <void (xpl::Client::*method)(SHOW_VAR *)>
 int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
@@ -96,7 +73,8 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) ((*client).*method)(var);
   }
@@ -112,7 +90,8 @@ int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) {
       ReturnType result =
@@ -173,7 +152,8 @@ int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   auto server(xpl::Server::get_instance());
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    auto client = ngs::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
 
     if (client) {
       // Status can be queried from different thread than client is bound to.
@@ -228,7 +208,8 @@ void thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt, const void *save) {
   if (server) {
     MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
 
-    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    xpl::Client_ptr client = ngs::dynamic_pointer_cast<xpl::Client>(
+        (*server)->server().get_client(thd));
     if (client) ((*client).*method)(*static_cast<Copy_type *>(tgt));
 
     // We should store the variables values so that they can be set when new
@@ -510,6 +491,18 @@ static SHOW_VAR xpl_plugin_status[] = {
         "crud_modify_view", ngs::Common_status_variables::m_crud_modify_view),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "crud_drop_view", ngs::Common_status_variables::m_crud_drop_view),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_prepare", ngs::Common_status_variables::m_prep_prepare),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_execute", ngs::Common_status_variables::m_prep_execute),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "prep_deallocate", ngs::Common_status_variables::m_prep_deallocate),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_open", ngs::Common_status_variables::m_cursor_open),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_close", ngs::Common_status_variables::m_cursor_close),
+    SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
+        "cursor_fetch", ngs::Common_status_variables::m_cursor_fetch),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
         "expect_open", ngs::Common_status_variables::m_expect_open),
     SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(
