@@ -1309,10 +1309,7 @@
    fun:X509_load_cert_crl_file
    fun:by_file_ctrl
    fun:X509_STORE_load_locations
-   obj:*
-   obj:*
-   obj:*
-   obj:*
+   ...
 }
 
 {
@@ -1624,11 +1621,7 @@
   fun:X509_load_cert_crl_file
   fun:by_file_ctrl
   fun:X509_STORE_load_locations
-  obj:*
-  obj:*
-  obj:*
-  obj:*
-  obj:*
+  ...
 }
 
 {
