@@ -177,7 +177,6 @@ my %old_env;
 my %visited_suite_names;
 
 # Global variables
-our $opt_change_propagation;
 our $opt_client_dbx;
 our $opt_client_ddd;
 our $opt_client_debugger;
@@ -1421,8 +1420,7 @@ sub command_line_setup {
     'mysqltest=s' => \@opt_extra_mysqltest_opt,
 
     # Secondary engine options
-    'change-propagation'   => \$opt_change_propagation,
-    'secondary-engine=s'   => \$opt_secondary_engine,
+    'secondary-engine=s' => \$opt_secondary_engine,
 
     # Debugging
     'boot-dbx'           => \$opt_boot_dbx,
@@ -1661,18 +1659,6 @@ sub command_line_setup {
       mtr_error("Unsupported secondary engine '$opt_secondary_engine'.");
     } else {
       $secondary_engine_rapid = 1;
-    }
-  }
-
-  if (defined $opt_change_propagation) {
-    if (not defined $opt_secondary_engine) {
-      # Can't use 'rapid-change-propagation' without any secondary engine.
-      mtr_error("Can't use '--change-propagation' without enabling " .
-                "a secondary engine.");
-    } elsif ($opt_change_propagation < 0 or $opt_change_propagation > 1) {
-      # '--change-propagation' option value should be either 0 or 1
-      mtr_error("Invalid value '$opt_change_propagation' for option " .
-                "'--change-propagation'.");
     }
   }
 
@@ -6387,12 +6373,6 @@ sub start_mysqltest ($) {
 
   if ($opt_colored_diff) {
     mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
-  }
-
-  # Pass rapid options if enabled.
-  if ($opt_secondary_engine and defined $opt_change_propagation) {
-    mtr_add_arg($args, "--secondary-engine=%s",   $opt_secondary_engine);
-    mtr_add_arg($args, "--change-propagation=%d", $opt_change_propagation);
   }
 
   foreach my $arg (@opt_extra_mysqltest_opt) {

@@ -27,9 +27,9 @@
 /// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
 /// information.
 
-#include "client/mysqltest/error_names.h"
-#include "client/mysqltest/expected_errors.h"
-#include "client/mysqltest/secondary_engine.h"
+#include "client/mysqltest/mysqltest_expected_error.h"
+
+#include "my_config.h"
 
 #include <algorithm>
 #include <cmath>  // std::isinf
@@ -72,7 +72,6 @@
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
 #include "my_compiler.h"
-#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
@@ -146,8 +145,7 @@ static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
 
 enum {
-  OPT_CHANGE_PROPAGATION = OPT_MAX_CLIENT_OPTION,
-  OPT_COLORED_DIFF,
+  OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
@@ -161,7 +159,6 @@ enum {
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
-  OPT_SECONDARY_ENGINE,
   OPT_SP_PROTOCOL,
   OPT_TAIL_LINES,
   OPT_TRACE_EXEC,
@@ -208,10 +205,6 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
-
-// Secondary engine options
-static int opt_change_propagation;
-static const char *opt_secondary_engine;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -622,6 +615,7 @@ void str_to_file(const char *fname, char *str, size_t size);
 void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
+const char *get_errname_from_code(uint error_code);
 int multi_reg_replace(struct st_replace_regex *r, char *val);
 
 #ifdef _WIN32
@@ -2360,48 +2354,81 @@ static void do_result_format_version(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-/// Convert between error numbers and error names/strings.
-///
-/// @code
-/// let $var = convert_error(ER_UNKNOWN_ERROR);
-/// let $var = convert_error(1234);
-/// @endcode
-///
-/// The variable '$var' will be populated with error number if the
-/// argument is string. The variable var will be populated with error
-/// string if the argument is number.
-///
-/// @param command Pointer to the st_command structure which holds the
-///                arguments and information for the command.
-/// @param var     Pointer to VAR object containing a variable
-///                information.
-static void var_set_convert_error(struct st_command *command, VAR *var) {
-  // The command->query contains the statement convert_error(1234)
-  char *first = std::strchr(command->query, '(') + 1;
-  char *last = std::strchr(command->query, ')');
+/* List of error names to error codes */
+typedef struct {
+  const char *name;
+  uint code;
+  const char *text;
+  /* SQLSTATE */
+  const char *odbc_state;
+  const char *jdbc_state;
+  uint error_index;
+} st_error;
 
-  // Denoting an empty string
-  if (last == first) {
+static st_error global_error_names[] = {{"<No error>", (uint)-1, "", "", "", 0},
+#ifndef IN_DOXYGEN
+#include <mysqlclient_ername.h>
+#include <mysqld_ername.h>
+#endif /* IN_DOXYGEN */
+                                        {0, 0, 0, 0, 0, 0}};
+
+uint get_errcode_from_name(char *, char *);
+
+/*
+
+  This function is useful when one needs to convert between error numbers and
+  error strings
+
+  SYNOPSIS
+  var_set_convert_error(struct st_command *command,VAR *var)
+
+  DESCRIPTION
+  let $var=convert_error(ER_UNKNOWN_ERROR);
+  let $var=convert_error(1234);
+
+  The variable var will be populated with error number if the argument is
+  string. The variable var will be populated with error string if the argument
+  is number.
+
+*/
+static void var_set_convert_error(struct st_command *command, VAR *var) {
+  char *last;
+  char *first = command->query;
+  const char *err_name;
+
+  DBUG_ENTER("var_set_convert_error");
+
+  DBUG_PRINT("info", ("query: %s", command->query));
+
+  /* the command->query contains the statement convert_error(1234) */
+  first = strchr(command->query, '(') + 1;
+  last = strchr(command->query, ')');
+
+  if (last == first) /* denoting an empty string */
+  {
     eval_expr(var, "0", 0);
-    return;
+    DBUG_VOID_RETURN;
   }
 
-  // If the string is an error string , it starts with 'E' as is the norm
+  /* if the string is an error string , it starts with 'E' as is the norm*/
   if (*first == 'E') {
-    std::string error_name(first, int(last - first));
-    int error = get_errcode_from_name(error_name);
-    if (error == -1) die("Unknown SQL error name '%s'.", error_name.c_str());
     char str[100];
-    std::sprintf(str, "%d", error);
+    uint num;
+    num = get_errcode_from_name(first, last);
+    sprintf(str, "%i", num);
     eval_expr(var, str, 0);
-  } else if (my_isdigit(charset_info, *first)) {
-    // Error number argument
-    long int err = std::strtol(first, &last, 0);
-    const char *err_name = get_errname_from_code(err);
+  } else if (my_isdigit(charset_info, *first)) /* if the error is a number */
+  {
+    long int err;
+
+    err = strtol(first, &last, 0);
+    err_name = get_errname_from_code(err);
     eval_expr(var, err_name, 0);
   } else {
     die("Invalid error in input");
   }
+
+  DBUG_VOID_RETURN;
 }
 
 /*
@@ -5412,6 +5439,47 @@ end:
   DBUG_VOID_RETURN;
 }
 
+uint get_errcode_from_name(char *error_name, char *error_end) {
+  /* SQL error as string */
+  st_error *e = global_error_names;
+
+  DBUG_ENTER("get_errcode_from_name");
+  DBUG_PRINT("enter", ("error_name: %s", error_name));
+
+  /* Loop through the array of known error names */
+  for (; e->name; e++) {
+    /*
+      If we get a match, we need to check the length of the name we
+      matched against in case it was longer than what we are checking
+      (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
+    */
+    if (!std::strncmp(error_name, e->name, (int)(error_end - error_name)) &&
+        (uint)std::strlen(e->name) == (uint)(error_end - error_name)) {
+      DBUG_RETURN(e->code);
+    }
+  }
+  if (!e->name) die("Unknown SQL error name '%s'", error_name);
+  DBUG_RETURN(0);
+}
+
+const char *get_errname_from_code(uint error_code) {
+  st_error *e = global_error_names;
+
+  DBUG_ENTER("get_errname_from_code");
+  DBUG_PRINT("enter", ("error_code: %d", error_code));
+
+  if (!error_code) {
+    DBUG_RETURN("");
+  }
+  for (; e->name; e++) {
+    if (e->code == error_code) {
+      DBUG_RETURN(e->name);
+    }
+  }
+  /* Apparently, errors without known names may occur */
+  DBUG_RETURN("<Unknown>");
+}
+
 /// Get the error code corresponding to an error string or to a
 /// SQLSTATE string.
 ///
@@ -5476,10 +5544,7 @@ static void do_get_errcodes(struct st_command *command) {
     else if (*p == 'E' || *p == 'C') {
       // Error name string
       DBUG_PRINT("info", ("Error name: %s", p));
-      std::string error_name(p, int(end - p));
-      int error_code = get_errcode_from_name(error_name);
-      if (error_code == -1)
-        die("Unknown SQL error name '%s'.", error_name.c_str());
+      std::uint32_t error_code = get_errcode_from_name(p, end);
       expected_errors->add_error(error_code, "00000", ERR_ERRNO);
       DBUG_PRINT("info", ("ERR_ERRNO: %d", error_code));
     } else if (*p == 'e' || *p == 'c') {
@@ -6884,10 +6949,6 @@ static struct my_option my_long_options[] = {
 #include "sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"change-propagation", OPT_CHANGE_PROPAGATION,
-     "Disable/enable change propagation when secondary engine is enabled.",
-     &opt_change_propagation, &opt_change_propagation, 0, GET_INT, REQUIRED_ARG,
-     -1, -1, 1, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &opt_charsets_dir, &opt_charsets_dir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6997,9 +7058,6 @@ static struct my_option my_long_options[] = {
      &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
 #endif
-    {"secondary-engine", OPT_SECONDARY_ENGINE,
-     "Enable a secondary storage engine.", &opt_secondary_engine,
-     &opt_secondary_engine, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7665,13 +7723,6 @@ static void run_query_normal(struct st_connection *cn,
   DBUG_PRINT("enter", ("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
 
-  if (opt_change_propagation != -1) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine unload statements.
-    if (run_secondary_engine_unload_statements(query, mysql, ignore_errors))
-      die("Original query '%s'.", query);
-  }
-
   if (flags & QUERY_SEND_FLAG) {
     /*
       Send the query
@@ -7771,15 +7822,6 @@ end:
     variable then can be used from the test case itself.
   */
   var_set_errno(mysql_errno(mysql));
-
-  if (opt_change_propagation != -1) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine load statements.
-    if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
-                                             ignore_errors))
-      die("Original query '%s'.", query);
-  }
-
   DBUG_VOID_RETURN;
 }
 
@@ -7808,13 +7850,6 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DYNAMIC_STRING ds_execute_warnings = DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
-
-  if (opt_change_propagation != -1) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine unload statements.
-    if (run_secondary_engine_unload_statements(query, mysql, ignore_errors))
-      die("Original query '%s'.", query);
-  }
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -7999,14 +8034,6 @@ end:
   if (mysql->reconnect) {
     mysql_stmt_close(stmt);
     cur_con->stmt = NULL;
-  }
-
-  if (opt_change_propagation != -1) {
-    std::vector<unsigned int> ignore_errors = expected_errors->errors();
-    // Run secondary engine load statements.
-    if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
-                                             ignore_errors))
-      die("Original query '%s'.", query);
   }
 
   DBUG_VOID_RETURN;
