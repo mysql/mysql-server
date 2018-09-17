@@ -583,10 +583,6 @@ sub main {
     print_global_resfile();
   }
 
-  if ($opt_secondary_engine) {
-    secondary_engine_offload_count_report_init();
-  }
-
   if ($opt_summary_report) {
     mtr_summary_file_init($opt_summary_report);
   }
@@ -6387,12 +6383,8 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
   }
 
-  if ($opt_secondary_engine) {
-    mtr_add_arg($args, "--offload-count-file=%s",
-                "$opt_vardir/log/offload_count");
-    if (defined $opt_change_propagation) {
-      mtr_add_arg($args, "--change-propagation=%d", $opt_change_propagation);
-    }
+  if ($opt_secondary_engine and defined $opt_change_propagation) {
+    add_secondary_engine_client_options($args);
   }
 
   foreach my $arg (@opt_extra_mysqltest_opt) {

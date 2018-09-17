@@ -30,7 +30,6 @@
 #include "client/mysqltest/error_names.h"
 #include "client/mysqltest/expected_errors.h"
 #include "client/mysqltest/secondary_engine.h"
-#include "client/mysqltest/utils.h"
 
 #include <algorithm>
 #include <cmath>  // std::isinf
@@ -152,7 +151,6 @@ enum {
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
   OPT_LOG_DIR,
-  OPT_OFFLOAD_COUNT_FILE,
   OPT_MARK_PROGRESS,
   OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS,
@@ -162,6 +160,7 @@ enum {
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
+  OPT_SECONDARY_ENGINE,
   OPT_SP_PROTOCOL,
   OPT_TAIL_LINES,
   OPT_TRACE_EXEC,
@@ -210,9 +209,8 @@ static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
 
 // Secondary engine options
-static const char *opt_offload_count_file;
 static int opt_change_propagation;
-Secondary_engine secondary_engine;
+static const char *opt_secondary_engine;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -1367,18 +1365,6 @@ static void free_used_memory() {
 }
 
 static void cleanup_and_exit(int exit_code) {
-  if (opt_offload_count_file) {
-    // Check if the current connection is active, if not create one.
-    if (cur_con->mysql.net.vio == 0) {
-      mysql_real_connect(&cur_con->mysql, opt_host, opt_user, opt_pass, opt_db,
-                         opt_port, unix_sock,
-                         CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS);
-    }
-    // Save the final value of secondary engine execution status.
-    if (secondary_engine.offload_count(&cur_con->mysql, "after")) exit_code = 1;
-    secondary_engine.report_offload_count(opt_offload_count_file);
-  }
-
   free_used_memory();
   my_end(my_end_arg);
 
@@ -3002,6 +2988,31 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 }
 
 enum enum_operator { DO_DEC, DO_INC };
+
+/// Use stoi function to get the integer value from a string.
+///
+/// @param str String which may contain an integer or an alphanumeric
+///            string.
+///
+/// @retval Integer value corresponding to the contents of the string,
+///         if conversion is successful, or -1 if integer is out of
+///         range, or if the conversion fails.
+static int get_int_val(const char *str) {
+  int value;
+  size_t size;
+
+  try {
+    value = std::stoi(str, &size, 10);
+    if (size != std::strlen(str)) value = -1;
+  } catch (const std::out_of_range &) {
+    fprintf(stderr, "Interger value '%s' is out of range. ", str);
+    value = -1;
+  } catch (const std::invalid_argument &) {
+    value = -1;
+  }
+
+  return value;
+}
 
 /// Template function that frees memory of the dynamic string
 /// passed to the function.
@@ -5161,6 +5172,32 @@ static void do_disable_testcase(struct st_command *command) {
   free_dynamic_strings(&ds_bug_number);
 }
 
+/*
+  Run query and return one field in the result set from the
+  first row and <column>
+*/
+
+static int query_get_string(MYSQL *mysql, const char *query, int column,
+                            std::string *ds) {
+  MYSQL_RES *res = NULL;
+  MYSQL_ROW row;
+
+  if (mysql_query(mysql, query))
+    die("'%s' failed: %d %s", query, mysql_errno(mysql), mysql_error(mysql));
+  if ((res = mysql_store_result(mysql)) == NULL)
+    die("Failed to store result: %d %s", mysql_errno(mysql),
+        mysql_error(mysql));
+
+  if ((row = mysql_fetch_row(res)) == NULL) {
+    mysql_free_result(res);
+    ds = 0;
+    return 1;
+  }
+  ds->assign(row[column] ? row[column] : "NULL");
+  mysql_free_result(res);
+  return 0;
+}
+
 /**
   Check if process is active.
 
@@ -5264,91 +5301,85 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
 #endif
 }
 
-/// Shutdown or kill the server. If timeout is set to 0 the server is
-/// killed or terminated immediately. Otherwise the shutdown command
-/// is first sent and then it waits for the server to terminate within
-/// 'timeout' seconds. If it has not terminated before 'timeout'
-/// seconds the command will fail.
-///
-/// @note
-/// Currently only works with local server
-///
-/// @param command Pointer to the st_command structure which holds the
-///                arguments and information for the command. Optionally
-///                including a timeout else the default of 60 seconds
-///                is used.
+/**
+  Shutdown or kill the server.
+  If timeout is set to 0 the server is killed/terminated
+  immediately. Otherwise the shutdown command is first sent
+  and then it waits for the server to terminate within
+  @<timeout@> seconds. If it has not terminated before @<timeout@>
+  seconds the command will fail.
+
+  @note Currently only works with local server
+
+  @param command  Optionally including a timeout else the
+  default of 60 seconds is used.
+*/
+
 static void do_shutdown_server(struct st_command *command) {
+  long timeout = 60;
+  int pid, error = 0;
+  std::string ds_file_name;
+  MYSQL *mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
       {"timeout", ARG_STRING, false, &ds_timeout,
        "Timeout before killing server"}};
+  DBUG_ENTER("do_shutdown_server");
 
   check_command_args(command, command->first_argument, shutdown_args,
                      sizeof(shutdown_args) / sizeof(struct command_arg), ' ');
 
-  if (opt_offload_count_file) {
-    // Save the value of secondary engine execution status
-    // before shutting down the server.
-    if (secondary_engine.offload_count(&cur_con->mysql, "after"))
-      cleanup_and_exit(1);
-  }
-
-  long timeout = 60;
   if (ds_timeout.length) {
     char *endptr;
-    timeout = std::strtol(ds_timeout.str, &endptr, 10);
+    timeout = strtol(ds_timeout.str, &endptr, 10);
     if (*endptr != '\0')
       die("Illegal argument for timeout: '%s'", ds_timeout.str);
   }
-
   dynstr_free(&ds_timeout);
 
-  MYSQL *mysql = &cur_con->mysql;
-  std::string ds_file_name;
-
-  // Get the servers pid_file name and use it to read pid.
+  /* Get the servers pid_file name and use it to read pid */
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
                        &ds_file_name))
     die("Failed to get pid_file from server");
 
-  // Read the pid from the file
-  int fd;
-  char buff[32];
+  /* Read the pid from the file */
+  {
+    int fd;
+    char buff[32];
 
-  if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
-    die("Failed to open file '%s'", ds_file_name.c_str());
+    if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_file_name.c_str());
 
-  if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
+    if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
+      my_close(fd, MYF(0));
+      die("pid file was empty");
+    }
     my_close(fd, MYF(0));
-    die("pid file was empty");
+
+    pid = atoi(buff);
+    if (pid == 0) die("Pidfile didn't contain a valid number");
   }
+  DBUG_PRINT("info", ("Got pid %d", pid));
 
-  my_close(fd, MYF(0));
-
-  int pid = std::atoi(buff);
-  if (pid == 0) die("Pidfile didn't contain a valid number");
-
-  int error = 0;
   if (timeout) {
-    // Check if we should generate a minidump on timeout.
+    /* Check if we should generate a minidump on timeout. */
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
                          &ds_file_name) ||
         std::strcmp("ON", ds_file_name.c_str())) {
     } else {
-      // Get the data dir and use it as path for a minidump if needed.
+      /* Get the data dir and use it as path for a minidump if needed. */
       if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
                            &ds_file_name))
-        die("Failed to get datadir from server.");
+        die("Failed to get datadir from server");
     }
 
-    // Tell server to shutdown if timeout > 0.
+    /* Tell server to shutdown if timeout > 0. */
     if (timeout > 0 && mysql_query(mysql, "shutdown")) {
-      // Failed to issue shutdown command.
-      error = 1;
+      error = 1; /* Failed to issue shutdown command. */
       goto end;
     }
 
-    // Check that server dies
+    /* Check that server dies */
     do {
       if (!is_process_active(pid)) {
         DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
@@ -5359,23 +5390,25 @@ static void do_shutdown_server(struct st_command *command) {
         my_sleep(1000000L);
       }
     } while (timeout-- > 0);
-
     error = 2;
-
-    // Abort to make it easier to find the hang/problem.
+    /*
+      Abort to make it easier to find the hang/problem.
+    */
     abort_process(pid, ds_file_name.c_str());
-  } else {
-    // timeout value is 0, kill the server
+  } else /* timeout == 0 */
+  {
+    /* Kill the server */
     DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-
-    // kill_process can fail (bad privileges, non existing process on
-    // *nix etc), so also check if the process is active before setting
-    // error.
+    /*
+      kill_process can fail (bad privileges, non existing process on *nix etc),
+      so also check if the process is active before setting error.
+    */
     if (!kill_process(pid) && is_process_active(pid)) error = 3;
   }
 
 end:
   if (error) handle_command_error(command, error);
+  DBUG_VOID_RETURN;
 }
 
 /// Get the error code corresponding to an error string or to a
@@ -6926,9 +6959,6 @@ static struct my_option my_long_options[] = {
      "Contains comma seperated list of to be excluded inc files.",
      &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
-    {"offload-count-file", OPT_OFFLOAD_COUNT_FILE, "Offload count report file",
-     &opt_offload_count_file, &opt_offload_count_file, 0, GET_STR, REQUIRED_ARG,
-     0, 0, 0, 0, 0, 0},
     {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
      "Trace DML statements with optimizer trace", &opt_trace_protocol,
      &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6966,6 +6996,9 @@ static struct my_option my_long_options[] = {
      &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
 #endif
+    {"secondary-engine", OPT_SECONDARY_ENGINE,
+     "Enable a secondary storage engine.", &opt_secondary_engine,
+     &opt_secondary_engine, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7634,7 +7667,7 @@ static void run_query_normal(struct st_connection *cn,
   if (opt_change_propagation != -1) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine unload statements.
-    if (secondary_engine.run_unload_statements(query, mysql, ignore_errors))
+    if (run_secondary_engine_unload_statements(query, mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
 
@@ -7741,7 +7774,9 @@ end:
   if (opt_change_propagation != -1) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
-    if (secondary_engine.run_load_statements(query, mysql, ignore_errors))
+    if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
+                                             ignore_errors,
+                                             opt_change_propagation))
       die("Original query '%s'.", query);
   }
 
@@ -7777,7 +7812,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   if (opt_change_propagation != -1) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine unload statements.
-    if (secondary_engine.run_unload_statements(query, mysql, ignore_errors))
+    if (run_secondary_engine_unload_statements(query, mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
 
@@ -7969,7 +8004,9 @@ end:
   if (opt_change_propagation != -1) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
-    if (secondary_engine.run_load_statements(query, mysql, ignore_errors))
+    if (run_secondary_engine_load_statements(opt_secondary_engine, query, mysql,
+                                             ignore_errors,
+                                             opt_change_propagation))
       die("Original query '%s'.", query);
   }
 
@@ -8892,15 +8929,6 @@ int main(int argc, char **argv) {
     open_file(opt_include);
   }
 
-  if (opt_change_propagation != -1)
-    secondary_engine = Secondary_engine(opt_change_propagation);
-
-  if (opt_offload_count_file) {
-    // Save the initial value of secondary engine execution status.
-    if (secondary_engine.offload_count(&cur_con->mysql, "before"))
-      cleanup_and_exit(1);
-  }
-
   verbose_msg("Start processing test commands from '%s' ...",
               cur_file->file_name);
   while (!read_command(&command) && !abort_flag) {
@@ -9267,12 +9295,6 @@ int main(int argc, char **argv) {
           do_reset_connection();
           break;
         case Q_SEND_SHUTDOWN:
-          if (opt_offload_count_file) {
-            // Save the value of secondary engine execution status
-            // before shutting down the server.
-            if (secondary_engine.offload_count(&cur_con->mysql, "after"))
-              cleanup_and_exit(1);
-          }
           handle_command_error(command,
                                mysql_query(&cur_con->mysql, "shutdown"));
           break;
