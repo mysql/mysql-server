@@ -4702,7 +4702,7 @@ sub run_testcase ($) {
     }
 
     # Check if it was an expected crash
-    my $check_crash = check_expected_crash_and_restart($proc, $tinfo);
+    my $check_crash = check_expected_crash_and_restart($proc);
     if ($check_crash) {
       # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
       $keep_waiting_proc = 0     if $check_crash == 1;
@@ -5248,9 +5248,8 @@ sub check_warnings ($) {
 # Loop through our list of processes and look for and entry with the
 # provided pid, if found check for the file indicating expected crash
 # and restart it.
-sub check_expected_crash_and_restart($$) {
-  my $proc  = shift;
-  my $tinfo = shift;
+sub check_expected_crash_and_restart {
+  my ($proc) = @_;
 
   foreach my $mysqld (mysqlds()) {
     next unless ($mysqld->{proc} and $mysqld->{proc} eq $proc);
@@ -5293,13 +5292,6 @@ sub check_expected_crash_and_restart($$) {
 
         # Start server with same settings as last time
         mysqld_start($mysqld, $mysqld->{'started_opts'});
-
-        if ($opt_secondary_engine) {
-          sleep_until_secondary_engine_cluster_bootstrapped(\&run_query,
-                                                            $mysqld, $tinfo);
-          load_table_contents(\&run_query, $mysqld)
-            if $mysqld->{'secondary_engine_status'};
-        }
 
         return 1;
       }
@@ -5700,14 +5692,6 @@ sub mysqld_start ($$) {
     mtr_add_arg($args, "--enable-named-pipe");
   }
 
-  my $pid_file;
-  foreach my $arg (@$args) {
-    $pid_file = mtr_match_prefix($arg, "--pid-file=");
-    last if (defined $pid_file);
-  }
-
-  $pid_file = $mysqld->value('pid-file') if not defined $pid_file;
-
   if ($opt_gdb || $opt_manual_gdb) {
     gdb_arguments(\$args, \$exe, $mysqld->name());
   } elsif ($opt_lldb || $opt_manual_lldb) {
@@ -5725,16 +5709,13 @@ sub mysqld_start ($$) {
 
     # Indicate the exe should not be started
     $exe = undef;
-  } elsif ($opt_secondary_engine) {
-    # Wait for the PID file to be created if secondary engine
-    # is enabled.
   } else {
     # Default to not wait until pid file has been created
     $wait_for_pid_file = 0;
   }
 
   # Remove the old pidfile if any
-  unlink($pid_file) if -e $pid_file;
+  unlink($mysqld->value('pid-file'));
 
   my $output = $mysqld->value('#log-error');
 
@@ -5757,14 +5738,15 @@ sub mysqld_start ($$) {
                            host        => undef,
                            shutdown    => sub { mysqld_stop($mysqld) },
                            envs        => \@opt_mysqld_envs,
-                           pid_file    => $pid_file,
+                           pid_file    => $mysqld->value('pid-file'),
                            daemon_mode => $mysqld->{'daemonize'});
 
     mtr_verbose("Started $mysqld->{proc}");
   }
 
   if ($wait_for_pid_file &&
-      !sleep_until_pid_file_created($pid_file, $opt_start_timeout,
+      !sleep_until_pid_file_created($mysqld->value('pid-file'),
+                                    $opt_start_timeout,
                                     $mysqld->{'proc'})
   ) {
     my $mname = $mysqld->name();
