@@ -897,6 +897,9 @@ The following options may be given as the first argument:
  --performance-schema-users-size=# 
  Maximum number of instrumented users. Use 0 to disable,
  -1 for automated scaling.
+ --persist-only-admin-x509-subject[=name] 
+ The client peer certificate name required to enable
+ setting all system variables via SET PERSIST[_ONLY]
  --persisted-globals-load 
  When this option is enabled, config file mysqld-auto.cnf
  is read and applied to server, else this file is ignored
@@ -1576,6 +1579,7 @@ performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size -1
 performance-schema-setup-objects-size -1
 performance-schema-users-size -1
+persist-only-admin-x509-subject 
 persisted-globals-load TRUE
 port ####
 port-open-timeout 0

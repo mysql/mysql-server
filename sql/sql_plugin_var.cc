@@ -567,7 +567,10 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR:
-        strcpy(def_val, ((sysvar_str_t *)plugin_var)->def_val);
+        if (((sysvar_str_t *)plugin_var)->def_val != NULL)
+          strcpy(def_val, ((sysvar_str_t *)plugin_var)->def_val);
+        else /* no default: consider empty */
+          def_val[0] = 0;
         return;
       case PLUGIN_VAR_DOUBLE:
         var->save_result.double_value =

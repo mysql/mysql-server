@@ -64,6 +64,7 @@ SET PERSIST log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a read only variable
 SET PERSIST log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
 SET PERSIST log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
+ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST log_slave_updates = @@GLOBAL.log_slave_updates;
 ERROR HY000: Variable 'log_slave_updates' is a read only variable
 SET PERSIST log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
@@ -124,16 +125,16 @@ SET PERSIST sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 64 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 65 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 65 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 65 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 64 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 64 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 64 persisted variables with matching peristed and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST IF EXISTS. Verify persisted variable
@@ -180,6 +181,8 @@ Warnings:
 Warning	3615	Variable log_bin_index does not exist in persisted config file
 RESET PERSIST IF EXISTS log_bin_trust_function_creators;
 RESET PERSIST IF EXISTS log_bin_use_v1_row_events;
+Warnings:
+Warning	3615	Variable log_bin_use_v1_row_events does not exist in persisted config file
 RESET PERSIST IF EXISTS log_slave_updates;
 Warnings:
 Warning	3615	Variable log_slave_updates does not exist in persisted config file

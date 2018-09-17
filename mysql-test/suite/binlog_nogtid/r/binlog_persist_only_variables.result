@@ -63,6 +63,7 @@ SET PERSIST_ONLY log_bin_index = @@GLOBAL.log_bin_index;
 ERROR HY000: Variable 'log_bin_index' is a non persistent read only variable
 SET PERSIST_ONLY log_bin_trust_function_creators = @@GLOBAL.log_bin_trust_function_creators;
 SET PERSIST_ONLY log_bin_use_v1_row_events = @@GLOBAL.log_bin_use_v1_row_events;
+ERROR HY000: Variable 'log_bin_use_v1_row_events' is a non persistent variable
 SET PERSIST_ONLY log_slave_updates = @@GLOBAL.log_slave_updates;
 SET PERSIST_ONLY log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
 SET PERSIST_ONLY log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
@@ -119,16 +120,16 @@ SET PERSIST_ONLY sync_master_info = @@GLOBAL.sync_master_info;
 SET PERSIST_ONLY sync_relay_log = @@GLOBAL.sync_relay_log;
 SET PERSIST_ONLY sync_relay_log_info = @@GLOBAL.sync_relay_log_info;
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 69 persisted variables in persisted_variables table.']
 
 ############################################################
 # 2. Restart server, it must preserve the persisted variable
 #    settings. Verify persisted configuration.
 # restart
 
-include/assert.inc ['Expect 70 persisted variables in persisted_variables table.']
-include/assert.inc ['Expect 70 persisted variables shown as PERSISTED in variables_info table.']
-include/assert.inc ['Expect 70 persisted variables with matching peristed and global values.']
+include/assert.inc ['Expect 69 persisted variables in persisted_variables table.']
+include/assert.inc ['Expect 69 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 69 persisted variables with matching peristed and global values.']
 
 ############################################################
 # 3. Test RESET PERSIST. Verify persisted variable settings
@@ -168,6 +169,7 @@ RESET PERSIST log_bin_index;
 ERROR HY000: Variable log_bin_index does not exist in persisted config file
 RESET PERSIST log_bin_trust_function_creators;
 RESET PERSIST log_bin_use_v1_row_events;
+ERROR HY000: Variable log_bin_use_v1_row_events does not exist in persisted config file
 RESET PERSIST log_slave_updates;
 RESET PERSIST log_slow_slave_statements;
 RESET PERSIST log_statements_unsafe_for_binlog;

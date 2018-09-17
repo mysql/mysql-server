@@ -1472,12 +1472,14 @@ struct Get_csname {
 
 }  // namespace
 
+static CHARSET_INFO *charset_system_default = &my_charset_utf8_general_ci;
+
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_system(
     "character_set_system",
     "The character set used by the server "
     "for storing identifiers",
     READ_ONLY NON_PERSIST GLOBAL_VAR(system_charset_info), NO_CMD_LINE,
-    DEFAULT(0));
+    DEFAULT(&charset_system_default));
 
 static Sys_var_struct<CHARSET_INFO, Get_csname> Sys_character_set_server(
     "character_set_server", "The default character set",
@@ -5990,7 +5992,7 @@ static Sys_var_charptr Sys_disabled_storage_engines(
     IN_SYSTEM_CHARSET, DEFAULT(""));
 
 static Sys_var_bool Sys_persisted_globals_load(
-    "persisted_globals_load",
+    PERSISTED_GLOBALS_LOAD,
     "When this option is enabled, config file mysqld-auto.cnf is read "
     "and applied to server, else this file is ignored even if present.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(persisted_globals_load), CMD_LINE(OPT_ARG),
@@ -6249,3 +6251,10 @@ static Sys_var_bool Sys_sql_require_primary_key{
     NO_MUTEX_GUARD,
     IN_BINLOG,
     ON_CHECK(check_session_admin)};
+
+static Sys_var_charptr Sys_sys_variables_admin_subject(
+    PERSIST_ONLY_ADMIN_X509_SUBJECT,
+    "The client peer certificate name required to enable setting all "
+    "system variables via SET PERSIST[_ONLY]",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(sys_var_persist_only_admin_x509_subject),
+    CMD_LINE(OPT_ARG), IN_SYSTEM_CHARSET, DEFAULT(""));

@@ -211,9 +211,6 @@ RESET PERSIST;
 SET PERSIST mandatory_roles= default;
 --echo # Restart server and check if server starts
 --source include/restart_mysqld.inc
-SET PERSIST keyring_operations= default;
---echo # Restart server and check if server starts
---source include/restart_mysqld.inc
 
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 # Cleanup

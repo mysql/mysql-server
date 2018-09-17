@@ -237,8 +237,15 @@ class sys_var_pluginvar : public sys_var {
                 (plugin_var_arg->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY
                      ? PERSIST_AS_READ_ONLY
                      : 0),
-            0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
-            VARIABLE_NOT_IN_BINLOG,
+            0, (plugin_var_arg->flags & PLUGIN_VAR_NOCMDOPT) ? -1 : 0,
+            (plugin_var_arg->flags & PLUGIN_VAR_NOCMDARG
+                 ? NO_ARG
+                 : (plugin_var_arg->flags & PLUGIN_VAR_OPCMDARG
+                        ? OPT_ARG
+                        : (plugin_var_arg->flags & PLUGIN_VAR_RQCMDARG
+                               ? REQUIRED_ARG
+                               : REQUIRED_ARG))),
+            pluginvar_show_type(plugin_var_arg), 0, 0, VARIABLE_NOT_IN_BINLOG,
             (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ? on_check_pluginvar
                                                            : NULL,
             NULL, NULL, PARSE_NORMAL),

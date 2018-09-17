@@ -276,8 +276,13 @@ class sys_var {
             type == OPT_PERSIST_ONLY);
   }
 
+  /**
+    Return true if settable at the command line
+  */
+  bool is_settable_at_command_line() { return option.id != -1; }
+
   bool register_option(std::vector<my_option> *array, int parse_flags) {
-    return (option.id != -1) && (m_parse_flag & parse_flags) &&
+    return is_settable_at_command_line() && (m_parse_flag & parse_flags) &&
            (array->push_back(option), false);
   }
   void do_deprecated_warning(THD *thd);
@@ -508,5 +513,9 @@ void sys_var_end(void);
 
 /* check needed privileges to perform SET PERSIST[_only] or RESET PERSIST */
 bool check_priv(THD *thd, bool static_variable);
+
+#define PERSIST_ONLY_ADMIN_X509_SUBJECT "persist_only_admin_x509_subject"
+#define PERSISTED_GLOBALS_LOAD "persisted_globals_load"
+extern char *sys_var_persist_only_admin_x509_subject;
 
 #endif

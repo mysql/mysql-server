@@ -69,14 +69,14 @@ while ( $varid <= $countvars )
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
 
   # Following variables are non persistent read only variables.
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir')`)
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
   --eval SET PERSIST_ONLY $varnames = @@GLOBAL.$varnames
 
   #  TODO: Remove/update this once Bug#27322592 is FIXED.
-  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_bin_use_v1_row_events', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery')`)
+  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery')`)
   {
     --disable_query_log
       --eval SELECT varvalue INTO @varvalues FROM rplvars WHERE id=$varid
@@ -88,8 +88,8 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $assert_text= 'Expect 70 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 70
+--let $assert_text= 'Expect 69 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 69
 --source include/assert.inc
 
 
@@ -101,16 +101,16 @@ while ( $varid <= $countvars )
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= 'Expect 70 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 70
+--let $assert_text= 'Expect 69 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 69
 --source include/assert.inc
 
---let $assert_text= 'Expect 70 persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 70
+--let $assert_text= 'Expect 69 persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 69
 --source include/assert.inc
 
---let $assert_text= 'Expect 70 persisted variables with matching peristed and global values.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 70
+--let $assert_text= 'Expect 69 persisted variables with matching peristed and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 69
 --source include/assert.inc
 
 
@@ -123,7 +123,7 @@ while ( $varid <= $countvars )
 {
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
 
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir')`)
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
   {
     --error ER_VAR_DOES_NOT_EXIST
   }

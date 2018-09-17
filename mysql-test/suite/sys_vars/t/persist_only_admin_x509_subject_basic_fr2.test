@@ -1,0 +1,19 @@
+-- source include/have_ssl.inc
+
+--echo #
+--echo # Tests for WL#12086: Cryptographically signed SET statements
+--echo #
+
+--echo # Testing FR2
+
+--echo # must be /C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client
+SELECT @@GLOBAL.persist_only_admin_x509_subject;
+let $persist_only_admin_x509_subject_vars_result= 0;
+source ../inc/persist_only_admin_x509_subject_vars.inc;
+
+--let $MYSQL_DATA_DIR = `select @@datadir`
+
+--echo # Cleanup
+RESET PERSIST;
+--remove_file $MYSQL_DATA_DIR/mysqld-auto.cnf
+

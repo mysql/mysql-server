@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -274,6 +274,12 @@ class collation_unordered_set
                            Malloc_allocator<Key>>(
             /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
             Malloc_allocator<>(psi_key)) {}
+  collation_unordered_set(std::initializer_list<Key> il, CHARSET_INFO *cs,
+                          PSI_memory_key psi_key)
+      : std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                           Malloc_allocator<Key>>(
+            il, /*bucket_count=*/10, Collation_hasher(cs),
+            Collation_key_equal(cs), Malloc_allocator<>(psi_key)) {}
 };
 
 /** std::unordered_set, but allocated on a MEM_ROOT.  */

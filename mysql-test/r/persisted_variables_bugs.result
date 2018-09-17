@@ -243,12 +243,8 @@ RESET PERSIST;
 SET PERSIST mandatory_roles= default;
 # Restart server and check if server starts
 # restart
-SET PERSIST keyring_operations= default;
-# Restart server and check if server starts
-# restart
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-keyring_operations	ON
 mandatory_roles	
 RESET PERSIST;
 #
