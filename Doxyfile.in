@@ -981,6 +981,7 @@ EXCLUDE_SYMLINKS       = NO
 
 EXCLUDE_PATTERNS       = */include/boost*/* \
                          */include/mysql/psi/psi_abi*.h \
+                         */router/src/*/tests/* \
                          */sql/*ndb*.h \
                          */sql/*ndb*.cc \
                          */unittest/* \
