@@ -61,6 +61,8 @@ check_file(){
 		;;
 	    ^max-retries:*)
 		;;
+            ^force-cluster-restart:*)
+                ;;
 	    ^$) 
                 if [ $testcase -ne 7 ]
 		then
