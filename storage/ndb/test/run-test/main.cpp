@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
   bool restart = true;
   int lineno = 1;
   int test_no = 1;
-  int return_code = 1;
+  int return_code = TESTSUITE_SUCCESS;
 
   g_logger.setCategory(progname);
   g_logger.enable(Logger::LL_ALL);
@@ -217,6 +217,7 @@ int main(int argc, char **argv) {
 
   if (!find_binaries()) {
     g_logger.critical("Failed to find required binaries for execution");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -227,6 +228,7 @@ int main(int argc, char **argv) {
 
     if (!find_config_ini_files()) {
       g_logger.critical("Failed to find required config.ini files");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
@@ -235,22 +237,26 @@ int main(int argc, char **argv) {
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host)) {
     g_logger.critical("Failed to setup configuration");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   if (!g_config.m_processes.size()) {
     g_logger.critical("Error: No processes defined in cluster configuration");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   if (!configure(g_config, g_do_setup)) {
     g_logger.critical("Failed to configure");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
   g_logger.info("Setting up directories...");
   if (!setup_directories(g_config, g_do_setup)) {
     g_logger.critical("Failed to set up directories");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -258,6 +264,7 @@ int main(int argc, char **argv) {
     g_logger.info("Setting up files...");
     if (!setup_files(g_config, g_do_setup, g_do_sshx)) {
       g_logger.critical("Failed to set up files");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
@@ -266,17 +273,18 @@ int main(int argc, char **argv) {
     g_logger.info("Deploying files...");
     if (!deploy(g_do_deploy, g_config)) {
       g_logger.critical("Failed to deploy");
+      return_code = ATRT_FAILURE;
       goto end;
     }
   }
 
   if (g_do_quit) {
-    return_code = 0;
     goto end;
   }
 
   if (!setup_hosts(g_config)) {
     g_logger.critical("Failed to setup hosts");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -284,6 +292,7 @@ int main(int argc, char **argv) {
     g_logger.info("Starting xterm-ssh");
     if (!sshx(g_config, g_do_sshx)) {
       g_logger.critical("Failed to start xterm-ssh");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
@@ -291,18 +300,19 @@ int main(int argc, char **argv) {
     while (true) {
       if (!do_command(g_config)) {
         g_logger.critical("Failed to do ssh command");
+        return_code = ATRT_FAILURE;
         goto end;
       }
 
       NdbSleep_SecSleep(1);
     }
-    return_code = 0;
     goto end;
   }
 
   g_logger.info("Connecting to hosts...");
   if (!connect_hosts(g_config)) {
     g_logger.critical("Failed to connect to CPCD on hosts");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -311,12 +321,14 @@ int main(int argc, char **argv) {
     g_logger.info("Starting server processes: %x", g_do_start);
     if (!start(g_config, g_do_start)) {
       g_logger.critical("Failed to start server processes");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
     g_logger.info("Setting up database...");
     if (!setup_db(g_config)) {
       g_logger.critical("Failed to setup database");
+      return_code = ATRT_FAILURE;
       goto end;
     }
 
@@ -324,12 +336,12 @@ int main(int argc, char **argv) {
     while (true) {
       if (!do_command(g_config)) {
         g_logger.info("Exiting");
+        return_code = ATRT_FAILURE;
         goto end;
       }
 
       NdbSleep_SecSleep(1);
     }
-    return_code = 0;
     goto end;
   }
 #endif
@@ -349,6 +361,7 @@ int main(int argc, char **argv) {
     if (num_element_lines < 0) {
       g_logger.critical("Corrupt testcase at line %d (error %d)", lineno,
                         num_element_lines);
+      return_code = ATRT_FAILURE;
       goto cleanup;
     }
     g_logger.info("#%d - %s", test_no, test_case.m_name.c_str());
@@ -376,27 +389,32 @@ int main(int argc, char **argv) {
 
         if (!stop_processes(g_config, ~0)) {
           g_logger.critical("Failed to stop all processes");
+          return_code = ATRT_FAILURE;
           goto end;
         }
 
         g_logger.info("Waiting for all processes to stop...");
         if (!wait_for_processes_to_stop(g_config, ~0)) {
           g_logger.critical("Fail to stop all processes");
+          return_code = ATRT_FAILURE;
           goto end;
         }
 
         if (!setup_directories(g_config, 2)) {
           g_logger.critical("Failed to setup directories");
+          return_code = ATRT_FAILURE;
           goto end;
         }
 
         if (!setup_files(g_config, 2, 1)) {
           g_logger.critical("Failed to setup files");
+          return_code = ATRT_FAILURE;
           goto end;
         }
 
         if (!setup_hosts(g_config)) {
           g_logger.critical("Failed to setup hosts");
+          return_code = ATRT_FAILURE;
           goto end;
         }
 
@@ -408,6 +426,7 @@ int main(int argc, char **argv) {
           int tmp;
           if (!gather_result(g_config, &tmp)) {
             g_logger.critical("Failed to gather results");
+            return_code = ATRT_FAILURE;
             goto cleanup;
           }
 
@@ -424,6 +443,7 @@ int main(int argc, char **argv) {
           if (rename("result", resdir.c_str()) != 0) {
             g_logger.critical("Failed to rename %s as %s", "result",
                               resdir.c_str());
+            return_code = ATRT_FAILURE;
             goto cleanup;
           }
           goto cleanup;
@@ -431,6 +451,7 @@ int main(int argc, char **argv) {
 
         if (!setup_db(g_config)) {
           g_logger.critical("Failed to setup database");
+          return_code = ATRT_FAILURE;
           goto cleanup;
         }
 
@@ -440,11 +461,13 @@ int main(int argc, char **argv) {
       // Assign processes to programs
       if (!setup_test_case(g_config, test_case)) {
         g_logger.critical("Failed to setup test case");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
       if (!start_processes(g_config, p_clients)) {
         g_logger.critical("Failed to start client processes");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
@@ -453,6 +476,7 @@ int main(int argc, char **argv) {
       do {
         if (!update_status(g_config, atrt_process::AP_ALL)) {
           g_logger.critical("Failed to get updated status for all processes");
+          return_code = ATRT_FAILURE;
           goto cleanup;
         }
 
@@ -484,6 +508,7 @@ int main(int argc, char **argv) {
       elapsed = time(0) - start;
       if (!stop_processes(g_config, p_clients)) {
         g_logger.critical("Failed to stop client processes");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
@@ -495,6 +520,7 @@ int main(int argc, char **argv) {
       int tmp, *rp = result ? &tmp : &result;
       if (!gather_result(g_config, rp)) {
         g_logger.critical("Failed to gather result after test run");
+        return_code = ATRT_FAILURE;
         goto end;
       }
 
@@ -504,6 +530,7 @@ int main(int argc, char **argv) {
         restart = true;
 
         if (testruns > test_case.m_max_retries) {
+          return_code = TESTSUITE_FAILURES;
           retry_test = false;
         } else {
           g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
@@ -534,6 +561,7 @@ int main(int argc, char **argv) {
       if (rename("result", resdir.c_str()) != 0) {
         g_logger.critical("Failed to rename %s as %s", "result",
                           resdir.c_str());
+        return_code = ATRT_FAILURE;
         goto end;
       }
     } else {
@@ -549,7 +577,6 @@ int main(int argc, char **argv) {
     }
     test_no++;
   }
-  return_code = 0;
 
 cleanup:
   g_logger.info("Stopping all processes");
@@ -558,7 +585,7 @@ cleanup:
 
 end:
   g_logger.info("Finishing, result: %d", return_code);
-  if (return_code != 0 && g_report_file != 0) {
+  if (return_code == ATRT_FAILURE && g_report_file != 0) {
     fprintf(g_report_file, "%s ; %d ; %d ; %d ; %d\n", "critical error",
             test_no, ERR_FAILED_TO_START, 0, 0);
     fflush(g_report_file);
