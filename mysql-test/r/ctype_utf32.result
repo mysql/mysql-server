@@ -1566,3 +1566,28 @@ hex(weight_string(cast(_latin1 0x808080 as char),25, 4, 0xC0))
 #
 # End of 5.6 tests
 #
+#
+# Start of 8.0 tests
+#
+#
+# Bug#28275881: ASSERT `RC == TYPE_OK' IN CREATE TABLE WITH CHARSET UTF32
+#
+CREATE TABLE  table425 (b1
+SET('wgrpqu','Oklahoma','grpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabr
+rifnhuufzasunkrcpvasdqkxbwptigbpnesqigwegcnfeuvrgnecpthmhffqbythjwpukqubzpomnt
+rddrwhzjtqvbjiklcekxqyoxsolbxthdcprswpjxixmvfwmsyseblwcvumvyvbitxqjxdzdytunqvv
+rmpyxrencqhuyrfluezqekmqpwutxnzddrbjycyoyqbzsoxvillooqxuvoxcgohdbytybwcqxdwtqr
+ebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpftrhvxugmmszwpoglvarsfiljrz
+imqeplevleqdhepkhcfrahcpjj') NULL ) DEFAULT CHARACTER SET = utf32;
+ERROR HY000: Too long enumeration/set value for column b1.
+CREATE FUNCTION hello (s SET('wgrpqu','Oklahoma','grpquarwkazzjeiwvdmdivjqsxmh
+jwagewclcfykywlcnemiuaabrrifnhuufzasunkrcpvasdqkxbwptigbpnesqigwegcnfeuvrgnecp
+thmhffqbythjwpukqubzpomntrddrwhzjtqvbjiklcekxqyoxsolbxthdcprswpjxixmvfwmsysebl
+wcvumvyvbitxqjxdzdytunqvvrmpyxrencqhuyrfluezqekmqpwutxnzddrbjycyoyqbzsoxvilloo
+qxuvoxcgohdbytybwcqxdwtqrebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpft
+rhvxugmmszwpoglvarsfiljrzimqeplevleqdhepkhcfrahcpjj') CHARACTER SET utf32)
+RETURNS CHAR(50) DETERMINISTIC RETURN CONCAT('Hello, ',s,'!');
+ERROR HY000: Too long enumeration/set value for column s.
+#
+# End of 8.0 tests
+#
