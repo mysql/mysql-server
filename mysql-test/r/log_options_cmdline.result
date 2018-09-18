@@ -107,9 +107,7 @@ Pattern "log_error_suppression_list: Could not add suppression rule for code .in
 INSTALL COMPONENT "file://component_log_sink_json";
 INSTALL COMPONENT "file://component_log_filter_dragnet";
 SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
-# restart: --log-error-services=log_filter_dragnet;log_sink_internal;log_sink_json --log-error=LOG_FILE19
-# Traditional error log content - begin
-# Traditional error log content - end
+# restart: --log-error-services=log_filter_dragnet;log_sink_json --log-error=LOG_FILE19
 # JSON error log content - begin
 # JSON error log content - end
 RESET PERSIST `dragnet.log_error_filter_rules`;

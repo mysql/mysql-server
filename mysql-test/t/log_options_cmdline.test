@@ -405,15 +405,11 @@ INSTALL COMPONENT "file://component_log_filter_dragnet";
 
 SET PERSIST dragnet.log_error_filter_rules="IF EXISTS msg THEN drop.";
 
---let $log_services="log_filter_dragnet;log_sink_internal;log_sink_json"
+--let $log_services="log_filter_dragnet;log_sink_json"
 --let restart_parameters="restart: --log-error-services=$log_services --log-error=$LOG_FILE19"
 
 --replace_result $LOG_FILE19 LOG_FILE19
 --source include/restart_mysqld.inc
-
---echo # Traditional error log content - begin
---cat_file $LOG_FILE19
---echo # Traditional error log content - end
 
 --echo # JSON error log content - begin
 --cat_file $LOG_FILE19j
