@@ -1928,9 +1928,14 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
 
+    const enum ndb_func_type function_type = (negated)
+       ? Ndb_item::negate(cond->ndb_item->qualification.function_type)
+       : cond->ndb_item->qualification.function_type;
+
     switch (cond->ndb_item->argument_count()) {
     case 1:
       field= (a->type == NDB_FIELD)? a : NULL;
+      cond= cond->next->next;
       break;
     case 2:
       if (!cond->next->next)
@@ -1945,18 +1950,75 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       field= ((a->type == NDB_FIELD) ? a :
               (b->type == NDB_FIELD) ? b :
               NULL);
+      if (!value)
+      {
+        DBUG_PRINT("info", ("condition missing 'value' argument"));
+        DBUG_RETURN(1);
+      }
+      cond= cond->next->next->next;
       break;
     default:
-      field= NULL; //Keep compiler happy
-      DBUG_ASSERT(0);
-      break;
+      DBUG_PRINT("info", ("condition had unexpected number of arguments"));
+      DBUG_RETURN(1);
     }
-    switch ((negated) ? 
-            Ndb_item::negate(cond->ndb_item->qualification.function_type)
-            : cond->ndb_item->qualification.function_type) {
+    if (!field)
+    {
+      DBUG_PRINT("info", ("condition missing 'field' argument"));
+      DBUG_RETURN(1);
+    }
+
+    bool need_explicit_null_check = field->get_field()->maybe_null();
+    if (unlikely(need_explicit_null_check))
+    {
+      switch (function_type) {
+      /*
+        The NdbInterpreter handles a NULL value as being less than any
+        non-NULL value. Thus any NULL value columns will evaluate to
+        'TRUE' (and pass the filter) in the predicate expression:
+            <column> </ <= / <> <non-NULL value>
+
+        This is not according to how the server expect NULL valued
+        predicates to be evaluated: Any NULL values in a comparison
+        predicate should result in an UNKNOWN boolean result
+        and the row being eliminated.
+
+        This is mitigated by adding an extra isnotnull-check to
+        eliminate NULL valued rows which otherwise would have passed
+        the ScanFilter.
+      */
+      case NDB_NE_FUNC:
+      case NDB_LT_FUNC:
+      case NDB_LE_FUNC:
+      /*
+        The NdbInterpreter will also let any null valued columns
+        in *both* a LIKE / NOT LIKE predicate pass the filter.
+      */
+      case NDB_LIKE_FUNC:
+      case NDB_NOTLIKE_FUNC:
+      {
+        DBUG_PRINT("info", ("Appending extra ISNOTNULL filter"));
+        if (filter->begin(NdbScanFilter::AND) == -1 ||
+	    filter->isnotnull(field->get_field_no()) == -1)
+          DBUG_RETURN(1);
+	break;
+      }
+      /*
+        As the NULL value is less than any non-NULL values, they are
+        correctly eliminated from a '>', '>=' and '=' comparison.
+        Thus, no notnull-check needed here.
+      */
+      case NDB_EQ_FUNC:
+      case NDB_GE_FUNC:
+      case NDB_GT_FUNC:
+      default:
+        need_explicit_null_check = false;
+        break;
+      }
+    }
+
+    switch (function_type) {
     case NDB_EQ_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating EQ filter"));
@@ -1965,12 +2027,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                       field->get_val(),
                       field->pack_length()) == -1)
         DBUG_RETURN(1);
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_NE_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       DBUG_PRINT("info", ("Generating NE filter"));
@@ -1979,12 +2039,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                       field->get_val(),
                       field->pack_length()) == -1)
         DBUG_RETURN(1);
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_LT_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
@@ -2005,12 +2063,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                         field->pack_length()) == -1)
           DBUG_RETURN(1);
       }
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_LE_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
@@ -2031,12 +2087,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                         field->pack_length()) == -1)
           DBUG_RETURN(1);
       }
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_GE_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
@@ -2057,12 +2111,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                         field->pack_length()) == -1)
           DBUG_RETURN(1);
       }
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_GT_FUNC:
     {
-      if (!value || !field) break;
       // Save value in right format for the field type
       value->save_in_field(field);
       if (a == field)
@@ -2083,12 +2135,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                         field->pack_length()) == -1)
           DBUG_RETURN(1);
       }
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_LIKE_FUNC:
     {
-      if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
       uint32 val_len= value->save_in_field(field);
@@ -2115,12 +2165,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                       val,
                       len) == -1)
         DBUG_RETURN(1);
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_NOTLIKE_FUNC:
     {
-      if (!value || !field) break;
       bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
       uint32 val_len= value->save_in_field(field);
@@ -2147,31 +2195,27 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
                       (value->pack_length() > len)?value->get_val():val,
                       (value->pack_length() > len)?value->pack_length():len) == -1)
         DBUG_RETURN(1);
-      cond= cond->next->next->next;
-      DBUG_RETURN(0);
+      break;
     }
     case NDB_ISNULL_FUNC:
-      if (!field)
-        break;
       DBUG_PRINT("info", ("Generating ISNULL filter"));
       if (filter->isnull(field->get_field_no()) == -1)
         DBUG_RETURN(1);
-      cond= cond->next->next;
-      DBUG_RETURN(0);
+      break;
     case NDB_ISNOTNULL_FUNC:
     {
-      if (!field)
-        break;
       DBUG_PRINT("info", ("Generating ISNOTNULL filter"));
       if (filter->isnotnull(field->get_field_no()) == -1)
         DBUG_RETURN(1);         
-      cond= cond->next->next;
-      DBUG_RETURN(0);
-    }
-    default:
       break;
     }
-    break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+    if (need_explicit_null_check && filter->end() == -1) //Local AND group
+      DBUG_RETURN(1);
+    DBUG_RETURN(0);
   }
   default:
     break;
