@@ -2692,3 +2692,36 @@ options
 three
 five
 drop table t1;
+#
+# Bug#28643463 NULL VALUES NOT FILTERED OUT BY PUSHED CONDITIONS
+#
+Testing: '= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '<> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '< 'five''
+result_rows	filtered_rows
+0	0
+Testing: '> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '<= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '>= 'five''
+result_rows	filtered_rows
+5	5
+Testing: 'like 'five''
+result_rows	filtered_rows
+1	1
+Testing: 'not like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> not like 'five''
+result_rows	filtered_rows
+1	1

@@ -2571,3 +2571,124 @@ select * from t1 where options IN ('one','four','two','zero') order by options;
 select * from t1 where options NOT IN ('one','four','two','zero') order by options;
 
 drop table t1;
+
+
+--echo #
+--echo # Bug#28643463 NULL VALUES NOT FILTERED OUT BY PUSHED CONDITIONS
+--echo #
+
+--disable_warnings
+--disable_query_log
+
+create table t1
+(
+  a int,
+  b varchar(30),
+  primary key(a)
+) engine = ndb ;
+
+insert into t1 values (1,'one');
+insert into t1 values (2,'two');
+insert into t1 values (3,'three');
+insert into t1 values (4,'four');
+insert into t1 values (5,'five');
+insert into t1 values(0,NULL);
+insert into t1 values(10,NULL);
+insert into t1 values(20,NULL);
+insert into t1 values(30,NULL);
+insert into t1 values(40,NULL);
+insert into t1 values(50,NULL);
+
+let $prepare =
+  select @read_cnt:=variable_value
+  from performance_schema.global_status
+    where variable_name = 'Ndb_api_read_row_count';
+
+# Verify that number of rows in result is same as
+# number of rows retuned by the ScanFilter.
+let $verify_row_count =
+  select
+    @count as result_rows,
+    (variable_value-@read_cnt) as filtered_rows
+  from performance_schema.global_status
+    where variable_name = 'Ndb_api_read_row_count';
+
+
+################################
+# The pass criteria for the queries below is that
+# only the count'ed rows are returned through the
+# NdbScanFilter.
+# Thus, the 'result_rows' and 'filtered_rows' should be
+# the same.
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '= 'five''
+select @count:=count(*) from t1 where b = 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<> 'five''
+select @count:=count(*) from t1 where b <> 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '< 'five''
+select @count:=count(*) from t1 where b < 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '> 'five''
+select @count:=count(*) from t1 where b > 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<= 'five''
+select @count:=count(*) from t1 where b <= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '>= 'five''
+select @count:=count(*) from t1 where b >= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'like 'five''
+select @count:=count(*) from t1 where b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not like 'five''
+select @count:=count(*) from t1 where b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> like 'five''
+select @count:=count(*) from t1 where not b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> not like 'five''
+select @count:=count(*) from t1 where not b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+drop table t1;
