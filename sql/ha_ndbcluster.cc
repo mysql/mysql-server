@@ -10334,7 +10334,7 @@ int ha_ndbcluster::create(const char *name,
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
-  Ndb_create_helper create(thd, name);
+  Ndb_create_helper create(thd, form->s->table_name.str);
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
 

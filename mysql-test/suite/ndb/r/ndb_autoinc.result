@@ -6,11 +6,11 @@ CREATE TABLE t2 (
 id INT AUTO_INCREMENT,
 KEY(id)
 ) ENGINE=NDBCLUSTER;
-ERROR HY000: Can't create table './test/t2'
+ERROR HY000: Can't create table 't2'
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 4335 'Only one autoincrement column allowed per table. Having a table without primary key uses an autoincr' from NDB
-Error	1005	Can't create table './test/t2'
+Error	1005	Can't create table 't2'
 SHOW TABLES;
 Tables_in_test
 t1
