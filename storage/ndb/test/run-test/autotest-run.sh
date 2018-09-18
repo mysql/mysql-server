@@ -402,6 +402,8 @@ if [ ${verbose} -gt 0 ] ; then
   verbose_arg=--verbose=${verbose}
 fi
 
+return_code=0
+
 # Setup configuration
 $atrt ${atrt_defaults_group_suffix_arg} Cdq \
    ${site_arg} \
@@ -413,6 +415,7 @@ $atrt ${atrt_defaults_group_suffix_arg} Cdq \
 
 atrt_conf_status=${PIPESTATUS[0]}
 if [ ${atrt_conf_status} -ne 0 ]; then
+    return_code=$atrt_conf_status
     echo "Setup configuration failure"
 else
     args="${atrt_defaults_group_suffix_arg}"
@@ -428,6 +431,7 @@ else
 
     atrt_test_status=${PIPESTATUS[0]}
     if [ $atrt_test_status -ne 0 ]; then
+        return_code=$atrt_test_status
         echo "ERROR: $atrt_test_status: $atrt $args my.cnf"
     fi
 fi
@@ -494,3 +498,5 @@ fi
 
 cd $p
 rm -rf $res_dir $run_dir
+
+exit $return_code
