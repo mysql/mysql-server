@@ -8442,8 +8442,8 @@ bool Item_cache_datetime::cache_value() {
   // Mark cached int value obsolete
   value_cached = false;
   /* Assume here that the underlying item will do correct conversion.*/
-  String *res = example->val_str(&str_value);
-  if (res && res != &str_value) str_value.copy(*res);
+  String *res = example->val_str(&cached_string);
+  if (res && res != &cached_string) cached_string.copy(*res);
   null_value = example->null_value;
   unsigned_flag = example->unsigned_flag;
   return true;
@@ -8479,14 +8479,15 @@ String *Item_cache_datetime::val_str(String *) {
     if (value_cached) {
       MYSQL_TIME ltime;
       TIME_from_longlong_packed(&ltime, data_type(), int_value);
-      if ((null_value = my_TIME_to_str(
-               &ltime, &str_value, MY_MIN(decimals, DATETIME_MAX_DECIMALS))))
+      if ((null_value =
+               my_TIME_to_str(&ltime, &cached_string,
+                              MY_MIN(decimals, DATETIME_MAX_DECIMALS))))
         return NULL;
       str_value_cached = true;
     } else if (!cache_value() || null_value)
       return NULL;
   }
-  return &str_value;
+  return &cached_string;
 }
 
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val) {

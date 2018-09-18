@@ -5749,6 +5749,8 @@ class Item_cache_row final : public Item_cache {
 };
 
 class Item_cache_datetime : public Item_cache {
+  String cached_string;
+
  protected:
   longlong int_value;
   bool str_value_cached;
