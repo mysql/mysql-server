@@ -3436,7 +3436,7 @@ dberr_t Buf_fetch_normal::get(buf_block_t *&block) {
   return (DB_SUCCESS);
 }
 
-struct Buf_fetch_other : public Buf_fetch<Buf_fetch_normal> {
+struct Buf_fetch_other : public Buf_fetch<Buf_fetch_other> {
   Buf_fetch_other(const page_id_t &page_id, const page_size_t &page_size)
       : Buf_fetch(page_id, page_size) {}
   dberr_t get(buf_block_t *&block);
