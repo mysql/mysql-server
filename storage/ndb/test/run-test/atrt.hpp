@@ -44,6 +44,12 @@ enum ErrorCodes {
   ERR_NDB_AND_SERVERS_FAILED = 106
 };
 
+enum AtrtExitCodes {
+  TESTSUITE_SUCCESS = 0,
+  TESTSUITE_FAILURES = 1,
+  ATRT_FAILURE = 2
+};
+
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
