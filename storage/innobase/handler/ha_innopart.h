@@ -602,6 +602,30 @@ class ha_innopart : public ha_innobase,
   handler *get_handler() { return (static_cast<handler *>(this)); }
   /** @} */
 
+  /** Get number of threads that would be spawned for parallel read.
+  @param[in, out]   num_threads     number of threads to be spawned
+  @return error code
+  @return 0 on success */
+  virtual int secondary_engine_scan_get_num_threads(
+      size_t &num_threads) override;
+
+  /**
+    Start parallel read of data.
+    @param[in] thread_contexts   context for each of the spawned threads
+    @param[in] load_init_fn      callback called by each parallel load
+                                 thread at the beginning of the parallel load.
+    @param[in] load_rows_fn      callback called by each parallel load
+                                 thread when processing of rows is required.
+    @param[in] load_end_fn       callback called by each parallel load
+                                 thread when processing of rows has ended.
+    @return error code
+    @return 0 on success
+   */
+  virtual int secondary_engine_scan_parallel_load(
+      void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
+      secondary_engine_pload_row_cbk load_rows_fn,
+      secondary_engine_pload_end_cbk load_end_fn) override;
+
  private:
   /** Pointer to Ha_innopart_share on the TABLE_SHARE. */
   Ha_innopart_share *m_part_share;

@@ -2924,33 +2924,11 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   DBUG_RETURN(TRUE);
 }
 
-/** Convert a row in the Innobase format to a row in the MySQL format.
-Note that the template in prebuilt may advise us to copy only a few
-columns to mysql_rec, other columns are left blank. All columns may not
-be needed in the query.
-@param[out]	mysql_rec		row in the MySQL format
-@param[in]	prebuilt		prebuilt structure
-@param[in]	rec			Innobase record in the index
-                                        which was described in prebuilt's
-                                        template, or in the clustered index;
-                                        must be protected by a page latch
-@param[in]	vrow			virtual columns
-@param[in]	rec_clust		TRUE if rec is in the clustered index
-                                        instead of prebuilt->index
-@param[in]	index			index of rec
-@param[in]	offsets			array returned by rec_get_offsets(rec)
-@param[in]	clust_templ_for_sec	TRUE if rec belongs to secondary index
-                                        but the prebuilt->template is in
-                                        clustered index format and it
-                                        is used only for end range comparison
-@param[in]	lob_undo		the LOB undo information.
-@return true on success, false if not all columns could be retrieved */
-static MY_ATTRIBUTE((warn_unused_result)) ibool
-    row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                            const rec_t *rec, const dtuple_t *vrow,
-                            ibool rec_clust, const dict_index_t *index,
-                            const ulint *offsets, bool clust_templ_for_sec,
-                            lob::undo_vers_t *lob_undo) {
+ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
+                              const rec_t *rec, const dtuple_t *vrow,
+                              ibool rec_clust, const dict_index_t *index,
+                              const ulint *offsets, bool clust_templ_for_sec,
+                              lob::undo_vers_t *lob_undo) {
   ulint i;
   std::vector<const dict_col_t *> template_col;
 
@@ -2986,7 +2964,8 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     if (templ->is_virtual && index->is_clustered()) {
       /* Skip virtual columns if it is not a covered
       search or virtual key read is not requested. */
-      if (!dict_index_has_virtual(prebuilt->index) ||
+      if ((prebuilt->index != nullptr &&
+           !dict_index_has_virtual(prebuilt->index)) ||
           (!prebuilt->read_just_key && !prebuilt->m_read_virtual_key) ||
           !rec_clust) {
         continue;

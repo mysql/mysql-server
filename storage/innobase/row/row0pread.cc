@@ -38,30 +38,6 @@ Created 2018-01-27 by Sunny Bains */
 #include "row0vers.h"
 #include "ut0new.h"
 
-/** Context. */
-template <typename T, typename R>
-struct Reader<T, R>::Ctx {
-  /** Constructor.
-  @param[in]    id      Thread ID.
-  @param[in]    range   Range that the thread has to read. */
-  Ctx(size_t id, const Range &range) : m_id(id), m_range(range) {}
-
-  /** Destructor. */
-  ~Ctx();
-
-  /** Destroy the persistent cursor. */
-  static void destroy(R &row);
-
-  /** Context ID. */
-  size_t m_id{std::numeric_limits<size_t>::max()};
-
-  /** Error during parallel read. */
-  dberr_t m_err{DB_SUCCESS};
-
-  /** Range to read in this contxt. */
-  Range m_range{};
-};
-
 // Doxygen gets confused by the explicit specializations.
 
 //! @cond
@@ -139,9 +115,10 @@ class PCursor {
 
 template <typename T, typename R>
 Reader<T, R>::Reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
-                     size_t n_threads)
+                     row_prebuilt_t *prebuilt, size_t n_threads)
     : m_table(table),
       m_index(index),
+      m_prebuilt(prebuilt),
       m_is_compact(dict_table_is_comp(table)),
       m_trx(trx),
       m_page_size(dict_tf_to_fsp_flags(table->flags)),
@@ -193,7 +170,7 @@ page_no_t Phy_reader::iterate_recs(size_t id, Phy_reader::Ctx &ctx, mtr_t *mtr,
   for (auto rec = page_cur_get_rec(&cursor); !page_rec_is_supremum(rec);
        rec = page_cur_get_rec(&cursor)) {
     if (!rec_get_deleted_flag(rec, m_is_compact)) {
-      ctx.m_err = f(id, block, rec);
+      ctx.m_err = f(id, block, rec, m_index, m_prebuilt);
 
       if (ctx.m_err != DB_SUCCESS) {
         return (FIL_NULL);
@@ -327,26 +304,28 @@ dberr_t PCursor::move_to_next_block(dict_index_t *index) {
 }
 
 bool Key_reader::check_visibility(const rec_t *&rec, ulint *&offsets,
-                                  mem_heap_t *&heap, mtr_t *mtr) {
-  ut_ad(m_trx->read_view == nullptr || MVCC::is_view_active(m_trx->read_view));
+                                  mem_heap_t *&heap, mtr_t *mtr,
+                                  dict_table_t *table, dict_index_t *index,
+                                  trx_t *trx) {
+  ut_ad(trx->read_view == nullptr || MVCC::is_view_active(trx->read_view));
 
-  if (m_trx->read_view != nullptr) {
-    auto view = m_trx->read_view;
+  if (trx->read_view != nullptr) {
+    auto view = trx->read_view;
 
-    if (m_index->is_clustered()) {
+    if (index->is_clustered()) {
       trx_id_t rec_trx_id;
 
-      if (m_index->trx_id_offset > 0) {
-        rec_trx_id = trx_read_trx_id(rec + m_index->trx_id_offset);
+      if (index->trx_id_offset > 0) {
+        rec_trx_id = trx_read_trx_id(rec + index->trx_id_offset);
       } else {
-        rec_trx_id = row_get_rec_trx_id(rec, m_index, offsets);
+        rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
       }
 
-      if (m_trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
-          !view->changes_visible(rec_trx_id, m_table->name)) {
+      if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
+          !view->changes_visible(rec_trx_id, table->name)) {
         rec_t *old_vers;
 
-        row_vers_build_for_consistent_read(rec, mtr, m_index, &offsets, view,
+        row_vers_build_for_consistent_read(rec, mtr, index, &offsets, view,
                                            &heap, heap, &old_vers, nullptr,
                                            nullptr);
 
@@ -501,7 +480,7 @@ dberr_t Key_reader::traverse(size_t id, Key_reader::Ctx &ctx,
     if (page_cur_is_after_last(cur)) {
       mem_heap_empty(heap);
 
-      ctx.m_err = pcursor.move_to_next_block(m_index);
+      ctx.m_err = pcursor.move_to_next_block(ctx.m_index);
 
       if (ctx.m_err != DB_SUCCESS) {
         ut_ad(ctx.m_err == DB_END_OF_INDEX);
@@ -514,14 +493,16 @@ dberr_t Key_reader::traverse(size_t id, Key_reader::Ctx &ctx,
 
     const rec_t *rec = page_cur_get_rec(cur);
 
-    offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED, &heap);
+    offsets =
+        rec_get_offsets(rec, ctx.m_index, offsets, ULINT_UNDEFINED, &heap);
 
-    auto skip = !check_visibility(rec, offsets, heap, &mtr);
+    auto skip = !check_visibility(rec, offsets, heap, &mtr, ctx.m_table,
+                                  ctx.m_index, ctx.m_trx);
 
     auto block = page_cur_get_block(cur);
 
     if (rec != nullptr && end_tuple != nullptr) {
-      auto ret = cmp_dtuple_rec(end_tuple, rec, m_index, offsets);
+      auto ret = cmp_dtuple_rec(end_tuple, rec, ctx.m_index, offsets);
 
       /* Note: The range creation doesn't use MVCC. Therefore it's possible
       that the range boundary entry could have been deleted. */
@@ -532,7 +513,7 @@ dberr_t Key_reader::traverse(size_t id, Key_reader::Ctx &ctx,
     }
 
     if (!skip) {
-      ctx.m_err = f(id, block, rec);
+      ctx.m_err = f(id, block, rec, ctx.m_index, ctx.m_prebuilt);
     }
 
     page_cur_move_to_next(cur);
@@ -581,7 +562,7 @@ Key_reader::Ranges Key_reader::create_ranges(
 }
 
 template <typename T, typename R>
-void Reader<T, R>::worker(size_t id, Queue &ctxq, Function &f) {
+dberr_t Reader<T, R>::worker(size_t id, Queue &ctxq, Function &f) {
   dberr_t err = DB_SUCCESS;
 
   for (;;) {
@@ -617,6 +598,8 @@ void Reader<T, R>::worker(size_t id, Queue &ctxq, Function &f) {
   }
 
   ut_a(err != DB_SUCCESS || m_n_completed == m_ctxs.size());
+
+  return (err);
 }
 
 template <typename T, typename R>
@@ -745,6 +728,12 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
     pages.push_back(page_no);
 
     subtrees.push_back(pages);
+
+    std::cerr << "[InnoDB] No. of levels : " << 1 << std::endl;
+    std::cerr << "[InnoDB] Chosen level: " << 0 << std::endl;
+    std::cerr << "[InnoDB] No. of subtrees at the chosen level: " << 0
+              << std::endl;
+
   } else {
     mtr.start();
 
@@ -755,9 +744,11 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
 
     mtr.commit();
 
+    size_t i = 0;
+
     /* Find a B-Tree level which has enough sub-trees
     to scan in parallel. */
-    for (size_t i = 0; i < levels.size() - 1; ++i) {
+    for (; i < levels.size() - 1; ++i) {
       subtrees.clear();
 
       iterate_internal_blocks(levels[i], subtrees);
@@ -766,6 +757,19 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
         break;
       }
     }
+
+    std::cerr << "[InnoDB] No. of levels : " << levels.size() << std::endl;
+    std::cerr << "[InnoDB] Chosen level: " << i << std::endl;
+    std::cerr << "[InnoDB] No. of subtrees at the chosen level: "
+              << subtrees.size() << std::endl;
+  }
+
+  if (subtrees.size() >= m_n_threads) {
+    std::cerr << "[InnoDB] No. of parallel threads spawned: " << m_n_threads
+              << std::endl;
+  } else {
+    std::cerr << "[InnoDB] No. of parallel threads spawned: " << subtrees.size()
+              << std::endl;
   }
 
   auto ptr = static_cast<T *>(this)->create_ranges(subtrees);
@@ -776,10 +780,37 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
 }
 
 template <typename T, typename R>
-dberr_t Reader<T, R>::read(Function &&f) {
-  auto partitions = partition();
+void Reader<T, R>::start_parallel_load(Function f) {
+  Queue ctxq(ut_2_power_up(m_ctxs.size() + 1));
 
-  if (partitions.empty()) {
+  std::vector<std::thread> threads;
+
+  /** Let the threads work until all the subtrees (m_ctxs) are processed. */
+
+  for (size_t i = 0; i < m_n_threads; ++i) {
+    auto worker = &Reader<T, R>::worker;
+
+    threads.emplace_back(worker, this, i, std::ref(ctxq), std::ref(f));
+  }
+
+  for (auto &ctx : m_ctxs) {
+    while (!ctxq.enqueue(ctx)) {
+      os_thread_yield();
+    }
+
+    os_event_set(m_event);
+  }
+
+  for (auto &t : threads) {
+    t.join();
+  }
+}
+
+template <typename T, typename R>
+dberr_t Reader<T, R>::read(Function &&f) {
+  m_n_threads = calc_num_threads();
+
+  if (m_n_threads == 0) {
     /* Index is empty. */
     return (DB_SUCCESS);
   }
@@ -790,8 +821,9 @@ dberr_t Reader<T, R>::read(Function &&f) {
 
   dberr_t err = DB_SUCCESS;
 
-  for (auto range : partitions) {
-    m_ctxs.push_back(UT_NEW_NOKEY(Ctx(id, range)));
+  for (auto range : m_partitions) {
+    m_ctxs.push_back(
+        UT_NEW_NOKEY(Ctx(id, range, m_table, m_index, m_trx, m_prebuilt)));
 
     if (m_ctxs.back() == nullptr) {
       err = DB_OUT_OF_MEMORY;
@@ -812,29 +844,7 @@ dberr_t Reader<T, R>::read(Function &&f) {
     return (err);
   }
 
-  m_n_threads = std::min(partitions.size(), m_n_threads);
-
-  Queue ctxq(ut_2_power_up(m_ctxs.size() + 1));
-
-  std::vector<std::thread> threads;
-
-  for (size_t i = 0; i < m_n_threads; ++i) {
-    auto worker = &Reader<T, R>::worker;
-
-    threads.emplace_back(worker, this, i, std::ref(ctxq), std::ref(f));
-  }
-
-  for (auto &ctx : m_ctxs) {
-    while (!ctxq.enqueue(ctx)) {
-      os_thread_yield();
-    }
-
-    os_event_set(m_event);
-  }
-
-  for (auto &t : threads) {
-    t.join();
-  }
+  start_parallel_load(f);
 
   auto &ctx = m_ctxs.front();
   ctx->destroy(ctx->m_range.first);

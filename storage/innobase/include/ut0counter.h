@@ -205,6 +205,14 @@ class ib_counter_t {
     return (total);
   }
 
+  Type operator[](size_t index) const UNIV_NOTHROW {
+    size_t i = m_policy.offset(index);
+
+    ut_ad(i < UT_ARR_SIZE(m_counter));
+
+    return (m_counter[i]);
+  }
+
  private:
   /** Indexer into the array */
   Indexer<Type, N> m_policy;
