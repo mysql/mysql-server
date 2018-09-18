@@ -3962,7 +3962,7 @@ class handler {
   virtual int secondary_engine_scan_get_num_threads(
       size_t & /* num_threads */) {
     return 0;
-  };
+  }
 
   /**
     This callback is called by each parallel load thread at the beginning of
@@ -4018,7 +4018,7 @@ class handler {
       secondary_engine_pload_row_cbk /* load_rows_fn */,
       secondary_engine_pload_end_cbk /* load_end_fn */) {
     return (0);
-  };
+  }
 
   /**
     Submit a dd::Table object representing a core DD table having
