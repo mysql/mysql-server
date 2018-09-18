@@ -93,6 +93,7 @@ do
                     ;;
                 --site=*) site_arg="$1";;
                 --default-max-retries=*) default_max_retries_arg="$1";;
+                --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
         esac
         shift
 done
@@ -422,6 +423,7 @@ else
     args="$args $prefix"
     args="$args ${verbose_arg}"
     args="$args ${default_max_retries_arg}"
+    args="$args ${default_force_cluster_restart_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
