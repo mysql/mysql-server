@@ -546,6 +546,9 @@ static void handle_ok(void *pctx, uint server_status, uint statement_warn_count,
   char buffer[STRING_BUFFER_SIZE];
   WRITE_STR("handle_ok\n");
   DBUG_ENTER("handle_ok");
+  ctx->sql_errno = 0;
+  ctx->sqlstate.clear();
+  ctx->err_msg.clear();
   /* This could be an EOF */
   ctx->server_status = server_status;
   ctx->warn_count = statement_warn_count;
@@ -809,6 +812,61 @@ static void setup_test(MYSQL_SESSION session, void *p) {
                         "(9, 4, -2222), (10, 3, -3333),"
                         "(11, 2, -4444), (12, 1, -5555)");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  set_query_in_com_data(&cmd,
+                        "CREATE PROCEDURE proc_set_out_params("
+                        "   OUT v_str_1 CHAR(32), "
+                        "   OUT v_dbl_1 DOUBLE(4, 2), "
+                        "   OUT v_dec_1 DECIMAL(6, 3), "
+                        "   OUT v_int_1 INT)"
+                        "BEGIN "
+                        "   SET v_str_1 = 'test_1'; "
+                        "   SET v_dbl_1 = 12.34; "
+                        "   SET v_dec_1 = 567.891; "
+                        "   SET v_int_1 = 2345; "
+                        "END");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  set_query_in_com_data(
+      &cmd,
+      "CREATE PROCEDURE verify_user_variables_are_null(v_str_1 CHAR(32), "
+      "   v_dbl_1 DOUBLE(4, 2), "
+      "   v_dec_1 DECIMAL(6, 3), "
+      "   v_int_1 INT)"
+      "BEGIN "
+      "DECLARE unexpected CONDITION FOR SQLSTATE '45000'; "
+      " IF v_str_1 is not null THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_dbl_1 is not null THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_dec_1 is not null THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_int_1 is not null THEN "
+      "   SIGNAL unexpected; "
+      " END IF;"
+      "END");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  set_query_in_com_data(
+      &cmd,
+      "CREATE PROCEDURE verify_user_variables_are_set(v_str_1 CHAR(32), "
+      "   v_dbl_1 DOUBLE(4, 2), "
+      "   v_dec_1 DECIMAL(6, 3), "
+      "   v_int_1 INT)"
+      "BEGIN "
+      "DECLARE unexpected CONDITION FOR SQLSTATE '45000'; "
+      " IF v_str_1 != 'test_1' THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_dbl_1 != 12.34 THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_dec_1 != 567.891 THEN "
+      "   SIGNAL unexpected; "
+      " ELSEIF v_int_1 != 2345 THEN "
+      "   SIGNAL unexpected; "
+      " END IF;"
+      "END");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
   DBUG_VOID_RETURN;
 }
 
@@ -1441,6 +1499,201 @@ static void test_7(MYSQL_SESSION session, void *p) {
   DBUG_VOID_RETURN;
 }
 
+static void test_8(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_8");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("RESET VARIABLES THAT ARE GOING TO BE USED FOR OUT-PARAMS\n");
+  set_query_in_com_data(
+      &cmd, "SET @my_v1=null, @my_v2=null, @my_v3=null, @my_v4=null");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  ctx.tables.clear();
+  cmd.com_stmt_prepare.query = "CALL proc_set_out_params(?, ?, ?, ?)";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS\n");
+
+  PS_PARAM params[4];
+  std::string values[4]{"@my_v1", "@my_v2", "@my_v3", "@my_v4"};
+  params[0].type = MYSQL_TYPE_STRING;
+  params[0].unsigned_type = false;
+  params[0].null_bit = false;
+  params[0].value = (const unsigned char *)values[0].c_str();
+  params[0].length = values[0].length();
+  params[1].type = MYSQL_TYPE_STRING;
+  params[1].unsigned_type = false;
+  params[1].null_bit = false;
+  params[1].value = (const unsigned char *)values[1].c_str();
+  params[1].length = values[1].length();
+  params[2].type = MYSQL_TYPE_STRING;
+  params[2].unsigned_type = false;
+  params[2].null_bit = false;
+  params[2].value = (const unsigned char *)values[2].c_str();
+  params[2].length = values[2].length();
+  params[3].type = MYSQL_TYPE_STRING;
+  params[3].unsigned_type = false;
+  params[3].null_bit = false;
+  params[3].value = (const unsigned char *)values[3].c_str();
+  params[3].length = values[3].length();
+
+  ctx.tables.clear();
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.open_cursor = false;
+  cmd.com_stmt_execute.has_new_types = false;
+  cmd.com_stmt_execute.parameters = params;
+  cmd.com_stmt_execute.parameter_count = 4;
+  cmd.com_stmt_execute.has_new_types = true;
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  WRITE_STR(
+      "VERIFY THAT VARIABLES ARE STILL NULL AND OUT PRAMETERS WERE TRANSFERED "
+      "IN METADATA\n");
+
+  if (ctx.tables.size() != 1 || ctx.tables[0].columns.size() != 4) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Protocol didn't send the out-parameters to the user");
+    DBUG_VOID_RETURN;
+  }
+
+  ctx.tables.clear();
+  set_query_in_com_data(
+      &cmd,
+      "CALL verify_user_variables_are_null(@my_v1, @my_v2, @my_v3, @my_v4)");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  if (ctx.sql_errno) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Call to 'verify_user_variables_are_null' failed, one of the "
+                 "provided user variables may be invalid");
+    DBUG_VOID_RETURN;
+  }
+
+  WRITE_STR("CLOSE PS\n");
+  cmd.com_stmt_close.stmt_id = ctx.stmt_id;
+  ctx.tables.clear();
+  run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
+  DBUG_VOID_RETURN;
+}
+
+static void test_9(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_9");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("RESET VARIABLES THAT ARE GOING TO BE USED FOR OUT-PARAMS\n");
+  set_query_in_com_data(
+      &cmd, "SET @my_v1=null, @my_v2=null, @my_v3=null, @my_v4=null");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  ctx.tables.clear();
+  cmd.com_stmt_prepare.query =
+      "CALL proc_set_out_params(@my_v1, @my_v2, @my_v3, @my_v4)";
+  cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
+  run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
+
+  WRITE_STR("EXECUTE PREPARED STATEMENT WITHOUT PARAMETERS\n");
+
+  ctx.tables.clear();
+  cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
+  cmd.com_stmt_execute.open_cursor = false;
+  cmd.com_stmt_execute.has_new_types = false;
+  cmd.com_stmt_execute.parameters = nullptr;
+  cmd.com_stmt_execute.parameter_count = 0;
+  cmd.com_stmt_execute.has_new_types = true;
+  run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
+
+  WRITE_STR(
+      "VERIFY THAT VARIABLES ARE SET AND OUT PRAMETERS WERE NOT TRANSFERED "
+      "IN METADATA\n");
+
+  if (ctx.tables.size() != 0) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Protocol send the out-parameters to the user");
+    DBUG_VOID_RETURN;
+  }
+
+  ctx.tables.clear();
+  set_query_in_com_data(
+      &cmd,
+      "CALL verify_user_variables_are_set(@my_v1, @my_v2, @my_v3, @my_v4)");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  if (ctx.sql_errno) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Call to 'verify_user_variables_are_set' failed, one of the "
+                 "provided user variables may be invalid");
+    DBUG_VOID_RETURN;
+  }
+
+  WRITE_STR("CLOSE PS\n");
+  cmd.com_stmt_close.stmt_id = ctx.stmt_id;
+  ctx.tables.clear();
+  run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
+  DBUG_VOID_RETURN;
+}
+
+static void test_10(MYSQL_SESSION session, void *p) {
+  DBUG_ENTER("test_10");
+  char buffer[STRING_BUFFER_SIZE];
+
+  Server_context ctx;
+  COM_DATA cmd;
+
+  WRITE_STR("RESET VARIABLES THAT ARE GOING TO BE USED FOR OUT-PARAMS\n");
+  set_query_in_com_data(
+      &cmd, "SET @my_v1=null, @my_v2=null, @my_v3=null, @my_v4=null");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  ctx.tables.clear();
+  set_query_in_com_data(
+      &cmd, "PREPARE stmt FROM 'CALL proc_set_out_params(?, ?, ?, ?)'");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  WRITE_STR("EXECUTE PREPARED STATEMENT WITHOUT PARAMETERS\n");
+
+  ctx.tables.clear();
+  set_query_in_com_data(&cmd,
+                        "EXECUTE stmt USING @my_v1, @my_v2, @my_v3, @my_v4");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  WRITE_STR(
+      "VERIFY THAT VARIABLES ARE SET AND OUT PRAMETERS WERE NOT TRANSFERED "
+      "IN METADATA\n");
+
+  if (ctx.tables.size() != 0) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Protocol send the out-parameters to the user");
+    DBUG_VOID_RETURN;
+  }
+
+  ctx.tables.clear();
+  set_query_in_com_data(
+      &cmd,
+      "CALL verify_user_variables_are_set(@my_v1, @my_v2, @my_v3, @my_v4)");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  if (ctx.sql_errno) {
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Call to 'verify_user_variables_are_set' failed, one of the "
+                 "provided user variables may be invalid");
+    DBUG_VOID_RETURN;
+  }
+
+  WRITE_STR("CLOSE PS\n");
+  ctx.tables.clear();
+  set_query_in_com_data(&cmd, "DEALLOCATE PREPARE stmt;");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+
+  DBUG_VOID_RETURN;
+}
+
 static void tear_down_test(MYSQL_SESSION session, void *p) {
   DBUG_ENTER("tear_down_test");
 
@@ -1458,6 +1711,14 @@ static void tear_down_test(MYSQL_SESSION session, void *p) {
   set_query_in_com_data(&cmd, "DROP TABLE IF EXISTS t4");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
   set_query_in_com_data(&cmd, "DROP PROCEDURE IF EXISTS p1");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+  set_query_in_com_data(&cmd, "DROP PROCEDURE IF EXISTS proc_set_out_params");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+  set_query_in_com_data(
+      &cmd, "DROP PROCEDURE IF EXISTS verify_user_variables_are_null");
+  run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
+  set_query_in_com_data(
+      &cmd, "DROP PROCEDURE IF EXISTS verify_user_variables_are_set");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
   DBUG_VOID_RETURN;
 }
@@ -1487,6 +1748,9 @@ static struct my_stmt_tests_st my_tests[] = {
     {"Test COM_STMT_SEND_LONG_DATA", test_5},
     {"Test COM_STMT_EXECUTE with SELECT nested in CALL", test_6},
     {"Test COM_STMT_EXECUTE with wrong data type", test_7},
+    {"Test COM_STMT_EXECUTE with out-params as placeholders", test_8},
+    {"Test COM_STMT_EXECUTE with out-params as variables", test_9},
+    {"Test COM_QUERY with out-params as placeholders", test_10},
     {0, 0}};
 
 static void test_sql(void *p) {

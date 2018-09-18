@@ -31,9 +31,11 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 
 class String;
@@ -415,12 +417,15 @@ bool Protocol_callback::store_ps_status(ulong stmt_id, uint column_count,
   return false;
 }
 
-bool Protocol_callback::send_parameters(List<Item_param> *parameters, bool) {
-  List_iterator_fast<Item_param> item_param_it(*parameters);
+bool Protocol_callback::send_parameters(List<Item_param> *parameters,
+                                        bool is_sql_prep) {
+  if (is_sql_prep) return set_variables_from_parameters(parameters);
 
   if (!has_client_capability(CLIENT_PS_MULTI_RESULTS))
     // The client does not support OUT-parameters.
     return false;
+
+  List_iterator_fast<Item_param> item_param_it(*parameters);
 
   List<Item> out_param_lst;
   Item_param *item_param;
@@ -459,4 +464,38 @@ bool Protocol_callback::send_parameters(List<Item_param> *parameters, bool) {
   return send_ok(
       (thd->server_status | SERVER_PS_OUT_PARAMS | SERVER_MORE_RESULTS_EXISTS),
       thd->get_stmt_da()->current_statement_cond_count(), 0, 0, nullptr);
+}
+
+bool Protocol_callback::set_variables_from_parameters(
+    List<Item_param> *parameters) {
+  THD *thd = current_thd;
+  List_iterator_fast<Item_param> item_param_it(*parameters);
+  List_iterator_fast<LEX_STRING> user_var_name_it(
+      thd->lex->prepared_stmt_params);
+
+  Item_param *item_param;
+  LEX_STRING *user_var_name;
+  while ((item_param = item_param_it++) &&
+         (user_var_name = user_var_name_it++)) {
+    // Skip it as it's just an IN-parameter.
+    if (!item_param->get_out_param_info()) continue;
+
+    /*
+      Delete call not needed, the object appends itself
+      to THDs free_list.
+    */
+    Item_func_set_user_var *suv =
+        new Item_func_set_user_var(*user_var_name, item_param, false);
+    /*
+      Item_func_set_user_var is not fixed after construction,
+      call fix_fields().
+    */
+    if (suv->fix_fields(thd, nullptr)) return true;
+
+    if (suv->check(false)) return true;
+
+    if (suv->update()) return true;
+  }
+
+  return false;
 }
