@@ -526,20 +526,20 @@ int main(int argc, char **argv) {
 
       g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
                     result);
-      if (result != 0) {
-        restart = true;
+      restart = result != 0;
 
-        if (testruns > test_case.m_max_retries) {
-          return_code = TESTSUITE_FAILURES;
-          retry_test = false;
-        } else {
-          g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
-                        test_case.m_name.c_str(), testruns,
-                        test_case.m_max_retries);
-          retry_test = true;
-        }
+      retry_test = result != 0 && testruns <= test_case.m_max_retries;
+      if (retry_test) {
+        g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
+                      test_case.m_name.c_str(), testruns,
+                      test_case.m_max_retries);
+        reset_config(g_config);
       }
     } while (retry_test);
+
+    if (result != 0) {
+      return_code = TESTSUITE_FAILURES;
+    }
 
     if (g_report_file != 0) {
       fprintf(g_report_file, "%s ; %d ; %d ; %ld ; %d\n",
