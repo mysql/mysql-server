@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# This test case will assert that a binary log file respect max_binlog_size
+# even when the encryption header is written to the files.
+#
+# It starts the servers with binlog_encryption = ON and max_binlog_size = 4096.
+# It then evaluates the size of a ROTATE event and the maximum size of a given
+# transaction pattern.
+#
+# It generates a workload of many transactions (enough to rotate the binary log
+# a few times), and finally it asserts that all binary log files are not larger
+# than max_binlog_size + max trx size + ROTATE size.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# WL#10957: Binary log encryption at rest
+# BUG#28663647 WHEN MAX_BINLOG_SIZE IS SET, EXTRA 512 BYTES OF THE HEADER IS
+#              NOT CONSIDERED
+#
+
+# This test case is binary log format agnostic
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+# Suppression of error messages
+#CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+FLUSH LOGS;
+--let $assert_text=Rotate shall be the 3rd event in first binary log
+--let $assert_cond="[SHOW BINLOG EVENTS, Event_type, 3]" = "Rotate"
+--source include/assert.inc
+--let $rotate_start=query_get_value(SHOW BINLOG EVENTS, Pos, 3)
+--let $rotate_end=query_get_value(SHOW BINLOG EVENTS, End_log_pos, 3)
+--let $rotate_size=`SELECT $rotate_end - $rotate_start`
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 VARCHAR(255));
+
+--let $max_string=MySQLMySQLMySQLMySQLMySQL
+--let $trx=100
+--echo # Inserting $trx transactions
+--disable_query_log
+# Get the trx size
+--let $pos_before=query_get_value(SHOW MASTER STATUS, Position, 1)
+--eval INSERT INTO t1 (c1, c2) VALUES ($trx, '$max_string')
+--let $pos_after=query_get_value(SHOW MASTER STATUS, Position, 1)
+--dec $trx
+while ($trx)
+{
+  --let $string=`SELECT LEFT('$max_string', RAND()*LENGTH('$max_string'))`
+  --eval INSERT INTO t1 (c1, c2) VALUES ($trx, '$string')
+  --dec $trx
+}
+--enable_query_log
+
+# Calculate the trx size
+--let $trx_size=`SELECT $pos_after - $pos_before`
+
+# No binlog shall be greater than max_binlog_size + trx_size + ROTATE
+--let $max_expected_size=`SELECT @@GLOBAL.max_binlog_size + $trx_size + $rotate_size`
+
+--let $binary_logs=query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binary_logs=`SELECT RIGHT('$binary_logs', 6) - 0`
+--echo # Assert that all $binary_logs binary logs considered the encryption header
+while ($binary_logs)
+{
+  --let $binlog_size=query_get_value(SHOW BINARY LOGS, File_size, $binary_logs)
+  --let $assert=`SELECT $binlog_size <= $max_expected_size`
+  if (!$assert)
+  {
+    SHOW BINARY LOGS;
+    --echo At least one binary log was greater than @@GLOBAL.max_binlog_size + $trx_size + $rotate_size
+    --die Test case failed an assertion
+  }
+  --dec $binary_logs
+}
+
+# Cleanup
+DROP TABLE t1;
+--source include/rpl_end.inc

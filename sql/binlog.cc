@@ -430,6 +430,16 @@ class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
     @retval >0 The encryption header size.
   */
   int get_encrypted_header_size() { return m_encrypted_header_size; }
+  /**
+    Returns the real file size.
+
+    While position() returns the "file size" from the plain binary log events
+    stream point of view, this function considers the encryption header when it
+    exists.
+
+    @return The real file size considering the encryption header.
+  */
+  my_off_t get_real_file_size() { return m_position + m_encrypted_header_size; }
 
  private:
   my_off_t m_position = 0;
@@ -6383,7 +6393,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
   bool can_rotate = mi->transaction_parser.is_not_inside_transaction();
 
 #ifndef DBUG_OFF
-  if (m_binlog_file->position() >
+  if (m_binlog_file->get_real_file_size() >
           DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) &&
       !can_rotate) {
     DBUG_PRINT("info", ("Postponing the rotation by size waiting for "
@@ -6431,7 +6441,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
         several binary logs. Therefore, if you have big transactions, you might
         see binary log files larger than max_binlog_size."
       */
-      if (m_binlog_file->position() >
+      if (m_binlog_file->get_real_file_size() >
           DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size)) {
         error = new_file_without_locking(mi->get_mi_description_event());
       }
@@ -6768,7 +6778,7 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool *check_purge) {
   *check_purge = false;
 
   if (DBUG_EVALUATE_IF("force_rotate", 1, 0) || force_rotate ||
-      (m_binlog_file->position() >= (my_off_t)max_size)) {
+      (m_binlog_file->get_real_file_size() >= (my_off_t)max_size)) {
     error = new_file_without_locking(NULL);
     *check_purge = true;
   }
@@ -7932,7 +7942,8 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
 
   *out_queue_var = first_seen;
   *total_bytes_var = total_bytes;
-  if (total_bytes > 0 && m_binlog_file->position() >= (my_off_t)max_size)
+  if (total_bytes > 0 &&
+      m_binlog_file->get_real_file_size() >= (my_off_t)max_size)
     *rotate_var = true;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("no_flushes:= %d", no_flushes));
