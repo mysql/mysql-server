@@ -1139,6 +1139,79 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
       altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
 }
 
+int ha_innobase::secondary_engine_scan_get_num_threads(size_t &num_threads) {
+  if (dict_table_is_discarded(m_prebuilt->table)) {
+    ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                m_prebuilt->table->name.m_name);
+
+    return (HA_ERR_NO_SUCH_TABLE);
+  }
+
+  auto index = m_prebuilt->table->first_index();
+
+  update_thd();
+  auto trx = m_prebuilt->trx;
+  innobase_register_trx(ht, ha_thd(), trx);
+  trx_start_if_not_started_xa(trx, false);
+  trx_assign_read_view(trx);
+
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+
+  if (m_secondary_engine_reader != nullptr) {
+    ut_free(m_secondary_engine_reader);
+  }
+
+  m_secondary_engine_reader = UT_NEW_NOKEY(Secondary_engine_reader(
+      m_prebuilt->table, trx, index, n_threads, m_prebuilt));
+
+  if (m_secondary_engine_reader == nullptr) {
+    return (HA_ERR_OUT_OF_MEM);
+  }
+
+  num_threads = m_secondary_engine_reader->calc_num_threads();
+
+  return (0);
+}
+
+int ha_innobase::secondary_engine_scan_parallel_load(
+    void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
+    secondary_engine_pload_row_cbk load_rows_fn,
+    secondary_engine_pload_end_cbk load_end_fn) {
+  if (dict_table_is_discarded(m_prebuilt->table)) {
+    ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                m_prebuilt->table->name.m_name);
+
+    return (HA_ERR_NO_SUCH_TABLE);
+  }
+
+  update_thd();
+  build_template(true);
+
+  ut_ad(m_secondary_engine_reader != nullptr);
+  ut_ad(m_secondary_engine_reader->table() == m_prebuilt->table);
+  ut_ad(m_secondary_engine_reader->index() == m_prebuilt->table->first_index());
+  ut_ad(m_secondary_engine_reader->trx() == m_prebuilt->trx);
+
+#ifdef UNIV_DEBUG
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  ut_ad(m_secondary_engine_reader->n_threads() == n_threads);
+#endif
+
+  m_secondary_engine_reader->set_callback(thread_contexts, load_init_fn,
+                                          load_rows_fn, load_end_fn);
+
+  dberr_t err = m_secondary_engine_reader->read(
+      [&](size_t id, const buf_block_t *block, const rec_t *rec,
+          dict_index_t *index, row_prebuilt_t *prebuilt) {
+        return (
+            m_secondary_engine_reader->process_rows(id, rec, index, prebuilt));
+      });
+
+  int error = convert_error_code_to_mysql(err, 0, ha_thd());
+
+  return (error);
+}
+
 /** Alter the table structure in-place with operations
 specified using Alter_inplace_info.
 The level of concurrency allowed during this operation depends
@@ -9464,6 +9537,77 @@ static inline Instant_Type innopart_support_instant(
   }
 
   return (type);
+}
+
+int ha_innopart::secondary_engine_scan_get_num_threads(size_t &num_threads) {
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+
+  if (m_secondary_engine_reader != nullptr) {
+    ut_free(m_secondary_engine_reader);
+  }
+
+  auto index = m_prebuilt->table->first_index();
+
+  m_secondary_engine_reader = UT_NEW_NOKEY(Secondary_engine_partition_reader(
+      m_prebuilt->table, m_prebuilt->trx, index, n_threads, m_prebuilt,
+      m_tot_parts));
+
+  if (m_secondary_engine_reader == nullptr) {
+    return (HA_ERR_OUT_OF_MEM);
+  }
+
+  const uint first_used_partition = m_part_info->get_first_used_partition();
+
+  for (uint i = first_used_partition; i < m_tot_parts;
+       i = m_part_info->get_next_used_partition(i)) {
+    set_partition(i);
+
+    if (dict_table_is_discarded(m_prebuilt->table)) {
+      ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
+                  m_prebuilt->table->name.m_name);
+
+      return (HA_ERR_NO_SUCH_TABLE);
+    }
+
+    build_template(true);
+    auto trx = m_prebuilt->trx;
+    innobase_register_trx(ht, ha_thd(), trx);
+    trx_start_if_not_started_xa(trx, false);
+    trx_assign_read_view(trx);
+
+    m_secondary_engine_reader->set_info(
+        m_prebuilt->table, m_prebuilt->table->first_index(), trx, m_prebuilt);
+  }
+
+  num_threads = m_secondary_engine_reader->calc_num_threads();
+
+  return (0);
+}
+
+int ha_innopart::secondary_engine_scan_parallel_load(
+    void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
+    secondary_engine_pload_row_cbk load_rows_fn,
+    secondary_engine_pload_end_cbk load_end_fn) {
+  ut_ad(m_secondary_engine_reader != nullptr);
+
+#ifdef UNIV_DEBUG
+  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  ut_ad(m_secondary_engine_reader->n_threads() == n_threads);
+#endif
+
+  m_secondary_engine_reader->set_callback(thread_contexts, load_init_fn,
+                                          load_rows_fn, load_end_fn);
+
+  dberr_t err = m_secondary_engine_reader->read(
+      [&](size_t id, const buf_block_t *block, const rec_t *rec,
+          dict_index_t *index, row_prebuilt_t *prebuilt) {
+        return (
+            m_secondary_engine_reader->process_rows(id, rec, index, prebuilt));
+      });
+
+  int error = convert_error_code_to_mysql(err, 0, ha_thd());
+
+  return (error);
 }
 
 /** Check if supported inplace alter table.

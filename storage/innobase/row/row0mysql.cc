@@ -4336,7 +4336,8 @@ static dberr_t parallel_select_count_star(Key_reader &reader, ulint *n_rows) {
   const buf_block_t *prev_block = nullptr;
 
   dberr_t err =
-      reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec) {
+      reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
+                      dict_index_t *index, row_prebuilt_t *prebuilt) {
         Counter::inc(n_recs, id);
 
         /* Only check the THD state for the first thread. */
@@ -4394,7 +4395,8 @@ static dberr_t parallel_check_table(Key_reader &reader, ulint *n_rows) {
 
   const auto index = reader.index();
 
-  err = reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec) {
+  err = reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
+                        dict_index_t *index, row_prebuilt_t *prebuilt) {
 
     Counter::inc(n_recs, id);
 
@@ -4522,7 +4524,7 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
 
     auto trx = prebuilt->trx;
 
-    Key_reader reader(prebuilt->table, trx, index, n_threads);
+    Key_reader reader(prebuilt->table, trx, index, prebuilt, n_threads);
 
     if (!check_keys) {
       return (parallel_select_count_star(reader, n_rows));

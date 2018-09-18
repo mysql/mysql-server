@@ -49,6 +49,7 @@ struct dict_table_t;
 #include "os0event.h"
 #include "page0size.h"
 #include "rem0types.h"
+#include "row0mysql.h"
 #include "ut0mpmcbq.h"
 
 /** Start row of the scan range. */
@@ -80,24 +81,43 @@ template <typename T, typename R>
 class Reader {
  public:
   /** Callback to process the rows. */
-  using Function = std::function<dberr_t(size_t thread_id, const buf_block_t *,
-                                         const rec_t *)>;
+  using Function =
+      std::function<dberr_t(size_t thread_id, const buf_block_t *,
+                            const rec_t *, dict_index_t *, row_prebuilt_t *)>;
 
   /** Constructor.
   @param[in]    table        Table to be read.
   @param[in]    trx          Transaction used for parallel read.
   @param[in]    index        Index in table to scan.
+  @param[in]    prebuilt     row prebuilt structure
   @param[in]    n_threads    Maximum threads to use for reading. */
   Reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
-         size_t n_threads);
+         row_prebuilt_t *prebuilt, size_t n_threads);
 
   /** Destructor. */
   virtual ~Reader();
 
+  /** Calculate number of threads that would be spawned for the parallel read.
+  @return number of threads
+  @retval 0 if the index is empty */
+  virtual size_t calc_num_threads() {
+    if (!m_partitions.empty()) {
+      return (std::min(m_partitions.size(), m_n_threads));
+    }
+
+    m_partitions = partition();
+
+    return (std::min(m_partitions.size(), m_n_threads));
+  }
+
+  /** Spawn threads and start the parallel load.
+  @param[in]    f   Callback to process the rows */
+  virtual void start_parallel_load(Function f);
+
   /** Start the threads to do the parallel read.
   @param[in,out]  f    Callback to process the rows.
   @return error code. */
-  dberr_t read(Function &&f) MY_ATTRIBUTE((warn_unused_result));
+  virtual dberr_t read(Function &&f) MY_ATTRIBUTE((warn_unused_result));
 
   /** @return the transaction instance. */
   trx_t *trx() MY_ATTRIBUTE((warn_unused_result)) { return (m_trx); }
@@ -105,10 +125,32 @@ class Reader {
   /** @return the index we are scanning. */
   dict_index_t *index() MY_ATTRIBUTE((warn_unused_result)) { return (m_index); }
 
+  /** @return the table we are working on. */
+  dict_table_t *table() MY_ATTRIBUTE((warn_unused_result)) { return (m_table); }
+
+  /** Fill the members.
+  @param[in]    table   InnoDB partitioned table
+  @param[in]    index   InnoDB index of the partition
+  @param[in]    trx     InnoDB trx of the partition
+  @param[in]    prebuilt        InnoDB row prebuilt structure of the partition
+*/
+  virtual void set_info(dict_table_t *table, dict_index_t *index, trx_t *trx,
+                        row_prebuilt_t *prebuilt) {
+    m_table = table;
+    m_index = index;
+    m_trx = trx;
+    m_prebuilt = prebuilt;
+    if (table != nullptr) {
+      page_size_t page_size(dict_tf_to_fsp_flags(table->flags));
+      m_page_size.copy_from(page_size);
+    }
+  }
+
   /** @return the max number of threads specified for scanning. */
   size_t n_threads() MY_ATTRIBUTE((warn_unused_result)) {
     return (m_n_threads);
   }
+
   // Disable copying.
   Reader(const Reader &) = delete;
   Reader(const Reader &&) = delete;
@@ -145,7 +187,7 @@ class Reader {
   @param[in]      id         Thread ID
   @param[in,out]  ctxq       Queue with requests.
   @param[in]      f          Callback function. */
-  void worker(size_t id, Queue &ctxq, Function &f);
+  virtual dberr_t worker(size_t id, Queue &ctxq, Function &f);
 
   /** Iterate over the linked list of blocks of internal nodes starting
   at the given page number until the end.
@@ -178,6 +220,8 @@ class Reader {
   /** Cluster index on m_table. */
   dict_index_t *m_index{};
 
+  row_prebuilt_t *m_prebuilt{};
+
   /** True if compact row format. */
   bool m_is_compact{};
 
@@ -187,8 +231,11 @@ class Reader {
   /** Context per thread. */
   Contexts m_ctxs{};
 
+  /** Partition scan ranges. */
+  Ranges m_partitions{};
+
   /** The data page size. */
-  const page_size_t m_page_size;
+  page_size_t m_page_size;
 
   /** Maximum threads to use for the parallel read. */
   size_t m_n_threads{};
@@ -200,6 +247,8 @@ class Reader {
   std::atomic_size_t m_n_completed{};
 
   friend T;
+  friend class Secondary_engine_reader;
+  friend class Secondary_engine_partition_reader;
 };
 
 /** Traverse an index in the leaf page block list order. */
@@ -218,10 +267,11 @@ class Phy_reader : public Reader<Phy_reader, page_no_t> {
   @param[in]    table        Table to be read
   @param[in]    trx          Transaction used for parallel read
   @param[in]    index        Index in table to scan.
+  @param[in]    prebuilt     row prebuilt structure
   @param[in]    n_threads    Maximum threads to use for reading */
   Phy_reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
-             size_t n_threads)
-      : Reader<Phy_reader, Row>(table, trx, index, n_threads) {}
+             row_prebuilt_t *prebuilt, size_t n_threads)
+      : Reader<Phy_reader, Row>(table, trx, index, prebuilt, n_threads) {}
 
   /** Destructor. */
   ~Phy_reader();
@@ -253,6 +303,61 @@ class Phy_reader : public Reader<Phy_reader, page_no_t> {
   friend Reader<Phy_reader, Row>;
 };
 
+template <typename T, typename R>
+struct Reader<T, R>::Ctx {
+  /** Constructor.
+  @param[in]    id      Thread ID.
+  @param[in]    range   Range that the thread has to read.
+  @param[in]	table   table that the thread has to read
+  @param[in]    index	index that the thread has to read
+  @param[in]	trx		trx to use for reading
+  @param[in]	prebuilt	row prebuilt structure */
+  Ctx(size_t id, const Range &range, dict_table_t *table, dict_index_t *index,
+      trx_t *trx, row_prebuilt_t *prebuilt)
+      : m_id(id),
+        m_range(range),
+        m_table(table),
+        m_index(index),
+        m_trx(trx),
+        m_prebuilt(prebuilt) {}
+
+  /** Destructor. */
+  ~Ctx();
+
+  /** Destroy the persistent cursor. */
+  static void destroy(R &row);
+
+  /** Context ID. */
+  size_t m_id{std::numeric_limits<size_t>::max()};
+
+  /** Error during parallel read. */
+  dberr_t m_err{DB_SUCCESS};
+
+  /** Range to read in this contxt. */
+  Range m_range{};
+
+  /** Table to which the index belongs to.
+  @note this is mainly required for the secondary engine project where parallel
+  scan can happen for partitioned tables as well and each thread could be
+  working on different partitions and hence different index. */
+  dict_table_t *m_table;
+
+  /** Index to which the records in the range belong to.
+  @note this is mainly required for the secondary engine project where parallel
+  scan can happen for partitioned tables as well and each thread could be
+  working on different partitions and hence different index. */
+  dict_index_t *m_index;
+
+  /** Transaction used for parallel read of the index.
+  @note this is mainly required for the secondary engine project where parallel
+  scan can happen for partitioned tables as well and each thread could be
+  working on different partitions and hence different index. */
+  trx_t *m_trx;
+
+  /** Row prebuilt structure. */
+  row_prebuilt_t *m_prebuilt;
+};
+
 /** Traverse an index using a persistent cursor in key order. */
 class Key_reader : public Reader<Key_reader, Key_reader_row> {
   using Row = Key_reader_row;
@@ -269,10 +374,11 @@ class Key_reader : public Reader<Key_reader, Key_reader_row> {
   @param[in]    table        Table to be read
   @param[in]    trx          Transaction used for parallel read
   @param[in]    index        Index in table to scan.
+  @param[in]    prebuilt     row prebuilt structure
   @param[in]    n_threads    Maximum threads to use for reading */
   Key_reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
-             size_t n_threads)
-      : Reader<Key_reader, Row>(table, trx, index, n_threads) {}
+             row_prebuilt_t *prebuilt, size_t n_threads)
+      : Reader<Key_reader, Row>(table, trx, index, prebuilt, n_threads) {}
 
   /** Destructor. */
   ~Key_reader();
@@ -305,9 +411,13 @@ class Key_reader : public Reader<Key_reader, Key_reader_row> {
   @param[in,out]  heap      Heap to use if a previous version needs to be
                             built from the undo log.
   @param[in,out]  mtr       Mini transaction covering the read.
+  @param[in]	  table	    table the index belongs to
+  @param[in]	  index	    index the record belongs to
+  @param[in]	  trx	    transcation handle
   @return on success. */
   bool check_visibility(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
-                        mtr_t *mtr) MY_ATTRIBUTE((warn_unused_result));
+                        mtr_t *mtr, dict_table_t *table, dict_index_t *index,
+                        trx_t *trx) MY_ATTRIBUTE((warn_unused_result));
 
   /** Traverse the pages by key order.
   @param[in]      id         Thread ID.
@@ -318,6 +428,8 @@ class Key_reader : public Reader<Key_reader, Key_reader_row> {
       MY_ATTRIBUTE((warn_unused_result));
 
   friend Reader<Key_reader, Row>;
+  friend class Secondary_engine_reader;
+  friend class Secondary_engine_partition_reader;
 };
 
 #endif /* !row0par_read_h */

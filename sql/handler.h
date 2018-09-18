@@ -33,6 +33,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <algorithm>
+#include <functional>
 #include <random>  // std::mt19937
 #include <set>
 #include <string>
@@ -3824,6 +3825,72 @@ class handler {
   int ha_load_table(const TABLE &table);
 
   int ha_unload_table(const char *db_name, const char *table_name);
+
+  /**
+    Get number of threads that would be spawned for parallel read.
+    @return error code
+    @retval 0 on success
+   */
+  virtual int secondary_engine_scan_get_num_threads(
+      size_t & /* num_threads */) {
+    return 0;
+  };
+
+  /**
+    This callback is called by each parallel load thread at the beginning of
+    the parallel load for the secondary engine scan.
+    @param cookie      The cookie for this thread
+    @param ncols       Number of columns in each row
+    @param row_len     The size of a row in bytes
+    @param col_offsets An array of size ncols, where each element represents
+                       the offset of a column in the row data. The memory of
+                       this array belongs to the caller and will be free-ed
+                       after the pload_end_cbk call.
+    @param null_byte_offsets An array of size ncols, where each element
+                       represents the offset of a column in the row data. The
+                       memory of this array belongs to the caller and will be
+                       free-ed after the pload_end_cbk call.
+    @param null_bitmasks An array of size ncols, where each element
+                       represents the bitmask required to get the null bit. The
+                       memory of this array belongs to the caller and will be
+                     free-ed after the pload_end_cbk call.
+   */
+  using secondary_engine_pload_init_cbk = std::function<void(
+      void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
+      ulong *null_byte_offsets, ulong *null_bitmasks)>;
+
+  /**
+    This callback is called by each parallel load thread when processing
+    of rows is required for the secondary engine scan.
+    @param[in] cookie    The cookie for this thread
+    @param[in] nrows     The nrows that are available
+    @param[in] rowdata   The mysql-in-memory row data buffer. This is a memory
+                         buffer for nrows records. The length of each record
+                         is fixed and communicated via
+    sec_engine_pload_init_cbk.
+   */
+  using secondary_engine_pload_row_cbk =
+      std::function<bool(void *cookie, uint nrows, void *rowdata)>;
+
+  /**
+    This callback is called by each parallel load thread when processing
+    of rows has ended for the secondary engine scan.
+    @param[in] cookie    The cookie for this thread
+   */
+  using secondary_engine_pload_end_cbk = std::function<void(void *cookie)>;
+
+  /**
+    Start parallel read of data.
+    @return error code
+    @retval 0 on success
+   */
+  virtual int secondary_engine_scan_parallel_load(
+      void ** /* thread_contexts */,
+      secondary_engine_pload_init_cbk /* load_init_fn */,
+      secondary_engine_pload_row_cbk /* load_rows_fn */,
+      secondary_engine_pload_end_cbk /* load_end_fn */) {
+    return (0);
+  };
 
   /**
     Submit a dd::Table object representing a core DD table having

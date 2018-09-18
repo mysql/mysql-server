@@ -1743,7 +1743,7 @@ trx_t *&thd_to_trx(THD *thd) {
 /** Return the number of read threads for this session.
 @param[in]      thd       Session instance, or nullptr to query the global
                           innodb_parallel_read_threads value. */
-static ulong thd_parallel_read_threads(THD *thd) {
+ulong thd_parallel_read_threads(THD *thd) {
   return (THDVAR(thd, parallel_read_threads));
 }
 
@@ -2680,7 +2680,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 
 /** Destruct ha_innobase handler. */
 
-ha_innobase::~ha_innobase() {}
+ha_innobase::~ha_innobase() { UT_DELETE(m_secondary_engine_reader); }
 
 /** Updates the user_thd field in a handle and also allocates a new InnoDB
  transaction handle if needed, and updates the transaction fields in the

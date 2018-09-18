@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include "handler.h"
 #include "my_dbug.h"
+#include "row0sec_engine.h"
 #include "trx0trx.h"
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
@@ -410,6 +411,28 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab);
   /** @} */
 
+  /** Get number of threads that would be spawned for parallel read.
+  @param[in, out]   num_threads     number of threads to be spawned
+  @return error code
+  @retval 0 on success */
+  virtual int secondary_engine_scan_get_num_threads(
+      size_t &num_threads) override;
+
+  /** Start parallel read of InnoDB records.
+  @param[in]      thread_contexts context for each of the spawned threads
+  @param[in]      load_init_fn    callback called by each parallel load
+  thread at the beginning of the parallel load.
+  @param[in]      load_rows_fn    callback called by each parallel load
+  thread when processing of rows is required.
+  @param[in]      load_end_fn     callback called by each parallel load
+  thread when processing of rows has ended.
+  @return error code
+  @retval 0 on success */
+  virtual int secondary_engine_scan_parallel_load(
+      void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
+      secondary_engine_pload_row_cbk load_rows_fn,
+      secondary_engine_pload_end_cbk load_end_fn) override;
+
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 
  private:
@@ -628,11 +651,21 @@ class ha_innobase : public handler {
 
   /** If mysql has locked with external_lock() */
   bool m_mysql_has_locked;
+
+  /** Secondary engine context to traverse a table index and send all the rows
+  from InnoDB to secondary engine.
+  @note Used only by the secondary engine. */
+  Secondary_engine_reader *m_secondary_engine_reader{nullptr};
 };
 
 struct trx_t;
 
 extern const struct _ft_vft ft_vft_result;
+
+/** Return the number of read threads for this session.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value. */
+ulong thd_parallel_read_threads(THD *thd);
 
 /** Structure Returned by ha_innobase::ft_init_ext() */
 typedef struct new_ft_info {
