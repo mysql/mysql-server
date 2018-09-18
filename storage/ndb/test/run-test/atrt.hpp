@@ -128,6 +128,7 @@ struct atrt_testcase {
   BaseString m_name;
   BaseString m_mysqld_options;
   int m_max_retries;
+  bool m_force_cluster_restart;
 
   struct Command {
     atrt_process::Type m_cmd_type;
