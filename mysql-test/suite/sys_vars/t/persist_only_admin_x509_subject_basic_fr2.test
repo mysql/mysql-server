@@ -1,4 +1,5 @@
 -- source include/have_ssl.inc
+-- source include/have_openssl.inc
 
 --echo #
 --echo # Tests for WL#12086: Cryptographically signed SET statements
