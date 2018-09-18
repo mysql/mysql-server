@@ -127,7 +127,7 @@ class Client : public Client_interface {
 
   Protocol_monitor_interface *m_protocol_monitor;
 
-  xpl::Mutex m_session_exit_mutex;
+  mutable xpl::Mutex m_session_exit_mutex;
 
   enum {
     Not_closing,

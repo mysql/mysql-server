@@ -141,6 +141,7 @@ bool Client::is_handler_thd(THD *thd) {
   // shared_pointer to be sure that the session is
   // not reseted (by Mysqlx::Session::Reset) in middle
   // of this operations.
+  MUTEX_LOCK(lock_session_exit, m_session_exit_mutex);
   auto session = this->session_smart_ptr();
 
   return thd && session && (session->get_thd() == thd);
