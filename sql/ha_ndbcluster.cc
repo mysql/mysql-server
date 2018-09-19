@@ -47,6 +47,7 @@
 #include "sql/ha_ndbcluster_connection.h"
 #include "sql/ha_ndbcluster_push.h"
 #include "sql/ha_ndbcluster_tables.h"
+#include "sql/log.h"        // flush_error_log_messages()
 #include "sql/mysqld.h"     // global_system_variables table_alias_charset ...
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
 #include "sql/ndb_anyvalue.h"
@@ -13522,6 +13523,8 @@ void ndbcluster_init_abort(const char* error)
   ndb_log_error("%s", error);
   ndb_log_error("Failed to initialize ndbcluster, aborting!");
   ndb_log_error("Use --skip-ndbcluster to start without ndbcluster.");
+  // flush all the buffered messages before exiting
+  flush_error_log_messages();
   exit(1);
 }
 
