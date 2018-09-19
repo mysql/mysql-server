@@ -176,8 +176,59 @@ Uint64 Dbtc::getTransactionMemoryNeed(
     const Uint32 MaxNoOfLocalScans,
     const Uint32 TransactionBufferMemory)
 {
+  Uint32 targetFragLocation;
+  Uint32 targetScanFragment;
+  Uint32 targetScanRecord;
+  Uint32 targetConnectRecord;
+  Uint32 targetTakeOverConnectRecord;
+  Uint32 targetCommitAckMarker;
+  Uint32 targetTakeOverCommitAckMarker;
+  Uint32 targetIndexOperations;
+  Uint32 targetApiConnectRecord;
+  Uint32 targetTakeOverApiConnectRecord;
+  Uint32 targetCacheRecord;
+  Uint32 targetFiredTriggerData;
+  Uint32 targetAttributeBuffer;
+  Uint32 targetCommitAckMarkerBuffer;
+  Uint32 targetTakeOverCommitAckMarkerBuffer;
+
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_FRAG_LOCATION, &targetFragLocation));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_SCAN_FRAGMENT, &targetScanFragment));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_SCAN_RECORD, &targetScanRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_CONNECT_RECORD, &targetConnectRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_CONNECT_RECORD, &targetTakeOverConnectRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER, &targetCommitAckMarker));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, &targetTakeOverCommitAckMarker));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_INDEX_OPERATION, &targetIndexOperations));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_API_CONNECT_RECORD, &targetApiConnectRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_API_CONNECT_RECORD, &targetTakeOverApiConnectRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_CACHE_RECORD, &targetCacheRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_FIRED_TRIGGER_DATA, &targetFiredTriggerData));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_ATTRIBUTE_BUFFER, &targetAttributeBuffer));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, &targetCommitAckMarkerBuffer));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, &targetTakeOverCommitAckMarkerBuffer));
+
   Uint64 byte_count = 0;
   Uint64 byte_count_to = 0; // Only one tc instance do tc take over.
+#if 1
+  byte_count += ApiConnectRecord_pool::getMemoryNeed(2 * targetApiConnectRecord); // USER + COPY
+  byte_count_to += ApiConnectRecord_pool::getMemoryNeed(targetTakeOverApiConnectRecord); // FAIL
+  byte_count += ApiConTimers_pool::getMemoryNeed((2 * targetApiConnectRecord + 5) / 6);
+  byte_count_to += ApiConTimers_pool::getMemoryNeed((targetTakeOverApiConnectRecord + 5) / 6);
+  byte_count += AttributeBuffer_pool::getMemoryNeed(targetAttributeBuffer / (11 * sizeof(Uint32))); // sizeof(AttributeBuffer_pool::T::getSegmentSize()));
+  byte_count += CacheRecord_pool::getMemoryNeed(targetCacheRecord);
+  byte_count += CommitAckMarker_pool::getMemoryNeed(2 * targetCommitAckMarker);
+  byte_count_to += CommitAckMarker_pool::getMemoryNeed(targetTakeOverCommitAckMarker);
+  byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(2 * targetCommitAckMarkerBuffer);
+  byte_count_to += CommitAckMarkerBuffer_pool::getMemoryNeed(targetCommitAckMarkerBuffer);
+  byte_count += TcConnectRecord_pool::getMemoryNeed(targetConnectRecord);
+  byte_count_to += TcConnectRecord_pool::getMemoryNeed(targetTakeOverConnectRecord);
+  byte_count += TcFiredTriggerData_pool::getMemoryNeed(targetFiredTriggerData);
+  byte_count += TcIndexOperation_pool::getMemoryNeed(targetIndexOperations);
+  byte_count += ScanFragLocation_pool::getMemoryNeed(targetFragLocation);
+  byte_count += ScanFragRec_pool::getMemoryNeed(targetScanFragment);
+  byte_count += ScanRecord_pool::getMemoryNeed(targetScanRecord);
+#else
   byte_count += ApiConnectRecord_pool::getMemoryNeed(2 * MaxNoOfConcurrentTransactions);
   byte_count_to += ApiConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentTransactions);
   byte_count += ApiConTimers_pool::getMemoryNeed((2 * MaxNoOfConcurrentTransactions + 5) / 6);
@@ -195,23 +246,24 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   byte_count += ScanFragLocation_pool::getMemoryNeed(MaxNoOfConcurrentScans);
   byte_count += ScanFragRec_pool::getMemoryNeed(MaxNoOfLocalScans);
   byte_count += ScanRecord_pool::getMemoryNeed(MaxNoOfConcurrentScans);
+#endif
   byte_count += GcpRecord_pool::getMemoryNeed(ZGCP_FILESIZE); // TODO(wl9756)
 
   Uint64 byte_total = dbtc_instance_count * byte_count + byte_count_to;
 
 #ifdef DEBUG_MEM
-  g_eventLogger->info("MaxDMLOperationsPerTransaction: %u",
-      MaxDMLOperationsPerTransaction);
-  g_eventLogger->info("MaxNoOfConcurrentIndexOperations: %u",
-      MaxNoOfConcurrentIndexOperations);
-  g_eventLogger->info("MaxNoOfConcurrentOperations: %u",
-      MaxNoOfConcurrentOperations);
-  g_eventLogger->info("MaxNoOfConcurrentScans: %u",
-      MaxNoOfConcurrentScans);
-  g_eventLogger->info("MaxNoOfConcurrentTransactions: %u",
-      MaxNoOfConcurrentTransactions);
-  g_eventLogger->info("MaxNoOfFiredTriggers: %u", MaxNoOfFiredTriggers);
-  g_eventLogger->info("MaxNoOfLocalScans: %u", MaxNoOfLocalScans);
+  g_eventLogger->info("MaxDMLOperationsPerTransaction: %u (%u)",
+      MaxDMLOperationsPerTransaction, targetTakeOverConnectRecord);
+  g_eventLogger->info("MaxNoOfConcurrentIndexOperations: %u (%u)",
+      MaxNoOfConcurrentIndexOperations, targetIndexOperations);
+  g_eventLogger->info("MaxNoOfConcurrentOperations: %u (%u)",
+      MaxNoOfConcurrentOperations, targetTakeOverConnectRecord);
+  g_eventLogger->info("MaxNoOfConcurrentScans: %u (%u)",
+      MaxNoOfConcurrentScans, targetScanRecord);
+  g_eventLogger->info("MaxNoOfConcurrentTransactions: %u (%u)",
+      MaxNoOfConcurrentTransactions, targetApiConnectRecord);
+  g_eventLogger->info("MaxNoOfFiredTriggers: %u (%u)", MaxNoOfFiredTriggers, targetFiredTriggerData);
+  g_eventLogger->info("MaxNoOfLocalScans: %u (%u)", MaxNoOfLocalScans, targetScanFragment);
   g_eventLogger->info("TransactionBufferMemory: %u bytes %llu segments",
       TransactionBufferMemory,
       AttributeBuffer_pool::getMemoryNeed(
@@ -225,6 +277,17 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   g_eventLogger->info("Dbtc total transaction memory %llu bytes %llu pages",
       byte_total,
       byte_total / 32768);
+#if 0
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_FRAG_LOCATION, &targetFragLocation));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER, &targetCommitAckMarker));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, &targetTakeOverCommitAckMarker));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_API_CONNECT_RECORD, &targetTakeOverApiConnectRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_CACHE_RECORD, &targetCacheRecord));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_ATTRIBUTE_BUFFER, &targetAttributeBuffer));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, &targetCommitAckMarkerBuffer));
+  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, &targetTakeOverCommitAckMarkerBuffer));
+#endif
+
 #endif
 
   return byte_total;
