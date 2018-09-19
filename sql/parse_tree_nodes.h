@@ -4808,6 +4808,7 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
 
  public:
   PT_json_table_column_with_path(const LEX_STRING &name, PT_type *type,
+                                 const CHARSET_INFO *collation,
                                  enum_jt_column col_type, LEX_STRING path,
                                  enum_jtc_on on_err,
                                  const LEX_STRING &error_def,
@@ -4815,7 +4816,8 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
                                  const LEX_STRING &missing_def)
       : m_column(col_type, path, on_err, error_def, on_empty, missing_def),
         m_name(name.str),
-        m_type(type) {}
+        m_type(type),
+        m_collation(collation) {}
 
   bool contextualize(Parse_context *pc) override;
 
@@ -4825,6 +4827,7 @@ class PT_json_table_column_with_path final : public PT_json_table_column {
   Json_table_column m_column;
   const char *m_name;
   PT_type *m_type;
+  const CHARSET_INFO *m_collation;
 };
 
 class PT_json_table_column_with_nested_path final

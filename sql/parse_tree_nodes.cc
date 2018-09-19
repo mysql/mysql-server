@@ -2292,9 +2292,18 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
-  const CHARSET_INFO *cs = m_type->get_charset()
-                               ? m_type->get_charset()
-                               : global_system_variables.character_set_results;
+  const CHARSET_INFO *cs = m_type->get_charset();
+  if (cs == nullptr) {
+    if (m_collation != nullptr)
+      cs = m_collation;
+    else
+      cs = global_system_variables.character_set_results;
+  } else {
+    cs = merge_charset_and_collation(cs, m_collation);
+    if (cs == nullptr) {
+      return true;
+    }
+  }
 
   m_column.init(pc->thd,
                 m_name,                        // Alias
@@ -2307,8 +2316,8 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 &EMPTY_STR,                    // Comment
                 nullptr,                       // Change
                 m_type->get_interval_list(),   // Interval list
-                cs,                            // Charset
-                false,                         // No "COLLATE" clause
+                cs,                            // Charset & collation
+                m_collation != nullptr,        // Has "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type
                 nullptr,                       // Gcol_info
                 nullptr,                       // Default gen expression
