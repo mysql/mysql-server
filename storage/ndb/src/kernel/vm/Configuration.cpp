@@ -1068,15 +1068,15 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_TC_TARGET_SCAN_FRAGMENT, noOfTCLocalScanRecords);
     cfg.put(CFG_TC_MAX_SCAN_FRAGMENT, noOfTCLocalScanRecords);
-    cfg.put(CFG_TC_RESERVED_SCAN_FRAGMENT, noOfTCLocalScanRecords / (4 * tcInstances)); // TODO(wl9756)
+    cfg.put(CFG_TC_RESERVED_SCAN_FRAGMENT, reservedLocalScanRecords);
 
     cfg.put(CFG_TC_TARGET_SCAN_RECORD, noOfTCScanRecords);
     cfg.put(CFG_TC_MAX_SCAN_RECORD, noOfTCScanRecords);
-    cfg.put(CFG_TC_RESERVED_SCAN_RECORD, noOfTCScanRecords / (4 * tcInstances)); // TODO(wl9756)
+    cfg.put(CFG_TC_RESERVED_SCAN_RECORD, reservedScanRecords);
 
     cfg.put(CFG_TC_TARGET_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
     cfg.put(CFG_TC_MAX_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
-    cfg.put(CFG_TC_RESERVED_CONNECT_RECORD, (noOfOperations + 16 + noOfTransactions) / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_CONNECT_RECORD, reservedOperations);
 
     cfg.put(CFG_TC_TARGET_TO_CONNECT_RECORD, noOfOperations);
     cfg.put(CFG_TC_MAX_TO_CONNECT_RECORD, noOfOperations);
@@ -1084,7 +1084,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER, noOfTransactions);
     cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER, noOfTransactions);
-    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER, noOfTransactions / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER, reservedTransactions);
 
     cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, Uint32(0));
     cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER, Uint32(0));
@@ -1092,11 +1092,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_TC_TARGET_INDEX_OPERATION, noOfIndexOperations);
     cfg.put(CFG_TC_MAX_INDEX_OPERATION, noOfIndexOperations);
-    cfg.put(CFG_TC_RESERVED_INDEX_OPERATION, noOfIndexOperations / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_INDEX_OPERATION, reservedIndexOperations);
 
     cfg.put(CFG_TC_TARGET_API_CONNECT_RECORD, noOfTransactions);
     cfg.put(CFG_TC_MAX_API_CONNECT_RECORD, noOfTransactions);
-    cfg.put(CFG_TC_RESERVED_API_CONNECT_RECORD, noOfTransactions / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_API_CONNECT_RECORD, reservedTransactions);
 
     cfg.put(CFG_TC_TARGET_TO_API_CONNECT_RECORD, noOfTransactions);
     cfg.put(CFG_TC_MAX_TO_API_CONNECT_RECORD, noOfTransactions);
@@ -1104,19 +1104,19 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 
     cfg.put(CFG_TC_TARGET_CACHE_RECORD, noOfTransactions);
     cfg.put(CFG_TC_MAX_CACHE_RECORD, noOfTransactions);
-    cfg.put(CFG_TC_RESERVED_CACHE_RECORD, noOfTransactions / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_CACHE_RECORD, reservedTransactions);
 
     cfg.put(CFG_TC_TARGET_FIRED_TRIGGER_DATA, noOfTriggerOperations);
     cfg.put(CFG_TC_MAX_FIRED_TRIGGER_DATA, noOfTriggerOperations);
-    cfg.put(CFG_TC_RESERVED_FIRED_TRIGGER_DATA, noOfTriggerOperations / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_FIRED_TRIGGER_DATA, reservedTriggerOperations);
 
     cfg.put(CFG_TC_TARGET_ATTRIBUTE_BUFFER, transactionBufferBytes);
     cfg.put(CFG_TC_MAX_ATTRIBUTE_BUFFER, transactionBufferBytes);
-    cfg.put(CFG_TC_RESERVED_ATTRIBUTE_BUFFER, transactionBufferBytes / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_ATTRIBUTE_BUFFER, reservedTransactionBufferBytes);
 
     cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions);
     cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions);
-    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions / (4 * tcInstances));
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER, 2 * reservedTransactions);
 
     cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
     cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
