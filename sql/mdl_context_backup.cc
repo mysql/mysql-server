@@ -35,6 +35,7 @@ class MDL_context_backup_manager::MDL_context_backup
     DBUG_ASSERT(!m_context.has_locks(MDL_STATEMENT));
 
     m_context.release_transactional_locks();
+    m_context.destroy();
   }
 
  public:
