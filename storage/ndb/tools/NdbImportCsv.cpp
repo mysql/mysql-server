@@ -491,7 +491,7 @@ NdbImportCsv::Input::do_send(uint& curr, uint& left)
   left = m_rows.cnt();
   if (rows_out.m_foe)
   {
-    log1("consumer has stopped");
+    log_debug(1, "consumer has stopped");
     m_util.set_error_gen(m_error, __LINE__, "consumer has stopped");
   }
   rows_out.unlock();
@@ -506,11 +506,9 @@ NdbImportCsv::Input::do_movetail(Input& input2)
   buf1.m_pos = buf1.m_len;      // keep pos within new len
   input2.m_startpos = m_startpos + buf1.m_len;
   input2.m_startlineno = m_startlineno + m_line_list.cnt();
-  log1("movetail " <<
-      " src: " << buf1 <<
-      " dst: " << buf2 <<
-      " startpos: " << m_startpos << "->" << input2.m_startpos <<
-      " startline: " << m_startlineno << "->" << input2.m_startlineno);
+  log_debug(1, "movetail " << " src: " << buf1 << " dst: " << buf2 <<
+               " startpos: " << m_startpos << "->" << input2.m_startpos <<
+               " startline: " << m_startlineno << "->" << input2.m_startlineno);
 }
 
 void
@@ -599,7 +597,7 @@ operator<<(NdbOut& out, const NdbImportCsv::Input& input)
 {
   out << input.m_name;
   out << " len=" << input.m_buf.m_len;
-  out << " linecnt=" << input.m_line_list.cnt();
+  out << " linecnt=" << input.m_line_list.cnt() << " ";
   return out;
 }
 
@@ -619,7 +617,7 @@ NdbImportCsv::Parse::Parse(Input& input) :
 void
 NdbImportCsv::Parse::do_init()
 {
-  log1("do_init");
+  log_debug(1, "do_init");
   const Spec& spec = m_input.m_spec;
   for (int s = 0; s < g_statecnt; s++)
   {
@@ -703,8 +701,8 @@ NdbImportCsv::Parse::push_state(State state)
 {
   require(m_stacktop + 1 < g_stackmax);
   m_state[++m_stacktop] = state;
-  log3("push " << g_str_state(m_state[m_stacktop-1])
-       << "->" << g_str_state(m_state[m_stacktop]));
+  log_debug_3("push " << g_str_state(m_state[m_stacktop-1])
+              << "->" << g_str_state(m_state[m_stacktop]));
 }
 
 void
@@ -712,14 +710,14 @@ NdbImportCsv::Parse::pop_state()
 {
   require(m_stacktop > 0);
   m_stacktop--;
-  log3("pop " << g_str_state(m_state[m_stacktop])
-       << "<-" << g_str_state(m_state[m_stacktop+1]));
+  log_debug_3("pop " << g_str_state(m_state[m_stacktop])
+              << "<-" << g_str_state(m_state[m_stacktop+1]));
 }
 
 void
 NdbImportCsv::Parse::do_parse()
 {
-  log2("do_parse");
+  log_debug(2, "do_parse");
   m_input.free_line_list(m_input.m_line_list);
   m_input.free_line_list(m_line_list);
   m_input.free_field_list(m_field_list);
@@ -731,7 +729,7 @@ NdbImportCsv::Parse::do_parse()
   int ret = 0;
   if (buf.m_len != 0)
     ret = NdbImportCsv_yyparse(*this);
-  log1("parse ret=" << ret);
+  log_debug(1, "parse ret=" << ret);
   if (ret == 0)
   {
     require(m_last_token == 0);
@@ -785,7 +783,7 @@ NdbImportCsv::Parse::do_parse()
 int
 NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
 {
-  log3("do_lex");
+  log_debug_3("do_lex");
   const Spec& spec = m_input.m_spec;
   Buf& buf = m_input.m_buf;
   const uchar* bufdata = &buf.m_data[buf.m_start];
@@ -891,8 +889,8 @@ NdbImportCsv::Parse::do_lex(YYSTYPE* lvalp)
   chunk.m_pos = pos;
   chunk.m_len = len;
   chunk.m_end = end;
-  log3("do_lex: token=" << token <<
-        " pos=" << chunk.m_pos << " len=" << len << " end=" << end);
+  log_debug_3("do_lex: token=" << token <<
+              " pos=" << chunk.m_pos << " len=" << len << " end=" << end);
   buf.m_pos = end;
   lvalp->m_chunk = chunk;
   m_last_token = token;
@@ -905,7 +903,7 @@ NdbImportCsv::Parse::do_error(const char* msg)
   if (m_last_token != 0)
   {
     const Buf& buf = m_input.m_buf;
-    log2("parse error at buf:" << buf);
+    log_debug(2, "parse error at buf:" << buf);
     uint64 abspos = m_input.m_startpos + buf.m_pos;
     uint64 abslineno = m_input.m_startlineno + m_line_list.cnt();
     m_util.set_error_data(m_error, __LINE__, 0,
@@ -970,7 +968,8 @@ operator<<(NdbOut& out, const NdbImportCsv::Parse& parse)
       sprintf(chr, "%s", "\\n");
     else
       sprintf(chr, "0x%02x", c);
-    out << " len=" << buf.m_len << " pos=" << buf.m_pos << " chr=" << chr;
+    out << " len=" << buf.m_len << " pos=" << buf.m_pos;
+    out << " chr=" << chr << " ";
   }
   return out;
 }
@@ -1040,7 +1039,7 @@ NdbImportCsv::Eval::do_eval()
         if (found)
         {
           line = line->next();
-          log1("skip old rowid: " << rowid);
+          log_debug(1, "skip old rowid: " << rowid);
           continue;
         }
       }
@@ -2631,7 +2630,7 @@ NdbImportCsv::Eval::eval_null(Row* row, Line* line, Field* field)
 NdbOut&
 operator<<(NdbOut& out, const NdbImportCsv::Eval& eval)
 {
-  out << "eval";
+  out << "eval ";
   return out;
 }
 
@@ -2654,7 +2653,7 @@ NdbImportCsv::Output::Output(NdbImportCsv& csv,
 void
 NdbImportCsv::Output::do_init()
 {
-  log1("do_init");
+  log_debug(1, "do_init");
   const Spec& spec = m_spec;
   for (uint u = 0; u < g_bytecnt; u++)
     m_escapes[u] = 0;
@@ -2807,7 +2806,7 @@ NdbImportCsv::Output::add_field(const Attr& attr, const Row* row)
 void
 NdbImportCsv::Output::add_char(const uchar* rowdata, uint len)
 {
-  log3("add_char " << len << " " << (char*)rowdata);
+  log_debug_3("add_char " << len << " " << (char*)rowdata);
   const Spec& spec = m_spec;
   require(spec.m_fields_escaped_by != 0);
   uchar esc = spec.m_fields_escaped_by[0];
@@ -2864,7 +2863,7 @@ NdbOut&
 operator<<(NdbOut& out, const NdbImportCsv::Output& output)
 {
   out << "output";
-  out << " len=" << output.m_buf.m_len;
+  out << " len=" << output.m_buf.m_len << " ";
   return out;
 }
 
@@ -2961,7 +2960,7 @@ static int
 testinput1()
 {
   NdbImportUtil util;
-  NdbOut& out = *util.c_log;
+  NdbOut& out = *util.c_log.out;
   util.c_opt.m_log_level = 4;
   out << "testinput1" << endl;
   NdbImportCsv csv(util);
@@ -3050,7 +3049,7 @@ static int
 testinput2()
 {
   NdbImportUtil util;
-  NdbOut& out = *util.c_log;
+  NdbOut& out = *util.c_log.out;
   util.c_opt.m_log_level = 2;
   util.c_opt.m_abort_on_error = 1;
   out << "testinput2" << endl;
