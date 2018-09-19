@@ -367,73 +367,73 @@ SELECT @@session.sql_mode;
 SET @@global.sql_mode= cast(pow(2,7) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,8) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,8) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,9) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,9) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,10) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,10) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,11) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,11) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,12) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,12) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,13) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,13) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,14) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,14) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,15) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,15) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,16) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,16) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,17) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,17) as unsigned integer);
 SELECT @@global.sql_mode;
 
@@ -487,10 +487,10 @@ SELECT @@session.sql_mode;
 SET @@global.sql_mode= cast(pow(2,27) as unsigned integer);
 SELECT @@global.sql_mode;
 
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@session.sql_mode= cast(pow(2,28) as unsigned integer);
 SELECT @@session.sql_mode;
---error ER_WRONG_VALUE_FOR_VAR
+--error ER_UNSUPPORTED_SQL_MODE
 SET @@global.sql_mode= cast(pow(2,28) as unsigned integer);
 SELECT @@global.sql_mode;
 
@@ -513,6 +513,61 @@ SET @@session.sql_mode= cast(pow(2,32) as unsigned integer);
 SELECT @@session.sql_mode;
 SET @@global.sql_mode= cast(pow(2,32) as unsigned integer);
 SELECT @@global.sql_mode;
+
+--echo #
+--echo # Bug#27828236: ERROR 1231 WHEN 8.0 CLIENT TRIES TO READ THE OUTPUT OF
+--echo #               MYSQLBINLOG 5.7
+--echo #
+
+SET @@session.sql_mode = 0;
+
+CREATE TABLE t1 (i INT);
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @@session.sql_mode=1436549152;
+CREATE PROCEDURE p1() SET @@session.sql_mode=1436549152;
+
+--echo # pseudo_slave_mode is "off", assignment should fail as before:
+
+--error ER_UNSUPPORTED_SQL_MODE
+SET @@session.sql_mode=1436549152;
+SELECT @@session.sql_mode;
+
+--error ER_UNSUPPORTED_SQL_MODE
+INSERT INTO t1 VALUES (1);
+SELECT @@session.sql_mode;
+
+--error ER_UNSUPPORTED_SQL_MODE
+CALL p1;
+SELECT @@session.sql_mode;
+
+--echo #
+
+SET @session_pseudo_slave_mode = @@session.pseudo_slave_mode;
+SET @@session.pseudo_slave_mode = TRUE;
+
+--echo # pseudo_slave_mode is "on", assignment should succeed:
+
+SET @@session.sql_mode=1436549152;
+SELECT @@session.sql_mode;
+
+--echo # ... but the assignment in SBR-invoked triggers should continue to fail:
+
+SET @@session.sql_mode = 0;
+--error ER_UNSUPPORTED_SQL_MODE
+INSERT INTO t1 VALUES (1);
+SELECT @@session.sql_mode;
+
+--echo # ... and in procedure calls:
+
+--error ER_UNSUPPORTED_SQL_MODE
+CALL p1;
+SELECT @@session.sql_mode;
+
+# Cleanup
+
+DROP PROCEDURE p1;
+DROP TABLE t1;
+SET @@session.pseudo_slave_mode = @session_pseudo_slave_mode;
+SET @@session.sql_mode = DEFAULT;
 
 ##############################
 #   Restore initial value    #

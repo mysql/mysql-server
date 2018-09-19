@@ -18454,6 +18454,9 @@ ER_IB_MSG_MADVISE_FAILED
 ER_COLUMN_CHANGE_SIZE
   eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
 
+ER_WARN_REMOVED_SQL_MODE
+  eng "sql_mode=0x%08x has been removed and will be ignored"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
