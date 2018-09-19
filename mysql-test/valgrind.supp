@@ -577,169 +577,6 @@
    fun:buf_buddy_relocate
 }
 
-#
-# Bug#56666 is fixed by WL#6407
-# Also, as part of WL#6407, call to shutdown_performance_schema()
-# is uncommented in sql/mysqld.cc. As this call was commented out
-# for long time, there are still some leaks which needs to be
-# addressed by pfs.
-{
-   missing shutdown_performance_schema 1b
-   Memcheck:Leak
-   fun:memalign
-   fun:posix_memalign
-   fun:_Z10pfs_mallocmi
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 2
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_alloc_new
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 2-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_alloc_new
-   fun:lf_hash_insert
-}
-
-#
-# Note that initialize_bucket() is reccursive,
-# can't provide more stack context.
-#
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3a
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3a-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3b
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 3b-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:initialize_bucket
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 4
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_pinbox_get_pins
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 4-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_pinbox_get_pins
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 5
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 5-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_insert
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 6
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_delete
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 6-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_delete
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 7
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_search
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 7-mem
-   Memcheck:Leak
-   ...
-   fun:my_malloc
-   fun:lf_dynarray_lvalue
-   fun:lf_hash_search
-}
-
 {
    Bug 59874 Valgrind warning in InnoDB compression code
    Memcheck:Cond
@@ -2033,7 +1870,7 @@
    fun:*dl_close_worker*
    fun:*dl_close*
    fun:*dl_catch_error*
-   fun:*libc_dlclose*
+   ...
    fun:*free_mem*
    fun:*libc_freeres*
    fun:*vgnU_freeres*
@@ -2074,4 +1911,12 @@
    ...
    fun:ldap_int_tls_start
    fun:ldap_start_tls_s
+}
+{
+   SIGSTOP_and_SIGCONT in gr tests
+   Memcheck:Cond
+   fun:signal_hand
+   fun:pfs_spawn_thread
+   fun:start_thread
+   fun:clone
 }
