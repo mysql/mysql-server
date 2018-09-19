@@ -729,6 +729,8 @@ void Gcs_xcom_control::do_remove_node_from_group() {
 
       view_members.clear();
     }
+
+    delete current_view;
   }
 
   if (!con) {
