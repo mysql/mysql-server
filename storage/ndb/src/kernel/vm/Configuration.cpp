@@ -1078,9 +1078,15 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TC_MAX_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
     cfg.put(CFG_TC_RESERVED_CONNECT_RECORD, reservedOperations);
 
+#if 1
+    cfg.put(CFG_TC_TARGET_TO_CONNECT_RECORD, maxOpsPerTrans);
+    cfg.put(CFG_TC_MAX_TO_CONNECT_RECORD, noOfOperations);
+    cfg.put(CFG_TC_RESERVED_TO_CONNECT_RECORD, maxOpsPerTrans);
+#else
     cfg.put(CFG_TC_TARGET_TO_CONNECT_RECORD, noOfOperations);
     cfg.put(CFG_TC_MAX_TO_CONNECT_RECORD, noOfOperations);
     cfg.put(CFG_TC_RESERVED_TO_CONNECT_RECORD, noOfOperations);
+#endif
 
     cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER, noOfTransactions);
     cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER, noOfTransactions);
@@ -1098,9 +1104,15 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     cfg.put(CFG_TC_MAX_API_CONNECT_RECORD, noOfTransactions);
     cfg.put(CFG_TC_RESERVED_API_CONNECT_RECORD, reservedTransactions);
 
+#if 1
+    cfg.put(CFG_TC_TARGET_TO_API_CONNECT_RECORD, reservedTransactions);
+    cfg.put(CFG_TC_MAX_TO_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_TO_API_CONNECT_RECORD, reservedTransactions);
+#else
     cfg.put(CFG_TC_TARGET_TO_API_CONNECT_RECORD, noOfTransactions);
     cfg.put(CFG_TC_MAX_TO_API_CONNECT_RECORD, noOfTransactions);
     cfg.put(CFG_TC_RESERVED_TO_API_CONNECT_RECORD, noOfTransactions);
+#endif
 
     cfg.put(CFG_TC_TARGET_CACHE_RECORD, noOfTransactions);
     cfg.put(CFG_TC_MAX_CACHE_RECORD, noOfTransactions);

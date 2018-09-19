@@ -12030,6 +12030,7 @@ void Dbtc::execCOMMITCONF(Signal* signal)
     warningReport(signal, 11);
     return;
   }//if
+  CRASH_INSERTION(8026);
   if (ERROR_INSERTED(8026)) {
     jam();
     systemErrorLab(signal, __LINE__);

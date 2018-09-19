@@ -325,17 +325,21 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   Uint32 maxScanFragment = UINT32_MAX;
   Uint32 maxScanRecord = UINT32_MAX;
   Uint32 maxConnectRecord = UINT32_MAX;
-  Uint32 maxFailConnectRecord = 0;
+  Uint32 maxFailConnectRecord = UINT32_MAX;
+  Uint32 reservedFailConnectRecord = 0;
   Uint32 maxCommitAckMarker = UINT32_MAX;
-  Uint32 maxFailCommitAckMarker = 0;
+  Uint32 maxFailCommitAckMarker = UINT32_MAX;
+  Uint32 reservedFailCommitAckMarker = 0;
   Uint32 maxIndexOperation = UINT32_MAX;
   Uint32 maxApiConnectRecord = UINT32_MAX;
-  Uint32 maxFailApiConnectRecord = 0;
+  Uint32 maxFailApiConnectRecord = UINT32_MAX;
+  Uint32 reservedFailApiConnectRecord = 0;
   Uint32 maxCacheRecord = UINT32_MAX;
   Uint32 maxFiredTriggerData = UINT32_MAX;
   Uint32 maxAttributeBuffer = UINT32_MAX;
   Uint32 maxCommitAckMarkerBuffer = UINT32_MAX;
-  Uint32 maxFailCommitAckMarkerBuffer = 0;
+  Uint32 maxFailCommitAckMarkerBuffer = UINT32_MAX;
+  Uint32 reservedFailCommitAckMarkerBuffer = 0;
 
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_FRAG_LOCATION, &maxFragLocation));
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_SCAN_FRAGMENT, &maxScanFragment));
@@ -354,6 +358,10 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER, &maxFailCommitAckMarker));
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_API_CONNECT_RECORD, &maxFailApiConnectRecord));
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, &maxFailCommitAckMarkerBuffer));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_CONNECT_RECORD, &reservedFailConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER, &reservedFailCommitAckMarker));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_API_CONNECT_RECORD, &reservedFailApiConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER_BUFFER, &reservedFailCommitAckMarkerBuffer));
 
     ctcConnectFailCount = maxFailConnectRecord;
     capiConnectFailCount = maxFailApiConnectRecord;
