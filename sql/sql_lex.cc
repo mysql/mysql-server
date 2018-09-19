@@ -442,6 +442,7 @@ void LEX::reset() {
   use_only_table_context = false;
   contains_plaintext_password = false;
   keep_diagnostics = DA_KEEP_NOTHING;
+  m_statement_options = 0;
   next_binlog_file_nr = 0;
 
   name.str = NULL;
@@ -2284,7 +2285,8 @@ void SELECT_LEX_UNIT::invalidate() {
 }
 
 /**
-  Make active options from base options, supplied options and environment:
+  Make active options from base options, supplied options, any statement
+  options and the environment.
 
   @param added_options   Options that are added to the active options
   @param removed_options Options that are removed from the active options
@@ -2292,9 +2294,10 @@ void SELECT_LEX_UNIT::invalidate() {
 
 void SELECT_LEX::make_active_options(ulonglong added_options,
                                      ulonglong removed_options) {
-  m_active_options = (m_base_options | added_options |
-                      parent_lex->thd->variables.option_bits) &
-                     ~removed_options;
+  m_active_options =
+      (m_base_options | added_options | parent_lex->statement_options() |
+       parent_lex->thd->variables.option_bits) &
+      ~removed_options;
 }
 
 /**

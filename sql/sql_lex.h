@@ -3849,7 +3849,24 @@ struct LEX : public Query_tables_list {
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
 
+  /**
+    Statement context for SELECT_LEX::make_active_options.
+  */
+  ulonglong m_statement_options{0};
+
  public:
+  /// @return a bit set of options set for this statement
+  ulonglong statement_options() { return m_statement_options; }
+  /**
+    Add options to values of m_statement_options. options is an ORed
+    bit set of options defined in query_options.h
+
+    @param options Add this set of options to the set already in
+                   m_statement_options
+  */
+  void add_statement_options(ulonglong options) {
+    m_statement_options |= options;
+  }
   bool is_broken() const { return m_broken; }
   /**
      Certain permanent transformations (like in2exists), if they fail, may
