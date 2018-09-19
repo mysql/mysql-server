@@ -350,13 +350,13 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_COMMIT_ACK_MARKER_BUFFER, &maxCommitAckMarkerBuffer));
   if (does_take_over)
   {
-    ctcConnectFailCount = maxFailConnectRecord;
-    capiConnectFailCount = maxFailApiConnectRecord;
-
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_CONNECT_RECORD, &maxFailConnectRecord));
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER, &maxFailCommitAckMarker));
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_API_CONNECT_RECORD, &maxFailApiConnectRecord));
     ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, &maxFailCommitAckMarkerBuffer));
+
+    ctcConnectFailCount = maxFailConnectRecord;
+    capiConnectFailCount = maxFailApiConnectRecord;
   }
   else
   {
