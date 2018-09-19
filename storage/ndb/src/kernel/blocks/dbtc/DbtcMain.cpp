@@ -1051,11 +1051,15 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION, &val);
   m_max_writes_per_trans = val;
 
+#if 0
   if (m_max_writes_per_trans == ~(Uint32)0)
   {
-    m_max_writes_per_trans = ctcConnectFailCount;
+    ndb_mgm_get_int_parameter(p, CFG_TC_MAX_TO_CONNECT_RECORD, &val);
+    m_max_writes_per_trans = val;
+    // m_max_writes_per_trans = ctcConnectFailCount;
   }
   ndbrequire(m_max_writes_per_trans <= ctcConnectFailCount);
+#endif
 
   ctimeOutCheckDelay = 50; // 500ms
   ctimeOutCheckDelayScan = 40; // 400ms
