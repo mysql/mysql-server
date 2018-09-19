@@ -41,7 +41,129 @@ extern EventLogger * g_eventLogger;
 #endif
 
 #define DEBUG(x) { ndbout << "TC::" << x << endl; }
+#define CEIL_DIV(p,q) (((p) + (q) - 1)/(q))
 
+#if 0
+####
+ Uint64 Dbtc::getTransactionMemoryNeed(
+-    const Uint32 dbtc_instance_count,
+-    const Uint32 MaxDMLOperationsPerTransaction,
+-    const Uint32 MaxNoOfConcurrentIndexOperations,
+-    const Uint32 MaxNoOfConcurrentOperations,
+-    const Uint32 MaxNoOfConcurrentScans,
+-    const Uint32 MaxNoOfConcurrentTransactions,
+-    const Uint32 MaxNoOfFiredTriggers,
+-    const Uint32 MaxNoOfLocalScans,
+-    const Uint32 TransactionBufferMemory)
++    Uint32 dbtc_instance_count,
++    const ndb_mgm_configuration_iterator * mgm_cfg)
+ {
++  Uint32 targetFragLocation;
++  Uint32 targetScanFragment;
++  Uint32 targetScanRecord;
++  Uint32 targetConnectRecord;
++  Uint32 targetTakeOverConnectRecord;
++  Uint32 targetCommitAckMarker;
++  Uint32 targetTakeOverCommitAckMarker;
++  Uint32 targetIndexOperations;
++  Uint32 targetApiConnectRecord;
++  Uint32 targetTakeOverApiConnectRecord;
++//  Uint32 targetApiConnectTimers;
++//  Uint32 targetTakeOverApiConnectTimers;
++  Uint32 targetCacheRecord;
++  Uint32 targetFiredTriggerData;
++  Uint32 targetAttributeBuffer;
++  Uint32 targetCommitAckMarkerBuffer;
++  Uint32 targetTakeOverCommitAckMarkerBuffer;
++
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_FRAG_LOCATION, &targetFragLocation));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_SCAN_FRAGMENT, &targetScanFragment));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_SCAN_RECORD, &targetScanRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_CONNECT_RECORD, &targetConnectRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_CONNECT_RECORD, &targetTakeOverConnectRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER, &targetCommitAckMarker));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, &targetTakeOverCommitAckMarker));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_INDEX_OPERATION, &targetIndexOperations));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_API_CONNECT_RECORD, &targetApiConnectRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_API_CONNECT_RECORD, &targetTakeOverApiConnectRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_CACHE_RECORD, &targetCacheRecord));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_FIRED_TRIGGER_DATA, &targetFiredTriggerData));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_ATTRIBUTE_BUFFER, &targetAttributeBuffer));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, &targetCommitAckMarkerBuffer));
++  require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, &targetTakeOverCommitAckMarkerBuffer));
++
+   Uint64 byte_count = 0;
+   Uint64 byte_count_to = 0; // Only one tc instance do tc take over.
+-  byte_count += ApiConnectRecord_pool::getMemoryNeed(2 * MaxNoOfConcurrentTransactions);
+-  byte_count_to += ApiConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentTransactions);
+-  byte_count += ApiConTimers_pool::getMemoryNeed((2 * MaxNoOfConcurrentTransactions + 5) / 6);
+-  byte_count_to += ApiConTimers_pool::getMemoryNeed((MaxNoOfConcurrentTransactions + 5) / 6);
+-  byte_count += AttributeBuffer_pool::getMemoryNeed(TransactionBufferMemory / (11 * sizeof(Uint32))); // sizeof(AttributeBuffer_pool::T::getSegmentSize()));
+-  byte_count += CacheRecord_pool::getMemoryNeed(MaxNoOfConcurrentTransactions);
+-  byte_count += CommitAckMarker_pool::getMemoryNeed(4 * MaxNoOfConcurrentTransactions);
+-  byte_count_to += CommitAckMarker_pool::getMemoryNeed(2 * MaxNoOfConcurrentTransactions);
+-  byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(8 * MaxNoOfConcurrentTransactions);
+-  byte_count_to += CommitAckMarkerBuffer_pool::getMemoryNeed(4 * MaxNoOfConcurrentTransactions);
+-  byte_count += TcConnectRecord_pool::getMemoryNeed(MaxNoOfConcurrentOperations + 16 + MaxNoOfConcurrentTransactions);
+-  byte_count_to += TcConnectRecord_pool::getMemoryNeed(MaxDMLOperationsPerTransaction);
+-  byte_count += TcFiredTriggerData_pool::getMemoryNeed(MaxNoOfFiredTriggers);
+-  byte_count += TcIndexOperation_pool::getMemoryNeed(MaxNoOfConcurrentIndexOperations);
+-  byte_count += ScanFragLocation_pool::getMemoryNeed(MaxNoOfConcurrentScans);
+-  byte_count += ScanFragRec_pool::getMemoryNeed(MaxNoOfLocalScans);
+-  byte_count += ScanRecord_pool::getMemoryNeed(MaxNoOfConcurrentScans);
++
++  byte_count += ApiConnectRecord_pool::getMemoryNeed(2 * targetApiConnectRecord); // USER + COPY
++  byte_count_to += ApiConnectRecord_pool::getMemoryNeed(targetTakeOverApiConnectRecord); // FAIL
++  byte_count += ApiConTimers_pool::getMemoryNeed((2 * targetApiConnectRecord + 5) / 6);
++  byte_count_to += ApiConTimers_pool::getMemoryNeed((targetTakeOverApiConnectRecord + 5) / 6);
++  byte_count += AttributeBuffer_pool::getMemoryNeed(targetAttributeBuffer / (11 * sizeof(Uint32))); // sizeof(AttributeBuffer_pool::T::getSegmentSize()));
++  byte_count += CacheRecord_pool::getMemoryNeed(targetCacheRecord);
++  byte_count += CommitAckMarker_pool::getMemoryNeed(2 * targetCommitAckMarker);
++  byte_count_to += CommitAckMarker_pool::getMemoryNeed(targetTakeOverCommitAckMarker);
++  byte_count += CommitAckMarkerBuffer_pool::getMemoryNeed(2 * targetCommitAckMarkerBuffer);
++  byte_count_to += CommitAckMarkerBuffer_pool::getMemoryNeed(targetCommitAckMarkerBuffer);
++  byte_count += TcConnectRecord_pool::getMemoryNeed(targetConnectRecord);
++  byte_count_to += TcConnectRecord_pool::getMemoryNeed(targetTakeOverConnectRecord);
++  byte_count += TcFiredTriggerData_pool::getMemoryNeed(targetFiredTriggerData);
++  byte_count += TcIndexOperation_pool::getMemoryNeed(targetIndexOperations);
++  byte_count += ScanFragLocation_pool::getMemoryNeed(targetFragLocation);
++  byte_count += ScanFragRec_pool::getMemoryNeed(targetScanFragment);
++  byte_count += ScanRecord_pool::getMemoryNeed(targetScanRecord);
+   byte_count += GcpRecord_pool::getMemoryNeed(1); // ZGCP_FILESIZE);
+ 
+   Uint64 byte_total = dbtc_instance_count * byte_count + byte_count_to;
+ 
+// #ifdef DEBUG_MEM
+   g_eventLogger->info("MaxDMLOperationsPerTransaction: %u",
+-      MaxDMLOperationsPerTransaction);
++      targetTakeOverConnectRecord);
+   g_eventLogger->info("MaxNoOfConcurrentIndexOperations: %u",
+-      MaxNoOfConcurrentIndexOperations);
++      targetIndexOperations);
+   g_eventLogger->info("MaxNoOfConcurrentOperations: %u",
+-      MaxNoOfConcurrentOperations);
++      targetConnectRecord);
+   g_eventLogger->info("MaxNoOfConcurrentScans: %u",
+-      MaxNoOfConcurrentScans);
++      targetScanRecord);
+   g_eventLogger->info("MaxNoOfConcurrentTransactions: %u",
+-      MaxNoOfConcurrentTransactions);
+-  g_eventLogger->info("MaxNoOfFiredTriggers: %u", MaxNoOfFiredTriggers);
+-  g_eventLogger->info("MaxNoOfLocalScans: %u", MaxNoOfLocalScans);
++      2 * targetApiConnectRecord);
++  g_eventLogger->info("MaxNoOfFiredTriggers: %u", targetFiredTriggerData);
++  g_eventLogger->info("MaxNoOfLocalScans: %u", targetScanFragment);
+   g_eventLogger->info("TransactionBufferMemory: %u bytes %llu segments",
+-      TransactionBufferMemory,
++      targetAttributeBuffer,
+       AttributeBuffer_pool::getMemoryNeed(
+-        TransactionBufferMemory /
++        targetAttributeBuffer /
+           (sizeof(AttributeBufferSegment) * sizeof(Uint32))));
+   g_eventLogger->info("Dbtc instances %u", dbtc_instance_count);
+   g_eventLogger->info("Dbtc transaction memory per instance %llu bytes",
+####
+#endif
 Uint64 Dbtc::getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
     const Uint32 MaxDMLOperationsPerTransaction,
@@ -132,29 +254,85 @@ void Dbtc::initData()
 
 void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg) 
 {
-  Uint32 noOfIndexOperations = 0;
-  Uint32 noOfOperations = 0;
-  Uint32 noOfFailOperations = 0;
-  Uint32 noOfScans = 0;
-  Uint32 noOfTransactions = 0;
-  Uint32 noOfFailTransactions = 0;
-  Uint32 noOfFiredTriggers = 0;
-  Uint32 noOfLocalScans = 0;
-  Uint32 transactionBufferBytes = 0;
+  // Only first DBTC instance do take  over
+  const bool does_take_over = (instance() < 2);
 
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_INDEX_OPS, &noOfIndexOperations);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TC_CONNECT, &noOfOperations);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_SCAN, &noOfScans);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_API_CONNECT, &noOfTransactions);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TRIGGER_OPS, &noOfFiredTriggers);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_LOCAL_SCAN, &noOfLocalScans);
-  ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TRANS_BUFFER, &transactionBufferBytes);
+  Uint32 maxFragLocation = UINT32_MAX;
+  Uint32 maxScanFragment = UINT32_MAX;
+  Uint32 maxScanRecord = UINT32_MAX;
+  Uint32 maxConnectRecord = UINT32_MAX;
+  Uint32 maxFailConnectRecord = 0;
+  Uint32 maxCommitAckMarker = UINT32_MAX;
+  Uint32 maxFailCommitAckMarker = 0;
+  Uint32 maxIndexOperation = UINT32_MAX;
+  Uint32 maxApiConnectRecord = UINT32_MAX;
+  Uint32 maxFailApiConnectRecord = 0;
+  Uint32 maxCacheRecord = UINT32_MAX;
+  Uint32 maxFiredTriggerData = UINT32_MAX;
+  Uint32 maxAttributeBuffer = UINT32_MAX;
+  Uint32 maxCommitAckMarkerBuffer = UINT32_MAX;
+  Uint32 maxFailCommitAckMarkerBuffer = 0;
 
-  if (instance() < 2)
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_FRAG_LOCATION, &maxFragLocation));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_SCAN_FRAGMENT, &maxScanFragment));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_SCAN_RECORD, &maxScanRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_CONNECT_RECORD, &maxConnectRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_COMMIT_ACK_MARKER, &maxCommitAckMarker));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_INDEX_OPERATION, &maxIndexOperation));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_API_CONNECT_RECORD, &maxApiConnectRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_CACHE_RECORD, &maxCacheRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_FIRED_TRIGGER_DATA, &maxFiredTriggerData));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_ATTRIBUTE_BUFFER, &maxAttributeBuffer));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_COMMIT_ACK_MARKER_BUFFER, &maxCommitAckMarkerBuffer));
+  if (does_take_over)
   {
-    // Only first DBTC do take over
-    ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_TC_CONNECT_FAIL, &noOfFailOperations);
-    ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_API_CONNECT_FAIL, &noOfFailTransactions);
+    ctcConnectFailCount = maxFailConnectRecord;
+    capiConnectFailCount = maxFailApiConnectRecord;
+
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_CONNECT_RECORD, &maxFailConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER, &maxFailCommitAckMarker));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_API_CONNECT_RECORD, &maxFailApiConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, &maxFailCommitAckMarkerBuffer));
+  }
+  else
+  {
+    ctcConnectFailCount = 0;
+    capiConnectFailCount = 0;
+  }
+
+  Uint32 reserveFragLocation = 0;
+  Uint32 reserveScanFragment = 0;
+  Uint32 reserveScanRecord = 0;
+  Uint32 reserveConnectRecord = 0;
+  Uint32 reserveFailConnectRecord = 0;
+  Uint32 reserveCommitAckMarker = 0;
+  Uint32 reserveFailCommitAckMarker = 0;
+  Uint32 reserveIndexOperation = 0;
+  Uint32 reserveApiConnectRecord = 0;
+  Uint32 reserveFailApiConnectRecord = 0;
+  Uint32 reserveCacheRecord = 0;
+  Uint32 reserveFiredTriggerData = 0;
+  Uint32 reserveAttributeBuffer = 0;
+  Uint32 reserveCommitAckMarkerBuffer = 0;
+  Uint32 reserveFailCommitAckMarkerBuffer = 0;
+
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_FRAG_LOCATION, &reserveFragLocation));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_SCAN_FRAGMENT, &reserveScanFragment));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_SCAN_RECORD, &reserveScanRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_CONNECT_RECORD, &reserveConnectRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_COMMIT_ACK_MARKER, &reserveCommitAckMarker));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_INDEX_OPERATION, &reserveIndexOperation));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_API_CONNECT_RECORD, &reserveApiConnectRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_CACHE_RECORD, &reserveCacheRecord));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_FIRED_TRIGGER_DATA, &reserveFiredTriggerData));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_ATTRIBUTE_BUFFER, &reserveAttributeBuffer));
+  ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER, &reserveCommitAckMarkerBuffer));
+  if (does_take_over)
+  {
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_CONNECT_RECORD, &reserveFailConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER, &reserveFailCommitAckMarker));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_API_CONNECT_RECORD, &reserveFailApiConnectRecord));
+    ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER_BUFFER, &reserveFailCommitAckMarkerBuffer));
   }
 
   void *p;
@@ -190,11 +368,15 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   Pool_context pc;
   pc.m_block = this;
 
+  /**
+   * Double the count to c_apiConnectRecordPool since it has both user/api
+   * transaction records, and copy records.
+   */
   c_apiConnectRecordPool.init(
       ApiConnectRecord::TYPE_ID,
       pc,
-      noOfTransactions + noOfFailTransactions,
-      4 * noOfTransactions + noOfFailTransactions);
+      2 * reserveApiConnectRecord + reserveFailApiConnectRecord,
+      2 * maxApiConnectRecord + maxFailApiConnectRecord);
   while(c_apiConnectRecordPool.startup())
   {
     refresh_watch_dog();
@@ -203,8 +385,8 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_apiConTimersPool.init(
       ApiConTimers::TYPE_ID,
       pc,
-      (noOfTransactions + noOfFailTransactions + 5) /6,
-      (4 * noOfTransactions + noOfFailTransactions + 5) /6);
+      2 * CEIL_DIV(reserveApiConnectRecord, 6) + CEIL_DIV(reserveFailApiConnectRecord, 6),
+      2 * CEIL_DIV(maxApiConnectRecord, 6) + CEIL_DIV(maxFailApiConnectRecord, 6));
   while(c_apiConTimersPool.startup())
   {
     refresh_watch_dog();
@@ -214,14 +396,18 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theAttributeBufferPool.init(
     RT_DBTC_ATTRIBUTE_BUFFER,
     pc,
-    transactionBufferBytes / AttributeBuffer::getSegmentSize(),
-    4 * transactionBufferBytes / AttributeBuffer::getSegmentSize());
+    reserveAttributeBuffer / AttributeBuffer::getSegmentSize(),
+    maxAttributeBuffer / AttributeBuffer::getSegmentSize());
   while(c_theAttributeBufferPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, 4 * noOfTransactions);
+  c_cacheRecordPool.init(
+    CacheRecord::TYPE_ID,
+    pc,
+    2 * reserveCacheRecord,
+    2 * maxCacheRecord);
   while(c_cacheRecordPool.startup())
   {
     refresh_watch_dog();
@@ -230,19 +416,19 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   m_commitAckMarkerPool.init(
       CommitAckMarker::TYPE_ID,
       pc,
-      noOfTransactions,
-      4 * noOfTransactions);
+      2 * reserveCommitAckMarker + reserveFailCommitAckMarker,
+      2 * maxCommitAckMarker + maxFailCommitAckMarker);
   while(m_commitAckMarkerPool.startup())
   {
     refresh_watch_dog();
   }
 
-  m_commitAckMarkerHash.setSize(noOfTransactions);
+  m_commitAckMarkerHash.setSize(1024); // TODO(wl9756)
   c_theCommitAckMarkerBufferPool.init(
       RT_DBTC_COMMIT_ACK_MARKER_BUFFER,
       pc,
-      2 * noOfTransactions,
-      4 * 2 * noOfTransactions);
+      2 * reserveCommitAckMarkerBuffer + reserveFailCommitAckMarkerBuffer,
+      2 * maxCommitAckMarkerBuffer + maxFailCommitAckMarkerBuffer);
   while(c_theCommitAckMarkerBufferPool.startup())
   {
     refresh_watch_dog();
@@ -251,19 +437,19 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   tcConnectRecord.init(
       TcConnectRecord::TYPE_ID,
       pc,
-      noOfOperations + noOfFailOperations,
-      4 * noOfOperations + noOfFailOperations);
+      reserveConnectRecord + reserveFailConnectRecord,
+      maxConnectRecord + maxFailConnectRecord);
   while(tcConnectRecord.startup())
   {
     refresh_watch_dog();
   }
 
-  c_firedTriggerHash.setSize(noOfFiredTriggers);
+  c_firedTriggerHash.setSize(reserveFiredTriggerData); // TODO(wl9756)
   c_theFiredTriggerPool.init(
       TcFiredTriggerData::TYPE_ID,
       pc,
-      noOfFiredTriggers,
-      4 * noOfFiredTriggers);
+      reserveFiredTriggerData,
+      maxFiredTriggerData);
   while(c_theFiredTriggerPool.startup())
   {
     refresh_watch_dog();
@@ -272,8 +458,8 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   c_theIndexOperationPool.init(
       TcIndexOperation::TYPE_ID,
       pc,
-      noOfIndexOperations,
-      4 * noOfIndexOperations);
+      reserveIndexOperation,
+      maxIndexOperation);
   while(c_theIndexOperationPool.startup())
   {
     refresh_watch_dog();
@@ -282,20 +468,28 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
   m_fragLocationPool.init(
       RT_DBTC_FRAG_LOCATION,
       pc,
-      MAX(noOfScans, noOfLocalScans / NUM_FRAG_LOCATIONS_IN_ARRAY),
-      4 * MAX(noOfScans, noOfLocalScans / NUM_FRAG_LOCATIONS_IN_ARRAY));
+      reserveFragLocation,
+      maxFragLocation);
   while(m_fragLocationPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, noOfLocalScans, 4 * noOfLocalScans);
+  c_scan_frag_pool.init(
+    RT_DBTC_SCAN_FRAGMENT,
+    pc,
+    reserveScanFragment,
+    maxScanFragment);
   while(c_scan_frag_pool.startup())
   {
     refresh_watch_dog();
   }
 
-  scanRecordPool.init(ScanRecord::TYPE_ID, pc, noOfScans, 4 * noOfScans);
+  scanRecordPool.init(
+    ScanRecord::TYPE_ID,
+    pc,
+    reserveScanRecord,
+    maxScanRecord);
   while(scanRecordPool.startup())
   {
     refresh_watch_dog();

@@ -1022,28 +1022,11 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
  
   initData();
   
-  UintR apiConnectFail;
-  UintR tcConnectFail;
   UintR tables;
 
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT_FAIL, &apiConnectFail));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT_FAIL, &tcConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
 
-  ctcConnectFailCount = tcConnectFail;
   ctabrecFilesize     = tables;
-
-  if (instance() < 2)
-  {
-    // Only first Dbtc instance does take over
-    ctcConnectFailCount = tcConnectFail;
-    capiConnectFailCount = apiConnectFail;
-  }
-  else
-  {
-    ctcConnectFailCount = 0;
-    capiConnectFailCount = 0;
-  }
 
   initRecords(p);
   initialiseRecordsLab(signal, 0, ref, senderData);
@@ -1070,9 +1053,9 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
 
   if (m_max_writes_per_trans == ~(Uint32)0)
   {
-    m_max_writes_per_trans = tcConnectFail;
+    m_max_writes_per_trans = ctcConnectFailCount;
   }
-  ndbrequire(m_max_writes_per_trans <= tcConnectFail);
+  ndbrequire(m_max_writes_per_trans <= ctcConnectFailCount);
 
   ctimeOutCheckDelay = 50; // 500ms
   ctimeOutCheckDelayScan = 40; // 400ms
@@ -12482,7 +12465,6 @@ void Dbtc::releaseTakeOver(Signal* signal, ApiConnectRecordPtr const apiConnectp
 void Dbtc::setupFailData(Signal* signal, ApiConnectRecord* const regApiPtr)
 {
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
-ndbrequire(!regApiPtr->tcConnect.isEmpty());
   ndbrequire(tcConList.first(tcConnectptr));
   do {
     switch (tcConnectptr.p->tcConnectstate) {

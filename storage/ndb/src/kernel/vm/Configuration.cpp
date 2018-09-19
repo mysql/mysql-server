@@ -708,24 +708,24 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfMGMNodes = 0;
   unsigned int noOfNodes = 0;
   unsigned int noOfAttributes = 0;
-  unsigned int noOfOperations = 0;
-  unsigned int noOfLocalOperations = 0;
-  unsigned int noOfTransactions = 0;
+  unsigned int noOfOperations = 32768;
+  unsigned int noOfLocalOperations = 32;
+  unsigned int noOfTransactions = 4096;
   unsigned int noOfIndexPages = 0;
   unsigned int noOfDataPages = 0;
-  unsigned int noOfScanRecords = 0;
-  unsigned int noOfLocalScanRecords = 0;
+  unsigned int noOfScanRecords = 256;
+  unsigned int noOfLocalScanRecords = 32;
   unsigned int noBatchSize = 0;
-  unsigned int noOfIndexOperations = 0;
-  unsigned int noOfTriggerOperations = 0;
-  unsigned int reservedScanRecords = 0;
-  unsigned int reservedLocalScanRecords = 0;
-  unsigned int reservedOperations = 0;
-  unsigned int reservedTransactions = 0;
-  unsigned int reservedIndexOperations = 0;
-  unsigned int reservedTriggerOperations = 0;
-  unsigned int transactionBufferBytes = 0;
-  unsigned int reservedTransactionBufferBytes = 0;
+  unsigned int noOfIndexOperations = 8192;
+  unsigned int noOfTriggerOperations = 4000;
+  unsigned int reservedScanRecords = 256 / 4;
+  unsigned int reservedLocalScanRecords = 32 / 4;
+  unsigned int reservedOperations = 32768 / 4;
+  unsigned int reservedTransactions = 4096 / 4;
+  unsigned int reservedIndexOperations = 8192 / 4;
+  unsigned int reservedTriggerOperations = 4000 / 4;
+  unsigned int transactionBufferBytes = 1048576;
+  unsigned int reservedTransactionBufferBytes = 1048576 / 4;
   unsigned int maxOpsPerTrans = ~(Uint32)0;
 
   m_logLevel = new LogLevel();
@@ -928,6 +928,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       noOfLocalOperations= (11 * noOfOperations) / 10;
   }
 
+  const Uint32 noOfTCLocalScanRecords = noOfLocalScanRecords;
+  const Uint32 noOfTCScanRecords = noOfScanRecords;
+
   // ReservedXXX defaults to 25% of MaxNoOfXXX
   if (reservedScanRecords == 0)
   {
@@ -1059,21 +1062,87 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, buf);
     }
 
+    cfg.put(CFG_TC_TARGET_FRAG_LOCATION, Uint32(0));
+    cfg.put(CFG_TC_MAX_FRAG_LOCATION, UINT32_MAX);
+    cfg.put(CFG_TC_RESERVED_FRAG_LOCATION, Uint32(0));
+
+    cfg.put(CFG_TC_TARGET_SCAN_FRAGMENT, noOfTCLocalScanRecords);
+    cfg.put(CFG_TC_MAX_SCAN_FRAGMENT, noOfTCLocalScanRecords);
+    cfg.put(CFG_TC_RESERVED_SCAN_FRAGMENT, noOfTCLocalScanRecords / (4 * tcInstances)); // TODO(wl9756)
+
+    cfg.put(CFG_TC_TARGET_SCAN_RECORD, noOfTCScanRecords);
+    cfg.put(CFG_TC_MAX_SCAN_RECORD, noOfTCScanRecords);
+    cfg.put(CFG_TC_RESERVED_SCAN_RECORD, noOfTCScanRecords / (4 * tcInstances)); // TODO(wl9756)
+
+    cfg.put(CFG_TC_TARGET_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
+    cfg.put(CFG_TC_MAX_CONNECT_RECORD, noOfOperations + 16 + noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_CONNECT_RECORD, (noOfOperations + 16 + noOfTransactions) / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_TO_CONNECT_RECORD, noOfOperations);
+    cfg.put(CFG_TC_MAX_TO_CONNECT_RECORD, noOfOperations);
+    cfg.put(CFG_TC_RESERVED_TO_CONNECT_RECORD, noOfOperations);
+
+    cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER, noOfTransactions);
+    cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER, noOfTransactions / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER, Uint32(0));
+    cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER, Uint32(0));
+    cfg.put(CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER, Uint32(0));
+
+    cfg.put(CFG_TC_TARGET_INDEX_OPERATION, noOfIndexOperations);
+    cfg.put(CFG_TC_MAX_INDEX_OPERATION, noOfIndexOperations);
+    cfg.put(CFG_TC_RESERVED_INDEX_OPERATION, noOfIndexOperations / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_MAX_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_API_CONNECT_RECORD, noOfTransactions / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_TO_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_MAX_TO_API_CONNECT_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_TO_API_CONNECT_RECORD, noOfTransactions);
+
+    cfg.put(CFG_TC_TARGET_CACHE_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_MAX_CACHE_RECORD, noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_CACHE_RECORD, noOfTransactions / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_FIRED_TRIGGER_DATA, noOfTriggerOperations);
+    cfg.put(CFG_TC_MAX_FIRED_TRIGGER_DATA, noOfTriggerOperations);
+    cfg.put(CFG_TC_RESERVED_FIRED_TRIGGER_DATA, noOfTriggerOperations / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_ATTRIBUTE_BUFFER, transactionBufferBytes);
+    cfg.put(CFG_TC_MAX_ATTRIBUTE_BUFFER, transactionBufferBytes);
+    cfg.put(CFG_TC_RESERVED_ATTRIBUTE_BUFFER, transactionBufferBytes / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions);
+    cfg.put(CFG_TC_MAX_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions);
+    cfg.put(CFG_TC_RESERVED_COMMIT_ACK_MARKER_BUFFER, 2 * noOfTransactions / (4 * tcInstances));
+
+    cfg.put(CFG_TC_TARGET_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+    cfg.put(CFG_TC_MAX_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+    cfg.put(CFG_TC_RESERVED_TO_COMMIT_ACK_MARKER_BUFFER, Uint32(0));
+
+#if 0
     cfg.put(CFG_TC_API_CONNECT, reservedTransactions / tcInstances);
     cfg.put(CFG_TC_API_CONNECT_FAIL, reservedTransactions / tcInstances);
 
     cfg.put(CFG_TC_TC_CONNECT, reservedOperations / tcInstances);
     cfg.put(CFG_TC_TC_CONNECT_FAIL, maxOpsPerTrans);
+#endif
     
     cfg.put(CFG_TC_TABLE, 
 	    noOfMetaTables);
     
+#if 0
     cfg.put(CFG_TC_LOCAL_SCAN, reservedLocalScanRecords / tcInstances);
     
     cfg.put(CFG_TC_SCAN, reservedScanRecords / tcInstances);
 
     cfg.put(CFG_TC_TRANS_BUFFER,
             (reservedTransactionBufferBytes / tcInstances));
+
+    cfg.put(CFG_TC_LOCAL_SCAN, 1000);
+#endif
   }
   
   {
