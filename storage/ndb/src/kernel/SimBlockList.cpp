@@ -205,6 +205,7 @@ SimBlockList::unload(){
 
 Uint64 SimBlockList::getTransactionMemoryNeed(
   const Uint32 dbtc_instance_count,
+  const ndb_mgm_configuration_iterator * mgm_cfg,
   const Uint32 MaxDMLOperationsPerTransaction,
   const Uint32 MaxNoOfConcurrentIndexOperations,
   const Uint32 MaxNoOfConcurrentOperations,
@@ -216,6 +217,7 @@ Uint64 SimBlockList::getTransactionMemoryNeed(
 {
   Uint64 byte_count = Dbtc::getTransactionMemoryNeed(
   dbtc_instance_count,
+  mgm_cfg,
   MaxDMLOperationsPerTransaction,
   MaxNoOfConcurrentIndexOperations,
   MaxNoOfConcurrentOperations,

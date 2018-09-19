@@ -488,6 +488,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint64 transmem_bytes =
       globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
         tcInstances,
+        p,
         MaxDMLOperationsPerTransaction,
         MaxNoOfConcurrentIndexOperations,
         MaxNoOfConcurrentOperations,
