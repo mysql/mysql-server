@@ -72,7 +72,7 @@ Uint64 Dbtc::getTransactionMemoryNeed(
   byte_count += ScanFragLocation_pool::getMemoryNeed(MaxNoOfConcurrentScans);
   byte_count += ScanFragRec_pool::getMemoryNeed(MaxNoOfLocalScans);
   byte_count += ScanRecord_pool::getMemoryNeed(MaxNoOfConcurrentScans);
-  byte_count += GcpRecord_pool::getMemoryNeed(1); // ZGCP_FILESIZE);
+  byte_count += GcpRecord_pool::getMemoryNeed(ZGCP_FILESIZE); // TODO(wl9756)
 
   Uint64 byte_total = dbtc_instance_count * byte_count + byte_count_to;
 
@@ -194,7 +194,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       ApiConnectRecord::TYPE_ID,
       pc,
       noOfTransactions + noOfFailTransactions,
-      UINT32_MAX);
+      4 * noOfTransactions + noOfFailTransactions);
   while(c_apiConnectRecordPool.startup())
   {
     refresh_watch_dog();
@@ -204,7 +204,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       ApiConTimers::TYPE_ID,
       pc,
       (noOfTransactions + noOfFailTransactions + 5) /6,
-      UINT32_MAX);
+      (4 * noOfTransactions + noOfFailTransactions + 5) /6);
   while(c_apiConTimersPool.startup())
   {
     refresh_watch_dog();
@@ -215,13 +215,13 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     RT_DBTC_ATTRIBUTE_BUFFER,
     pc,
     transactionBufferBytes / AttributeBuffer::getSegmentSize(),
-      UINT32_MAX);
+    4 * transactionBufferBytes / AttributeBuffer::getSegmentSize());
   while(c_theAttributeBufferPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 0, 4 * noOfTransactions);
   while(c_cacheRecordPool.startup())
   {
     refresh_watch_dog();
@@ -231,7 +231,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       CommitAckMarker::TYPE_ID,
       pc,
       noOfTransactions,
-      UINT32_MAX);
+      4 * noOfTransactions);
   while(m_commitAckMarkerPool.startup())
   {
     refresh_watch_dog();
@@ -242,7 +242,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       RT_DBTC_COMMIT_ACK_MARKER_BUFFER,
       pc,
       2 * noOfTransactions,
-      UINT32_MAX);
+      4 * 2 * noOfTransactions);
   while(c_theCommitAckMarkerBufferPool.startup())
   {
     refresh_watch_dog();
@@ -252,7 +252,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       TcConnectRecord::TYPE_ID,
       pc,
       noOfOperations + noOfFailOperations,
-      UINT32_MAX);
+      4 * noOfOperations + noOfFailOperations);
   while(tcConnectRecord.startup())
   {
     refresh_watch_dog();
@@ -263,7 +263,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       TcFiredTriggerData::TYPE_ID,
       pc,
       noOfFiredTriggers,
-      UINT32_MAX);
+      4 * noOfFiredTriggers);
   while(c_theFiredTriggerPool.startup())
   {
     refresh_watch_dog();
@@ -273,7 +273,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       TcIndexOperation::TYPE_ID,
       pc,
       noOfIndexOperations,
-      UINT32_MAX);
+      4 * noOfIndexOperations);
   while(c_theIndexOperationPool.startup())
   {
     refresh_watch_dog();
@@ -283,25 +283,25 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
       RT_DBTC_FRAG_LOCATION,
       pc,
       MAX(noOfScans, noOfLocalScans / NUM_FRAG_LOCATIONS_IN_ARRAY),
-      UINT32_MAX);
+      4 * MAX(noOfScans, noOfLocalScans / NUM_FRAG_LOCATIONS_IN_ARRAY));
   while(m_fragLocationPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, noOfLocalScans, UINT32_MAX);
+  c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, noOfLocalScans, 4 * noOfLocalScans);
   while(c_scan_frag_pool.startup())
   {
     refresh_watch_dog();
   }
 
-  scanRecordPool.init(ScanRecord::TYPE_ID, pc, noOfScans, UINT32_MAX);
+  scanRecordPool.init(ScanRecord::TYPE_ID, pc, noOfScans, 4 * noOfScans);
   while(scanRecordPool.startup())
   {
     refresh_watch_dog();
   }
 
-  c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 1, UINT32_MAX);
+  c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 1, ZGCP_FILESIZE);
   while(c_gcpRecordPool.startup())
   {
     refresh_watch_dog();

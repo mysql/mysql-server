@@ -68,6 +68,7 @@
 #define ZCOMMITING 0			 /* VALUE FOR TRANSTATUS        */
 #define ZCOMMIT_SETUP 2
 #define ZCONTINUE_ABORT_080 4
+#define ZGCP_FILESIZE 10
 #define ZINTSPH1 1
 #define ZINTSPH2 2
 #define ZINTSPH3 3
