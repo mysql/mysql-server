@@ -170,7 +170,7 @@ TEST_F(Cursor_test_suite,
   const auto type = Mysqlx::Prepare::Prepare::OneOfMessage::STMT;
   m_handler.insert_prepared_statement(
       stmt_id, Prepare_command_handler::Prepared_stmt_info{
-                   resultset_stmt_id, type, {}, 1, true, cursor_id});
+                   resultset_stmt_id, type, {}, 1, true, true, cursor_id});
 
   EXPECT_CALL(m_mock_session, data_context())
       .WillRepeatedly(ReturnRef(m_mock_data_context));
@@ -227,7 +227,7 @@ TEST_F(Cursor_test_suite, fetch_cursor) {
   const auto type = Mysqlx::Prepare::Prepare::OneOfMessage::STMT;
   m_handler.insert_prepared_statement(
       stmt_id, Prepare_command_handler::Prepared_stmt_info{
-                   resultset_stmt_id, type, {}, 1, true, cursor_id});
+                   resultset_stmt_id, type, {}, 1, true, true, cursor_id});
 
   EXPECT_CALL(m_mock_session,
               update_status(&ngs::Common_status_variables::m_cursor_fetch));
