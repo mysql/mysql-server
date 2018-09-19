@@ -818,11 +818,7 @@ class Sys_var_charptr : public sys_var {
 
   void global_save_default(THD *, set_var *var) {
     char *ptr = (char *)(intptr)option.def_value;
-    /*
-     TODO: default values should not be null. Fix all and turn this into an
-     assert
-    */
-    var->save_result.string_value.str = ptr ? ptr : const_cast<char *>("");
+    var->save_result.string_value.str = ptr;
     var->save_result.string_value.length = ptr ? strlen(ptr) : 0;
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) {
