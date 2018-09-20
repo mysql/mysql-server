@@ -1368,13 +1368,16 @@ static bool fix_fk_parent_key_names(THD *thd, const String_type &schema_name,
     which reference the table being upgraded here. Also adjust the
     foreign key parent collection, both for this table and for other
     tables being referenced by this one.
+    Check that charsets of child and parent columns in foreign keys
+    match. If there is discrepancy in charsets between these columns
+    it is supposed to be fixed before upgrade is attempted.
   */
-  if (adjust_fk_children_after_parent_def_change(thd, schema_name.c_str(),
-                                                 table_name.c_str(), hton,
-                                                 table_def, nullptr,
-                                                 false) ||  // Don't invalidate
-                                                            // TDC we don't have
-                                                            // proper MDL.
+  if (adjust_fk_children_after_parent_def_change(
+          thd, true,  // Check charsets.
+          schema_name.c_str(), table_name.c_str(), hton, table_def, nullptr,
+          false) ||  // Don't invalidate
+                     // TDC we don't have
+                     // proper MDL.
       adjust_fk_parents(thd, schema_name.c_str(), table_name.c_str(), true,
                         nullptr)) {
     trans_rollback_stmt(thd);

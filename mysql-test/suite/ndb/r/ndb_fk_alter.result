@@ -119,7 +119,7 @@ ALTER TABLE t1 DROP COLUMN col1;
 ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't2'
 # Attempt to modify col1, should give error
 ALTER TABLE t1 MODIFY COLUMN col1 bigint;
-ERROR HY000: Cannot change column 'col1': used in a foreign key constraint 'fk1' of table 'test.t2'
+ERROR HY000: Referencing column 'col2' and referenced column 'col1' in foreign key constraint 'fk1' are incompatible.
 # Drop the column t1.col3
 ALTER TABLE t1 DROP COLUMN col3;
 # Drop t2.col2
@@ -145,7 +145,7 @@ ALTER TABLE t1 DROP COLUMN col1;
 ERROR HY000: Cannot drop column 'col1': needed in a foreign key constraint 'fk1' of table 't2'
 # Attempt to modify col1, should give error
 ALTER TABLE t1 MODIFY COLUMN col1 bigint;
-ERROR HY000: Cannot change column 'col1': used in a foreign key constraint 'fk1' of table 'test.t2'
+ERROR HY000: Referencing column 'col2' and referenced column 'col1' in foreign key constraint 'fk1' are incompatible.
 # Drop the column t1.col3
 ALTER TABLE t1 DROP COLUMN col3;
 # Drop t2.col2

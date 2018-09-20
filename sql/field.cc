@@ -54,6 +54,7 @@
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/table.h"
+#include "sql/dd_table_share.h"     // dd_get_old_field_type
 #include "sql/derror.h"             // ER_THD
 #include "sql/filesort.h"           // change_double_for_sort
 #include "sql/gis/rtree_support.h"  // get_mbr_from_store
@@ -9845,6 +9846,52 @@ size_t calc_pack_length(enum_field_types type, size_t length) {
     default:
       return 0;
   }
+}
+
+size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
+                        size_t elements_count, bool treat_bit_as_char,
+                        uint numeric_scale, bool is_unsigned) {
+  size_t pack_length = 0;
+
+  switch (type) {
+    case dd::enum_column_types::TINY_BLOB:
+    case dd::enum_column_types::MEDIUM_BLOB:
+    case dd::enum_column_types::LONG_BLOB:
+    case dd::enum_column_types::BLOB:
+    case dd::enum_column_types::GEOMETRY:
+    case dd::enum_column_types::VAR_STRING:
+    case dd::enum_column_types::STRING:
+    case dd::enum_column_types::VARCHAR:
+      // The length is already calculated in number of bytes, no need
+      // to multiply by number of bytes per symbol.
+      pack_length = calc_pack_length(dd_get_old_field_type(type), char_length);
+      break;
+    case dd::enum_column_types::ENUM:
+      pack_length = get_enum_pack_length(elements_count);
+      break;
+    case dd::enum_column_types::SET:
+      pack_length = get_set_pack_length(elements_count);
+      break;
+    case dd::enum_column_types::BIT: {
+      if (treat_bit_as_char)
+        pack_length = ((char_length + 7) & ~7) / 8;
+      else
+        pack_length = char_length / 8;
+    } break;
+    case dd::enum_column_types::NEWDECIMAL: {
+      uint decimals = numeric_scale;
+      ulong precision =
+          my_decimal_length_to_precision(char_length, decimals, is_unsigned);
+      set_if_smaller(precision, DECIMAL_MAX_PRECISION);
+      DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
+                  (decimals <= DECIMAL_MAX_SCALE));
+      pack_length = my_decimal_get_binary_size(precision, decimals);
+    } break;
+    default:
+      pack_length = calc_pack_length(dd_get_old_field_type(type), char_length);
+      break;
+  }
+  return pack_length;
 }
 
 /**

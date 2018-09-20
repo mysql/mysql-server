@@ -363,7 +363,7 @@ dd::String_type get_sql_type_by_create_field(TABLE *table, Create_field *field);
   @retval true   If numeric scale is not calculated;
 */
 
-bool get_field_numeric_scale(Create_field *field, uint *scale);
+bool get_field_numeric_scale(const Create_field *field, uint *scale);
 
 /**
   Helper method to get numeric precision for types using Create_field type
@@ -376,7 +376,8 @@ bool get_field_numeric_scale(Create_field *field, uint *scale);
   @retval true   If numeric precision is not calculated;
 */
 
-bool get_field_numeric_precision(Create_field *field, uint *numeric_precision);
+bool get_field_numeric_precision(const Create_field *field,
+                                 uint *numeric_precision);
 
 /**
   Helper method to get datetime precision for types using Create_field type
@@ -389,7 +390,7 @@ bool get_field_numeric_precision(Create_field *field, uint *numeric_precision);
   @retval true   If datetime precision is not calculated;
 */
 
-bool get_field_datetime_precision(Create_field *field,
+bool get_field_datetime_precision(const Create_field *field,
                                   uint *datetime_precision);
 
 using Encrypt_result = ResultType<bool>;

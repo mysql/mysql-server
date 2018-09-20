@@ -4718,6 +4718,33 @@ class Copy_field {
 
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
+
+/**
+  Calculate the length of the in-memory representation of the column from
+  information which can be retrieved from dd::Column or Ha_fk_column_type
+  describing it.
+
+  This function calculates the amount of memory necessary to store values
+  in the record buffer. It is used in cases when we want to calculate
+  this value from the description of column in the form compatible with
+  dd::Column without constructing full-blown Field object.
+
+  @note The implementation is based on Create_field::init() and
+        Create_field::create_length_to_internal_length().
+
+  @param type               Column DD type.
+  @param char_length        Column length as stored in DD.
+  @param elements_count     Number of elements in column of ENUM/SET type.
+  @param treat_bit_as_char  Indicates whether this BIT column is represented
+                            as char column internally.
+  @param numeric_scale      Column numeric scale as stored in DD.
+  @param is_unsigned        Column unsignedness.
+*/
+
+size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
+                        size_t elements_count, bool treat_bit_as_char,
+                        uint numeric_scale, bool is_unsigned);
+
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
                        uint32 decimals, bool is_unsigned, uint32 elements);
 type_conversion_status set_field_to_null(Field *field);

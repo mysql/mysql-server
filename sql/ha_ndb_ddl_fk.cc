@@ -1647,6 +1647,8 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       {
         if (parentcols[i]->isBindable(* childcols[i]) == -1)
         {
+          // Should never happen thanks to SQL-layer doing compatibility check.
+          DBUG_ASSERT(0);
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CANNOT_ADD_FOREIGN,
                               "Parent column %s.%s is incompatible with child column %s.%s in NDB",

@@ -571,7 +571,7 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fname`) REFERENCES `t1` (`name`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
-ERROR HY000: Cannot change column 'fname': used in a foreign key constraint 't2_ibfk_1'
+ERROR HY000: Referencing column 'fname' and referenced column 'name' in foreign key constraint 't2_ibfk_1' are incompatible.
 SET foreign_key_checks= OFF;
 ALTER TABLE t2 CONVERT TO CHARACTER SET latin1;
 SET foreign_key_checks= ON;
@@ -3614,6 +3614,482 @@ ERROR HY000: Column 'fk' cannot be NOT NULL: needed in a foreign key constraint 
 ALTER TABLE child_two ADD PRIMARY KEY(fk);
 ERROR HY000: Column 'fk' cannot be NOT NULL: needed in a foreign key constraint 'child_two_ibfk_1' SET NULL
 DROP TABLES child_one, child_two, parent;
+#
+# 7) Test that we check that referencing and referenced column types are
+#    compatible. Such check should be performed for newly created foreign
+#    keys and when we change types of columns in existing foreign keys.
+#
+#
+# 7.a) Attempt to create new foreign key between columns of incompatible
+#      types should lead to error. This should happen even in
+#      FOREIGN_KEY_CHECKS=0 mode.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE child (fk CHAR(10));
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10), FOREIGN KEY (fk) REFERENCES self(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10), FOREIGN KEY (fk) REFERENCES self(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE self (pk INT PRIMARY KEY, fk CHAR(10));
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES self, child;
+#
+# 7.b) Attempt to change referencing or referenced column in existing
+#      foreign key to incompatible type should lead to error. This
+#      should also happen in FOREIGN_KEY_CHECKS=0 mode in general case
+#      (there is exception for charset changes which we test below).
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE child MODIFY fk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE child MODIFY fk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE self (pk INT PRIMARY KEY, fk INT, FOREIGN KEY (fk) REFERENCES self(pk));
+ALTER TABLE self MODIFY fk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+ALTER TABLE self MODIFY pk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE self MODIFY fk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+ALTER TABLE self MODIFY pk CHAR(10);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'self_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+# Modifying types of both referencing and referenced columns to
+# to compatible types is OK. However FOREIGN_KEY_CHECKS=0 is needed
+# to avoid error about possible FK violation due to data conversion.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE self MODIFY pk CHAR(10), MODIFY fk CHAR(10);
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent, self;
+#
+# 7.c) Test compatibility checks for multi-column foreign keys.
+CREATE TABLE parent (pk1 INT, pk2 INT, PRIMARY KEY (pk1, pk2));
+CREATE TABLE child (fk1 INT, fk2 CHAR(10), FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2));
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk1 INT, fk2 CHAR(10));
+ALTER TABLE child ADD FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE child;
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent(pk1, pk2));
+ALTER TABLE child MODIFY fk2 CHAR(10);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk2 CHAR(10);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE child, parent;
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 CHAR(10), PRIMARY KEY (pk1, pk2),
+FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2));
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'self_ibfk_1' are incompatible.
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 CHAR(10), PRIMARY KEY (pk1, pk2));
+ALTER TABLE self ADD FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'self_ibfk_1' are incompatible.
+DROP TABLE self;
+CREATE TABLE self (pk1 INT, pk2 INT, fk1 INT, fk2 INT, PRIMARY KEY (pk1, pk2),
+FOREIGN KEY (fk1, fk2) REFERENCES self(pk1, pk2));
+ALTER TABLE self MODIFY fk2 CHAR(10);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'self_ibfk_1' are incompatible.
+ALTER TABLE self MODIFY pk2 CHAR(10);
+ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'self_ibfk_1' are incompatible.
+DROP TABLE self;
+#
+# 7.d) It should be impossible to create foreign keys with incompatible
+#      column types by adding parent to previously orphan foreign key.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+CREATE TABLE parent (pk INT PRIMARY KEY);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE parent0 (pk INT PRIMARY KEY);
+ALTER TABLE parent0 RENAME TO parent;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+RENAME TABLE parent0 TO parent;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLES child, parent0;
+SET FOREIGN_KEY_CHECKS=1;
+#
+# 7.e) Test how compatibility rules work for various types.
+#      Different engines have different rules, so the below
+#      part of test is specific to InnoDB.
+#
+# We don't check compatibility for BLOB based types as they only
+# support prefix indexes which are not usable for foreign keys.
+# Also we don't provide coverage for legacy types.
+#
+# 7.e.I) For integer types both type size and signedness should match.
+CREATE TABLE parent (pk INT PRIMARY KEY);
+# Foreign keys over integer types are supported.
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+CREATE TABLE child (fk TINYINT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIGINT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk INT UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk INT UNSIGNED;
+CREATE TABLE child (fk INT UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE child MODIFY fk INT;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE child, parent;
+# Integer types are not compatible with most of other types
+# (we check types with same storage requirements as INT below).
+CREATE TABLE parent (pk INT PRIMARY KEY);
+CREATE TABLE child (fk BINARY(4), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARBINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+# Oddly enough, some integer types are compatible with some temporal
+# types, enums and sets. However, this is probably a bug and not a
+# feature, so we don't test it here.
+DROP TABLE parent;
+#
+# 7.e.II) For floating point types only the exact type matters.
+CREATE TABLE parent (pk DOUBLE PRIMARY KEY);
+# Though using such types in foreign key is EXTREMELY bad idea they
+# are supported.
+CREATE TABLE child (fk DOUBLE, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+# Signedness doesn't matter.
+CREATE TABLE child (fk DOUBLE UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+# Floating point types are not compatible with other types.
+# (we check types with same storage requirements as FLOAT below).
+CREATE TABLE parent (pk FLOAT PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BINARY(4), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARBINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIME(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.III) Compatibility rules for DECIMAL type are broken.
+#
+#          InnoDB considers this type to be binary string type.
+#          So it doesn't take into account precision and scale.
+#          And it is hard to imagine that comparing binary strings
+#          representing DECIMAL(10,9) and DECIMAL(10,1) can work
+#          correctly. Making this type compatible with other binary
+#          string types, some temporals and BIT type is probably a
+#          bad idea too.
+CREATE TABLE parent (pk DECIMAL(6,2) PRIMARY KEY);
+# Foreign keys over DECIMAL columns are supported.
+CREATE TABLE child (fk DECIMAL(6,2), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+# Signedness doesn't matter.
+CREATE TABLE child (fk DECIMAL(6,2) UNSIGNED, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+# DECIMAL type is not compatible with many other types.
+# (we check types with same storage requirements as DECIMAL(6,2) below).
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.IV) All string types are compatible with each other provided
+#         that charset matches (there are exceptions to the latter
+#         rule, see below).
+CREATE TABLE parent (pk CHAR(10) PRIMARY KEY);
+# Difference in size doesn't matter.
+CREATE TABLE child (fk CHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+# Difference in type doesn't matter
+DROP TABLE child;
+CREATE TABLE child (fk VARCHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+# Even VARCHARs which use different number of bytes to store length
+# are compatible.
+CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child, parent;
+# However both columns must use the same collation.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(100) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARCHAR(100) COLLATE utf8mb4_bin, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+# Binary strings are not compatible with non-binary strings.
+CREATE TABLE child (fk VARBINARY(40), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+# But all binary string types are compatible.
+CREATE TABLE parent (pk VARBINARY(10) PRIMARY KEY);
+CREATE TABLE child (fk BINARY(100), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLES child, parent;
+# Non-binary string types are incompatible with non-string types.
+CREATE TABLE parent (pk CHAR(4) CHARACTER SET latin1 PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(8,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIME(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(32), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk CHAR(1) CHARACTER SET latin1;
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk ENUM('a') CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk SET('a') CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+# Binary string types are incompatible with many non-string types.
+CREATE TABLE parent (pk BINARY(4) PRIMARY KEY);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE parent MODIFY pk BINARY(1);
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk ENUM('a') CHARACTER SET binary, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk SET('a') CHARACTER SET binary, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+# Since we think that binary string compatibility with DECIMAL and some temporal types
+# is probably a bug, we don't cover it here.
+DROP TABLE parent;
+#
+# 7.e.V) Compatibility rules for some of temporal types are broken.
+#
+#        InnoDB considers TIME, TIMESTAMP and DATETIME types to be
+#        binary strings. As result they are compatible with each other
+#        (no matter what scale is used), binary string, DECIMAL and BIT
+#        types, which makes little sense.
+#        YEAR and DATE types are considered to be integer types which
+#        makes them compatible with some other integer types, enums and
+#        sets, which is probably bad idea too.
+#
+#        YEAR and DATE are only compatible with itself (and integer types,
+#        enums and sets with the same storage size which is probably a bug);
+CREATE TABLE parent(pk DATE PRIMARY KEY);
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+CREATE TABLE child (fk YEAR, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BINARY(3), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARBINARY(2), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(6,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIME(0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(24), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#        TIME, TIMESTAMP and DATETIME types are compatible only
+#        with other types which InnoDB considers binary strings.
+#        Their scale doesn't matter (which is probably a bug).
+CREATE TABLE parent (pk TIMESTAMP PRIMARY KEY);
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk ENUM('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk SET('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.VI) Columns of ENUM type are compatible if storage size is
+#         the same.
+#
+# They are also compatible with some integer types, but it is not
+# clear if it is a bug or feature.
+#
+CREATE TABLE parent(pk ENUM('a') PRIMARY KEY);
+# Foreign key over ENUMs are supported, element names and count do
+# not matter provided that storage size is the same.
+CREATE TABLE child (fk ENUM('b','c'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+# Storage size should match.
+CREATE TABLE child (fk ENUM('a1','a2','a3','a4','a5','a6','a7','a8','a9','a10','a11','a12','a13','a14','a15','a16','a17','a18','a19','a20','a21','a22','a23','a24','a25','a26','a27','a28','a29','a30','a31','a32','a33','a34','a35','a36','a37','a38','a39','a40','a41','a42','a43','a44','a45','a46','a47','a48','a49','a50','a51','a52','a53','a54','a55','a56','a57','a58','a59','a60','a61','a62','a63','a64','a65','a66','a67','a68','a69','a70','a71','a72','a73','a74','a75','a76','a77','a78','a79','a80','a81','a82','a83','a84','a85','a86','a87','a88','a89','a90','a91','a92','a93','a94','a95','a96','a97','a98','a99','a100','a101','a102','a103','a104','a105','a106','a107','a108','a109','a110','a111','a112','a113','a114','a115','a116','a117','a118','a119','a120','a121','a122','a123','a124','a125','a126','a127','a128','a129','a130','a131','a132','a133','a134','a135','a136','a137','a138','a139','a140','a141','a142','a143','a144','a145','a146','a147','a148','a149','a150','a151','a152','a153','a154','a155','a156','a157','a158','a159','a160','a161','a162','a163','a164','a165','a166','a167','a168','a169','a170','a171','a172','a173','a174','a175','a176','a177','a178','a179','a180','a181','a182','a183','a184','a185','a186','a187','a188','a189','a190','a191','a192','a193','a194','a195','a196','a197','a198','a199','a200','a201','a202','a203','a204','a205','a206','a207','a208','a209','a210','a211','a212','a213','a214','a215','a216','a217','a218','a219','a220','a221','a222','a223','a224','a225','a226','a227','a228','a229','a230','a231','a232','a233','a234','a235','a236','a237','a238','a239','a240','a241','a242','a243','a244','a245','a246','a247','a248','a249','a250','a251','a252','a253','a254','a255','a256'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARBINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(2,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIME, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(8), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.VII) Columns of SET type are compatible if storage size is
+#          the same.
+#
+# They are also compatible with some integer types, but it is not
+# clear if it is a bug or feature.
+#
+CREATE TABLE parent(pk SET('a') PRIMARY KEY);
+# Foreign key over SETs are supported, element names and count do
+# not matter provided that storage size is the same.
+CREATE TABLE child (fk SET('b','c'), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+# Storage size should match.
+CREATE TABLE child (fk SET('a1','a2','a3','a4','a5','a6','a7','a8','a9'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARBINARY(1), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DECIMAL(2,0), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIME, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk BIT(8), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.VIII) Columns of BIT type are compatible with each other
+#           independently of size.
+#
+# They are considered binary strings so compatible with other
+# binary string types (which might make sense). They are also
+# compatible with some temporals and DECIMAL type, which makes
+# little sense.
+CREATE TABLE parent(pk BIT(32) PRIMARY KEY);
+# Column size doesn't matter.
+CREATE TABLE child (fk BIT(10), FOREIGN KEY (fk) REFERENCES parent(pk));
+DROP TABLE child;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk DATE, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk CHAR(4) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARCHAR(3) CHARACTER SET latin1, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk FLOAT, FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk ENUM('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk SET('a'), FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# 7.e.IX) In FOREIGN_KEY_CHECKS=0 mode InnoDB allows to change charsets
+#         of string columns in existing foreign keys. Allowing such
+#         temporary discrepancies is necessary as in general case there
+#         is no way to change charset of both child and parent columns
+#         simultaneously. Such discrepancies are still prohibited
+#         in newly created foreign keys.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET latin1 PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET latin1,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET utf8mb4;
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET utf8mb4;
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET latin1;
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET latin1;
+DROP TABLE child;
+# Adding new foreign key with discrepancies is not allowed
+# even in FOREIGN_KEY_CHECKS=0 mode.
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET utf8mb4,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET utf8mb4);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(pk);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE child, parent;
+# One cannot create such discrepancy when adding parent to
+# orphan foreign key.
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET latin1,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+CREATE TABLE parent0 (pk VARCHAR(10) CHARACTER SET utf8mb4 PRIMARY KEY);
+RENAME TABLE parent0 TO parent;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLES child, parent0;
+# This exception doesn't apply to binary strings though.
+CREATE TABLE parent (pk VARCHAR(10) CHARACTER SET binary PRIMARY KEY);
+CREATE TABLE child (fk VARCHAR(20) CHARACTER SET binary,
+FOREIGN KEY (fk) REFERENCES parent(pk));
+ALTER TABLE parent MODIFY pk VARCHAR(10) CHARACTER SET utf8mb4;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+ALTER TABLE child MODIFY fk VARCHAR(20) CHARACTER SET utf8mb4;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLES child, parent;
 #
 # WL#8910: Ensure foreign key error does not reveal information about
 #          parent table for which user has no access privileges.

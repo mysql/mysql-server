@@ -351,7 +351,7 @@ static void prepare_default_value_string(uchar *buf, TABLE *table,
   Helper method to get numeric scale for types using
   Create_field type object.
 */
-bool get_field_numeric_scale(Create_field *field, uint *scale) {
+bool get_field_numeric_scale(const Create_field *field, uint *scale) {
   DBUG_ASSERT(*scale == 0);
 
   switch (field->sql_type) {
@@ -384,7 +384,8 @@ bool get_field_numeric_scale(Create_field *field, uint *scale) {
   Helper method to get numeric precision for types using
   Create_field type object.
 */
-bool get_field_numeric_precision(Create_field *field, uint *numeric_precision) {
+bool get_field_numeric_precision(const Create_field *field,
+                                 uint *numeric_precision) {
   switch (field->sql_type) {
       // these value is taken from Field_XXX::max_display_length() -1
     case MYSQL_TYPE_TINY:
@@ -433,7 +434,7 @@ bool get_field_numeric_precision(Create_field *field, uint *numeric_precision) {
   Helper method to get datetime precision for types using
   Create_field type object.
 */
-bool get_field_datetime_precision(Create_field *field,
+bool get_field_datetime_precision(const Create_field *field,
                                   uint *datetime_precision) {
   switch (field->sql_type) {
     case MYSQL_TYPE_DATETIME:
