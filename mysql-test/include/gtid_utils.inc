@@ -147,7 +147,7 @@ RETURN GTID_SUBTRACT(CONCAT(gtid_set_1, ',', gtid_set_2), GTID_INTERSECTION(gtid
 # Return the gtid with uuid removed.
 CREATE FUNCTION GTID_SUBTRACT_UUID(gtid_set LONGTEXT, uuid TEXT)
 RETURNS LONGTEXT
-RETURN GTID_SUBTRACT(gtid_set, CONCAT(UUID, ':1-', 1 << 63 - 1))|
+RETURN GTID_SUBTRACT(gtid_set, CONCAT(UUID, ':1-', (1 << 63) - 2))|
 
 # Return the intersection of gtid and uuid.
 CREATE FUNCTION GTID_INTERSECTION_WITH_UUID(gtid_set LONGTEXT, uuid TEXT)
