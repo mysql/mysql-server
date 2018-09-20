@@ -79,6 +79,8 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_interface_unit
     xcom/gcs_xcom_statistics_interface
     xcom/gcs_xcom_group_member_information
+    xcom/gcs_mpsc_queue
+    xcom/gcs_xcom_input_queue
    )
 
 ###

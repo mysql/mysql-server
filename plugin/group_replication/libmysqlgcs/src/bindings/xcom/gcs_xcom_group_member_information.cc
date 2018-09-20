@@ -30,7 +30,6 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
 Gcs_xcom_node_address::Gcs_xcom_node_address(std::string member_address)
     : m_member_address(member_address), m_member_ip(), m_member_port(0) {

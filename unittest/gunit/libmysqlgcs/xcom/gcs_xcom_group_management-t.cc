@@ -31,10 +31,7 @@ namespace gcs_xcom_groupmanagement_unittest {
 class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
  public:
   mock_gcs_xcom_proxy() {
-    ON_CALL(*this, xcom_open_handlers(_, _)).WillByDefault(Return(1));
-    ON_CALL(*this, xcom_init(_)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_exit(_)).WillByDefault(Return(1));
-    ON_CALL(*this, xcom_close_handlers()).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_boot(_, _)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_add_node(_, _, _)).WillByDefault(Return(1));
     ON_CALL(*this, xcom_client_send_data(_, _)).WillByDefault(Return(10));
@@ -47,34 +44,31 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD3(new_node_address_uuid,
                node_address *(unsigned int n, char *names[], blob uuid[]));
   MOCK_METHOD2(delete_node_address, void(unsigned int n, node_address *na));
-  MOCK_METHOD3(xcom_client_add_node, int(connection_descriptor *fd,
-                                         node_list *nl, uint32_t group_id));
-  MOCK_METHOD3(xcom_client_remove_node, int(connection_descriptor *fd,
-                                            node_list *nl, uint32_t group_id));
-  MOCK_METHOD3(xcom_remove_self,
-               int(connection_descriptor &con,
-                   const Gcs_xcom_node_information &node, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_remove_node, int(node_list *nl, uint32_t group_id));
+  MOCK_METHOD3(xcom_client_add_node, bool(connection_descriptor *fd,
+                                          node_list *nl, uint32_t group_id));
+  MOCK_METHOD2(xcom_client_remove_node, bool(node_list *nl, uint32_t group_id));
+  MOCK_METHOD3(xcom_client_remove_node, bool(connection_descriptor *fd,
+                                             node_list *nl, uint32_t group_id));
   MOCK_METHOD2(xcom_client_get_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon &event_horizon));
   MOCK_METHOD2(xcom_client_set_event_horizon,
                bool(uint32_t group_id, xcom_event_horizon event_horizon));
-  MOCK_METHOD2(xcom_client_boot, int(node_list *nl, uint32_t group_id));
+  MOCK_METHOD2(xcom_client_boot, bool(node_list *nl, uint32_t group_id));
   MOCK_METHOD2(xcom_client_open_connection,
                connection_descriptor *(std::string, xcom_port port));
-  MOCK_METHOD1(xcom_client_close_connection, int(connection_descriptor *fd));
-  MOCK_METHOD2(xcom_client_send_data, int(unsigned long long size, char *data));
-  MOCK_METHOD0(xcom_client_send_die, int());
-  MOCK_METHOD1(xcom_init, int(xcom_port listen_port));
-  MOCK_METHOD1(xcom_exit, int(bool xcom_handlers_open));
+  MOCK_METHOD1(xcom_client_close_connection, bool(connection_descriptor *fd));
+  MOCK_METHOD2(xcom_client_send_data,
+               bool(unsigned long long size, char *data));
+  MOCK_METHOD1(xcom_init, void(xcom_port listen_port));
+  MOCK_METHOD1(xcom_exit, bool(bool xcom_input_open));
   MOCK_METHOD0(xcom_set_cleanup, void());
   MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
   MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
   MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
   MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
-  MOCK_METHOD0(xcom_init_ssl, int());
+  MOCK_METHOD0(xcom_init_ssl, bool());
   MOCK_METHOD0(xcom_destroy_ssl, void());
-  MOCK_METHOD0(xcom_use_ssl, int());
+  MOCK_METHOD0(xcom_use_ssl, bool());
   MOCK_METHOD10(xcom_set_ssl_parameters,
                 void(const char *server_key_file, const char *server_cert_file,
                      const char *client_key_file, const char *client_cert_file,
@@ -82,10 +76,6 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
                      const char *crl_file, const char *crl_path,
                      const char *cipher, const char *tls_version));
   MOCK_METHOD1(find_site_def, site_def const *(synode_no synode));
-  MOCK_METHOD2(xcom_open_handlers, bool(std::string saddr, xcom_port port));
-  MOCK_METHOD0(xcom_close_handlers, bool());
-  MOCK_METHOD0(xcom_acquire_handler, int());
-  MOCK_METHOD1(xcom_release_handler, void(int fd));
   MOCK_METHOD0(xcom_wait_ready, enum_gcs_error());
   MOCK_METHOD0(xcom_is_ready, bool());
   MOCK_METHOD1(xcom_set_ready, void(bool value));
@@ -100,10 +90,21 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_signal_exit, void());
   MOCK_METHOD3(xcom_client_force_config, int(connection_descriptor *fd,
                                              node_list *nl, uint32_t group_id));
-  MOCK_METHOD2(xcom_client_force_config, int(node_list *nl, uint32_t group_id));
+  MOCK_METHOD2(xcom_client_force_config,
+               bool(node_list *nl, uint32_t group_id));
 
   MOCK_METHOD0(get_should_exit, bool());
   MOCK_METHOD1(set_should_exit, void(bool should_exit));
+
+  MOCK_METHOD0(xcom_input_connect, bool());
+  MOCK_METHOD1(xcom_input_try_push, bool(app_data_ptr data));
+  /* Mocking fails compilation on Windows. It attempts to copy the std::future
+   * which is non-copyable. */
+  Gcs_xcom_input_queue::future_reply xcom_input_try_push_and_get_reply(
+      app_data_ptr) {
+    return std::future<std::unique_ptr<Gcs_xcom_input_queue::Reply>>();
+  }
+  MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
 };
 
 class XcomGroupManagementTest : public GcsBaseTest {

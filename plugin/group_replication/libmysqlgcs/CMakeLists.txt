@@ -73,6 +73,7 @@ SET(XCOM_SOURCES
   src/bindings/xcom/xcom/task_net.c
   src/bindings/xcom/xcom/synode_no.c
   src/bindings/xcom/xcom/xcom_detector.c
+  src/bindings/xcom/xcom/xcom_input_request.c
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
 
@@ -107,7 +108,8 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_interface.cc
   src/bindings/xcom/gcs_xcom_notification.cc
   src/bindings/xcom/gcs_message_stage_lz4.cc
-  src/bindings/xcom/gcs_xcom_statistics_interface.cc)
+  src/bindings/xcom/gcs_xcom_statistics_interface.cc
+  src/bindings/xcom/gcs_xcom_proxy.cc)
 
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)

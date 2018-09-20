@@ -144,7 +144,9 @@ enum_gcs_error Gcs_xcom_group_management::modify_configuration(
     /* purecov: end */
   }
 
-  if (m_xcom_proxy->xcom_force_nodes(new_xcom_nodes, m_gid_hash) != 1) {
+  bool const sent_to_xcom =
+      m_xcom_proxy->xcom_force_nodes(new_xcom_nodes, m_gid_hash);
+  if (!sent_to_xcom) {
     /* purecov: begin deadcode */
     MYSQL_GCS_LOG_ERROR("Error reconfiguring group.");
     return GCS_NOK;

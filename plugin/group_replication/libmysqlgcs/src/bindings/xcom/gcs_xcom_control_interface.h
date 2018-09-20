@@ -40,7 +40,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"

@@ -37,11 +37,9 @@ extern PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
-    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status,
-    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
-    key_GCS_MUTEX_Xcom_handler_m_lock;
+    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit;
 
 extern PSI_cond_key key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
     key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond,

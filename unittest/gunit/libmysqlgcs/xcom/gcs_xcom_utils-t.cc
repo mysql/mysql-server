@@ -74,13 +74,13 @@ TEST(GcsXcomProxyImpl, XcomClientSendDataBiggerThanUINT32) {
 
   /*
     xcom_client_send_data cannot send a message bigger than uint32.
-    It should log and error and return non-zero value if the message
+    It should log and error and return false if the message
     is bigger than uint32.
   */
   test_logger.clear_event();
-  int ret = xcom_proxy.xcom_client_send_data(1ULL << 32, NULL);
+  bool successful = xcom_proxy.xcom_client_send_data(1ULL << 32, NULL);
 
-  ASSERT_NE(ret, 0);
+  ASSERT_EQ(successful, false);
 
   error_message << "The data is too big. Data length should "
                 << "not exceed " << std::numeric_limits<unsigned int>::max()

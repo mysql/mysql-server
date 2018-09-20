@@ -109,7 +109,9 @@ enum_gcs_error Gcs_xcom_communication::send_binding_message(
   enum_gcs_error ret = GCS_NOK;
   Gcs_message_data &msg_data = msg.get_message_data();
   unsigned long long msg_total_length = 0;
+  unsigned char *data_buffer = nullptr;
   Gcs_internal_message_header gcs_header;
+  bool sent_to_xcom = false;
 
   /*
    Configure the header to carry metadata information.
@@ -153,9 +155,11 @@ enum_gcs_error Gcs_xcom_communication::send_binding_message(
   msg_total_length = gcs_packet.get_total_length();
   MYSQL_GCS_LOG_TRACE("Sending message with payload length %llu",
                       msg_total_length)
-  if (m_xcom_proxy->xcom_client_send_data(
-          msg_total_length,
-          reinterpret_cast<char *>(gcs_packet.get_buffer()))) {
+  /* Pass ownership of the buffer to xcom_client_send_data. */
+  data_buffer = gcs_packet.swap_buffer(nullptr, 0);
+  sent_to_xcom = m_xcom_proxy->xcom_client_send_data(
+      msg_total_length, reinterpret_cast<char *>(data_buffer));
+  if (!sent_to_xcom) {
     MYSQL_GCS_LOG_ERROR(
         "Error pushing message into group communication engine.")
     goto end;

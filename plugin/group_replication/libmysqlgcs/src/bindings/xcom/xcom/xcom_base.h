@@ -23,6 +23,7 @@
 #ifndef XCOM_BASE_H
 #define XCOM_BASE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #ifdef __cplusplus
@@ -31,6 +32,7 @@ extern "C" {
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_input_request.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
@@ -198,6 +200,19 @@ app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
                                     uint32_t group_id);
 app_data_ptr init_set_event_horizon_msg(app_data *a, uint32_t group_id,
                                         xcom_event_horizon event_horizon);
+app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id);
+app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size);
+app_data_ptr init_terminate_command(app_data *a);
+
+/* Hook the logic to pop from the input channel. */
+typedef xcom_input_request_ptr (*xcom_input_try_pop_cb)(void);
+void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop);
+/* Create a connection to the input channel's signalling socket. */
+bool xcom_input_new_signal_connection(void);
+/* Signal that the input channel has commands. */
+bool xcom_input_signal(void);
+/* Destroy the connection to the input channel's signalling socket. */
+void xcom_input_free_signal_connection(void);
 
 /*
  Registers a callback that is called right after

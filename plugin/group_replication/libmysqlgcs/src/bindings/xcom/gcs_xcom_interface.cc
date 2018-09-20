@@ -29,7 +29,6 @@
 #include <cstdarg>
 #include <fstream>
 #include <iostream>
-#include <queue>
 #include <sstream>
 #include <vector>
 
@@ -40,6 +39,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
@@ -130,6 +130,8 @@ synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
 void cb_xcom_handle_app_snap(blob *gcs_snap);
 int cb_xcom_socket_accept(int fd, site_def const *xcom_config);
+
+xcom_input_request_ptr cb_xcom_input_try_pop();
 
 // XCom logging callback
 void cb_xcom_logger(const int64_t level, const char *message);
@@ -783,7 +785,7 @@ void start_ssl() {
 
 void Gcs_xcom_interface::initialize_ssl() {
   m_wait_for_ssl_init_mutex.lock();
-  m_ssl_init_state = xcom_proxy->xcom_init_ssl();
+  m_ssl_init_state = (xcom_proxy->xcom_init_ssl() ? 1 : 0);
   m_wait_for_ssl_init_cond.broadcast();
   m_wait_for_ssl_init_mutex.unlock();
 }
@@ -859,6 +861,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   ::set_xcom_exit_cb(cb_xcom_exit);
   ::set_xcom_expel_cb(cb_xcom_expel);
   ::set_xcom_socket_accept_cb(cb_xcom_socket_accept);
+  ::set_xcom_input_try_pop_cb(cb_xcom_input_try_pop);
 
   const std::string *wait_time_str =
       interface_params.get_parameter("wait_time");
@@ -1629,4 +1632,12 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config) {
   const Gcs_ip_whitelist &wl = intf->get_ip_whitelist();
 
   return wl.shall_block(fd, xcom_config) ? 0 : 1;
+}
+
+xcom_input_request_ptr cb_xcom_input_try_pop() {
+  if (xcom_proxy != nullptr) {
+    return xcom_proxy->xcom_input_try_pop();
+  } else {
+    return nullptr;
+  }
 }

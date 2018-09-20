@@ -1035,6 +1035,7 @@ int xcom_taskmain(xcom_port listen_port) {
 
   {
     result fd = {0, 0};
+
     if ((fd = announce_tcp(listen_port)).val < 0) {
       MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
       task_dump_err(fd.funerr);
@@ -1066,6 +1067,7 @@ static xcom_state_change_cb xcom_terminate_cb = 0;
 static xcom_state_change_cb xcom_comms_cb = 0;
 static xcom_state_change_cb xcom_exit_cb = 0;
 static xcom_state_change_cb xcom_expel_cb = 0;
+static xcom_input_try_pop_cb xcom_try_pop_from_input_cb = NULL;
 
 void set_xcom_run_cb(xcom_state_change_cb x) { xcom_run_cb = x; }
 
@@ -1077,6 +1079,159 @@ void set_xcom_exit_cb(xcom_state_change_cb x) { xcom_exit_cb = x; }
 
 void set_xcom_expel_cb(xcom_state_change_cb x) { xcom_expel_cb = x; }
 
+void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
+  xcom_try_pop_from_input_cb = pop;
+}
+
+static xcom_port local_server_port = 0;
+
+static connection_descriptor *input_signal_connection = NULL;
+
+#ifdef XCOM_HAVE_OPENSSL
+static connection_descriptor *connect_xcom(char *server, xcom_port port,
+                                           bool use_ssl);
+bool xcom_input_new_signal_connection() {
+  assert(local_server_port != 0);
+  assert(input_signal_connection == NULL);
+  input_signal_connection =
+      connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  return (input_signal_connection != NULL);
+}
+#else
+static connection_descriptor *connect_xcom(char *server, xcom_port port);
+void xcom_input_new_signal_connection(void) {
+  assert(local_server_port != 0);
+  assert(input_signal_connection == NULL);
+  input_signal_connection =
+      connect_xcom((char *)"127.0.0.1", local_server_port);
+  assert(input_signal_connection != NULL);
+}
+#endif
+static int64_t socket_write(connection_descriptor *wfd, void *_buf, uint32_t n);
+bool xcom_input_signal() {
+  bool successful = false;
+  if (input_signal_connection != NULL) {
+    unsigned char tiny_buf[1] = {0};
+    int64_t error_code = socket_write(input_signal_connection, tiny_buf, 1);
+    successful = (error_code == 1);
+  }
+  return successful;
+}
+void xcom_input_free_signal_connection() {
+  if (input_signal_connection != NULL) {
+    xcom_close_client_connection(input_signal_connection);
+    input_signal_connection = NULL;
+  }
+}
+
+/* Listen for connections on socket and create a handler task */
+int local_server(task_arg arg) {
+  DECL_ENV
+  int fd;
+  connection_descriptor rfd;
+  unsigned char buf[1024];  // arbitrary size
+  int64_t nr_read;
+  xcom_input_request_ptr request;
+  xcom_input_request_ptr next_request;
+  pax_msg *request_pax_msg;
+  pax_msg *reply_payload;
+  linkage internal_reply_queue;
+  msg_link *internal_reply;
+  END_ENV;
+  TASK_BEGIN
+  assert(xcom_try_pop_from_input_cb != NULL);
+  assert(ep->fd >= 0);
+  ep->fd = get_int_arg(arg);
+  unblock_fd(ep->fd);
+  DBGOUT(FN; NDBG(ep->fd, d););
+  /* Wait for input signalling connection. */
+  TASK_CALL(accept_tcp(ep->fd, &ep->rfd.fd));
+#ifdef XCOM_HAVE_OPENSSL
+  ep->rfd.ssl_fd = 0;
+#endif
+  assert(ep->rfd.fd != -1);
+  /* Close the server socket. */
+  shut_close_socket(&ep->fd);
+  /* Make socket non-blocking and add socket to the event loop. */
+  unblock_fd(ep->rfd.fd);
+  set_nodelay(ep->rfd.fd);
+  wait_io(stack, ep->rfd.fd, 'r');
+  TASK_YIELD;
+  set_connected(&ep->rfd, CON_FD);
+  memset(ep->buf, 0, 1024);
+  ep->nr_read = 0;
+  ep->request = NULL;
+  ep->next_request = NULL;
+  ep->request_pax_msg = NULL;
+  ep->reply_payload = NULL;
+  link_init(&ep->internal_reply_queue, type_hash("msg_link"));
+  ep->internal_reply = NULL;
+
+  while (!xcom_shutdown) {
+    /* Wait for signal that there is work to consume from the queue. */
+    TASK_CALL(task_read(&ep->rfd, ep->buf, 1024, &ep->nr_read));
+    if (ep->nr_read == 0) {
+      /* purecov: begin inspected */
+      G_WARNING("local_server: client closed the signalling connection?");
+      break;
+      /* purecov: end */
+    } else if (ep->nr_read < 0) {
+      /* purecov: begin inspected */
+      DBGOUT(FN; NDBG64(ep->nr_read));
+      G_WARNING("local_server: error reading from the signalling connection?");
+      break;
+      /* purecov: end */
+    }
+    /* Pop, dispatch, and reply. */
+    ep->request = xcom_try_pop_from_input_cb();
+    while (ep->request != NULL) {
+      /* Take ownership of the tail of the list, otherwise we lose it when we
+         free ep->request. */
+      ep->next_request = xcom_input_request_extract_next(ep->request);
+      unchecked_replace_pax_msg(&ep->request_pax_msg,
+                                pax_msg_new_0(null_synode));
+      assert(ep->request_pax_msg->refcnt == 1);
+      ep->request_pax_msg->op = client_msg;
+      /* Take ownership of the request's app_data, otherwise the app_data is
+         freed with ep->request. */
+      ep->request_pax_msg->a = xcom_input_request_extract_app_data(ep->request);
+      ep->request_pax_msg->to = VOID_NODE_NO;
+      ep->request_pax_msg->force_delivery =
+          (ep->request_pax_msg->a->body.c_t == force_config_type);
+      dispatch_op(NULL, ep->request_pax_msg, &ep->internal_reply_queue);
+      if (!link_empty(&ep->internal_reply_queue)) {
+        ep->internal_reply =
+            (msg_link *)(link_extract_first(&ep->internal_reply_queue));
+        assert(ep->internal_reply->p);
+        assert(ep->internal_reply->p->refcnt == 1);
+        /* We are going to take ownership of the pax_msg which has the reply
+           payload, so we bump its reference count so that it is not freed by
+           msg_link_delete. */
+        ep->reply_payload = ep->internal_reply->p;
+        ep->reply_payload->refcnt++;
+        msg_link_delete(&ep->internal_reply);
+        // There should only have been one reply.
+        assert(link_empty(&ep->internal_reply_queue));
+      } else {
+        ep->reply_payload = NULL;
+      }
+      // Reply to the request.
+      xcom_input_request_reply(ep->request, ep->reply_payload);
+      xcom_input_request_free(ep->request);
+      ep->request = ep->next_request;
+    }
+  }
+  FINALLY
+  MAY_DBG(FN; STRLIT(" shutdown "); NDBG(ep->rfd.fd, d); NDBG(task_now(), f));
+  /* Close the signalling connection. */
+  shutdown_connection(&ep->rfd);
+  unchecked_replace_pax_msg(&ep->request_pax_msg, NULL);
+  DBGOUT(FN; NDBG(xcom_shutdown, d));
+  TASK_END;
+}
+
+static bool local_server_needed() { return xcom_try_pop_from_input_cb != NULL; }
+
 int xcom_taskmain2(xcom_port listen_port) {
   init_xcom_transport(listen_port);
 
@@ -1084,10 +1239,13 @@ int xcom_taskmain2(xcom_port listen_port) {
   ignoresig(SIGPIPE);
 
   {
-    result fd = {0, 0};
-    if ((fd = announce_tcp(listen_port)).val < 0) {
+    /* Setup tcp_server socket */
+    result tcp_fd = {0, 0};
+
+    if ((tcp_fd = announce_tcp(listen_port)).val < 0) {
+      /* purecov: begin inspected */
       MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
-      task_dump_err(fd.funerr);
+      task_dump_err(tcp_fd.funerr);
       g_critical("Unable to announce tcp port %d. Port already in use?",
                  listen_port);
       if (xcom_comms_cb) {
@@ -1097,6 +1255,46 @@ int xcom_taskmain2(xcom_port listen_port) {
         xcom_terminate_cb(0);
       }
       return 1;
+      /* purecov: end */
+    }
+
+    /* Setup local_server socket */
+    result local_fd = {0, 0};
+    if (local_server_needed()) {
+      if ((local_fd = announce_tcp_local_server()).val < 0) {
+        /* purecov: begin inspected */
+        MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
+        task_dump_err(local_fd.funerr);
+        g_critical("Unable to announce tcp port %d. Port already in use?",
+                   listen_port);
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      /* Get the port local_server bound to. */
+      struct sockaddr_in bound_addr;
+      socklen_t bound_addr_len = sizeof(bound_addr);
+      int const error_code = getsockname(
+          local_fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+      if (error_code != 0) {
+        /* purecov: begin inspected */
+        task_dump_err(error_code);
+        g_critical("Unable to retrieve the tcp port local_server bound to");
+        if (xcom_comms_cb) {
+          xcom_comms_cb(XCOM_COMMS_ERROR);
+        }
+        if (xcom_terminate_cb) {
+          xcom_terminate_cb(0);
+        }
+        return 1;
+        /* purecov: end */
+      }
+      local_server_port = ntohs(bound_addr.sin_port);
     }
 
     if (xcom_comms_cb) {
@@ -1106,7 +1304,11 @@ int xcom_taskmain2(xcom_port listen_port) {
     MAY_DBG(FN; STRLIT("Creating tasks"));
     /* task_new(generator_task, null_arg, "generator_task", XCOM_THREAD_DEBUG);
      */
-    task_new(tcp_server, int_arg(fd.val), "tcp_server", XCOM_THREAD_DEBUG);
+    if (local_server_needed()) {
+      task_new(local_server, int_arg(local_fd.val), "local_server",
+               XCOM_THREAD_DEBUG);
+    }
+    task_new(tcp_server, int_arg(tcp_fd.val), "tcp_server", XCOM_THREAD_DEBUG);
     task_new(tcp_reaper_task, null_arg, "tcp_reaper_task", XCOM_THREAD_DEBUG);
     /* task_new(xcom_statistics, null_arg, "xcom_statistics",
      * XCOM_THREAD_DEBUG); */
@@ -4673,6 +4875,20 @@ app_data_ptr init_get_event_horizon_msg(app_data *a, uint32_t group_id) {
   return a;
 }
 
+app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size) {
+  init_app_data(a);
+  a->body.c_t = app_type;
+  a->body.app_u_u.data.data_val = payload; /* Takes ownership of payload. */
+  a->body.app_u_u.data.data_len = payload_size;
+  return a;
+}
+
+app_data_ptr init_terminate_command(app_data *a) {
+  init_app_data(a);
+  a->body.c_t = x_terminate_and_exit;
+  return a;
+}
+
 /* purecov: begin deadcode */
 app_data_ptr create_config_with_group(node_list *nl, cargo_type type,
                                       uint32_t group_id) {
@@ -5362,7 +5578,12 @@ end:
 }
 
 /* Connect to server on given port */
+#ifdef XCOM_HAVE_OPENSSL
+static connection_descriptor *connect_xcom(char *server, xcom_port port,
+                                           bool use_ssl) {
+#else
 static connection_descriptor *connect_xcom(char *server, xcom_port port) {
+#endif
   result fd = {0, 0};
   result ret = {0, 0};
   struct sockaddr_in sock_addr;
@@ -5451,7 +5672,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
     }
 
 #ifdef XCOM_HAVE_OPENSSL
-    if (xcom_use_ssl()) {
+    if (use_ssl && xcom_use_ssl()) {
       connection_descriptor *cd = 0;
       SSL *ssl = SSL_new(client_ctx);
       G_DEBUG("Trying to connect using SSL.")
@@ -5503,7 +5724,11 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
 
 connection_descriptor *xcom_open_client_connection(char *server,
                                                    xcom_port port) {
+#ifdef XCOM_HAVE_OPENSSL
+  return connect_xcom(server, port, true);
+#else
   return connect_xcom(server, port);
+#endif
 }
 
 /* Send a protocol negotiation message on connection con */
@@ -5607,12 +5832,47 @@ end:
   return retval;
 }
 
+/* purecov: begin tested */
+/*
+ * Tested by TEST_F(XComMultinodeSmokeTest,
+ * 3_nodes_member_crashes_with_dieop_and_joins_again_immediately) GCS smoke test
+ */
 int64_t xcom_client_send_die(connection_descriptor *fd) {
   uint32_t buflen = 0;
   char *buf = 0;
   int64_t retval = 0;
   app_data a;
   pax_msg *msg = pax_msg_new(null_synode, 0);
+
+  if (!proto_done(fd)) {
+    xcom_proto x_proto;
+    x_msg_type x_type;
+    unsigned int tag;
+    retval = xcom_send_proto(fd, my_xcom_version, x_version_req, TAG_START);
+    G_DEBUG("client sent negotiation request for protocol %d", my_xcom_version);
+    if (retval < 0) goto end;
+    retval = xcom_recv_proto(fd, &x_proto, &x_type, &tag);
+    if (retval < 0) goto end;
+    if (tag != TAG_START) {
+      retval = -1;
+      goto end;
+    }
+    if (x_type != x_version_reply) {
+      retval = -1;
+      goto end;
+    }
+
+    if (x_proto == x_unknown_proto) {
+      G_DEBUG("no common protocol, returning error");
+      retval = -1;
+      goto end;
+    }
+    G_DEBUG("client connection will use protocol version %d", x_proto);
+    DBGOUT(STRLIT("client connection will use protocol version ");
+           NDBG(x_proto, u); STRLIT(xcom_proto_to_str(x_proto)));
+    fd->x_proto = x_proto;
+    set_connected(fd, CON_PROTO);
+  }
   init_app_data(&a);
   a.body.c_t = app_type;
   msg->a = &a;
@@ -5627,13 +5887,19 @@ int64_t xcom_client_send_die(connection_descriptor *fd) {
   serialize_msg(msg, fd->x_proto, &buflen, &buf);
   if (buflen) {
     retval = socket_write(fd, buf, buflen);
+    if (buflen != retval) {
+      DBGOUT(FN; STRLIT("write failed "); NDBG(fd->fd, d); NDBG(buflen, d);
+             NDBG64(retval));
+    }
     X_FREE(buf);
   }
+  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+end:
   msg->a = 0;
   XCOM_XDR_FREE(xdr_pax_msg, msg);
-  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
-  return retval > 0 && retval == buflen ? retval : 0;
+  return retval > 0 && retval == buflen ? 1 : 0;
 }
+/* purecov: end */
 
 int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor *fd) {

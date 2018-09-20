@@ -278,7 +278,8 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
   connection_descriptor *con = NULL;
   int comm_status = XCOM_COMM_STATUS_UNDEFINED;
   enum_gcs_error is_xcom_ready = GCS_NOK;
-  bool xcom_handlers_open = false;
+  bool xcom_input_open = false;
+  bool could_connect_to_local_xcom = false;
 
   /*
     Clean up notification flags that are used to check whether XCOM
@@ -310,26 +311,54 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
     Connect to the local xcom instance.
     This is needed to push data to consensus.
   */
-  if (m_xcom_proxy->xcom_open_handlers(
-          m_local_node_address->get_member_ip(),
-          m_local_node_address->get_member_port())) {
+  xcom_input_open = m_xcom_proxy->xcom_input_connect();
+  if (!xcom_input_open) {
+    /* purecov: begin tested */
+    /*
+     * Tested by the TEST_F(XComControlTest,
+     * JoinTestFailedToConnectToXComQueueSignallingMechanism) GCS smoke test.
+     */
+    MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
+                        << " engine instance.")
+    goto err;
+    /* purecov: end */
+  }
+
+  /*
+     Perform a one-off connection to the local XCom instance. If this connection
+     is successful, remote instances will also be able to connect to our local
+     XCom instance. If this "test" connection fails, then we fail fast by
+     interrupting the join procedure.
+
+     An example of a situation where this connection may fail is when we have an
+     SSL certificate with invalid identification, and the group is using SSL
+     with identity verification enabled.
+  */
+  could_connect_to_local_xcom = m_xcom_proxy->test_xcom_tcp_connection(
+      m_local_node_address->get_member_ip(),
+      m_local_node_address->get_member_port());
+  if (!could_connect_to_local_xcom) {
     MYSQL_GCS_LOG_ERROR("Error connecting to the local group communication"
                         << " engine instance.")
     goto err;
   }
-  xcom_handlers_open = true;
 
   if (m_boot) {
     MYSQL_GCS_LOG_TRACE(
         "::join():: I am the boot node. %d - %s. Calling xcom_client_boot.",
         local_port, m_local_node_info->get_member_uuid().actual_value.c_str())
 
-    int error = 0;
-    if ((error = m_xcom_proxy->xcom_boot_node(*m_local_node_info,
-                                              m_gid_hash)) <= 0) {
-      MYSQL_GCS_LOG_ERROR("Error booting the group communication engine."
-                          << " Error=" << error)
+    bool const boot_sent =
+        m_xcom_proxy->xcom_boot_node(*m_local_node_info, m_gid_hash);
+    if (!boot_sent) {
+      /* purecov: begin tested */
+      /*
+       * Tested by the TEST_F(XComControlTest, JoinTestFailedToSendBootToXCom)
+       * GCS smoke test.
+       */
+      MYSQL_GCS_LOG_ERROR("Error booting the group communication engine.")
       goto err;
+      /* purecov: begin end */
     }
   } else {
     assert(!m_initial_peers.empty());
@@ -404,10 +433,12 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
 
       /*
         Explicitly check the return value so that we are able to distinguish
-        between a failure in the synchronous local request from a failure in
-        the asynchronous add_node request.
+        between a failure in the synchronous request from a failure in
+        the asynchronous processing of the request.
       */
-      if (!m_xcom_proxy->xcom_add_node(*con, *m_local_node_info, m_gid_hash)) {
+      bool const xcom_will_process =
+          m_xcom_proxy->xcom_add_node(*con, *m_local_node_info, m_gid_hash);
+      if (!xcom_will_process) {
         m_xcom_proxy->xcom_client_close_connection(con);
         goto err;
       }
@@ -450,7 +481,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
 err:
   if (local_port != 0) {
     /*
-      We need the handlers opened in order to send a request to kill
+      We need the input channel opened in order to send a request to kill
       XCOM.
     */
     MYSQL_GCS_LOG_DEBUG(
@@ -458,16 +489,13 @@ err:
         " join. Local port: %d",
         local_port);
     if (comm_status != XCOM_COMMS_ERROR &&
-        m_xcom_proxy->xcom_exit(xcom_handlers_open)) {
+        !m_xcom_proxy->xcom_exit(xcom_input_open)) {
       MYSQL_GCS_LOG_WARN("Failed to kill the group communication engine "
                          << "after the member failed to join. Local port: "
                          << local_port);
     }
     wait_for_xcom_thread();
   }
-
-  /* Cleanup - close handlers */
-  m_xcom_proxy->xcom_close_handlers();
 
   MYSQL_GCS_LOG_ERROR(
       "The member was unable to join the group. Local port: " << local_port)
@@ -549,23 +577,17 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
       We have to really kill the XCOM's thread at this point because
       an attempt to make it gracefully exit apparently has failed.
     */
-    if (m_xcom_proxy->xcom_exit(true)) {
+    bool const exit_sent = m_xcom_proxy->xcom_exit(true);
+    if (!exit_sent) {
+      /* purecov: begin deadcode */
+      /* exit_sent will ALWAYS be true. */
       MYSQL_GCS_LOG_WARN(
           "Failed to kill the group communication engine "
           "after the member has failed to leave the group.");
+      /* purecov: end */
     }
   }
   wait_for_xcom_thread();
-
-  /*
-    There is no need to interact with the local xcom anymore so we
-    will can close local handlers.
-  */
-  if (m_xcom_proxy->xcom_close_handlers()) {
-    MYSQL_GCS_LOG_ERROR(
-        "Error on closing a connection to a group member while leaving "
-        "the group.")
-  }
 
   m_xcom_running = false;
 
@@ -669,7 +691,7 @@ void Gcs_xcom_control::do_remove_node_from_group() {
     return;
 
   int local_port = m_local_node_address->get_member_port();
-  int rm_ret = 0;
+  bool rm_ret = false;
   connection_descriptor *con = NULL;
 
   MYSQL_GCS_LOG_DEBUG("do_remove_node_from_group started! (%d)", local_port);
@@ -1962,8 +1984,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
       (nodes_to_remove.get_size() > 0)) {
     MYSQL_GCS_LOG_TRACE(
         "process_suspicions: Expelling suspects that timed out!");
-    int remove_ret = m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
-    if (force_remove && (remove_ret == 1)) {
+    bool const removed =
+        m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
+    if (force_remove && !removed) {
       // Failed to remove myself from the group so will install leave view
       m_control_if->install_leave_view(Gcs_view::MEMBER_EXPELLED);
     }

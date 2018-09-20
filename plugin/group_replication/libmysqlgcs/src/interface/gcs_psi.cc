@@ -55,11 +55,9 @@ PSI_mutex_key key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_wait_for_view_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_current_view_mutex,
     key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
-    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
     key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_comms_status,
-    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
-    key_GCS_MUTEX_Xcom_handler_m_lock;
+    key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit;
 
 PSI_cond_key key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
     key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond,
@@ -99,9 +97,6 @@ static PSI_mutex_info all_gcs_psi_mutex_keys_info[] = {
     {&key_GCS_MUTEX_Gcs_xcom_view_change_control_m_joining_leaving_mutex,
      "GCS_Gcs_xcom_view_change_control::m_joining_leaving_mutex",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_cursor,
-     "GCS_Gcs_xcom_proxy_impl::m_lock_xcom_cursor", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
     {&key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
      "GCS_Gcs_xcom_proxy_impl::m_lock_xcom_ready", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
@@ -110,9 +105,7 @@ static PSI_mutex_info all_gcs_psi_mutex_keys_info[] = {
      PSI_DOCUMENT_ME},
     {&key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_exit,
      "GCS_Gcs_xcom_proxy_impl::m_lock_xcom_exit", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
-    {&key_GCS_MUTEX_Xcom_handler_m_lock, "GCS_Xcom_handler::m_lock",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME}};
 
 static PSI_cond_info all_gcs_psi_cond_keys_info[] = {
     {&key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
