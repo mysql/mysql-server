@@ -115,16 +115,16 @@ void ProcessLauncher::start() {
   si.hStdInput = child_in_rd;
   si.dwFlags |= STARTF_USESTDHANDLES;
 
-  bSuccess = CreateProcess(NULL,         // lpApplicationName
-                           sz_cmd_line,  // lpCommandLine
-                           NULL,         // lpProcessAttributes
-                           NULL,         // lpThreadAttributes
-                           TRUE,         // bInheritHandles
-                           0,            // dwCreationFlags
-                           NULL,         // lpEnvironment
-                           NULL,         // lpCurrentDirectory
-                           &si,          // lpStartupInfo
-                           &pi);         // lpProcessInformation
+  bSuccess = CreateProcess(NULL,                      // lpApplicationName
+                           sz_cmd_line,               // lpCommandLine
+                           NULL,                      // lpProcessAttributes
+                           NULL,                      // lpThreadAttributes
+                           TRUE,                      // bInheritHandles
+                           CREATE_NEW_PROCESS_GROUP,  // dwCreationFlags
+                           NULL,                      // lpEnvironment
+                           NULL,                      // lpCurrentDirectory
+                           &si,                       // lpStartupInfo
+                           &pi);                      // lpProcessInformation
 
   if (!bSuccess)
     report_error(("Failed to start process " + s).c_str());
@@ -169,9 +169,20 @@ int ProcessLauncher::close() {
   DWORD dwExit;
   if (GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
-      if (!TerminateProcess(pi.hProcess, 0)) report_error(NULL);
-      // TerminateProcess is async, wait for process to end.
-      WaitForSingleObject(pi.hProcess, INFINITE);
+      GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
+
+      DWORD wait_timeout =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              kTerminateWaitInterval)
+              .count();
+      if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
+        // use the big hammer if that did not work
+        if (!TerminateProcess(pi.hProcess, 0)) report_error(NULL);
+        // wait again, if that fails not much we can do
+        if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
+          report_error(NULL);
+        }
+      }
     }
   } else {
     if (is_alive) report_error(NULL);

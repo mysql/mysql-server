@@ -1030,6 +1030,11 @@ class HARNESS_EXPORT Loader {
 HARNESS_EXPORT
 void request_application_shutdown();
 
+#ifdef _WIN32
+HARNESS_EXPORT
+void register_ctrl_c_handler();
+#endif
+
 #ifdef FRIEND_TEST
 namespace unittest_backdoor {
 HARNESS_EXPORT
