@@ -136,6 +136,7 @@ void CPCD::Process::monitor()
         m_pid = bad_pid;
         m_status = STOPPED;
         logger.debug("Monitor : Process %s with pid %d is STOPPED", m_name.c_str(), m_pid);
+        removePid();
         break;
 
       case PERMANENT:
@@ -786,8 +787,6 @@ void CPCD::Process::stop()
     do_shutdown();
     logger.debug("Process %s with pid %d STOPPING", m_name.c_str(), m_pid);
   }
-
-  removePid();
 }
 
 void CPCD::Process::do_shutdown(bool force_sigkill)
