@@ -361,11 +361,15 @@ struct Tablespace {
   /* Determine if this undo space needs to be truncated.
   @return true if it should be truncated, false if not. */
   bool needs_truncation() {
+    /* If it is already inactive, even implicitly, then proceed. */
     if (m_rsegs->is_inactive_implicit() || m_rsegs->is_inactive_explicit()) {
       return (true);
     }
 
-    if (m_rsegs == nullptr || m_rsegs->is_empty() || m_rsegs->is_init()) {
+    /* If implicit undo truncation is turned off, or if the rsegs don't exist
+    yet, don't bother checking the size. */
+    if (!srv_undo_log_truncate || m_rsegs == nullptr || m_rsegs->is_empty() ||
+        m_rsegs->is_init()) {
       return (false);
     }
 

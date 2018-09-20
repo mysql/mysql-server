@@ -1105,11 +1105,6 @@ static bool trx_purge_mark_undo_for_truncate() {
     return (true);
   }
 
-  /* Return false if truncate is disabled */
-  if (!srv_undo_log_truncate) {
-    return (false);
-  }
-
   /* In order to implicitly select an undo space to truncate, we need
   at least 2 active UNDO tablespaces.  But if one of them has been set
   inactive explicitly, then we can go ahead here and select that space
@@ -1125,6 +1120,11 @@ static bool trx_purge_mark_undo_for_truncate() {
   undo::spaces->s_unlock();
   ut_ad(num_active > 0);
   if (num_active == 1 && num_inactive_explicit == 0) {
+    return (false);
+  }
+
+  /* Return false if truncate is disabled and SET INACTIVE was not issued. */
+  if (!srv_undo_log_truncate && num_inactive_explicit == 0) {
     return (false);
   }
 
