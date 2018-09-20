@@ -454,7 +454,7 @@ int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value,
 int Streaming_command_delegate::get_string(const char *const value,
                                            size_t length,
                                            const CHARSET_INFO *const valuecs) {
-  log_debug("Streaming_command_delegate::get_string %s", value);
+  log_debug("Streaming_command_delegate::get_string");
   const enum_field_types type =
       m_field_types[m_proto->row_builder().get_num_fields()].type;
   const unsigned int flags =
