@@ -922,7 +922,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   log.recent_written.add_link(start_lsn, end_lsn);
 }
 
-void log_wait_for_space_in_log_recent_closed(const log_t &log, lsn_t lsn) {
+void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
   ut_a(log_lsn_validate(lsn));
 
   ut_ad(lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));

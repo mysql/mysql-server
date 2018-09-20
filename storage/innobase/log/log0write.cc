@@ -742,11 +742,7 @@ We do not care if it's flushed or not.
 @param[in]	lsn	wait until log.write_lsn >= lsn
 @return		statistics related to waiting inside */
 static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
-  if (log.write_lsn.load() >= lsn) {
-    return (Wait_stats{0});
-  }
-
-  os_event_try_set(log.writer_event);
+  os_event_set(log.writer_event);
 
   auto max_spins = srv_log_wait_for_write_spin_delay;
 
@@ -756,9 +752,13 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
     max_spins = 0;
   }
 
-  auto stop_condition = [&log, lsn](bool) {
+  auto stop_condition = [&log, lsn](bool wait) {
     if (log.write_lsn.load() >= lsn) {
       return (true);
+    }
+
+    if (wait) {
+      os_event_set(log.writer_event);
     }
 
     ut_d(log_background_write_threads_active_validate(log));
@@ -782,7 +782,10 @@ static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
 @param[in]	lsn	wait until log.flushed_to_disk_lsn >= lsn
 @return		statistics related to waiting inside */
 static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
-  os_event_try_set(log.flusher_event);
+  if (log.write_lsn.load(std::memory_order_relaxed) < lsn) {
+    os_event_set(log.writer_event);
+  }
+  os_event_set(log.flusher_event);
 
   /* Optional spinning - useful for usr1-4 case, disabled by default. */
   auto max_spins = srv_log_wait_for_flush_spin_delay;
@@ -796,14 +799,18 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
     max_spins = 0;
   }
 
-  auto stop_condition = [&log, lsn](bool) {
+  auto stop_condition = [&log, lsn](bool wait) {
     LOG_SYNC_POINT("log_wait_for_flush_before_flushed_to_disk_lsn");
 
     if (log.flushed_to_disk_lsn.load() >= lsn) {
       return (true);
     }
 
-    if (srv_flush_log_at_trx_commit != 1) {
+    if (wait) {
+      if (log.write_lsn.load(std::memory_order_relaxed) < lsn) {
+        os_event_set(log.writer_event);
+      }
+
       os_event_set(log.flusher_event);
     }
 
@@ -823,8 +830,7 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
   return (wait_stats);
 }
 
-Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk,
-                           bool should_be_fast) {
+Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   ut_a(!srv_read_only_mode);
 
   /* If we were updating log.flushed_to_disk_lsn while parsing redo log
@@ -851,16 +857,14 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk,
     return (Wait_stats{0});
   }
 
-  if (should_be_fast) {
-    /* We do not need to have exact numbers and we do not care if we
-    lost some increments for heavy workload. The value only has usage
-    when it is low workload and we need to discover that we request
-    redo write or flush only from time to time. In such case we prefer
-    to avoid spinning in log threads to save on CPU power usage. */
-    log.write_up_to_requests_total.store(
-        log.write_up_to_requests_total.load(std::memory_order_relaxed) + 1,
-        std::memory_order_relaxed);
-  }
+  /* We do not need to have exact numbers and we do not care if we
+  lost some increments for heavy workload. The value only has usage
+  when it is low workload and we need to discover that we request
+  redo write or flush only from time to time. In such case we prefer
+  to avoid spinning in log threads to save on CPU power usage. */
+  log.write_to_file_requests_total.store(
+      log.write_to_file_requests_total.load(std::memory_order_relaxed) + 1,
+      std::memory_order_relaxed);
 
   ut_a(end_lsn != LSN_MAX);
 
@@ -877,22 +881,8 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk,
       return (Wait_stats{0});
     }
 
-    Wait_stats wait_stats{0};
-
-    /* The flusher might be sleeping for some time when flush is not
-    forced, if we want to wait for flush in such cases (e.g. for DDL
-    operations) we need to wake flusher up. */
-    if (srv_flush_log_at_trx_commit != 1) {
-      /* First we need to assure the data is written and ready
-      for flusher to continue with. */
-      wait_stats += log_wait_for_write(log, end_lsn);
-      os_event_set(log.flusher_event);
-    } else if (log_is_write_up_to_frequency_low(log)) {
-      os_event_set(log.writer_event);
-    }
-
     /* Wait until log gets flushed up to end_lsn. */
-    return (wait_stats + log_wait_for_flush(log, end_lsn));
+    return (log_wait_for_flush(log, end_lsn));
 
   } else {
     if (log.write_lsn.load() >= end_lsn) {
@@ -943,8 +933,11 @@ struct Log_thread_waiting {
     on average which by definition has lag. No reason to make
     extra barriers here. */
 
+    const auto req_interval =
+        m_log.write_to_file_requests_interval.load(std::memory_order_relaxed);
+
     if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
-        log_is_write_up_to_frequency_low(m_log)) {
+        !log_write_to_file_requests_are_frequent(req_interval)) {
       /* Either:
       1. CPU usage is very low on the server, which means the server
          is most likely idle or almost idle.
@@ -954,7 +947,7 @@ struct Log_thread_waiting {
       is no real gain from spinning in log threads then. */
 
       spin_delay = 0;
-      min_timeout = 10000; /* 10ms */
+      min_timeout = req_interval;
     }
 
     const auto wait_stats =
@@ -970,39 +963,55 @@ struct Log_thread_waiting {
   const uint32_t m_min_timeout;
 };
 
-struct Log_write_up_to_monitor {
-  explicit Log_write_up_to_monitor(log_t &log)
+struct Log_write_to_file_requests_monitor {
+  explicit Log_write_to_file_requests_monitor(log_t &log)
       : m_log(log), m_last_requests_value{0}, m_request_interval{0} {
     m_last_requests_time = Log_clock::now();
   }
 
   void update() {
     const auto requests_value =
-        m_log.write_up_to_requests_total.load(std::memory_order_relaxed);
+        m_log.write_to_file_requests_total.load(std::memory_order_relaxed);
+
+    const auto current_time = Log_clock::now();
+    if (current_time < m_last_requests_time) {
+      m_last_requests_time = current_time;
+      return;
+    }
+
+    const auto delta_time = current_time - m_last_requests_time;
+    const auto delta_time_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(delta_time)
+            .count();
 
     if (requests_value > m_last_requests_value) {
-      const auto current_time = Log_clock::now();
-      if (current_time < m_last_requests_time) {
-        m_last_requests_time = current_time;
-        return;
-      }
       const auto delta_requests = requests_value - m_last_requests_value;
-      const auto delta_time = current_time - m_last_requests_time;
-      const auto delta_time_us =
-          std::chrono::duration_cast<std::chrono::microseconds>(delta_time)
-              .count();
       const auto request_interval = delta_time_us / delta_requests;
       m_request_interval = (m_request_interval * 63 + request_interval) / 64;
 
-      m_log.write_up_to_requests_interval.store(m_request_interval,
+    } else if (delta_time_us > 100 * 1000) {
+      /* Last call to log_write_up_to() was longer than 100ms ago,
+      so consider this as maximum time between calls we can expect.
+      Tracking higher values does not make sense, because it is for
+      sure already higher than any reasonable threshold which can be
+      used to differ different activity modes. */
+
+      m_request_interval = 100 * 1000; /* 100ms */
+
+    } else {
+      /* No progress in number of requests and still no more than
+      1second since last progress. Postpone any decision. */
+      return;
+    }
+
+    m_log.write_to_file_requests_interval.store(m_request_interval,
                                                 std::memory_order_relaxed);
 
-      MONITOR_SET(MONITOR_LOG_WRITE_UP_TO_REQUESTS_INTERVAL,
-                  m_request_interval);
+    MONITOR_SET(MONITOR_LOG_WRITE_TO_FILE_REQUESTS_INTERVAL,
+                m_request_interval);
 
-      m_last_requests_time = current_time;
-      m_last_requests_value = requests_value;
-    }
+    m_last_requests_time = current_time;
+    m_last_requests_value = requests_value;
   }
 
  private:
@@ -1858,13 +1867,13 @@ void log_writer(log_t *log_ptr) {
   Log_thread_waiting waiting{log, log.writer_event, srv_log_writer_spin_delay,
                              srv_log_writer_timeout};
 
-  Log_write_up_to_monitor write_up_to_monitor{log};
+  Log_write_to_file_requests_monitor write_to_file_requests_monitor{log};
 
   for (uint64_t step = 0;; ++step) {
     bool released = false;
 
     auto stop_condition = [&ready_lsn, &log, &released,
-                           &write_up_to_monitor](bool wait) {
+                           &write_to_file_requests_monitor](bool wait) {
 
       if (released) {
         log_writer_mutex_enter(log);
@@ -1885,7 +1894,7 @@ void log_writer(log_t *log_ptr) {
       }
 
       if (wait) {
-        write_up_to_monitor.update();
+        write_to_file_requests_monitor.update();
         log_writer_mutex_exit(log);
         released = true;
       }
@@ -1902,7 +1911,7 @@ void log_writer(log_t *log_ptr) {
       log_writer_write_buffer(log, ready_lsn);
 
       if (step % 1024 == 0) {
-        write_up_to_monitor.update();
+        write_to_file_requests_monitor.update();
 
         log_writer_mutex_exit(log);
 
@@ -2099,6 +2108,9 @@ void log_flusher(log_t *log_ptr) {
 
   log_t &log = *log_ptr;
 
+  Log_thread_waiting waiting{log, log.flusher_event, srv_log_flusher_spin_delay,
+                             srv_log_flusher_timeout};
+
   log_flusher_mutex_enter(log);
 
   for (uint64_t step = 0; log.writer_thread_alive.load(); ++step) {
@@ -2145,8 +2157,6 @@ void log_flusher(log_t *log_ptr) {
       return (false);
     };
 
-    auto max_spins = srv_log_flusher_spin_delay;
-
     if (srv_flush_log_at_trx_commit != 1) {
       const auto current_time = Log_clock::now();
 
@@ -2188,16 +2198,9 @@ void log_flusher(log_t *log_ptr) {
 
         log_flusher_mutex_enter(log);
       }
-
-      max_spins = 0;
     }
 
-    if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm) {
-      max_spins = 0;
-    }
-
-    const auto wait_stats = os_event_wait_for(
-        log.flusher_event, max_spins, srv_log_flusher_timeout, stop_condition);
+    const auto wait_stats = waiting.wait(stop_condition);
 
     MONITOR_INC_WAIT_STATS(MONITOR_LOG_FLUSHER_, wait_stats);
   }

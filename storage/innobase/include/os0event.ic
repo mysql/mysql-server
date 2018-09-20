@@ -53,39 +53,43 @@ inline static Wait_stats os_event_wait_for(os_event_t &event,
                                            uint64_t spins_limit,
                                            uint64_t timeout,
                                            Condition condition = {}) {
-  uint64_t waits = 0;
 #ifdef _WIN32
-  uint64_t next_level = 64;
+  uint32_t next_level = 64;
 #else
-  uint64_t next_level = 4;
+  uint32_t next_level = 4;
 #endif
+  uint32_t waits = 0;
+
+  constexpr uint64_t MAX_TIMEOUT_US = 100 * 1000;
 
   while (true) {
     /* Store current sig_count before checking the
     condition, not to miss notification. */
+    const bool wait = spins_limit == 0;
 
-    const int64_t sig_count = spins_limit != 0 ? 0 : os_event_reset(event);
+    const int64_t sig_count = !wait ? 0 : os_event_reset(event);
 
     /* Important: we do not want to split this loop to two
     loops (one for spin-delay and one for event), because
     we assume the condition is inlined below, and we don't
     want to make it inlined in two places. */
-    if (condition(spins_limit == 0)) {
+
+    if (condition(wait)) {
       return (Wait_stats{waits});
     }
 
-    if (spins_limit != 0) {
+    if (!wait) {
       /* It's still spin-delay loop. */
       --spins_limit;
+
       UT_RELAX_CPU();
 
     } else {
       /* Event-based loop. */
-
       ++waits;
 
       if (waits == next_level) {
-        timeout = std::min(timeout * 2, uint64_t{100 * 1000});
+        timeout = std::min(timeout * 2, MAX_TIMEOUT_US);
 
 #ifdef _WIN32
         /* On Windows timeout is expressed in ms,
