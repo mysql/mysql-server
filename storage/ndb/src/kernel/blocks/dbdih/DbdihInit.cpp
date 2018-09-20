@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,6 +232,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_COPY_GCICONF, &Dbdih::execCOPY_GCICONF);
   addRecSignal(GSN_COPY_TABREQ, &Dbdih::execCOPY_TABREQ);
   addRecSignal(GSN_COPY_TABCONF, &Dbdih::execCOPY_TABCONF);
+  addRecSignal(GSN_CHECK_LCP_IDLE_ORD, &Dbdih::execCHECK_LCP_IDLE_ORD);
   addRecSignal(GSN_TCGETOPSIZECONF, &Dbdih::execTCGETOPSIZECONF);
   addRecSignal(GSN_TC_CLOPSIZECONF, &Dbdih::execTC_CLOPSIZECONF);
 
