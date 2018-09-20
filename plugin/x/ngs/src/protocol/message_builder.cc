@@ -37,7 +37,7 @@ const int k_header_size = 5;
 
 Message_builder::Message_builder(const bool memory_managed)
     : m_memory_managed(memory_managed) {
-  m_out_stream = Stream_allocator().allocate(1);
+  if (m_memory_managed) m_out_stream = Stream_allocator().allocate(1);
 }
 
 Message_builder::~Message_builder() {
