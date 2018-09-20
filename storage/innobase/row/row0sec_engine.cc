@@ -147,8 +147,6 @@ size_t Secondary_engine_partition_reader::calc_num_threads() {
 
   num_threads = std::min(num_threads, m_n_threads);
 
-  std::cerr << "[InnoDB] Num threads = " << num_threads << std::endl;
-
   return (num_threads);
 }
 

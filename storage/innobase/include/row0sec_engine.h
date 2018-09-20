@@ -88,10 +88,10 @@ class Secondary_engine_reader : public Key_reader {
   Secondary_engine_reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
                           size_t n_threads, row_prebuilt_t *prebuilt)
       : Key_reader(table, trx, index, prebuilt, n_threads) {
-    m_bufs = static_cast<byte **>(ut_malloc_nokey(n_threads * sizeof(byte *)));
+    m_bufs.reserve(n_threads);
 
-    for (size_t thread_id = 0; thread_id < n_threads; ++thread_id) {
-      m_bufs[thread_id] = static_cast<byte *>(
+    for (size_t i = 0; i < n_threads; ++i) {
+      m_bufs[i] = static_cast<byte *>(
           ut_malloc_nokey(SECONDARY_ENGINE_SEND_BUFFER_SIZE));
     }
 
@@ -101,11 +101,9 @@ class Secondary_engine_reader : public Key_reader {
 
   /** Destructor. */
   ~Secondary_engine_reader() {
-    for (size_t thread_id = 0; thread_id < m_n_threads; ++thread_id) {
-      ut_free(m_bufs[thread_id]);
+    for (auto buf : m_bufs) {
+      ut_free(buf);
     }
-
-    ut_free(m_bufs);
   }
 
   /** Set callback info.
@@ -169,7 +167,7 @@ class Secondary_engine_reader : public Key_reader {
   uint64_t m_secondary_engine_send_num_recs;
 
   /** Buffer to store records to be sent to secondary engine SE. */
-  byte **m_bufs;
+  std::vector<byte *> m_bufs;
 };
 
 /** Traverse all the indexes of a partitioned table in the leaf page block list

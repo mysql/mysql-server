@@ -729,11 +729,6 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
 
     subtrees.push_back(pages);
 
-    std::cerr << "[InnoDB] No. of levels : " << 1 << std::endl;
-    std::cerr << "[InnoDB] Chosen level: " << 0 << std::endl;
-    std::cerr << "[InnoDB] No. of subtrees at the chosen level: " << 0
-              << std::endl;
-
   } else {
     mtr.start();
 
@@ -757,19 +752,6 @@ typename Reader<T, R>::Ranges Reader<T, R>::partition() {
         break;
       }
     }
-
-    std::cerr << "[InnoDB] No. of levels : " << levels.size() << std::endl;
-    std::cerr << "[InnoDB] Chosen level: " << i << std::endl;
-    std::cerr << "[InnoDB] No. of subtrees at the chosen level: "
-              << subtrees.size() << std::endl;
-  }
-
-  if (subtrees.size() >= m_n_threads) {
-    std::cerr << "[InnoDB] No. of parallel threads spawned: " << m_n_threads
-              << std::endl;
-  } else {
-    std::cerr << "[InnoDB] No. of parallel threads spawned: " << subtrees.size()
-              << std::endl;
   }
 
   auto ptr = static_cast<T *>(this)->create_ranges(subtrees);
