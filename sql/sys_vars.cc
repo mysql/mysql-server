@@ -4055,19 +4055,44 @@ export sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd) {
   return sql_mode;
 }
 static bool check_sql_mode(sys_var *, THD *thd, set_var *var) {
-  const sql_mode_t candidate_mode =
+  sql_mode_t candidate_mode =
       expand_sql_mode(var->save_result.ulonglong_value, thd);
-  var->save_result.ulonglong_value = candidate_mode;
+
+  if (candidate_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK)) {
+    my_error(ER_UNSUPPORTED_SQL_MODE, MYF(0),
+             candidate_mode & ~(MODE_ALLOWED_MASK | MODE_IGNORED_MASK));
+    return true;  // mode seems never supported before
+  }
 
   if (candidate_mode & ~MODE_ALLOWED_MASK) {
-    return true;
+    if (thd->variables.pseudo_slave_mode &&  // (1)
+        thd->lex->sphead == nullptr) {       // (2)
+      /*
+        (1): catch the auto-generated SET SQL_MODE calls in the output of
+             mysqlbinlog,
+        (2): but ignore the other ones (e.g. nested SET SQL_MODE calls in
+             SBR-invoked trigger calls).
+      */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_REMOVED_SQL_MODE,
+                          ER_THD(thd, ER_WARN_REMOVED_SQL_MODE),
+                          candidate_mode & ~MODE_ALLOWED_MASK);
+      // ignore obsolete mode flags in case this is an old mysqlbinlog:
+      candidate_mode &= MODE_ALLOWED_MASK;
+    } else {
+      my_error(ER_UNSUPPORTED_SQL_MODE, MYF(0),
+               candidate_mode & ~MODE_ALLOWED_MASK);
+      return true;  // error on obsolete mode flags
+    }
   }
+
   if (candidate_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) {
     push_warning_printf(
         thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SQLMODE,
         ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE), "PAD_CHAR_TO_FULL_LENGTH");
   }
 
+  var->save_result.ulonglong_value = candidate_mode;
   return false;
 }
 static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type) {

@@ -18455,6 +18455,9 @@ ER_IB_MSG_MADVISE_FAILED
 ER_COLUMN_CHANGE_SIZE
   eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
 
+ER_WARN_REMOVED_SQL_MODE
+  eng "sql_mode=0x%08x has been removed and will be ignored"
+
 ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT
   eng "Failed to allocate memory for a pool of size %d bytes. Will wait for %d seconds for a thread to free a resource."
 
