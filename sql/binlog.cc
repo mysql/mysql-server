@@ -3005,7 +3005,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     BINLOG_FILE_READER binlog_file_reader(
         opt_master_verify_checksum,
         std::max(thd->variables.max_allowed_packet,
-                 opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER));
+                 binlog_row_event_max_size + MAX_LOG_EVENT_HEADER));
 
     if (binlog_file_reader.open(linfo.log_file_name, pos)) {
       errmsg = binlog_file_reader.get_error_str();
@@ -10144,7 +10144,7 @@ Rows_log_event *THD::binlog_prepare_pending_rows_event(
   if (!pending || pending->server_id != serv_id ||
       pending->get_table_id() != table->s->table_map_id ||
       pending->get_general_type_code() != general_type_code ||
-      pending->get_data_size() + needed > opt_binlog_rows_event_max_size ||
+      pending->get_data_size() + needed > binlog_row_event_max_size ||
       pending->read_write_bitmaps_cmp(table) == false ||
       !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
                                       extra_row_info)) {

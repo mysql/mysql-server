@@ -76,7 +76,7 @@ Rpl_applier_reader::Rpl_applier_reader(Relay_log_info *rli)
     : m_relaylog_file_reader(
           opt_slave_sql_verify_checksum,
           std::max(slave_max_allowed_packet,
-                   opt_binlog_rows_event_max_size + MAX_LOG_EVENT_HEADER)),
+                   binlog_row_event_max_size + MAX_LOG_EVENT_HEADER)),
       m_rli(rli) {}
 
 Rpl_applier_reader::~Rpl_applier_reader() { close(); }

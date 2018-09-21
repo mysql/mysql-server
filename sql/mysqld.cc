@@ -1018,7 +1018,7 @@ bool sp_automatic_privileges = 1;
 int32_t opt_regexp_time_limit;
 int32_t opt_regexp_stack_limit;
 
-ulong opt_binlog_rows_event_max_size;
+ulong binlog_row_event_max_size;
 ulong binlog_checksum_options;
 ulong binlog_row_metadata;
 bool opt_master_verify_checksum = 0;
@@ -7208,15 +7208,6 @@ struct my_option my_long_options[] = {
      "Tells the master that updates to the given database should not be logged "
      "to the binary log.",
      0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"binlog-row-event-max-size", 0,
-     "The maximum size of a row-based binary log event in bytes. Rows will be "
-     "grouped into events smaller than this size if possible. "
-     "The value has to be a multiple of 256.",
-     &opt_binlog_rows_event_max_size, &opt_binlog_rows_event_max_size, 0,
-     GET_ULONG, REQUIRED_ARG,
-     /* def_value */ 8192, /* min_value */ 256, /* max_value */ ULONG_MAX,
-     /* sub_size */ 0, /* block_size */ 256,
-     /* app_type */ 0},
     {"character-set-client-handshake", 0,
      "Don't ignore client side character set value sent during handshake.",
      &opt_character_set_client_handshake, &opt_character_set_client_handshake,

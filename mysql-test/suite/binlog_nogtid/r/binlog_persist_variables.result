@@ -22,7 +22,7 @@ VARIABLE_NAME LIKE '%slave%') AND
 'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
-include/assert.inc ['Expect 80 variables in the table.']
+include/assert.inc ['Expect 81 variables in the table.']
 
 # Test SET PERSIST
 SET PERSIST binlog_cache_size = @@GLOBAL.binlog_cache_size;
@@ -40,6 +40,8 @@ Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 SET PERSIST binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET PERSIST binlog_row_event_max_size = @@GLOBAL.binlog_row_event_max_size;
+ERROR HY000: Variable 'binlog_row_event_max_size' is a read only variable
 SET PERSIST binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
@@ -152,6 +154,9 @@ Warnings:
 Warning	3615	Variable binlog_gtid_simple_recovery does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_max_flush_queue_time;
 RESET PERSIST IF EXISTS binlog_order_commits;
+RESET PERSIST IF EXISTS binlog_row_event_max_size;
+Warnings:
+Warning	3615	Variable binlog_row_event_max_size does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_row_image;
 RESET PERSIST IF EXISTS binlog_row_metadata;
 RESET PERSIST IF EXISTS binlog_row_value_options;

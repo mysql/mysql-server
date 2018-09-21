@@ -6283,3 +6283,11 @@ static Sys_var_charptr Sys_sys_variables_admin_subject(
     "system variables via SET PERSIST[_ONLY]",
     READ_ONLY NON_PERSIST GLOBAL_VAR(sys_var_persist_only_admin_x509_subject),
     CMD_LINE(OPT_ARG), IN_SYSTEM_CHARSET, DEFAULT(""));
+
+static Sys_var_ulong Sys_binlog_row_event_max_size(
+    "binlog_row_event_max_size",
+    "The maximum size of a row-based binary log event in bytes. Rows will be "
+    "grouped into events smaller than this size if possible. "
+    "The value has to be a multiple of 256.",
+    READ_ONLY GLOBAL_VAR(binlog_row_event_max_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(256, ULONG_MAX), DEFAULT(8192), BLOCK_SIZE(256));
