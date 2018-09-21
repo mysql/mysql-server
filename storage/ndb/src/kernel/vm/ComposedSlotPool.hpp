@@ -183,7 +183,6 @@ inline bool ComposedSlotPool<Pool1, Pool2>::seize(Ptr<Slot>& p,
   {
     if (!seize_pool2(p, slot_size))
     {
-abort();
       return false;
     }
   }
