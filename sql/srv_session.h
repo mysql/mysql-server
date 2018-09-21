@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -307,8 +307,9 @@ class Srv_session {
       Uses RAII.
 
       @param sess Session to backup
+      @param is_in_close_session Wheather session needs to be closed.
     */
-    Session_backup_and_attach(Srv_session *sess);
+    Session_backup_and_attach(Srv_session *sess, bool is_in_close_session);
 
     /**
       Destructs the session state object. In other words it restores to
@@ -320,6 +321,7 @@ class Srv_session {
     Srv_session *session;
     Srv_session *old_session; /* used in srv_session threads */
     THD *backup_thd;
+    bool in_close_session;
 
    public:
     bool attach_error;

@@ -454,28 +454,34 @@ class Mutexed_map_thd_srv_session {
 static Mutexed_map_thd_srv_session server_session_list;
 static Thread_to_plugin_map server_session_threads;
 
-/**
-  Constructs a session state object for Srv_session::execute_command.
-  Saves state. Uses RAII.
-
-  @param sess Session to backup
-*/
 Srv_session::Session_backup_and_attach::Session_backup_and_attach(
-    Srv_session *sess)
-    : session(sess), old_session(nullptr), backup_thd(nullptr) {
-  THD *thd = current_thd;
-  // If it is a srv_session thread and there's another session attached
-  if ((old_session = server_session_list.find(thd)))
+    Srv_session *sess, bool is_in_close_session)
+    : session(sess),
+      old_session(nullptr),
+      in_close_session(is_in_close_session) {
+  THD *c_thd = current_thd;
+  backup_thd = c_thd;
+  bool is_plugin = false;
+  /*
+    Check whether the current thread and the one we're going to switch to,
+    belong to a plugin and if the plugin is the same (so we can reuse the thd).
+  */
+  if (THR_srv_session_thread && c_thd &&
+      c_thd->get_plugin() == session->thd.get_plugin()) {
+    is_plugin = true;
+    backup_thd = nullptr;
+  }
+
+  if (is_plugin && c_thd != &session->thd &&
+      (old_session = server_session_list.find(c_thd))) {
     old_session->detach();
-  else
-    backup_thd = thd;
+  } else if (is_plugin) {
+    DBUG_ASSERT(session->is_attached());
+  }
+
   attach_error = session->attach();
 }
 
-/**
-  Destructs the session state object. In other words it restores to
-  previous state.
-*/
 Srv_session::Session_backup_and_attach::~Session_backup_and_attach() {
   if (backup_thd) {
     session->detach();
@@ -484,10 +490,15 @@ Srv_session::Session_backup_and_attach::~Session_backup_and_attach() {
     enum_vio_type vio_type = backup_thd->get_vio_type();
     if (vio_type != NO_VIO_TYPE) PSI_THREAD_CALL(set_connection_type)(vio_type);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
-  } else {
+  } else if (in_close_session) {
+    /*
+      We should restore the old session only in case of close.
+      In case of execute we should stay attached.
+    */
     session->detach();
-    // If previously there was another session attached, then attach it back.
-    if (old_session) old_session->attach();
+    if (old_session) {
+      old_session->attach();
+    }
   }
 }
 
@@ -819,7 +830,8 @@ bool Srv_session::open() {
 
   Global_THD_manager::get_instance()->add_thd(&thd);
 
-  const void *plugin = THR_srv_session_thread;
+  const st_plugin_int *plugin = THR_srv_session_thread;
+  thd.set_plugin(plugin);
 
   server_session_list.add(&thd, plugin, this);
 
@@ -976,7 +988,7 @@ bool Srv_session::close() {
     The destructor will attach the session we detached.
   */
 
-  Srv_session::Session_backup_and_attach backup(this);
+  Srv_session::Session_backup_and_attach backup(this, true);
 
   if (backup.attach_error) DBUG_RETURN(true);
 
@@ -999,6 +1011,7 @@ bool Srv_session::close() {
   thd.m_view_ctx_list.empty();
   close_mysql_tables(&thd);
 
+  thd.set_plugin(nullptr);
   thd.pop_diagnostics_area();
 
   thd.get_stmt_da()->reset_diagnostics_area();
@@ -1067,7 +1080,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
 
   // RAII:the destructor restores the state
-  Srv_session::Session_backup_and_attach backup(this);
+  Srv_session::Session_backup_and_attach backup(this, false);
 
   if (backup.attach_error) DBUG_RETURN(1);
 

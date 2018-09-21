@@ -3902,6 +3902,17 @@ class THD : public MDL_context_owner,
 
   bool is_a_srv_session() const { return is_a_srv_session_thd; }
   void mark_as_srv_session() { is_a_srv_session_thd = true; }
+
+  /**
+    Returns the plugin, the thd belongs to.
+    @return pointer to the plugin id
+   */
+  const st_plugin_int *get_plugin() const { return m_plugin; }
+  /**
+    Sets the plugin id to the value provided as parameter
+    @param plugin the id of the plugin the thd belongs to
+   */
+  void set_plugin(const st_plugin_int *plugin) { m_plugin = plugin; }
 #ifndef DBUG_OFF
   uint get_tmp_table_seq_id() { return tmp_table_seq_id++; }
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
@@ -3916,6 +3927,9 @@ class THD : public MDL_context_owner,
     aggregates THD.
   */
   bool is_a_srv_session_thd;
+
+  /// Stores the plugin id it is attached to (if any).
+  const st_plugin_int *m_plugin{nullptr};
 
   /**
     Creating or dropping plugin native table through a plugin service.
