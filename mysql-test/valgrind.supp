@@ -1608,7 +1608,7 @@
 {
   TPL leak 15
   Memcheck:Leak
-  match-leak-kinds: reachable
+  match-leak-kinds: all
   fun:malloc
   ...
   fun:CRYPTO_malloc
