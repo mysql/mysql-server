@@ -257,3 +257,9 @@ ndb_log_error_dump(const char* fmt, ...)
   va_end(args);
   fprintf(stderr, "\n");
 }
+
+void
+ndb_log_flush_buffered_messages()
+{
+  flush_error_log_messages();
+}
