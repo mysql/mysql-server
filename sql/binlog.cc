@@ -4986,6 +4986,13 @@ void MYSQL_BIN_LOG::report_cache_write_error(THD *thd, bool is_transactional) {
   DBUG_VOID_RETURN;
 }
 
+static int compare_log_name(const char *log_1, const char *log_2) {
+  const char *log_1_basename = log_1 + dirname_length(log_1);
+  const char *log_2_basename = log_2 + dirname_length(log_2);
+
+  return strcmp(log_1_basename, log_2_basename);
+}
+
 /**
   Find the position in the log-index-file for the given log name.
 
@@ -5013,7 +5020,6 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
   int error = 0;
   char *full_fname = linfo->log_file_name;
   char full_log_name[FN_REFLEN], fname[FN_REFLEN];
-  size_t log_name_len = 0, fname_len = 0;
   DBUG_ENTER("find_log_pos");
   full_log_name[0] = full_fname[0] = 0;
 
@@ -5039,7 +5045,6 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     }
   }
 
-  log_name_len = log_name ? strlen(full_log_name) : 0;
   DBUG_PRINT("enter", ("log_name: %s, full_log_name: %s",
                        log_name ? log_name : "NULL", full_log_name));
 
@@ -5064,11 +5069,8 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
       error = LOG_INFO_EOF;
       break;
     }
-    fname_len = strlen(full_fname);
-
     // if the log entry matches, null string matching anything
-    if (!log_name || (log_name_len == fname_len &&
-                      !strncmp(full_fname, full_log_name, log_name_len))) {
+    if (!log_name || !compare_log_name(full_fname, full_log_name)) {
       DBUG_PRINT("info", ("Found log file entry"));
       linfo->index_file_start_offset = offset;
       linfo->index_file_offset = my_b_tell(&index_file);
@@ -5526,7 +5528,8 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log, bool included,
   if ((error = find_log_pos(&log_info, NullS, false /*need_lock_index=false*/)))
     goto err;
 
-  while ((strcmp(to_log, log_info.log_file_name) || (exit_loop = included))) {
+  while ((compare_log_name(to_log, log_info.log_file_name) ||
+          (exit_loop = included))) {
     if (is_active(log_info.log_file_name)) {
       if (!auto_purge)
         push_warning_printf(
