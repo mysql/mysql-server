@@ -2273,8 +2273,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                   thbits);
               ndbrequire(false);
             }
-	    if (! (((thbits & Tuple_header::FREE) ||
-	            (thbits & Tuple_header::DELETE_WAIT)) ||
+	    if (! ((thbits & Tuple_header::FREE) ||
                    ((bits & ScanOp::SCAN_LCP) &&
                     (thbits & Tuple_header::ALLOC))))
 	    {
@@ -2356,8 +2355,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * row again. This is handled by changing the pos.m_get state
                * to Get_tuple instead of Get_next_tuple.
                */
-        if (! ((thbits & Tuple_header::FREE) ||
-               (thbits & Tuple_header::DELETE_WAIT)))
+        if (! (thbits & Tuple_header::FREE))
 	      {
 		jam();
 		goto found_tuple;
@@ -2600,8 +2598,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               foundGCI == 0)
           {
             thbits = tuple_header_ptr->m_header_bits;
-            if (! ((thbits & Tuple_header::FREE) ||
-                   (thbits & Tuple_header::DELETE_WAIT)))
+            if (! (thbits & Tuple_header::FREE))
             {
               jam();
               break;
