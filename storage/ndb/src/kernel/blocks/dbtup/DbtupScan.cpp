@@ -1118,8 +1118,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  {
 	    jam();
             thbits = th->m_header_bits;
-      if (! ((thbits & Tuple_header::FREE) ||
-             (thbits & Tuple_header::DELETE_WAIT)))
+	    if (! (thbits & Tuple_header::FREE))
 	    {
               goto found_tuple;
 	    } 
@@ -1136,8 +1135,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	    if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
                 foundGCI == 0)
 	    {
-	      if (! ((thbits & Tuple_header::FREE) ||
-	             (thbits & Tuple_header::DELETE_WAIT)))
+	      if (! (thbits & Tuple_header::FREE))
 	      {
 		jam();
 		goto found_tuple;
@@ -1231,8 +1229,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	  if ((foundGCI = *th->get_mm_gci(tablePtr.p)) > scanGCI ||
               foundGCI == 0)
 	  {
-      if (! ((thbits & Tuple_header::FREE) ||
-             (thbits & Tuple_header::DELETE_WAIT)))
+	    if (! (thbits & Tuple_header::FREE))
 	      break;
 	  }
 	}
