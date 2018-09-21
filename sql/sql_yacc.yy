@@ -10914,14 +10914,14 @@ jt_column:
           {
             $$= NEW_PTN PT_json_table_column_for_ordinality($1);
           }
-        | ident type jt_column_type PATH_SYM TEXT_STRING_sys
+        | ident type opt_collate jt_column_type PATH_SYM TEXT_STRING_sys
           opt_on_empty_or_error
           {
-            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $5 ,
-                                                       $6.error.type,
-                                                       *$6.error.default_str,
-                                                       $6.empty.type,
-                                                       *$6.empty.default_str);
+            $$= NEW_PTN PT_json_table_column_with_path($1, $2, $3, $4, $6,
+                                                       $7.error.type,
+                                                       *$7.error.default_str,
+                                                       $7.empty.type,
+                                                       *$7.empty.default_str);
           }
         | NESTED_SYM PATH_SYM TEXT_STRING_sys columns_clause
           {

@@ -1231,3 +1231,27 @@ connection default;
 disconnect con1;
 DROP USER foo@localhost;
 DROP SCHEMA my_schema;
+
+--echo #
+--echo # Bug#28538315: JSON_TABLE() COLUMN TYPES DON'T SUPPORT COLLATE CLAUSE
+--echo #
+
+CREATE TABLE t1 SELECT *
+  FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+                                CHARSET utf8mb4
+                                PATH '$')) AS jt1;
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 SELECT *
+  FROM JSON_TABLE('"test"', '$' COLUMNS(x VARCHAR(10)
+                                CHARSET utf8mb4 COLLATE utf8mb4_bin
+                                PATH '$')) AS jt1;
+SHOW CREATE TABLE t2;
+
+CREATE TABLE t3 AS SELECT *
+  FROM JSON_TABLE('"a"', '$' COLUMNS (a VARCHAR(10)
+                             COLLATE ascii_bin
+                             PATH '$')) jt;
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1, t2, t3;
