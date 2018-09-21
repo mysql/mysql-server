@@ -69,40 +69,7 @@ Triggers::Triggers() {
                          "created TIMESTAMP(2) NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP(2) NOT NULL");
-  m_target_def.add_field(FIELD_SQL_MODE, "FIELD_SQL_MODE",
-                         "sql_mode SET( \n"
-                         "'REAL_AS_FLOAT',\n"
-                         "'PIPES_AS_CONCAT',\n"
-                         "'ANSI_QUOTES',\n"
-                         "'IGNORE_SPACE',\n"
-                         "'NOT_USED',\n"
-                         "'ONLY_FULL_GROUP_BY',\n"
-                         "'NO_UNSIGNED_SUBTRACTION',\n"
-                         "'NO_DIR_IN_CREATE',\n"
-                         "'NOT_USED_9',\n"
-                         "'NOT_USED_10',\n"
-                         "'NOT_USED_11',\n"
-                         "'NOT_USED_12',\n"
-                         "'NOT_USED_13',\n"
-                         "'NOT_USED_14',\n"
-                         "'NOT_USED_15',\n"
-                         "'NOT_USED_16',\n"
-                         "'NOT_USED_17',\n"
-                         "'NOT_USED_18',\n"
-                         "'ANSI',\n"
-                         "'NO_AUTO_VALUE_ON_ZERO',\n"
-                         "'NO_BACKSLASH_ESCAPES',\n"
-                         "'STRICT_TRANS_TABLES',\n"
-                         "'STRICT_ALL_TABLES',\n"
-                         "'NO_ZERO_IN_DATE',\n"
-                         "'NO_ZERO_DATE',\n"
-                         "'INVALID_DATES',\n"
-                         "'ERROR_FOR_DIVISION_BY_ZERO',\n"
-                         "'TRADITIONAL',\n"
-                         "'NOT_USED_29',\n"
-                         "'HIGH_NOT_PRECEDENCE',\n"
-                         "'NO_ENGINE_SUBSTITUTION',\n"
-                         "'PAD_CHAR_TO_FULL_LENGTH') NOT NULL");
+  m_target_def.add_sql_mode_field(FIELD_SQL_MODE, "FIELD_SQL_MODE");
   m_target_def.add_field(FIELD_DEFINER, "FIELD_DEFINER",
                          "definer VARCHAR(93) NOT NULL");
   m_target_def.add_field(FIELD_CLIENT_COLLATION_ID, "FIELD_CLIENT_COLLATION_ID",

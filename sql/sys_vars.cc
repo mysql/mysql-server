@@ -4114,7 +4114,7 @@ static const char *sql_mode_names[] = {"REAL_AS_FLOAT",
                                        "PIPES_AS_CONCAT",
                                        "ANSI_QUOTES",
                                        "IGNORE_SPACE",
-                                       ",",
+                                       "NOT_USED",
                                        "ONLY_FULL_GROUP_BY",
                                        "NO_UNSIGNED_SUBTRACTION",
                                        "NO_DIR_IN_CREATE",
@@ -4147,6 +4147,11 @@ static const char *sql_mode_names[] = {"REAL_AS_FLOAT",
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls) {
   set_to_string(thd, ls, sql_mode, sql_mode_names);
+  return ls->str == 0;
+}
+export bool sql_mode_quoted_string_representation(THD *thd, sql_mode_t sql_mode,
+                                                  LEX_STRING *ls) {
+  set_to_string(thd, ls, sql_mode, sql_mode_names, true);
   return ls->str == 0;
 }
 /*

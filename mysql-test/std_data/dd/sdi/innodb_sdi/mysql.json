@@ -6378,7 +6378,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 11,
-                "char_length": 1542,
+                "char_length": 1560,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -6399,7 +6399,7 @@
                 "options": "interval_count=33;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')",
+                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')",
                 "elements": [
                     {
                         "name": "UkVBTF9BU19GTE9BVA==", "decoded-name": "REAL_AS_FLOAT",
@@ -6502,7 +6502,7 @@
                         "index": 25
                     },
                     {
-                        "name": "SU5WQUxJRF9EQVRFUw==", "decoded-name": "INVALID_DATES",
+                        "name": "QUxMT1dfSU5WQUxJRF9EQVRFUw==", "decoded-name": "ALLOW_INVALID_DATES",
                         "index": 26
                     },
                     {
@@ -13731,7 +13731,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 21,
-                "char_length": 1542,
+                "char_length": 1560,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -13752,7 +13752,7 @@
                 "options": "interval_count=33;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')",
+                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')",
                 "elements": [
                     {
                         "name": "UkVBTF9BU19GTE9BVA==", "decoded-name": "REAL_AS_FLOAT",
@@ -13855,7 +13855,7 @@
                         "index": 25
                     },
                     {
-                        "name": "SU5WQUxJRF9EQVRFUw==", "decoded-name": "INVALID_DATES",
+                        "name": "QUxMT1dfSU5WQUxJRF9EQVRFUw==", "decoded-name": "ALLOW_INVALID_DATES",
                         "index": 26
                     },
                     {
@@ -21259,7 +21259,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 12,
-                "char_length": 1467,
+                "char_length": 1560,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -21277,10 +21277,10 @@
                 "comment": "",
                 "generation_expression": "",
                 "generation_expression_utf8": "",
-                "options": "interval_count=32;",
+                "options": "interval_count=33;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')",
+                "column_type_utf8": "set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','ALLOW_INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL')",
                 "elements": [
                     {
                         "name": "UkVBTF9BU19GTE9BVA==", "decoded-name": "REAL_AS_FLOAT",
@@ -21383,7 +21383,7 @@
                         "index": 25
                     },
                     {
-                        "name": "SU5WQUxJRF9EQVRFUw==", "decoded-name": "INVALID_DATES",
+                        "name": "QUxMT1dfSU5WQUxJRF9EQVRFUw==", "decoded-name": "ALLOW_INVALID_DATES",
                         "index": 26
                     },
                     {
@@ -21409,6 +21409,10 @@
                     {
                         "name": "UEFEX0NIQVJfVE9fRlVMTF9MRU5HVEg=", "decoded-name": "PAD_CHAR_TO_FULL_LENGTH",
                         "index": 32
+                    },
+                    {
+                        "name": "VElNRV9UUlVOQ0FURV9GUkFDVElPTkFM", "decoded-name": "TIME_TRUNCATE_FRACTIONAL",
+                        "index": 33
                     }
                 ],
                 "collation_id": X,

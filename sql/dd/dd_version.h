@@ -141,7 +141,7 @@
   ----------------------------------------------------------------------------
   Changes from version 80013:
 
-  - No changes yet, hence this number is not used yet.
+  - Bug#28492272: Synchronize sql_mode in server with that in DD.
 
 
   80015: Next DD version number after the previous is public.
@@ -160,9 +160,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80013;
+static const uint DD_VERSION = 80014;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80013;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80014;
 
 }  // namespace dd
 

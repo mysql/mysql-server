@@ -29,11 +29,14 @@
 
 #include "m_string.h"  // my_stpcpy
 #include "my_dbug.h"
+#include "sql/current_thd.h"
 #include "sql/dd/properties.h"                     // dd::tables::DD_properties
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/table.h"                    // dd::Table
 #include "sql/mysqld.h"                            // lower_case_table_names
+#include "sql/set_var.h"                           // sql_mode_quoted_string...
+#include "sql/system_variables.h"                  // MODE_LAST
 
 namespace dd {
 
@@ -229,6 +232,17 @@ class Object_table_definition_impl : public Object_table_definition {
                  const String_type field_definition) {
     add_element(field_number, field_name, field_definition, &m_field_numbers,
                 &m_field_definitions);
+  }
+
+  void add_sql_mode_field(int field_number, const String_type &field_name) {
+    LEX_STRING sql_mode;
+    ulonglong all_sql_mode_mask = MODE_LAST - 1;
+    sql_mode_quoted_string_representation(current_thd, all_sql_mode_mask,
+                                          &sql_mode);
+    DBUG_ASSERT(sql_mode.str);
+    dd::String_type sql_modes_in_string(sql_mode.str, sql_mode.length);
+    add_field(field_number, field_name,
+              "sql_mode SET(" + sql_modes_in_string + ") NOT NULL");
   }
 
   virtual void add_index(int index_number, const String_type &index_name,

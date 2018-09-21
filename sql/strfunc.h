@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,8 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                         const char *lib[]);
 char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
                     const char *lib[]);
+char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                    const char *lib[], bool quoted);
 
 size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
                   CHARSET_INFO *to_cs, char *to, size_t to_length,
