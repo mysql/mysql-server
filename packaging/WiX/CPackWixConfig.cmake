@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;Meb;MebReadme")
+    "Server;Client;DataFiles;Development;SharedLibraries;Documentation;IniFiles;Readme;Server_Scripts;Meb;MebReadme;Router")
 
 IF(WITH_NDBCLUSTER)
   MESSAGE(STATUS "This is Cluster build, append additional components")
@@ -70,6 +70,10 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  # Subfeature "MebReadme" 
  SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
  SET(CPACK_COMPONENT_MEBREADME_GROUP "AlwaysInstall")
+
+ #Subfeature MySQL Router
+ SET(CPACK_COMPONENT_GROUP_ALWAYSINSTALL_HIDDEN 1)
+ SET(CPACK_COMPONENT_ROUTER_GROUP "AlwaysInstall")
     
  #Subfeature "Data Files" 
  SET(CPACK_COMPONENT_DATAFILES_GROUP "MySQLServer")
