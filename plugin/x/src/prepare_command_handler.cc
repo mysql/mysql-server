@@ -100,7 +100,8 @@ class Any_to_param_handler {
  private:
   template <typename T>
   const unsigned char *store_value(const T value) const {
-    auto pos = m_param_values->insert(m_param_values->end(), {0});
+    Prepare_command_handler::Param_value_list::value_type empty_val = {};
+    auto pos = m_param_values->insert(m_param_values->end(), empty_val);
     store(pos->data(), value);
     return pos->data();
   }
