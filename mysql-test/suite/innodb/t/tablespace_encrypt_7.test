@@ -1,12 +1,16 @@
 ################################################################################
 # InnoDB transparent tablespace data encryption for general shared tablespace.
 # This test case will test
-#    - Crash
-#        - just before flushing page 0 at the end of (un)encryption
-#        - just after flushing page 0 at the end of (un)encryption
-#    -Crash
-#        - just before updating tablespace flags on page 0
-#        - just before resetting progress on page 0
+#    - Test 1
+#        - 1.1 : Crash just before flushing page 0 at the end of (un)encryption
+#        - 1.2 : Crash just after flushing page 0 at the end of (un)encryption
+#    - Test 2
+#        - 2.1 : Crash just before updating tablespace flags on page 0
+#        - 2.2 : Crash just before resetting progress on page 0
+#    - Test 3
+#        - A scneario in which tablespace key found during REDO log scan is
+#          old whereas tablespace key on disk is new. Here, REDO log scan key
+#          should be discarded and new tablespace key should be used instead.
 ################################################################################
 
 --source include/big_test.inc
@@ -53,6 +57,8 @@ SELECT * FROM t1 LIMIT 10;
 # Try to alter tablespace to be encrypted. Should fail as keyring is not laoded.
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo #-------------------------- TEST 1 -------------------------------------#
 
 --echo #########################################################################
 --echo # RESTART 1 : WITH KEYRING PLUGIN
@@ -236,6 +242,8 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 # be unencrypted now.
 SELECT * FROM t1 LIMIT 10;
 
+--echo #-------------------------- TEST 2 -------------------------------------#
+
 --echo #########################################################################
 --echo # RESTART 9 : WITH KEYRING PLUGIN
 --echo #########################################################################
@@ -247,7 +255,7 @@ SELECT * FROM t1 LIMIT 10;
 
 --echo ########################################################################
 --echo # ALTER TABLESPACE 5 :  Encrypted => unencrypted                       #
---echo #                       crash just before resetting progress onpage 0  #
+--echo #                       crash just before updating ts flags on page0   #
 --echo ########################################################################
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Set process to crash just after flushing page 0 at the end
@@ -332,10 +340,61 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 # be unencrypted now.
 SELECT * FROM t1 LIMIT 10;
 
---echo ###########
---echo # Cleanup #
---echo ###########
+--echo #-------------------------- TEST 3 -------------------------------------#
+
+--echo #########################################################################
+--echo # RESTART 13 : WITH KEYRING PLUGIN
+--echo #########################################################################
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_doublewrite=0;
+--source include/restart_mysqld_no_echo.inc
 
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd';
+CREATE TABLE t1 (C CHAR(10)) TABLESPACE=encrypt_ts;
+SET GLOBAL innodb_limit_optimistic_insert_debug=2;
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+INSERT INTO t1 VALUES("SOMEVALUE");
+
+--echo # Make sure checkpoint is not moved
+SET GLOBAL innodb_log_checkpoint_now = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+
+--echo # Following encryption will create a new tablespace key (KEY1)
+--echo # KEY1 will be written on REDO log
+ALTER TABLESPACE encrypt_ts encryption='Y';
+
+--echo # Following unencryption will remove tablespace key
+ALTER TABLESPACE encrypt_ts encryption='N';
+
+# Force encryption to crash after page 6 is encrypted
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_6';
+# Force every page to be flushed after its dirtied
+SET SESSION debug= '+d,flush_each_dirtied_page';
+
+--echo # Following encryption will create a new tablespace key (KEY2)
+--echo # KEY2 will be written on REDO log
+--echo # Flush dirtied pages encrypted with KEY2 before crash
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts encryption='Y';
+--echo # Restart after crash
+# Without fix, following restart would crash reporting page corruption
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_doublewrite=0 --debug=d,dont_update_key_found_during_REDO_scan;
+--source include/start_mysqld_no_echo.inc
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;
+SET SESSION debug= '-d,alter_encrypt_tablespace_page_6';
+SET SESSION debug= '-d,flush_each_dirtied_page';
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;

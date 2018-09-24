@@ -869,53 +869,6 @@ encryption_op_type fsp_header_encryption_op_type_in_progress(
   return (op);
 }
 
-/** Get encryption information from page 0 of tablespace.
-@param[in]	space_id	space id.
-@param[in]	space_flags	space flags
-@param[out]	key		tablespace encryption key
-@param[out]	iv		tablespace encryption iv
-@return true, if information read successfully
-*/
-static bool fsp_header_read_encryption_info(space_id_t space_id,
-                                            ulint space_flags, byte *key,
-                                            byte *iv) {
-  buf_block_t *block;
-  ulint offset;
-  page_t *page;
-  mtr_t mtr;
-
-  const page_size_t page_size(space_flags);
-
-  mtr_start(&mtr);
-  /* Read encryption info from page 0. */
-  block = buf_page_get(page_id_t(space_id, 0), page_size, RW_SX_LATCH, &mtr);
-  if (block == nullptr) {
-    return (false);
-  }
-
-  buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-  ut_ad(space_id == page_get_space_id(buf_block_get_frame(block)));
-
-  offset = fsp_header_get_encryption_offset(page_size);
-  ut_ad(offset != 0 && offset < UNIV_PAGE_SIZE);
-
-  page = buf_block_get_frame(block);
-
-  if (!Encryption::decode_encryption_info(key, iv, page + offset, false)) {
-    mtr_commit(&mtr);
-    return (false);
-  }
-
-  mtr_commit(&mtr);
-  byte buf[ENCRYPTION_KEY_LEN];
-  memset(buf, 0, ENCRYPTION_KEY_LEN);
-  if (memcmp(key, buf, ENCRYPTION_KEY_LEN) == 0) {
-    return (false);
-  }
-
-  return (true);
-}
-
 /** Write the encryption info into the space header.
 @param[in]      space_id		tablespace id
 @param[in]      space_flags		tablespace flags
@@ -969,16 +922,8 @@ bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
     }
   }
 
-  /* For user tablespace, don't erase encryption informtaion from page 0 */
-  if (fsp_is_ibd_tablespace(space_id)) {
-    byte buf[ENCRYPTION_INFO_SIZE];
-    memset(buf, 0, ENCRYPTION_INFO_SIZE);
-    if (memcmp(encrypt_info, buf, ENCRYPTION_INFO_SIZE) != 0) {
-      mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, mtr);
-    }
-  } else {
-    mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, mtr);
-  }
+  /* Write encryption info passed */
+  mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, mtr);
 
   return (true);
 }
@@ -4063,6 +4008,10 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
       DEBUG_SYNC(thd, "alter_encrypt_tablespace_wait_after_page5");
     }
 #endif /* UNIV_DEBUG */
+
+    DBUG_EXECUTE_IF("flush_each_dirtied_page",
+                    buf_LRU_flush_or_remove_pages(
+                        space_id, BUF_REMOVE_FLUSH_WRITE, 0, false););
   }
 }
 
@@ -4101,22 +4050,12 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       /* Assert that tablespace is not encrypted */
       ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-      /* Fill key, iv and prepare encryption_info to be
-      written in page 0 */
+      /* Fill key, iv and prepare encryption_info to be written in page 0 */
       byte key[ENCRYPTION_KEY_LEN];
       byte iv[ENCRYPTION_KEY_LEN];
 
-      /* Try to read encryption information from page 0. If found, that will be
-      used, otherwise a new encryption key, iv will be generated and used. */
-      if (fsp_header_read_encryption_info(space->id, space->flags,
-                                          space->encryption_key,
-                                          space->encryption_iv)) {
-        memcpy(key, space->encryption_key, ENCRYPTION_KEY_LEN);
-        memcpy(iv, space->encryption_iv, ENCRYPTION_KEY_LEN);
-      } else {
-        Encryption::random_value(key);
-        Encryption::random_value(iv);
-      }
+      Encryption::random_value(key);
+      Encryption::random_value(iv);
 
       /* Prepare encrypted encryption information to be written on page 0. */
       if (!Encryption::fill_encryption_info(key, iv, encryption_info, false)) {
