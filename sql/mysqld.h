@@ -649,6 +649,7 @@ extern mysql_mutex_t LOCK_prepared_stmt_count;
 extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
+extern mysql_mutex_t LOCK_slave_trans_dep_tracker;
 extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
