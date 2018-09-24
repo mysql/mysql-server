@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 783;
+const GlobalSignalNumber MAX_GSN = 824;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1110,5 +1110,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_LOCAL_RECOVERY_COMP_REP     782
 
 #define GSN_PROCESSINFO_REP             783
+
+#define GSN_CHECK_LCP_IDLE_ORD          824
 
 #endif
