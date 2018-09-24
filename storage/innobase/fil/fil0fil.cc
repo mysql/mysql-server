@@ -8992,7 +8992,7 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
     is found on REDO Log.
     */
     if (fsp_is_file_per_table(space->id, space->flags) ||
-        (space->encryption_key == nullptr && space->encryption_iv == nullptr)) {
+        space->encryption_klen == 0) {
       err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
     }
 
