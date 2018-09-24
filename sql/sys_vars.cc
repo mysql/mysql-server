@@ -3585,22 +3585,8 @@ static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd
   return false;
 }
 
-void PolyLock_lock_log::rdlock()
-{
-  mysql_mutex_lock(mysql_bin_log.get_log_lock());
-}
-
-void PolyLock_lock_log::wrlock()
-{
-  mysql_mutex_lock(mysql_bin_log.get_log_lock());
-}
-
-void PolyLock_lock_log::unlock()
-{
-  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
-}
-
-static PolyLock_lock_log PLock_log;
+static PolyLock_mutex
+PLock_slave_trans_dep_tracker(&LOCK_slave_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[]=
        {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
 static Sys_var_enum Binlog_transaction_dependency_tracking(
@@ -3611,7 +3597,8 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
        "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
        GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
        CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
-       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_log,
+       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER),
+       &PLock_slave_trans_dep_tracker,
        NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
        ON_UPDATE(update_binlog_transaction_dependency_tracking));
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
@@ -3619,7 +3606,7 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
        "Maximum number of rows to keep in the writeset history.",
        GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
        CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
-       BLOCK_SIZE(1), &PLock_log, NOT_IN_BINLOG, ON_CHECK(NULL),
+       BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
 
 static Sys_var_mybool Sys_slave_preserve_commit_order(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -195,6 +195,7 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd)
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd= get_THD(unsafe_thd)) != NULL)
   {
+    DEBUG_SYNC(m_current_thd, "materialize_session_variable_array_THD_locked");
     for (Show_var_array::iterator show_var= m_show_var_array.begin();
          show_var->value && (show_var != m_show_var_array.end()); show_var++)
     {
