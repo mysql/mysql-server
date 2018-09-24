@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,9 @@
 /**
  * Record types
  */
+#define RT_NONE                    MAKE_TID( 0, 0)
+#define RT_FREE                    MAKE_TID( 1, 0)
+
 #define RT_PGMAN_PAGE_REQUEST      MAKE_TID( 1, RG_TRANSACTION_MEMORY)
 #define RT_LGMAN_LOG_WAITER        MAKE_TID( 2, RG_TRANSACTION_MEMORY)
 #define RT_DBTUP_PAGE_REQUEST      MAKE_TID( 3, RG_TRANSACTION_MEMORY)

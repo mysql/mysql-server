@@ -44,6 +44,8 @@
 #define RG_BITS 5
 #define RG_MASK ((1 << RG_BITS) - 1)
 #define MAKE_TID(TID,RG) Uint32((TID << RG_BITS) | RG)
+#define GET_RG(rt) (rt & RG_MASK)
+#define GET_TID(rt) (rt >> RG_BITS)
 
 /**
  * Page bits
@@ -75,6 +77,28 @@ struct Resource_limit
   Uint32 m_resource_id;
   Uint32 m_spare_pct;
 };
+
+class Magic
+{
+public:
+  explicit Magic(Uint32 type_id) { m_magic = make(type_id); }
+  bool check(Uint32 type_id) { return match(m_magic, type_id); }
+  template<typename T> static bool check_ptr(const T* ptr) { return match(ptr->m_magic, T::TYPE_ID); }
+static bool match(Uint32 magic, Uint32 type_id);
+static Uint32 make(Uint32 type_id);
+private:
+  Uint32 m_magic;
+};
+
+inline Uint32 Magic::make(Uint32 type_id)
+{
+  return type_id ^ ((~type_id) << 16);
+}
+
+inline bool Magic::match(Uint32 magic, Uint32 type_id)
+{
+  return magic == make(type_id);
+}
 
 class Ndbd_mem_manager;
 struct Pool_context

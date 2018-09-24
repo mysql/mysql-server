@@ -45,6 +45,9 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
     NdbinfoTables.cpp
     ArenaPool.cpp
     mt_thr_config.cpp
+    StaticSlotPool.cpp
+    TransientPagePool.cpp
+    TransientSlotPool.cpp
 )
 #    WOPool.cpp
 #    RWPool.cpp

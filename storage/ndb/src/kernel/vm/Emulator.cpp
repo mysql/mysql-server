@@ -635,6 +635,15 @@ static const char* const jamFileNames[] =
    "UndoLogLevel.hpp",                   // 499
    "RedoStateRep.hpp",                   // 500
    "printFragfile.cpp",                  // 501
+   "TransientPagePool.hpp",              // 502
+   "TransientPagePool.cpp",              // 503
+   "TransientSlotPool.hpp",              // 504
+   "TransientSlotPool.cpp",              // 505
+   "TransientPool.hpp",                  // 506
+   "Slot.hpp",                           // 507
+   "StaticSlotPool.hpp",                 // 508
+   "StaticSlotPool.cpp",                 // 509
+   "ComposedSlotPool.hpp",               // 510
    };
 
 bool 
