@@ -812,6 +812,7 @@ static PSI_mutex_key key_LOCK_global_system_variables;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
 static PSI_mutex_key key_LOCK_slave_net_timeout;
+static PSI_mutex_key key_LOCK_slave_trans_dep_tracker;
 static PSI_mutex_key key_LOCK_uuid_generator;
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
@@ -1264,6 +1265,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 */
 mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
+mysql_mutex_t LOCK_slave_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_mutex_t LOCK_offline_mode;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
@@ -2201,6 +2203,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
+  mysql_mutex_destroy(&LOCK_slave_trans_dep_tracker);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
@@ -4312,6 +4315,8 @@ static int init_thread_environment() {
                    &LOCK_sql_slave_skip_counter, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_slave_net_timeout, &LOCK_slave_net_timeout,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_slave_trans_dep_tracker,
+                   &LOCK_slave_trans_dep_tracker, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages, &LOCK_error_messages,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_uuid_generator, &LOCK_uuid_generator,
@@ -10155,6 +10160,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_sql_slave_skip_counter, "LOCK_sql_slave_skip_counter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_slave_net_timeout, "LOCK_slave_net_timeout", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_slave_trans_dep_tracker, "LOCK_slave_trans_dep_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if !defined(_WIN32)
   { &key_LOCK_socket_listener_active, "LOCK_socket_listener_active", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
