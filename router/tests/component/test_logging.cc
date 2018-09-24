@@ -733,7 +733,7 @@ TEST_F(MetadataCacheLoggingTest,
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
       "-c " + init_keyring_and_config_file(conf_dir));
-  bool router_ready = wait_for_port_ready(router_port, 1000);
+  bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
   // expect something like this to appear on STDERR
