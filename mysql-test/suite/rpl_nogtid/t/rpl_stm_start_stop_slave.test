@@ -6,6 +6,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
+--disable_query_log ONCE
+CALL mtr.add_suppression("Client requested master to start replication from position");
 
 # make innodb updates run fast
 --connection slave

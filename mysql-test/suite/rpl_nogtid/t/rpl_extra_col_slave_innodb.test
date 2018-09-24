@@ -2,6 +2,7 @@
 -- source include/no_valgrind_without_big.inc
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
+CALL mtr.add_suppression("Slave: .*Duplicate column name");
 
 let $engine_type = 'InnoDB';
 -- source extra/rpl_tests/rpl_extra_col_slave.test
