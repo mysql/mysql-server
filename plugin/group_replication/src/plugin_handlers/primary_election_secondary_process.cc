@@ -153,6 +153,9 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
     if (!election_process_aborted && !server_shutdown_status) {
       abort_plugin_process(
           "Cannot enable the super read only mode on a secondary member.");
+      error = 1;
+      election_process_aborted = 1;
+      goto end;
     }
   }
 
