@@ -168,37 +168,37 @@ void Dbtc::initRecords()
   Pool_context pc;
   pc.m_block = this;
   c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 1, UINT32_MAX);
-while(c_scan_frag_pool.startup()); // TODO(wl9756) watchdog
+  while(c_scan_frag_pool.startup()) { ; } // TODO(wl9756) watchdog
   m_fragLocationPool.init(RT_DBTC_FRAG_LOCATION, pc, 1, UINT32_MAX);
-while(m_fragLocationPool.startup()); // TODO(wl9756) watchdog
+  while(m_fragLocationPool.startup()) { ; } // TODO(wl9756) watchdog
   m_commitAckMarkerPool.init(CommitAckMarker::TYPE_ID, pc, 1000, UINT32_MAX);
-while(m_commitAckMarkerPool.startup()); // TODO(wl9756) watchdog
+  while(m_commitAckMarkerPool.startup()) { ; } // TODO(wl9756) watchdog
   c_theIndexOperationPool.init(TcIndexOperation::TYPE_ID, pc, 10000, UINT32_MAX);
-while(c_theIndexOperationPool.startup()); // TODO(wl9756) watchdog
+  while(c_theIndexOperationPool.startup()) { ; } // TODO(wl9756) watchdog
   tcConnectRecord.init(TcConnectRecord::TYPE_ID, pc, 10000 + ctcConnectFailCount, UINT32_MAX);
-while(tcConnectRecord.startup()); // TODO(wl9756) watchdog
+  while(tcConnectRecord.startup()) { ; } // TODO(wl9756) watchdog
   c_apiConTimersPool.init(ApiConTimers::TYPE_ID, pc, (1000 + capiConnectFailCount + 5)/6, UINT32_MAX);
-while(c_apiConTimersPool.startup()); // TODO(wl9756) watchdog
+  while(c_apiConTimersPool.startup()) { ; } // TODO(wl9756) watchdog
   c_apiConTimersList.init();
   c_cacheRecordPool.init(CacheRecord::TYPE_ID, pc, 1, UINT32_MAX);
-while(c_cacheRecordPool.startup()); // TODO(wl9756) watchdog
+  while(c_cacheRecordPool.startup()) { ; } // TODO(wl9756) watchdog
   c_gcpRecordPool.init(GcpRecord::TYPE_ID, pc, 1, UINT32_MAX);
-while(c_gcpRecordPool.startup()); // TODO(wl9756) watchdog
+  while(c_gcpRecordPool.startup()) { ; } // TODO(wl9756) watchdog
   c_gcpRecordList.init();
   GcpRecordPtr gcpRecordptr;
   // Make sure that there is at least one page of GcpRecord
   ndbrequire(c_gcpRecordPool.seize(gcpRecordptr));
   c_gcpRecordPool.release(gcpRecordptr);
   c_theFiredTriggerPool.init(TcFiredTriggerData::TYPE_ID, pc, 10000, UINT32_MAX);
-while(c_theFiredTriggerPool.startup()); // TODO(wl9756) watchdog
+  while(c_theFiredTriggerPool.startup()) { ; } // TODO(wl9756) watchdog
   c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 1000, UINT32_MAX);
-while(c_theCommitAckMarkerBufferPool.startup()); // TODO(wl9756) watchdog
+  while(c_theCommitAckMarkerBufferPool.startup()) { ; } // TODO(wl9756) watchdog
   c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 10000, UINT32_MAX);
-while(c_theAttributeBufferPool.startup()); // TODO(wl9756) watchdog
+  while(c_theAttributeBufferPool.startup()) { ; } // TODO(wl9756) watchdog
   c_apiConnectRecordPool.init(ApiConnectRecord::TYPE_ID, pc, 1000 + capiConnectFailCount, UINT32_MAX);
-while(c_apiConnectRecordPool.startup()); // TODO(wl9756) watchdog
+  while(c_apiConnectRecordPool.startup()) { ; } // TODO(wl9756) watchdog
   scanRecordPool.init(ScanRecord::TYPE_ID, pc, 0, UINT32_MAX);
-while(scanRecordPool.startup()); // TODO(wl9757) watchdog
+  while(scanRecordPool.startup()) { ; } // TODO(wl9757) watchdog
 }//Dbtc::initRecords()
 
 bool
