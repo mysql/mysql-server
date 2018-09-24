@@ -8794,9 +8794,43 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
       continue;
     }
 
-    dberr_t err;
+    dberr_t err = DB_SUCCESS;
 
-    err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
+    ut_ad(!fsp_is_system_tablespace(space->id));
+
+    /* Here we try to populate space tablespace_key which is read during
+    REDO scan.
+
+    Consider following scenario:
+    1. Alter tablespce .. encrypt=y (KEY1)
+    2. Alter tablespce .. encrypt=n
+    3. Alter tablespce .. encrypt=y (KEY2)
+
+    Lets say there is a crash after (3) is finished successfully. All the pages
+    of tablespace are encrypted with KEY2.
+
+    During recovery:
+    ----------------
+    - Let's say we scanned till REDO of (1) but couldn't reach to REDO of (3).
+    - So we've got tablespace key as KEY1.
+    - Note, tablespace pages were encrypted using KEY2 which would have been
+      found on page 0 and thus loaded already in file_space_t.
+
+    If we overwrite this space key (KEY2) with the one we got from REDO log
+    scan (KEY1), then when we try to read a page from Disk, we will try to
+    decrypt it using KEY1 whereas page was encrypted with KEY2. ERROR.
+
+    Therefore, for a general tablespace, if tablespace key is already populated
+    it is the latest key and should be used instead of the one read during
+    REDO log scan.
+
+    For file-per-table tablespace, which is not INPLACE algorithm, copy what
+    is found on REDO Log.
+    */
+    if (fsp_is_file_per_table(space->id, space->flags) ||
+        (space->encryption_key == nullptr && space->encryption_iv == nullptr)) {
+      err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
+    }
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_343) << "Can't set encryption information"
@@ -9546,6 +9580,11 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
       if (recv_key.space_id == space_id) {
         iv = recv_key.iv;
         key = recv_key.ptr;
+
+        DBUG_EXECUTE_IF(
+            "dont_update_key_found_during_REDO_scan",
+            key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+            iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN)););
       }
     }
 

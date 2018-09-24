@@ -404,10 +404,9 @@ struct Encryption {
   @param[in,out]	key		key
   @param[in,out]	iv		iv
   @param[in]		encryption_info	encryption info
-  @param[in]		report		true, if error to be reported
   @return true if success */
-  static bool decode_encryption_info(byte *key, byte *iv, byte *encryption_info,
-                                     const bool report = true);
+  static bool decode_encryption_info(byte *key, byte *iv,
+                                     byte *encryption_info);
 
   /** Encrypt the redo log block.
   @param[in]	type		IORequest

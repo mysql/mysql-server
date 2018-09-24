@@ -8226,11 +8226,9 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
 @param[in,out]	key		key
 @param[in,out]	iv		iv
 @param[in]	encryption_info	encryption info
-@param[in]	report		true, if error to be rerpoted
 @return true if success */
 bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info,
-                                        const bool report) {
+                                        byte *encryption_info) {
   byte *ptr;
   byte *master_key = nullptr;
   uint32 m_key_id;
@@ -8262,11 +8260,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       return (true);
     }
 
-    if (report) {
-      ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
-                               << " found unexpected version of it!";
-    }
-
+    ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
+                             << " found unexpected version of it!";
     return (false);
   }
 
