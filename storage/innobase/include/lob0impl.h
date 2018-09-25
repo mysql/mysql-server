@@ -1694,7 +1694,8 @@ struct z_frag_page_t {
   /** Allocate a fragment with the given payload.
   @param[in]  size  the payload size.
   @param[in]  entry the index entry of the given frag page.
-  @return the frag_id of the allocated fragment. */
+  @return the frag_id of the allocated fragment.
+  @return FRAG_ID_NULL if fragment could not be allocated. */
   frag_id_t alloc_fragment(ulint size, z_frag_entry_t &entry);
 
   plist_base_node_t free_list() const {
@@ -1724,11 +1725,7 @@ struct z_frag_page_t {
 
   /** The maximum free space available in a fragment page. Adjustment
   needs to be done with the frag_node_t::overhead().*/
-  ulint payload() {
-    page_size_t page_size(dict_table_page_size(m_index->table));
-    return (page_size.physical() - OFFSET_FRAGS_BEGIN -
-            OFFSET_PAGE_DIR_ENTRY_COUNT);
-  }
+  ulint payload() { return (z_frag_page_t::max_payload(m_index)); }
 
   /** The maximum free space available in a fragment page. Adjustment
   needs to be done with the frag_node_t::overhead().*/
@@ -1831,7 +1828,7 @@ struct z_frag_page_t {
   /** Determine if the given fragment node is the last fragment
   node adjacent to the directory.
   @return true if it is last fragment node, false otherwise. */
-  bool is_last_frag(frag_node_t &node) const {
+  bool is_last_frag(const frag_node_t &node) const {
     return (node.end_ptr() == slots_end_ptr());
   }
 
