@@ -259,3 +259,15 @@ COUNT(*) = 1
 1
 DROP RESOURCE GROUP Batch FORCE;
 DROP FUNCTION func;
+CREATE RESOURCE GROUP test TYPE = USER VCPU=2-3;
+SET @rg_name='test';
+SET @cmd = CONCAT("SET RESOURCE GROUP ", @rg_name);
+SELECT @cmd;
+@cmd
+SET RESOURCE GROUP test
+PREPARE stmt FROM @cmd;
+EXECUTE stmt;
+SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="test";
+COUNT(*) = 1
+1
+DROP RESOURCE GROUP test FORCE;
