@@ -42,6 +42,11 @@ class Flags {
   constexpr Flags() : flags_(0) {}
   explicit constexpr Flags(AllFlags flags) : flags_(flags) {}
 
+// Developer Studio does not like this even if it's deprecated not to have it.
+#ifndef __SUNPRO_CC
+  constexpr Flags(const Flags &) = default;
+#endif
+
   Flags &operator=(const Flags &other) = default;
 
   constexpr bool operator==(const Flags &other) const {

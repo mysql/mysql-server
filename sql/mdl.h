@@ -691,14 +691,14 @@ class MDL_request {
   uint m_src_line{0};
 
  public:
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
 
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)throw() {}
+                              const std::nothrow_t &)noexcept {}
 
   void init_with_source(MDL_key::enum_mdl_namespace namespace_arg,
                         const char *db_arg, const char *name_arg,

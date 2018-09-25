@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,10 @@ T keyring_malloc(size_t size) {
 
 class Keyring_alloc {
  public:
-  static void *operator new(size_t size) throw() {
+  static void *operator new(size_t size) noexcept {
     return keyring_malloc<void *>(size);
   }
-  static void *operator new[](size_t size) throw() {
+  static void *operator new[](size_t size) noexcept {
     return keyring_malloc<void *>(size);
   }
   static void operator delete(void *ptr, std::size_t) { my_free(ptr); }

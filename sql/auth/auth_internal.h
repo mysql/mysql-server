@@ -227,6 +227,8 @@ class Role_id {
     m_host = id.m_host;
   }
 
+  Role_id &operator=(const Role_id &) = default;
+
   bool operator<(const Role_id &id) const {
     if (m_user >= id.m_user) return m_host < id.m_host;
     return true;

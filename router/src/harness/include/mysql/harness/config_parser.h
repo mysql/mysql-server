@@ -137,6 +137,7 @@ class HARNESS_EXPORT ConfigSection {
   ConfigSection(const ConfigSection &,
                 const std::shared_ptr<const ConfigSection> &defaults);
   ConfigSection &operator=(const ConfigSection &) = delete;
+  ConfigSection(const ConfigSection &) = default;
 
   /**
    * Clear the options in the section.
@@ -281,6 +282,7 @@ class HARNESS_EXPORT Config {
     for (auto word : reserved) reserved_.push_back(word);
   }
 
+  Config(const Config &) = default;
   virtual ~Config() = default;
 
   template <class SeqT>

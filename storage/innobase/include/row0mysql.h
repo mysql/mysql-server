@@ -840,7 +840,7 @@ struct SysIndexCallback {
   /** Callback method
   @param mtr current mini transaction
   @param pcur persistent cursor. */
-  virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) throw() = 0;
+  virtual void operator()(mtr_t *mtr, btr_pcur_t *pcur) noexcept = 0;
 };
 
 /** Get the computed value by supplying the base column values.

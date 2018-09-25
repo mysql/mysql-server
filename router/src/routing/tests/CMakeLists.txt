@@ -57,6 +57,10 @@ IF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(routing_plugin_tests -lnsl -lsocket)
 ENDIF()
 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+ENDIF()
+
 SET(TEST_MODULE "routing")
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE ${TEST_MODULE}

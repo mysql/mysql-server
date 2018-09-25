@@ -324,6 +324,8 @@ struct Encryption {
         m_klen(other.m_klen),
         m_iv(other.m_iv) {}
 
+  Encryption &operator=(const Encryption &) = default;
+
   /** Check if page is encrypted page or not
   @param[in]	page	page which need to check
   @return true if it is an encrypted page */

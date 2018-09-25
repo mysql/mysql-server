@@ -183,7 +183,10 @@ class Gcs_xcom_node_information {
                                      const unsigned int node_no,
                                      const bool alive);
 
-  virtual ~Gcs_xcom_node_information() {}
+  virtual ~Gcs_xcom_node_information() = default;
+  Gcs_xcom_node_information(const Gcs_xcom_node_information &) = default;
+  Gcs_xcom_node_information &operator=(const Gcs_xcom_node_information &) =
+      default;
 
   /**
     Sets the timestamp to indicate the creation of the suspicion.

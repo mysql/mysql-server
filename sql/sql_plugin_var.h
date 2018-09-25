@@ -207,9 +207,9 @@ class sys_var_pluginvar : public sys_var {
   */
   const char *orig_pluginvar_name;
 
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
 
@@ -223,7 +223,7 @@ class sys_var_pluginvar : public sys_var {
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
   }
 
   static void operator delete(void *ptr) { my_free(ptr); }

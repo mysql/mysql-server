@@ -144,6 +144,7 @@ class DestroyCounter {
   DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {}
   DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
   explicit DestroyCounter(size_t *p) : p_counter(p) {}
+  DestroyCounter &operator=(const DestroyCounter &) = default;
   ~DestroyCounter() { (*p_counter) += 1; }
 
  private:

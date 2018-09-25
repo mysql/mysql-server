@@ -381,6 +381,7 @@ class HARNESS_EXPORT Directory : public Path {
   /** @overload */              // throws std::invalid_argument
   Directory(const Path &path);  // NOLINT(runtime/explicit)
 
+  Directory(const Directory &) = default;
   ~Directory();
 
   /**

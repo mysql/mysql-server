@@ -217,7 +217,7 @@ bool Config::has(const std::string &section, const std::string &key) const {
 }
 
 bool Config::has_any(const std::string &section) const {
-  for (auto it : sections_) {
+  for (auto &it : sections_) {
     if (it.first.first == section) return true;
   }
   return false;

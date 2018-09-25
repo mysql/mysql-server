@@ -308,6 +308,7 @@ class Format_description_event : public Binary_log_event {
   Format_description_event(const char *buf,
                            const Format_description_event *fde);
 
+  Format_description_event(const Format_description_event &) = default;
   Format_description_event &operator=(const Format_description_event &) =
       default;
   uint8_t number_of_event_types;

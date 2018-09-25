@@ -676,10 +676,10 @@ class Item : public Parse_tree_node {
  public:
   Item(const Item &) = delete;
   void operator=(Item &) = delete;
-  static void *operator new(size_t size) throw() { return sql_alloc(size); }
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size) noexcept { return sql_alloc(size); }
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
 
@@ -688,7 +688,7 @@ class Item : public Parse_tree_node {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
-                              const std::nothrow_t &)throw() {}
+                              const std::nothrow_t &)noexcept {}
 
   enum Type {
     INVALID_ITEM = 0,

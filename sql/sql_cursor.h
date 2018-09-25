@@ -68,7 +68,7 @@ class Server_side_cursor {
 
   static void operator delete(void *ptr, size_t size);
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
   }
 };
 

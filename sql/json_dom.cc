@@ -127,7 +127,7 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
 }
 #endif  // ifdef MYSQL_SERVER
 
-void *Json_dom::operator new(size_t size, const std::nothrow_t &) throw() {
+void *Json_dom::operator new(size_t size, const std::nothrow_t &) noexcept {
   /*
     Call my_malloc() with the MY_WME flag to make sure that it will
     write an error message if the memory could not be allocated.
@@ -141,7 +141,7 @@ void *Json_dom::operator new(size_t size, const std::nothrow_t &) throw() {
       size, MYF(MY_WME));
 }
 
-void Json_dom::operator delete(void *ptr) throw() { my_free(ptr); }
+void Json_dom::operator delete(void *ptr) noexcept { my_free(ptr); }
 
 /*
   This operator is included in order to silence warnings on some
@@ -151,7 +151,7 @@ void Json_dom::operator delete(void *ptr) throw() { my_free(ptr); }
   cluttering the test coverage reports.
 */
 /* purecov: begin inspected */
-void Json_dom::operator delete(void *ptr, const std::nothrow_t &)throw() {
+void Json_dom::operator delete(void *ptr, const std::nothrow_t &)noexcept {
   operator delete(ptr);
 }
   /* purecov: end */

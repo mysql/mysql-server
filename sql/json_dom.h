@@ -192,17 +192,17 @@ class Json_dom {
     not be allocated (in which case my_error() will have been called
     with the appropriate error message)
   */
-  void *operator new(size_t size, const std::nothrow_t &) throw();
+  void *operator new(size_t size, const std::nothrow_t &) noexcept;
 
   /**
     Deallocate the space used by a Json_dom object.
   */
-  void operator delete(void *ptr) throw();
+  void operator delete(void *ptr) noexcept;
 
   /**
     Nothrow delete.
   */
-  void operator delete(void *ptr, const std::nothrow_t &)throw();
+  void operator delete(void *ptr, const std::nothrow_t &)noexcept;
 
   /**
     Get the parent dom to which this dom is attached.
@@ -1104,8 +1104,7 @@ class Json_wrapper_object_iterator {
   /**
     @param[in]  value must contain a JSON object at the top level.
   */
-  Json_wrapper_object_iterator(const json_binary::Value *value);
-  ~Json_wrapper_object_iterator() {}
+  explicit Json_wrapper_object_iterator(const json_binary::Value *value);
 
   bool empty() const;  //!< Returns true of no more elements
   void next();         //!< Advances iterator to next element

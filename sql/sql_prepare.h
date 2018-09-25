@@ -154,12 +154,12 @@ class Ed_result_set final {
 
   size_t get_field_count() const { return m_column_count; }
 
-  static void operator delete(void *, size_t) throw() {
+  static void operator delete(void *, size_t) noexcept {
     // Does nothing because m_mem_root is deallocated in the destructor
   }
 
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* never called */
   }
 
  private:

@@ -49,7 +49,6 @@ class Table_id {
   unsigned long long id() const { return m_id; }
   bool is_valid() const { return m_id <= TABLE_ID_MAX; }
 
-  Table_id &operator=(const Table_id &tid) = default;
   Table_id &operator=(unsigned long long id) {
     m_id = id;
     return *this;

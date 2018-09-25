@@ -1,7 +1,7 @@
 #ifndef SERVICE_RULES_TABLE_INCLUDED
 #define SERVICE_RULES_TABLE_INCLUDED
 
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,8 @@ class Cursor {
 
   /// Creates a past-the-end cursor.
   Cursor() : m_thd(NULL), m_table_list(NULL), m_is_finished(true) {}
+
+  Cursor(const Cursor &) = default;
 
   column_id pattern_column() const { return m_pattern_column; }
   column_id pattern_database_column() const {

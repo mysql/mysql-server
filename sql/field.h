@@ -686,7 +686,9 @@ class Value_generator {
 
 class Proto_field {
  public:
+  Proto_field() = default;
   virtual ~Proto_field() = default;
+  Proto_field(const Proto_field &) = default;
   virtual bool send_binary(Protocol *protocol) = 0;
   virtual bool send_text(Protocol *protocol) = 0;
 };

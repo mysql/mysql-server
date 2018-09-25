@@ -245,6 +245,8 @@ class Allocator {
   /** Destructor. */
   ~Allocator();
 
+  Allocator(const Allocator &) = default;
+
   /** Assignment operator, not used, thus disabled. */
   template <class U>
   void operator=(const Allocator<U> &) = delete;

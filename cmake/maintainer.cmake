@@ -86,7 +86,6 @@ IF(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   MY_ADD_CXX_WARNING_FLAG("Wno-language-extension-token")
   MY_ADD_CXX_WARNING_FLAG("Wno-shorten-64-to-32")
   MY_ADD_CXX_WARNING_FLAG("Wno-shadow")
-  MY_ADD_CXX_WARNING_FLAG("Wno-deprecated")  # FIXME
   MY_ADD_CXX_WARNING_FLAG("Wno-c++2a-compat")
   MY_ADD_CXX_WARNING_FLAG("Wno-macro-redefined")
   MY_ADD_CXX_WARNING_FLAG("Wno-unused-const-variable")
@@ -150,10 +149,11 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-null-conversion -Wno-unused-private-field")
 
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wconditional-uninitialized")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wdeprecated")
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wheader-hygiene")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wnon-virtual-dtor")
   STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wundefined-reinterpret-cast")
-  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wextra-semi")
 
   MY_ADD_CXX_WARNING_FLAG("Winconsistent-missing-destructor-override")
   MY_ADD_CXX_WARNING_FLAG("Wshadow-field")
@@ -168,7 +168,6 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # -Wcomma
   # -Wconversion
   # -Wcovered-switch-default
-  # -Wdeprecated
   # -Wdeprecated-dynamic-exception-spec
   # -Wdisabled-macro-expansion
   # -Wdocumentation

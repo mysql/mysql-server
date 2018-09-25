@@ -116,7 +116,7 @@ class Page_pool {
 
   class No_more_pages_exception : public std::exception {
    public:
-    virtual const char *what() const throw() {
+    virtual const char *what() const noexcept {
       return "No more memory pages available";
     }
   };

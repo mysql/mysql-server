@@ -2548,9 +2548,9 @@ class TABLE_READ_PLAN {
                                      MEM_ROOT *parent_alloc = NULL) = 0;
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
-  static void *operator new(
-      size_t size, MEM_ROOT *mem_root,
-      const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) throw() {
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
+                                std::nothrow) noexcept {
     return alloc_root(mem_root, size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
@@ -2558,7 +2558,7 @@ class TABLE_READ_PLAN {
     TRASH(ptr, size);
   }
   static void operator delete(
-      void *, MEM_ROOT *, const std::nothrow_t &)throw() { /* Never called */
+      void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
   }
   virtual ~TABLE_READ_PLAN() {} /* Remove gcc warning */
 

@@ -47,6 +47,7 @@ class Streaming_command_delegate : public ngs::Command_delegate {
  public:
   Streaming_command_delegate(ngs::Protocol_encoder_interface *proto,
                              ngs::Notice_output_queue_interface *notice_queue);
+  Streaming_command_delegate(const Streaming_command_delegate &) = default;
   virtual ~Streaming_command_delegate();
 
   void set_compact_metadata(bool flag) { m_compact_metadata = flag; }

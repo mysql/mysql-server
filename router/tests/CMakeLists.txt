@@ -41,6 +41,10 @@ ELSE()
   LIST(APPEND helper_sources helpers/cmd_exec.cc)
 ENDIF()
 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+ENDIF()
+
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
 TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib)

@@ -96,6 +96,8 @@ class plist_node_t {
   /** Copy constructor. */
   plist_node_t(const plist_node_t &other) = default;
 
+  plist_node_t &operator=(const plist_node_t &) = default;
+
   /** Check if the current node is before the given node in the
   page (w.r.t the offset).
   @param[in]	node	the other node.

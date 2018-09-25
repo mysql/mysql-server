@@ -98,7 +98,10 @@ class Geometry_visitor;
 /// coordinate system.
 class Geometry {
  public:
+  Geometry() = default;
   virtual ~Geometry() = default;
+  Geometry(const Geometry &) = default;
+  Geometry &operator=(const Geometry &) = default;
 
   /// Gets the geometry type of the object.
   ///

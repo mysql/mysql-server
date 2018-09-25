@@ -214,6 +214,8 @@ class page_size_t {
   /* Disable implicit copying. */
   void operator=(const page_size_t &) = delete;
 
+  page_size_t(const page_size_t &) = default;
+
  private:
   /* For non compressed tablespaces, physical page size is equal to
   the logical page size and the data is stored in buf_page_t::frame
