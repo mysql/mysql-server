@@ -1132,19 +1132,19 @@
 {
    OpenSSL GR suppress leak 4
    Memcheck:Leak
-   match-leak-kinds: reachable
+   match-leak-kinds: all
    fun:malloc
    ...
    fun:CRYPTO_malloc
    fun:lh_new
-   fun:int_thread_get
-   fun:int_thread_set_item
+   obj:*
+   obj:*
    fun:ERR_get_state
    fun:ERR_put_error
    fun:PEM_read_bio
    fun:PEM_X509_INFO_read_bio
    fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
+   obj:*
    fun:X509_STORE_load_locations
    ...
 }
@@ -1450,13 +1450,13 @@
   ...
   fun:CRYPTO_malloc
   fun:lh_insert
-  fun:int_thread_set_item
+  obj:*
   fun:ERR_get_state
   fun:ERR_put_error
   fun:PEM_read_bio
   fun:PEM_X509_INFO_read_bio
   fun:X509_load_cert_crl_file
-  fun:by_file_ctrl
+  obj:*
   fun:X509_STORE_load_locations
   ...
 }
