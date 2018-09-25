@@ -633,6 +633,14 @@ sub new_config {
   $self->run_rules_for_group($config, $config->insert('mysqltest'),
                              @mysqltest_rules);
 
+  if ($::secondary_engine_support) {
+    eval 'use mtr_secondary_engine_config; 1';
+    # Additional rules required for secondary engine server
+    push(@post_rules, \&post_check_secondary_engine_group);
+    # Additional rules required for [mysqld] when secondary enginge is enabled
+    push(@post_rules, \&post_check_secondary_engine_mysqld_group);
+  }
+
   # Run post rules
   foreach my $rule (@post_rules) {
     &$rule($self, $config);

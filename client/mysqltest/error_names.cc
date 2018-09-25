@@ -20,24 +20,33 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#include "client/mysqltest/mysqltest_expected_error.h"
+#include "client/mysqltest/error_names.h"
 
-std::string Expected_errors::error_list() {
-  std::string error_list("");
+static st_error global_error_names[] = {
+    {"<No error>", static_cast<int>(-1), "", NULL, NULL, 0},
+#ifndef IN_DOXYGEN
+#include "mysqlclient_ername.h"
+#include "mysqld_ername.h"
+#endif /* IN_DOXYGEN */
+    {0, 0, 0, 0, 0, 0}};
 
-  for (std::size_t i = 0; i < m_errors.size(); i++) {
-    if (i > 0) error_list.append(",");
-    if (m_errors.at(i)->type() == ERR_ERRNO)
-      error_list.append(std::to_string(m_errors.at(i)->error_code()));
-    else
-      error_list.append(m_errors.at(i)->sqlstate());
+int get_errcode_from_name(std::string error_name) {
+  for (st_error *error = global_error_names; error->name; error++) {
+    if (error_name.compare(error->name) == 0) return error->error_code;
   }
 
-  return error_list;
+  // Unknown SQL error name, return -1
+  return -1;
 }
 
-void Expected_errors::add_error(std::uint32_t error_code, const char *sqlstate,
-                                error_type type) {
-  std::unique_ptr<Error> new_error(new Error(error_code, sqlstate, type));
-  m_errors.push_back(std::move(new_error));
+const char *get_errname_from_code(int error_code) {
+  // Return an empty string if error code is 0.
+  if (!error_code) return "";
+
+  for (st_error *error = global_error_names; error->error_code; error++) {
+    if (error->error_code == error_code) return error->name;
+  }
+
+  // Unknown SQL error code, return "<Unknown>" keyword.
+  return "<Unknown>";
 }

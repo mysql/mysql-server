@@ -27,9 +27,10 @@
 /// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
 /// information.
 
-#include "client/mysqltest/mysqltest_expected_error.h"
-
-#include "my_config.h"
+#include "client/mysqltest/error_names.h"
+#include "client/mysqltest/expected_errors.h"
+#include "client/mysqltest/secondary_engine.h"
+#include "client/mysqltest/utils.h"
 
 #include <algorithm>
 #include <cmath>  // std::isinf
@@ -72,6 +73,7 @@
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_default.h"
 #include "my_dir.h"
@@ -145,7 +147,8 @@ static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
 
 enum {
-  OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
+  OPT_CHANGE_PROPAGATION = OPT_MAX_CLIENT_OPTION,
+  OPT_COLORED_DIFF,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
@@ -154,11 +157,13 @@ enum {
   OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS,
   OPT_NO_SKIP,
+  OPT_OFFLOAD_COUNT_FILE,
   OPT_PS_PROTOCOL,
   OPT_RESULT_FORMAT_VERSION,
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
+  OPT_SECONDARY_ENGINE,
   OPT_SP_PROTOCOL,
   OPT_TAIL_LINES,
   OPT_TRACE_EXEC,
@@ -205,6 +210,13 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
+
+// Secondary engine options
+static const char *opt_offload_count_file;
+static const char *opt_secondary_engine;
+static int opt_change_propagation;
+
+Secondary_engine secondary_engine;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -615,7 +627,6 @@ void str_to_file(const char *fname, char *str, size_t size);
 void str_to_file2(const char *fname, char *str, size_t size, bool append);
 
 void fix_win_paths(const char *val, size_t len);
-const char *get_errname_from_code(uint error_code);
 int multi_reg_replace(struct st_replace_regex *r, char *val);
 
 #ifdef _WIN32
@@ -1360,6 +1371,19 @@ static void free_used_memory() {
 }
 
 static void cleanup_and_exit(int exit_code) {
+  if (opt_offload_count_file) {
+    // Check if the current connection is active, if not create one.
+    if (cur_con->mysql.net.vio == 0) {
+      mysql_real_connect(&cur_con->mysql, opt_host, opt_user, opt_pass, opt_db,
+                         opt_port, unix_sock,
+                         CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS);
+    }
+
+    // Save the final value of secondary engine execution status.
+    if (secondary_engine.offload_count(&cur_con->mysql, "after")) exit_code = 1;
+    secondary_engine.report_offload_count(opt_offload_count_file);
+  }
+
   free_used_memory();
   my_end(my_end_arg);
 
@@ -2354,81 +2378,48 @@ static void do_result_format_version(struct st_command *command) {
   DBUG_VOID_RETURN;
 }
 
-/* List of error names to error codes */
-typedef struct {
-  const char *name;
-  uint code;
-  const char *text;
-  /* SQLSTATE */
-  const char *odbc_state;
-  const char *jdbc_state;
-  uint error_index;
-} st_error;
-
-static st_error global_error_names[] = {{"<No error>", (uint)-1, "", "", "", 0},
-#ifndef IN_DOXYGEN
-#include <mysqlclient_ername.h>
-#include <mysqld_ername.h>
-#endif /* IN_DOXYGEN */
-                                        {0, 0, 0, 0, 0, 0}};
-
-uint get_errcode_from_name(char *, char *);
-
-/*
-
-  This function is useful when one needs to convert between error numbers and
-  error strings
-
-  SYNOPSIS
-  var_set_convert_error(struct st_command *command,VAR *var)
-
-  DESCRIPTION
-  let $var=convert_error(ER_UNKNOWN_ERROR);
-  let $var=convert_error(1234);
-
-  The variable var will be populated with error number if the argument is
-  string. The variable var will be populated with error string if the argument
-  is number.
-
-*/
+/// Convert between error numbers and error names/strings.
+///
+/// @code
+/// let $var = convert_error(ER_UNKNOWN_ERROR);
+/// let $var = convert_error(1234);
+/// @endcode
+///
+/// The variable '$var' will be populated with error number if the
+/// argument is string. The variable var will be populated with error
+/// string if the argument is number.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+/// @param var     Pointer to VAR object containing a variable
+///                information.
 static void var_set_convert_error(struct st_command *command, VAR *var) {
-  char *last;
-  char *first = command->query;
-  const char *err_name;
+  // The command->query contains the statement convert_error(1234)
+  char *first = std::strchr(command->query, '(') + 1;
+  char *last = std::strchr(command->query, ')');
 
-  DBUG_ENTER("var_set_convert_error");
-
-  DBUG_PRINT("info", ("query: %s", command->query));
-
-  /* the command->query contains the statement convert_error(1234) */
-  first = strchr(command->query, '(') + 1;
-  last = strchr(command->query, ')');
-
-  if (last == first) /* denoting an empty string */
-  {
+  // Denoting an empty string
+  if (last == first) {
     eval_expr(var, "0", 0);
-    DBUG_VOID_RETURN;
+    return;
   }
 
-  /* if the string is an error string , it starts with 'E' as is the norm*/
+  // If the string is an error string , it starts with 'E' as is the norm
   if (*first == 'E') {
+    std::string error_name(first, int(last - first));
+    int error = get_errcode_from_name(error_name);
+    if (error == -1) die("Unknown SQL error name '%s'.", error_name.c_str());
     char str[100];
-    uint num;
-    num = get_errcode_from_name(first, last);
-    sprintf(str, "%i", num);
+    std::sprintf(str, "%d", error);
     eval_expr(var, str, 0);
-  } else if (my_isdigit(charset_info, *first)) /* if the error is a number */
-  {
-    long int err;
-
-    err = strtol(first, &last, 0);
-    err_name = get_errname_from_code(err);
+  } else if (my_isdigit(charset_info, *first)) {
+    // Error number argument
+    long int err = std::strtol(first, &last, 0);
+    const char *err_name = get_errname_from_code(err);
     eval_expr(var, err_name, 0);
   } else {
     die("Invalid error in input");
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -3016,31 +3007,6 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 }
 
 enum enum_operator { DO_DEC, DO_INC };
-
-/// Use stoi function to get the integer value from a string.
-///
-/// @param str String which may contain an integer or an alphanumeric
-///            string.
-///
-/// @retval Integer value corresponding to the contents of the string,
-///         if conversion is successful, or -1 if integer is out of
-///         range, or if the conversion fails.
-static int get_int_val(const char *str) {
-  int value;
-  size_t size;
-
-  try {
-    value = std::stoi(str, &size, 10);
-    if (size != std::strlen(str)) value = -1;
-  } catch (const std::out_of_range &) {
-    fprintf(stderr, "Interger value '%s' is out of range. ", str);
-    value = -1;
-  } catch (const std::invalid_argument &) {
-    value = -1;
-  }
-
-  return value;
-}
 
 /// Template function that frees memory of the dynamic string
 /// passed to the function.
@@ -5200,32 +5166,6 @@ static void do_disable_testcase(struct st_command *command) {
   free_dynamic_strings(&ds_bug_number);
 }
 
-/*
-  Run query and return one field in the result set from the
-  first row and <column>
-*/
-
-static int query_get_string(MYSQL *mysql, const char *query, int column,
-                            std::string *ds) {
-  MYSQL_RES *res = NULL;
-  MYSQL_ROW row;
-
-  if (mysql_query(mysql, query))
-    die("'%s' failed: %d %s", query, mysql_errno(mysql), mysql_error(mysql));
-  if ((res = mysql_store_result(mysql)) == NULL)
-    die("Failed to store result: %d %s", mysql_errno(mysql),
-        mysql_error(mysql));
-
-  if ((row = mysql_fetch_row(res)) == NULL) {
-    mysql_free_result(res);
-    ds = 0;
-    return 1;
-  }
-  ds->assign(row[column] ? row[column] : "NULL");
-  mysql_free_result(res);
-  return 0;
-}
-
 /**
   Check if process is active.
 
@@ -5329,85 +5269,90 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
 #endif
 }
 
-/**
-  Shutdown or kill the server.
-  If timeout is set to 0 the server is killed/terminated
-  immediately. Otherwise the shutdown command is first sent
-  and then it waits for the server to terminate within
-  @<timeout@> seconds. If it has not terminated before @<timeout@>
-  seconds the command will fail.
-
-  @note Currently only works with local server
-
-  @param command  Optionally including a timeout else the
-  default of 60 seconds is used.
-*/
-
+/// Shutdown or kill the server. If timeout is set to 0 the server is
+/// killed or terminated immediately. Otherwise the shutdown command
+/// is first sent and then it waits for the server to terminate within
+/// 'timeout' seconds. If it has not terminated before 'timeout'
+/// seconds the command will fail.
+///
+/// @note
+/// Currently only works with local server
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command. Optionally
+///                including a timeout else the default of 60 seconds
 static void do_shutdown_server(struct st_command *command) {
-  long timeout = 60;
-  int pid, error = 0;
-  std::string ds_file_name;
-  MYSQL *mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
   const struct command_arg shutdown_args[] = {
       {"timeout", ARG_STRING, false, &ds_timeout,
        "Timeout before killing server"}};
-  DBUG_ENTER("do_shutdown_server");
 
   check_command_args(command, command->first_argument, shutdown_args,
                      sizeof(shutdown_args) / sizeof(struct command_arg), ' ');
+  if (opt_offload_count_file) {
+    // Save the value of secondary engine execution status
+    // before shutting down the server.
+    if (secondary_engine.offload_count(&cur_con->mysql, "after"))
+      cleanup_and_exit(1);
+  }
+
+  long timeout = 60;
 
   if (ds_timeout.length) {
     char *endptr;
-    timeout = strtol(ds_timeout.str, &endptr, 10);
+    timeout = std::strtol(ds_timeout.str, &endptr, 10);
     if (*endptr != '\0')
       die("Illegal argument for timeout: '%s'", ds_timeout.str);
   }
+
   dynstr_free(&ds_timeout);
 
-  /* Get the servers pid_file name and use it to read pid */
+  MYSQL *mysql = &cur_con->mysql;
+  std::string ds_file_name;
+
+  // Get the servers pid_file name and use it to read pid
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
                        &ds_file_name))
     die("Failed to get pid_file from server");
 
-  /* Read the pid from the file */
-  {
-    int fd;
-    char buff[32];
+  // Read the pid from the file
+  int fd;
+  char buff[32];
 
-    if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_file_name.c_str());
+  if ((fd = my_open(ds_file_name.c_str(), O_RDONLY, MYF(0))) < 0)
+    die("Failed to open file '%s'", ds_file_name.c_str());
 
-    if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
-      my_close(fd, MYF(0));
-      die("pid file was empty");
-    }
+  if (my_read(fd, (uchar *)&buff, sizeof(buff), MYF(0)) <= 0) {
     my_close(fd, MYF(0));
-
-    pid = atoi(buff);
-    if (pid == 0) die("Pidfile didn't contain a valid number");
+    die("pid file was empty");
   }
-  DBUG_PRINT("info", ("Got pid %d", pid));
 
+  my_close(fd, MYF(0));
+
+  int pid = std::atoi(buff);
+  if (pid == 0) die("Pidfile didn't contain a valid number");
+
+  int error = 0;
   if (timeout) {
-    /* Check if we should generate a minidump on timeout. */
+    // Check if we should generate a minidump on timeout.
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
                          &ds_file_name) ||
         std::strcmp("ON", ds_file_name.c_str())) {
     } else {
-      /* Get the data dir and use it as path for a minidump if needed. */
+      // Get the data dir and use it as path for a minidump if needed.
       if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
                            &ds_file_name))
         die("Failed to get datadir from server");
     }
 
-    /* Tell server to shutdown if timeout > 0. */
+    // Tell server to shutdown if timeout > 0.
     if (timeout > 0 && mysql_query(mysql, "shutdown")) {
-      error = 1; /* Failed to issue shutdown command. */
+      // Failed to issue shutdown command.
+      error = 1;
       goto end;
     }
 
-    /* Check that server dies */
+    // Check that server dies
     do {
       if (!is_process_active(pid)) {
         DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
@@ -5418,66 +5363,23 @@ static void do_shutdown_server(struct st_command *command) {
         my_sleep(1000000L);
       }
     } while (timeout-- > 0);
+
     error = 2;
-    /*
-      Abort to make it easier to find the hang/problem.
-    */
+
+    // Abort to make it easier to find the hang/problem.
     abort_process(pid, ds_file_name.c_str());
-  } else /* timeout == 0 */
-  {
-    /* Kill the server */
+  } else {
+    // timeout value is 0, kill the server
     DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-    /*
-      kill_process can fail (bad privileges, non existing process on *nix etc),
-      so also check if the process is active before setting error.
-    */
+
+    // kill_process can fail (bad privileges, non existing process on
+    // *nix etc), so also check if the process is active before setting
+    // error.
     if (!kill_process(pid) && is_process_active(pid)) error = 3;
   }
 
 end:
   if (error) handle_command_error(command, error);
-  DBUG_VOID_RETURN;
-}
-
-uint get_errcode_from_name(char *error_name, char *error_end) {
-  /* SQL error as string */
-  st_error *e = global_error_names;
-
-  DBUG_ENTER("get_errcode_from_name");
-  DBUG_PRINT("enter", ("error_name: %s", error_name));
-
-  /* Loop through the array of known error names */
-  for (; e->name; e++) {
-    /*
-      If we get a match, we need to check the length of the name we
-      matched against in case it was longer than what we are checking
-      (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
-    */
-    if (!std::strncmp(error_name, e->name, (int)(error_end - error_name)) &&
-        (uint)std::strlen(e->name) == (uint)(error_end - error_name)) {
-      DBUG_RETURN(e->code);
-    }
-  }
-  if (!e->name) die("Unknown SQL error name '%s'", error_name);
-  DBUG_RETURN(0);
-}
-
-const char *get_errname_from_code(uint error_code) {
-  st_error *e = global_error_names;
-
-  DBUG_ENTER("get_errname_from_code");
-  DBUG_PRINT("enter", ("error_code: %d", error_code));
-
-  if (!error_code) {
-    DBUG_RETURN("");
-  }
-  for (; e->name; e++) {
-    if (e->code == error_code) {
-      DBUG_RETURN(e->name);
-    }
-  }
-  /* Apparently, errors without known names may occur */
-  DBUG_RETURN("<Unknown>");
 }
 
 /// Get the error code corresponding to an error string or to a
@@ -5544,9 +5446,11 @@ static void do_get_errcodes(struct st_command *command) {
     else if (*p == 'E' || *p == 'C') {
       // Error name string
       DBUG_PRINT("info", ("Error name: %s", p));
-      std::uint32_t error_code = get_errcode_from_name(p, end);
+      std::string error_name(p, int(end - p));
+      int error_code = get_errcode_from_name(error_name);
+      if (error_code == -1)
+        die("Unknown SQL error name '%s'.", error_name.c_str());
       expected_errors->add_error(error_code, "00000", ERR_ERRNO);
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", error_code));
     } else if (*p == 'e' || *p == 'c') {
       die("The error name definition must start with an uppercase E or C.");
     } else {
@@ -6949,6 +6853,10 @@ static struct my_option my_long_options[] = {
 #include "sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"change-propagation", OPT_CHANGE_PROPAGATION,
+     "Disable/enable change propagation when secondary engine is enabled.",
+     &opt_change_propagation, &opt_change_propagation, 0, GET_INT, REQUIRED_ARG,
+     -1, -1, 1, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &opt_charsets_dir, &opt_charsets_dir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7021,6 +6929,9 @@ static struct my_option my_long_options[] = {
      "Contains comma seperated list of to be excluded inc files.",
      &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
+    {"offload-count-file", OPT_OFFLOAD_COUNT_FILE, "Offload count report file",
+     &opt_offload_count_file, &opt_offload_count_file, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
     {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
      "Trace DML statements with optimizer trace", &opt_trace_protocol,
      &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7058,6 +6969,9 @@ static struct my_option my_long_options[] = {
      &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
 #endif
+    {"secondary-engine", OPT_SECONDARY_ENGINE, "Secondary engine name.",
+     &opt_secondary_engine, &opt_secondary_engine, 0, GET_STR, REQUIRED_ARG, 0,
+     0, 0, 0, 0, 0},
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7723,6 +7637,16 @@ static void run_query_normal(struct st_connection *cn,
   DBUG_PRINT("enter", ("flags: %d", flags));
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
 
+  if (opt_change_propagation != -1) {
+    secondary_engine.match_statement(query, expected_errors->count());
+    if (secondary_engine.statement_type()) {
+      std::vector<unsigned int> ignore_errors = expected_errors->errors();
+      // Run secondary engine unload statements.
+      if (secondary_engine.run_unload_statements(mysql, ignore_errors))
+        die("Original query '%s'.", query);
+    }
+  }
+
   if (flags & QUERY_SEND_FLAG) {
     /*
       Send the query
@@ -7822,6 +7746,14 @@ end:
     variable then can be used from the test case itself.
   */
   var_set_errno(mysql_errno(mysql));
+
+  if (opt_change_propagation != -1 && secondary_engine.statement_type()) {
+    std::vector<unsigned int> ignore_errors = expected_errors->errors();
+    // Run secondary engine load statements.
+    if (secondary_engine.run_load_statements(mysql, ignore_errors))
+      die("Original query '%s'.", query);
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -7850,6 +7782,16 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DYNAMIC_STRING ds_execute_warnings = DYNAMIC_STRING();
   DBUG_ENTER("run_query_stmt");
   DBUG_PRINT("query", ("'%-.60s'", query));
+
+  if (opt_change_propagation != -1) {
+    secondary_engine.match_statement(query, expected_errors->count());
+    if (secondary_engine.statement_type()) {
+      std::vector<unsigned int> ignore_errors = expected_errors->errors();
+      // Run secondary engine unload statements.
+      if (secondary_engine.run_unload_statements(mysql, ignore_errors))
+        die("Original query '%s'.", query);
+    }
+  }
 
   /*
     Init a new stmt if it's not already one created for this connection
@@ -8034,6 +7976,13 @@ end:
   if (mysql->reconnect) {
     mysql_stmt_close(stmt);
     cur_con->stmt = NULL;
+  }
+
+  if (opt_change_propagation != -1 && secondary_engine.statement_type()) {
+    std::vector<unsigned int> ignore_errors = expected_errors->errors();
+    // Run secondary engine load statements.
+    if (secondary_engine.run_load_statements(mysql, ignore_errors))
+      die("Original query '%s'.", query);
   }
 
   DBUG_VOID_RETURN;
@@ -8955,6 +8904,17 @@ int main(int argc, char **argv) {
     open_file(opt_include);
   }
 
+  if (opt_change_propagation != -1) {
+    secondary_engine =
+        Secondary_engine(opt_change_propagation, opt_secondary_engine);
+  }
+
+  if (opt_offload_count_file) {
+    // Save the initial value of secondary engine execution status.
+    if (secondary_engine.offload_count(&cur_con->mysql, "before"))
+      cleanup_and_exit(1);
+  }
+
   verbose_msg("Start processing test commands from '%s' ...",
               cur_file->file_name);
   while (!read_command(&command) && !abort_flag) {
@@ -9321,6 +9281,13 @@ int main(int argc, char **argv) {
           do_reset_connection();
           break;
         case Q_SEND_SHUTDOWN:
+          if (opt_offload_count_file) {
+            // Save the value of secondary engine execution status
+            // before shutting down the server.
+            if (secondary_engine.offload_count(&cur_con->mysql, "after"))
+              cleanup_and_exit(1);
+          }
+
           handle_command_error(command,
                                mysql_query(&cur_con->mysql, "shutdown"));
           break;
