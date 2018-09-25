@@ -11338,8 +11338,23 @@ static bool collect_and_lock_fk_tables_for_complex_alter_table(
       return true;
   }
 
-  if (collect_fk_children(thd, old_table_def, MDL_EXCLUSIVE, &mdl_requests))
-    return true;
+  if (new_hton != old_hton) {
+    /*
+      By changing table's storage engine we might be introducing parent
+      table for previously orphan foreign keys in the new SE. We need
+      to lock child tables of such orphan foreign keys. OTOH it is safe
+      to assume that if SE is changed table can't be parent in any
+      foreign keys in old SE.
+    */
+    DBUG_ASSERT(old_table_def->foreign_key_parents().size() == 0);
+
+    if (collect_fk_children(thd, table_list->db, table_list->table_name,
+                            new_hton, MDL_EXCLUSIVE, &mdl_requests))
+      return true;
+  } else {
+    if (collect_fk_children(thd, old_table_def, MDL_EXCLUSIVE, &mdl_requests))
+      return true;
+  }
 
   if (alter_ctx->is_table_renamed()) {
     if (collect_fk_children(thd, alter_ctx->new_db, alter_ctx->new_alias,
@@ -11364,7 +11379,6 @@ static bool collect_and_lock_fk_tables_for_complex_alter_table(
   @param  alter_ctx       ALTER TABLE operation context.
   @param  alter_info      Alter_info describing ALTER TABLE, specifically
                           containing informaton about columns being renamed.
-  @param  old_hton        Table's old SE.
   @param  new_hton        Table's new SE.
   @param  fk_invalidator  Object keeping track of which dd::Table
                           objects to invalidate. Used to filter out
@@ -11375,7 +11389,7 @@ static bool collect_and_lock_fk_tables_for_complex_alter_table(
 */
 static bool adjust_fks_for_complex_alter_table(
     THD *thd, TABLE_LIST *table_list, Alter_table_ctx *alter_ctx,
-    Alter_info *alter_info, handlerton *old_hton, handlerton *new_hton,
+    Alter_info *alter_info, handlerton *new_hton,
     const Foreign_key_parents_invalidator *fk_invalidator) {
   if (!(new_hton->flags & HTON_SUPPORTS_FOREIGN_KEYS)) return false;
 
@@ -11394,7 +11408,7 @@ static bool adjust_fks_for_complex_alter_table(
             FOREIGN_KEY_CHECKS=0 mode.
           */
           !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS),
-          table_list->db, table_list->table_name, old_hton, new_table,
+          table_list->db, table_list->table_name, new_hton, new_table,
           alter_info, true))
     return true;
 
@@ -12104,7 +12118,7 @@ static bool mysql_inplace_alter_table(
               (db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   if (adjust_fks_for_complex_alter_table(thd, table_list, alter_ctx, alter_info,
-                                         db_type, db_type, fk_invalidator))
+                                         db_type, fk_invalidator))
     goto cleanup2;
 
   THD_STAGE_INFO(thd, stage_end);
@@ -14636,9 +14650,32 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                          nullptr))
         DBUG_RETURN(true);
 
-      if (collect_fk_children(thd, old_table_def, MDL_SHARED_UPGRADABLE,
-                              &mdl_requests))
-        DBUG_RETURN(true);
+      if (create_info->db_type != table->s->db_type()) {
+        /*
+          By changing table's storage engine we might be introducing parent
+          table for previously orphan foreign keys in the new SE. We need
+          to lock child tables of such orphan foreign keys. OTOH it is safe
+          to assume that if SE is changed table can't be parent in any
+          foreign keys in old SE.
+
+          Note that here and in other similar places we assume that ALTER
+          TABLE which combines change of SE and renaming of table is executed
+          by changing SE first and then performing rename (this is closer to
+          ALTER TABLE real implementation). Because of this such ALTER TABLEs
+          need to pick up orphan foreign keys associated with old table names
+          as well. Thus we use old table name to get list of orphans.
+        */
+        DBUG_ASSERT(old_table_def->foreign_key_parents().size() == 0);
+
+        if (collect_fk_children(thd, table_list->db, table_list->table_name,
+                                create_info->db_type, MDL_SHARED_UPGRADABLE,
+                                &mdl_requests))
+          DBUG_RETURN(true);
+      } else {
+        if (collect_fk_children(thd, old_table_def, MDL_SHARED_UPGRADABLE,
+                                &mdl_requests))
+          DBUG_RETURN(true);
+      }
 
       if (alter_ctx.is_table_renamed() &&
           collect_fk_children(thd, alter_ctx.new_db, alter_ctx.new_alias,
@@ -14695,6 +14732,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       some of previously orphan FKs have referential actions which update
       child table.
 
+      The same should be done when we are going to add parent table to
+      previously orphan foreign keys by changing table storage engine.
+
       In theory, we can reduce chance of MDL deadlocks by also checking at
       this stage that all child and parent tables for FKs in which this
       table participates are locked for WRITE (as we will have to acquire
@@ -14703,27 +14743,37 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       TABLE RENAME under LOCK TABLES and are unaware of it.
     */
 
-    if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
-         thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
-        alter_ctx.is_table_renamed()) {
+    if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) {
       MDL_request_list orphans_mdl_requests;
-      if (collect_fk_children(thd, alter_ctx.new_db, alter_ctx.new_alias,
+
+      if (create_info->db_type != table->s->db_type()) {
+        DBUG_ASSERT(old_table_def->foreign_key_parents().size() == 0);
+        if (collect_fk_children(thd, table_list->db, table_list->table_name,
+                                create_info->db_type, MDL_EXCLUSIVE,
+                                &orphans_mdl_requests))
+          DBUG_RETURN(true);
+      }
+      if (alter_ctx.is_table_renamed() &&
+          collect_fk_children(thd, alter_ctx.new_db, alter_ctx.new_alias,
                               create_info->db_type, MDL_EXCLUSIVE,
                               &orphans_mdl_requests))
         DBUG_RETURN(true);
 
-      MDL_request_list::Iterator it(orphans_mdl_requests);
-      MDL_request *mdl_request;
+      if (!orphans_mdl_requests.is_empty()) {
+        MDL_request_list::Iterator it(orphans_mdl_requests);
+        MDL_request *mdl_request;
 
-      while ((mdl_request = it++) != nullptr) {
-        if (mdl_request->key.mdl_namespace() != MDL_key::TABLE) continue;
+        while ((mdl_request = it++) != nullptr) {
+          if (mdl_request->key.mdl_namespace() != MDL_key::TABLE) continue;
 
-        if (!thd->mdl_context.owns_equal_or_stronger_lock(
-                MDL_key::TABLE, mdl_request->key.db_name(),
-                mdl_request->key.name(), MDL_SHARED_NO_READ_WRITE)) {
-          my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
-                   mdl_request->key.name());
-          DBUG_RETURN(true);
+          if (!thd->mdl_context.owns_equal_or_stronger_lock(
+                  MDL_key::TABLE, mdl_request->key.db_name(),
+                  mdl_request->key.name(), MDL_SHARED_NO_READ_WRITE)) {
+            my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
+                     mdl_request->key.name());
+            DBUG_RETURN(true);
+          }
         }
       }
     }
@@ -15105,15 +15155,39 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     before starting potentially expensive main phases of COPYing
     or INPLACE ALTER TABLE.
   */
-  if (!is_tmp_table &&
-      (check_fk_children_after_parent_def_change(
-           thd, table_list->db, table_list->table_name, new_db_type,
-           old_table_def, table_def, alter_info) ||
-       (alter_ctx.is_table_renamed() &&
-        check_fk_children_after_parent_def_change(thd, alter_ctx.new_db,
-                                                  alter_ctx.new_alias,
-                                                  new_db_type, table_def))))
-    goto err_new_table_cleanup;
+  if (!is_tmp_table) {
+    if (new_db_type != old_db_type) {
+      /*
+        By changing table's storage engine we might be introducing parent
+        table for previously orphan foreign keys in the new SE. We need
+        to lock child tables of such orphan foreign keys. OTOH it is safe
+        to assume that if SE is changed table can't be parent in any
+        foreign keys in old SE.
+
+        We assume that ALTER TABLE which combines change of SE and renaming
+        of table is executed by changing SE first and then performing rename
+        (this is closer to ALTER TABLE real implementation). So such ALTER
+        TABLEs  need to pick up orphan foreign keys associated with old table
+        names as well. Thus we use old table name in the below check.
+      */
+      DBUG_ASSERT(old_table_def->foreign_key_parents().size() == 0);
+
+      if (check_fk_children_after_parent_def_change(thd, table_list->db,
+                                                    table_list->table_name,
+                                                    new_db_type, table_def))
+        goto err_new_table_cleanup;
+    } else {
+      if (check_fk_children_after_parent_def_change(
+              thd, table_list->db, table_list->table_name, new_db_type,
+              old_table_def, table_def, alter_info))
+        goto err_new_table_cleanup;
+    }
+
+    if (alter_ctx.is_table_renamed() &&
+        check_fk_children_after_parent_def_change(
+            thd, alter_ctx.new_db, alter_ctx.new_alias, new_db_type, table_def))
+      goto err_new_table_cleanup;
+  }
 
   if (alter_info->requested_algorithm !=
       Alter_info::ALTER_TABLE_ALGORITHM_COPY) {
@@ -15744,7 +15818,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
            (alter_ctx.is_table_renamed() ? 0 : NO_FK_RENAME))) ||
       ((new_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
        adjust_fks_for_complex_alter_table(thd, table_list, &alter_ctx,
-                                          alter_info, old_db_type, new_db_type,
+                                          alter_info, new_db_type,
                                           &fk_invalidator)) ||
       /*
         Try commit changes if ALTER TABLE as whole is not atomic and we have

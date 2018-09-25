@@ -4549,3 +4549,90 @@ WHERE referenced_table_schema='test' AND referenced_table_name='parent';
 column_name	referenced_column_name
 Fk	pK
 DROP TABLES child, parent;
+#
+# Tests for bug#28608460 "POSSIBLE TO ADD INCONSISTENT PARENT TO ORPHAN
+#                         FOREIGN KEY IF SE CHANGED".
+#
+#
+# Check that consistency checks are performed when we add parent
+# table to previously orphan foreign key by changing table storage
+# engine.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk));
+CREATE TABLE parent (pk INT) ENGINE=MyISAM;
+ALTER TABLE parent ENGINE=InnoDB;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+CREATE TABLE parent (a INT) ENGINE=MyISAM;
+ALTER TABLE parent ENGINE=InnoDB;
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk' for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+CREATE TABLE parent (pk BIGINT PRIMARY KEY) ENGINE=MyISAM;
+ALTER TABLE parent ENGINE=InnoDB;
+ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
+DROP TABLE parent;
+#
+# This should work for ALTER TABLE that combines change of SE
+# with renaming of table.
+CREATE TABLE parent0 (pk INT) ENGINE=MyISAM;
+ALTER TABLE parent0 ENGINE=InnoDB, RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent0;
+#
+# ALTER TABLE which combines change of SE and renaming of the
+# table is executed as if we separately did change of SE and
+# renamed table after that. I.e. consistency checks are also
+# performed for orphan foreign keys which are associated with
+# old table name.
+CREATE TABLE parent (pk INT) ENGINE=MyISAM;
+ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+#
+# Check that unique constraint name is correctly updated when parent
+# table is added to orphan foreign key by changing table SE.
+CREATE TABLE parent (pk INT, UNIQUE u(pk)) ENGINE=MyISAM;
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ENGINE=InnoDB;
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	u
+DROP TABLE parent;
+#
+# Since ALTER TABLE which combines change of SE and renaming of the
+# table is executed as if we separately did change of SE and
+# renamed table after that, the referenced table name should
+# be updated too.
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent0	PRIMARY
+RENAME TABLE parent0 TO parent;
+DROP TABLES parent;
+#
+# Check that under LOCK TABLES, when adding parent for previously orphan
+# foreign key by SE change, we check locks on child tables.
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+LOCK TABLES parent WRITE;
+ALTER TABLE parent ENGINE=InnoDB;
+ERROR HY000: Table 'child' was not locked with LOCK TABLES
+UNLOCK TABLES;
+LOCK TABLES child READ, parent WRITE;
+ALTER TABLE parent ENGINE=InnoDB;
+ERROR HY000: Table 'child' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+LOCK TABLES child WRITE, parent WRITE;
+ALTER TABLE parent ENGINE=InnoDB;
+UNLOCK TABLES;
+DROP TABLES child, parent;
+SET FOREIGN_KEY_CHECKS=1;
