@@ -8199,6 +8199,7 @@ bool JOIN::finalize_table_conditions() {
     trace_cond.add_utf8_table(best_ref[i]->table_ref);
     trace_cond.add("original_table_condition", condition);
     condition = reduce_cond_for_table(condition, table_map(0));
+    if (condition != nullptr) condition->update_used_tables();
 
     /*
       Cache constant expressions in table conditions.
