@@ -247,12 +247,12 @@ class Gcs_xcom_input_queue_impl {
 };
 using Gcs_xcom_input_queue = Gcs_xcom_input_queue_impl<>;
 
-static void do_not_reply(void *reply, pax_msg *payload) {
+static inline void do_not_reply(void *reply, pax_msg *payload) {
   auto *xcom_reply = static_cast<Gcs_xcom_input_queue::Reply *>(reply);
   delete xcom_reply;
   replace_pax_msg(&payload, nullptr);
 }
-static void reply_by_resolving_future(void *reply, pax_msg *payload) {
+static inline void reply_by_resolving_future(void *reply, pax_msg *payload) {
   auto *xcom_reply = static_cast<Gcs_xcom_input_queue::Reply *>(reply);
   xcom_reply->resolve(payload);  // Takes ownership of payload.
   /* xcom_reply will be deleted when the associated future has been waited for,
