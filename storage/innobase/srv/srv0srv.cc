@@ -216,6 +216,10 @@ bool srv_redo_log_encrypt = false;
 
 ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
 
+#ifdef UNIV_DEBUG_DEDICATED
+ulong srv_debug_system_mem_size;
+#endif /* UNIV_DEBUG_DEDICATED */
+
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size

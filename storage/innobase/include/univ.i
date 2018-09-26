@@ -242,6 +242,8 @@ and the insert buffer must be empty when the database is started */
                                    dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT    /* FTS internal debugging \
                                    info output */
+#define UNIV_DEBUG_DEDICATED       /* dedicated server debugging \
+                                   info output and code coverage */
 #endif
 
 #define UNIV_BTR_DEBUG       /* check B-tree links */

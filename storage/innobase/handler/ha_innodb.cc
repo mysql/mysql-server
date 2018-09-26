@@ -3905,6 +3905,128 @@ static void innodb_buffer_pool_size_init() {
   srv_buf_pool_curr_size = srv_buf_pool_size;
 }
 
+/** Initialize and normalize innodb_log_file_size
+and innodb_log_files_in_group. */
+static int innodb_log_file_size_init() {
+  DBUG_ENTER("innodb_init_params");
+
+  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
+  ut_a(srv_log_file_size > 0);
+
+  acquire_sysvar_source_service();
+
+  if (srv_dedicated_server && sysvar_source_svc != nullptr) {
+    double auto_buf_pool_size_in_gb;
+    static const char *var_name_buf_pool_size = "innodb_buffer_pool_size";
+    enum enum_variable_source source;
+
+    auto_buf_pool_size_in_gb = srv_buf_pool_size / GB;
+
+    /* If user has set buffer pool size in .cnf, we will not use it as base
+    line for log_file_size auto tuning, instead, we will get the value of
+    possible tuned buffer pool size. */
+    if (!sysvar_source_svc->get(
+            var_name_buf_pool_size,
+            static_cast<unsigned int>(strlen(var_name_buf_pool_size)),
+            &source)) {
+      if (source != COMPILED) {
+        double server_mem = get_sys_mem();
+
+#ifdef UNIV_DEBUG_DEDICATED
+        server_mem = srv_debug_system_mem_size / GB;
+#endif /* UNIV_DEBUG_DEDICATED */
+
+        if (server_mem < 1.0) {
+          ;
+        } else if (server_mem <= 4.0) {
+          auto_buf_pool_size_in_gb = static_cast<ulint>(server_mem * 0.5);
+        } else
+          auto_buf_pool_size_in_gb = static_cast<ulint>(server_mem * 0.75);
+      }
+    }
+
+    /* If innodb_dedicated_server == ON and innodb_log_file_size is not set by
+    user. */
+    static const char *var_name_log_file_size = "innodb_log_file_size";
+    if (!sysvar_source_svc->get(
+            var_name_log_file_size,
+            static_cast<unsigned int>(strlen(var_name_log_file_size)),
+            &source)) {
+      if (source == COMPILED) {
+        if (auto_buf_pool_size_in_gb < 1.0) {
+          ;
+        } else if (auto_buf_pool_size_in_gb < 8.0) {
+          srv_log_file_size = 512ULL * MB;
+        } else if (auto_buf_pool_size_in_gb <= 128.0) {
+          srv_log_file_size = 1024ULL * MB;
+        } else {
+          srv_log_file_size = 2048ULL * MB;
+        }
+      } else {
+        ib::warn(ER_IB_MSG_535)
+            << " Option innodb_dedicated_server is ignored for "
+            << "innodb_log_file_size"
+            << " because innodb_log_file_size=" << srv_log_file_size
+            << " is specified explicitly.";
+      }
+    }
+
+    /* If innodb_dedicated_server == ON and innodb_log_files_in_group is not set
+    by user. */
+    static const char *var_name_log_files = "innodb_log_files_in_group";
+    if (!sysvar_source_svc->get(
+            var_name_log_files,
+            static_cast<unsigned int>(strlen(var_name_log_files)), &source)) {
+      if (source == COMPILED) {
+        if (auto_buf_pool_size_in_gb < 1.0) {
+          ;
+        } else if (auto_buf_pool_size_in_gb < 8.0) {
+          srv_n_log_files = round(auto_buf_pool_size_in_gb);
+        } else if (auto_buf_pool_size_in_gb <= 128.0) {
+          srv_n_log_files = round(auto_buf_pool_size_in_gb * 0.75);
+        } else {
+          srv_n_log_files = 64;
+        }
+      } else {
+        ib::warn(ER_IB_MSG_1271)
+            << " Option innodb_dedicated_server is ignored for "
+            << "innodb_log_files_in_group"
+            << " because innodb_log_files_in_group=" << srv_n_log_files
+            << " is specified explicitly.";
+      }
+    }
+  }
+
+  release_sysvar_source_service();
+
+  if (srv_n_log_files * srv_log_file_size >=
+      512ULL * 1024ULL * 1024ULL * 1024ULL) {
+    /* log_block_convert_lsn_to_no() limits the returned block
+    number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
+    bytes, then we have a limit of 512 GB. If that limit is to
+    be raised, then log_block_convert_lsn_to_no() must be
+    modified. */
+    ib::error(ER_IB_MSG_536) << "Combined size of log files must be < 512 GB";
+
+    DBUG_RETURN(HA_ERR_INITIALIZATION);
+  }
+
+  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
+    /* fil_io() is used for IO to log files and it takes page_id_t
+    as an argument which uses page_no_t. So any page number must
+    be < PAGE_NO_MAX. This means that a redo log file size is
+    limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
+    16k page size. */
+    ib::error(ER_IB_MSG_537)
+        << "Combined size of log files must be < "
+        << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
+
+    DBUG_RETURN(HA_ERR_INITIALIZATION);
+  }
+
+  DBUG_RETURN(0);
+}
+
 /** Initialize, validate and normalize the InnoDB startup parameters.
 @return failure code
 @retval 0 on success
@@ -4025,67 +4147,6 @@ static int innodb_init_params() {
 
   ut_a(srv_log_write_ahead_size % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_a(srv_log_write_ahead_size > 0);
-
-  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
-  ut_a(srv_log_file_size > 0);
-
-  acquire_sysvar_source_service();
-  /* If innodb_dedicated_server == ON */
-  if (srv_dedicated_server && sysvar_source_svc != nullptr) {
-    static const char *variable_name = "innodb_log_file_size";
-    enum_variable_source source;
-
-    if (!sysvar_source_svc->get(
-            variable_name, static_cast<unsigned int>(strlen(variable_name)),
-            &source)) {
-      if (source == COMPILED) {
-        double server_mem = get_sys_mem();
-        if (server_mem < 1.0) {
-          ;
-        } else if (server_mem <= 4.0) {
-          srv_log_file_size = 128ULL * MB;
-        } else if (server_mem <= 8.0) {
-          srv_log_file_size = 512ULL * MB;
-        } else if (server_mem <= 16.0) {
-          srv_log_file_size = 1024ULL * MB;
-        } else {
-          srv_log_file_size = 2048ULL * MB;
-        }
-      } else {
-        ib::warn(ER_IB_MSG_535)
-            << "Option innodb_dedicated_server is ignored for "
-            << "innodb_log_file_size"
-            << " because innodb_log_file_size=" << srv_log_file_size
-            << " is specified explicitly.";
-      }
-    }
-  }
-  release_sysvar_source_service();
-
-  if (srv_n_log_files * srv_log_file_size >=
-      512ULL * 1024ULL * 1024ULL * 1024ULL) {
-    /* log_block_convert_lsn_to_no() limits the returned block
-    number to 1G and given that OS_FILE_LOG_BLOCK_SIZE is 512
-    bytes, then we have a limit of 512 GB. If that limit is to
-    be raised, then log_block_convert_lsn_to_no() must be
-    modified. */
-    ib::error(ER_IB_MSG_536) << "Combined size of log files must be < 512 GB";
-
-    DBUG_RETURN(HA_ERR_INITIALIZATION);
-  }
-
-  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
-    /* fil_io() is used for IO to log files and it takes page_id_t
-    as an argument which uses page_no_t. So any page number must
-    be < PAGE_NO_MAX. This means that a redo log file size is
-    limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
-    16k page size. */
-    ib::error(ER_IB_MSG_537)
-        << "Combined size of log files must be < "
-        << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
-
-    DBUG_RETURN(HA_ERR_INITIALIZATION);
-  }
 
   DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
 
@@ -4316,6 +4377,11 @@ static int innodb_init_params() {
   innodb_buffer_pool_size_init();
 
   innodb_undo_tablespaces_deprecate();
+
+  int ret = innodb_log_file_size_init();
+  if (ret != 0) {
+    DBUG_RETURN(ret);
+  }
 
   /* Set the original value back to show in help. */
   if (srv_buf_pool_size_org != 0) {
@@ -20676,6 +20742,14 @@ static MYSQL_SYSVAR_ULONG(
     " of log files). InnoDB writes to files in a circular fashion.",
     NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
+#ifdef UNIV_DEBUG_DEDICATED
+static MYSQL_SYSVAR_ULONG(
+    debug_sys_mem_size, srv_debug_system_mem_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "System memory size. It's for debuging dedicated server.", NULL, NULL,
+    48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX, 1024 * 1024L);
+#endif /* UNIV_DEBUG_DEDICATED */
+
 static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
                           PLUGIN_VAR_RQCMDARG,
                           "Log write ahead unit size to avoid read-on-write,"
@@ -21280,6 +21354,9 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_buffer_size),
     MYSQL_SYSVAR(log_file_size),
     MYSQL_SYSVAR(log_files_in_group),
+#ifdef UNIV_DEBUG_DEDICATED
+    MYSQL_SYSVAR(debug_sys_mem_size),
+#endif /* UNIV_DEBUG_DEDICATED */
     MYSQL_SYSVAR(log_write_ahead_size),
     MYSQL_SYSVAR(log_group_home_dir),
     MYSQL_SYSVAR(log_spin_cpu_abs_lwm),

@@ -287,6 +287,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   ib::info(ER_IB_MSG_1062, name, size);
 
+#ifdef UNIV_DEBUG_DEDICATED
+  if (srv_dedicated_server && strstr(name, "ib_logfile101") == 0) {
+    auto tmp_size = srv_buf_pool_min_size >> (20 - UNIV_PAGE_SIZE_SHIFT);
+    ret = os_file_set_size(name, *file, 0, tmp_size, srv_read_only_mode, true);
+    ret = os_file_close(*file);
+    return (DB_SUCCESS);
+  }
+#endif /* UNIV_DEBUG_DEDICATED */
+
   ret = os_file_set_size(name, *file, 0, (os_offset_t)srv_log_file_size,
                          srv_read_only_mode, true);
 
@@ -2204,7 +2213,11 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
       if (i == 0) {
         srv_log_file_size = size;
+#ifndef UNIV_DEBUG_DEDICATED
       } else if (size != srv_log_file_size) {
+#else
+      } else if (!srv_dedicated_server && size != srv_log_file_size) {
+#endif /* UNIV_DEBUG_DEDICATED */
         ib::error(ER_IB_MSG_1138, logfilename, size, srv_log_file_size);
 
         return (srv_init_abort(DB_ERROR));
