@@ -432,7 +432,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
           MY_RELATIVE_PATH | MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH);
     }
 
-    if ((thd->slave_thread &
+    if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0) {
       Relay_log_info *rli = thd->rli_slave->get_c_rli();
 
