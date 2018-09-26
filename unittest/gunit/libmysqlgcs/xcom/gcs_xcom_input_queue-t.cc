@@ -45,7 +45,7 @@ class MockGcsMpscQueue : public Gcs_mpsc_queue<xcom_input_request,
 
 class GcsXcomInputQueueTest : public GcsBaseTest {
  protected:
-  GcsXcomInputQueueTest(){};
+  GcsXcomInputQueueTest() {}
 
   virtual void SetUp() {}
 
