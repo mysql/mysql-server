@@ -1913,9 +1913,8 @@ sp_head::~sp_head() {
 Field *sp_head::create_result_field(size_t field_max_length,
                                     const char *field_name_or_null,
                                     TABLE *table) {
-  size_t field_length = !m_return_field_def.max_display_width_in_bytes()
-                            ? field_max_length
-                            : m_return_field_def.max_display_width_in_bytes();
+  size_t field_length =
+      !m_return_field_def.length ? field_max_length : m_return_field_def.length;
 
   auto field_name =
       field_name_or_null != nullptr ? field_name_or_null : m_name.str;

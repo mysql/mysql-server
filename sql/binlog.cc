@@ -74,7 +74,6 @@
 #include "rows_event.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
-#include "sql/create_field.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD

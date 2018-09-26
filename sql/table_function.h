@@ -34,7 +34,6 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "psi_memory_key.h"  // key_memory_JSON
-#include "sql/create_field.h"
 #include "sql/enum_query_type.h"
 #include "sql/mem_root_array.h"
 #include "sql_list.h"  // List

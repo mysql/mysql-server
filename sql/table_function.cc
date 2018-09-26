@@ -299,6 +299,7 @@ bool Table_function_json::init_json_table_col_lists(THD *thd, uint *nest_idx,
     if (col->m_jtc_type != enum_jt_column::JTC_NESTED_PATH) {
       col->m_field_idx = m_vt_list.elements;
       m_vt_list.push_back(col);
+      col->create_length_to_internal_length();
       if (check_column_name(col->field_name)) {
         my_error(ER_WRONG_COLUMN_NAME, MYF(0), col->field_name);
         return true;
@@ -664,6 +665,8 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
 }
 
 void Json_table_column::cleanup() {
+  // Restore original length as it was adjusted according to charset
+  length = char_length;
   // Reset paths and wrappers to free allocated memory.
   m_path_json = Json_path();
   if (m_on_empty == enum_jtc_on::JTO_DEFAULT)

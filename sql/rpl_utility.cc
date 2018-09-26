@@ -51,7 +51,6 @@ struct TYPELIB;
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysqld_error.h"
-#include "sql/create_field.h"
 #include "sql/dd/dd.h"          // get_dictionary
 #include "sql/dd/dictionary.h"  // is_dd_table_access_allowed
 #include "sql/derror.h"         // ER_THD

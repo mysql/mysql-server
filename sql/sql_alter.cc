@@ -36,10 +36,10 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_access
-#include "sql/create_field.h"
 #include "sql/dd/types/trigger.h"  // dd::Trigger
 #include "sql/derror.h"            // ER_THD
 #include "sql/error_handler.h"     // Strict_error_handler
+#include "sql/field.h"
 // mysql_exchange_partition
 #include "sql/log.h"
 #include "sql/mysqld.h"              // lower_case_table_names

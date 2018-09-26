@@ -247,6 +247,7 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
     uint32 fl = fields_info->field_length;
     if (fields_info->field_type == MYSQL_TYPE_STRING) {
       ft = MYSQL_TYPE_VARCHAR;
+      fl = fields_info->field_length * cs->mbmaxlen;
     }
 
     col_obj->set_type(dd::get_new_field_type(ft));

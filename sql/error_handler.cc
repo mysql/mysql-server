@@ -31,7 +31,6 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"  // EE_*
-#include "sql/create_field.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/mdl.h"

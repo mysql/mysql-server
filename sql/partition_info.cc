@@ -46,8 +46,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
-#include "sql/create_field.h"
-#include "sql/derror.h"  // ER_THD
+#include "sql/derror.h"            // ER_THD
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
