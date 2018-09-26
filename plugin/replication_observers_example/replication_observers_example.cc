@@ -157,6 +157,7 @@ static int trans_before_commit_call = 0;
 static int trans_before_rollback_call = 0;
 static int trans_after_commit_call = 0;
 static int trans_after_rollback_call = 0;
+static int trans_begin_call = 0;
 
 static void dump_transaction_calls() {
   if (trans_before_dml_call) {
@@ -324,11 +325,18 @@ static int trans_after_rollback(Trans_param *param MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
+static int trans_begin(Trans_param *param MY_ATTRIBUTE((unused)),
+                       int &out_val MY_ATTRIBUTE((unused))) {
+  trans_begin_call++;
+
+  return 0;
+}
+
 Trans_observer trans_observer = {
     sizeof(Trans_observer),
 
     trans_before_dml,       trans_before_commit,  trans_before_rollback,
-    trans_after_commit,     trans_after_rollback,
+    trans_after_commit,     trans_after_rollback, trans_begin,
 };
 
 /*

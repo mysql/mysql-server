@@ -83,6 +83,7 @@
 #include "my_time.h"
 #include "myisam.h"  // myisam_flush
 #include "mysql/components/services/log_builtins.h"
+#include "mysql/plugin_group_replication.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_version.h"
 #include "sql/auth/auth_acls.h"
@@ -6286,3 +6287,31 @@ static Sys_var_ulong Sys_binlog_row_event_max_size(
     "The value has to be a multiple of 256.",
     READ_ONLY GLOBAL_VAR(binlog_row_event_max_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(256, ULONG_MAX), DEFAULT(8192), BLOCK_SIZE(256));
+
+static bool check_group_replication_consistency(sys_var *self, THD *thd,
+                                                set_var *var) {
+  if (var->type == OPT_GLOBAL || var->type == OPT_PERSIST) {
+    Security_context *sctx = thd->security_context();
+    if (!sctx->check_access(SUPER_ACL) &&
+        !sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"))
+             .first) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+               "SUPER or GROUP_REPLICATION_ADMIN");
+      return true;
+    }
+  }
+
+  return check_outside_trx(self, thd, var);
+}
+
+static const char *group_replication_consistency_names[] = {
+    "EVENTUAL", "BEFORE_ON_PRIMARY_FAILOVER", NullS};
+
+static Sys_var_enum Sys_group_replication_consistency(
+    "group_replication_consistency",
+    "Transaction consistency guarantee, possible values: EVENTUAL, "
+    "BEFORE_ON_PRIMARY_FAILOVER",
+    SESSION_VAR(group_replication_consistency), CMD_LINE(OPT_ARG),
+    group_replication_consistency_names,
+    DEFAULT(GROUP_REPLICATION_CONSISTENCY_EVENTUAL), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_group_replication_consistency), ON_UPDATE(0));

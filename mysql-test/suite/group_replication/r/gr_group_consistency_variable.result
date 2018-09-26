@@ -1,0 +1,54 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1. Verify group_replication_consistency with invalid values: string,
+#    out of range, decimal, and NULL. Expect ERROR.
+#
+SET GLOBAL group_replication_consistency= ON;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'ON'
+SET SESSION group_replication_consistency= OFF;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'OFF'
+SET GLOBAL group_replication_consistency= "";
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of ''
+SET SESSION group_replication_consistency= "";
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of ''
+SET GLOBAL group_replication_consistency= "B";
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'B'
+SET SESSION group_replication_consistency= "E";
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'E'
+SET GLOBAL group_replication_consistency= -1;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of '-1'
+SET SESSION group_replication_consistency= -1;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of '-1'
+SET GLOBAL group_replication_consistency= 5;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of '5'
+SET SESSION group_replication_consistency= 5;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of '5'
+SET GLOBAL group_replication_consistency= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_consistency'
+SET SESSION group_replication_consistency= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_consistency'
+SET GLOBAL group_replication_consistency= NULL;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'NULL'
+SET SESSION group_replication_consistency= NULL;
+ERROR 42000: Variable 'group_replication_consistency' can't be set to the value of 'NULL'
+#
+# 2. Verify group_replication_consistency with valid values.
+#    Expect SUCCESS.
+SET GLOBAL group_replication_consistency= 1;
+SET SESSION group_replication_consistency= 1;
+SET GLOBAL group_replication_consistency= 0;
+SET SESSION group_replication_consistency= 0;
+SET GLOBAL group_replication_consistency= DEFAULT;
+SET SESSION group_replication_consistency= DEFAULT;
+SET GLOBAL group_replication_consistency= "BEFORE_ON_PRIMARY_FAILOVER";
+SET SESSION group_replication_consistency= "BEFORE_ON_PRIMARY_FAILOVER";
+SET GLOBAL group_replication_consistency= "EVENTUAL";
+SET SESSION group_replication_consistency= "EVENTUAL";
+#
+# 3. Clean up.
+#
+include/group_replication_end.inc

@@ -1,0 +1,89 @@
+###############################################################################
+# The aim of the testcase is to test parameter 'group_replication_consistency'
+#
+# Test:
+# 0. This test requires one server.
+# 1. Verify group_replication_consistency with invalid values. Expect ERROR.
+# 2. Verify group_replication_consistency with valid values. Expect SUCCESS.
+# 3. Cleanup.
+###############################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo #
+--echo # 1. Verify group_replication_consistency with invalid values: string,
+--echo #    out of range, decimal, and NULL. Expect ERROR.
+--echo #
+
+# Take backup
+--disable_query_log
+--let $bkp_gr_consistency_g = `SELECT @@GLOBAL.group_replication_consistency`
+--let $bkp_gr_consistency_s = `SELECT @@SESSION.group_replication_consistency`
+--enable_query_log
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= OFF;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= "";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= "";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= "B";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= "E";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= -1;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= 5;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= 5;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_consistency= 1.0;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION group_replication_consistency= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL group_replication_consistency= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET SESSION group_replication_consistency= NULL;
+
+--echo #
+--echo # 2. Verify group_replication_consistency with valid values.
+--echo #    Expect SUCCESS.
+SET GLOBAL group_replication_consistency= 1;
+SET SESSION group_replication_consistency= 1;
+SET GLOBAL group_replication_consistency= 0;
+SET SESSION group_replication_consistency= 0;
+SET GLOBAL group_replication_consistency= DEFAULT;
+SET SESSION group_replication_consistency= DEFAULT;
+SET GLOBAL group_replication_consistency= "BEFORE_ON_PRIMARY_FAILOVER";
+SET SESSION group_replication_consistency= "BEFORE_ON_PRIMARY_FAILOVER";
+SET GLOBAL group_replication_consistency= "EVENTUAL";
+SET SESSION group_replication_consistency= "EVENTUAL";
+
+--echo #
+--echo # 3. Clean up.
+--echo #
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_consistency= "$bkp_gr_consistency_g"
+--eval SET @@SESSION.group_replication_consistency= "$bkp_gr_consistency_s"
+--enable_query_log
+
+--source include/group_replication_end.inc

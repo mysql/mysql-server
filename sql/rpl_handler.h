@@ -45,6 +45,7 @@ struct Binlog_storage_observer;
 struct Binlog_transmit_observer;
 struct Server_state_observer;
 struct Trans_observer;
+struct TABLE_LIST;
 
 class Observer_info {
  public:
@@ -162,6 +163,7 @@ class Trans_delegate : public Delegate {
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
+  int trans_begin(THD *thd, int &result);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
@@ -280,5 +282,7 @@ extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
   (group##_delegate->is_empty() ? 0 : group##_delegate->hook args)
 
 #define NO_HOOK(group) (group##_delegate->is_empty())
+
+int launch_hook_trans_begin(THD *thd, TABLE_LIST *table);
 
 #endif /* RPL_HANDLER_H */

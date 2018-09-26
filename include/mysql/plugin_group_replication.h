@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,14 @@
 */
 
 #include <mysql/plugin.h>
-#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0102
+#define MYSQL_GROUP_REPLICATION_INTERFACE_VERSION 0x0103
+
+enum enum_group_replication_consistency_level {
+  // allow executing reads from newer primary even when backlog isn't applied
+  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+  // hold data reads and writes on the new primary until applies all the backlog
+  GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER
+};
 
 /*
   Callbacks for get_connection_status_info function.

@@ -42,6 +42,16 @@ class Group_transaction_listener {
   virtual ~Group_transaction_listener();
 
   /**
+    Executed before a transaction begins
+    @param gr_consistency_level  the current consistency level for this session
+    @param hold_timeout the max time to execute an action on this transaction
+    @param rpl_channel_type type channel that receives transaction
+  */
+  virtual int before_transaction_begin(ulong gr_consistency_level,
+                                       ulong hold_timeout,
+                                       enum_rpl_channel_type channel_type) = 0;
+
+  /**
     Executed before commit
     @param thread_id   the transaction thread id
     @param origin      who applied it
@@ -92,6 +102,15 @@ class Group_transaction_observation_manager {
     @param observer  An observer class to unregister
   */
   void unregister_transaction_observer(Group_transaction_listener *observer);
+
+  /**
+    Executed before a transaction begins
+    @param gr_consistency_level  the current consistency level for this session
+    @param hold_timeout the max time to execute an action on this transaction
+    @param rpl_channel_type type channel that receives transaction
+  */
+  int before_transaction_begin(ulong gr_consistency_level, ulong hold_timeout,
+                               enum_rpl_channel_type rpl_channel_type);
 
   /*
     Executed before commit

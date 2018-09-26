@@ -227,6 +227,7 @@ class Transaction_ctx {
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
     m_transaction_write_set_ctx.clear_write_set();
+    trans_begin_hook_invoked = false;
     free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }
@@ -382,9 +383,14 @@ class Transaction_ctx {
     return &m_transaction_write_set_ctx;
   }
 
+  bool was_trans_begin_hook_invoked() { return trans_begin_hook_invoked; }
+
+  void set_trans_begin_hook_invoked() { trans_begin_hook_invoked = true; }
+
  private:
   Rpl_transaction_ctx m_rpl_transaction_ctx;
   Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
+  bool trans_begin_hook_invoked;
 };
 
 /**

@@ -48,6 +48,9 @@
 #include "plugin/group_replication/include/services/registry.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
+// Forward declarations
+class Hold_transactions;
+
 // Definition of system var structures
 
 // Definition of system vars structure for access their information in the
@@ -87,6 +90,7 @@ extern bool known_server_reset;
 // Certification latch
 extern Wait_ticket<my_thread_id> *certification_latch;
 extern ulong exit_state_action_var;
+extern std::atomic<bool> plugin_is_stopping;
 
 // The modules
 extern Gcs_operations *gcs_module;
@@ -106,6 +110,7 @@ extern Shared_writelock *shared_plugin_stop_lock;
 extern Delayed_initialization_thread *delayed_initialization_thread;
 extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
+extern Hold_transactions *hold_transactions;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
@@ -152,6 +157,7 @@ bool plugin_get_group_member_stats(
     uint index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 uint plugin_get_group_members_number();
+
 /**
   Method to set retrieved certification info from a recovery channel extracted
   from a given View_change event

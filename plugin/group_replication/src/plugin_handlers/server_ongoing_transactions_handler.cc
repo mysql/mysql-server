@@ -125,6 +125,11 @@ int Server_ongoing_transactions_handler::
   return error;
 }
 
+int Server_ongoing_transactions_handler::before_transaction_begin(
+    ulong, ulong, enum_rpl_channel_type) {
+  return 0; /* purecov: inspected */
+}
+
 int Server_ongoing_transactions_handler::before_commit(
     my_thread_id, Group_transaction_listener::enum_transaction_origin) {
   return 0; /* purecov: inspected */

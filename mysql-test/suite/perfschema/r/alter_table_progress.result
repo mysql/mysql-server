@@ -58,6 +58,8 @@ and (nesting_event_id = @con1_stmt_id)
 order by thread_id, event_id;
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
 stage/sql/starting	NULL	NULL
+stage/sql/Executing hook on transaction begin.	NULL	NULL
+stage/sql/starting	NULL	NULL
 stage/sql/checking permissions	NULL	NULL
 stage/sql/checking permissions	NULL	NULL
 stage/sql/init	NULL	NULL

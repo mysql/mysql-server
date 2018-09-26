@@ -114,7 +114,8 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_trx_unlocking,
     key_GR_LOCK_view_modification_wait,
     key_GR_LOCK_wait_ticket,
-    key_GR_LOCK_write_lock_protection;
+    key_GR_LOCK_write_lock_protection,
+    key_GR_LOCK_primary_promotion_policy;
 
 extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
@@ -144,7 +145,8 @@ extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_synchronized_queue,
     key_GR_COND_view_modification_wait,
     key_GR_COND_wait_ticket,
-    key_GR_COND_write_lock_protection;
+    key_GR_COND_write_lock_protection,
+    key_GR_COND_primary_promotion_policy;
 
 extern PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_cert_broadcast,

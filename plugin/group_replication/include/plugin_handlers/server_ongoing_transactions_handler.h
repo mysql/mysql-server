@@ -66,6 +66,10 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
   /** Abort any running waiting process */
   void abort_waiting_process();
 
+  virtual int before_transaction_begin(ulong gr_consistency_level,
+                                       ulong hold_timeout,
+                                       enum_rpl_channel_type rpl_channel_type);
+
   virtual int before_commit(
       my_thread_id thread_id,
       Group_transaction_listener::enum_transaction_origin origin);

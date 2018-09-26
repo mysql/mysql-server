@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
 #include "plugin/group_replication/include/observer_trans.h"
@@ -49,7 +50,7 @@ unsigned int plugin_version = 0;
 static mysql_mutex_t plugin_running_mutex;
 static mysql_mutex_t plugin_online_mutex;
 static mysql_cond_t plugin_online_condition;
-static bool group_replication_running = false;
+static std::atomic<bool> group_replication_running(false);
 bool wait_on_engine_initialization = false;
 bool server_shutdown_status = false;
 bool plugin_is_auto_starting_on_install = false;
@@ -58,6 +59,7 @@ static bool group_member_mgr_configured;
 static bool plugin_is_waiting_to_set_server_read_mode = false;
 static bool plugin_is_being_uninstalled = false;
 bool plugin_is_setting_read_mode = false;
+std::atomic<bool> plugin_is_stopping(false);
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -97,6 +99,8 @@ Plugin_waitlock *online_wait_mutex = NULL;
 Group_action_coordinator *group_action_coordinator = NULL;
 // The primary election handler
 Primary_election_handler *primary_election_handler = NULL;
+// Hold transaction mechanism
+Hold_transactions *hold_transactions = NULL;
 
 /* Group communication options */
 char *local_address_var = NULL;
@@ -720,6 +724,7 @@ int initialize_plugin_and_join(
     goto err;
   }
   group_replication_running = true;
+  plugin_is_stopping = false;
   log_primary_member_details();
 
 err:
@@ -759,6 +764,15 @@ err:
     if (certification_latch != NULL) {
       delete certification_latch; /* purecov: inspected */
       certification_latch = NULL; /* purecov: inspected */
+    }
+
+    // Inform the transaction observer that we won't apply any further backlog
+    // (because we are erroring out).
+    hold_transactions->disable();
+    if (primary_election_handler) {
+      primary_election_handler->unregister_transaction_observer();
+      delete primary_election_handler;
+      primary_election_handler = NULL;
     }
   }
 
@@ -931,6 +945,8 @@ int plugin_group_replication_stop(char **error_message) {
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
 
+  plugin_is_stopping = true;
+
   /*
     We delete the delayed initialization object here because:
 
@@ -993,6 +1009,14 @@ int plugin_group_replication_stop(char **error_message) {
     plugin_is_waiting_to_set_server_read_mode = false;
   }
 
+  // plugin is stopping, resume hold connections
+  hold_transactions->disable();
+  if (primary_election_handler) {
+    primary_election_handler->unregister_transaction_observer();
+    delete primary_election_handler;
+    primary_election_handler = NULL;
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1018,8 +1042,6 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
 
   if (primary_election_handler != NULL) {
     primary_election_handler->terminate_election_process();
-    delete primary_election_handler;
-    primary_election_handler = NULL;
   }
 
   reset_auto_increment_handler_values();
@@ -1141,6 +1163,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   );
 
   shared_plugin_stop_lock = new Shared_writelock(plugin_stop_lock);
+
+  hold_transactions = new Hold_transactions();
 
   plugin_info_ptr = plugin_info;
 
@@ -1300,6 +1324,8 @@ int plugin_group_replication_deinit(void *p) {
   }
 
   unregister_udfs();
+
+  if (hold_transactions) delete hold_transactions;
 
   mysql_mutex_destroy(&plugin_running_mutex);
   mysql_mutex_destroy(&force_members_running_mutex);

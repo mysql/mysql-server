@@ -353,6 +353,9 @@ struct System_variables {
   /** Used for controlling preparation of queries against secondary engine. */
   ulong use_secondary_engine;
 
+  /** Used for controlling Group Replication consistency guarantees */
+  ulong group_replication_consistency;
+
   bool sql_require_primary_key;
 };
 

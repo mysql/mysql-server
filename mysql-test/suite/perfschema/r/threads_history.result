@@ -167,6 +167,8 @@ stage/sql/freeing items
 stage/sql/cleaning up
 EVENT_NAME
 stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
@@ -182,6 +184,8 @@ stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
 stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
 stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
@@ -562,6 +566,8 @@ stage/sql/freeing items
 stage/sql/cleaning up
 EVENT_NAME
 stage/sql/starting
+stage/sql/Executing hook on transaction begin.
+stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
@@ -577,6 +583,8 @@ stage/sql/query end
 stage/sql/closing tables
 stage/sql/freeing items
 stage/sql/cleaning up
+stage/sql/starting
+stage/sql/Executing hook on transaction begin.
 stage/sql/starting
 stage/sql/query end
 stage/sql/closing tables
@@ -618,7 +626,7 @@ idle
 has_waits
 1
 has_waits
-1
+0
 "=========================== Waits user 2"
 EVENT_NAME
 idle

@@ -40,6 +40,8 @@ int group_replication_trans_after_commit(Trans_param *param);
 
 int group_replication_trans_after_rollback(Trans_param *param);
 
+int group_replication_trans_begin(Trans_param *param, int &out);
+
 extern Trans_observer trans_observer;
 
 /*

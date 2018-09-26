@@ -8676,6 +8676,15 @@ ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX
 ER_FK_INCOMPATIBLE_COLUMNS
   eng "Referencing column '%s' and referenced column '%s' in foreign key constraint '%s' are incompatible."
 
+ER_GR_HOLD_WAIT_TIMEOUT
+  eng "Timeout exceeded for held statement while new Group Replication primary member is applying backlog."
+
+ER_GR_HOLD_KILLED
+  eng "Held statement aborted because Group Replication plugin got shut down or thread was killed while new primary member was applying backlog."
+
+ER_GR_HOLD_MEMBER_STATUS_ERROR
+  eng "Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election."
+
 #
 #  End of 8.0 error messages.
 #

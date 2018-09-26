@@ -31,12 +31,13 @@
 #include "plugin/group_replication/include/plugin_handlers/primary_election_primary_process.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_secondary_process.h"
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
+#include "plugin/group_replication/include/plugin_observers/group_transaction_observation_manager.h"
 
 /**
   @class Primary_election_handler
   The base class to request and execute an election
 */
-class Primary_election_handler {
+class Primary_election_handler : public Group_transaction_listener {
  public:
   /** Instantiate a new election handler */
   Primary_election_handler();
@@ -93,6 +94,33 @@ class Primary_election_handler {
     @return !=0 in case of error
   */
   int terminate_election_process();
+
+  // Transaction observers
+
+  /**
+    Register an observer for transactions
+  */
+  void register_transaction_observer();
+
+  /**
+    Un register the observer for transactions
+  */
+  void unregister_transaction_observer();
+
+  virtual int before_transaction_begin(ulong gr_consistency_level,
+                                       ulong hold_timeout,
+                                       enum_rpl_channel_type channel_type);
+  virtual int before_commit(
+      my_thread_id thread_id,
+      Group_transaction_listener::enum_transaction_origin origin);
+
+  virtual int before_rollback(
+      my_thread_id thread_id,
+      Group_transaction_listener::enum_transaction_origin origin);
+
+  virtual int after_rollback(my_thread_id thread_id);
+
+  virtual int after_commit(my_thread_id thread_id);
 
  private:
   /**

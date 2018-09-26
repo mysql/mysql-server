@@ -88,6 +88,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/udf/udf_single_primary.cc
   src/udf/udf_utils.cc
   src/udf/udf_write_concurrency.cc
+  src/hold_transactions.cc
 )
 
 SET(GMS_LISTENER_SERVICE_TEST_SOURCES

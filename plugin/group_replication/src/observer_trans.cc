@@ -549,6 +549,33 @@ int group_replication_trans_after_rollback(Trans_param *param) {
   DBUG_RETURN(error);
 }
 
+int group_replication_trans_begin(Trans_param *param, int &out) {
+  DBUG_ENTER("group_replication_trans_begin");
+
+  /*
+    If the plugin is not running, after rollback should return success.
+    If there are no observers, we also don't care
+  */
+  if (!plugin_is_group_replication_running() ||
+      !group_transaction_observation_manager->is_any_observer_present()) {
+    DBUG_RETURN(0);
+  }
+
+  group_transaction_observation_manager->read_lock_observer_list();
+  std::list<Group_transaction_listener *> *transaction_observers =
+      group_transaction_observation_manager->get_all_observers();
+  for (Group_transaction_listener *transaction_observer :
+       *transaction_observers) {
+    out = transaction_observer->before_transaction_begin(
+        param->group_replication_consistency, param->hold_timeout,
+        param->rpl_channel_type);
+    if (out) break;
+  }
+  group_transaction_observation_manager->unlock_observer_list();
+
+  DBUG_RETURN(0);
+}
+
 Trans_observer trans_observer = {
     sizeof(Trans_observer),
 
@@ -557,6 +584,7 @@ Trans_observer trans_observer = {
     group_replication_trans_before_rollback,
     group_replication_trans_after_commit,
     group_replication_trans_after_rollback,
+    group_replication_trans_begin,
 };
 
 // Transaction Message implementation

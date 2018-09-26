@@ -1,0 +1,67 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap group on server 1 and create table t1
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE test.t1 (a int primary key);
+
+# 2. Join server2 to group
+[connection server_2]
+SET @@GLOBAL.group_replication_member_weight= 90;
+include/start_group_replication.inc
+
+# 3. Join server3 to group
+[connection server3]
+include/start_group_replication.inc
+
+# 4. Disable notification that backlog was applied, will allow see held
+#    transactions while shutting down the server
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_cancel_apply_backlog';
+
+# 5. Stop primary server and primary election will occur
+[connection server1]
+include/stop_group_replication.inc
+
+# 6. A read execution to new primary will be put on hold
+[connection server2]
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+SELECT * FROM t1;
+
+# 7. Validate statement is on hold
+[connection server_2]
+
+# 8. Stop server2
+include/stop_group_replication.inc
+
+# 9. Connections on hold will return error due to primary being stopped
+[connection server2]
+ERROR HY000: Held statement aborted because Group Replication plugin got shut down or thread was killed while new primary member was applying backlog.
+SET @@GLOBAL.DEBUG= '-d,group_replication_cancel_apply_backlog';
+
+# 10. Wait for server2 to exit group
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 11. Now that server2 stopped all connections should have default
+#     behavior after GR stop
+[connection server2]
+SELECT * FROM t1;
+a
+
+# 12. Cleanup
+SET @@GLOBAL.group_replication_member_weight= DEFAULT;
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+[connection server1]
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+[connection server3]
+DROP TABLE t1;
+include/group_replication_end.inc

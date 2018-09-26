@@ -1,0 +1,60 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Server1 bootstrap the group
+include/start_and_bootstrap_group_replication.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("The appointed primary for election left the group, this operation will be aborted and if present the old primary member will be re-elected.");
+set session sql_log_bin=1;
+
+# 2. Start GR on server2
+[connection server2]
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an issue on the primary election process: Could not wait for the execution of local transactions. The member will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("A critical error occurred during the local execution of this action. The member will now leave the group.");
+call mtr.add_suppression("The member will now leave the group as its configuration may have diverged.");
+set session sql_log_bin=1;
+include/start_group_replication.inc
+
+# 3. Stop the applier sql thread, will make primary election fail
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# 4. Execute action to set server2 as new primary
+[connection server1]
+SELECT group_replication_set_as_primary("MEMBER2_UUID");
+
+# 5. Server2 will fail (applier thread stopped), leave the group and set
+#    ERROR state
+[connection server_1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 6. Confirm server2 is on ERROR state
+[connection server2]
+include/gr_wait_for_member_state.inc
+
+# 7. Statement executed will be aborted, server is on state ERROR
+SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
+SELECT group_replication_set_as_primary("MEMBER2_UUID");;
+ERROR HY000: Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election.
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+# 8. Stop GR on server2
+include/stop_group_replication.inc
+
+# 9. After GR is stopped is possible to execute statement
+SET SESSION sql_log_bin= 0;
+CREATE TABLE test.t1 (a int primary key);
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+# 10. Cleanup
+[connection server1]
+ERROR HY000: The function 'group_replication_set_as_primary' failed. The appointed primary for election left the group, this operation will be aborted and if present the old primary member will be re-elected. Check the group member list to see who is the primary.
+include/group_replication_end.inc

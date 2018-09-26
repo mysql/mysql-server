@@ -97,6 +97,8 @@ static int repl_semi_report_rollback(Trans_param *param) {
   return repl_semi_report_commit(param);
 }
 
+static int repl_semi_report_begin(Trans_param *, int &) { return 0; }
+
 static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
                                        const char *log_file, my_off_t log_pos) {
   long long semi_sync_slave = 0;
@@ -346,6 +348,7 @@ Trans_observer trans_observer = {
     repl_semi_report_before_rollback,  // before_rollback
     repl_semi_report_commit,           // after_commit
     repl_semi_report_rollback,         // after_rollback
+    repl_semi_report_begin,            // begin
 };
 
 Binlog_storage_observer storage_observer = {

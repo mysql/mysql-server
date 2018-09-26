@@ -3,16 +3,17 @@
 #
 # Test:
 # 0. This test requires one server.
-# 1. Basic check that there are 45 GR variables.
-# 2. Verify that all the group replication variables are GLOBAL variables.
-# 3. Verify values of GLOBAL and SESSION variables using below commands:-
+# 1. Basic check on number of GR variables.
+# 2. Verify group replication related variables at GLOBAL scope.
+# 3. Verify group replication related variables at SESSION scope.
+# 4. Verify values of GLOBAL and SESSION variables using below commands:-
 #  - SHOW GLOBAL VARIABLES LIKE 'group_replication_..'
 #  - SHOW SESSION VARIABLES LIKE 'group_replication_..'
 #  - SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=
 #    'group_replication..'
 #  - SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=
 #    'group_replication..'
-# 4. Clean-up
+# 5. Clean-up
 #######################################################################################
 
 --source include/big_test.inc
@@ -28,13 +29,14 @@
 
 --sleep 30
 
+--let $gr_var_count= 47
 --echo
---echo # Test#1: Basic check that there are 46 GR variables.
+--echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 46 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 46
+--let $assert_text= There are $gr_var_count GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = $gr_var_count
 --source include/assert.inc
 
 # Take backup of GR variables
@@ -75,12 +77,14 @@
 --let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
 --let $saved_gr_exit_state_action = `SELECT @@GLOBAL.group_replication_exit_state_action;`
 --let $saved_gr_member_expel_timeout = `SELECT @@GLOBAL.group_replication_member_expel_timeout`
+--let $saved_gr_consistency = `SELECT @@GLOBAL.group_replication_consistency`
 --enable_query_log
 
---echo
---echo # Test#2: Verify that all the group replication variables are GLOBAL variables.
 
-# GR variables cannot be set at SESSION level.
+--echo
+--echo # Test#2: Verify group replication related variables at GLOBAL scope.
+
+# Following GR variables cannot be set at SESSION level.
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
 --error ER_GLOBAL_VARIABLE
@@ -154,7 +158,6 @@ SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_member_expel_timeout= 120;
 
-# GR variables should be set at GLOBAL level.
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
@@ -193,11 +196,22 @@ eval SET GLOBAL group_replication_recovery_public_key_path= '$MYSQL_TEST_DIR/std
 SET GLOBAL group_replication_recovery_get_public_key= ON;
 SET GLOBAL group_replication_exit_state_action= "READ_ONLY";
 SET GLOBAL group_replication_member_expel_timeout= 1000;
-
+SET GLOBAL group_replication_consistency= "EVENTUAL";
 --enable_query_log
 
+
 --echo
---echo # Test#3: Verify GLOBAL and SESSION variables
+--echo # Test#3: Verify group replication related variables at SESSION scope.
+
+# Following GR variable(s) can be set at SESSION level.
+SET @@SESSION.group_replication_consistency= "EVENTUAL"; # Currently, there is only one.
+
+# clean up session variables
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+
+--echo
+--echo # Test#4: Verify GLOBAL and SESSION variables
 # Start GR
 --source include/start_group_replication.inc
 
@@ -812,7 +826,23 @@ SET GLOBAL group_replication_member_expel_timeout= 1000;
 
 --let $assert_text= Verify SESSION value of group_replication_member_expel_timeout
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_member_expel_timeout\', VARIABLE_VALUE, 1]" = 1000
+--source include/assert.inc
 
+# group_replication_consistency
+--let $assert_text= Verify GLOBAL value of group_replication_consistency
+--let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE \'group_replication_consistency\', Value, 1]" = "EVENTUAL"
+--source include/assert.inc
+
+--let $assert_text= Verify GLOBAL value of group_replication_consistency
+--let $assert_cond= "[SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME=\'group_replication_consistency\', VARIABLE_VALUE, 1]" = "EVENTUAL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_consistency
+--let $assert_cond= "[SHOW SESSION VARIABLES LIKE \'group_replication_consistency\', Value, 1]" = "EVENTUAL"
+--source include/assert.inc
+
+--let $assert_text= Verify SESSION value of group_replication_consistency
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_consistency\', VARIABLE_VALUE, 1]" = "EVENTUAL"
 --source include/assert.inc
 
 --echo
@@ -857,6 +887,7 @@ SET GLOBAL group_replication_member_expel_timeout= 1000;
 --eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
 --eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
+--eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_consistency"
 --enable_query_log
 
 --source include/group_replication_end.inc
