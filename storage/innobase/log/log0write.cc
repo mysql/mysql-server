@@ -736,6 +736,43 @@ static bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
 
 /* @{ */
 
+/** Computes maximum number of spin rounds which should be used when waiting
+in user thread (for written or flushed redo) or 0 if busy waiting should not
+be used at all.
+@param[in]  min_non_zero_value    minimum allowed value (unless 0 is returned)
+@return maximum number of spin rounds or 0 */
+static inline uint64_t log_max_spins_when_waiting_in_user_thread(
+    uint64_t min_non_zero_value) {
+  uint64_t max_spins;
+
+  /* Get current cpu usage. */
+  const double cpu = srv_cpu_usage.utime_pct;
+
+  /* Get high-watermark - when cpu usage is higher, don't spin! */
+  const uint32_t hwm = srv_log_spin_cpu_pct_hwm;
+
+  if (srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm || cpu >= hwm) {
+    /* Don't spin because either cpu usage is too high or it's
+    almost idle so no reason to bother. */
+    max_spins = 0;
+
+  } else if (cpu >= hwm / 2) {
+    /* When cpu usage is more than 50% of the hwm, use the minimum allowed
+    number of spin rounds, not to increase cpu usage too much (risky). */
+    max_spins = min_non_zero_value;
+
+  } else {
+    /* When cpu usage is less than 50% of the hwm, choose maximum spin rounds
+    in range [minimum, 10*minimum]. Smaller usage of cpu is, more spin rounds
+    might be used. */
+    const double r = 1.0 * (hwm / 2 - cpu) / (hwm / 2);
+
+    max_spins = min_non_zero_value + r * min_non_zero_value * 9;
+  }
+
+  return (max_spins);
+}
+
 /** Waits until redo log is written up to provided lsn (or greater).
 We do not care if it's flushed or not.
 @param[in]	log	redo log
@@ -744,13 +781,8 @@ We do not care if it's flushed or not.
 static Wait_stats log_wait_for_write(const log_t &log, lsn_t lsn) {
   os_event_set(log.writer_event);
 
-  auto max_spins = srv_log_wait_for_write_spin_delay;
-
-  if (srv_flush_log_at_trx_commit == 1 ||
-      srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
-      srv_cpu_usage.utime_pct >= srv_log_spin_cpu_pct_hwm) {
-    max_spins = 0;
-  }
+  const uint64_t max_spins = log_max_spins_when_waiting_in_user_thread(
+      srv_log_wait_for_write_spin_delay);
 
   auto stop_condition = [&log, lsn](bool wait) {
     if (log.write_lsn.load() >= lsn) {
@@ -787,15 +819,10 @@ static Wait_stats log_wait_for_flush(const log_t &log, lsn_t lsn) {
   }
   os_event_set(log.flusher_event);
 
-  /* Optional spinning - useful for usr1-4 case, disabled by default. */
-  auto max_spins = srv_log_wait_for_flush_spin_delay;
+  uint64_t max_spins = log_max_spins_when_waiting_in_user_thread(
+      srv_log_wait_for_flush_spin_delay);
 
-  if (log.flush_avg_time >= srv_log_wait_for_flush_spin_hwm ||
-      srv_flush_log_at_trx_commit != 1 ||
-      srv_cpu_usage.utime_abs < srv_log_spin_cpu_abs_lwm ||
-      srv_cpu_usage.utime_pct >= srv_log_spin_cpu_pct_hwm) {
-    /* Average flush time is too big, don't spin,
-    also don't spin when trx != 1. */
+  if (log.flush_avg_time >= srv_log_wait_for_flush_spin_hwm) {
     max_spins = 0;
   }
 
@@ -881,8 +908,28 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
       return (Wait_stats{0});
     }
 
+    Wait_stats wait_stats{0};
+
+    if (srv_flush_log_at_trx_commit != 1) {
+      /* We need redo flushed, but because trx != 1, we have
+      disabled notifications sent from log_writer to log_flusher.
+
+      The log_flusher might be sleeping for 1 second, and we need
+      quick response here. Log_writer avoids waking up log_flusher,
+      so we must do it ourselves here.
+
+      However, before we wake up log_flusher, we must ensure that
+      log.write_lsn >= lsn. Otherwise log_flusher could flush some
+      data which was ready for lsn values smaller than end_lsn and
+      return to sleeping for next 1 second. */
+
+      if (log.write_lsn.load() < end_lsn) {
+        wait_stats = log_wait_for_write(log, end_lsn);
+      }
+    }
+
     /* Wait until log gets flushed up to end_lsn. */
-    return (log_wait_for_flush(log, end_lsn));
+    return (wait_stats + log_wait_for_flush(log, end_lsn));
 
   } else {
     if (log.write_lsn.load() >= end_lsn) {
@@ -947,7 +994,7 @@ struct Log_thread_waiting {
       is no real gain from spinning in log threads then. */
 
       spin_delay = 0;
-      min_timeout = req_interval;
+      min_timeout = req_interval < 1000 ? req_interval : 1000;
     }
 
     const auto wait_stats =
