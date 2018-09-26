@@ -24,6 +24,7 @@
 
 #include "Trix.hpp"
 
+#include <cstring>
 #include <string.h>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
@@ -351,11 +352,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index2 -T; index2 -I -n10000; index2 -c
     // all dump 300 0 0 0 0 0 4 2
     // select_count INDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[1] = {1};
@@ -376,11 +377,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index2 -T; index2 -I -n10000; index2 -c -p
     // all dump 301 0 0 0 0 0 4 2
     // select_count INDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[2] = {0, 1};
@@ -401,11 +402,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T; index -I -n1000; index -c -p
     // all dump 302 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -426,11 +427,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -2; index -I -2 -n1000; index -c -p
     // all dump 303 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -451,11 +452,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -L; index -I -L -n1000; index -c -p
     // all dump 304 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
@@ -476,11 +477,11 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index -T -2 -L; index -I -2 -L -n1000; index -c -p
     // all dump 305 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
+    std::memmove(signal->theData,
+                 signal->theData + 1,
+                 BuildIndxImplReq::SignalLength * sizeof(signal->theData[0]));
     BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
-    MEMCOPY_NO_WORDS(buildIndxReq, 
-		     signal->theData + 1, 
-		     BuildIndxImplReq::SignalLength);
     buildIndxReq->senderRef = reference(); // return to me
     buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
