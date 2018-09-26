@@ -68,6 +68,55 @@ ALTER TABLESPACE ts1
 # Drop tablespace
 DROP TABLESPACE ts1;
 
+--echo #
+--echo # WL#12236 - CREATE TABLESPACE without DATAFILE clause.
+--echo #
+
+CREATE TABLESPACE ts1
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 1M
+  ENGINE NDB;
+let $datafile_name = `SELECT SUBSTR(file_name,3) FROM INFORMATION_SCHEMA.FILES WHERE engine='ndbcluster' AND file_type = 'DATAFILE'`;
+
+# Drop datafile from tablespace
+--replace_result $datafile_name DATAFILE_NAME
+eval ALTER TABLESPACE ts1 DROP DATAFILE '$datafile_name';
+DROP TABLESPACE ts1;
+
+# create tablespace without DATAFILE clause and alter tablespace with ADD DATAFILE clause
+CREATE TABLESPACE ts2
+    USE LOGFILE GROUP lg1
+    INITIAL_SIZE 1M
+    ENGINE NDB;
+
+ALTER TABLESPACE ts2
+    ADD DATAFILE 'data_2.dat'
+    INITIAL_SIZE 1M;
+
+CREATE TABLE t2 (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    last_name VARCHAR(50) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    dob DATE NOT NULL,
+    joined DATE NOT NULL,
+    INDEX(last_name, first_name)
+    )
+    TABLESPACE ts2 STORAGE DISK
+    ENGINE NDB;
+
+INSERT INTO t2 VALUES(1,'aaa','bbb','1981-02-04','2017-07-17');
+SELECT * FROM t2;
+DROP TABLE t2;
+
+ALTER TABLESPACE ts2 DROP DATAFILE 'data_2.dat';
+
+let $datafile_name1=`SELECT SUBSTR(file_name,3) FROM INFORMATION_SCHEMA.FILES WHERE engine='ndbcluster' AND file_type = 'DATAFILE'`;
+
+--replace_result $datafile_name1 DATAFILE_NAME
+eval ALTER TABLESPACE ts2 DROP DATAFILE '$datafile_name1';
+
+DROP TABLESPACE ts2;
+
 # Drop logfile group
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;

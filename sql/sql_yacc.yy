@@ -1273,7 +1273,7 @@ void warn_about_deprecated_national(THD *thd)
         TEXT_STRING_sys_nonewline
         filter_wild_db_table_string
         opt_constraint
-        ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
+        ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
         opt_describe_column
         opt_datadir_ssl
 
@@ -2757,20 +2757,20 @@ create:
 
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
           }
-        | CREATE TABLESPACE_SYM ident ADD ts_datafile
+        | CREATE TABLESPACE_SYM ident opt_ts_datafile_name
           opt_logfile_group_name opt_tablespace_options
           {
             auto pc= NEW_PTN Alter_tablespace_parse_context{YYTHD};
             if (pc == NULL)
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
 
-            if ($7 != NULL)
+            if ($6 != NULL)
             {
-              if (YYTHD->is_error() || contextualize_array(pc, $7))
+              if (YYTHD->is_error() || contextualize_array(pc, $6))
                 MYSQL_YYABORT;
             }
 
-            auto cmd= NEW_PTN Sql_cmd_create_tablespace{$3, $5, $6, pc};
+            auto cmd= NEW_PTN Sql_cmd_create_tablespace{$3, $4, $5, pc};
             if (!cmd)
               MYSQL_YYABORT; /* purecov: inspected */ //OOM
             Lex->m_sql_cmd= cmd;
@@ -5161,6 +5161,14 @@ trg_event:
   DROP TABLESPACE_SYM name
   DROP LOGFILE GROUP_SYM name
 */
+
+opt_ts_datafile_name:
+    /* empty */ { $$= { nullptr, 0}; }
+    | ADD ts_datafile
+      {
+        $$ = $2;
+      }
+    ;
 
 opt_logfile_group_name:
           /* empty */ { $$= { nullptr, 0}; }

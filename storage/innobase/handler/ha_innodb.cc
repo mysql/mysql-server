@@ -1304,6 +1304,11 @@ static int innobase_alter_tablespace(handlerton *hton, THD *thd,
                                      const dd::Tablespace *old_ts_def,
                                      dd::Tablespace *new_ts_def);
 
+/**
+  Get tablespace datafile name extension.
+*/
+static const char *innobase_get_tablespace_filename_ext();
+
 /** Free tablespace resources. */
 static void innodb_space_shutdown() {
   DBUG_ENTER("innodb_space_shutdown");
@@ -4441,6 +4446,8 @@ static int innodb_init(void *p) {
   innobase_hton->create = innobase_create_handler;
   innobase_hton->is_valid_tablespace_name = innobase_is_valid_tablespace_name;
   innobase_hton->alter_tablespace = innobase_alter_tablespace;
+  innobase_hton->get_tablespace_filename_ext =
+      innobase_get_tablespace_filename_ext;
   innobase_hton->upgrade_tablespace = dd_upgrade_tablespace;
   innobase_hton->upgrade_space_version = upgrade_space_version;
   innobase_hton->upgrade_logs = dd_upgrade_logs;
@@ -14041,6 +14048,12 @@ error_exit:
 
   DBUG_RETURN(error);
 }
+
+/**
+  Return data filename extension for a InnoDB tablespace.
+*/
+
+static const char *innobase_get_tablespace_filename_ext() { return ".ibd"; }
 
 /** Alter Encrypt/Unencrypt a tablespace.
 @param[in]	hton		Handlerton of InnoDB

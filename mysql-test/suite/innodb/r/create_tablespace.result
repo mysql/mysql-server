@@ -25,12 +25,6 @@ innodb_file_per_table	ON
 #
 CREATE TABLESPACE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-#
-# Try to create a tablespace without specifying the datafile
-#
-CREATE TABLESPACE s_bad;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
-#
 # Try to create a tablespace with bad characters in the tablespace name identifier.
 #
 CREATE TABLESPACE 's_bad' ADD DATAFILE 's_bad.ibd';
@@ -39,8 +33,6 @@ CREATE TABLESPACE "s_bad" ADD DATAFILE 's_bad.ibd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"s_bad" ADD DATAFILE 's_bad.ibd'' at line 1
 CREATE TABLESPACE `` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: Incorrect tablespace name ``
-CREATE TABLESPACE s#bad ADD DATAFILE 's_bad.ibd';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 CREATE TABLESPACE s@bad ADD DATAFILE 's_bad.ibd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@bad ADD DATAFILE 's_bad.ibd'' at line 1
 CREATE TABLESPACE s-bad ADD DATAFILE 's_bad.ibd';
