@@ -58,6 +58,16 @@ class List;
 CHARSET_INFO *mysqld_collation_get_by_name(
     const char *name, CHARSET_INFO *name_cs = system_charset_info);
 
+/**
+  Generate Universal Unique Identifier (UUID).
+
+  @param  str Pointer to string which will hold the UUID.
+
+  @return str Pointer to string which contains the UUID.
+*/
+
+String *mysql_generate_uuid(String *str);
+
 class Item_str_func : public Item_func {
   typedef Item_func super;
 

@@ -120,6 +120,7 @@ class Sql_cmd_create_tablespace final
 {
   const LEX_STRING m_datafile_name;
   const LEX_STRING m_logfile_group_name;
+  bool m_auto_generate_datafile_name;
 
  public:
   /**

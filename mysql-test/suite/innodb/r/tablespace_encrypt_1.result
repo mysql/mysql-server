@@ -670,7 +670,8 @@ DROP tablespace encryt_ts_8k;
 DROP tablespace encryt_ts_16k;
 CREATE TABLESPACE encrypt_ts  ENCRYPTION='Y' ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 10M
 MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ENCRYPTION='Y' ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOEXTEND_SIZE = 10M
+MAX_SIZE = 1' at line 1
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENCRYPTION='Y' ENGINE = InnoDB AUTOEXTEND_SIZE = 10M
 MAX_SIZE = 100M NODEGROUP = 5 WAIT  COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M;
 DROP TABLESPACE encrypt_ts;

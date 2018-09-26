@@ -37,13 +37,6 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 --error ER_PARSE_ERROR
 CREATE TABLESPACE;
 
---echo #
---echo # Try to create a tablespace without specifying the datafile
---echo #
---error ER_PARSE_ERROR
-CREATE TABLESPACE s_bad;
-
---echo #
 --echo # Try to create a tablespace with bad characters in the tablespace name identifier.
 --echo #
 # From;  http://dev.mysql.com/doc/refman/5.7/en/identifiers.html
@@ -66,11 +59,6 @@ CREATE TABLESPACE 's_bad' ADD DATAFILE 's_bad.ibd';
 CREATE TABLESPACE "s_bad" ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `` ADD DATAFILE 's_bad.ibd';
-# The below statement is parsed as "CREATE TABLESPACE s" which
-# is incorrect syntax (because ADD DATAFILE part is mandatory)
-# and hence results in parse error.
---error ER_PARSE_ERROR
-CREATE TABLESPACE s#bad ADD DATAFILE 's_bad.ibd';
 --error ER_PARSE_ERROR
 CREATE TABLESPACE s@bad ADD DATAFILE 's_bad.ibd';
 --error ER_PARSE_ERROR

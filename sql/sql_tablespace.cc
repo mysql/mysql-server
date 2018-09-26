@@ -46,6 +46,7 @@
 #include "sql/debug_sync.h"                // DBUG_SYNC
 #include "sql/derror.h"                    // ER_THD
 #include "sql/handler.h"                   // st_alter_tablespace
+#include "sql/item_strfunc.h"              // mysql_generate_uuid
 #include "sql/mdl.h"
 #include "sql/parse_tree_helpers.h"  // resolve_engine
 #include "sql/sql_base.h"            // TDC_RT_REMOVE_ALL
@@ -401,7 +402,8 @@ Sql_cmd_create_tablespace::Sql_cmd_create_tablespace(
     const LEX_STRING &lfgname, const Tablespace_options *options)
     : Sql_cmd_tablespace{tsname, options},
       m_datafile_name(dfname),
-      m_logfile_group_name(lfgname) {}
+      m_logfile_group_name(lfgname),
+      m_auto_generate_datafile_name(dfname.str == nullptr) {}
 
 bool Sql_cmd_create_tablespace::execute(THD *thd) {
   Rollback_guard rollback_on_return{thd};
@@ -463,13 +465,28 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
 
   tablespace->set_comment(dd::String_type{m_options->ts_comment.str, cl});
 
-  if (m_datafile_name.length > FN_REFLEN) {
+  LEX_STRING tblspc_datafile_name = {m_datafile_name.str,
+                                     m_datafile_name.length};
+  if (m_auto_generate_datafile_name) {
+    char tmp_buf[40];
+    String str(tmp_buf, sizeof(tmp_buf), &my_charset_bin);
+    String *uuid = mysql_generate_uuid(&str);
+    if (hton->get_tablespace_filename_ext)
+      uuid->append(hton->get_tablespace_filename_ext());
+
+    tblspc_datafile_name.str =
+        thd->strmake(uuid->c_ptr_quick(), uuid->length());
+    tblspc_datafile_name.length = uuid->length();
+  }
+
+  if (tblspc_datafile_name.length > FN_REFLEN) {
     my_error(ER_PATH_LENGTH, MYF(0), "DATAFILE");
     return true;
   }
 
   // Add datafile
-  tablespace->add_file()->set_filename(dd::make_string_type(m_datafile_name));
+  tablespace->add_file()->set_filename(
+      dd::make_string_type(tblspc_datafile_name));
 
   // Write changes to dictionary.
   if (dc.store(tablespace.get())) {
@@ -497,7 +514,7 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
                               m_logfile_group_name.str,
                               CREATE_TABLESPACE,
                               TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED,
-                              m_datafile_name.str,
+                              tblspc_datafile_name.str,
                               nullptr,
                               *m_options};
 

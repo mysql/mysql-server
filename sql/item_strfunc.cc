@@ -3899,8 +3899,7 @@ bool Item_func_uuid::itemize(Parse_context *pc, Item **res) {
   return false;
 }
 
-String *Item_func_uuid::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+String *mysql_generate_uuid(String *str) {
   char *s;
   THD *thd = current_thd;
 
@@ -4004,6 +4003,11 @@ String *Item_func_uuid::val_str(String *str) {
   DBUG_EXECUTE_IF("force_fake_uuid",
                   my_stpcpy(s, "a2d00942-b69c-11e4-a696-0020ff6fcbe6"););
   return str;
+}
+
+String *Item_func_uuid::val_str(String *str) {
+  DBUG_ASSERT(fixed == 1);
+  return mysql_generate_uuid(str);
 }
 
 bool Item_func_gtid_subtract::resolve_type(THD *) {

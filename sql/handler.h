@@ -1256,6 +1256,12 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
                                   dd::Tablespace *new_ts_def);
 
 /**
+  SE interface for getting tablespace extension.
+  @return Extension of tablespace datafile name.
+*/
+typedef const char *(*get_tablespace_filename_ext_t)();
+
+/**
   Get the tablespace data from SE and insert it into Data dictionary
 
   @param    thd         Thread context
@@ -1912,6 +1918,7 @@ struct handlerton {
   is_valid_tablespace_name_t is_valid_tablespace_name;
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
+  get_tablespace_filename_ext_t get_tablespace_filename_ext;
   upgrade_tablespace_t upgrade_tablespace;
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
