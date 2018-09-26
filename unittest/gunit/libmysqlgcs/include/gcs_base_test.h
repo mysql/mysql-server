@@ -47,9 +47,9 @@ using ::testing::_;
 */
 class GcsBaseTest : public ::testing::Test {
  public:
-  GcsBaseTest(){};
+  GcsBaseTest() {}
 
-  virtual ~GcsBaseTest(){};
+  virtual ~GcsBaseTest() {}
 
   /**
     Simple logging object that can be used in the test case.
@@ -64,7 +64,7 @@ class GcsBaseTest : public ::testing::Test {
 */
 class GcsBaseTestNoLogging : public ::testing::Test {
  public:
-  GcsBaseTestNoLogging(){};
+  GcsBaseTestNoLogging() {}
 
-  virtual ~GcsBaseTestNoLogging(){};
+  virtual ~GcsBaseTestNoLogging() {}
 };
