@@ -250,15 +250,23 @@ Expressed in percent (50 stands for 50%) of all CPU cores. */
 constexpr uint INNODB_LOG_SPIN_CPU_PCT_HWM_DEFAULT = 50;
 
 /** Default value of innodb_log_wait_for_write_spin_delay (in spin rounds).
-This will take around 100us which is 2x the minimum possible initial wait
-on event to which we fallback afterwards. */
+Read about INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT.
+Number of spin rounds is calculated according to current usage of CPU cores.
+If the usage is smaller than lwm percents of single core, then max rounds = 0.
+If the usage is smaller than 50% of hwm percents of all cores, then max rounds
+is decreasing linearly from 10x innodb_log_writer_spin_delay to 1x (for 50%).
+Then in range from 50% of hwm to 100% of hwm, the max rounds stays equal to
+the innodb_log_writer_spin_delay, because it doesn't make sense to use too
+short waits. Hence this is minimum value for the max rounds when non-zero
+value is being used. */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT = 25000;
 
 /** Default value of innodb_log_wait_for_write_timeout (in microseconds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT = 1000;
 
 /** Default value of innodb_log_wait_for_flush_spin_delay (in spin rounds).
-Read about INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT. */
+Read about INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT. The same mechanism
+applies here (to compute max rounds). */
 constexpr ulong INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT = 25000;
 
 /** Default value of innodb_log_wait_for_flush_spin_hwm (in microseconds). */
