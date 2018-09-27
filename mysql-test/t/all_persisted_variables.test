@@ -19,7 +19,7 @@
 #    removed.
 # 5. Clean up.
 
-# Note - Currently there are 558 global variables
+# Note - Currently there are 361 global variables
 #      -> SELECT COUNT(*) FROM performance_schema.global_variables
 # In future, if a new global variable is added, it will be automatically
 # picked up from performance_schema.global_variables table.
@@ -38,7 +38,7 @@
 --source include/have_binlog_format_row.inc
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=360;
+let $total_persistent_vars=361;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
