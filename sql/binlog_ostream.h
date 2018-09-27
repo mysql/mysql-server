@@ -207,7 +207,7 @@ class Binlog_cache_storage : public Basic_ostream {
 */
 class Binlog_encryption_ostream : public Truncatable_ostream {
  public:
-  ~Binlog_encryption_ostream();
+  ~Binlog_encryption_ostream() override;
 
   /**
     Initialize the context used in the encryption stream and write encryption

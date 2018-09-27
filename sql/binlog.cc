@@ -243,7 +243,7 @@ end:
  */
 class MYSQL_BIN_LOG::Binlog_ofile : public Basic_ostream {
  public:
-  ~Binlog_ofile() {
+  ~Binlog_ofile() override {
     DBUG_ENTER("Binlog_ofile::~Binlog_ofile");
     close();
     DBUG_VOID_RETURN;
@@ -7411,7 +7411,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
     Log_event *ev = 0;
     char log_name[FN_REFLEN];
     my_off_t valid_pos = 0;
-    my_off_t binlog_size;
+    my_off_t binlog_size = 0;
 
     do {
       strmake(log_name, log_info.log_file_name, sizeof(log_name) - 1);

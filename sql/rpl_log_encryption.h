@@ -480,7 +480,7 @@ extern Rpl_encryption rpl_encryption;
 */
 class Rpl_cipher {
  public:
-  virtual ~Rpl_cipher(){};
+  virtual ~Rpl_cipher() {}
 
   /**
     Open the cipher with given password.
@@ -805,7 +805,7 @@ class Rpl_encryption_header_v1 : public Rpl_encryption_header {
 
   Rpl_encryption_header_v1() = default;
 
-  virtual ~Rpl_encryption_header_v1();
+  ~Rpl_encryption_header_v1() override;
 
   bool serialize(Basic_ostream *ostream) override;
   bool deserialize(Basic_istream *istream) override;
@@ -867,7 +867,7 @@ class Aes_ctr_cipher : public Rpl_cipher {
   static const int AES_BLOCK_SIZE = 16;
   static const int FILE_KEY_LENGTH = 32;
 
-  virtual ~Aes_ctr_cipher();
+  ~Aes_ctr_cipher() override;
 
   bool open(const Key_string &password, int header_size) override;
   void close() override;

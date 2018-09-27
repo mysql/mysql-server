@@ -606,7 +606,7 @@ class Item_func : public Item_result_field {
     @return true if the function item can have named parameters
   */
   virtual bool may_have_named_parameters() const { return false; }
-  virtual bool is_non_const_over_literals(uchar *) { return false; }
+  virtual bool is_non_const_over_literals(uchar *) override { return false; }
 
   bool check_function_as_value_generator(uchar *args) override {
     if (is_deprecated()) {
@@ -2041,7 +2041,7 @@ class Item_func_get_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -2067,7 +2067,7 @@ class Item_func_release_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -2090,7 +2090,7 @@ class Item_func_release_all_locks final : public Item_int_func {
     unsigned_flag = true;
     return false;
   }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -3043,7 +3043,7 @@ class Item_func_get_user_var : public Item_var_func,
     select @t1:=1,@t1,@t:="hello",@t from foo where (@t1:= t2.b)
   */
   const char *func_name() const override { return "get_user_var"; }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool eq(const Item *item, bool binary_cmp) const override;
 
  private:
@@ -3158,7 +3158,7 @@ class Item_func_get_system_var final : public Item_var_func {
   bool resolve_type(THD *) override;
   void print(String *str, enum_query_type query_type) override;
   table_map used_tables() const override { return 0; }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   enum Item_result result_type() const override;
   double val_real() override;
   longlong val_int() override;
@@ -3467,7 +3467,7 @@ class Item_func_is_free_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -3492,7 +3492,7 @@ class Item_func_is_used_lock final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  bool is_non_const_over_literals(uchar *) { return true; }
+  bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);

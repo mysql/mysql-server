@@ -108,7 +108,7 @@ class Binlog_read_error {
 */
 class Binlog_encryption_istream : public Basic_seekable_istream {
  public:
-  virtual ~Binlog_encryption_istream();
+  ~Binlog_encryption_istream() override;
 
   /**
     Initialize the context used in the decryption stream.
