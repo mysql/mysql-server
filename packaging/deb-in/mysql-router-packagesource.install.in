@@ -17,11 +17,11 @@ usr/bin/mysqlrouter
 usr/bin/mysqlrouter_plugin_info
 usr/lib/*/libmysqlharness.so.1
 usr/lib/*/libmysqlrouter.so.1
-usr/lib/*/mysqlrouter/keepalive.so
-usr/lib/*/mysqlrouter/mysql_protocol.so
-usr/lib/*/mysqlrouter/routing.so
-usr/lib/*/mysqlrouter/metadata_cache.so
-usr/lib/*/mysqlrouter/syslog.so
+usr/lib/mysqlrouter/plugin/keepalive.so
+usr/lib/mysqlrouter/plugin/mysql_protocol.so
+usr/lib/mysqlrouter/plugin/routing.so
+usr/lib/mysqlrouter/plugin/metadata_cache.so
+usr/lib/mysqlrouter/plugin/syslog.so
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 # app armor profile

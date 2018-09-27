@@ -31,7 +31,7 @@
   /usr/bin/mysqlrouter mr,
 
 # Allow plugin access
-  /usr/lib/@DEB_HOST_MULTIARCH@/mysqlrouter/*.so mr,
+  /usr/lib/mysqlrouter/plugin/*.so mr,
 
 # Allow log file access
   /var/log/mysqlrouter/ rw,
