@@ -18092,9 +18092,11 @@ int ndbcluster_alter_tablespace(handlerton*,
 
   Ndb_schema_dist_client schema_dist_client(thd);
 
-  bool is_tablespace= false;
   int object_id= 0;
   int object_version= 0;
+
+  const Thd_ndb* thd_ndb = get_thd_ndb(thd);
+
   switch (alter_info->ts_cmd_type){
   case (CREATE_TABLESPACE):
   {
@@ -18162,7 +18164,6 @@ int ndbcluster_alter_tablespace(handlerton*,
                           dict->getWarningFlags(),
                           "Datafile size rounded down to extent size");
     }
-    is_tablespace = true;
 
     /*
      * Set se_private_id and se_private_data for the tablespace
@@ -18171,6 +18172,13 @@ int ndbcluster_alter_tablespace(handlerton*,
                                                object_version);
     ndb_dd_disk_data_set_object_type(new_ts_def, object_type::TABLESPACE);
 
+    if (!schema_dist_client.create_tablespace(alter_info->tablespace_name,
+                                              object_id, object_version))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute CREATE TABLESPACE '%s'",
+                            alter_info->tablespace_name);
+    }
     break;
   }
   case (ALTER_TABLESPACE):
@@ -18249,12 +18257,47 @@ int ndbcluster_alter_tablespace(handlerton*,
 			   alter_info->ts_alter_tablespace_type));
       DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
     }
-    is_tablespace = true;
+
+    NdbDictionary::Tablespace ts =
+        dict->getTablespace(alter_info->tablespace_name);
+    if (ndb_dict_check_NDB_error(dict))
+    {
+      // Failed to get tablespace from NDB, push warnings and continue
+      thd_ndb->push_ndb_error_warning(dict->getNdbError());
+      thd_ndb->push_warning("Failed to get tablespace '%s' from NDB",
+                            alter_info->tablespace_name);
+      thd_ndb->push_warning("Failed to distribute ALTER TABLESPACE '%s'",
+                            alter_info->tablespace_name);
+      break;
+    }
+
+    if (!schema_dist_client.alter_tablespace(alter_info->tablespace_name,
+                                             ts.getObjectId(),
+                                             ts.getObjectVersion()))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute ALTER TABLESPACE '%s'",
+                            alter_info->tablespace_name);
+    }
+
     break;
   }
   case (CREATE_LOGFILE_GROUP):
   {
     error= ER_CREATE_FILEGROUP_FAILED;
+    errmsg= "LOGFILE GROUP";
+
+    // Acquire MDL locks on the logfile group
+    Ndb_dd_client dd_client(thd);
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
+                            "'%s'", alter_info->logfile_group_name);
+      my_error(error, MYF(0), errmsg);
+      DBUG_RETURN(1);
+    }
 
     if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
     {
@@ -18275,7 +18318,6 @@ int ndbcluster_alter_tablespace(handlerton*,
     {
       DBUG_RETURN(1);
     }
-    errmsg= "LOGFILE GROUP";
     if (dict->createLogfileGroup(ndb_lg, &objid))
     {
       goto ndberror;
@@ -18316,34 +18358,10 @@ int ndbcluster_alter_tablespace(handlerton*,
                           "Undofile size rounded down to kernel page size");
     }
 
-    /*
-     * Add Logfile Group entry to the DD as a tablespace. This
-     * is to ensure that it is propagated to INFORMATION_SCHEMA
-     * since I_S is now a database view over the DD tables.
-     *
-     * NOTE: The information stored will only be used by I_S
-     * subsystem and not by NDB. Thus, any failure in adding
-     * the entry to DD is not treated as an error. Instead, a
-     * warning is returned and we continue as if nothing
-     * went wrong. Problem with this of course is the fact that
-     * I_S will have missing entries.
-     */
-
-    Ndb_dd_client dd_client(thd);
+    // Add Logfile Group entry to the DD as a tablespace
     const char* logfile_group_name= alter_info->logfile_group_name;
     std::vector<std::string> undo_file_names;
     undo_file_names.push_back(alter_info->undo_file_name);
-
-    // Acquire MDL locks on logfile group and add entry to DD
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(logfile_group_name);
-    if (!lock_logfile_group_result)
-    {
-      DBUG_PRINT("warning",("MDL lock could not be acquired for "
-                            "logfile_group %s", logfile_group_name));
-      DBUG_ASSERT(false);
-      break;
-    }
 
     const bool install_logfile_group_result=
         dd_client.install_logfile_group(logfile_group_name,
@@ -18353,19 +18371,42 @@ int ndbcluster_alter_tablespace(handlerton*,
                                         false /* force_overwrite */ );
     if (!install_logfile_group_result)
     {
-      DBUG_PRINT("warning",("Logfile Group %s could not be stored in DD",
-                            logfile_group_name));
+      thd_ndb->push_warning("Logfile Group '%s' could not be stored in DD",
+                            logfile_group_name);
       DBUG_ASSERT(false);
       break;
     }
 
     // All okay, commit to DD
     dd_client.commit();
+
+    if (!schema_dist_client.create_logfile_group(logfile_group_name,
+                                                 object_id,
+                                                 object_version))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute CREATE LOGFILE GROUP '%s'",
+                            logfile_group_name);
+    }
+
     break;
   }
   case (ALTER_LOGFILE_GROUP):
   {
     error= ER_ALTER_FILEGROUP_FAILED;
+    errmsg= "LOGFILE GROUP";
+
+    // Acquire MDL locks on logfile group
+    Ndb_dd_client dd_client(thd);
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
+                            "'%s'", alter_info->logfile_group_name);
+      my_error(error, MYF(0), errmsg);
+      DBUG_RETURN(1);
+    }
 
     if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
     {
@@ -18400,46 +18441,43 @@ int ndbcluster_alter_tablespace(handlerton*,
                           "Undofile size rounded down to kernel page size");
     }
 
-    /*
-     * Update Logfile Group entry in the DD.
-     *
-     * NOTE: The information stored will only be used by I_S
-     * subsystem and not by NDB. Thus, any failure in adding
-     * the entry to DD is not treated as an error. Instead, a
-     * warning is returned and we continue as if nothing
-     * went wrong. Problem with this of course is the fact that
-     * I_S will have missing entries.
-     */
-
-    Ndb_dd_client dd_client(thd);
+    // Update Logfile Group entry in the DD
     const char* logfile_group_name= alter_info->logfile_group_name;
     const char* undo_file_name= alter_info->undo_file_name;
-
-    // Acquire MDL locks on logfile group and modify DD entry
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(logfile_group_name);
-    if (!lock_logfile_group_result)
-    {
-      DBUG_PRINT("warning",("MDL lock could not be acquired for "
-                            "logfile_group %s", logfile_group_name));
-      DBUG_ASSERT(false);
-      break;
-    }
 
     const bool install_undo_file_result=
         dd_client.install_undo_file(logfile_group_name,
                                     undo_file_name);
     if (!install_undo_file_result)
     {
-      DBUG_PRINT("warning",("Undo file %s could not be added to logfile "
-                            "group %s", logfile_group_name,
-                            undo_file_name));
+      thd_ndb->push_warning("Undo file '%s' could not be added to logfile "
+                            "group '%s'", undo_file_name, logfile_group_name);
       DBUG_ASSERT(false);
       break;
     }
 
     // All okay, commit to DD
     dd_client.commit();
+
+    NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(logfile_group_name);
+    if (ndb_dict_check_NDB_error(dict))
+    {
+      // Failed to get logfile group from NDB, push warnings and continue
+      thd_ndb->push_ndb_error_warning(dict->getNdbError());
+      thd_ndb->push_warning("Failed to get logfile group '%s' from NDB",
+                            logfile_group_name);
+      thd_ndb->push_warning("Failed to distribute ALTER LOGFILE GROUP '%s'",
+                            logfile_group_name);
+      break;
+    }
+    if (!schema_dist_client.alter_logfile_group(logfile_group_name,
+                                                lfg.getObjectId(),
+                                                lfg.getObjectVersion()))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute ALTER LOGFILE GROUP '%s'",
+                            logfile_group_name);
+    }
     break;
   }
   case (DROP_TABLESPACE):
@@ -18454,27 +18492,61 @@ int ndbcluster_alter_tablespace(handlerton*,
     errmsg= "TABLESPACE";
     NdbDictionary::Tablespace ts=
       dict->getTablespace(alter_info->tablespace_name);
+    if (ndb_dict_check_NDB_error(dict))
+    {
+      // Failed to get tablespace from NDB, return error
+      thd_ndb->push_ndb_error_warning(dict->getNdbError());
+      my_error(error, MYF(0), errmsg);
+      DBUG_RETURN(1);
+    }
     object_id = ts.getObjectId();
     object_version = ts.getObjectVersion();
     if (dict->dropTablespace(ts))
     {
       goto ndberror;
     }
-    is_tablespace = true;
+
+    if (!schema_dist_client.drop_tablespace(alter_info->tablespace_name,
+                                            object_id, object_version))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute DROP TABLESPACE '%s'",
+                            alter_info->tablespace_name);
+    }
+
     break;
   }
   case (DROP_LOGFILE_GROUP):
   {
     error= ER_DROP_FILEGROUP_FAILED;
+    errmsg= "LOGFILE GROUP";
+
+    // Acquire MDL locks on logfile group
+    Ndb_dd_client dd_client(thd);
+    const bool lock_logfile_group_result=
+        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
+    if (!lock_logfile_group_result)
+    {
+      thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
+                            "'%s'", alter_info->logfile_group_name);
+      my_error(error, MYF(0), errmsg);
+      DBUG_RETURN(1);
+    }
 
     if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
     {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    errmsg= "LOGFILE GROUP";
     NdbDictionary::LogfileGroup lg=
       dict->getLogfileGroup(alter_info->logfile_group_name);
+    if (ndb_dict_check_NDB_error(dict))
+    {
+      // Failed to get logfile group from NDB, return error
+      thd_ndb->push_ndb_error_warning(dict->getNdbError());
+      my_error(error, MYF(0), errmsg);
+      DBUG_RETURN(1);
+    }
     object_id = lg.getObjectId();
     object_version = lg.getObjectVersion();
     if (dict->dropLogfileGroup(lg))
@@ -18482,44 +18554,31 @@ int ndbcluster_alter_tablespace(handlerton*,
       goto ndberror;
     }
 
-    /*
-     * Drop Logfile Group entry from the DD.
-     *
-     * NOTE: The information stored will only be used by I_S
-     * subsystem and not by NDB. Thus, any failure in adding
-     * the entry to DD is not treated as an error. Instead, a
-     * warning is returned and we continue as if nothing
-     * went wrong. Problem with this of course is the fact that
-     * I_S will have missing entries.
-     */
-
-    Ndb_dd_client dd_client(thd);
-    const char* logfile_group_name= alter_info->logfile_group_name;
-
-    // Acquire MDL locks on logfile group and modify DD entry
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(logfile_group_name);
-    if (!lock_logfile_group_result)
-    {
-      DBUG_PRINT("warning",("MDL lock could not be acquired for "
-                            "logfile_group %s", logfile_group_name));
-      DBUG_ASSERT(false);
-      break;
-    }
+    // Drop Logfile Group entry from the DD
+    const char* logfile_group_name = alter_info->logfile_group_name;
 
     const bool drop_logfile_group_result=
         dd_client.drop_logfile_group(logfile_group_name);
 
     if (!drop_logfile_group_result)
     {
-      DBUG_PRINT("warning",("Logfile group %s could not be dropped from DD",
-                            logfile_group_name));
+      thd_ndb->push_warning("Logfile group '%s' could not be dropped from DD",
+                            logfile_group_name);
       DBUG_ASSERT(false);
       break;
     }
 
     // All okay, commit to DD
     dd_client.commit();
+
+    if (!schema_dist_client.drop_logfile_group(logfile_group_name,
+                                               object_id, object_version))
+    {
+      // Schema distibution failed, just push a warning and continue
+      thd_ndb->push_warning("Failed to distribute DROP LOGFILE GROUP '%s'",
+                            logfile_group_name);
+    }
+
     break;
   }
   case (CHANGE_FILE_TABLESPACE):
@@ -18535,25 +18594,7 @@ int ndbcluster_alter_tablespace(handlerton*,
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   }
-  bool schema_dist_result;
-  if (is_tablespace)
-  {
-    schema_dist_result =
-        schema_dist_client.tablespace_changed(alter_info->tablespace_name,
-                                              object_id, object_version);
-  }
-  else
-  {
-    schema_dist_result =
-        schema_dist_client.logfilegroup_changed(alter_info->logfile_group_name,
-                                                object_id, object_version);
-  }
-  if (!schema_dist_result)
-  {
-    // Although it's possible to return an error here that's
-    // not the tradition, just log an error and continue
-    ndb_log_error("Failed to distribute '%s'", errmsg);
-  }
+
   DBUG_RETURN(0);
 
 ndberror:
@@ -18562,7 +18603,7 @@ ndberror2:
   ndb_to_mysql_error(&err);
   
   my_error(error, MYF(0), errmsg);
-  DBUG_RETURN(1); // Error, my_error called
+  DBUG_RETURN(1); // Error
 }
 
 /**

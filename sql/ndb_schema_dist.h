@@ -65,7 +65,13 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_USER= 16,
   SOT_RENAME_USER= 17,
   SOT_GRANT= 18,
-  SOT_REVOKE= 19
+  SOT_REVOKE= 19,
+  SOT_CREATE_TABLESPACE= 20,
+  SOT_ALTER_TABLESPACE= 21,
+  SOT_DROP_TABLESPACE= 22,
+  SOT_CREATE_LOGFILE_GROUP= 23,
+  SOT_ALTER_LOGFILE_GROUP= 24,
+  SOT_DROP_LOGFILE_GROUP= 25
 };
 
 /**
@@ -218,6 +224,15 @@ class Ndb_schema_dist_client {
   bool acl_notify(const char *query, uint query_length, const char *db);
   bool tablespace_changed(const char *tablespace_name, int id, int version);
   bool logfilegroup_changed(const char *logfilegroup_name, int id, int version);
+
+  bool create_tablespace(const char* tablespace_name, int id, int version);
+  bool alter_tablespace(const char* tablespace_name, int id, int version);
+  bool drop_tablespace(const char* tablespace_name, int id, int version);
+
+  bool create_logfile_group(const char* logfile_group_name, int id,
+                            int version);
+  bool alter_logfile_group(const char* logfile_group_name, int id, int version);
+  bool drop_logfile_group(const char* logfile_group_name, int id, int version);
 };
 
 #endif

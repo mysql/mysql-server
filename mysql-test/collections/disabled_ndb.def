@@ -50,7 +50,7 @@ ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 # ndb suite tests
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
 ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_restore_undolog                 : Need WL#12172 Schema distribution synchronization of tablespaces and logfile groups, Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+ndb.ndb_restore_undolog                 : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 
 # Problem with restoring tables with obsolete metadata like old temporal types
@@ -105,10 +105,6 @@ ndb.ndb_ddl_open_trans : Need WL#9185 MySQL Cluster support for new DD
 
 # Schema distribution timeout while altering table
 ndb.ndb_alter_table_online_multi : Need WL#9185 MySQL Cluster support for new DD
-
-# Problem since DDL on tablespaces are not synchronized between mysqlds
-# this need to be implemented
-ndb.ndb_single_user : Need WL#9185 MySQL Cluster support for new DD
 
 # Problem with failing ALTER, the Thd_ndb::open_tables contains
 # invalid THD_NDB_SHARE

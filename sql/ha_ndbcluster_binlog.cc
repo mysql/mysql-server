@@ -4667,6 +4667,303 @@ class Ndb_schema_event_handler {
   }
 
 
+  bool
+  ndb_create_tablespace_from_engine(const char* tablespace_name,
+                                    uint32 id,
+                                    uint32 version,
+                                    bool force_overwrite)
+  {
+    DBUG_ENTER("ndb_create_tablespace_from_engine");
+    DBUG_PRINT("enter", ("tablespace_name: %s, id: %u, version: %u",
+                         tablespace_name, id, version));
+
+    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT* dict = ndb->getDictionary();
+
+    std::vector<std::string> data_file_names;
+    NDBDICT::List data_file_list;
+    if (dict->listObjects(data_file_list, NDBOBJ::Datafile) != 0)
+    {
+      ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
+                    dict->getNdbError().message);
+      ndb_log_error("Failed to get data files assigned to tablespace '%s'",
+                    tablespace_name);
+      DBUG_RETURN(false);
+    }
+
+    for (uint i = 0; i < data_file_list.count; i++)
+    {
+      NDBDICT::List::Element& elmt = data_file_list.elements[i];
+      NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
+      if (strcmp(df.getTablespace(), tablespace_name) == 0)
+      {
+        data_file_names.push_back(elmt.name);
+      }
+    }
+
+    Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_tablespace(tablespace_name))
+    {
+      ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
+                    tablespace_name);
+      DBUG_RETURN(false);
+    }
+
+    if (!dd_client.install_tablespace(tablespace_name,
+                                      data_file_names,
+                                      id,
+                                      version,
+                                      force_overwrite))
+    {
+      ndb_log_error("Failed to install tablespace '%s' in DD", tablespace_name);
+      DBUG_RETURN(false);
+    }
+
+    dd_client.commit();
+    DBUG_RETURN(true);
+  }
+
+
+  void
+  handle_create_tablespace(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_create_tablespace");
+
+    assert(!is_post_epoch()); // Always directly
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (!ndb_create_tablespace_from_engine(schema->name,
+                                           schema->id,
+                                           schema->version,
+                                           false /* force_overwrite */))
+    {
+      ndb_log_error("Distribution of CREATE TABLESPACE '%s' failed",
+                    schema->name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_alter_tablespace(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_alter_tablespace");
+
+    assert(!is_post_epoch()); // Always directly
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (!ndb_create_tablespace_from_engine(schema->name,
+                                           schema->id,
+                                           schema->version,
+                                           true /* force_overwrite */))
+    {
+      ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
+                    schema->name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_drop_tablespace(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_drop_tablespace");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_tablespace(schema->name))
+    {
+      ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
+                    schema->name);
+      ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
+                    schema->name);
+      DBUG_VOID_RETURN;
+    }
+
+    if (!dd_client.drop_tablespace(schema->name))
+    {
+      ndb_log_error("Failed to drop tablespace '%s' from DD", schema->name);
+      ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
+                    schema->name);
+      DBUG_VOID_RETURN;
+    }
+
+    dd_client.commit();
+    DBUG_VOID_RETURN;
+  }
+
+
+  bool
+  ndb_create_logfile_group_from_engine(const char* logfile_group_name,
+                                       uint32 id,
+                                       uint32 version,
+                                       bool force_overwrite)
+  {
+    DBUG_ENTER("ndb_create_logfile_group_from_engine");
+    DBUG_PRINT("enter", ("logfile_group_name: %s, id: %u, version: %u",
+                         logfile_group_name, id, version));
+
+    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT* dict = ndb->getDictionary();
+
+    std::vector<std::string> undo_file_names;
+    NDBDICT::List undo_file_list;
+    if (dict->listObjects(undo_file_list, NDBOBJ::Undofile) != 0)
+    {
+      ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
+                    dict->getNdbError().message);
+      ndb_log_error("Failed to get undo files assigned to logfile group '%s'",
+                    logfile_group_name);
+      DBUG_RETURN(false);
+    }
+
+    for (uint i = 0; i < undo_file_list.count; i++)
+    {
+      NDBDICT::List::Element& elmt = undo_file_list.elements[i];
+      NdbDictionary::Undofile df = dict->getUndofile(-1, elmt.name);
+      if (strcmp(df.getLogfileGroup(), logfile_group_name) == 0)
+      {
+        undo_file_names.push_back(elmt.name);
+      }
+    }
+
+    Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_logfile_group(logfile_group_name))
+    {
+      ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
+                    logfile_group_name);
+      DBUG_RETURN(false);
+    }
+
+    if (!dd_client.install_logfile_group(logfile_group_name,
+                                         undo_file_names,
+                                         id,
+                                         version,
+                                         force_overwrite))
+    {
+      ndb_log_error("Failed to install logfile group '%s' in DD",
+                    logfile_group_name);
+      DBUG_RETURN(false);
+    }
+
+    dd_client.commit();
+    DBUG_RETURN(true);
+  }
+
+
+  void
+  handle_create_logfile_group(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_create_logfile_group");
+
+    assert(!is_post_epoch()); // Always directly
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (!ndb_create_logfile_group_from_engine(schema->name,
+                                              schema->id,
+                                              schema->version,
+                                              false /* force_overwrite */))
+    {
+      ndb_log_error("Distribution of CREATE LOGFILE GROUP '%s' failed",
+                    schema->name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_alter_logfile_group(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_alter_logfile_group");
+
+    assert(!is_post_epoch()); // Always directly
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    if (!ndb_create_logfile_group_from_engine(schema->name,
+                                              schema->id,
+                                              schema->version,
+                                              true /* force_overwrite */))
+    {
+      ndb_log_error("Distribution of ALTER LOGFILE GROUP '%s' failed",
+                    schema->name);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+
+  void
+  handle_drop_logfile_group(const Ndb_schema_op* schema)
+  {
+    DBUG_ENTER("handle_drop_logfile_group");
+
+    assert(is_post_epoch()); // Always after epoch
+
+    if (schema->node_id == own_nodeid())
+    {
+      DBUG_VOID_RETURN;
+    }
+
+    write_schema_op_to_binlog(m_thd, schema);
+
+    Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_logfile_group(schema->name))
+    {
+      ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
+                    schema->name);
+      ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
+                    schema->name);
+      DBUG_VOID_RETURN;
+    }
+
+    if (!dd_client.drop_logfile_group(schema->name))
+    {
+      ndb_log_error("Failed to drop logfile group '%s' from DD", schema->name);
+      ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",
+                    schema->name);
+      DBUG_VOID_RETURN;
+    }
+
+    dd_client.commit();
+    DBUG_VOID_RETURN;
+  }
+
+
   int
   handle_schema_op(const Ndb_schema_op* schema)
   {
@@ -4715,6 +5012,8 @@ class Ndb_schema_event_handler {
       case SOT_RENAME_TABLE:
       case SOT_DROP_TABLE:
       case SOT_DROP_DB:
+      case SOT_DROP_TABLESPACE:
+      case SOT_DROP_LOGFILE_GROUP:
         handle_after_epoch(schema);
         ack_after_epoch(schema);
         DBUG_RETURN(0);
@@ -4759,6 +5058,22 @@ class Ndb_schema_event_handler {
                       "(RENAME_TABLE_NEW) on %s.%s",
                       schema->db, schema->name);
         DBUG_ASSERT(false);
+        break;
+
+      case SOT_CREATE_TABLESPACE:
+        handle_create_tablespace(schema);
+        break;
+
+      case SOT_ALTER_TABLESPACE:
+        handle_alter_tablespace(schema);
+        break;
+
+      case SOT_CREATE_LOGFILE_GROUP:
+        handle_create_logfile_group(schema);
+        break;
+
+      case SOT_ALTER_LOGFILE_GROUP:
+        handle_alter_logfile_group(schema);
         break;
 
       }
@@ -4821,6 +5136,14 @@ class Ndb_schema_event_handler {
 
       case SOT_ONLINE_ALTER_TABLE_COMMIT:
         handle_online_alter_table_commit(schema);
+        break;
+
+      case SOT_DROP_TABLESPACE:
+        handle_drop_tablespace(schema);
+        break;
+
+      case SOT_DROP_LOGFILE_GROUP:
+        handle_drop_logfile_group(schema);
         break;
 
       default:

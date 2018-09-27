@@ -407,6 +407,57 @@ bool Ndb_schema_dist_client::logfilegroup_changed(const char* logfilegroup_name,
                             SOT_LOGFILE_GROUP));
 }
 
+bool Ndb_schema_dist_client::create_tablespace(const char* tablespace_name,
+                                               int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::create_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_CREATE_TABLESPACE));
+}
+
+bool Ndb_schema_dist_client::alter_tablespace(const char* tablespace_name,
+                                              int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::alter_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_ALTER_TABLESPACE));
+}
+
+bool Ndb_schema_dist_client::drop_tablespace(const char* tablespace_name,
+                                             int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::drop_tablespace");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", tablespace_name, id, version,
+                            SOT_DROP_TABLESPACE));
+}
+
+bool
+Ndb_schema_dist_client::create_logfile_group(const char* logfile_group_name,
+                                             int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::create_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_CREATE_LOGFILE_GROUP));
+}
+
+bool
+Ndb_schema_dist_client::alter_logfile_group(const char* logfile_group_name,
+                                            int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::alter_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_ALTER_LOGFILE_GROUP));
+}
+
+bool
+Ndb_schema_dist_client::drop_logfile_group(const char* logfile_group_name,
+                                           int id, int version) {
+  DBUG_ENTER("Ndb_schema_dist_client::drop_logfile_group");
+  DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
+                            "", logfile_group_name, id, version,
+                            SOT_DROP_LOGFILE_GROUP));
+}
+
 const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
   switch (type) {
     case SOT_DROP_TABLE:
@@ -445,6 +496,18 @@ const char* Ndb_schema_dist_client::type_str(SCHEMA_OP_TYPE type) const {
       return "grant/revoke";
     case SOT_REVOKE:
       return "revoke all";
+    case SOT_CREATE_TABLESPACE:
+      return "create tablespace";
+    case SOT_ALTER_TABLESPACE:
+      return "alter tablespace";
+    case SOT_DROP_TABLESPACE:
+      return "drop tablespace";
+    case SOT_CREATE_LOGFILE_GROUP:
+      return "create logfile group";
+    case SOT_ALTER_LOGFILE_GROUP:
+      return "alter logfile group";
+    case SOT_DROP_LOGFILE_GROUP:
+      return "drop logfile group";
     default:
       break;
   }
@@ -495,6 +558,18 @@ Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
     return "GRANT";
   case SOT_REVOKE:
     return "REVOKE";
+  case SOT_CREATE_TABLESPACE:
+    return "CREATE_TABLESPACE";
+  case SOT_ALTER_TABLESPACE:
+    return "ALTER_TABLESPACE";
+  case SOT_DROP_TABLESPACE:
+    return "DROP_TABLESPACE";
+  case SOT_CREATE_LOGFILE_GROUP:
+    return "CREATE_LOGFILE_GROUP";
+  case SOT_ALTER_LOGFILE_GROUP:
+    return "ALTER_LOGFILE_GROUP";
+  case SOT_DROP_LOGFILE_GROUP:
+    return "DROP_LOGFILE_GROUP";
   default:
     break;
   }
