@@ -1231,7 +1231,7 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
                   buf_pool_zip_free_mutex_key);
 
   LATCH_ADD_MUTEX(BUF_POOL_ZIP_HASH, SYNC_BUF_ZIP_HASH,
-                  buf_pool_zip_free_mutex_key);
+                  buf_pool_zip_hash_mutex_key);
 
   LATCH_ADD_MUTEX(BUF_POOL_FLUSH_STATE, SYNC_BUF_FLUSH_STATE,
                   buf_pool_flush_state_mutex_key);
