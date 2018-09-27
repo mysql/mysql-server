@@ -309,4 +309,29 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
                        bool is_role, const char *new_user,
                        const char *new_host);
 
+/**
+  Call audit plugins of MESSAGE audit class.
+
+  @param[in] thd                  Current thread data.
+  @param[in] subclass             Message class subclass name.
+  @param[in] subclass_name        Subclass name length.
+  @param[in] component            Component name.
+  @param[in] component_length     Component name length.
+  @param[in] producer             Producer name.
+  @param[in] producer_length      Producer name length.
+  @param[in] message              Message text.
+  @param[in] message_length       Message text length.
+  @param[in] key_value_map        Key value map pointer.
+  @param[in] key_value_map_length Key value map length.
+
+  @return 0 continue server flow.
+*/
+int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
+                       const char *subclass_name, const char *component,
+                       size_t component_length, const char *producer,
+                       size_t producer_length, const char *message,
+                       size_t message_length,
+                       mysql_event_message_key_value_t *key_value_map,
+                       size_t key_value_map_length);
+
 #endif /* SQL_AUDIT_INCLUDED */

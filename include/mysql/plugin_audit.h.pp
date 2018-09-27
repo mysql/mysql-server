@@ -116,7 +116,7 @@ void thd_inc_row_count(void * thd);
 int thd_allow_batch(void * thd);
 void thd_mark_transaction_to_rollback(void * thd, int all);
 int mysql_tmpfile(const char *prefix);
-int thd_killed(const void * v_thd);
+int thd_killed(const void *v_thd);
 void thd_set_kill_status(const void * thd);
 void thd_binlog_pos(const void * thd, const char **file_var,
                     unsigned long long *pos_var);
@@ -325,6 +325,23 @@ enum enum_sql_command {
   SQLCOM_DROP_SRS,
   SQLCOM_END
 };
+#include "plugin_audit_message_types.h"
+typedef enum {
+  MYSQL_AUDIT_MESSAGE_INTERNAL = 1 << 0,
+  MYSQL_AUDIT_MESSAGE_USER = 1 << 1,
+} mysql_event_message_subclass_t;
+typedef enum {
+  MYSQL_AUDIT_MESSAGE_VALUE_TYPE_STR = 0,
+  MYSQL_AUDIT_MESSAGE_VALUE_TYPE_NUM = 1,
+} mysql_event_message_value_type_t;
+typedef struct {
+  MYSQL_LEX_CSTRING key;
+  mysql_event_message_value_type_t value_type;
+  union {
+    MYSQL_LEX_CSTRING str;
+    long long num;
+  } value;
+} mysql_event_message_key_value_t;
 typedef enum {
   MYSQL_AUDIT_GENERAL_CLASS = 0,
   MYSQL_AUDIT_CONNECTION_CLASS = 1,
@@ -338,6 +355,7 @@ typedef enum {
   MYSQL_AUDIT_QUERY_CLASS = 9,
   MYSQL_AUDIT_STORED_PROGRAM_CLASS = 10,
   MYSQL_AUDIT_AUTHENTICATION_CLASS = 11,
+  MYSQL_AUDIT_MESSAGE_CLASS = 12,
   MYSQL_AUDIT_CLASS_MASK_SIZE
 } mysql_event_class_t;
 struct st_mysql_audit {
@@ -529,4 +547,12 @@ struct mysql_event_authentication {
   MYSQL_LEX_CSTRING new_user;
   MYSQL_LEX_CSTRING new_host;
   bool is_role;
+};
+struct mysql_event_message {
+  mysql_event_message_subclass_t event_subclass;
+  MYSQL_LEX_CSTRING component;
+  MYSQL_LEX_CSTRING producer;
+  MYSQL_LEX_CSTRING message;
+  mysql_event_message_key_value_t *key_value_map;
+  size_t key_value_map_length;
 };

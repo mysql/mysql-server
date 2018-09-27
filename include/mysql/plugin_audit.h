@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #endif
 #include "my_command.h"
 #include "my_sqlcommand.h"
+#include "plugin_audit_message_types.h"
 
 #define MYSQL_AUDIT_INTERFACE_VERSION 0x0401
 
@@ -55,6 +56,7 @@ typedef enum {
   MYSQL_AUDIT_QUERY_CLASS = 9,
   MYSQL_AUDIT_STORED_PROGRAM_CLASS = 10,
   MYSQL_AUDIT_AUTHENTICATION_CLASS = 11,
+  MYSQL_AUDIT_MESSAGE_CLASS = 12,
   /* This item must be last in the list. */
   MYSQL_AUDIT_CLASS_MASK_SIZE
 } mysql_event_class_t;
@@ -603,6 +605,29 @@ struct mysql_event_authentication {
   MYSQL_LEX_CSTRING new_host;
   /** AuthorizationID type */
   bool is_role;
+};
+
+#define MYSQL_AUDIT_MESSAGE_ALL \
+  (MYSQL_AUDIT_MESSAGE_INTERNAL | MYSQL_AUDIT_MESSAGE_USER)
+
+/**
+  @struct mysql_event_message
+
+  Structure for MYSQL_AUDIT_MESSAGE_CLASS event class.
+*/
+struct mysql_event_message {
+  /** Event subclass. */
+  mysql_event_message_subclass_t event_subclass;
+  /** Component. */
+  MYSQL_LEX_CSTRING component;
+  /** Producer */
+  MYSQL_LEX_CSTRING producer;
+  /** Message */
+  MYSQL_LEX_CSTRING message;
+  /** Key value map pointer. */
+  mysql_event_message_key_value_t *key_value_map;
+  /** Key value map length. */
+  size_t key_value_map_length;
 };
 
 #endif

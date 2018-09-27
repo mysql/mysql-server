@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
 #include <example_services.h>
@@ -187,9 +188,23 @@ DEFINE_BOOL_METHOD(
   return 0;
 }
 
+DEFINE_BOOL_METHOD(
+    mysql_audit_api_message_imp::emit,
+    (mysql_event_message_subclass_t type MY_ATTRIBUTE((unused)),
+     const char *component MY_ATTRIBUTE((unused)),
+     size_t component_length MY_ATTRIBUTE((unused)),
+     const char *producer MY_ATTRIBUTE((unused)),
+     size_t producer_length MY_ATTRIBUTE((unused)),
+     const char *message MY_ATTRIBUTE((unused)),
+     size_t message_length MY_ATTRIBUTE((unused)),
+     mysql_event_message_key_value_t *key_value_map MY_ATTRIBUTE((unused)),
+     size_t key_value_map_length MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
-  some day extracted to be reused both in sql library and server component unit
-  tests. */
+  some day extracted to be reused both in sql library and server component
+  unit tests. */
 struct CHARSET_INFO;
 
 CHARSET_INFO *system_charset_info = &my_charset_latin1;

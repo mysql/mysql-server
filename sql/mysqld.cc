@@ -1621,6 +1621,7 @@ static void server_component_init() {
   mysql_backup_lock_service_init();
   mysql_security_context_init();
   mysql_server_ongoing_transactions_query_init();
+  mysql_audit_api_service_init();
 }
 
 /**

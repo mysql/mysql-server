@@ -59,6 +59,7 @@ void mysql_comp_system_variable_source_init();
 void mysql_security_context_init();
 void mysql_backup_lock_service_init();
 void mysql_server_ongoing_transactions_query_init();
+void mysql_audit_api_service_init();
 
 /* implementation of the built-in components */
 
