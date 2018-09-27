@@ -116,6 +116,13 @@ class Window {
   bool m_needs_peerset;
 
   /**
+    (At least) one window function (currently JSON_OBJECTAGG) needs the
+    last peer for the current row to evaluate the wf for the current row.
+    (This is used only during inversion/optimization)
+  */
+  bool m_needs_last_peer_in_frame;
+
+  /**
     (At least) one window function needs the cardinality of the partition of
     the current row to evaluate the wf for the current row
   */
@@ -421,6 +428,12 @@ class Window {
   int64 m_last_rowno_in_peerset;
 
   /**
+    Execution state: used iff m_needs_last_peer_in_frame. True if a row
+    leaving the frame is the last row in the peer set withing the frame.
+  */
+  int64 m_is_last_row_in_peerset_within_frame;
+
+  /**
     Execution state: the current row number in the current partition.
     Set in check_partition_boundary. Used while reading input rows, in contrast
     to m_rowno_in_partition, which is used when processing buffered rows.
@@ -581,6 +594,7 @@ class Window {
         m_is_reference(is_reference),
         m_needs_frame_buffering(false),
         m_needs_peerset(false),
+        m_needs_last_peer_in_frame(false),
         m_needs_card(false),
         m_row_optimizable(true),
         m_range_optimizable(true),
@@ -600,6 +614,7 @@ class Window {
         m_special_rows_cache_max_length(0),
         m_last_rowno_in_cache(0),
         m_last_rowno_in_peerset(0),
+        m_is_last_row_in_peerset_within_frame(false),
         m_part_row_number(0),
         m_partition_border(true),
         m_last_row_output(0),
@@ -795,9 +810,17 @@ class Window {
     The current row is in the same peer set if all ORDER BY columns
     have the same value as in the previous row.
 
+    For JSON_OBJECTAGG only the first order by column needs to be
+    compared to check if a row is in peer set.
+
+    @param compare_all_order_by_items If true, compare all the order by items
+                                      to determine if a row is in peer set.
+                                      Else, compare only the first order by
+                                      item to determine peer set.
+
     @return true if current row is in a new peer set
   */
-  bool in_new_order_by_peer_set();
+  bool in_new_order_by_peer_set(bool compare_all_order_by_items = true);
 
   /**
     While processing buffered rows in RANGE frame mode we, determine
@@ -944,6 +967,12 @@ class Window {
   */
   bool needs_peerset() const { return m_needs_peerset; }
 
+  /**
+    If we cannot compute one of window functions without looking at all
+    rows in the peerset of the current row in this frame, return true, else
+    false. E.g. JSON_OBJECTAGG.
+  */
+  bool needs_last_peer_in_frame() const { return m_needs_last_peer_in_frame; }
   /**
     If we need to read the entire partition before we can evaluate
     some window function(s) on this window,
@@ -1101,6 +1130,20 @@ class Window {
     See #m_last_rowno_in_peerset
   */
   void set_last_rowno_in_peerset(uint64 rno) { m_last_rowno_in_peerset = rno; }
+
+  /**
+    See #m_is_last_row_in_peerset_within_frame
+  */
+  int64 is_last_row_in_peerset_within_frame() const {
+    return m_is_last_row_in_peerset_within_frame;
+  }
+
+  /**
+    See #m_is_last_row_in_peerset_within_frame
+  */
+  void set_is_last_row_in_peerset_within_frame(bool value) {
+    m_is_last_row_in_peerset_within_frame = value;
+  }
 
   /**
     See #m_do_copy_null
@@ -1287,6 +1330,11 @@ class Window {
     */
     bool needs_peerset;
     /**
+      Set to true if we need last peer for evaluation within a frame
+      (e.g. JSON_OBJECTAGG)
+    */
+    bool needs_last_peer_in_frame;
+    /**
       Set to true if we need FIRST_VALUE or optimized MIN/MAX
     */
     bool opt_first_row;
@@ -1312,6 +1360,7 @@ class Window {
     Evaluation_requirements()
         : needs_buffer(false),
           needs_peerset(false),
+          needs_last_peer_in_frame(false),
           opt_first_row(false),
           opt_last_row(false),
           row_optimizable(true),

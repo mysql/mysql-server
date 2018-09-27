@@ -1204,10 +1204,7 @@ class Item_sum_json : public Item_sum {
   bool check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
                           SELECT_LEX *select MY_ATTRIBUTE((unused)),
                           Window::Evaluation_requirements *reqs
-                              MY_ATTRIBUTE((unused))) override {
-    unsupported_as_wf();
-    return true;
-  }
+                              MY_ATTRIBUTE((unused))) override;
 };
 
 /// Implements aggregation of values into an array.
@@ -1231,6 +1228,21 @@ class Item_sum_json_object final : public Item_sum_json {
   Json_object m_json_object;
   /// Buffer used to get the value of the key.
   String m_tmp_key_value;
+  /**
+     Map of keys in Json_object and the count for each key
+     within a window frame. It is used in handling rows
+     leaving a window frame when rows are not sorted
+     according to the key in Json_object.
+   */
+  std::map<std::string, int> m_key_map;
+  /**
+    If window provides ordering on the key in Json_object,
+    a key_map is not needed to handle rows leaving a window
+    frame. In this case, process_buffered_windowing_record()
+    will set flags when a key/value pair can be removed from
+    the Json_object.
+  */
+  bool m_optimize{false};
 
  public:
   Item_sum_json_object(THD *thd, Item_sum *item) : Item_sum_json(thd, item) {}
@@ -1240,6 +1252,8 @@ class Item_sum_json_object final : public Item_sum_json {
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
+  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
+                          Window::Evaluation_requirements *reqs) override;
 };
 
 class Item_sum_avg final : public Item_sum_sum {

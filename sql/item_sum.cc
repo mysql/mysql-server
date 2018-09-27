@@ -5391,6 +5391,11 @@ bool Item_lead_lag::compute() {
   return null_value || current_thd->is_error();
 }
 
+bool Item_sum_json::check_wf_semantics(THD *thd, SELECT_LEX *select,
+                                       Window::Evaluation_requirements *reqs) {
+  return Item_sum::check_wf_semantics(thd, select, reqs);
+}
+
 bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(!fixed);
   result_field = nullptr;
@@ -5419,6 +5424,15 @@ bool Item_sum_json::fix_fields(THD *thd, Item **ref) {
 
 String *Item_sum_json::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
+  if (m_is_window_function) {
+    if (wf_common_init()) return str;
+    /*
+      For a group aggregate function, add() is called by Aggregator* classes;
+      for window functions, which does not use Aggregator, it has to be called
+      here.
+    */
+    if (add()) return str;
+  }
   if (null_value || m_wrapper.empty()) return nullptr;
   str->length(0);
   if (m_wrapper.to_string(str, true, func_name())) return error_str();
@@ -5427,6 +5441,15 @@ String *Item_sum_json::val_str(String *str) {
 }
 
 bool Item_sum_json::val_json(Json_wrapper *wr) {
+  if (m_is_window_function) {
+    if (wf_common_init()) return true;
+    /*
+      For a group aggregate function, add() is called by Aggregator* classes;
+      for window functions, which does not use Aggregator, it has to be called
+      here.
+    */
+    add();
+  }
   if (null_value || m_wrapper.empty()) return true;
 
   /*
@@ -5438,18 +5461,45 @@ bool Item_sum_json::val_json(Json_wrapper *wr) {
 }
 
 double Item_sum_json::val_real() {
+  if (m_is_window_function) {
+    if (wf_common_init()) return 0.0;
+    /*
+      For a group aggregate function, add() is called by Aggregator* classes;
+      for window functions, which does not use Aggregator, it has to be called
+      here.
+    */
+    add();
+  }
   if (null_value || m_wrapper.empty()) return 0.0;
 
   return m_wrapper.coerce_real(func_name());
 }
 
 longlong Item_sum_json::val_int() {
+  if (m_is_window_function) {
+    if (wf_common_init()) return 0;
+    /*
+      For a group aggregate function, add() is called by Aggregator* classes;
+      for window functions, which does not use Aggregator, it has to be called
+      here.
+    */
+    add();
+  }
   if (null_value || m_wrapper.empty()) return 0;
 
   return m_wrapper.coerce_int(func_name());
 }
 
 my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
+  if (m_is_window_function) {
+    if (wf_common_init()) return nullptr;
+    /*
+      For a group aggregate function, add() is called by Aggregator* classes;
+      for window functions, which does not use Aggregator, it has to be called
+      here.
+    */
+    add();
+  }
   if (null_value || m_wrapper.empty()) {
     my_decimal_set_zero(decimal_value);
     return decimal_value;
@@ -5528,6 +5578,31 @@ void Item_sum_json_object::clear() {
   m_wrapper = Json_wrapper(&m_json_object);
   // But let Item_sum_json_object keep the ownership.
   m_wrapper.set_alias();
+  m_key_map.clear();
+}
+
+bool Item_sum_json_object::check_wf_semantics(
+    THD *thd, SELECT_LEX *select, Window::Evaluation_requirements *r) {
+  Item_sum_json::check_wf_semantics(thd, select, r);
+  /*
+    As Json_object always stores only the last value for a key,
+    optimization/inversion for windowing function is not possible
+    unless row of the stored key/value pair is known. In case of
+    an ordered result, if its known that a row is the last peer
+    in a window frame for a key, then that key/value pair can be
+    removed from the Json_object. So we let
+    process_buffered_windowing_record() know by setting
+    needs_last_peer_in_frame to true.
+  */
+  const PT_order_list *order = m_window->effective_order_by();
+  if (order != nullptr) {
+    ORDER *o = order->value.first;
+    if (o->item_ptr->real_item()->eq(args[0]->real_item(), 0)) {
+      r->needs_last_peer_in_frame = true;
+      m_optimize = true;
+    }
+  }
+  return false;
 }
 
 bool Item_sum_json_array::add() {
@@ -5543,6 +5618,14 @@ bool Item_sum_json_array::add() {
   if (thd->is_error()) return error_json();
 
   try {
+    if (m_is_window_function) {
+      if (m_window->do_inverse()) {
+        auto arr = down_cast<Json_array *>(m_wrapper.to_dom(thd));
+        arr->remove(0);  // Remove the first element from the array
+        arr->size() == 0 ? null_value = true : null_value = false;
+        return false;
+      }
+    }
     Json_wrapper value_wrapper;
     // Get the value.
     if (get_atom_null_as_null(args, 0, func_name(), &m_value,
@@ -5603,6 +5686,33 @@ bool Item_sum_json_object::add() {
 
     std::string key(safep, safe_length);
 
+    if (m_is_window_function) {
+      /*
+        When a row is leaving a frame, we have two options:
+        1. If rows are ordered according to the "key", then remove
+        the key/value pair from Json_object if this row is the
+        last row in peerset for that key.
+        2. If unordered, reduce the count in the key map for this key.
+        If the count is 0, remove the key/value pair from the Json_object.
+      */
+      if (m_window->do_inverse()) {
+        auto object = down_cast<Json_object *>(m_wrapper.to_dom(thd));
+        if (m_optimize)  // Option 1
+        {
+          if (m_window->is_last_row_in_peerset_within_frame())
+            object->remove(key);
+        } else  // Option 2
+        {
+          auto it = m_key_map.find(key);
+          if (it != m_key_map.end()) {
+            int count = it->second - 1;
+            count > 0 ? it->second = count : object->remove(key);
+          }
+        }
+        object->cardinality() == 0 ? null_value = true : null_value = false;
+        return false;
+      }
+    }
     // value
     Json_wrapper value_wrapper;
     if (get_atom_null_as_null(args, 1, func_name(), &m_value,
@@ -5616,6 +5726,19 @@ bool Item_sum_json_object::add() {
     Json_object *object = down_cast<Json_object *>(m_wrapper.to_dom(thd));
     if (object->add_alias(key, value_wrapper.to_dom(thd)))
       return error_json(); /* purecov: inspected */
+    /*
+      If rows in the window are not ordered based on "key", add this key
+      to the key map.
+    */
+    if (m_is_window_function && !m_optimize) {
+      int count = 1;
+      auto it = m_key_map.find(key);
+      if (it != m_key_map.end()) {
+        count = count + it->second;
+        it->second = count;
+      } else
+        m_key_map.emplace(key, 0).first->second = count;
+    }
 
     null_value = false;
     // object will take ownership of the value

@@ -4337,6 +4337,11 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   */
   bool needs_peerset = w.needs_peerset();
 
+  /**
+    needs the last peer of the current row within a frame.
+  */
+  const bool needs_last_peer_in_frame = w.needs_last_peer_in_frame();
+
   DBUG_PRINT("enter", ("current_row: %lld, new_partition_or_eof: %d",
                        current_row, new_partition_or_eof));
 
@@ -4645,6 +4650,41 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
     /* possibly subtract: early in partition there may not be any */
     if (remove_previous_first_row) {
+      /*
+        Check if the row leaving the frame is the last row in the peerset
+        within a frame. If true, set is_last_row_in_peerset_within_frame
+        to true.
+        Used by JSON_OBJECTAGG to remove the key/value pair only
+        when it is the last row having that key value.
+      */
+      if (needs_last_peer_in_frame) {
+        int64 rowno = lower_limit - 1;
+        bool is_last_row_in_peerset = true;
+        if (rowno < upper) {
+          if (bring_back_frame_row(thd, w, param, rowno,
+                                   Window::REA_LAST_IN_PEERSET))
+            DBUG_RETURN(true);
+          // Establish current row as base-line for peer set.
+          w.reset_order_by_peer_set();
+          /*
+            Check if the next row is a peer to this row. If not
+            set current row as the last row in peerset within
+            frame.
+          */
+          rowno++;
+          if (rowno < upper) {
+            if (bring_back_frame_row(thd, w, param, rowno,
+                                     Window::REA_LAST_IN_PEERSET))
+              DBUG_RETURN(true);
+            // Compare only the first order by item.
+            if (!w.in_new_order_by_peer_set(false))
+              is_last_row_in_peerset = false;
+          }
+        }
+        if (is_last_row_in_peerset)
+          w.set_is_last_row_in_peerset_within_frame(true);
+      }
+
       if (bring_back_frame_row(thd, w, param, lower_limit - 1,
                                Window::REA_FIRST_IN_FRAME))
         DBUG_RETURN(true);
@@ -4662,6 +4702,7 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
       }
 
+      w.set_is_last_row_in_peerset_within_frame(false);
       w.set_inverse(false);
     }
 
@@ -4789,6 +4830,9 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                    prev_first_rowno_in_frame + 1 - ++inverted)
                 .set_is_last_row_in_frame(true);  // pessimistic assumption
 
+            // Set the current row as the last row in the peerset.
+            w.set_is_last_row_in_peerset_within_frame(true);
+
             /*
               It may be that rowno is not in previous frame; for example if
               column id contains 1, 3, 4 and 5 and frame is RANGE BETWEEN 2
@@ -4803,6 +4847,7 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
             }
 
             w.set_inverse(false).set_is_last_row_in_frame(false);
+            w.set_is_last_row_in_peerset_within_frame(false);
             found_first = false;
           } else {
             if (w.after_frame()) {

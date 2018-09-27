@@ -1,0 +1,869 @@
+# Tests for JSON_ARRAYAGG
+CREATE TABLE t1 (i INTEGER, f DOUBLE, s CHAR(10), j JSON);
+INSERT INTO t1 VALUES (1, 3.4, 'efghi', '10');
+INSERT INTO t1 VALUES (2, 2.3, 'sdfsd', '30');
+INSERT INTO t1 VALUES (3, 6.5, 'efghi', '20');
+INSERT INTO t1 VALUES (5, NULL, 'dfgdf', '23');
+INSERT INTO t1 VALUES (NULL, 3.4, 'wqweq', '32');
+INSERT INTO t1 VALUES (4, 8.9, 'ffhfg', '13');
+INSERT INTO t1 VALUES (8, 1.2, 'efghi', '21');
+INSERT INTO t1 VALUES (10, 3.4, 'fsfd', '10');
+INSERT INTO t1 VALUES (2, 2.3, NULL, '29');
+INSERT INTO t1 VALUES (4, NULL, NULL, '100');
+INSERT INTO t1 VALUES (8, 99.3, '24324', '1');
+INSERT INTO t1 VALUES (9, 32.4, 'poipo', '6');
+INSERT INTO t1 VALUES (NULL, 0, 'zxczcx', '39');
+INSERT INTO t1 VALUES (11, 21, 'uwrteu', '43');
+INSERT INTO t1 VALUES (15, 0.9, 'dkfhk', '28');
+INSERT INTO t1 VALUES (13, 1.1, NULL, '0');
+# Single partition
+SELECT j, i, f, JSON_ARRAYAGG(i) OVER w jarray_i, JSON_ARRAYAGG(f)
+OVER w jarray_f FROM t1 WINDOW w AS (ORDER BY j);
+j	i	f	jarray_i	jarray_f
+0	13	1.1	[13]	[1.1]
+1	8	99.3	[13, 8]	[1.1, 99.3]
+6	9	32.4	[13, 8, 9]	[1.1, 99.3, 32.4]
+10	1	3.4	[13, 8, 9, 1, 10]	[1.1, 99.3, 32.4, 3.4, 3.4]
+10	10	3.4	[13, 8, 9, 1, 10]	[1.1, 99.3, 32.4, 3.4, 3.4]
+13	4	8.9	[13, 8, 9, 1, 10, 4]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9]
+20	3	6.5	[13, 8, 9, 1, 10, 4, 3]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5]
+21	8	1.2	[13, 8, 9, 1, 10, 4, 3, 8]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2]
+23	5	NULL	[13, 8, 9, 1, 10, 4, 3, 8, 5]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null]
+28	15	0.9	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9]
+29	2	2.3	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3]
+30	2	2.3	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2, 2]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3, 2.3]
+32	NULL	3.4	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2, 2, null]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3, 2.3, 3.4]
+39	NULL	0	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2, 2, null, null]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3, 2.3, 3.4, 0.0]
+43	11	21	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2, 2, null, null, 11]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3, 2.3, 3.4, 0.0, 21.0]
+100	4	NULL	[13, 8, 9, 1, 10, 4, 3, 8, 5, 15, 2, 2, null, null, 11, 4]	[1.1, 99.3, 32.4, 3.4, 3.4, 8.9, 6.5, 1.2, null, 0.9, 2.3, 2.3, 3.4, 0.0, 21.0, null]
+SELECT j, s, JSON_ARRAYAGG(s) OVER w jarray_s, JSON_ARRAYAGG(j)
+OVER w jarray_j FROM t1 WINDOW w AS (ORDER BY j);
+j	s	jarray_s	jarray_j
+0	NULL	[null]	[0]
+1	24324	[null, "24324"]	[0, 1]
+6	poipo	[null, "24324", "poipo"]	[0, 1, 6]
+10	efghi	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+10	fsfd	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+13	ffhfg	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg"]	[0, 1, 6, 10, 10, 13]
+20	efghi	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi"]	[0, 1, 6, 10, 10, 13, 20]
+21	efghi	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi"]	[0, 1, 6, 10, 10, 13, 20, 21]
+23	dfgdf	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf"]	[0, 1, 6, 10, 10, 13, 20, 21, 23]
+28	dkfhk	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28]
+29	NULL	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29]
+30	sdfsd	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30]
+32	wqweq	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32]
+39	zxczcx	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39]
+43	uwrteu	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43]
+100	NULL	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43, 100]
+SELECT i, JSON_ARRAYAGG(i) OVER() FROM t1;
+i	JSON_ARRAYAGG(i) OVER()
+1	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+2	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+3	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+5	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+NULL	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+4	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+8	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+10	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+2	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+4	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+8	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+9	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+NULL	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+11	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+15	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+13	[1, 2, 3, 5, null, 4, 8, 10, 2, 4, 8, 9, null, 11, 15, 13]
+# Single partition with final order by
+SELECT s, j, JSON_ARRAYAGG(s) OVER w jarray_s, JSON_ARRAYAGG(j)
+OVER w jarray_j FROM t1 WINDOW w AS (ORDER BY j) ORDER BY j DESC;
+s	j	jarray_s	jarray_j
+NULL	100	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43, 100]
+uwrteu	43	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43]
+zxczcx	39	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39]
+wqweq	32	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32]
+sdfsd	30	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30]
+NULL	29	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29]
+dkfhk	28	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28]
+dfgdf	23	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf"]	[0, 1, 6, 10, 10, 13, 20, 21, 23]
+efghi	21	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi"]	[0, 1, 6, 10, 10, 13, 20, 21]
+efghi	20	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi"]	[0, 1, 6, 10, 10, 13, 20]
+ffhfg	13	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg"]	[0, 1, 6, 10, 10, 13]
+efghi	10	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+fsfd	10	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+poipo	6	[null, "24324", "poipo"]	[0, 1, 6]
+24324	1	[null, "24324"]	[0, 1]
+NULL	0	[null]	[0]
+# Single partition with descending order
+SELECT j, i, f, JSON_ARRAYAGG(i) OVER w jarray_i, JSON_ARRAYAGG(f)
+OVER w jarray_f FROM t1 WINDOW w AS (ORDER BY j DESC);
+j	i	f	jarray_i	jarray_f
+100	4	NULL	[4]	[null]
+43	11	21	[4, 11]	[null, 21.0]
+39	NULL	0	[4, 11, null]	[null, 21.0, 0.0]
+32	NULL	3.4	[4, 11, null, null]	[null, 21.0, 0.0, 3.4]
+30	2	2.3	[4, 11, null, null, 2]	[null, 21.0, 0.0, 3.4, 2.3]
+29	2	2.3	[4, 11, null, null, 2, 2]	[null, 21.0, 0.0, 3.4, 2.3, 2.3]
+28	15	0.9	[4, 11, null, null, 2, 2, 15]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9]
+23	5	NULL	[4, 11, null, null, 2, 2, 15, 5]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null]
+21	8	1.2	[4, 11, null, null, 2, 2, 15, 5, 8]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2]
+20	3	6.5	[4, 11, null, null, 2, 2, 15, 5, 8, 3]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5]
+13	4	8.9	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9]
+10	1	3.4	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4, 1, 10]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9, 3.4, 3.4]
+10	10	3.4	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4, 1, 10]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9, 3.4, 3.4]
+6	9	32.4	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4, 1, 10, 9]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9, 3.4, 3.4, 32.4]
+1	8	99.3	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4, 1, 10, 9, 8]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9, 3.4, 3.4, 32.4, 99.3]
+0	13	1.1	[4, 11, null, null, 2, 2, 15, 5, 8, 3, 4, 1, 10, 9, 8, 13]	[null, 21.0, 0.0, 3.4, 2.3, 2.3, 0.9, null, 1.2, 6.5, 8.9, 3.4, 3.4, 32.4, 99.3, 1.1]
+# With view
+CREATE VIEW v AS SELECT i, j, JSON_ARRAYAGG(j)
+OVER (ORDER BY i DESC ROWS UNBOUNDED PRECEDING) jarray_j FROM t1;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`i` AS `i`,`t1`.`j` AS `j`,json_arrayagg(`t1`.`j`) OVER (ORDER BY `t1`.`i` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `jarray_j` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+i	j	jarray_j
+15	28	[28]
+13	0	[28, 0]
+11	43	[28, 0, 43]
+10	10	[28, 0, 43, 10]
+9	6	[28, 0, 43, 10, 6]
+8	21	[28, 0, 43, 10, 6, 21]
+8	1	[28, 0, 43, 10, 6, 21, 1]
+5	23	[28, 0, 43, 10, 6, 21, 1, 23]
+4	13	[28, 0, 43, 10, 6, 21, 1, 23, 13]
+4	100	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100]
+3	20	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20]
+2	30	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20, 30]
+2	29	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20, 30, 29]
+1	10	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20, 30, 29, 10]
+NULL	32	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20, 30, 29, 10, 32]
+NULL	39	[28, 0, 43, 10, 6, 21, 1, 23, 13, 100, 20, 30, 29, 10, 32, 39]
+DROP VIEW v;
+# With GROUP BY
+SELECT s, j, JSON_ARRAYAGG(s) OVER w jarray_s, JSON_ARRAYAGG(j)
+OVER w jarray_j FROM t1 GROUP BY s,j WINDOW w AS (ORDER BY j);
+s	j	jarray_s	jarray_j
+NULL	0	[null]	[0]
+24324	1	[null, "24324"]	[0, 1]
+poipo	6	[null, "24324", "poipo"]	[0, 1, 6]
+efghi	10	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+fsfd	10	[null, "24324", "poipo", "efghi", "fsfd"]	[0, 1, 6, 10, 10]
+ffhfg	13	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg"]	[0, 1, 6, 10, 10, 13]
+efghi	20	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi"]	[0, 1, 6, 10, 10, 13, 20]
+efghi	21	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi"]	[0, 1, 6, 10, 10, 13, 20, 21]
+dfgdf	23	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf"]	[0, 1, 6, 10, 10, 13, 20, 21, 23]
+dkfhk	28	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28]
+NULL	29	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29]
+sdfsd	30	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30]
+wqweq	32	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32]
+zxczcx	39	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39]
+uwrteu	43	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu"]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43]
+NULL	100	[null, "24324", "poipo", "efghi", "fsfd", "ffhfg", "efghi", "efghi", "dfgdf", "dkfhk", null, "sdfsd", "wqweq", "zxczcx", "uwrteu", null]	[0, 1, 6, 10, 10, 13, 20, 21, 23, 28, 29, 30, 32, 39, 43, 100]
+# With ROLLUP
+SELECT i, f, JSON_ARRAYAGG(i) OVER w jarray_i, JSON_ARRAYAGG(f)
+OVER w jarray_f FROM t1 GROUP BY i,f WITH ROLLUP HAVING GROUPING(f)=1
+WINDOW w AS (ORDER BY f);
+i	f	jarray_i	jarray_f
+NULL	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+1	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+2	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+3	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+4	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+5	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+8	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+9	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+10	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+11	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+13	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+15	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+NULL	NULL	[null, 1, 2, 3, 4, 5, 8, 9, 10, 11, 13, 15, null]	[null, null, null, null, null, null, null, null, null, null, null, null, null]
+# With other window functions
+SELECT i, f, RANK() OVER w rank1, NTH_VALUE(i,3)
+OVER w nth, LEAD(f, 2) OVER w lead1, LAG(f,2) OVER w lag1, JSON_ARRAYAGG(i)
+OVER w jarray_i FROM t1 WINDOW w AS (ORDER BY f);
+i	f	rank1	nth	lead1	lag1	jarray_i
+5	NULL	1	NULL	0	NULL	[5, 4]
+4	NULL	1	NULL	0.9	NULL	[5, 4]
+NULL	0	3	NULL	1.1	NULL	[5, 4, null]
+15	0.9	4	NULL	1.2	NULL	[5, 4, null, 15]
+13	1.1	5	NULL	2.3	0	[5, 4, null, 15, 13]
+8	1.2	6	NULL	2.3	0.9	[5, 4, null, 15, 13, 8]
+2	2.3	7	NULL	3.4	1.1	[5, 4, null, 15, 13, 8, 2, 2]
+2	2.3	7	NULL	3.4	1.2	[5, 4, null, 15, 13, 8, 2, 2]
+1	3.4	9	NULL	3.4	2.3	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10]
+NULL	3.4	9	NULL	6.5	2.3	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10]
+10	3.4	9	NULL	8.9	3.4	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10]
+3	6.5	12	NULL	21	3.4	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10, 3]
+4	8.9	13	NULL	32.4	3.4	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10, 3, 4]
+11	21	14	NULL	99.3	6.5	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10, 3, 4, 11]
+9	32.4	15	NULL	NULL	8.9	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10, 3, 4, 11, 9]
+8	99.3	16	NULL	NULL	21	[5, 4, null, 15, 13, 8, 2, 2, 1, null, 10, 3, 4, 11, 9, 8]
+#With Multiple windows
+SELECT i, PERCENT_RANK() OVER (ORDER BY f) p_rank, JSON_ARRAYAGG(j)
+OVER (ORDER BY i,j ROWS UNBOUNDED PRECEDING) jarray_j FROM t1;
+i	p_rank	jarray_j
+NULL	0.5333333333333333	[32]
+NULL	0.13333333333333333	[32, 39]
+1	0.5333333333333333	[32, 39, 10]
+2	0.4	[32, 39, 10, 29]
+2	0.4	[32, 39, 10, 29, 30]
+3	0.7333333333333333	[32, 39, 10, 29, 30, 20]
+4	0.8	[32, 39, 10, 29, 30, 20, 13]
+4	0	[32, 39, 10, 29, 30, 20, 13, 100]
+5	0	[32, 39, 10, 29, 30, 20, 13, 100, 23]
+8	1	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1]
+8	0.3333333333333333	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21]
+9	0.9333333333333333	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21, 6]
+10	0.5333333333333333	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21, 6, 10]
+11	0.8666666666666667	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21, 6, 10, 43]
+13	0.26666666666666666	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21, 6, 10, 43, 0]
+15	0.2	[32, 39, 10, 29, 30, 20, 13, 100, 23, 1, 21, 6, 10, 43, 0, 28]
+#With Frames
+SELECT i, f, MIN(i) OVER w min, JSON_ARRAYAGG(i) OVER w jarray_i FROM t1
+WINDOW w AS (PARTITION BY f);
+i	f	min	jarray_i
+5	NULL	4	[5, 4]
+4	NULL	4	[5, 4]
+NULL	0	NULL	[null]
+15	0.9	15	[15]
+13	1.1	13	[13]
+8	1.2	8	[8]
+2	2.3	2	[2, 2]
+2	2.3	2	[2, 2]
+1	3.4	1	[1, null, 10]
+NULL	3.4	1	[1, null, 10]
+10	3.4	1	[1, null, 10]
+3	6.5	3	[3]
+4	8.9	4	[4]
+11	21	11	[11]
+9	32.4	9	[9]
+8	99.3	8	[8]
+SELECT i, f, MAX(i) OVER w max, JSON_ARRAYAGG(i) OVER w jarray_i FROM t1
+WINDOW w AS (PARTITION BY i ROWS UNBOUNDED PRECEDING);
+i	f	max	jarray_i
+NULL	3.4	NULL	[null]
+NULL	0	NULL	[null, null]
+1	3.4	1	[1]
+2	2.3	2	[2]
+2	2.3	2	[2, 2]
+3	6.5	3	[3]
+4	8.9	4	[4]
+4	NULL	4	[4, 4]
+5	NULL	5	[5]
+8	1.2	8	[8]
+8	99.3	8	[8, 8]
+9	32.4	9	[9]
+10	3.4	10	[10]
+11	21	11	[11]
+13	1.1	13	[13]
+15	0.9	15	[15]
+SELECT i, j, f, RANK() OVER w rank1, JSON_ARRAYAGG(i)
+OVER w jarray_i FROM t1 WINDOW w AS (PARTITION BY i ORDER BY j ROWS
+BETWEEN 2 PRECEDING AND 1 PRECEDING);
+i	j	f	rank1	jarray_i
+NULL	32	3.4	1	NULL
+NULL	39	0	2	[null]
+1	10	3.4	1	NULL
+2	29	2.3	1	NULL
+2	30	2.3	2	[2]
+3	20	6.5	1	NULL
+4	13	8.9	1	NULL
+4	100	NULL	2	[4]
+5	23	NULL	1	NULL
+8	1	99.3	1	NULL
+8	21	1.2	2	[8]
+9	6	32.4	1	NULL
+10	10	3.4	1	NULL
+11	43	21	1	NULL
+13	0	1.1	1	NULL
+15	28	0.9	1	NULL
+SELECT i, j, f, CUME_DIST() OVER w c_dist, JSON_ARRAYAGG(i)
+OVER w jarray_i FROM t1 WINDOW w AS (PARTITION BY i ORDER BY j ROWS
+BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+i	j	f	c_dist	jarray_i
+NULL	32	3.4	0.5	[null]
+NULL	39	0	1	NULL
+1	10	3.4	1	NULL
+2	29	2.3	0.5	[2]
+2	30	2.3	1	NULL
+3	20	6.5	1	NULL
+4	13	8.9	0.5	[4]
+4	100	NULL	1	NULL
+5	23	NULL	1	NULL
+8	1	99.3	0.5	[8]
+8	21	1.2	1	NULL
+9	6	32.4	1	NULL
+10	10	3.4	1	NULL
+11	43	21	1	NULL
+13	0	1.1	1	NULL
+15	28	0.9	1	NULL
+SELECT i, f, PERCENT_RANK() OVER w p_rank, JSON_ARRAYAGG(i)
+OVER w jarray_i FROM t1 WINDOW w AS (PARTITION BY i ORDER BY f RANGE
+BETWEEN 2.1 FOLLOWING AND 4.5 FOLLOWING);
+i	f	p_rank	jarray_i
+NULL	0	0	[null]
+NULL	3.4	1	NULL
+1	3.4	0	NULL
+2	2.3	0	NULL
+2	2.3	0	NULL
+3	6.5	0	NULL
+4	NULL	0	[4]
+4	8.9	1	NULL
+5	NULL	0	[5]
+8	1.2	0	NULL
+8	99.3	1	NULL
+9	32.4	0	NULL
+10	3.4	0	NULL
+11	21	0	NULL
+13	1.1	0	NULL
+15	0.9	0	NULL
+SELECT i, f, j, CUME_DIST() OVER w c_dist, JSON_ARRAYAGG(j)
+OVER w jarray_j FROM t1 WINDOW w AS (PARTITION BY i ORDER BY f RANGE
+BETWEEN 1 PRECEDING AND 10 FOLLOWING);
+i	f	j	c_dist	jarray_j
+NULL	0	39	0.5	[39, 32]
+NULL	3.4	32	1	[32]
+1	3.4	10	1	[10]
+2	2.3	30	1	[30, 29]
+2	2.3	29	1	[30, 29]
+3	6.5	20	1	[20]
+4	NULL	100	0.5	[100]
+4	8.9	13	1	[13]
+5	NULL	23	1	[23]
+8	1.2	21	0.5	[21]
+8	99.3	1	1	[1]
+9	32.4	6	1	[6]
+10	3.4	10	1	[10]
+11	21	43	1	[43]
+13	1.1	0	1	[0]
+15	0.9	28	1	[28]
+DROP TABLE t1;
+# Tests for JSON_OBJECTAGG
+CREATE TABLE t1 (i INTEGER, f DOUBLE, s CHAR(10), j JSON);
+INSERT INTO t1 VALUES (1, 3.4, 'efghi', '10');
+INSERT INTO t1 VALUES (2, 3.3, 'efghi', '29');
+INSERT INTO t1 VALUES (2, 2.3, 'efghi', '29');
+INSERT INTO t1 VALUES (2, 2.3, 'efghi', '29');
+INSERT INTO t1 VALUES (2, 2.3, 'sdfsd', '30');
+INSERT INTO t1 VALUES (2, 2.3, 'sdfsd', '30');
+INSERT INTO t1 VALUES (2, 2.3, 'sdfsd', '31');
+INSERT INTO t1 VALUES (2, 2.3, 'sdfsd', '40');
+INSERT INTO t1 VALUES (2, 3.3, 'sdfsd', '20');
+INSERT INTO t1 VALUES (2, 4.5, 'sdfsd', '45');
+INSERT INTO t1 VALUES (3, 6.5, 'efghi', '10');
+INSERT INTO t1 VALUES (5, 8, 'dfgdf', '23');
+INSERT INTO t1 VALUES (5, 3.4, 'wqweq', '32');
+INSERT INTO t1 VALUES (4, 8.9, 'ffhfg', '13');
+INSERT INTO t1 VALUES (8, 1.2, 'efghi', '21');
+# Single partition
+SELECT j, s, f, JSON_OBJECTAGG(j,f) OVER w jobject_f, JSON_OBJECTAGG(j,s)
+OVER w jobject_s FROM t1 WINDOW w AS (ORDER BY j);
+j	s	f	jobject_f	jobject_s
+10	efghi	3.4	{"10": 6.5}	{"10": "efghi"}
+10	efghi	6.5	{"10": 6.5}	{"10": "efghi"}
+13	ffhfg	8.9	{"10": 6.5, "13": 8.9}	{"10": "efghi", "13": "ffhfg"}
+20	sdfsd	3.3	{"10": 6.5, "13": 8.9, "20": 3.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd"}
+21	efghi	1.2	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi"}
+23	dfgdf	8	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf"}
+29	efghi	3.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}
+29	efghi	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}
+29	efghi	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}
+30	sdfsd	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd"}
+30	sdfsd	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd"}
+31	sdfsd	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd"}
+32	wqweq	3.4	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq"}
+40	sdfsd	2.3	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd"}
+45	sdfsd	4.5	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd", "45": "sdfsd"}
+SELECT i, JSON_OBJECTAGG(i,j) OVER() FROM t1;
+i	JSON_OBJECTAGG(i,j) OVER()
+1	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+2	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+3	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+5	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+5	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+4	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+8	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+# Single partition with final order by
+SELECT j, s, JSON_OBJECTAGG(j,s) OVER w jobject_s, JSON_OBJECTAGG(f,j)
+OVER w jobject_j FROM t1 WINDOW w AS (ORDER BY j) ORDER BY j DESC;
+j	s	jobject_s	jobject_j
+45	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd", "45": "sdfsd"}	{"8": 23, "1.2": 21, "2.3": 40, "3.3": 29, "3.4": 32, "4.5": 45, "6.5": 10, "8.9": 13}
+40	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd"}	{"8": 23, "1.2": 21, "2.3": 40, "3.3": 29, "3.4": 32, "6.5": 10, "8.9": 13}
+32	wqweq	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq"}	{"8": 23, "1.2": 21, "2.3": 31, "3.3": 29, "3.4": 32, "6.5": 10, "8.9": 13}
+31	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd"}	{"8": 23, "1.2": 21, "2.3": 31, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+30	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd"}	{"8": 23, "1.2": 21, "2.3": 30, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+30	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd"}	{"8": 23, "1.2": 21, "2.3": 30, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+29	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}	{"8": 23, "1.2": 21, "2.3": 29, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+29	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}	{"8": 23, "1.2": 21, "2.3": 29, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+29	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}	{"8": 23, "1.2": 21, "2.3": 29, "3.3": 29, "3.4": 10, "6.5": 10, "8.9": 13}
+23	dfgdf	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf"}	{"8": 23, "1.2": 21, "3.3": 20, "3.4": 10, "6.5": 10, "8.9": 13}
+21	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi"}	{"1.2": 21, "3.3": 20, "3.4": 10, "6.5": 10, "8.9": 13}
+20	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd"}	{"3.3": 20, "3.4": 10, "6.5": 10, "8.9": 13}
+13	ffhfg	{"10": "efghi", "13": "ffhfg"}	{"3.4": 10, "6.5": 10, "8.9": 13}
+10	efghi	{"10": "efghi"}	{"3.4": 10, "6.5": 10}
+10	efghi	{"10": "efghi"}	{"3.4": 10, "6.5": 10}
+# Single partition with descending order
+SELECT j, i, JSON_OBJECTAGG(j,i) OVER w jobject_i, JSON_OBJECTAGG(j,f)
+OVER w jobject_f FROM t1 WINDOW w AS (ORDER BY j DESC);
+j	i	jobject_i	jobject_f
+45	2	{"45": 2}	{"45": 4.5}
+40	2	{"40": 2, "45": 2}	{"40": 2.3, "45": 4.5}
+32	5	{"32": 5, "40": 2, "45": 2}	{"32": 3.4, "40": 2.3, "45": 4.5}
+31	2	{"31": 2, "32": 5, "40": 2, "45": 2}	{"31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+30	2	{"30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+30	2	{"30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+29	2	{"29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+29	2	{"29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+29	2	{"29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+23	5	{"23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+21	8	{"21": 8, "23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+20	2	{"20": 2, "21": 8, "23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+13	4	{"13": 4, "20": 2, "21": 8, "23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+10	1	{"10": 3, "13": 4, "20": 2, "21": 8, "23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+10	3	{"10": 3, "13": 4, "20": 2, "21": 8, "23": 5, "29": 2, "30": 2, "31": 2, "32": 5, "40": 2, "45": 2}	{"10": 6.5, "13": 8.9, "20": 3.3, "21": 1.2, "23": 8.0, "29": 2.3, "30": 2.3, "31": 2.3, "32": 3.4, "40": 2.3, "45": 4.5}
+# Multiple partitions
+SELECT i, j, JSON_OBJECTAGG(j,f) OVER w jobject_i, JSON_OBJECTAGG(j,s)
+OVER w jobject_f FROM t1 WINDOW w AS (PARTITION BY i ORDER BY j);
+i	j	jobject_i	jobject_f
+1	10	{"10": 3.4}	{"10": "efghi"}
+2	20	{"20": 3.3}	{"20": "sdfsd"}
+2	29	{"20": 3.3, "29": 2.3}	{"20": "sdfsd", "29": "efghi"}
+2	29	{"20": 3.3, "29": 2.3}	{"20": "sdfsd", "29": "efghi"}
+2	29	{"20": 3.3, "29": 2.3}	{"20": "sdfsd", "29": "efghi"}
+2	30	{"20": 3.3, "29": 2.3, "30": 2.3}	{"20": "sdfsd", "29": "efghi", "30": "sdfsd"}
+2	30	{"20": 3.3, "29": 2.3, "30": 2.3}	{"20": "sdfsd", "29": "efghi", "30": "sdfsd"}
+2	31	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3}	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd"}
+2	40	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3}	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd"}
+2	45	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}
+3	10	{"10": 6.5}	{"10": "efghi"}
+4	13	{"13": 8.9}	{"13": "ffhfg"}
+5	23	{"23": 8.0}	{"23": "dfgdf"}
+5	32	{"23": 8.0, "32": 3.4}	{"23": "dfgdf", "32": "wqweq"}
+8	21	{"21": 1.2}	{"21": "efghi"}
+SELECT j, s, f, JSON_OBJECTAGG(j,s) OVER w jobject_s, JSON_OBJECTAGG(f,j)
+OVER w jobject_j FROM t1 WINDOW w AS (PARTITION BY i ORDER BY s);
+j	s	f	jobject_s	jobject_j
+10	efghi	3.4	{"10": "efghi"}	{"3.4": 10}
+29	efghi	3.3	{"29": "efghi"}	{"2.3": 29, "3.3": 29}
+29	efghi	2.3	{"29": "efghi"}	{"2.3": 29, "3.3": 29}
+29	efghi	2.3	{"29": "efghi"}	{"2.3": 29, "3.3": 29}
+30	sdfsd	2.3	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+30	sdfsd	2.3	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+31	sdfsd	2.3	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+40	sdfsd	2.3	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+20	sdfsd	3.3	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+45	sdfsd	4.5	{"20": "sdfsd", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "40": "sdfsd", "45": "sdfsd"}	{"2.3": 40, "3.3": 20, "4.5": 45}
+10	efghi	6.5	{"10": "efghi"}	{"6.5": 10}
+13	ffhfg	8.9	{"13": "ffhfg"}	{"8.9": 13}
+23	dfgdf	8	{"23": "dfgdf"}	{"8": 23}
+32	wqweq	3.4	{"23": "dfgdf", "32": "wqweq"}	{"8": 23, "3.4": 32}
+21	efghi	1.2	{"21": "efghi"}	{"1.2": 21}
+SELECT i, JSON_OBJECTAGG(i,j) OVER(PARTITION BY i) FROM t1;
+i	JSON_OBJECTAGG(i,j) OVER(PARTITION BY i)
+1	{"1": 10}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+2	{"2": 45}
+3	{"3": 10}
+4	{"4": 13}
+5	{"5": 32}
+5	{"5": 32}
+8	{"8": 21}
+# With view
+CREATE VIEW v AS SELECT i, j, JSON_OBJECTAGG(i,j)
+OVER (ORDER BY i DESC ROWS UNBOUNDED PRECEDING) jobject_j FROM t1;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`i` AS `i`,`t1`.`j` AS `j`,json_objectagg(`t1`.`i`,`t1`.`j`) OVER (ORDER BY `t1`.`i` desc ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)  AS `jobject_j` from `t1`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+i	j	jobject_j
+8	21	{"8": 21}
+5	23	{"5": 23, "8": 21}
+5	32	{"5": 32, "8": 21}
+4	13	{"4": 13, "5": 32, "8": 21}
+3	10	{"3": 10, "4": 13, "5": 32, "8": 21}
+2	29	{"2": 29, "3": 10, "4": 13, "5": 32, "8": 21}
+2	29	{"2": 29, "3": 10, "4": 13, "5": 32, "8": 21}
+2	29	{"2": 29, "3": 10, "4": 13, "5": 32, "8": 21}
+2	30	{"2": 30, "3": 10, "4": 13, "5": 32, "8": 21}
+2	30	{"2": 30, "3": 10, "4": 13, "5": 32, "8": 21}
+2	31	{"2": 31, "3": 10, "4": 13, "5": 32, "8": 21}
+2	40	{"2": 40, "3": 10, "4": 13, "5": 32, "8": 21}
+2	20	{"2": 20, "3": 10, "4": 13, "5": 32, "8": 21}
+2	45	{"2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+1	10	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+DROP VIEW v;
+# With GROUP BY
+SELECT j, s, JSON_OBJECTAGG(j, s) OVER w jobject_s FROM t1
+GROUP BY j,s WINDOW w AS (ORDER BY j);
+j	s	jobject_s
+10	efghi	{"10": "efghi"}
+13	ffhfg	{"10": "efghi", "13": "ffhfg"}
+20	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd"}
+21	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi"}
+23	dfgdf	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf"}
+29	efghi	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi"}
+30	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd"}
+31	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd"}
+32	wqweq	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq"}
+40	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd"}
+45	sdfsd	{"10": "efghi", "13": "ffhfg", "20": "sdfsd", "21": "efghi", "23": "dfgdf", "29": "efghi", "30": "sdfsd", "31": "sdfsd", "32": "wqweq", "40": "sdfsd", "45": "sdfsd"}
+# With ROLLUP  - Json objects should not contain NULLs. As rollup
+# generates NULLs, we get an error for the following query
+SELECT i, JSON_OBJECTAGG(i,f) OVER w jobject_f FROM t1 GROUP BY i,f
+WITH ROLLUP HAVING GROUPING(f)=1  WINDOW w AS (ORDER BY f);
+ERROR 22032: JSON documents may not contain NULL member names.
+# With other window functions
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_f, RANK()
+OVER w rank1 FROM t1 WINDOW w AS (PARTITION BY i ORDER BY i);
+i	j	f	jobject_f	rank1
+1	10	3.4	{"10": 3.4}	1
+2	29	3.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	29	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	29	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	30	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	30	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	31	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	40	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	20	3.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+2	45	4.5	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	1
+3	10	6.5	{"10": 6.5}	1
+4	13	8.9	{"13": 8.9}	1
+5	23	8	{"23": 8.0, "32": 3.4}	1
+5	32	3.4	{"23": 8.0, "32": 3.4}	1
+8	21	1.2	{"21": 1.2}	1
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i, RANK()
+OVER w rank1, NTH_VALUE(i,2) OVER w nth, LEAD(f, 1)
+OVER w lead1, LAG(f,1) OVER w lag1 FROM t1
+WINDOW w AS (PARTITION BY i ORDER BY j);
+i	j	f	jobject_i	rank1	nth	lead1	lag1
+1	10	3.4	{"1": 10}	1	NULL	NULL	NULL
+2	20	3.3	{"2": 20}	1	NULL	3.3	NULL
+2	29	3.3	{"2": 29}	2	2	2.3	3.3
+2	29	2.3	{"2": 29}	2	2	2.3	3.3
+2	29	2.3	{"2": 29}	2	2	2.3	2.3
+2	30	2.3	{"2": 30}	5	2	2.3	2.3
+2	30	2.3	{"2": 30}	5	2	2.3	2.3
+2	31	2.3	{"2": 31}	7	2	2.3	2.3
+2	40	2.3	{"2": 40}	8	2	4.5	2.3
+2	45	4.5	{"2": 45}	9	2	NULL	2.3
+3	10	6.5	{"3": 10}	1	NULL	NULL	NULL
+4	13	8.9	{"4": 13}	1	NULL	NULL	NULL
+5	23	8	{"5": 23}	1	NULL	3.4	NULL
+5	32	3.4	{"5": 32}	2	5	NULL	8
+8	21	1.2	{"8": 21}	1	NULL	NULL	NULL
+# With Multiple windows
+SELECT i, f, PERCENT_RANK() OVER (ORDER BY f) p_rank, JSON_OBJECTAGG(i,j)
+OVER (ORDER BY i,j ROWS UNBOUNDED PRECEDING) jobject_j FROM t1;
+i	f	p_rank	jobject_j
+1	3.4	0.6428571428571429	{"1": 10}
+2	3.3	0.5	{"1": 10, "2": 20}
+2	2.3	0.07142857142857142	{"1": 10, "2": 29}
+2	2.3	0.07142857142857142	{"1": 10, "2": 29}
+2	3.3	0.5	{"1": 10, "2": 29}
+2	2.3	0.07142857142857142	{"1": 10, "2": 30}
+2	2.3	0.07142857142857142	{"1": 10, "2": 30}
+2	2.3	0.07142857142857142	{"1": 10, "2": 31}
+2	2.3	0.07142857142857142	{"1": 10, "2": 40}
+2	4.5	0.7857142857142857	{"1": 10, "2": 45}
+3	6.5	0.8571428571428571	{"1": 10, "2": 45, "3": 10}
+4	8.9	1	{"1": 10, "2": 45, "3": 10, "4": 13}
+5	8	0.9285714285714286	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 23}
+5	3.4	0.6428571428571429	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32}
+8	1.2	0	{"1": 10, "2": 45, "3": 10, "4": 13, "5": 32, "8": 21}
+# With Frames, with ordering on the key in Json_object
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i, MIN(i)
+OVER w min FROM t1 WINDOW w AS (PARTITION BY i);
+i	j	f	jobject_i	min
+1	10	3.4	{"1": 10}	1
+2	29	3.3	{"2": 45}	2
+2	29	2.3	{"2": 45}	2
+2	29	2.3	{"2": 45}	2
+2	30	2.3	{"2": 45}	2
+2	30	2.3	{"2": 45}	2
+2	31	2.3	{"2": 45}	2
+2	40	2.3	{"2": 45}	2
+2	20	3.3	{"2": 45}	2
+2	45	4.5	{"2": 45}	2
+3	10	6.5	{"3": 10}	3
+4	13	8.9	{"4": 13}	4
+5	23	8	{"5": 32}	5
+5	32	3.4	{"5": 32}	5
+8	21	1.2	{"8": 21}	8
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j, MAX(i)
+OVER w max FROM t1 WINDOW w AS (PARTITION BY f ROWS UNBOUNDED PRECEDING);
+i	j	f	jobject_j	max
+8	21	1.2	{"21": 1.2}	8
+2	29	2.3	{"29": 2.3}	2
+2	29	2.3	{"29": 2.3}	2
+2	30	2.3	{"29": 2.3, "30": 2.3}	2
+2	30	2.3	{"29": 2.3, "30": 2.3}	2
+2	31	2.3	{"29": 2.3, "30": 2.3, "31": 2.3}	2
+2	40	2.3	{"29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3}	2
+2	29	3.3	{"29": 3.3}	2
+2	20	3.3	{"20": 3.3, "29": 3.3}	2
+1	10	3.4	{"10": 3.4}	1
+5	32	3.4	{"10": 3.4, "32": 3.4}	5
+2	45	4.5	{"45": 4.5}	2
+3	10	6.5	{"10": 6.5}	3
+5	23	8	{"23": 8.0}	5
+4	13	8.9	{"13": 8.9}	4
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j, RANK()
+OVER w rank1 FROM t1 WINDOW w AS (PARTITION BY f ORDER BY j ROWS
+BETWEEN 2 PRECEDING AND 1 PRECEDING);
+i	j	f	jobject_j	rank1
+8	21	1.2	NULL	1
+2	29	2.3	NULL	1
+2	29	2.3	{"29": 2.3}	1
+2	30	2.3	{"29": 2.3}	3
+2	30	2.3	{"29": 2.3, "30": 2.3}	3
+2	31	2.3	{"30": 2.3}	5
+2	40	2.3	{"30": 2.3, "31": 2.3}	6
+2	20	3.3	NULL	1
+2	29	3.3	{"20": 3.3}	2
+1	10	3.4	NULL	1
+5	32	3.4	{"10": 3.4}	2
+2	45	4.5	NULL	1
+3	10	6.5	NULL	1
+5	23	8	NULL	1
+4	13	8.9	NULL	1
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j, RANK()
+OVER w rank1 FROM t1 WINDOW w AS (PARTITION BY f ORDER BY j ROWS
+BETWEEN 2 PRECEDING AND CURRENT ROW);
+i	j	f	jobject_j	rank1
+8	21	1.2	{"21": 1.2}	1
+2	29	2.3	{"29": 2.3}	1
+2	29	2.3	{"29": 2.3}	1
+2	30	2.3	{"29": 2.3, "30": 2.3}	3
+2	30	2.3	{"29": 2.3, "30": 2.3}	3
+2	31	2.3	{"30": 2.3, "31": 2.3}	5
+2	40	2.3	{"30": 2.3, "31": 2.3, "40": 2.3}	6
+2	20	3.3	{"20": 3.3}	1
+2	29	3.3	{"20": 3.3, "29": 3.3}	2
+1	10	3.4	{"10": 3.4}	1
+5	32	3.4	{"10": 3.4, "32": 3.4}	2
+2	45	4.5	{"45": 4.5}	1
+3	10	6.5	{"10": 6.5}	1
+5	23	8	{"23": 8.0}	1
+4	13	8.9	{"13": 8.9}	1
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j, CUME_DIST()
+OVER w c_dist FROM t1 WINDOW w AS (PARTITION BY i ORDER BY j ROWS
+BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
+i	j	f	jobject_j	c_dist
+1	10	3.4	NULL	1
+2	20	3.3	{"29": 2.3}	0.1111111111111111
+2	29	3.3	{"29": 2.3}	0.4444444444444444
+2	29	2.3	{"29": 2.3, "30": 2.3}	0.4444444444444444
+2	29	2.3	{"30": 2.3}	0.4444444444444444
+2	30	2.3	{"30": 2.3, "31": 2.3}	0.6666666666666666
+2	30	2.3	{"31": 2.3, "40": 2.3}	0.6666666666666666
+2	31	2.3	{"40": 2.3, "45": 4.5}	0.7777777777777778
+2	40	2.3	{"45": 4.5}	0.8888888888888888
+2	45	4.5	NULL	1
+3	10	6.5	NULL	1
+4	13	8.9	NULL	1
+5	23	8	{"32": 3.4}	0.5
+5	32	3.4	NULL	1
+8	21	1.2	NULL	1
+SELECT i, j, f, JSON_OBJECTAGG(f,j) OVER w jobject_i FROM t1
+WINDOW w AS (PARTITION BY i ORDER BY f RANGE BETWEEN 2.1 FOLLOWING
+AND 4.5 FOLLOWING);
+i	j	f	jobject_i
+1	10	3.4	NULL
+2	29	2.3	{"4.5": 45}
+2	29	2.3	{"4.5": 45}
+2	30	2.3	{"4.5": 45}
+2	30	2.3	{"4.5": 45}
+2	31	2.3	{"4.5": 45}
+2	40	2.3	{"4.5": 45}
+2	29	3.3	NULL
+2	20	3.3	NULL
+2	45	4.5	NULL
+3	10	6.5	NULL
+4	13	8.9	NULL
+5	32	3.4	NULL
+5	23	8	NULL
+8	21	1.2	NULL
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j, CUME_DIST()
+OVER w c_dist FROM t1 WINDOW w AS (PARTITION BY i ORDER BY j,f ROWS
+BETWEEN 2 PRECEDING AND 2 FOLLOWING);
+i	j	f	jobject_j	c_dist
+1	10	3.4	{"10": 3.4}	1
+2	20	3.3	{"20": 3.3, "29": 2.3}	0.1111111111111111
+2	29	2.3	{"20": 3.3, "29": 3.3}	0.3333333333333333
+2	29	2.3	{"20": 3.3, "29": 3.3, "30": 2.3}	0.3333333333333333
+2	29	3.3	{"29": 3.3, "30": 2.3}	0.4444444444444444
+2	30	2.3	{"29": 3.3, "30": 2.3, "31": 2.3}	0.6666666666666666
+2	30	2.3	{"29": 3.3, "30": 2.3, "31": 2.3, "40": 2.3}	0.6666666666666666
+2	31	2.3	{"30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	0.7777777777777778
+2	40	2.3	{"30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}	0.8888888888888888
+2	45	4.5	{"31": 2.3, "40": 2.3, "45": 4.5}	1
+3	10	6.5	{"10": 6.5}	1
+4	13	8.9	{"13": 8.9}	1
+5	23	8	{"23": 8.0, "32": 3.4}	0.5
+5	32	3.4	{"23": 8.0, "32": 3.4}	1
+8	21	1.2	{"21": 1.2}	1
+# With frames, without ordering on the key in Json_object
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i, MAX(i) OVER w max FROM t1
+WINDOW w AS (PARTITION BY f ROWS UNBOUNDED PRECEDING);
+i	j	f	jobject_i	max
+8	21	1.2	{"8": 21}	8
+2	29	2.3	{"2": 29}	2
+2	29	2.3	{"2": 29}	2
+2	30	2.3	{"2": 30}	2
+2	30	2.3	{"2": 30}	2
+2	31	2.3	{"2": 31}	2
+2	40	2.3	{"2": 40}	2
+2	29	3.3	{"2": 29}	2
+2	20	3.3	{"2": 20}	2
+1	10	3.4	{"1": 10}	1
+5	32	3.4	{"1": 10, "5": 32}	5
+2	45	4.5	{"2": 45}	2
+3	10	6.5	{"3": 10}	3
+5	23	8	{"5": 23}	5
+4	13	8.9	{"4": 13}	4
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i, RANK()
+OVER w rank1 FROM t1 WINDOW w AS (PARTITION BY f ORDER BY j ROWS
+BETWEEN 2 PRECEDING AND 1 PRECEDING);
+i	j	f	jobject_i	rank1
+8	21	1.2	NULL	1
+2	29	2.3	NULL	1
+2	29	2.3	{"2": 29}	1
+2	30	2.3	{"2": 29}	3
+2	30	2.3	{"2": 30}	3
+2	31	2.3	{"2": 30}	5
+2	40	2.3	{"2": 31}	6
+2	20	3.3	NULL	1
+2	29	3.3	{"2": 20}	2
+1	10	3.4	NULL	1
+5	32	3.4	{"1": 10}	2
+2	45	4.5	NULL	1
+3	10	6.5	NULL	1
+5	23	8	NULL	1
+4	13	8.9	NULL	1
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i, RANK()
+OVER w rank1 FROM t1 WINDOW w AS (PARTITION BY f ORDER BY j ROWS
+BETWEEN 2 PRECEDING AND CURRENT ROW);
+i	j	f	jobject_i	rank1
+8	21	1.2	{"8": 21}	1
+2	29	2.3	{"2": 29}	1
+2	29	2.3	{"2": 29}	1
+2	30	2.3	{"2": 30}	3
+2	30	2.3	{"2": 30}	3
+2	31	2.3	{"2": 31}	5
+2	40	2.3	{"2": 40}	6
+2	20	3.3	{"2": 20}	1
+2	29	3.3	{"2": 29}	2
+1	10	3.4	{"1": 10}	1
+5	32	3.4	{"1": 10, "5": 32}	2
+2	45	4.5	{"2": 45}	1
+3	10	6.5	{"3": 10}	1
+5	23	8	{"5": 23}	1
+4	13	8.9	{"4": 13}	1
+SELECT i, j, f, JSON_OBJECTAGG(i,j) OVER w jobject_i FROM t1
+WINDOW w AS (PARTITION BY i ORDER BY j ROWS BETWEEN 1 FOLLOWING
+AND 5 FOLLOWING);
+i	j	f	jobject_i
+1	10	3.4	NULL
+2	20	3.3	{"2": 30}
+2	29	3.3	{"2": 31}
+2	29	2.3	{"2": 40}
+2	29	2.3	{"2": 45}
+2	30	2.3	{"2": 45}
+2	30	2.3	{"2": 45}
+2	31	2.3	{"2": 45}
+2	40	2.3	{"2": 45}
+2	45	4.5	NULL
+3	10	6.5	NULL
+4	13	8.9	NULL
+5	23	8	{"5": 32}
+5	32	3.4	NULL
+8	21	1.2	NULL
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j FROM t1
+WINDOW w AS (PARTITION BY i ROWS BETWEEN 1 FOLLOWING AND
+UNBOUNDED FOLLOWING);
+i	j	f	jobject_j
+1	10	3.4	NULL
+2	29	3.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	29	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	29	2.3	{"20": 3.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	30	2.3	{"20": 3.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	30	2.3	{"20": 3.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	31	2.3	{"20": 3.3, "40": 2.3, "45": 4.5}
+2	40	2.3	{"20": 3.3, "45": 4.5}
+2	20	3.3	{"45": 4.5}
+2	45	4.5	NULL
+3	10	6.5	NULL
+4	13	8.9	NULL
+5	23	8	{"32": 3.4}
+5	32	3.4	NULL
+8	21	1.2	NULL
+SELECT i, j, f, JSON_OBJECTAGG(j,f) OVER w jobject_j FROM t1
+WINDOW w AS (PARTITION BY i ROWS BETWEEN 2 PRECEDING AND 4 FOLLOWING);
+i	j	f	jobject_j
+1	10	3.4	{"10": 3.4}
+2	29	3.3	{"29": 2.3, "30": 2.3}
+2	29	2.3	{"29": 2.3, "30": 2.3, "31": 2.3}
+2	29	2.3	{"29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3}
+2	30	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3}
+2	30	2.3	{"20": 3.3, "29": 2.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	31	2.3	{"20": 3.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	40	2.3	{"20": 3.3, "30": 2.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	20	3.3	{"20": 3.3, "31": 2.3, "40": 2.3, "45": 4.5}
+2	45	4.5	{"20": 3.3, "40": 2.3, "45": 4.5}
+3	10	6.5	{"10": 6.5}
+4	13	8.9	{"13": 8.9}
+5	23	8	{"23": 8.0, "32": 3.4}
+5	32	3.4	{"23": 8.0, "32": 3.4}
+8	21	1.2	{"21": 1.2}
+SELECT i, j, f, JSON_OBJECTAGG(i,f) OVER w jobject_i FROM t1
+WINDOW w AS (PARTITION BY i ORDER BY f RANGE BETWEEN 2.1 FOLLOWING AND
+4.5 FOLLOWING);
+i	j	f	jobject_i
+1	10	3.4	NULL
+2	29	2.3	{"2": 4.5}
+2	29	2.3	{"2": 4.5}
+2	30	2.3	{"2": 4.5}
+2	30	2.3	{"2": 4.5}
+2	31	2.3	{"2": 4.5}
+2	40	2.3	{"2": 4.5}
+2	29	3.3	NULL
+2	20	3.3	NULL
+2	45	4.5	NULL
+3	10	6.5	NULL
+4	13	8.9	NULL
+5	32	3.4	NULL
+5	23	8	NULL
+8	21	1.2	NULL
+DROP TABLE t1;
+SELECT 0 & (JSON_ARRAYAGG(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
+0 & (JSON_ARRAYAGG(1) OVER w)
+0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 1
+SELECT MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1);
+MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1)
+00:01:01
+SELECT MAKETIME(((1)<=> (2*JSON_OBJECTAGG('1',1)OVER())),'1',1);
+MAKETIME(((1)<=> (2*JSON_OBJECTAGG('1',1)OVER())),'1',1)
+00:01:01
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column json_objectagg at row 1
+SELECT (1 + CAST(JSON_OBJECTAGG(1,2) OVER () AS DECIMAL));
+(1 + CAST(JSON_OBJECTAGG(1,2) OVER () AS DECIMAL))
+1
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_objectagg at row 1

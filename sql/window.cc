@@ -141,6 +141,10 @@ bool Window::check_window_functions(THD *thd, SELECT_LEX *select) {
       DBUG_ASSERT(!wfs->framing());
       m_needs_peerset = true;
     }
+    if (reqs.needs_last_peer_in_frame) {
+      DBUG_ASSERT(wfs->framing());
+      m_needs_last_peer_in_frame = true;
+    }
     if (wfs->needs_card()) {
       DBUG_ASSERT(!wfs->framing());
       m_needs_card = true;
@@ -500,7 +504,7 @@ void Window::reset_order_by_peer_set() {
   DBUG_VOID_RETURN;
 }
 
-bool Window::in_new_order_by_peer_set() {
+bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
   DBUG_ENTER("in_new_order_by_peer_set");
   bool anything_changed = false;
 
@@ -509,6 +513,7 @@ bool Window::in_new_order_by_peer_set() {
 
   while ((item = li++)) {
     anything_changed |= item->cmp();
+    if (!compare_all_order_by_items) break;
   }
 
   DBUG_RETURN(anything_changed);
@@ -1321,6 +1326,7 @@ void Window::reset_execution_state(Reset_level level) {
     reset here:
         m_rowno_being_visited
         m_last_rowno_in_peerset
+        m_is_last_row_in_peerset_within_frame
         m_partition_border
         m_inverse_aggregation
         m_rowno_in_frame

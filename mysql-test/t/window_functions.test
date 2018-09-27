@@ -8,12 +8,6 @@ SET NAMES utf8;
 --echo
 
 --error ER_NOT_SUPPORTED_YET
-select json_objectagg('a','3') over ();
-
---error ER_NOT_SUPPORTED_YET
-select json_arrayagg('3') over ();
-
---error ER_NOT_SUPPORTED_YET
 select group_concat('3') over ();
 
 --echo Single window function (plus ORDER BY).
