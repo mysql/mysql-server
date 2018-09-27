@@ -138,7 +138,7 @@ explain select * from t1 where 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual
 explain select * from t1 having 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
@@ -148,7 +148,7 @@ explain select * from t1 having 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual having 1
+Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual
 drop view v1;
 drop table t1;
 CREATE TABLE t1(c INT);
@@ -719,10 +719,7 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1(a INT);
 PREPARE s FROM "EXPLAIN DELETE FROM t1 WHERE a || 'a' LIMIT 1";
-EXECUTE s;
-ERROR 22007: Truncated incorrect INTEGER value: 'a'
-EXECUTE s;
-ERROR 22007: Truncated incorrect INTEGER value: 'a'
+ERROR 22007: Truncated incorrect DOUBLE value: 'a'
 DROP TABLE t1;
 # End of test Bug#21139522
 End of 6.0 tests.
@@ -766,6 +763,6 @@ EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete from `test`.`t1` where (0 and <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	delete from `test`.`t1` where 0
 DROP TABLE t1, t2;
 # End of test for Bug#23209903

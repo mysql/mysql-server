@@ -424,9 +424,17 @@ create table t1 (data varchar(4) not null);
 --echo # the information in mysql_info().
 --echo #
 --enable_info
-insert ignore t1 (data) values ('letter'), (1/0);
-update ignore t1 set data='envelope' where 1/0 or 1;
-insert ignore t1 (data) values (default), (1/0), ('dead beef');
+let $query=insert ignore t1 (data) values ('letter'), (1/0);
+eval prepare stmt from "$query";
+execute stmt;
+
+let $query=update ignore t1 set data='envelope' where 1/0 or 1;
+eval prepare stmt from "$query";
+execute stmt;
+
+let $query=insert ignore t1 (data) values (default), (1/0), ('dead beef');
+eval prepare stmt from "$query";
+execute stmt;
 --disable_info
 
 drop table t1;

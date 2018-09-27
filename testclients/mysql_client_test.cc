@@ -14136,12 +14136,12 @@ static void test_bug15510() {
 
   rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
   check_execute(stmt, rc);
+  DIE_UNLESS(mysql_warning_count(mysql));
 
   rc = mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
   rc = mysql_stmt_fetch(stmt);
-  DIE_UNLESS(mysql_warning_count(mysql));
 
   /* Cleanup */
   mysql_stmt_close(stmt);

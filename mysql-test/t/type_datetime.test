@@ -639,10 +639,12 @@ CREATE TABLE test.t(col_varchar_nokey VARCHAR(1) NOT NULL,
                     col_int_nokey INT NOT NULL,
                     col_datetime_key datetime not null,
                     key(col_datetime_key)) ENGINE= InnoDB;
---error ER_TRUNCATED_WRONG_VALUE
+# --error ER_TRUNCATED_WRONG_VALUE
+# Reintroduce above check when prepare is done in strict mode for DELETE
 DELETE FROM test.t WHERE `col_int_nokey` > `col_int_nokey`
                          AND TIMESTAMP( '18:16:35.025453' ) IS  NULL;
---error ER_TRUNCATED_WRONG_VALUE
+# --error ER_TRUNCATED_WRONG_VALUE
+# Reintroduce above check when prepare is done in strict mode for DELETE
 UPDATE test.t SET `col_varchar_nokey` = TIMESTAMP(`col_time_nokey`,'00:00:00')
   WHERE `col_int_nokey` > `col_int_nokey`
         AND TIMESTAMP('18:16:35.025453') IS  NULL;

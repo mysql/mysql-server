@@ -1942,7 +1942,8 @@ class Item_cond : public Item_bool_func {
   bool subst_argument_checker(uchar **) override { return true; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;
-
+  bool remove_const_conds(THD *thd, Item *item, Item **new_item);
+  bool is_top_level_item() const { return abort_on_null; }
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
 
@@ -2182,7 +2183,11 @@ class Item_cond_or final : public Item_cond {
 inline Item *and_conds(Item *a, Item *b) {
   if (!b) return a;
   if (!a) return b;
-  return new Item_cond_and(a, b);
+
+  Item *item = new Item_cond_and(a, b);
+  if (item == nullptr) return nullptr;
+  item->top_level_item();
+  return item;
 }
 
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,

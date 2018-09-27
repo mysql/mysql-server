@@ -1764,6 +1764,144 @@ FROM big LEFT JOIN (SELECT id as dt_id,
 DROP VIEW small_view, big_view;
 DROP TABLE small, big;
 
+ 
+ --echo #
+ --echo # Bug#16893426 OPTIMIZER FAILS TO OPTIMIZE EXPRESSION OF THE
+ --echo #              FORM 'FOO' IS NULL
+ --echo #
+ 
+ CREATE TABLE t1 (
+   id int(11) NOT NULL PRIMARY KEY,
+   name varchar(20),
+   INDEX (name)
+ ) ENGINE=InnoDB;
+ 
+ CREATE TABLE t2 (
+   id int(11) NOT NULL PRIMARY KEY,
+   f_id int(11),
+   FOREIGN KEY (f_id) REFERENCES t2(id)
+ ) ENGINE=InnoDB;
+ 
+ INSERT INTO t1 VALUES (1,'A1'),(2,'A2'),(3,'B');
+ INSERT INTO t2 VALUES (1,1),(2,2),(3,2),(4,3),(5,3);
+ 
+ -- disable_result_log
+ ANALYZE TABLE t1;
+ ANALYZE TABLE t2;
+ -- enable_result_log
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE t1.name LIKE 'A%';
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE t1.name LIKE 'A%' OR 'ASDFGH' IS NULL;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE 0 OR 0;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE 1 OR 0;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE NOT(NOT (0)) OR 1;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE NOT(NOT (0)) OR 0 = 1;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ DEALLOCATE PREPARE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE 1 IS NOT TRUE AND 0 IS TRUE ;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE 'a' LIKE 1 OR 2 LIKE '2%' ;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE 1 IS NOT NULL;
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE (1<2 AND 2<3) OR (1>1 AND 2<3);
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE (1>=1 AND 2<=2) OR (1=1 AND 2<3);
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ let $query= SELECT * FROM t2 LEFT JOIN t1 ON t2.f_id = t1.id
+              WHERE (1<>1 AND 2=2) OR (1 BETWEEN 0 AND 2);
+ eval EXPLAIN $query;
+ eval $query;
+ eval PREPARE stmt FROM "$query";
+ EXECUTE stmt;
+ 
+ DROP TABLE t1,t2;
+ 
+ --echo #
+ --echo # Bug#22103398 BUG#16893426:SIG11 IN
+ --echo # ST_SELECT_LEX::FLATTEN_SUBQUERIES | SQL_RESOLVER.CC
+ --echo #
+ 
+ CREATE TABLE t1(c1 INT,	c2 INT,	c3 CHAR(1), KEY(c3))ENGINE=InnoDB;
+ CREATE TABLE t2(c1 INT,	c2 INT,	c3 CHAR(1), KEY(c3))ENGINE=InnoDB;
+ 
+ SELECT b.c2 AS f1 FROM (t2 AS a JOIN
+                        ((t2 AS b JOIN t2 AS c ON (c.c3=b.c3)))
+                        ON (c.c1=b.c2))
+     WHERE (c.c3 IN (SELECT subquery1_b.c3 AS subquery1_f1
+                     FROM (t1 AS subquery1_a JOIN t2 AS subquery1_b ON
+                           (subquery1_b.c1=subquery1_a.c1)))) AND
+           (a.c1=a.c1 AND (SELECT''FROM DUAL) IS NULL);
+ DROP TABLE t1, t2;
+ 
+ --echo # End of Bug#16893426
+ 
+
 --echo # Bug#22561937 Wrong result on outer join with multiple join conditions
 --echo #              and derived table
 
@@ -2103,3 +2241,47 @@ FROM t2 LEFT JOIN (SELECT 1 AS je FROM t1) AS dt ON FALSE
 GROUP BY je;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#22489105 WL#9571 : SIG11 IN ITEM_SUBSELECT::EXEC | SQL/ITEM_SUBSELECT.CC
+--echo #
+SELECT (SELECT * FROM (SELECT 'a') t) AS f1 HAVING (f1 = 'a' OR TRUE);
+SELECT (SELECT * FROM (SELECT 'a') t) + 1 AS f1 HAVING (f1 = 'a' OR TRUE);
+SELECT 1 + (SELECT * FROM (SELECT 'a') t) AS f1 HAVING (f1 = 'a' OR TRUE);
+
+--echo #
+--echo # Bug#28237111: WL#9571: TABLE FULL ERROR
+--echo #
+
+CREATE TABLE t1 (pk INTEGER, f1 INTEGER, primary key(pk));
+CREATE TABLE t2 (pk INTEGER, f1 INTEGER, primary key(pk));
+CREATE TABLE t3 (pk INTEGER);
+
+INSERT INTO t1 VALUES (1,1),(2,1),(3,1);
+INSERT INTO t2 VALUES (1,1),(2,1),(3,1);
+INSERT INTO t3 VALUES (1);
+
+SELECT  * FROM (t1 RIGHT JOIN
+                (SELECT * FROM t3 WHERE (DAYNAME('1995')))  AS table2 ON
+                (( t1.f1 ,t1.pk) IN (SELECT 7,4 UNION SELECT 9,2))) WHERE
+(NOT EXISTS (SELECT t1.f1 FROM (t1 INNER JOIN t2 ON (t1.pk=t2.f1))
+             WHERE 0 IS NOT NULL)) AND t1.f1 >  50;
+
+DROP TABLE t3,t1,t2;
+
+--echo #
+--echo # Bug#28341790: WL#9571: SIG11 IN ITEM_COND::FIX_FIELDS() AT SQL/ITEM_CMPFUNC.CC
+--echo #
+
+CREATE TABLE t1 (col_varchar varchar(1) DEFAULT NULL);
+INSERT INTO t1 VALUES ('Z') ;
+CREATE TABLE t2 (col_varchar varchar(1) DEFAULT NULL);
+INSERT INTO t2 VALUES ('Z') ;
+
+PREPARE prep_stmt FROM " SELECT 1 FROM ( ( SELECT * FROM t1 WHERE col_varchar
+>= 1 )  AS table1 RIGHT JOIN t2 ON ( ( NULL < NULL ) IS NULL OR 1 = 0 ) ) " ;
+
+EXECUTE prep_stmt ;
+EXECUTE prep_stmt ;
+
+DROP TABLE t1,t2;

@@ -4023,7 +4023,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `k` from dual where (/* select#2 */ select min('1') from dual)
+Note	1003	/* select#1 */ select '1' AS `k` from dual where 1
 SELECT * FROM t1 WHERE (SELECT MIN(t1.k) FROM t2);
 k
 1
@@ -4033,7 +4033,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+Note	1003	/* select#1 */ select '1' AS `k` from dual where 1
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 k
 1
@@ -4043,7 +4043,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `k` from dual where exists(/* select#2 */ select min('1') from dual)
+Note	1003	/* select#1 */ select '1' AS `k` from dual where 1
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 k
 1
@@ -4063,7 +4063,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+Note	1003	/* select#1 */ select '0' AS `k` from dual where 1
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t1 s1);
 k
 0
@@ -4073,7 +4073,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '0' AS `k` from dual where exists(/* select#2 */ select min('0') from dual)
+Note	1003	/* select#1 */ select '0' AS `k` from dual where 1
 SELECT * FROM t1 WHERE EXISTS (SELECT MIN(t1.k) FROM t2);
 k
 0
@@ -4086,7 +4086,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where 1
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 nk	k
 1	1
@@ -4096,7 +4096,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where ('1' = (/* select#2 */ select min('1') from dual))
+Note	1003	/* select#1 */ select '1' AS `nk`,'1' AS `k` from dual where 1
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 nk	k
 1	1
@@ -4107,7 +4107,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	s1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where 1
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t1 s1);
 nk	k
 0	0
@@ -4117,7 +4117,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where ('0' = (/* select#2 */ select min('0') from dual))
+Note	1003	/* select#1 */ select '0' AS `nk`,'0' AS `k` from dual where 1
 SELECT * FROM t1 WHERE nk = (SELECT MIN(t1.k) FROM t2);
 nk	k
 0	0

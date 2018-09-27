@@ -87,6 +87,10 @@
 #include "sql/window.h"
 #include "template_utils.h"
 
+static bool simplify_const_condition(THD *thd, Item **cond,
+                                     bool remove_cond = true,
+                                     bool *ret_cond_value = 0);
+
 static const Item::enum_walk walk_subquery =
     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 static bool check_right_lateral_join(TABLE_LIST *table_ref);
@@ -283,6 +287,13 @@ bool SELECT_LEX::prepare(THD *thd) {
          m_having_cond->check_cols(1)))
       DBUG_RETURN(true);
 
+    // Simplify the having condition if it is a const item
+    if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
+        !m_having_cond->walk(&Item::is_non_const_over_literals,
+                             Item::WALK_POSTFIX, NULL) &&
+        simplify_const_condition(thd, &m_having_cond))
+      DBUG_RETURN(true);
+
     having_fix_field = false;
     resolve_place = RESOLVE_NONE;
   }
@@ -314,9 +325,9 @@ bool SELECT_LEX::prepare(THD *thd) {
          query involving a view is optimized, not when the view
          is created
   */
-  if (unit->item &&                                                     // 1)
-      first_execution &&                                                // 2)
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW))  // 3)
+  if (unit->item &&                           // 1)
+      first_execution &&                      // 2)
+      !thd->lex->is_view_context_analysis())  // 3)
   {
     remove_redundant_subquery_clauses(thd, hidden_group_field_count);
   }
@@ -375,7 +386,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   if (unit->item &&                     // This is a subquery
       this != unit->fake_select_lex &&  // A real query block
                                         // Not normalizing a view
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+      !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd)) DBUG_RETURN(true);
   }
@@ -538,7 +549,8 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
     If query block contains one or more merged derived tables/views,
     walk through lists of columns in select lists and remove unused columns.
   */
-  if (derived_table_count && first_execution)
+  if (derived_table_count && first_execution &&
+      !(thd->lex->is_view_context_analysis()))
     delete_unused_merged_columns(&top_join_list);
 
   for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
@@ -552,7 +564,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
       DBUG_RETURN(true);
   }
 
-  if (first_execution) {
+  if (first_execution && !thd->lex->is_view_context_analysis()) {
     /*
       The following code will allocate the new items in a permanent
       MEMROOT for prepared statements and stored procedures.
@@ -617,6 +629,78 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
   }
 
   DBUG_RETURN(false);
+}
+
+/**
+  Try to replace a const condition with a simple constant.
+  A true condition is replaced with an empty item pointer if remove_cond
+  is true. Else it is replaced witha a constant TRUE.
+  A false condition is replaced with the constant FALSE.
+
+  @param thd            Thread handler
+  @param[in,out]  cond  Address of condition, may be substituted with a literal
+  @param remove_cond    If true removes a "true" condition. Else replaces
+                        it with a constant TRUE.
+  @param ret_cond_value Store the result of the evaluated const condition
+
+  @returns false if success, true if error
+*/
+
+static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
+                                     bool *ret_cond_value) {
+  DBUG_ASSERT((*cond)->const_item());
+
+  /*
+    Removal of ISNULL FUNC here would have side effects on a special case
+    for some ODBC applications.
+    Requesting the row that was just updated with a auto_increment
+    value with the following construct:
+
+    SELECT * from table_name where auto_increment_column IS NULL
+    This should be changed to:
+    SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
+    This is handled later in remove_eq_conds. Please check this function
+    for more details.
+  */
+
+  if ((*cond)->type() == Item::FUNC_ITEM &&
+      (down_cast<Item_func *>(*cond))->functype() == Item_func::ISNULL_FUNC) {
+    if (ret_cond_value) *ret_cond_value = true;
+    return false;
+  }
+
+  bool cond_value;
+
+  /* Push ignore / strict error handler */
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+  if (thd->lex->is_ignore())
+    thd->push_internal_handler(&ignore_handler);
+  else if (thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+
+  bool err = eval_const_cond(thd, *cond, &cond_value);
+  /* Pop ignore / strict error handler */
+  if (thd->lex->is_ignore() || thd->is_strict_mode())
+    thd->pop_internal_handler();
+
+  if (err) return true;
+
+  if (cond_value) {
+    if (remove_cond)
+      *cond = NULL;
+    else {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      *cond = new (thd->mem_root) Item_int(1LL, 1);
+      if (*cond == NULL) return true;
+    }
+  } else if ((*cond)->type() != Item::INT_ITEM) {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    *cond = new (thd->mem_root) Item_int(0LL, 1);
+    if (*cond == NULL) return true;
+  }
+  if (ret_cond_value) *ret_cond_value = cond_value;
+  return false;
 }
 
 /**
@@ -973,8 +1057,7 @@ loop:
     the current query block, if possible.
     Merging is only done once and must not be repeated for prepared execs.
   */
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
-      first_execution) {
+  if (!thd->lex->is_view_context_analysis() && first_execution) {
     for (TABLE_LIST *tl = get_table_list(); tl; tl = tl->next_local) {
       if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
           tl->is_merged() || !tl->is_mergeable())
@@ -1278,6 +1361,14 @@ bool SELECT_LEX::setup_conds(THD *thd) {
          m_where_cond->fix_fields(thd, &m_where_cond)) ||
         m_where_cond->check_cols(1))
       DBUG_RETURN(true);
+
+    // Simplify the where condition if it's a const item
+    if (m_where_cond->const_item() && !thd->lex->is_view_context_analysis() &&
+        !m_where_cond->walk(&Item::is_non_const_over_literals,
+                            Item::WALK_POSTFIX, NULL) &&
+        simplify_const_condition(thd, &m_where_cond))
+      DBUG_RETURN(true);
+
     resolve_place = SELECT_LEX::RESOLVE_NONE;
   }
 
@@ -1316,15 +1407,24 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
         setup_join_cond(thd, &tr->nested_join->join_list, in_update))
       DBUG_RETURN(true);
 
-    if (tr->join_cond()) {
+    Item **ref = tr->join_cond_ref();
+    Item *join_cond = tr->join_cond();
+    bool remove_cond = false;
+    if (join_cond) {
       resolve_place = SELECT_LEX::RESOLVE_JOIN_NEST;
       resolve_nest = tr;
       thd->where = "on clause";
-      if ((!tr->join_cond()->fixed &&
-           tr->join_cond()->fix_fields(thd, tr->join_cond_ref())) ||
-          tr->join_cond()->check_cols(1))
+      if ((!join_cond->fixed && join_cond->fix_fields(thd, ref)) ||
+          join_cond->check_cols(1))
         DBUG_RETURN(true);
       cond_count++;
+
+      if ((*ref)->const_item() && !thd->lex->is_view_context_analysis() &&
+          !(*ref)->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+                        NULL) &&
+          simplify_const_condition(thd, ref, remove_cond))
+        DBUG_RETURN(true);
+
       resolve_place = SELECT_LEX::RESOLVE_NONE;
       resolve_nest = NULL;
     }
@@ -1595,19 +1695,22 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
             join condition existed
           */
           DBUG_ASSERT(!new_cond->fixed);
-          if (new_cond->fix_fields(thd, NULL)) DBUG_RETURN(true);
+          Item *cond_after_fix = new_cond;
+          if (new_cond->fix_fields(thd, &cond_after_fix)) DBUG_RETURN(true);
 
-          /* If join condition has a pending rollback in THD::change_list */
-          List_iterator<Item> lit(*new_cond->argument_list());
-          Item *arg;
-          while ((arg = lit++)) {
-            /*
-              Check whether the arguments to AND need substitution
-              of rollback location.
-            */
-            thd->replace_rollback_place(lit.ref());
+          if (new_cond == cond_after_fix) {
+            /* If join condition has a pending rollback in THD::change_list */
+            List_iterator<Item> lit(*new_cond->argument_list());
+            Item *arg;
+            while ((arg = lit++)) {
+              /*
+                Check whether the arguments to AND need substitution
+                of rollback location.
+              */
+              thd->replace_rollback_place(lit.ref());
+            }
           }
-          *cond = new_cond;
+          *cond = cond_after_fix;
         } else {
           *cond = table->join_cond();
           /* If join condition has a pending rollback in THD::change_list */
@@ -1670,6 +1773,20 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
   li.rewind();
   while ((table = li++)) {
     nested_join = table->nested_join;
+    if (table->sj_cond()) {
+      /*
+        Remove semijoin condition if the join condition is found
+        be always false.
+      */
+      if (*cond && (*cond)->const_item() &&
+          !(*cond)->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+                         NULL)) {
+        bool cond_value = true;
+        if (simplify_const_condition(thd, cond, false, &cond_value))
+          DBUG_RETURN(true);
+        if (!cond_value) clear_sj_expressions(nested_join);
+      }
+    }
     if (table->sj_cond() && !in_sj) {
       /*
         If this is a semi-join that is not contained within another semi-join,
@@ -1849,6 +1966,106 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
       fix_tables_after_pullout(parent_select, removed_select, child,
                                table_adjust);
   }
+}
+
+/**
+ If a join condition or a where condition for a query block is found to
+ be always false, semijoin condition is removed from the query block.
+
+ @param nested_join         join nest
+*/
+
+void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
+  nested_join->sj_outer_exprs.empty();
+  nested_join->sj_inner_exprs.empty();
+  sj_nests.empty();
+}
+
+/**
+  Build equality conditions using outer expressions and inner
+  expressions. If the equality condition is not constant, add
+  it to the semi-join condition. Otherwise, evaluate it and
+  remove the constant expressions from the
+  outer/inner expressions list if the result is true. If the
+  result is false, remove all the expressions in outer/inner
+  expression list and attach an always false condition
+  to semijoin condition.
+
+  @param thd            Thread context
+  @param nested_join    Join nest
+  @param sj_cond        Semi-join condition to be constructed
+  @return True is error else false
+*/
+bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
+                               Item **sj_cond) {
+  List_iterator<Item> ii(nested_join->sj_inner_exprs);
+  List_iterator<Item> oi(nested_join->sj_outer_exprs);
+  Item *inner, *outer;
+  while (outer = oi++, inner = ii++) {
+    Item_func_eq *item_eq = new Item_func_eq(outer, inner);
+    if (item_eq == NULL) return true; /* purecov: inspected */
+    Item *predicate = (Item *)item_eq;
+    if (!item_eq->fixed && item_eq->fix_fields(thd, &predicate)) return true;
+    // Evaluate if the condition is on const expressions
+    if (predicate->const_item() &&
+        !(predicate)->walk(&Item::is_non_const_over_literals,
+                           Item::WALK_POSTFIX, NULL)) {
+      bool cond_value = true;
+
+      /* Push ignore / strict error handler */
+      Ignore_error_handler ignore_handler;
+      Strict_error_handler strict_handler;
+      if (thd->lex->is_ignore())
+        thd->push_internal_handler(&ignore_handler);
+      else if (thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
+
+      bool err = eval_const_cond(thd, predicate, &cond_value);
+      /* Pop ignore / strict error handler */
+      if (thd->lex->is_ignore() || thd->is_strict_mode())
+        thd->pop_internal_handler();
+
+      if (err) return true;
+
+      if (cond_value) {
+        /*
+          Remove the expression from inner/outer expression list if the
+          const condition evalutes to true as Item_cond::fix_fields will
+          remove the condition later.
+          Do the above if this is not the last expression in the list.
+          Semijoin processing expects atleast one inner/outer expression
+          in the list if there is a sj_nest present.
+        */
+        if (!(nested_join->sj_inner_exprs.elements == 1)) {
+          oi.remove();
+          ii.remove();
+        }
+      } else {
+        /*
+          Remove all the expressions in inner/outer expression list if
+          one of condition evaluates to always false. Add an always false
+          condition to semi-join condition.
+        */
+        nested_join->sj_inner_exprs.empty();
+        nested_join->sj_outer_exprs.empty();
+        Item *new_item = new Item_int(0LL, 1);
+        if (new_item == NULL) return true;
+        (*sj_cond) = new_item;
+        break;
+      }
+    }
+    /*
+      li [left_expr->element_index(i)] can be a transient Item_outer_ref,
+      whose usage has already been marked for rollback, but we need to roll
+      back this location (inside Item_func_eq) in stead, since this is the
+      place that matters after this semijoin transformation. arguments()
+      gets the address of li as stored in item_eq ("place").
+      */
+    thd->replace_rollback_place(item_eq->arguments());
+    (*sj_cond) = and_items(*sj_cond, predicate);
+    if (*sj_cond == NULL) return true; /* purecov: inspected */
+  }
+  return false;
 }
 
 /**
@@ -2191,31 +2408,16 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
         Item *const li = in_subq_pred->left_expr->element_index(i);
         nested_join->sj_outer_exprs.push_back(li);
         nested_join->sj_inner_exprs.push_back(subq_select->base_ref_items[i]);
-
-        Item_func_eq *item_eq =
-            new Item_func_eq(li, subq_select->base_ref_items[i]);
-
-        if (item_eq == NULL) DBUG_RETURN(true); /* purecov: inspected */
-
-        /*
-          li [left_expr->element_index(i)] can be a transient Item_outer_ref,
-          whose usage has already been marked for rollback, but we need to roll
-          back this location (inside Item_func_eq) in stead, since this is the
-          place that matters after this semijoin transformation. arguments()
-          gets the address of li as stored in item_eq ("place").
-        */
-        thd->replace_rollback_place(item_eq->arguments());
-
-        sj_cond = and_items(sj_cond, item_eq);
-        if (sj_cond == NULL) DBUG_RETURN(true); /* purecov: inspected */
       }
+      // Build semijoin condition using the inner/outer expression list
+      if (build_sj_cond(thd, nested_join, &sj_cond)) DBUG_RETURN(true);
     }
-    // Fix the created equality and AND
 
+    // Fix the created equality and AND
     Opt_trace_array sj_on_trace(&thd->opt_trace,
                                 "evaluating_constant_semijoin_conditions");
     sj_cond->top_level_item();
-    if (sj_cond->fix_fields(thd, &sj_cond))
+    if (!sj_cond->fixed && sj_cond->fix_fields(thd, &sj_cond))
       DBUG_RETURN(true); /* purecov: inspected */
 
     // Attach semi-join condition to semi-join nest
@@ -2256,6 +2458,20 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     if (m_where_cond == NULL) DBUG_RETURN(true);
     m_where_cond->top_level_item();
     if (m_where_cond->fix_fields(thd, &m_where_cond)) DBUG_RETURN(true);
+  }
+
+  /*
+    Remove the semi-join condition from the query block if the resulting
+    condition is always false.
+  */
+  Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
+  if (cond && cond->const_item() &&
+      !cond->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+                  NULL)) {
+    bool cond_value = true;
+    if (simplify_const_condition(thd, &cond, false, &cond_value))
+      DBUG_RETURN(true);
+    if (!cond_value) clear_sj_expressions(nested_join);
   }
 
   if (subq_select->ftfunc_list->elements &&
@@ -2680,6 +2896,33 @@ bool SELECT_LEX::flatten_subqueries() {
     (*subq)->sj_chosen = table_count + tables_added <= MAX_TABLES;
 
     if (!(*subq)->sj_chosen) continue;
+    /*
+      If this subquery has a predicate that can be evaluted to an
+      ALWAYS TRUE or an ALWAYS FALSE condition, do it here before the
+      subquery transformation happens.
+    */
+    Item *subq_pred = (*subq)->unit->first_select()->where_cond();
+
+    if (subq_pred && !subq_pred->fixed &&
+        subq_pred->fix_fields(thd, &subq_pred))
+      DBUG_RETURN(true);
+    /*
+      A predicate can be evaluated to ALWAYS TRUE or ALWAYS FALSE when it
+      has only const items. If it is evaluated to be ALWAYS TRUE, remove
+      the condition. If found to be ALWAYS FALSE, do not include the subquery
+      in transformations.
+    */
+    bool cond_value = true;
+    if (subq_pred && subq_pred->const_item() &&
+        !subq_pred->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+                         NULL) &&
+        simplify_const_condition(thd, &subq_pred, false, &cond_value))
+      DBUG_RETURN(true);
+
+    if (!cond_value) {
+      (*subq)->sj_chosen = false;
+      continue;
+    }
 
     table_count += tables_added;
 
@@ -2743,6 +2986,19 @@ bool SELECT_LEX::flatten_subqueries() {
 
   sj_candidates->clear();
   DBUG_RETURN(false);
+}
+
+bool SELECT_LEX::is_in_select_list(Item *cand) {
+  List_iterator<Item> li(fields_list);
+  Item *item;
+  while ((item = li++)) {
+    // Use a walker to detect if cand is present in this select item
+
+    if (item->walk(&Item::find_item_processor, Item::WALK_POSTFIX,
+                   pointer_cast<uchar *>(cand)))
+      return true;
+  }
+  return false;
 }
 
 /**
@@ -2967,9 +3223,11 @@ void SELECT_LEX::remove_redundant_subquery_clauses(
       m_windows.elements == 0) {
     changelog |= REMOVE_GROUP;
     for (ORDER *g = group_list.first; g != NULL; g = g->next) {
-      if (*g->item == g->item_ptr)
+      if (*g->item == g->item_ptr) {
+        Item::Cleanup_after_removal_context ctx(this);
         (*g->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                         reinterpret_cast<uchar *>(this));
+                         pointer_cast<uchar *>(&ctx));
+      }
     }
     group_list.empty();
     while (hidden_group_field_count-- > 0) {
@@ -3014,9 +3272,11 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
     return;
   }
   for (ORDER *o = order_list.first; o != NULL; o = o->next) {
-    if (*o->item == o->item_ptr)
+    if (*o->item == o->item_ptr) {
+      Item::Cleanup_after_removal_context ctx(sl);
       (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                       pointer_cast<uchar *>(sl));
+                       pointer_cast<uchar *>(&ctx));
+    }
   }
   order_list.empty();
   while (hidden_order_field_count-- > 0) {
@@ -3684,8 +3944,9 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables) {
                      Item::WALK_SUBQUERY_POSTFIX, NULL);
 
         if (!item->is_derived_used()) {
+          Item::Cleanup_after_removal_context ctx(this);
           item->walk(&Item::clean_up_after_removal, walk_subquery,
-                     pointer_cast<uchar *>(this));
+                     pointer_cast<uchar *>(&ctx));
           transl->item = NULL;
         }
       }

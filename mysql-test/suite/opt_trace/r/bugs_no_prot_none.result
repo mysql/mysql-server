@@ -651,27 +651,6 @@ FROM t1
       "join_execution": {
         "select#": 1,
         "steps": [
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-                {
-                  "join_execution": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "subselect_execution": {
-                          "select#": 3,
-                          "steps": [
-                          ] /* steps */
-                        } /* subselect_execution */
-                      }
-                    ] /* steps */
-                  } /* join_execution */
-                }
-              ] /* steps */
-            } /* subselect_execution */
-          }
         ] /* steps */
       } /* join_execution */
     }

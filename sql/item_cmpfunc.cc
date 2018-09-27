@@ -52,6 +52,7 @@
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
+#include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/histograms/histogram.h"
 #include "sql/item_json_func.h"  // json_value, get_json_atom_wrapper
@@ -85,6 +86,8 @@ using std::min;
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
+static const Item::enum_walk walk_subquery =
+    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
 /*
   Compare row signature of two expressions
@@ -4750,17 +4753,17 @@ void Item_cond::copy_andor_arguments(THD *thd, Item_cond *item) {
   }
 }
 
-bool Item_cond::fix_fields(THD *thd, Item **) {
+bool Item_cond::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
+  SELECT_LEX *select = thd->lex->current_select();
 
   /*
     Semi-join flattening should only be performed for predicates on
     the AND-top-level. Disable it if this condition is not an AND.
   */
-  Disable_semijoin_flattening DSF(thd->lex->current_select(),
-                                  functype() != COND_AND_FUNC);
+  Disable_semijoin_flattening DSF(select, functype() != COND_AND_FUNC);
 
   uchar buff[sizeof(char *)];  // Max local vars in function
   used_tables_cache = 0;
@@ -4772,6 +4775,9 @@ bool Item_cond::fix_fields(THD *thd, Item **) {
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return true;  // Fatal error flag is set!
+  Item *new_item = NULL;
+  bool remove_condition = false;
+
   /*
     The following optimization reduces the depth of an AND-OR tree.
     E.g. a WHERE clause like
@@ -4788,11 +4794,13 @@ bool Item_cond::fix_fields(THD *thd, Item **) {
     (i.e. do not depend on PS/SP arguments).
   */
   while ((item = li++)) {
+    Item_cond *cond;
     while (item->type() == Item::COND_ITEM &&
-           ((Item_cond *)item)->functype() == functype() &&
-           !((Item_cond *)item)->list.is_empty()) {  // Identical function
-      li.replace(((Item_cond *)item)->list);
-      ((Item_cond *)item)->list.empty();
+           (cond = down_cast<Item_cond *>(item)) &&
+           cond->functype() == functype() &&
+           !cond->list.is_empty()) {  // Identical function
+      li.replace(cond->list);
+      cond->list.empty();
       item = *li.ref();  // new current item
     }
     if (abort_on_null) item->top_level_item();
@@ -4801,6 +4809,53 @@ bool Item_cond::fix_fields(THD *thd, Item **) {
     if ((!item->fixed && item->fix_fields(thd, li.ref())) ||
         (item = *li.ref())->check_cols(1))
       return true; /* purecov: inspected */
+
+    /*
+      We optimize away the basic constant items here. If an AND condition
+      has "cond AND FALSE", then the entire condition is collapsed and
+      replaced with an ALWAYS FALSE item. Similarly, if an OR
+      condition has "cond OR TRUE", then the entire condition is replaced
+      with an ALWAYS TRUE item. Else only the const item is removed.
+    */
+    /*
+      If it is indicated that we can remove the condition because
+      of a possible ALWAYS FALSE or ALWAYS TRUE condition, continue to
+      just call fix_fields on the items.
+    */
+    if (remove_condition) continue;
+
+    /*
+      Do this optimization only for first execution.
+      Check if the const item does not contain param's, SP args etc.  We also
+      cannot optimize conditions if its a view. The condition has to be a
+      top_level_item to get optimized as they can have only two return values,
+      true or false. A non-top_level_item can have true, false and NULL return.
+      Fulltext funcs cannot be removed as ftfunc_list stores the list
+      of pointers to these functions. The list gets accessed later
+      in the call to init_ftfuncs() from JOIN::reset.
+      TODO: Lift this restriction once init_ft_funcs gets moved to JOIN::exec
+    */
+    if (select->first_execution && item->const_item() &&
+        !item->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+                    NULL) &&
+        !thd->lex->is_view_context_analysis() && is_top_level_item() &&
+        !select->has_ft_funcs()) {
+      if (remove_const_conds(thd, item, &new_item)) return true;
+      /*
+        If a new_item is returned, indicate that all the items can be removed
+        from the list.
+        Else remove only the current element in the list.
+      */
+      if (new_item != NULL) {
+        remove_condition = true;
+        continue;
+      }
+      Cleanup_after_removal_context ctx(select, true);
+      item->walk(&Item::clean_up_after_removal, walk_subquery,
+                 pointer_cast<uchar *>(&ctx));
+      li.remove();
+      continue;
+    }
     used_tables_cache |= item->used_tables();
 
     if (functype() == COND_AND_FUNC && abort_on_null)
@@ -4810,11 +4865,100 @@ bool Item_cond::fix_fields(THD *thd, Item **) {
     add_accum_properties(item);
     maybe_null |= item->maybe_null;
   }
-  thd->lex->current_select()->cond_count += list.elements;
+
+  /*
+    Remove all the items from the list if it was indicated that we have
+    an ALWAYS TRUE or an ALWAYS FALSE condition. Replace with the new
+    TRUE or FALSE condition.
+  */
+  if (remove_condition) {
+    new_item->fix_fields(thd, ref);
+    used_tables_cache = 0;
+    if (functype() == COND_AND_FUNC && abort_on_null)
+      not_null_tables_cache = 0;
+    else
+      not_null_tables_cache = ~(table_map)0;
+
+    li.rewind();
+    while ((item = li++)) {
+      Cleanup_after_removal_context ctx(select, true);
+      item->walk(&Item::clean_up_after_removal, walk_subquery,
+                 pointer_cast<uchar *>(&ctx));
+      li.remove();
+    }
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    list.push_front(new_item);
+  }
+
+  select->cond_count += list.elements;
+
   if (resolve_type(thd)) return true;
 
   fixed = true;
   return false;
+}
+
+/**
+
+  Remove constant conditions over literals.
+
+  If an item is a trivial condition like a literal or an operation
+  on literal(s), we evaluate the item and based on the result, decide
+  if the entire condition can be replaced with an ALWAYS TRUE or
+  ALWAYS FALSE item.
+  For every constant conditon, if the result is true, then
+  for an OR condition we return an ALWAYS TRUE item. For an AND
+  condition we return NULL if its not the only argument in the
+  condition.
+  If the result is false, for an AND condition we return
+  an ALWAYS FALSE item and for an OR condition we return NULL if
+  its not the only argument in the condition.
+
+  @param thd                  Current thread
+  @param item                 Item which needs to be evaluated
+  @param new_item [out]       return new_item, if created
+
+  @return               true, if error
+                        false, on success
+*/
+
+bool Item_cond::remove_const_conds(THD *thd, Item *item, Item **new_item) {
+  DBUG_ASSERT(item->const_item());
+
+  const bool and_condition = functype() == Item_func::COND_AND_FUNC;
+
+  bool cond_value = true;
+
+  /* Push ignore / strict error handler */
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+  if (thd->lex->is_ignore())
+    thd->push_internal_handler(&ignore_handler);
+  else if (thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+
+  bool err = eval_const_cond(thd, item, &cond_value);
+  /* Pop ignore / strict error handler */
+  if (thd->lex->is_ignore() || thd->is_strict_mode())
+    thd->pop_internal_handler();
+
+  if (err) return true;
+
+  if (cond_value) {
+    if (!and_condition || (argument_list()->elements == 1)) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      *new_item = new Item_int(1LL, 1);
+      if (*new_item == NULL) return true;
+    }
+    return false;
+  } else {
+    if (and_condition || (argument_list()->elements == 1)) {
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      *new_item = new Item_int(0LL, 1);
+      if (*new_item == NULL) return true;
+    }
+    return false;
+  }
 }
 
 void Item_cond::fix_after_pullout(SELECT_LEX *parent_select,
@@ -5362,6 +5506,10 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
     fixed = false;
     return true;
   }
+
+  used_tables_cache |= escape_item->used_tables();
+  if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
+  add_accum_properties(escape_item);
 
   // ESCAPE clauses that vary per row are not valid:
   if (!escape_item->const_for_execution()) {

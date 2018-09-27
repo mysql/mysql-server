@@ -1741,6 +1741,10 @@ class SELECT_LEX {
   /// Merge derived table into query block
  public:
   bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+  /// Remove semijoin condition for this query block
+  void clear_sj_expressions(NESTED_JOIN *nested_join);
+  ///  Build semijoin condition for th query block
+  bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join, Item **sj_cond);
 
  private:
   bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
@@ -1758,6 +1762,7 @@ class SELECT_LEX {
   bool has_sj_candidates() const {
     return sj_candidates != NULL && !sj_candidates->empty();
   }
+  bool is_in_select_list(Item *i);
 
  private:
   bool setup_wild(THD *thd);
@@ -1829,6 +1834,7 @@ class SELECT_LEX {
                 Used to access optimizer_switch
   */
   void update_semijoin_strategies(THD *thd);
+  void remove_semijoin_candidate(Item_exists_subselect *sub_query);
 
   /**
     Add item to the hidden part of select list
@@ -3939,6 +3945,10 @@ struct LEX : public Query_tables_list {
   inline bool is_ps_or_view_context_analysis() {
     return (context_analysis_only &
             (CONTEXT_ANALYSIS_ONLY_PREPARE | CONTEXT_ANALYSIS_ONLY_VIEW));
+  }
+
+  inline bool is_view_context_analysis() {
+    return (context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW);
   }
 
   /**

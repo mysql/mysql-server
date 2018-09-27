@@ -591,7 +591,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '6' AS `f1`,'7' AS `gc` from `test`.`t1` where ('7' = 7)
+Note	1003	/* select#1 */ select '6' AS `f1`,'7' AS `gc` from `test`.`t1` where 1
 SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
 f1	gc
 4	5

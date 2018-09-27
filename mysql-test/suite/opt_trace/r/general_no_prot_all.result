@@ -1437,7 +1437,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "transformations": [
                 "semijoin"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` semi join (`t6`) where (1 and isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
+              "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` semi join (`t6`) where (isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -1450,15 +1450,15 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))",
+              "original_condition": "(isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
+                  "resulting_condition": "(isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
+                  "resulting_condition": "(isnull(`t6`.`d`) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -3709,7 +3709,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` semi join (`t2`) join `t2` where (1 and (`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`) and (`t1`.`c1` = `t2`.`c2`))"
+              "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` semi join (`t2`) join `t2` where ((`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`) and (`t1`.`c1` = `t2`.`c2`))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -3722,15 +3722,15 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`) and (`t1`.`c1` = `t2`.`c2`))",
+              "original_condition": "((`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`) and (`t1`.`c1` = `t2`.`c2`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and multiple equal(1, `t2`.`c2`, `t2`.`c2`, `t1`.`c1`))"
+                  "resulting_condition": "(multiple equal(1, `t2`.`c2`, `t2`.`c2`, `t1`.`c1`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(1, `t2`.`c2`, `t2`.`c2`, `t1`.`c1`))"
+                  "resulting_condition": "(multiple equal(1, `t2`.`c2`, `t2`.`c2`, `t1`.`c1`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -5264,7 +5264,7 @@ trace
               "transformations": [
                 "semijoin"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where (1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
+              "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where ((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -5283,7 +5283,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where (1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
+            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t3` semi join (`t1` join `t2` join `t4`) where ((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -5295,15 +5295,15 @@ trace
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))",
+              "original_condition": "((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
+                  "resulting_condition": "(multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
+                  "resulting_condition": "(multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -5837,7 +5837,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t4` semi join (`t1` join `t2`) join `t3` where (1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
+            "expanded_query": "/* select#1 */ select `t3`.`a` AS `a`,`t3`.`b` AS `b` from `t4` semi join (`t1` join `t2`) join `t3` where ((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -5849,15 +5849,15 @@ trace
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))",
+              "original_condition": "((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
+                  "resulting_condition": "(multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
+                  "resulting_condition": "(multiple equal(`t3`.`a`, `t1`.`a`, `t2`.`a`) and multiple equal(`t3`.`b`, `t4`.`a`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -7226,7 +7226,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having (4 = 5)"
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having 0"
           }
         ] /* steps */
       } /* join_preparation */
@@ -7258,11 +7258,11 @@ trace
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "(4 = 5)",
+              "original_condition": "0",
               "steps": [
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(4 = 5)"
+                  "resulting_condition": "0"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -8405,7 +8405,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               "transformations": [
                 "semijoin"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))"
+              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where ((`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -8418,15 +8418,15 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))",
+              "original_condition": "((`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal('c', `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal('c', `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal('c', `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -9451,7 +9451,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "transformations": [
                 "semijoin"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
+              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where ((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -9464,15 +9464,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -11586,7 +11586,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "transformations": [
                 "semijoin"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where (1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
+              "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` semi join (`t2`) where ((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
             } /* transformations_to_nested_joins */
           }
         ] /* steps */
@@ -11599,15 +11599,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(1 and (`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
+              "original_condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",

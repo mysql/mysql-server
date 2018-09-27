@@ -6088,7 +6088,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	DERIVED	c_sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; FirstMatch(sq1_alias1)
 Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`alias1`.`pk` AS `pk` from (/* select#2 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on(((`test`.`c_sq1_alias1`.`col_varchar_nokey` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_key`) and 1 and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`))) where 1) `alias2` left join `test`.`t2` `alias1` on((`test`.`alias1`.`col_varchar_key` = `alias2`.`col_varchar_key`)) where 1
+Note	1003	/* select#1 */ select straight_join `test`.`alias1`.`pk` AS `pk` from (/* select#2 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2` left join (`test`.`t1` `sq1_alias1` semi join (`test`.`t3` `c_sq1_alias1`)) on(((`test`.`c_sq1_alias1`.`col_varchar_nokey` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_key`) and (`test`.`c_sq1_alias1`.`col_int_key` <> `test`.`c_sq1_alias1`.`col_int_key`))) where 1) `alias2` left join `test`.`t2` `alias1` on((`test`.`alias1`.`col_varchar_key` = `alias2`.`col_varchar_key`)) where 1
 SELECT STRAIGHT_JOIN alias1.pk
 FROM t2 AS alias1
 RIGHT JOIN

@@ -331,6 +331,47 @@ class Mem_root_array_YY {
     return begin() + idx;
   }
 
+  /**
+    Removes a single element from the array by value.
+    The removed element is destroyed.  This effectively reduces the
+    container size by one.
+    Note that if there are multiple elements having the same
+    value, only the first element is removed.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    We use std::copy to move objects, hence Element_type must be
+    assignable.
+
+    @retval number of elements removed, 0 or 1.
+  */
+  size_t erase_value(const value_type &val) {
+    iterator position = std::find(begin(), end(), val);
+    if (position != end()) {
+      erase(position);
+      return 1;
+    }
+    return 0;  // Not found
+  }
+
+  /**
+    Removes a single element from the array.
+    The removed element is destroyed.
+    This effectively reduces the container size by one.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    We use std::copy to move objects, hence Element_type must be assignable.
+  */
+  iterator erase(iterator position) {
+    DBUG_ASSERT(position != end());
+    if (position + 1 != end()) std::copy(position + 1, end(), position);
+    this->pop_back();
+    return position;
+  }
+
   size_t capacity() const { return m_capacity; }
   size_t element_size() const { return sizeof(Element_type); }
   bool empty() const { return size() == 0; }

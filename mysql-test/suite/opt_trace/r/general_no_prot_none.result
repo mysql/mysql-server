@@ -5907,7 +5907,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having (4 = 5)"
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having 0"
           }
         ] /* steps */
       } /* join_preparation */
@@ -5939,11 +5939,11 @@ trace
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "(4 = 5)",
+              "original_condition": "0",
               "steps": [
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(4 = 5)"
+                  "resulting_condition": "0"
                 },
                 {
                   "transformation": "trivial_condition_removal",

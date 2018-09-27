@@ -151,7 +151,7 @@ bool check_reserved_words(LEX_STRING *name) {
 bool eval_const_cond(THD *thd, Item *cond, bool *value) {
   // Function may be used both during resolving and during optimization:
   DBUG_ASSERT(cond->may_evaluate_const(thd));
-  *value = cond->val_int();
+  *value = cond->val_bool();
   return thd->is_error();
 }
 
@@ -7319,7 +7319,7 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     Checking privileges to execute the function while creating view and
     executing the function of select.
    */
-  if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) ||
+  if (!thd->lex->is_view_context_analysis() ||
       (thd->lex->sql_command == SQLCOM_CREATE_VIEW)) {
     if (context->security_ctx) {
       /* Set view definer security context */
@@ -7354,7 +7354,7 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
   res = Item_func::fix_fields(thd, ref);
   if (res) DBUG_RETURN(res);
 
-  if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) {
+  if (thd->lex->is_view_context_analysis()) {
     /*
       Here we check privileges of the stored routine only during view
       creation, in order to validate the view.  A runtime check is

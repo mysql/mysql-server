@@ -2075,6 +2075,9 @@ class Item : public Parse_tree_node {
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
   virtual bool change_context_processor(uchar *) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *)arg; }
+  virtual bool is_non_const_over_literals(uchar *) {
+    return !basic_const_item();
+  }
   /// Is this an Item_field which references the given Field argument?
   virtual bool find_field_processor(uchar *) { return false; }
   /**
@@ -2149,11 +2152,30 @@ class Item : public Parse_tree_node {
     return false;
   }
   virtual bool inform_item_in_cond_of_tab(uchar *) { return false; }
+
+  struct Cleanup_after_removal_context {
+    /**
+      Pointer to Cleanup_after_removal_context containing from which
+      select the walk started, i.e., the SELECT_LEX that contained the clause
+      that was removed.
+    */
+    SELECT_LEX *m_root;
+    /**
+      True if we are eliminating constant predicates (i.e. always TRUE or FALSE
+      predicates) in Item_cond::fix_fields. Referenced subqueries via an alias
+      from the SELECT list will not be removed in such a case, cf.
+      Item_subselect::clean_up_after_removal.
+    */
+    bool m_removing_const_preds;
+
+    Cleanup_after_removal_context(SELECT_LEX *root,
+                                  bool removing_const_preds = false)
+        : m_root(root), m_removing_const_preds(removing_const_preds) {}
+  };
   /**
      Clean up after removing the item from the item tree.
 
-     @param arg Pointer to the SELECT_LEX from which the walk started, i.e.,
-                the SELECT_LEX that contained the clause that was removed.
+     @param arg pointer to a Cleanup_after_removal_context object
   */
   virtual bool clean_up_after_removal(uchar *arg MY_ATTRIBUTE((unused))) {
     return false;
@@ -3633,6 +3655,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   /** Item is a argument to a limit clause. */
   bool limit_clause_param;
   void set_param_type_and_swap_value(Item_param *from);
+  bool is_non_const_over_literals(uchar *) { return true; }
   /**
     This should be called after any modification done to this Item, to
     propagate the said modification to all its clones.
@@ -4613,6 +4636,7 @@ class Item_ref : public Item_ident {
 
   bool repoint_const_outer_ref(uchar *arg) override;
   bool contains_alias_of_expr(uchar *arg) override;
+  bool is_non_const_over_literals(uchar *) { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -5562,6 +5586,7 @@ class Item_cache : public Item_basic_constant {
   bool is_null() override {
     return value_cached ? null_value : example->is_null();
   }
+  bool is_non_const_over_literals(uchar *) { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);

@@ -8578,7 +8578,13 @@ static bool make_join_select(JOIN *join, Item *cond) {
     Opt_trace_object trace_const_cond(trace);
     trace_const_cond.add("condition_on_constant_tables", const_cond)
         .add("condition_value", const_cond_result);
-    if (!const_cond_result) {
+    if (const_cond_result) {
+      if (join->plan_is_const() &&
+          !(cond->used_tables() & ~join->const_table_map)) {
+        DBUG_PRINT("info", ("Found always true WHERE condition"));
+        join->where_cond = NULL;
+      }
+    } else {
       DBUG_PRINT("info", ("Found impossible WHERE condition"));
       DBUG_RETURN(true);
     }

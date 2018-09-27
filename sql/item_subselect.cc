@@ -2650,18 +2650,26 @@ bool Item_subselect::subq_opt_away_processor(uchar *) {
  */
 bool Item_subselect::clean_up_after_removal(uchar *arg) {
   /*
-    Some commands still execute subqueries during resolving.
-    Make sure they are cleaned up properly.
-    @todo: Remove this code when SET is also refactored.
+    When removing a constant condition in a HAVING clause the condition
+    may reference a subselect in the SELECT list via an alias.
+    (Such use is not allowed in a WHERE clause or in the JOIN condition.)
+    In that case, do not remove this subselect.
   */
-  if (unit->is_executed()) {
-    DBUG_ASSERT(unit->first_select()->parent_lex->sql_command ==
-                SQLCOM_SET_OPTION);
-    unit->cleanup(true);
-  }
+  auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
+  SELECT_LEX *root = nullptr;
 
-  SELECT_LEX *root = static_cast<SELECT_LEX *>(static_cast<void *>(arg));
+  if (ctx != nullptr && ctx->m_removing_const_preds) {
+    if (ctx->m_root->is_in_select_list(this)) return false;
+  } else if (ctx != nullptr) {
+    root = ctx->m_root;
+  }
   SELECT_LEX *sl = unit->outer_select();
+
+  /* Remove the pointer to this sub query stored in sj_candidates array */
+  if (sl != NULL) {
+    if (substype() != SINGLEROW_SUBS)
+      sl->remove_semijoin_candidate(down_cast<Item_exists_subselect *>(this));
+  }
 
   /*
     While traversing the item tree with Item::walk(), Item_refs may
@@ -2674,7 +2682,10 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
     2) sl == NULL: unit is not a descendant of the starting point
   */
   while (sl != root && sl != NULL) sl = sl->outer_select();
-  if (sl == root) unit->exclude_tree();
+  if (sl == root) {
+    unit->exclude_tree();
+    unit->cleanup(true);
+  }
   return false;
 }
 
