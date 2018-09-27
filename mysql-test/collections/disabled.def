@@ -64,6 +64,7 @@ max_parts.innodb_partition_open_files_limit                 : Bug#27423163 2018-
 
 # perfschema suite test
 perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2.
+perfschema.threads_history      : Bug#27712231 2018-09-27 Erlend Dahl PB2 PERFSCHEMA.THREADS_HISTORY IS UNSTABLE
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 2017-08-29 Ivo Roylev.
