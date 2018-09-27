@@ -332,11 +332,14 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
 
       with_sum_func being set for a query block means that this query block
       has set functions directly referenced (i.e. not through a subquery).
+
+      If, going up, we meet a derived table, we do nothing special for it:
+      it doesn't need this information.
     */
-    for (SELECT_LEX *sl = base_select;
-         sl && sl != aggr_select && sl->master_unit()->item;
-         sl = sl->outer_select())
-      sl->master_unit()->item->set_aggregation();
+    for (SELECT_LEX *sl = base_select; sl && sl != aggr_select;
+         sl = sl->outer_select()) {
+      if (sl->master_unit()->item) sl->master_unit()->item->set_aggregation();
+    }
 
     base_select->mark_as_dependent(aggr_select, true);
   }
@@ -1089,8 +1092,7 @@ void Aggregator_distinct::clear() {
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
     if (!tree && table) {
-      table->file->ha_index_or_rnd_end();
-      table->file->ha_delete_all_rows();
+      (void)table->empty_result_table();
       if (table->hash_field) table->file->ha_index_init(0, 0);
     }
   } else {

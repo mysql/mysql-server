@@ -1802,6 +1802,9 @@ struct TABLE {
     if (s->null_bytes > 0) memcpy(null_flags, null_flags_saved, s->null_bytes);
   }
 
+  /// Empties internal temporary table (deletes rows, closes scan)
+  bool empty_result_table();
+
   /**
     Initialize the optimizer cost model.
 

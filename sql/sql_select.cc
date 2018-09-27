@@ -1306,26 +1306,27 @@ static int clear_sj_tmp_tables(JOIN *join) {
   List_iterator<TABLE> it(join->sj_tmp_tables);
   TABLE *table;
   while ((table = it++)) {
-    if ((res = table->file->ha_delete_all_rows()))
+    if ((res = table->empty_result_table()))
       return res; /* purecov: inspected */
   }
-  if (join->qep_tab) {
-    Semijoin_mat_exec *sjm;
-    List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
-    while ((sjm = it2++)) {
-      {
-        QEP_TAB *const tab = &join->qep_tab[sjm->mat_table_index];
-        /*
-          If zero_result_cause is set, we have not gone through
-          pick_table_access_method() which sets materialize_table, so the
-          assertion is disabled in this case.
-        */
-        DBUG_ASSERT(join->zero_result_cause || tab->materialize_table);
-        tab->table()->materialized = false;
-      }
+  return 0;
+}
+
+/// Empties all correlated materialized derived tables
+bool JOIN::clear_corr_derived_tmp_tables() {
+  for (uint i = const_tables; i < tables; i++) {
+    auto tl = qep_tab[i].table_ref;
+    if (tl && tl->is_derived() && !tl->common_table_expr() &&
+        (tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) &&
+        tl->table) {
+      /*
+        Applied only to non-CTE derived tables, as CTEs are reset in
+        SELECT_LEX_UNIT::clear_corr_ctes()
+      */
+      if (tl->derived_unit()->query_result()->reset()) return true;
     }
   }
-  return 0;
+  return false;
 }
 
 /**
@@ -1354,19 +1355,15 @@ void JOIN::reset() {
 
   if (tmp_tables) {
     for (uint tmp = primary_tables; tmp < primary_tables + tmp_tables; tmp++) {
-      TABLE *const tmp_table = qep_tab[tmp].table();
-      if (!tmp_table->is_created()) continue;
-      tmp_table->file->extra(HA_EXTRA_RESET_STATE);
-      tmp_table->file->ha_delete_all_rows();
-      free_io_cache(tmp_table);
-      filesort_free_buffers(tmp_table, 0);
+      (void)qep_tab[tmp].table()->empty_result_table();
     }
   }
   clear_sj_tmp_tables(this);
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
-  /* need to reset ref access state (see EQRefIterator) */
   if (qep_tab) {
+    if (select_lex->derived_table_count) clear_corr_derived_tmp_tables();
+    /* need to reset ref access state (see EQRefIterator) */
     for (uint i = 0; i < tables; i++) {
       QEP_TAB *const tab = &qep_tab[i];
       /*
@@ -2513,6 +2510,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
     JOIN_TAB *const tab = join->best_ref[i];
     TABLE *const table = qep_tab->table();
+    TABLE_LIST *const table_ref = qep_tab->table_ref;
     /*
      Need to tell handlers that to play it safe, it should fetch all
      columns of the primary key of the tables: this is because MySQL may
@@ -2525,7 +2523,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     qep_tab->cache_idx_cond = NULL;
 
     Opt_trace_object trace_refine_table(trace);
-    trace_refine_table.add_utf8_table(qep_tab->table_ref);
+    trace_refine_table.add_utf8_table(table_ref);
 
     if (qep_tab->do_loosescan()) {
       if (!(qep_tab->loosescan_buf =
@@ -2590,7 +2588,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
             condition's filter to filter_effect.
           */
           double rows_w_const_cond = qep_tab->position()->rows_fetched;
-          table->pos_in_table_list->fetch_number_of_rows();
+          table_ref->fetch_number_of_rows();
           tab->position()->rows_fetched =
               static_cast<double>(table->file->stats.records);
           if (tab->position()->filter_effect != COND_FILTER_STALE) {
@@ -2669,28 +2667,47 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
           join->thd->lex->is_explain()
               ? calculate_condition_filter(
                     tab, (tab->ref().key != -1) ? tab->position()->key : NULL,
-                    tab->prefix_tables() & ~tab->table_ref->map(),
+                    tab->prefix_tables() & ~table_ref->map(),
                     tab->position()->rows_fetched, false, false,
                     trace_refine_table)
               : COND_FILTER_ALLPASS;
     }
 
-    DBUG_ASSERT(!qep_tab->table_ref->is_recursive_reference() ||
+    DBUG_ASSERT(!table_ref->is_recursive_reference() ||
                 qep_tab->type() == JT_ALL);
 
     qep_tab->pick_table_access_method(tab);
 
     // Materialize derived tables prior to accessing them.
-    if (tab->table_ref->is_table_function()) {
+    if (table_ref->is_table_function()) {
       qep_tab->materialize_table = join_materialize_table_function;
       if (tab->dependent) qep_tab->rematerialize = true;
-    } else if (tab->table_ref->uses_materialization())
+    } else if (table_ref->uses_materialization()) {
       qep_tab->materialize_table = join_materialize_derived;
+    }
 
     if (qep_tab->sj_mat_exec())
       qep_tab->materialize_table = join_materialize_semijoin;
 
     qep_tab->set_reversed_access(tab->reversed_access);
+
+    if (table_ref->is_derived() && table_ref->derived_unit()->m_lateral_deps) {
+      auto deps = table_ref->derived_unit()->m_lateral_deps;
+      plan_idx last = NO_PLAN_IDX;
+      for (JOIN_TAB **tab2 = join->map2table; deps; tab2++, deps >>= 1) {
+        if (deps & 1) last = std::max(last, (*tab2)->idx());
+      }
+      /*
+        We identified the last dependency of table_ref in the plan, and it's
+        the table whose reading must trigger rematerialization of table_ref.
+      */
+      if (last != NO_PLAN_IDX) {
+        QEP_TAB &t = join->qep_tab[last];
+        t.lateral_derived_tables_depend_on_me |= table_ref->map();
+        trace_refine_table.add_utf8("rematerialized_for_each_row_of",
+                                    t.table()->alias);
+      }
+    }
   }
 
   DBUG_RETURN(false);
@@ -4449,6 +4466,22 @@ bool JOIN::make_tmp_tables_info() {
 
 void JOIN::unplug_join_tabs() {
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
+
+  /*
+    During execution we will need to access QEP_TABs by map.
+    map2table points to JOIN_TABs which are to be trashed a few lines down; so
+    we won't use map2table, but build a similar map2qep_tab; no need to
+    allocate new space for this array, we can reuse that of map2table.
+  */
+  static_assert(sizeof(QEP_TAB *) == sizeof(JOIN_TAB *), "");
+  void *storage = reinterpret_cast<void *>(map2table);
+  map2qep_tab = reinterpret_cast<QEP_TAB **>(storage);
+  for (uint i = 0; i < tables; ++i)
+    if (best_ref[i]->table_ref)
+      map2qep_tab[best_ref[i]->table_ref->tableno()] = &qep_tab[i];
+
+  map2table = nullptr;
+
   for (uint i = 0; i < tables; ++i) best_ref[i]->cleanup();
 
   best_ref = NULL;

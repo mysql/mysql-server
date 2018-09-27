@@ -331,6 +331,8 @@ class PT_common_table_expr : public Parse_tree_node {
     part. TABLE_LIST accesses this inferior object only.
   */
   Common_table_expr m_postparse;
+
+  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
 };
 
 /**
@@ -405,6 +407,8 @@ class PT_with_clause : public Parse_tree_node {
     moment. Used to detect forward references, loops and recursiveness.
   */
   const TABLE_LIST *m_most_inner_in_parsing;
+
+  friend bool SELECT_LEX_UNIT::clear_corr_ctes();
 };
 
 class PT_select_item_list : public PT_item_list {
@@ -560,12 +564,14 @@ class PT_derived_table : public PT_table_reference {
   typedef PT_table_reference super;
 
  public:
-  PT_derived_table(PT_subquery *subquery, const LEX_CSTRING &table_alias,
+  PT_derived_table(bool lateral, PT_subquery *subquery,
+                   const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
  private:
+  bool m_lateral;
   PT_subquery *m_subquery;
   const char *const m_table_alias;
   /// List of explicitely specified column names; if empty, no list.

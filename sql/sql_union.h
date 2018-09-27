@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,8 @@ class Query_result_union : public Query_result_interceptor {
   bool send_data(List<Item> &items) override;
   bool send_eof() override;
   virtual bool flush();
-  void cleanup() override;
+  void cleanup() override { (void)reset(); }
+  bool reset() override;
   bool create_result_table(THD *thd, List<Item> *column_types, bool is_distinct,
                            ulonglong options, const char *alias,
                            bool bit_fields_as_long, bool create_table);

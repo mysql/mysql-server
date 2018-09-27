@@ -1888,6 +1888,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
         if (!consider_record) continue;
       }
       {
+        if (unlikely(qep_tab->lateral_derived_tables_depend_on_me))
+          qep_tab->refresh_lateral();
         /* Prepare to read records from the join buffer */
         reset_cache(false);
 
@@ -2140,6 +2142,8 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last) {
       !qep_tab->copy_current_rowid->buffer_is_bound())
     qep_tab->copy_current_rowid->bind_buffer(qep_tab->table()->file->ref);
 
+  if (unlikely(qep_tab->lateral_derived_tables_depend_on_me))
+    qep_tab->refresh_lateral();
   for (; cnt; cnt--) {
     if (join->thd->killed) {
       /* The user has aborted the execution of the query */
@@ -2347,6 +2351,15 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(
     if (rc == NESTED_LOOP_OK &&
         (!check_only_first_match || !get_match_flag_by_pos(rec_ptr))) {
       get_record_by_pos(rec_ptr);
+      if (unlikely(qep_tab->lateral_derived_tables_depend_on_me)) {
+        /*
+          ha_multi_range_read_next() may have switched to a new row of
+          qep_tab, or not (depending on the uniqueness of key values and on if
+          more than one buffered record is associated with a key value); so we
+          have to assume it has switched:
+        */
+        qep_tab->refresh_lateral();
+      }
       rc = generate_full_extensions(rec_ptr);
       if (rc != NESTED_LOOP_OK) return rc;
     }
@@ -3138,6 +3151,14 @@ enum_nested_loop_state JOIN_CACHE_BKA_UNIQUE::join_matching_records(
     }
 
     if (qep_tab->keep_current_rowid) table->file->position(table->record[0]);
+
+    if (unlikely(qep_tab->lateral_derived_tables_depend_on_me)) {
+      /*
+        All buffered records below are paired with the same record of
+        qep_tab.
+      */
+      qep_tab->refresh_lateral();
+    }
 
     uchar *last_rec_ref_ptr = get_next_rec_ref(key_chain_ptr);
     uchar *next_rec_ref_ptr = last_rec_ref_ptr;

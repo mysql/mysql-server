@@ -238,12 +238,7 @@ class Item_subselect : public Item_result_field {
   friend int Item_field::fix_outer_field(THD *, Field **, Item **);
   friend bool Item_ref::fix_fields(THD *, Item **);
   friend void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
-                                            SELECT_LEX *removed_selec);
-  friend void mark_select_range_as_dependent(THD *thd, SELECT_LEX *last_select,
-                                             SELECT_LEX *current_sel,
-                                             Field *found_field,
-                                             Item *found_item,
-                                             Item_ident *resolved_item);
+                                            SELECT_LEX *removed_select);
 
  private:
   bool subq_opt_away_processor(uchar *arg) override;

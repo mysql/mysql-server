@@ -1180,7 +1180,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1198,7 +1198,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1216,7 +1216,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1227,7 +1227,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1238,7 +1238,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1250,7 +1250,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1261,7 +1261,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1272,7 +1272,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1289,7 +1289,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1307,7 +1307,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1325,7 +1325,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1337,7 +1337,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1348,7 +1348,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1360,7 +1360,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1371,7 +1371,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1382,7 +1382,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1399,7 +1399,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1417,7 +1417,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1435,7 +1435,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1447,7 +1447,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1458,7 +1458,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1470,7 +1470,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1481,7 +1481,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1492,7 +1492,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1511,7 +1511,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1529,7 +1529,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1547,7 +1547,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1558,7 +1558,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1569,7 +1569,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1581,7 +1581,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1592,7 +1592,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1603,7 +1603,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1620,7 +1620,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1641,7 +1641,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1662,7 +1662,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1674,7 +1674,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1686,7 +1686,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1698,7 +1698,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1709,7 +1709,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1720,7 +1720,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1737,7 +1737,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1758,7 +1758,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1779,7 +1779,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1791,7 +1791,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1803,7 +1803,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1815,7 +1815,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1826,7 +1826,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1837,7 +1837,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1856,7 +1856,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1874,7 +1874,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1892,7 +1892,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1903,7 +1903,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1914,7 +1914,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1926,7 +1926,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -1937,7 +1937,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1948,7 +1948,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1965,7 +1965,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1986,7 +1986,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = '2') and (`test`.`t2`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2007,7 +2007,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2019,7 +2019,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2031,7 +2031,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2043,7 +2043,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i` = 11) and (`test`.`t2`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -2054,7 +2054,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2065,7 +2065,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2082,7 +2082,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -2103,7 +2103,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = '2') and (`test`.`t3`.`i` = '2'))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2124,7 +2124,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2136,7 +2136,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = '2')
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2148,7 +2148,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11))
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2160,7 +2160,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t2`.`i` = 11) and (`test`.`t3`.`i` = 11) and '2')
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
@@ -2171,7 +2171,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`))) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2182,7 +2182,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `i` from (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
+Note	1003	/* select#1 */ select '2' AS `i` from <constant table> semi join (`test`.`t2` straight_join `test`.`t3`) where (`test`.`t3`.`i` = 11)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -10363,7 +10363,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	inner_t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	inner_t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.inner_t2.pk	1	100.00	Using where; FirstMatch(outer_t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outer_t1`.`pk` AS `pk`,'1' AS `pk` from (`test`.`t3` `outer_t1` semi join (`test`.`t3` `inner_t1` left join (`test`.`t1` `inner_t2` join `test`.`t1` `inner_t3`) on(((`test`.`inner_t3`.`col_varchar_nokey` = `test`.`inner_t2`.`col_varchar_key`) and (`test`.`inner_t3`.`pk` = `test`.`inner_t2`.`pk`))))) where 1
+Note	1003	/* select#1 */ select `test`.`outer_t1`.`pk` AS `pk`,'1' AS `pk` from <constant table> left join (`test`.`t3` `outer_t1` semi join (`test`.`t3` `inner_t1` left join (`test`.`t1` `inner_t2` join `test`.`t1` `inner_t3`) on(((`test`.`inner_t3`.`col_varchar_nokey` = `test`.`inner_t2`.`col_varchar_key`) and (`test`.`inner_t3`.`pk` = `test`.`inner_t2`.`pk`))))) on(((`test`.`inner_t1`.`col_int_nokey` = `test`.`outer_t1`.`col_int_nokey`))) where 1
 SELECT outer_t1.pk, outer_t2.pk
 FROM t3 AS outer_t1
 RIGHT JOIN t2 AS outer_t2

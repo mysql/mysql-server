@@ -558,11 +558,12 @@ class Item_sum : public Item_result_field {
   bool itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
   virtual enum Sumfunctype sum_func() const = 0;
-  virtual void fix_after_pullout(SELECT_LEX *,
+  virtual void fix_after_pullout(SELECT_LEX *parent_select,
                                  SELECT_LEX *removed_select
                                      MY_ATTRIBUTE((unused))) override {
     // Just make sure we are not aggregating into a context that is merged up.
-    DBUG_ASSERT(base_select != removed_select && aggr_select != removed_select);
+    DBUG_ASSERT(aggr_select != removed_select);
+    base_select = parent_select;
   }
 
   /**

@@ -775,19 +775,7 @@ bool Item_subselect::exec() {
   DBUG_RETURN(res);
 }
 
-/**
-  Fix used tables information for a subquery after query transformations.
-  Common actions for all predicates involving subqueries.
-  Most actions here involve re-resolving information for conditions
-  and items belonging to the subquery.
-  Notice that the usage information from underlying expressions is not
-  propagated to the subquery predicate, as it belongs to inner layers
-  of the query operator structure.
-  However, when underlying expressions contain outer references into
-  a select_lex on this level, the relevant information must be updated
-  when these expressions are resolved.
-*/
-
+/// @see SELECT_LEX_UNIT::fix_after_pullout()
 void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
                                        SELECT_LEX *removed_select)
 
@@ -795,35 +783,8 @@ void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
   /* Clear usage information for this subquery predicate object */
   used_tables_cache = 0;
 
-  /*
-    Go through all query specification objects of the subquery and re-resolve
-    all relevant expressions belonging to them.
-  */
-  for (SELECT_LEX *sel = unit->first_select(); sel; sel = sel->next_select()) {
-    if (sel->where_cond())
-      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
+  unit->fix_after_pullout(parent_select, removed_select);
 
-    if (sel->having_cond())
-      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
-
-    List_iterator<Item> li(sel->item_list);
-    Item *item;
-    while ((item = li++))
-      item->fix_after_pullout(parent_select, removed_select);
-
-    /*
-      No need to call fix_after_pullout() for outer-join conditions, as these
-      cannot have outer references.
-    */
-
-    /* Re-resolve ORDER BY and GROUP BY fields */
-
-    for (ORDER *order = sel->order_list.first; order; order = order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select);
-
-    for (ORDER *group = sel->group_list.first; group; group = group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select);
-  }
   // Accumulate properties like INNER_TABLE_BIT
   accumulate_properties();
 }
@@ -2901,6 +2862,7 @@ bool subselect_single_select_engine::exec() {
     join->reset();
     item->reset();
     unit->reset_executed();
+    unit->clear_corr_ctes();
     item->assigned(false);
   }
   if (!unit->is_executed()) {
@@ -3156,18 +3118,29 @@ bool subselect_indexsubquery_engine::exec() {
   Item_in_subselect *const item_in = static_cast<Item_in_subselect *>(item);
   item_in->value = false;
 
-  if (tl && tl->uses_materialization() && !table->materialized) {
-    THD *const thd = table->in_use;
-    bool err = tl->create_materialized_table(thd);
-    if (!err) {
-      if (tl->is_table_function())
-        err = tl->table_function->fill_result_table();
-      else {
-        err = tl->materialize_derived(thd);
-        err |= tl->cleanup_derived();
+  if (tl && tl->uses_materialization())  // A derived table with index
+  {
+    /*
+      Table cannot have lateral references (as it's the only table in this
+      query block) but it may have refs to outer queries. As execution of
+      subquery doesn't go through unit::execute() or JOIN::reset(), we have to
+      do manual clearing:
+    */
+    item->unit->clear_corr_ctes();
+    tab->join()->clear_corr_derived_tmp_tables();
+    if (!table->materialized) {
+      THD *const thd = table->in_use;
+      bool err = tl->create_materialized_table(thd);
+      if (!err) {
+        if (tl->is_table_function())
+          err = tl->table_function->fill_result_table();
+        else {
+          err = tl->materialize_derived(thd);
+          err |= tl->cleanup_derived();
+        }
       }
+      if (err) DBUG_RETURN(true); /* purecov: inspected */
     }
-    if (err) DBUG_RETURN(true); /* purecov: inspected */
   }
 
   if (check_null) {

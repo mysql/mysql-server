@@ -1575,6 +1575,25 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
   DBUG_RETURN(rc);
 }
 
+void QEP_TAB::refresh_lateral() {
+  /*
+    See if some lateral derived table further down on the execution path,
+    depends on us. If so, mark it for rematerialization.
+    Note that if this lateral DT depends on only const tables, the function
+    does nothing as it's not called for const tables; however, the lateral DT
+    is materialized once in its prepare_scan() like for a non-lateral DT.
+    todo: could this dependency-map idea be reused to decrease the amount of
+    execution for JSON_TABLE too? For now, JSON_TABLE is rematerialized every
+    time we're about to read it.
+  */
+  JOIN *j = join();
+  DBUG_ASSERT(j->has_lateral && lateral_derived_tables_depend_on_me);
+  auto deps = lateral_derived_tables_depend_on_me;
+  for (QEP_TAB **tab2 = j->map2qep_tab; deps; tab2++, deps >>= 1) {
+    if (deps & 1) (*tab2)->rematerialize = true;
+  }
+}
+
 /**
   @brief Prepare table to be scanned.
 
@@ -1588,11 +1607,20 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
 bool QEP_TAB::prepare_scan() {
   // Check whether materialization is required.
-  if (!materialize_table || (table()->materialized && !rematerialize))
-    return false;
+  if (!materialize_table) return false;
+
+  if (table()->materialized) {
+    if (!rematerialize) return false;
+    if (table()->empty_result_table()) return true;
+  }
 
   // Materialize table prior to reading it
   if ((*materialize_table)(this)) return true;
+
+  if (table_ref && table_ref->is_derived() &&
+      table_ref->derived_unit()->m_lateral_deps)
+    // no further materialization, unless dependencies change
+    rematerialize = false;
 
   // Bind to the rowid buffer managed by the TABLE object.
   if (copy_current_rowid) copy_current_rowid->bind_buffer(table()->file->ref);
@@ -1696,7 +1724,9 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl) {
   DBUG_ENTER("do_sj_reset");
   if (sj_tbl->tmp_table) {
-    int rc = sj_tbl->tmp_table->file->ha_delete_all_rows();
+    int rc = sj_tbl->tmp_table->empty_result_table();
+    if (sj_tbl->tmp_table->hash_field)
+      sj_tbl->tmp_table->file->ha_index_init(0, false);
     DBUG_RETURN(rc);
   }
   sj_tbl->have_confluent_row = false;
@@ -1867,6 +1897,8 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
       enum enum_nested_loop_state rc;
       // A match is found for the current partial join prefix.
       qep_tab->found_match = true;
+      if (unlikely(qep_tab->lateral_derived_tables_depend_on_me))
+        qep_tab->refresh_lateral();
 
       rc = (*qep_tab->next_select)(join, qep_tab + 1, 0);
 

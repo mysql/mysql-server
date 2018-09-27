@@ -577,46 +577,35 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
   if (select->set_context(NULL)) DBUG_RETURN(NULL); /* purecov: inspected */
   /*
     Assume that a subquery has an outer name resolution context.
-    If not (ie. if this is a derived table), set it to NULL later
+    If not (ie. if this is a non-lateral derived table), set it to NULL later.
+    When we come here for a view, it's when we parse the view (in
+    open_tables()): we parse it as a standalone query, where parsing_place
+    is CTX_NONE, so the outer context is set to nullptr. Then we'll resolve the
+    view's query (thus, using no outer context). Later we may merge the
+    view's query, but that happens after resolution, so there's no chance that
+    a view "looks outside" (uses outer references). An assertion in
+    resolve_derived() checks this.
   */
   if (parsing_place == CTX_NONE)  // Outer-most query block
   {
-  } else if (parsing_place == CTX_ON) {
-    /*
-      This subquery is part of an ON clause, so we need to link the
-      name resolution context for this subquery with the ON context.
-
-      @todo outer_context is not the same as
-      &select_lex->outer_select()->context in one case:
-        (SELECT 1 as a) UNION (SELECT 2) ORDER BY (SELECT a);
-      When we create the select_lex for the subquery in ORDER BY,
-      1) outer_context is the context of the second SELECT of the UNION
-      2) select_lex->outer_select() is the fake select_lex, which context
-         is the one of the first SELECT of the UNION (see
-         SELECT_LEX_UNIT::add_fake_select_lex()).
-      2) is the correct context, per the documentation. 1) is not, and using
-      it leads to a resolving error for the query above.
-      We should fix 1) and then use it unconditionally here.
-    */
-    select->context.outer_context = outer_context;
-  } else if (parsing_place == CTX_DERIVED ||
-             parsing_place == CTX_INSERT_VALUES ||
+  } else if (parsing_place == CTX_INSERT_VALUES ||
              parsing_place == CTX_INSERT_UPDATE) {
     /*
       Outer references are not allowed for
-      - derived tables
       - subqueries in INSERT ... VALUES clauses
       - subqueries in INSERT ON DUPLICATE KEY UPDATE clauses
     */
     DBUG_ASSERT(select->context.outer_context == NULL);
   } else {
-    select->context.outer_context = &select->outer_select()->context;
+    select->context.outer_context = outer_context;
   }
   /*
     in subquery is SELECT query and we allow resolution of names in SELECT
     list
   */
   select->context.resolve_in_select_list = true;
+  DBUG_PRINT("outer_field",
+             ("ctx %p <-> SL# %d", &select->context, select->select_number));
 
   DBUG_RETURN(select);
 }
@@ -2013,6 +2002,7 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
       m_with_clause(NULL),
       derived_table(NULL),
       first_recursive(NULL),
+      m_lateral_deps(0),
       got_all_recursive_rows(false) {
   switch (parsing_context) {
     case CTX_ORDER_BY:
@@ -2332,8 +2322,7 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
           munit->item->accumulate_used_tables(OUTER_REF_TABLE_BIT);
         }
         and remove settings from Item_field::fix_outer_field(),
-        Item_ref::fix_fields() and mark_select_range_as_dependent().
-
+        Item_ref::fix_fields().
 */
 
 void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate) {
@@ -2354,14 +2343,16 @@ void SELECT_LEX::mark_as_dependent(SELECT_LEX *last, bool aggregate) {
           (munit->uncacheable & ~UNCACHEABLE_UNITED) | UNCACHEABLE_DEPENDENT;
       for (SELECT_LEX *sl = munit->first_select(); sl; sl = sl->next_select()) {
         if (sl != s &&
-            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED)))
+            !(sl->uncacheable & (UNCACHEABLE_DEPENDENT | UNCACHEABLE_UNITED))) {
+          // Prevent early freeing in JOIN::join_free()
           sl->uncacheable |= UNCACHEABLE_UNITED;
+        }
       }
     }
     if (aggregate) {
-      munit->item->accumulate_used_tables(last == s->outer_select()
-                                              ? last->all_tables_map()
-                                              : OUTER_REF_TABLE_BIT);
+      munit->accumulate_used_tables(last == s->outer_select()
+                                        ? last->all_tables_map()
+                                        : OUTER_REF_TABLE_BIT);
     }
   }
 }
@@ -2650,32 +2641,49 @@ static void print_table_array(THD *thd, String *str, const Table_array &tables,
   DBUG_ASSERT(!tables.empty());
 
   Table_array::const_iterator it = tables.begin();
-  (*it)->print(thd, str, query_type);
-
-  while (++it != tables.end()) {
+  bool first = true;
+  for (; it != tables.end(); ++it) {
     TABLE_LIST *curr = *it;
+
+    const bool is_optimized =
+        curr->select_lex->join && curr->select_lex->join->is_optimized();
+
+    // the JOIN ON condition
+    Item *const cond =
+        is_optimized ? curr->join_cond_optim() : curr->join_cond();
+
     // Print the join operator which relates this table to the previous one
+    const char *op = nullptr;
     if (curr->outer_join) {
       /* MySQL converts right to left joins */
-      str->append(STRING_WITH_LEN(" left join "));
-    } else if (curr->straight)
-      str->append(STRING_WITH_LEN(" straight_join "));
-    else if (curr->sj_cond())
-      str->append(STRING_WITH_LEN(" semi join "));
-    else
-      str->append(STRING_WITH_LEN(" join "));
+      op = " left join ";
+    } else if (curr->sj_cond()) {
+      op = " semi join ";
+    } else if (!first || cond) {
+      /*
+        If it's the first table, and it has an ON condition (can happen due to
+        query transformations, e.g. merging a single-table view moves view's
+        WHERE to table's ON): ON also needs JOIN.
+      */
+      op = curr->straight ? " straight_join " : " join ";
+    }
+
+    if (op) {
+      if (first) {
+        // Add a dummy table before the operator, to have sensible SQL:
+        str->append(STRING_WITH_LEN("<constant table>"));
+      }
+      str->append(op);
+    }
     curr->print(thd, str, query_type);  // Print table
 
     // Print join condition
-    Item *const cond =
-        (curr->select_lex->join && curr->select_lex->join->is_optimized())
-            ? curr->join_cond_optim()
-            : curr->join_cond();
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
       cond->print(str, query_type);
       str->append(')');
     }
+    first = false;
   }
 }
 
@@ -2775,6 +2783,8 @@ void TABLE_LIST::print(THD *thd, String *str,
     } else if (is_derived() && !is_merged()) {
       // A derived table that is materialized or without specified algorithm
       if (!(query_type & QT_DERIVED_TABLE_ONLY_ALIAS)) {
+        if (derived_unit()->m_lateral_deps)
+          str->append(STRING_WITH_LEN("lateral "));
         str->append('(');
         derived->print(str, query_type);
         str->append(')');
@@ -2910,10 +2920,21 @@ void SELECT_LEX::print_update(THD *thd, String *str,
   print_update_options(str);
   if (parent_lex->sql_command == SQLCOM_UPDATE) {
     // Single table update
-    table_list.first->print(thd, str, query_type);  // table identifier
+    auto *t = table_list.first;
+    t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
     print_update_list(str, query_type, item_list,
                       *sql_cmd_update->update_value_list);
+    /*
+      Print join condition (may happen with a merged view's WHERE condition
+      and disappears in simplify_joins(); visible in opt trace only).
+    */
+    Item *const cond = t->join_cond();
+    if (cond) {
+      str->append(STRING_WITH_LEN(" on("));
+      cond->print(str, query_type);
+      str->append(')');
+    }
     print_where_cond(str, query_type);
     print_order_by(str, query_type);
     print_limit(str, query_type);
@@ -2933,9 +2954,20 @@ void SELECT_LEX::print_delete(THD *thd, String *str,
   print_hints(thd, str, query_type);
   print_delete_options(str);
   if (parent_lex->sql_command == SQLCOM_DELETE) {
+    TABLE_LIST *t = table_list.first;
     // Single table delete
     str->append(STRING_WITH_LEN("from "));
-    table_list.first->print(thd, str, query_type);  // table identifier
+    t->print(thd, str, query_type);  // table identifier
+    /*
+      Print join condition (may happen with a merged view's WHERE condition
+      and disappears in simplify_joins(); visible in opt trace only).
+    */
+    Item *const cond = t->join_cond();
+    if (cond) {
+      str->append(STRING_WITH_LEN(" on("));
+      cond->print(str, query_type);
+      str->append(')');
+    }
     print_where_cond(str, query_type);
     print_order_by(str, query_type);
     print_limit(str, query_type);

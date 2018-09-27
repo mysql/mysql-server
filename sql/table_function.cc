@@ -82,7 +82,7 @@ bool Table_function::write_row() {
 
 void Table_function::empty_table() {
   DBUG_ASSERT(table->is_created());
-  table->file->ha_delete_all_rows();
+  (void)table->empty_result_table();
 }
 
 bool Table_function::init_args() {
@@ -785,6 +785,7 @@ bool Table_function_json::fill_json_table() {
 
 bool Table_function_json::fill_result_table() {
   String buf;
+  DBUG_ASSERT(!table->materialized);
   // reset table
   empty_table();
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,8 +192,8 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table = new (thd->mem_root)
-      PT_derived_table(sub_query, to_lex_cstring(table_name), &column_names);
+  derived_table = new (thd->mem_root) PT_derived_table(
+      false, sub_query, to_lex_cstring(table_name), &column_names);
   if (derived_table == NULL) return NULL;
 
   Mem_root_array_YY<PT_table_reference *> table_reference_list1;

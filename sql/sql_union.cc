@@ -62,6 +62,7 @@
 #include "sql/opt_explain_format.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/parse_tree_nodes.h"  // PT_with_clause
 #include "sql/query_options.h"
 #include "sql/set_var.h"
 #include "sql/sql_base.h"  // fill_record
@@ -181,13 +182,9 @@ bool Query_result_union::create_result_table(
   tables of JOIN - exec_tmp_table_[1 | 2].
 */
 
-void Query_result_union::cleanup() {
-  if (table == NULL) return;
-  table->file->extra(HA_EXTRA_RESET_STATE);
-  if (table->hash_field) table->file->ha_index_or_rnd_end();
-  table->file->ha_delete_all_rows();
-  free_io_cache(table);
-  filesort_free_buffers(table, 0);
+bool Query_result_union::reset() {
+  m_rows_in_table = 0;
+  return table ? table->empty_result_table() : false;
 }
 
 /**
@@ -747,12 +744,26 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
       2. If GROUP BY clause is optimized away because it was a constant then
          query produces at most one row.
     */
-    if (query_result())
+    if (query_result()) {
       query_result()->estimated_rowcount +=
           sl->is_implicitly_grouped() || sl->join->group_optimized_away
               ? 1
               : sl->join->best_rowcount;
+      query_result()->estimated_cost += sl->join->best_read;
+    }
   }
+  if ((uncacheable & UNCACHEABLE_DEPENDENT) && query_result() &&
+      query_result()->estimated_rowcount <= 1) {
+    /*
+      This depends on outer references, so optimization cannot assume that all
+      executions will always produce the same row. So, increase the counter to
+      prevent that this table is replaced with a constant.
+      Not testing all bits of "uncacheable", as if derived table sets user
+      vars (UNCACHEABLE_SIDEEFFECT) the logic above doesn't apply.
+    */
+    query_result()->estimated_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
+  }
+
   if (fake_select_lex) {
     thd->lex->set_current_select(fake_select_lex);
 
@@ -823,6 +834,44 @@ bool SELECT_LEX_UNIT::explain(THD *ethd) {
   fmt->end_context(CTX_UNION);
 
   DBUG_RETURN(false);
+}
+
+/**
+   Empties all correlated CTEs defined in the unit's WITH clause.
+*/
+bool SELECT_LEX_UNIT::clear_corr_ctes() {
+  if (!m_with_clause) return false;
+  for (auto el : m_with_clause->m_list->elements()) {
+    Common_table_expr &cte = el->m_postparse;
+    bool reset_tables = false;
+    for (auto tl : cte.references) {
+      if (tl->table &&
+          tl->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+        reset_tables = true;
+        if (tl->derived_unit()->query_result()->reset()) return true;
+      }
+      /*
+        This loop has found all non-recursive clones; one writer and N
+        readers.
+      */
+    }
+    if (!reset_tables) continue;
+    for (auto tl : cte.tmp_tables) {
+      if (tl->is_derived()) continue;  // handled above
+      if (tl->table->empty_result_table()) return true;
+      // This loop has found all recursive clones (only readers).
+    }
+    /*
+      Doing delete_all_rows on all clones is good as it makes every
+      'file' up to date. Setting materialized=false on all is also important
+      or the writer would skip materialization, see loop at start of
+      TABLE_LIST::materialize_derived()).
+      There is one "recursive table" which we don't find here: it's the
+      UNION DISTINCT tmp table. It's reset in unit::execute() of the unit
+      which is the body of the CTE.
+    */
+  }
+  return false;
 }
 
 /**
@@ -967,7 +1016,12 @@ class Recursive_executor {
       DBUG_ASSERT(tl && tl->table &&
                   // returns rows in insertion order:
                   tl->table->s->primary_key == MAX_KEY);
-      if (open_tmp_table(tl->table)) return true; /* purecov: inspected */
+      /*
+        Instantiate in engine; it may already be, if this is a correlated
+        recursive CTE which we're re-materializing.
+      */
+      if (!tl->table->is_created() && open_tmp_table(tl->table))
+        return true; /* purecov: inspected */
     }
     unit->got_all_recursive_rows = false;
     table = table_arg;
@@ -1096,7 +1150,7 @@ class Recursive_executor {
 
 bool SELECT_LEX_UNIT::execute(THD *thd) {
   DBUG_ENTER("SELECT_LEX_UNIT::exec");
-  DBUG_ASSERT(!is_simple() && is_optimized());
+  DBUG_ASSERT(is_optimized());
 
   if (is_executed() && !uncacheable) DBUG_RETURN(false);
 
@@ -1108,6 +1162,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   Change_current_select save_select(thd);
 
   if (is_executed()) {
+    if (clear_corr_ctes()) return true;
     for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
       if (sl->join->is_executed()) {
         thd->lex->set_current_select(sl);
@@ -1117,6 +1172,15 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         thd->lex->set_current_select(fake_select_lex);
         fake_select_lex->join->reset();
       }
+    }
+    if (table && table->is_created())  // reset UNION tmp table
+    {
+      if (union_result->reset()) DBUG_RETURN(true); /* purecov: inspected */
+      table->file->info(HA_STATUS_VARIABLE);
+      if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
+        DBUG_RETURN(true);    /* purecov: inspected */
+      if (table->hash_field)  // Prepare for duplicate elimination
+        table->file->ha_index_init(0, false);
     }
   }
 
@@ -1129,14 +1193,16 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     if (item->assigned()) {
       item->assigned(false);  // Prepare for re-execution of this unit
       item->reset();
-      if (table->is_created()) {
-        table->file->ha_delete_all_rows();
-        table->file->info(HA_STATUS_VARIABLE);
-      }
     }
-    // re-enable indexes for next subquery execution
-    if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
-      DBUG_RETURN(true); /* purecov: inspected */
+  }
+
+  if (is_simple()) {  // one single SELECT, shorter path
+    thd->lex->set_current_select(first_select());
+    set_limit(thd, first_select());
+    JOIN *join = first_select()->join;
+    DBUG_ASSERT(join && join->is_optimized());
+    join->exec();
+    DBUG_RETURN(join->error);
   }
 
   Recursive_executor recursive_executor(this, thd);
@@ -1167,7 +1233,8 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
 
       if (status) DBUG_RETURN(true);
 
-      if (union_result->flush()) DBUG_RETURN(true); /* purecov: inspected */
+      if (union_result && union_result->flush())
+        DBUG_RETURN(true); /* purecov: inspected */
     }
 
     if (fake_select_lex != NULL) {
@@ -1191,7 +1258,6 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   } while (recursive_executor.more_iterations());
 
   if (fake_select_lex) {
-    fake_select_lex->table_list.empty();
     int error = table->file->info(HA_STATUS_VARIABLE);
     if (error) {
       table->file->print_error(error, MYF(0)); /* purecov: inspected */
@@ -1226,12 +1292,10 @@ bool SELECT_LEX_UNIT::cleanup(bool full) {
     error |= sl->cleanup(full);
 
   if (fake_select_lex) {
-    /*
-      Normally done at end of evaluation, but not if there was an
-      error:
-    */
-    fake_select_lex->table_list.empty();
-    fake_select_lex->recursive_reference = nullptr;
+    if (full) {
+      fake_select_lex->table_list.empty();
+      fake_select_lex->recursive_reference = nullptr;
+    }
     error |= fake_select_lex->cleanup(full);
   }
 
@@ -1362,6 +1426,54 @@ const Query_result *SELECT_LEX_UNIT::recursive_result(
 
 bool SELECT_LEX_UNIT::mixed_union_operators() const {
   return union_distinct && union_distinct->next_select();
+}
+
+/**
+  Fix used tables information for a subquery after query transformations.
+  Most actions here involve re-resolving information for conditions
+  and items belonging to the subquery.
+  Notice that the usage information from underlying expressions is not
+  propagated to the subquery's predicate/table, as it belongs to inner layers
+  of the query operator structure.
+  However, when underlying expressions contain outer references into
+  a select_lex on this level, the relevant information must be updated
+  when these expressions are resolved.
+*/
+void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
+                                        SELECT_LEX *removed_select)
+
+{
+  /*
+    Go through all query specification objects of the subquery and re-resolve
+    all relevant expressions belonging to them.
+    Item_ident::fix_after_pullout() will update used_tables for the Item_ident
+    and also for its containing subqueries.
+  */
+  for (SELECT_LEX *sel = first_select(); sel; sel = sel->next_select()) {
+    if (sel->where_cond())
+      sel->where_cond()->fix_after_pullout(parent_select, removed_select);
+
+    if (sel->having_cond())
+      sel->having_cond()->fix_after_pullout(parent_select, removed_select);
+
+    List_iterator<Item> li(sel->item_list);
+    Item *item;
+    while ((item = li++))
+      item->fix_after_pullout(parent_select, removed_select);
+
+    /*
+      No need to call fix_after_pullout() for outer-join conditions, as these
+      cannot have outer references.
+    */
+
+    /* Re-resolve ORDER BY and GROUP BY fields */
+
+    for (ORDER *order = sel->order_list.first; order; order = order->next)
+      (*order->item)->fix_after_pullout(parent_select, removed_select);
+
+    for (ORDER *group = sel->group_list.first; group; group = group->next)
+      (*group->item)->fix_after_pullout(parent_select, removed_select);
+  }
 }
 
 /**

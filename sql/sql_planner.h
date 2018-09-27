@@ -1,7 +1,7 @@
 #ifndef SQL_PLANNER_INCLUDED
 #define SQL_PLANNER_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "my_inttypes.h"
 #include "my_table_map.h"
 
+class Cost_model_server;
 class JOIN;
 class JOIN_TAB;
 class Key_use;
@@ -112,6 +113,13 @@ class Optimize_table_order {
   /// True if we found a complete plan using only allowed semijoin strategies.
   bool found_plan_with_allowed_sj;
 
+  /**
+    False/true at start/end of choose_table_order().
+    Helps member functions know if current plan is in join->positions or
+    join->best_positions.
+  */
+  bool got_final_plan;
+
   inline Key_use *find_best_ref(const JOIN_TAB *tab,
                                 const table_map remaining_tables,
                                 const uint idx, const double prefix_rowcount,
@@ -130,7 +138,7 @@ class Optimize_table_order {
                         const double prefix_rowcount, POSITION *pos);
   bool semijoin_loosescan_fill_driving_table_position(
       const JOIN_TAB *s, table_map remaining_tables, uint idx,
-      POSITION *loose_scan_pos);
+      double prefix_rowcount, POSITION *loose_scan_pos);
   bool check_interleaving_with_nj(JOIN_TAB *next_tab);
   void advance_sj_state(table_map remaining_tables, const JOIN_TAB *tab,
                         uint idx);
@@ -146,17 +154,21 @@ class Optimize_table_order {
   bool fix_semijoin_strategies();
   bool semijoin_firstmatch_loosescan_access_paths(uint first_tab, uint last_tab,
                                                   table_map remaining_tables,
-                                                  bool loosescan, bool final,
+                                                  bool loosescan,
                                                   double *newcount,
                                                   double *newcost);
   void semijoin_mat_scan_access_paths(uint last_inner_tab, uint last_outer_tab,
                                       table_map remaining_tables,
-                                      TABLE_LIST *sjm_nest, bool final,
-                                      double *newcount, double *newcost);
+                                      TABLE_LIST *sjm_nest, double *newcount,
+                                      double *newcost);
   void semijoin_mat_lookup_access_paths(uint last_inner, TABLE_LIST *sjm_nest,
                                         double *newcount, double *newcost);
   void semijoin_dupsweedout_access_paths(uint first_tab, uint last_tab,
                                          double *newcount, double *newcost);
+
+  double lateral_derived_cost(const JOIN_TAB *tab, const uint idx,
+                              const double prefix_rowcount,
+                              const Cost_model_server *cost_model);
 
   static uint determine_search_depth(uint search_depth, uint table_count);
 };

@@ -5444,8 +5444,20 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   node->m_is_derived_table = true;
   auto wc_save = wc->enter_parsing_definition(tl);
 
+  /*
+    The proper outer context for the CTE, is not the query block where the CTE
+    reference is; neither is it the outer query block of this. It is the query
+    block which immediately contains the query expression where the CTE
+    definition is. Indeed, per the standard, evaluation of the CTE happens
+    as first step of evaluation of the said query expression; so the CTE may
+    not contain references into the said query expression.
+  */
+  thd->lex->push_context(unit->outer_select() ? &unit->outer_select()->context
+                                              : nullptr);
   DBUG_ASSERT(thd->lex->will_contextualize);
   if (node->contextualize(pc)) return true;
+
+  thd->lex->pop_context();
 
   wc->leave_parsing_definition(wc_save);
   parsing_place = CTX_NONE;

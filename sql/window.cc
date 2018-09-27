@@ -1293,11 +1293,7 @@ void Window::reset_execution_state(Reset_level level) {
       }
     // fall-through
     case RL_ROUND:
-      if (m_frame_buffer != nullptr && m_frame_buffer->is_created()) {
-        (void)m_frame_buffer->file->ha_index_or_rnd_end();
-        m_frame_buffer->file->extra(HA_EXTRA_RESET_STATE);
-        m_frame_buffer->file->ha_delete_all_rows();
-      }
+      if (m_frame_buffer != nullptr) (void)m_frame_buffer->empty_result_table();
       m_frame_buffer_total_rows = 0;
       m_frame_buffer_partition_offset = 0;
       m_part_row_number = 0;

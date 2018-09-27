@@ -2718,8 +2718,10 @@ DROP TABLE users;
 
 CREATE TABLE t(a INTEGER) engine=innodb;
 INSERT INTO t VALUES(1);
---error ER_INVALID_GROUP_FUNC_USE
+--echo # Per MySQL rules, SUM(1) is aggregated in top query
+--echo # (can't be in WHERE, in FROM)
 SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t);
 DROP TABLE t;
 
 --echo # Bug#23074801: Delete from joined tables with where using derived table

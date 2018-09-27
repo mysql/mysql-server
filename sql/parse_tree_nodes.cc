@@ -1012,10 +1012,11 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
   return false;
 }
 
-PT_derived_table::PT_derived_table(PT_subquery *subquery,
+PT_derived_table::PT_derived_table(bool lateral, PT_subquery *subquery,
                                    const LEX_CSTRING &table_alias,
                                    Create_col_name_list *column_names)
-    : m_subquery(subquery),
+    : m_lateral(lateral),
+      m_subquery(subquery),
       m_table_alias(table_alias.str),
       column_names(*column_names) {
   m_subquery->m_is_derived_table = true;
@@ -1027,7 +1028,23 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
   outer_select->parsing_place = CTX_DERIVED;
   DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);
 
+  /*
+    Determine the first outer context to try for the derived table:
+    - if lateral: context of query which owns the FROM i.e. outer_select
+    - if not lateral: context of query outer to query which owns the FROM.
+    This is just a preliminary decision. Name resolution
+    {Item_field,Item_ref}::fix_fields() may use or ignore this outer context
+    depending on where the derived table is placed in it.
+  */
+  if (!m_lateral)
+    pc->thd->lex->push_context(
+        outer_select->master_unit()->outer_select()
+            ? &outer_select->master_unit()->outer_select()->context
+            : nullptr);
+
   if (m_subquery->contextualize(pc)) return true;
+
+  if (!m_lateral) pc->thd->lex->pop_context();
 
   outer_select->parsing_place = CTX_NONE;
 
@@ -1042,6 +1059,10 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
                                         MDL_SHARED_READ);
   if (value == NULL) return true;
   if (column_names.size()) value->set_derived_column_names(&column_names);
+  if (m_lateral) {
+    // Mark the unit as LATERAL, by turning on one bit in the map:
+    value->derived_unit()->m_lateral_deps = OUTER_REF_TABLE_BIT;
+  }
   if (pc->select->add_joined_table(value)) return true;
 
   return false;

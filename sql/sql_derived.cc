@@ -55,6 +55,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_resolver.h"   // check_right_lateral_join
 #include "sql/sql_tmp_table.h"  // Tmp tables
 #include "sql/sql_union.h"      // Query_result_union
 #include "sql/sql_view.h"       // check_duplicate_names
@@ -262,22 +263,16 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   DBUG_ENTER("TABLE_LIST::resolve_derived");
 
   /*
-    Helper class which takes care of restoration of THD::LEX::allow_sum_func
-    and THD::derived_tables_processing. These members are changed in this
+    Helper class which takes care of restoration of members like
+    THD::derived_tables_processing. These members are changed in this
     method scope for resolving derived tables.
   */
   class Context_handler {
    public:
     Context_handler(THD *thd)
         : m_thd(thd),
-          m_allow_sum_func_saved(thd->lex->allow_sum_func),
           m_deny_window_func_saved(thd->lex->m_deny_window_func),
           m_derived_tables_processing_saved(thd->derived_tables_processing) {
-      /*
-        Since derived tables do not allow outer references, they cannot allow
-        aggregation to occur in any outer query blocks.
-      */
-      m_thd->lex->allow_sum_func = 0;
       /*
         Window functions are allowed; they're aggregated in the derived
         table's definition.
@@ -287,7 +282,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     }
 
     ~Context_handler() {
-      m_thd->lex->allow_sum_func = m_allow_sum_func_saved;
       m_thd->lex->m_deny_window_func = m_deny_window_func_saved;
       m_thd->derived_tables_processing = m_derived_tables_processing_saved;
     }
@@ -295,9 +289,6 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
    private:
     // Thread handle.
     THD *m_thd;
-
-    // Saved state of THD::LEX::allow_sum_func.
-    nesting_map m_allow_sum_func_saved;
 
     // Saved state of THD::LEX::m_deny_window_func.
     nesting_map m_deny_window_func_saved;
@@ -312,16 +303,20 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   // Dummy derived tables for recursive references disappear before this stage
   DBUG_ASSERT(this != select_lex->recursive_reference);
 
+  if (is_derived() && derived->m_lateral_deps)
+    select_lex->end_lateral_table = this;
+
   Context_handler ctx_handler(thd);
 
   if (derived->prepare_limit(thd, derived->global_parameters()))
     DBUG_RETURN(true); /* purecov: inspected */
 
-#ifndef DBUG_OFF
-  for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
-    // Make sure there are no outer references
-    DBUG_ASSERT(sl->context.outer_context == NULL);
-  }
+#ifndef DBUG_OFF  // CTEs, derived tables can have outer references
+  if (is_view())  // but views cannot.
+    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+      // Make sure there are no outer references
+      DBUG_ASSERT(sl->context.outer_context == NULL);
+    }
 #endif
 
   if (m_common_table_expr && m_common_table_expr->recursive &&
@@ -446,6 +441,22 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       delete or insert.
     */
     set_privileges(SELECT_ACL);
+
+    if (derived->m_lateral_deps) {
+      select_lex->end_lateral_table = nullptr;
+      derived->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
+      if (derived->m_lateral_deps == 0) {
+        /*
+          Table doesn't depend on tables in the same FROM clause, so it can be
+          evaluated once per execution of the parent query; having the map
+          equal to 0 is like removing the LATERAL word.
+        */
+      } else {
+        propagate_table_maps(0);
+        if (check_right_lateral_join(this, derived->m_lateral_deps))
+          DBUG_RETURN(true);
+      }
+    }
   }
 
   DBUG_RETURN(false);
@@ -569,6 +580,8 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   // Table is "nullable" if inner table of an outer_join
   if (is_inner_table_of_outer_join()) table->set_nullable();
 
+  dep_tables |= derived->m_lateral_deps;
+
   DBUG_RETURN(false);
 }
 
@@ -636,6 +649,14 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
 
   set_uses_materialization();
 
+  /*
+    A table function has name resolution context of query which owns FROM
+    clause. So it automatically is LATERAL. This end_lateral_table is to
+    make sure a table function won't access tables located after it in FROM
+    clause.
+  */
+  select_lex->end_lateral_table = this;
+
   if (table_function->init()) DBUG_RETURN(true);
 
   // Create the result table for the materialization
@@ -671,6 +692,13 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   trace_derived.add_utf8_table(this)
       .add_utf8("function_name", func_name, func_name_len)
       .add("materialized", true);
+
+  select_lex->end_lateral_table = nullptr;
+
+  propagate_table_maps(0);
+  if (check_right_lateral_join(this, table_function->used_tables()))
+    DBUG_RETURN(true);
+
   thd->where = saved_where;
 
   DBUG_RETURN(false);
@@ -808,7 +836,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   /*
     The with-recursive algorithm needs the table scan to return rows in
     insertion order.
-    For MEMORY it is true.
+    For MEMORY and Temptable it is true.
     For InnoDB: InnoDB's table scan returns rows in PK order. If the PK
     is (not) the autogenerated autoincrement InnoDB ROWID, PK order will (not)
     be the same as insertion order.
@@ -817,25 +845,9 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   DBUG_ASSERT(table->s->primary_key == MAX_KEY);
 
   SELECT_LEX_UNIT *const unit = derived_unit();
-  bool res = false;
 
-  if (unit->is_union()) {
-    // execute union without clean up
-    res = unit->execute(thd);
-  } else {
-    SELECT_LEX *first_select = unit->first_select();
-    JOIN *join = first_select->join;
-    SELECT_LEX *save_current_select = thd->lex->current_select();
-    thd->lex->set_current_select(first_select);
-
-    DBUG_ASSERT(join && join->is_optimized());
-
-    unit->set_limit(thd, first_select);
-
-    join->exec();
-    res = join->error;
-    thd->lex->set_current_select(save_current_select);
-  }
+  // execute unit without cleaning up
+  bool res = unit->execute(thd);
 
   if (!res) {
     /*

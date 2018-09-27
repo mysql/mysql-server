@@ -302,8 +302,8 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   Create_col_name_list column_names;
   column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table = new (m_thd->mem_root)
-      PT_derived_table(sub_query, to_lex_cstring(table_alias), &column_names);
+  derived_table = new (m_thd->mem_root) PT_derived_table(
+      false, sub_query, to_lex_cstring(table_alias), &column_names);
 
   return derived_table;
 }

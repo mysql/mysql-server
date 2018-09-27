@@ -384,20 +384,20 @@ bool mysqld_show_privileges(THD *thd) {
     protocol->store(privilege->comment, system_charset_info);
     if (protocol->end_row()) DBUG_RETURN(true);
   }
-  if (iterate_all_dynamic_privileges(
-          thd,
-          /*
-            For each registered dynamic privilege send a strz to
-            this lambda function.
-          */
-          [&](const char *c) -> bool {
-            protocol->start_row();
-            protocol->store(c, system_charset_info);
-            protocol->store("Server Admin", system_charset_info);
-            protocol->store("", system_charset_info);
-            if (protocol->end_row()) return true;
-            return false;
-          })) {
+  if (iterate_all_dynamic_privileges(thd,
+                                     /*
+                                       For each registered dynamic privilege
+                                       send a strz to this lambda function.
+                                     */
+                                     [&](const char *c) -> bool {
+                                       protocol->start_row();
+                                       protocol->store(c, system_charset_info);
+                                       protocol->store("Server Admin",
+                                                       system_charset_info);
+                                       protocol->store("", system_charset_info);
+                                       if (protocol->end_row()) return true;
+                                       return false;
+                                     })) {
     DBUG_RETURN(true);
   }
   my_eof(thd);

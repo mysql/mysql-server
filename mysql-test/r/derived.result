@@ -1482,7 +1482,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1)
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk` from ((/* select#3 */ select count(`test`.`t2`.`col_varchar_nokey`) AS `COUNT(col_varchar_nokey)` from `test`.`t2`) `d`) where (`d`.`COUNT(col_varchar_nokey)` = 2)
+Note	1003	/* select#1 */ select '1' AS `pk` from <constant table> semi join ((/* select#3 */ select count(`test`.`t2`.`col_varchar_nokey`) AS `COUNT(col_varchar_nokey)` from `test`.`t2`) `d`) where (`d`.`COUNT(col_varchar_nokey)` = 2)
 DROP TABLE t1,t2;
 #
 #
@@ -3912,8 +3912,14 @@ DROP TABLE users;
 #              aggr_select != removed_select
 CREATE TABLE t(a INTEGER) engine=innodb;
 INSERT INTO t VALUES(1);
+# Per MySQL rules, SUM(1) is aggregated in top query
+# (can't be in WHERE, in FROM)
 SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
-ERROR HY000: Invalid use of group function
+(SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t)
+1
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t);
+(SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(0)) AS t)
+NULL
 DROP TABLE t;
 # Bug#23074801: Delete from joined tables with where using derived table
 #               fails with error 1093

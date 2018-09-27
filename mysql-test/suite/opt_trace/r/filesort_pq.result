@@ -6234,6 +6234,13 @@ LIMIT 30	{
             }
           },
           {
+            "view": {
+              "table": "`v1`",
+              "select#": 2,
+              "materialized": true
+            }
+          },
+          {
             "join_preparation": {
               "select#": 3,
               "steps": [
@@ -6241,13 +6248,6 @@ LIMIT 30	{
                   "expanded_query": "/* select#3 */ select `t1`.`f0` AS `f0`,`t1`.`f1` AS `f1`,`t1`.`f2` AS `f2` from `t1` order by `t1`.`f2`,`t1`.`f0` limit 100"
                 }
               ]
-            }
-          },
-          {
-            "view": {
-              "table": "`v1`",
-              "select#": 2,
-              "materialized": true
             }
           },
           {

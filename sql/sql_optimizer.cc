@@ -261,6 +261,8 @@ int JOIN::optimize() {
     }
   }
 
+  has_lateral = false;
+
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
   row_limit =
@@ -593,6 +595,7 @@ int JOIN::optimize() {
     }
 
     bool simple_sort = true;
+    Deps_of_remaining_lateral_derived_tables deps_lateral(this);
     // Check whether join cache could be used
     for (uint i = const_tables; i < tables; i++) {
       JOIN_TAB *const tab = best_ref[i];
@@ -601,6 +604,7 @@ int JOIN::optimize() {
       if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE) simple_sort = false;
       DBUG_ASSERT(tab->type() != JT_FT ||
                   tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
+      deps_lateral.recalculate(tab, i + 1);
     }
     if (!simple_sort) {
       /*
@@ -2711,6 +2715,17 @@ bool JOIN::get_best_combination() {
   DBUG_RETURN(false);
 }
 
+void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(uint idx) {
+  DBUG_ASSERT(has_lateral);
+  deps_of_remaining_lateral_derived_tables = 0;
+  auto last = best_ref + tables;
+  for (auto **pos = best_ref + idx; pos < last; pos++) {
+    if ((*pos)->table_ref && (*pos)->table_ref->is_derived())
+      deps_of_remaining_lateral_derived_tables |=
+          (*pos)->table_ref->derived_unit()->m_lateral_deps;
+  }
+}
+
 /*
   Revise usage of join buffer for the specified table and the whole nest
 
@@ -2949,6 +2964,33 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
   if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
       tab->is_inner_table_of_outer_join())
     goto no_join_cache;
+
+  if (join->deps_of_remaining_lateral_derived_tables &
+      (tab->prefix_tables() & ~tab->added_tables())) {
+    /*
+      Even though the planner said "no jbuf please", the switch below may
+      force it.
+      If first-dependency-of-lateral-table < table-we-plan-for <=
+      lateral-table, disable join buffering.
+      Reason for this rule:
+      consider a plan t1-t2-dt where dt is LATERAL and depends only on t1, and
+      imagine t2 could do join buffering: then we buffer many rows of t1, then
+      read one row of t2, fetch row#1 of t1 from cache, then materialize "dt"
+      (as it depends on t1) and send row to client; then fetch row#2 of t1
+      from cache, rematerialize "dt": it's very inefficient. So we forbid join
+      buffering on t2; this way, the signal "row of t1 changed" is emitted at
+      the level of t1's operator, i.e. much less often, as one row of t1 may
+      serve N rows of t2 before changing.
+      On the other hand, t1 can do join buffering.
+      A nice side-effect is to disable join buffering for "dt" itself. If
+      "dt" would do join buffering: "dt" buffers many rows from t1/t2, then in a
+      second phase we read one row from "dt" and join it with the many rows
+      from t1/t2; but we cannot read a row from "dt" without first choosing a
+      row of t1/t2 as "dt" depends on t1.
+      See similar code in best_access_path().
+    */
+    goto no_join_cache;
+  }
 
   switch (tab->type()) {
     case JT_ALL:
@@ -4824,6 +4866,10 @@ bool JOIN::init_planner_arrays() {
            embedding = embedding->embedding)
         tab->embedding_map |= embedding->nested_join->nj_map;
     }
+
+    if (tl->is_derived() && tl->derived_unit()->m_lateral_deps)
+      has_lateral = true;
+
     tables++;  // Count number of initialized tables
   }
 
@@ -10378,7 +10424,7 @@ void JOIN::refine_best_rowcount() {
   */
   if (best_rowcount <= 1 &&
       select_lex->master_unit()->first_select()->linkage == DERIVED_TABLE_TYPE)
-    best_rowcount = 2;
+    best_rowcount = PLACEHOLDER_TABLE_ROW_ESTIMATE;
 
   /*
     There will be no more rows than defined in the LIMIT clause. Use it

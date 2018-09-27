@@ -2886,6 +2886,13 @@ TRACE
             } /* join_preparation */
           },
           {
+            "derived": {
+              "table": "`q`",
+              "select#": 2,
+              "materialized": true
+            } /* derived */
+          },
+          {
             "join_preparation": {
               "select#": 4,
               "steps": [
@@ -2904,13 +2911,6 @@ TRACE
                 }
               ] /* steps */
             } /* join_preparation */
-          },
-          {
-            "derived": {
-              "table": "`q`",
-              "select#": 2,
-              "materialized": true
-            } /* derived */
           },
           {
             "derived": {

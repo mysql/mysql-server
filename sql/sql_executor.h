@@ -427,7 +427,8 @@ class QEP_TAB : public QEP_shared_owner {
         m_quick_optim(NULL),
         m_keyread_optim(false),
         m_reversed_access(false),
-        m_fetched_rows(0) {}
+        m_fetched_rows(0),
+        lateral_derived_tables_depend_on_me(0) {}
 
   /// Initializes the object from a JOIN_TAB
   void init(JOIN_TAB *jt);
@@ -468,6 +469,12 @@ class QEP_TAB : public QEP_shared_owner {
   bool finishes_weedout() const { return check_weed_out_table; }
 
   bool prepare_scan();
+
+  /**
+     Instructs each lateral derived table depending on this QEP_TAB, to
+     rematerialize itself before emitting rows.
+  */
+  void refresh_lateral();
 
   /**
     A helper function that allocates appropriate join cache object and
@@ -664,6 +671,16 @@ class QEP_TAB : public QEP_shared_owner {
     reset to 0 by JOIN::reset().
   */
   ha_rows m_fetched_rows;
+
+  /**
+     Maps of all lateral derived tables which should be refreshed when
+     execution reads a new row from this table.
+     @note that if a LDT depends on t1 and t2, and t2 is after t1 in the plan,
+     then only t2::lateral_derived_tables_depend_on_me gets the map of the
+     LDT, for efficiency (less useless calls to QEP_TAB::refresh_lateral())
+     and clarity in EXPLAIN.
+  */
+  table_map lateral_derived_tables_depend_on_me;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined

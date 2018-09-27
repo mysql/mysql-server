@@ -1227,13 +1227,13 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> REFERENCE_SYM                 /* MYSQL */
 %token<keyword> ACTIVE_SYM                    /* MYSQL */
 %token<keyword> INACTIVE_SYM                  /* MYSQL */
+%token          LATERAL_SYM                   /* SQL-1999-R */
 %token<keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
 %token<keyword> RETAIN_SYM                    /* MYSQL */
 %token<keyword> OLD_SYM                       /* SQL-2003-R */
-
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -10887,7 +10887,15 @@ derived_table:
               my_message(ER_DERIVED_MUST_HAVE_ALIAS,
                          ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-            $$= NEW_PTN PT_derived_table($1, $2, &$3);
+            $$= NEW_PTN PT_derived_table(false, $1, $2, &$3);
+          }
+        | LATERAL_SYM table_subquery opt_table_alias opt_derived_column_list
+          {
+            if ($3.str == nullptr)
+              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
+
+            $$= NEW_PTN PT_derived_table(true, $2, $3, &$4);
           }
         ;
 

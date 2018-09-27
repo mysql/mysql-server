@@ -1910,6 +1910,7 @@ bool Query_result_update::optimize() {
            tmp_unit = tmp_unit->next_unit()) {
         for (sl = tmp_unit->first_select(); sl; sl = sl->next_select()) {
           if (sl->master_unit()->item) {
+            // Prevent early freeing in JOIN::join_free()
             select->uncacheable |= UNCACHEABLE_CHECKOPTION;
             goto loop_end;
           }

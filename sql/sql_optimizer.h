@@ -184,6 +184,7 @@ class JOIN {
         qep_tab(NULL),
         best_ref(NULL),
         map2table(NULL),
+        map2qep_tab(NULL),
         sort_by_table(NULL),
         tables(0),
         primary_tables(0),
@@ -199,6 +200,7 @@ class JOIN {
         // Inner tables may always be considered to be constant:
         const_table_map(INNER_TABLE_BIT),
         found_const_table_map(INNER_TABLE_BIT),
+        deps_of_remaining_lateral_derived_tables(0),
         send_records(0),
         found_records(0),
         examined_rows(0),
@@ -231,6 +233,7 @@ class JOIN {
         m_ordered_index_usage(ORDERED_INDEX_VOID),
         skip_sort_order(false),
         need_tmp_before_win(false),
+        has_lateral(false),
         keyuse_array(thd->mem_root),
         all_fields(select->all_fields),
         fields_list(select->fields_list),
@@ -303,7 +306,8 @@ class JOIN {
     The optimizer reorders best_ref.
   */
   JOIN_TAB **best_ref;
-  JOIN_TAB **map2table;  ///< mapping between table indexes and JOIN_TABs
+  JOIN_TAB **map2table;   ///< mapping between table indexes and JOIN_TABs
+  QEP_TAB **map2qep_tab;  ///< mapping between table indexes and QEB_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
@@ -367,6 +371,13 @@ class JOIN {
      rest of execution (a NULL-complemented row will be used).
   */
   table_map found_const_table_map;
+  /**
+     Used in some loops which scan the JOIN's tables: it is the bitmap of all
+     tables which are dependencies of lateral derived tables which the loop
+     has not yet processed.
+  */
+  table_map deps_of_remaining_lateral_derived_tables;
+
   /* Number of records produced after join + group operation */
   ha_rows send_records;
   ha_rows found_records;
@@ -481,6 +492,9 @@ class JOIN {
     See details in JOIN::optimize
   */
   bool need_tmp_before_win;
+
+  /// If JOIN has lateral derived tables (is set at start of planning)
+  bool has_lateral;
 
   /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
@@ -815,6 +829,10 @@ class JOIN {
                             bool force_stable_sort = false);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
+  /// Updates deps_of_remaining_lateral_derived_tables
+  void recalculate_deps_of_remaining_lateral_derived_tables(uint idx);
+  bool clear_corr_derived_tmp_tables();
+
   void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN
   enum enum_plan_state {
@@ -1125,5 +1143,48 @@ inline bool field_time_cmp_date(const Field *f, const Item *v) {
 
 bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
                    ORDER *group_list, ORDER *order);
+
+/// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
+class Deps_of_remaining_lateral_derived_tables {
+  JOIN *join;
+  table_map saved;
+
+ public:
+  Deps_of_remaining_lateral_derived_tables(JOIN *j)
+      : join(j), saved(join->deps_of_remaining_lateral_derived_tables) {}
+  ~Deps_of_remaining_lateral_derived_tables() { restore(); }
+  void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
+  void assert_unchanged() {
+    DBUG_ASSERT(join->deps_of_remaining_lateral_derived_tables == saved);
+  }
+  void recalculate(uint next_idx) {
+    if (join->has_lateral)
+      /*
+        No cur_tab given, so assume we start from a place in the plan which
+        may be backward or forward compared to where we were before:
+        recalculate.
+      */
+      join->recalculate_deps_of_remaining_lateral_derived_tables(next_idx);
+  }
+
+  void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
+    /*
+      We have just added cur_tab to the plan; if it's not lateral, the map
+      doesn't change, no need to recalculate it.
+    */
+    if (join->has_lateral && cur_tab->table_ref->is_derived() &&
+        cur_tab->table_ref->derived_unit()->m_lateral_deps)
+      recalculate(next_idx);
+  }
+  void init() {
+    // Normally done once in a run of JOIN::optimize().
+    if (join->has_lateral) {
+      recalculate(join->const_tables);
+      // Forget stale value:
+      saved = join->deps_of_remaining_lateral_derived_tables;
+      DBUG_ASSERT(saved != 0);
+    }
+  }
+};
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

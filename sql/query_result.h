@@ -56,9 +56,14 @@ class Query_result {
     Valid only for materialized derived tables/views.
   */
   ha_rows estimated_rowcount;
+  /**
+    Cost to execute the subquery which produces this result.
+    Valid only for materialized derived tables/views.
+  */
+  double estimated_cost;
 
   Query_result(THD *thd_arg)
-      : thd(thd_arg), unit(NULL), estimated_rowcount(0) {}
+      : thd(thd_arg), unit(NULL), estimated_rowcount(0), estimated_cost(0) {}
   virtual ~Query_result() {}
 
   virtual bool needs_file_privilege() const { return false; }
@@ -131,6 +136,15 @@ class Query_result {
     return true;
   }
   virtual void abort_result_set() {}
+  /**
+    Cleanup after one execution of the unit, to be ready for a next execution
+    inside the same statement.
+    @returns true if error
+  */
+  virtual bool reset() {
+    DBUG_ASSERT(0);
+    return false;
+  }
   /**
     Cleanup after this execution. Completes the execution and resets object
     before next execution of a prepared statement/stored procedure.

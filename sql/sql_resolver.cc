@@ -93,7 +93,6 @@ static bool simplify_const_condition(THD *thd, Item **cond,
 
 static const Item::enum_walk walk_subquery =
     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
-static bool check_right_lateral_join(TABLE_LIST *table_ref);
 
 /**
   Prepare query block for optimization.
@@ -214,15 +213,6 @@ bool SELECT_LEX::prepare(THD *thd) {
     if (derived_table_count && !thd->derived_tables_processing &&
         check_view_privileges(thd, SELECT_ACL, SELECT_ACL))
       DBUG_RETURN(true);
-  }
-
-  if (table_func_count) {
-    for (TABLE_LIST *tl = leaf_tables; tl; tl = tl->next_leaf) {
-      tl->propagate_table_maps(0);
-      if (tl->is_table_function()) {
-        if (check_right_lateral_join(tl)) DBUG_RETURN(true);
-      }
-    }
   }
 
   is_item_list_lookup = true;
@@ -491,18 +481,24 @@ bool SELECT_LEX::prepare(THD *thd) {
 }
 
 /**
-  Check whether the given table function depends on a table it's RIGHT JOINed
-  to. An error is thrown if such dependency is found.
+  Check whether the given table function or lateral derived table depends on a
+  table which it's RIGHT JOINed to. An error is thrown if such dependency is
+  found. For example:
+  T RIGHT JOIN [lateral derived depending on T].
+  Note that there is no need to look for the symmetric situation:
+  [lateral derived depending on T] LEFT JOIN T
+  because name resolution in the lateral derived table's body stops before T.
 
-  @param table_ref  Table representing the table function
+  @param table_ref  Table representing the table function or lateral derived
+                    table
+  @param map        Tables on which table_ref depends.
 
   @returns
     false no dependency is found
     true  otherwise
 */
 
-static bool check_right_lateral_join(TABLE_LIST *table_ref) {
-  table_map map = table_ref->table_function->used_tables();
+bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map) {
   TABLE_LIST *orig_table = table_ref;
 
   for (; table_ref->embedding && map; table_ref = table_ref->embedding) {
@@ -1039,7 +1035,7 @@ bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
     non-JSON_TABLE tables, a second time for JSON_TABLE.
     @todo remove this in WL#6570.
   */
-  bool do_tf = false;
+  bool do_tf_lateral = false;
 
 loop:
 
@@ -1048,45 +1044,35 @@ loop:
     if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
         tl->is_merged())
       continue;
-    if (tl->is_table_function() ^ do_tf) continue;
+    if ((tl->is_table_function() ||
+         (tl->is_derived() && tl->derived_unit()->m_lateral_deps)) ^
+        do_tf_lateral)
+      continue;
     if (tl->resolve_derived(thd, apply_semijoin)) DBUG_RETURN(true);
-  }
-
-  /*
-    Merge the derived tables that do not require materialization into
-    the current query block, if possible.
-    Merging is only done once and must not be repeated for prepared execs.
-  */
-  if (!thd->lex->is_view_context_analysis() && first_execution) {
-    for (TABLE_LIST *tl = get_table_list(); tl; tl = tl->next_local) {
-      if ((!tl->is_view_or_derived() && !tl->is_table_function()) ||
-          tl->is_merged() || !tl->is_mergeable())
-        continue;
-      if (tl->is_table_function() ^ do_tf) continue;
-      if (merge_derived(thd, tl)) DBUG_RETURN(true); /* purecov: inspected */
+    /*
+      Merge the derived tables that do not require materialization into
+      the current query block, if possible.
+      Merging is only done once and must not be repeated for prepared execs.
+    */
+    if (!thd->lex->is_view_context_analysis() && first_execution) {
+      if (tl->is_mergeable() && merge_derived(thd, tl))
+        DBUG_RETURN(true); /* purecov: inspected */
     }
-  }
-
-  // Prepare remaining derived tables for materialization
-  for (TABLE_LIST *tl = get_table_list(); tl; tl = tl->next_local) {
+    if (tl->is_merged()) continue;
+    // Prepare remaining derived tables for materialization
     // Ensure that any derived table is merged or materialized after prepare:
     DBUG_ASSERT(first_execution || !tl->is_view_or_derived() ||
                 tl->is_merged() || tl->uses_materialization() ||
                 tl->is_table_function());
-    if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
-        tl->is_merged())
-      continue;
-    if (tl->is_table_function() ^ do_tf) continue;
     /*
       If tl->resolve_derived() created the tmp table, don't create it again.
       @todo in WL#6570, eliminate tests of tl->table in this function.
     */
     if (tl->is_table_function()) {
-      end_lateral_table = tl;
       if (tl->setup_table_function(thd)) DBUG_RETURN(true);
-      end_lateral_table = NULL;
       continue;
-    } else if (tl->table == nullptr && tl->setup_materialized_derived(thd))
+    }
+    if (tl->table == nullptr && tl->setup_materialized_derived(thd))
       DBUG_RETURN(true);
     materialized_derived_table_count++;
   }
@@ -1103,12 +1089,13 @@ loop:
       if (!(tl->is_view_or_derived() || tl->is_table_function()) ||
           tl->table != NULL)
         continue;
-      if (tl->is_table_function() ^ do_tf) continue;
+      if ((tl->is_table_function() ||
+           (tl->is_derived() && tl->derived_unit()->m_lateral_deps)) ^
+          do_tf_lateral)
+        continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->is_table_function()) {
-        end_lateral_table = tl;
         if (tl->setup_table_function(thd)) DBUG_RETURN(true);
-        end_lateral_table = NULL;
       }
       if (tl->resolve_derived(thd, apply_semijoin))
         DBUG_RETURN(true); /* purecov: inspected */
@@ -1121,8 +1108,8 @@ loop:
     }
   }
 
-  if (!do_tf && table_func_count > 0) {
-    do_tf = true;
+  if (!do_tf_lateral) {
+    do_tf_lateral = true;
     goto loop;
   }
 
@@ -1966,6 +1953,36 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
       fix_tables_after_pullout(parent_select, removed_select, child,
                                table_adjust);
   }
+  if (tr->is_derived() && tr->table &&
+      tr->derived_unit()->uncacheable & UNCACHEABLE_DEPENDENT) {
+    /*
+      It's a materialized derived table which is being pulled up.
+      If it has an outer reference, and this ref belongs to parent_select,
+      then the derived table will need re-materialization as if it were
+      LATERAL, not just once per execution of parent_select.
+      We thus compute its used_tables in the new context, to decide.
+    */
+    SELECT_LEX_UNIT *unit = tr->derived_unit();
+    unit->m_lateral_deps = OUTER_REF_TABLE_BIT;
+    unit->fix_after_pullout(parent_select, removed_select);
+    unit->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
+    tr->dep_tables |= unit->m_lateral_deps;
+    /*
+      If m_lateral_deps!=0, some outer ref is now a neighbour in FROM: we have
+      made 'tr' LATERAL.
+      @todo after WL#6570 when we don't re-resolve, remove this comment.
+      Note that this above gives 'tr' enough "right to look left", but alas
+      also too much of it; e.g.
+      select * from t1, lateral (select * from dt1, dt2) dt3
+      becomes
+      select * from t1, lateral dt1, lateral dt2 :
+      dt2 needs the right to look into t1 and gets it, but also dt2 gets the
+      right to look into dt1, which is too much. But this is only a problem in
+      execution of PS (which does name resolution on the merged query), and
+      cached_table saves the day (tested in derived_correlated.test, search
+      for "prepared stmt"). So there's no problem.
+    */
+  }
 }
 
 /**
@@ -2717,6 +2734,12 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   if (derived_select->ftfunc_list->elements &&
       add_ftfunc_list(derived_select->ftfunc_list))
     DBUG_RETURN(true); /* purecov: inspected */
+
+  /*
+    The "laterality" of this nest is not interesting anymore; it was
+    transferred to underlying tables.
+  */
+  derived_unit->m_lateral_deps = 0;
 
   DBUG_RETURN(false);
 }

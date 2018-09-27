@@ -456,7 +456,9 @@ struct Name_resolution_context {
         table_list(NULL),
         select_lex(NULL),
         view_error_handler_arg(NULL),
-        security_ctx(NULL) {}
+        security_ctx(NULL) {
+    DBUG_PRINT("outer_field", ("creating ctx %p", this));
+  }
 
   void init() {
     resolve_in_select_list = false;

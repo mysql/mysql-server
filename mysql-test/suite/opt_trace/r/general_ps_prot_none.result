@@ -11258,7 +11258,7 @@ explain select * from v1 where id="b"	{
             } /* view */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where (`t1`.`id` = 'b')"
+            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from <constant table> join (`t1`) on((`t1`.`id` < 'c')) where (`t1`.`id` = 'b')"
           },
           {
             "transformations_to_nested_joins": {

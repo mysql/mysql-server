@@ -7600,7 +7600,6 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
   const char *name = item->field_name;
   size_t length = strlen(name);
   char name_buff[NAME_LEN + 1];
-  TABLE_LIST *cur_table = first_table;
   TABLE_LIST *actual_table;
   bool allow_rowid;
 
@@ -7609,7 +7608,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     db = 0;
   }
 
-  allow_rowid = table_name || (cur_table && !cur_table->next_local);
+  allow_rowid = table_name || (first_table && !first_table->next_local);
 
   if (item->cached_table) {
     /*
@@ -7660,13 +7659,37 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     db = name_buff;
   }
 
+  /*
+    @todo after WL#6570 which doesn't re-resolve, remove comment and simplify
+    code (probably back to how it was before WL#8652).
+    It can happen that end_lateral_table is NOT somewhere in the list between
+    first_table and last_table. Indeed, consider:
+    SELECT COUNT(*) FROM t1 GROUP BY t1.a
+    HAVING t1.a IN (SELECT t3.a FROM t1 AS t3
+    WHERE t3.b IN (SELECT b FROM t2, lateral (select t1.a) dt));
+    We resolve the body of 'dt' then we do semijoin transformation:
+    ... HAVING t1.a IN (SELECT FROM t3 SEMIJOIN (t2, dt) ON ...)
+    We save that as prepared statement.
+    Then we execute the statement: when we resolve the body of 'dt' again, we
+    look up the outer reference (t1.a of dt's body) into the FROM clause of
+    the immediate outer query block, which starts at t3. As semijoin
+    transformation doesn't update TABLE_LIST::next_name_resolution_context
+    (see comment in convert_subquery_to_semijoin()), the name resolution
+    context of this FROM is {t3} only.
+    When loop starts, 'last_table' is supposed to mean "stop loop when you
+    meet this table". But the loop will not meet end_lateral_table (dt) so
+    will go wrong.
+    So we refined the condition to "stop loop when you meet this or that
+    table". And added testcase to derived_correlated.test in -ps mode.
+  */
+  TABLE_LIST *last_table2 = nullptr;
   if (first_table && first_table->select_lex &&
       first_table->select_lex->end_lateral_table)
-    last_table = first_table->select_lex->end_lateral_table;
-  else if (last_table)
-    last_table = last_table->next_name_resolution_table;
+    last_table2 = first_table->select_lex->end_lateral_table;
+  if (last_table) last_table = last_table->next_name_resolution_table;
 
-  for (; cur_table != last_table;
+  auto cur_table = first_table;
+  for (; cur_table != last_table && cur_table != last_table2;
        cur_table = cur_table->next_name_resolution_table) {
     Field *cur_field = find_field_in_table_ref(
         thd, cur_table, name, length, item->item_name.ptr(), db, table_name,

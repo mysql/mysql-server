@@ -76,6 +76,7 @@
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Strict_error_handler
 #include "sql/field.h"
+#include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/gis/srid.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // and_conds
@@ -7081,6 +7082,9 @@ bool TABLE_LIST::set_recursive_reference() {
 /**
   Propagate table map of a table up by nested join tree. Used to check
   dependencies for LATERAL JOIN of table functions.
+  simplify_joins() calculates the same information but also does
+  transformations, and we need this semantic check to be earlier than
+  simplify_joins() and before transformations.
 
   @param map_arg  table map to propagate
 */
@@ -7680,6 +7684,18 @@ void TABLE::set_binlog_drop_if_temp(bool should_binlog) {
 
 bool TABLE::should_binlog_drop_if_temp(void) const {
   return should_binlog_drop_if_temp_flag;
+}
+
+bool TABLE::empty_result_table() {
+  materialized = false;
+  set_not_started();
+  if (!is_created()) return false;
+  if (file->ha_index_or_rnd_end() || file->extra(HA_EXTRA_RESET_STATE) ||
+      file->ha_delete_all_rows())
+    return true;
+  free_io_cache(this);
+  filesort_free_buffers(this, 0);
+  return false;
 }
 
 void TABLE::update_covering_prefix_keys(Field *field, uint16 key_read_length,

@@ -1392,7 +1392,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t5	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t6	NULL	ref	d	d	5	const	1	100.00	Using where; Using index; FirstMatch(t5)
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `c` from (`test`.`t6`) where (isnull(`test`.`t6`.`d`) and (<cache>((NULL + 1)) = (`test`.`t6`.`d` + 1)))
+Note	1003	/* select#1 */ select NULL AS `c` from <constant table> semi join (`test`.`t6`) where (isnull(`test`.`t6`.`d`) and (<cache>((NULL + 1)) = (`test`.`t6`.`d` + 1)))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
@@ -12596,7 +12596,7 @@ explain select * from v1 where id="b"	{
             } /* view */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from (`t1`) where (`t1`.`id` = 'b')"
+            "expanded_query": "/* select#1 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from <constant table> join (`t1`) on((`t1`.`id` < 'c')) where (`t1`.`id` = 'b')"
           },
           {
             "transformations_to_nested_joins": {
@@ -12782,7 +12782,7 @@ delete from v1 where data=100	{
               "merged": true
             } /* view */
           },
-          "delete from (`t1`) where (`t1`.`data` = 100)",
+          "delete from (`t1`) on((`t1`.`id` < 'c')) where (`t1`.`data` = 100)",
           {
             "transformations_to_nested_joins": {
               "transformations": [

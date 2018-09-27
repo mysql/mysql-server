@@ -8327,7 +8327,7 @@ ER_TF_MUST_HAVE_ALIAS 42000
         eng "Every table function must have an alias"
 
 ER_TF_FORBIDDEN_JOIN_TYPE
-  eng "INNER or LEFT JOIN must be used for '%.192s' table function's LATERAL reference"
+  eng "INNER or LEFT JOIN must be used for LATERAL references made by '%.192s'"
 
 ER_JT_VALUE_OUT_OF_RANGE 22003
   eng "Value is out of range for JSON_TABLE's column '%.192s'"

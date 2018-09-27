@@ -748,6 +748,15 @@ class SELECT_LEX_UNIT {
   SELECT_LEX *first_recursive;
 
   /**
+    If 'this' is body of lateral derived table:
+    map of tables in the same FROM clause as this derived table, and to which
+    the derived table's body makes references.
+    In pre-resolution stages, this is OUTER_REF_TABLE_BIT, just to indicate
+    that this has LATERAL; after resolution, which has found references in the
+    body, this is the proper map (with no PSEUDO_TABLE_BITS anymore).
+  */
+  table_map m_lateral_deps;
+  /**
     True if the with-recursive algorithm has produced the complete result.
     In a recursive CTE, a JOIN is executed several times in a loop, and
     should not be cleaned up (e.g. by join_free()) before all iterations of
@@ -852,6 +861,33 @@ class SELECT_LEX_UNIT {
   bool is_recursive() const { return first_recursive != nullptr; }
 
   bool check_materialized_derived_query_blocks(THD *thd);
+
+  bool clear_corr_ctes();
+
+  void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
+
+  /**
+    If unit is a subquery, which forms an object of the upper level (an
+    Item_subselect, a derived TABLE_LIST), adds to this object a map
+    of tables of the upper level which the unit references.
+  */
+  void accumulate_used_tables(table_map map) {
+    DBUG_ASSERT(outer_select());
+    if (item)
+      item->accumulate_used_tables(map);
+    else if (m_lateral_deps)
+      m_lateral_deps |= map;
+  }
+
+  /**
+    If unit is a subquery, which forms an object of the upper level (an
+    Item_subselect, a derived TABLE_LIST), returns the place of this object
+    in the upper level query block.
+  */
+  enum_parsing_context place() const {
+    DBUG_ASSERT(outer_select());
+    return item ? item->place() : CTX_DERIVED;
+  }
 
   /*
     An exception: this is the only function that needs to adjust

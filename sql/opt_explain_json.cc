@@ -95,7 +95,8 @@ static const char *json_extra_tags[ET_total] = {
     "recursive",                      // ET_RECURSIVE
     "table_function",                 // ET_TABLE_FUNCTION
     "skip_records_in_range_due_to_force",  // ET_SKIP_RECORDS_IN_RANGE
-    "using_secondary_engine"               // ET_USING_SECONDARY_ENGINE
+    "using_secondary_engine",              // ET_USING_SECONDARY_ENGINE
+    "rematerialize"                        // ET_REMATERIALIZE
 };
 
 // JSON key names

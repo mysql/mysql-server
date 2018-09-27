@@ -1340,17 +1340,35 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   return false;
 }
 
-bool Explain_join::explain_table_name() {
-  if (table->pos_in_table_list->is_view_or_derived() &&
+/**
+  Generates either usual table name or <derived#N>, and passes it to
+  any given function for showing to the user.
+  @param tr   Table reference
+  @param fmt  EXPLAIN's format
+  @param func Function receiving the name
+  @returns true if error.
+*/
+static bool store_table_name(
+    TABLE_LIST *tr, Explain_format *fmt,
+    std::function<bool(const char *name, size_t len)> func) {
+  char namebuf[NAME_LEN];
+  size_t len = sizeof(namebuf);
+  if (tr->query_block_id() && tr->is_view_or_derived() &&
       !fmt->is_hierarchical()) {
     /* Derived table name generation */
-    char table_name_buffer[NAME_LEN];
-    const size_t len = snprintf(
-        table_name_buffer, sizeof(table_name_buffer) - 1, "<derived%u>",
-        table->pos_in_table_list->query_block_id_for_explain());
-    return fmt->entry()->col_table_name.set(table_name_buffer, len);
-  } else
-    return fmt->entry()->col_table_name.set(table->pos_in_table_list->alias);
+    len = snprintf(namebuf, len - 1, "<derived%u>",
+                   tr->query_block_id_for_explain());
+    return func(namebuf, len);
+  } else {
+    return func(tr->alias, strlen(tr->alias));
+  }
+}
+
+bool Explain_join::explain_table_name() {
+  return store_table_name(table->pos_in_table_list, fmt,
+                          [&](const char *name, size_t len) {
+                            return fmt->entry()->col_table_name.set(name, len);
+                          });
 }
 
 bool Explain_join::explain_select_type() {
@@ -1559,20 +1577,32 @@ bool Explain_join::explain_extra() {
         if (push_extra(ET_FIRST_MATCH)) return true;
       } else {
         StringBuffer<64> buff(cs);
-        TABLE *prev_table = join->qep_tab[tab->firstmatch_return].table();
-        if (prev_table->pos_in_table_list->query_block_id() &&
-            !fmt->is_hierarchical() &&
-            prev_table->pos_in_table_list->is_derived()) {
-          char namebuf[NAME_LEN];
-          /* Derived table name generation */
-          size_t len = snprintf(
-              namebuf, sizeof(namebuf) - 1, "<derived%u>",
-              prev_table->pos_in_table_list->query_block_id_for_explain());
-          buff.append(namebuf, len);
-        } else
-          buff.append(prev_table->pos_in_table_list->alias);
-        if (push_extra(ET_FIRST_MATCH, buff)) return true;
+        if (store_table_name(join->qep_tab[tab->firstmatch_return].table_ref,
+                             fmt,
+                             [&](const char *name, size_t len) {
+                               return buff.append(name, len);
+                             }) ||
+            push_extra(ET_FIRST_MATCH, buff))
+          return true;
       }
+    }
+
+    if (tab->lateral_derived_tables_depend_on_me) {
+      auto deps = tab->lateral_derived_tables_depend_on_me;
+      StringBuffer<64> buff(cs);
+      bool first = true;
+      for (QEP_TAB **tab2 = join->map2qep_tab; deps; tab2++, deps >>= 1) {
+        if (deps & 1) {
+          if (!first) buff.append(",");
+          first = false;
+          if (store_table_name((*tab2)->table_ref, fmt,
+                               [&](const char *name, size_t len) {
+                                 return buff.append(name, len);
+                               }))
+            return true;
+        }
+      }
+      if (push_extra(ET_REMATERIALIZE, buff)) return true;
     }
 
     if (tab->has_guarded_conds() && push_extra(ET_FULL_SCAN_ON_NULL_KEY))
