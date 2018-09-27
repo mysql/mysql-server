@@ -684,6 +684,13 @@ INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_ADMIN',
 IF(grant_priv = 'Y', 'Y', 'N') FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege SERVICE_CONNECTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege SERVICE_CONNECTION_ADMIN.
+SET @hadServiceConnectionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SERVICE_CONNECTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SERVICE_CONNECTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadServiceConnectionAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

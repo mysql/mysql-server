@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,8 @@ bool Connection_handler_manager::valid_connection_count() {
   return connection_accepted;
 }
 
-bool Connection_handler_manager::check_and_incr_conn_count() {
+bool Connection_handler_manager::check_and_incr_conn_count(
+    bool is_admin_connection) {
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
@@ -108,11 +109,12 @@ bool Connection_handler_manager::check_and_incr_conn_count() {
     checked later during authentication where valid_connection_count()
     is called for non-SUPER users only.
   */
-  if (connection_count > max_connections) {
+  if (connection_count > max_connections && !is_admin_connection) {
     connection_accepted = false;
     m_connection_errors_max_connection++;
   } else {
     ++connection_count;
+
     if (connection_count > max_used_connections) {
       max_used_connections = connection_count;
       max_used_connections_time = (ulong)my_time(0);
@@ -247,7 +249,8 @@ bool Connection_handler_manager::unload_connection_handler() {
 
 void Connection_handler_manager::process_new_connection(
     Channel_info *channel_info) {
-  if (connection_events_loop_aborted() || !check_and_incr_conn_count()) {
+  if (connection_events_loop_aborted() ||
+      !check_and_incr_conn_count(channel_info->is_admin_connection())) {
     channel_info->send_error_and_close_channel(ER_CON_COUNT_ERROR, 0, true);
     delete channel_info;
     return;

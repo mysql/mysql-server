@@ -1,0 +1,56 @@
+#
+# only global
+#
+select @@global.admin_port;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.admin_port;
+show global variables like 'admin_port';
+show session variables like 'admin_port';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='admin_port';
+select * from performance_schema.session_variables where variable_name='admin_port';
+select * from performance_schema.variables_info where variable_name='admin_port';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global admin_port=1000;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session admin_port=1000;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set persist admin_port=1000;
+
+#
+# Set the option and verify that it is reflected
+#
+--let $PORT_OFFSET = 1
+--expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=127.0.0.1 --admin_port=$ADMIN_PORT
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
+--disable_warnings
+--replace_result $ADMIN_PORT ADMIN_PORT
+select * from performance_schema.global_variables where variable_name='admin_port';
+--replace_result $ADMIN_PORT ADMIN_PORT
+select * from performance_schema.session_variables where variable_name='admin_port';
+--enable_warnings
+
+--let $restart_parameters=restart: --skip-name-resolve --admin_port=66000
+--source include/restart_mysqld.inc
+--disable_query_log ONCE
+call mtr.add_suppression("Warning.* option 'admin_port': unsigned value 66000 adjusted to 65535");
+SELECT @@admin_port;
+
+--let $restart_parameters=restart: --skip-name-resolve --admin_port=-1
+--source include/restart_mysqld.inc
+call mtr.add_suppression("Warning.* option 'admin_port': value -1 adjusted to 0");
+SELECT @@admin_port;
+
+--echo #
+--echo # Starting mysqld in the regular mode...
+--echo #
+--let $restart_parameters=
+--source include/restart_mysqld.inc

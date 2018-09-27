@@ -799,6 +799,29 @@ static Sys_var_charptr Sys_my_bind_addr(
     READ_ONLY NON_PERSIST GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
+static Sys_var_charptr Sys_admin_addr(
+    "admin_address",
+    "IP address to bind to for service connection. Address can be an IPv4 "
+    "address,"
+    " IPv6 address, or host name. Wildcard values *, ::, 0.0.0.0"
+    " are not allowed.",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(my_admin_bind_addr_str),
+    CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
+
+static Sys_var_uint Sys_admin_port(
+    "admin_port",
+    "Port number to use for service connection,"
+    " built-in default (" STRINGIFY_ARG(MYSQL_ADMIN_PORT) ")",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(mysqld_admin_port), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, 65535), DEFAULT(MYSQL_ADMIN_PORT), BLOCK_SIZE(1));
+
+static Sys_var_bool Sys_use_separate_thread_for_admin(
+    "create_admin_listener_thread",
+    "Use a dedicated thread for listening incoming connections on admin"
+    " interface",
+    READ_ONLY NON_PERSIST GLOBAL_VAR(listen_admin_interface_in_separate_thread),
+    CMD_LINE(OPT_ARG), DEFAULT(false));
+
 static Sys_var_bool Sys_password_require_current(
     "password_require_current",
     "Current password is needed to be specified in order to change it",

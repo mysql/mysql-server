@@ -1,0 +1,43 @@
+#
+# only global
+#
+select @@global.admin_address;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.admin_address;
+show global variables like 'admin_address';
+show session variables like 'admin_address';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='admin_address';
+select * from performance_schema.session_variables where variable_name='admin_address';
+select * from performance_schema.variables_info where variable_name='admin_address';
+--enable_warnings
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global admin_address='::1';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session admin_port='::1';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set persist admin_port='::1';
+
+#
+# Set the option and verify that it is reflected
+#
+--let $PORT_OFFSET = 1
+--expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=127.0.0.1 --admin_port=$ADMIN_PORT
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='admin_address';
+select * from performance_schema.session_variables where variable_name='admin_address';
+--enable_warnings
+
+--echo #
+--echo # Starting mysqld in the regular mode...
+--echo #
+--let $restart_parameters=
+--source include/restart_mysqld.inc

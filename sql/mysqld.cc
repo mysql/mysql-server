@@ -891,6 +891,9 @@ static char *character_set_filesystem_name;
 static char *lc_messages;
 static char *lc_time_names_name;
 char *my_bind_addr_str;
+char *my_admin_bind_addr_str;
+uint mysqld_admin_port;
+bool listen_admin_interface_in_separate_thread;
 static char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
@@ -2391,6 +2394,33 @@ static void set_root(const char *path) {
 #endif  // !_WIN32
 
 /**
+  Check that an address value is a wildcard IP value,
+  that is it has either the value 0.0.0.0 for IPv4 or the value ::1 in
+  case IPv6, or has the specially treated symbol * as its value.
+
+  @param address_value   Address value to check
+  @param address_length  Address length
+
+  @return true in case the address value is a wildcard value, else false.
+*/
+static bool check_address_is_wildcard(const char *address_value,
+                                      size_t address_length) {
+  return
+      // Wildcard is not allowed in case a comma separated list of
+      // addresses is specified
+      native_strncasecmp(address_value, MY_BIND_ALL_ADDRESSES,
+                         address_length) == 0 ||
+      // The specially treated address :: is not allowed in case
+      // a comma separated list of addresses is specified
+      native_strncasecmp(address_value, ipv6_all_addresses, address_length) ==
+          0 ||
+      // The specially treated address 0.0.0.0 is not allowed in case
+      // a comma separated list of addresses is specified
+      native_strncasecmp(address_value, ipv4_all_addresses, address_length) ==
+          0;
+}
+
+/**
   Check acceptable value of parameter bind_address
 
   @param      bind_address          Value of the parameter bind-address
@@ -2407,34 +2437,14 @@ static bool check_bind_address_has_valid_value(
   const char *comma_separator = strchr(bind_address, ',');
   const char *begin_of_value = bind_address;
   const bool multiple_bind_addresses = (comma_separator != nullptr);
-  /*
-    The following lambda is to check that an address value is a wildcard IP
-    value, that is it has either the value 0.0.0.0 for IPv4 or the value ::1 in
-    case IPv6, or has the specially treated symbol * as its value.
-  */
-  auto address_is_wildcard = [](const char *address_value,
-                                size_t address_length) {
-    return
-        // Wildcard is not allowed in case a comma separated list of
-        // addresses is specified
-        native_strncasecmp(address_value, MY_BIND_ALL_ADDRESSES,
-                           address_length) == 0 ||
-        // The specially treated address :: is not allowed in case
-        // a comma separated list of addresses is specified
-        native_strncasecmp(address_value, ipv6_all_addresses, address_length) ==
-            0 ||
-        // The specially treated address 0.0.0.0 is not allowed in case
-        // a comma separated list of addresses is specified
-        native_strncasecmp(address_value, ipv4_all_addresses, address_length) ==
-            0;
-  };
 
   if (comma_separator == begin_of_value)
     // Return an error if a value of bind_address begins with comma
     return true;
 
   while (comma_separator != nullptr) {
-    if (address_is_wildcard(begin_of_value, comma_separator - begin_of_value))
+    if (check_address_is_wildcard(begin_of_value,
+                                  comma_separator - begin_of_value))
       return true;
 
     valid_bind_addresses->emplace_back(
@@ -2447,7 +2457,7 @@ static bool check_bind_address_has_valid_value(
   }
 
   if (multiple_bind_addresses &&
-      (address_is_wildcard(begin_of_value, strlen(begin_of_value)) ||
+      (check_address_is_wildcard(begin_of_value, strlen(begin_of_value)) ||
        strlen(begin_of_value) == 0))
     return true;
 
@@ -2474,9 +2484,30 @@ static bool network_init(void) {
       return true;
     }
 
-    Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
-        Mysqld_socket_listener(bind_addresses, mysqld_port, back_log,
-                               mysqld_port_timeout, unix_sock_name);
+    if (!opt_disable_networking) {
+      if (my_admin_bind_addr_str != nullptr &&
+          check_address_is_wildcard(my_admin_bind_addr_str,
+                                    strlen(my_admin_bind_addr_str))) {
+        LogErr(ERROR_LEVEL, ER_INVALID_ADMIN_ADDRESS, my_admin_bind_addr_str);
+        return true;
+      }
+      /*
+        Port 0 is interpreted by implementations of TCP protocol
+        as a hint to find a first free port value to use and bind to it.
+        On the other hand, the option mysqld_admin_port can be assigned
+        the value 0 if a user specified a value that is out of allowable
+        range of values. Therefore, to avoid a case when an operating
+        system binds admin interface to am arbitrary selected port value,
+        set it explicitly to the value MYSQL_ADMIN_PORT in case it has value 0.
+      */
+      if (mysqld_admin_port == 0) mysqld_admin_port = MYSQL_ADMIN_PORT;
+    }
+    Mysqld_socket_listener *mysqld_socket_listener =
+        new (std::nothrow) Mysqld_socket_listener(
+            bind_addresses, mysqld_port,
+            (opt_disable_networking ? nullptr : my_admin_bind_addr_str),
+            mysqld_admin_port, listen_admin_interface_in_separate_thread,
+            back_log, mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == NULL) return true;
 
     mysqld_socket_acceptor = new (std::nothrow)
@@ -6591,6 +6622,14 @@ int mysqld_main(int argc, char **argv)
 #endif
               mysqld_port, MYSQL_COMPILATION_COMMENT);
 
+  if (!opt_disable_networking && my_admin_bind_addr_str)
+    LogEvent()
+        .type(LOG_TYPE_ERROR)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .prio(SYSTEM_LEVEL)
+        .lookup(ER_SERVER_STARTUP_ADMIN_INTERFACE, my_admin_bind_addr_str,
+                mysqld_admin_port, MYSQL_COMPILATION_COMMENT);
+
 #if defined(_WIN32)
   if (windows_service) {
     Service_status_msg s("R");
@@ -7611,8 +7650,7 @@ static int show_connection_errors_select(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
   long *value = reinterpret_cast<long *>(buff);
-  *value =
-      static_cast<long>(Mysqld_socket_listener::get_connection_errors_select());
+  *value = static_cast<long>(get_connection_errors_select());
   return 0;
 }
 
@@ -7620,8 +7658,7 @@ static int show_connection_errors_accept(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
   long *value = reinterpret_cast<long *>(buff);
-  *value =
-      static_cast<long>(Mysqld_socket_listener::get_connection_errors_accept());
+  *value = static_cast<long>(get_connection_errors_accept());
   return 0;
 }
 
@@ -7629,8 +7666,7 @@ static int show_connection_errors_tcpwrap(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
   long *value = reinterpret_cast<long *>(buff);
-  *value = static_cast<long>(
-      Mysqld_socket_listener::get_connection_errors_tcpwrap());
+  *value = static_cast<long>(get_connection_errors_tcpwrap());
   return 0;
 }
 
@@ -10351,6 +10387,7 @@ PSI_thread_key key_thread_handle_manager;
 PSI_thread_key key_thread_one_connection;
 PSI_thread_key key_thread_compress_gtid_table;
 PSI_thread_key key_thread_parser_service;
+PSI_thread_key key_thread_handle_con_admin_sockets;
 
 /* clang-format off */
 static PSI_thread_info all_server_threads[]=
@@ -10368,6 +10405,7 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_thread_handle_con_admin_sockets, "admin_interface", PSI_FLAG_USER, 0, PSI_DOCUMENT_ME},
 };
 /* clang-format on */
 

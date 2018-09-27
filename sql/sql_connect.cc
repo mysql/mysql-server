@@ -188,7 +188,8 @@ int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
   mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
       !uc->user_resources.user_conn &&
-      global_system_variables.max_user_connections < (uint)uc->connections) {
+      global_system_variables.max_user_connections < (uint)uc->connections &&
+      !thd->is_admin_connection()) {
     my_error(ER_TOO_MANY_USER_CONNECTIONS, MYF(0), uc->user);
     error = 1;
     errors.m_max_user_connection = 1;

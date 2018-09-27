@@ -14,6 +14,12 @@ The following options may be given as the first argument:
  --activate-all-roles-on-login 
  Automatically set all granted roles as active after the
  user has authenticated successfully.
+ --admin-address=name 
+ IP address to bind to for service connection. Address can
+ be an IPv4 address, IPv6 address, or host name. Wildcard
+ values *, ::, 0.0.0.0 are not allowed.
+ --admin-port=#      Port number to use for service connection, built-in
+ default (33062)
  --allow-suspicious-udfs 
  Allows use of UDFs consisting of only one symbol xxx()
  without corresponding xxx_init() or xxx_deinit(). That
@@ -218,6 +224,9 @@ The following options may be given as the first argument:
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
+ --create-admin-listener-thread 
+ Use a dedicated thread for listening incoming connections
+ on admin interface
  --cte-max-recursion-depth=# 
  Abort a recursive common table expression if it does more
  than this number of iterations.
@@ -1334,6 +1343,8 @@ The following options may be given as the first argument:
 Variables (--variable-name=value)
 abort-slave-event-count 0
 activate-all-roles-on-login FALSE
+admin-address (No default value)
+admin-port 33062
 allow-suspicious-udfs FALSE
 auto-increment-increment 1
 auto-increment-offset 1
@@ -1379,6 +1390,7 @@ completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
 console FALSE
+create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
 default-authentication-plugin caching_sha2_password
 default-password-lifetime 0

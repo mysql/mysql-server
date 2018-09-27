@@ -18623,6 +18623,15 @@ ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP
 ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP
   eng "Ignoring binlog_rotate_encryption_master_key_at_startup because binlog_encryption option is disabled."
 
+ER_INVALID_ADMIN_ADDRESS
+  eng "Invalid value for command line option admin-address: '%s'"
+
+ER_SERVER_STARTUP_ADMIN_INTERFACE
+  eng "Admin interface ready for connections, address: '%s'  port: %d"
+
+ER_CANT_CREATE_ADMIN_THREAD
+  eng "Can't create thread to handle admin connections (errno= %d)"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

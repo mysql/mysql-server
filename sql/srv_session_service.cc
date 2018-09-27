@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
       Connection_handler_manager::get_instance();
 
   if (simulate_reach_max_connections ||
-      !conn_manager->check_and_incr_conn_count()) {
+      !conn_manager->check_and_incr_conn_count(false)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
     DBUG_RETURN(NULL);

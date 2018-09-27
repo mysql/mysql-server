@@ -3017,6 +3017,53 @@ inline void assign_priv_user_host(Security_context *sctx, ACL_USER *user) {
 }
 
 /**
+  Check that for command COM_CONNECT, either restriction on max number of
+  concurrent connections  not violated or in case the connection is admin
+  connection the user has required privilege.
+
+  @param thd  Thread context
+
+  @return Error status
+    @retval false  success
+    @retval true   error
+
+  @note if connection is admin connection and a user doesn't have
+  the privilege SERVICE_CONNECTION_ADMIN, the error
+  ER_SPECIFIC_ACCESS_DENIED_ERROR is set in Diagnostics_area.
+
+  @note if a user doesn't have any of the privileges SUPER_ACL,
+  CONNECTION_ADMIN, SERVICE_CONNECTION_ADMIN and a number of concurrent
+  connections exceeds the limit max_connections the error ER_CON_COUNT_ERROR
+  is set in Diagnostics_area.
+*/
+static inline bool check_restrictions_for_com_connect_command(THD *thd) {
+  if (thd->is_admin_connection() &&
+      !thd->m_main_security_ctx
+           .has_global_grant(STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"))
+           .first) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SERVICE_CONNECTION_ADMIN");
+    return true;
+  }
+
+  if (!(thd->m_main_security_ctx.check_access(SUPER_ACL) ||
+        thd->m_main_security_ctx
+            .has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
+            .first ||
+        thd->m_main_security_ctx
+            .has_global_grant(STRING_WITH_LEN("SERVICE_CONNECTION_ADMIN"))
+            .first)) {
+    if (!Connection_handler_manager::get_instance()
+             ->valid_connection_count()) {  // too many connections
+      my_error(ER_CON_COUNT_ERROR, MYF(0));
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
   Perform the handshake, authorize the client and update thd sctx variables.
 
   @param thd                     thread handle
@@ -3377,16 +3424,9 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                       mpvio.db.str));
 
   if (command == COM_CONNECT &&
-      !(thd->m_main_security_ctx.check_access(SUPER_ACL) ||
-        thd->m_main_security_ctx
-            .has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN"))
-            .first)) {
-    if (!Connection_handler_manager::get_instance()
-             ->valid_connection_count()) {  // too many connections
-      release_user_connection(thd);
-      my_error(ER_CON_COUNT_ERROR, MYF(0));
-      DBUG_RETURN(1);
-    }
+      check_restrictions_for_com_connect_command(thd)) {
+    release_user_connection(thd);
+    DBUG_RETURN(1);
   }
 
   /*
