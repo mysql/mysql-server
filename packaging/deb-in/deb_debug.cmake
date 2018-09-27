@@ -90,6 +90,7 @@ usr/lib/mysql/plugin/debug/semisync_master.so
 usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
+usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
 ")
 
 SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
@@ -168,4 +169,5 @@ usr/lib/mysql/plugin/debug/component_test_backup_lock_service.so
 usr/lib/mysql/plugin/debug/pfs_example_plugin_employee.so
 usr/lib/mysql/plugin/debug/component_pfs_example.so
 usr/lib/mysql/plugin/debug/component_mysqlx_global_reset.so
+usr/lib/mysql/plugin/debug/component_test_audit_api_message.so
 ")

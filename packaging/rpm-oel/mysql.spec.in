@@ -1050,6 +1050,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_mock.so
@@ -1075,6 +1076,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_mock.so
@@ -1346,6 +1348,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_audit_api_message.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
@@ -1417,6 +1420,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_str.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_status_var_service_unreg_only.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_system_variable_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_audit_api_message.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so

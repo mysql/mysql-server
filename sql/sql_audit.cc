@@ -955,6 +955,33 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
       thd, MYSQL_AUDIT_AUTHENTICATION_CLASS, subclass_name, &event));
 }
 
+int mysql_audit_notify(THD *thd, mysql_event_message_subclass_t subclass,
+                       const char *subclass_name, const char *component,
+                       size_t component_length, const char *producer,
+                       size_t producer_length, const char *message,
+                       size_t message_length,
+                       mysql_event_message_key_value_t *key_value_map,
+                       size_t key_value_map_length) {
+  if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_MESSAGE_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
+
+  mysql_event_message event;
+
+  event.event_subclass = subclass;
+  event.component.str = component;
+  event.component.length = component_length;
+  event.producer.str = producer;
+  event.producer.length = producer_length;
+  event.message.str = message;
+  event.message.length = message_length;
+  event.key_value_map = key_value_map;
+  event.key_value_map_length = key_value_map_length;
+
+  return event_class_dispatch_error(thd, MYSQL_AUDIT_MESSAGE_CLASS,
+                                    subclass_name, &event);
+}
+
 /**
   Acquire plugin masks subscribing to the specified event of the specified
   class, passed by arg parameter. lookup_mask of the st_mysql_subscribe_event

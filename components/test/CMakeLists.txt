@@ -106,3 +106,7 @@ MYSQL_ADD_COMPONENT(test_host_application_signal
   test_host_application_signal.cc
   TEST MODULE)
 
+MYSQL_ADD_COMPONENT(test_audit_api_message
+  test_audit_api_message.cc
+  TEST MODULE)
+

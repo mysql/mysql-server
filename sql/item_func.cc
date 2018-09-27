@@ -3700,6 +3700,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
 
   if (u_d->func_init) {
     char init_msg_buff[MYSQL_ERRMSG_SIZE];
+    *init_msg_buff = '\0';
     char *to = num_buffer;
     for (uint i = 0; i < arg_count; i++) {
       /*

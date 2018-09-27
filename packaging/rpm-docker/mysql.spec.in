@@ -239,6 +239,7 @@ for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
          component_test_status_var_service_str.so\
          component_test_status_var_service_unreg_only.so\
          component_test_system_variable_source.so\
+         component_test_audit_api_message.so\
          daemon_example.ini ha_example.so ha_mock.so libdaemon_example.so \
          pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
          qa_auth_server.so replication_observers_example_plugin.so \
@@ -340,6 +341,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
