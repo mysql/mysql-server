@@ -580,7 +580,7 @@ const char *Rpl_encryption_header::ENCRYPTION_MAGIC = "\xfd\x62\x69\x6e";
 Rpl_encryption_header::~Rpl_encryption_header() {
   DBUG_ENTER("Rpl_encryption_header::~Rpl_encryption_header");
   DBUG_VOID_RETURN;
-};
+}
 
 void throw_encryption_header_error(const char *message) {
 #ifdef MYSQL_SERVER
@@ -659,7 +659,7 @@ const char *Rpl_encryption_header_v1::KEY_ID_PREFIX = "MySQLReplicationKey";
 Rpl_encryption_header_v1::~Rpl_encryption_header_v1() {
   DBUG_ENTER("Rpl_encryption_header_v1::~Rpl_encryption_header_v1");
   DBUG_VOID_RETURN;
-};
+}
 
 bool Rpl_encryption_header_v1::serialize(Basic_ostream *ostream) {
   unsigned char header[HEADER_SIZE]{0};
@@ -817,12 +817,12 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_encryptor() {
   std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_encryptor);
   return cypher;
-};
+}
 
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_decryptor() {
   std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_decryptor);
   return cypher;
-};
+}
 
 Key_string Rpl_encryption_header_v1::generate_new_file_password() {
   Key_string password_str;
