@@ -33,13 +33,14 @@
 
 Gcs_xcom_node_address::Gcs_xcom_node_address(std::string member_address)
     : m_member_address(member_address), m_member_ip(), m_member_port(0) {
-  std::size_t idx = member_address.find(":");
+  char address[IP_MAX_SIZE];
+  xcom_port port;
 
-  if (idx != std::string::npos) {
-    m_member_ip.append(m_member_address, 0, idx);
-    std::string sport;
-    sport.append(m_member_address, idx + 1, m_member_address.size() - idx);
-    m_member_port = static_cast<xcom_port>(strtoul(sport.c_str(), NULL, 0));
+  int error = get_ip_and_port(const_cast<char *>(member_address.c_str()),
+                              address, &port);
+  if (!error) {
+    m_member_ip.append(address);
+    m_member_port = port;
   }
 }
 
@@ -53,6 +54,10 @@ xcom_port Gcs_xcom_node_address::get_member_port() { return m_member_port; }
 
 std::string *Gcs_xcom_node_address::get_member_representation() const {
   return new std::string(m_member_address);
+}
+
+bool Gcs_xcom_node_address::is_valid() const {
+  return !m_member_ip.empty() && m_member_port != 0;
 }
 
 Gcs_xcom_node_address::~Gcs_xcom_node_address() {}

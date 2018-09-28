@@ -23,6 +23,8 @@
 #ifndef TASK_NET_H
 #define TASK_NET_H
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +35,10 @@ result xcom_checked_socket(int domain, int type, int protocol);
 struct addrinfo *xcom_caching_getaddrinfo(char const *server);
 int checked_getaddrinfo(const char *nodename, const char *servname,
                         const struct addrinfo *hints, struct addrinfo **res);
+
+int checked_getaddrinfo_port(const char *nodename, xcom_port port,
+                             const struct addrinfo *hints,
+                             struct addrinfo **res);
 
 int init_net();
 int deinit_net();

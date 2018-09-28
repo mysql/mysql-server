@@ -34,6 +34,7 @@
 #define FD_SETSIZE 256
 #include <assert.h>
 #include <errno.h>
+#include <iphlpapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,10 +57,11 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
+#define WORKING_BUFFER_SIZE 1024 * 1024
+
 typedef struct sockaddr_in SOCKADDR_IN;
 typedef struct sockaddr sockaddr;
 
-/*typedef struct sockaddr_in6 SOCKADDR_IN6; */
 typedef struct in_addr in_addr;
 
 /*
@@ -68,143 +70,200 @@ typedef struct in_addr in_addr;
   checking if one of these addresses matches a host.
 */
 struct sock_probe {
-  int tmp_socket;
-  struct _INTERFACE_INFO interfaceInfo[64];
-  DWORD noBytesReturned;
-  /*
-  struct ifconf ifc;
-  struct ifreq *ifrp;
-  struct ifreq conf[64];
-  */
+  PIP_ADAPTER_ADDRESSES addresses;
+  int number_of_interfaces;
 };
 
 typedef struct sock_probe sock_probe;
 
-/* Defines for registry traversal */
-#define MAX_KEY_LENGTH 255
-#define MAX_VALUE_NAME 16383
-
-/*
- * Search the registry on this machine for any network interfaces.
- */
-static void reg_search(sock_probe *s, char *super_key_handle, char *name) {
-  /* This code is windows style to ease referencing the MSDN docs */
-  HKEY key_handle;
-  if (ERROR_SUCCESS ==
-      RegOpenKeyEx((HKEY)super_key_handle, name, 0, KEY_READ, &key_handle)) {
-    DWORD sub_keys = 0;              /* number of subkeys */
-    DWORD num_val;                   /* number of values for key */
-    DWORD max_subkey;                /* longest subkey size */
-    DWORD max_value_data;            /* longest value data */
-    DWORD name_len;                  /* size of name string */
-    DWORD security_desc;             /* size of security descriptor */
-    DWORD class_name_len = MAX_PATH; /* size of class string */
-    DWORD max_class;                 /* longest class string */
-    DWORD max_value;                 /* longest value name */
-    DWORD i = 0;
-    DWORD ret_code = ERROR_SUCCESS;
-    FILETIME last_write;                   /* last write time */
-    TCHAR class_name[MAX_PATH] = TEXT(""); /* Empty class name */
-    TCHAR sub_key_name[MAX_KEY_LENGTH];    /* buffer for subkey name */
-    TCHAR value_name[MAX_VALUE_NAME];
-    DWORD value_name_len = MAX_VALUE_NAME;
-
-    /* Get the number of subkeys and number of values */
-    ret_code =
-        RegQueryInfoKey(key_handle, class_name, &class_name_len, 0, &sub_keys,
-                        &max_subkey, &max_class, &num_val, &max_value,
-                        &max_value_data, &security_desc, &last_write);
-    /* Check all subkeys */
-    for (i = 0; i < sub_keys; i++) {
-      name_len = MAX_KEY_LENGTH;
-      ret_code = RegEnumKeyEx(key_handle, i, sub_key_name, &name_len, 0, 0, 0,
-                              &last_write);
-      if (ERROR_SUCCESS == ret_code) {
-        strcat(sub_key_name, "\\Parameters\\Tcpip");
-        /* Search for subkeys matching Parameters\Tcpip */
-        reg_search(s, (char *)key_handle, (char *)sub_key_name);
-      }
-    }
-
-    /* Process all values, looking for values matching IPAddress */
-    for (i = 0; i < num_val; i++) {
-      unsigned char ip_str[256];
-      DWORD ip_str_size = (DWORD)sizeof(ip_str);
-      DWORD type;
-
-      value_name_len = MAX_VALUE_NAME;
-      value_name[0] = '\0';
-      ret_code = RegEnumValue(key_handle, i, value_name, &value_name_len, 0,
-                              &type, ip_str, &ip_str_size);
-    }
-    RegCloseKey(key_handle);
-  }
-}
+typedef enum SockaddrOp {
+  kSockaddrOpAddress = 0,
+  kSockaddrOpNetmask
+} SockaddrOp;
 
 /* Initialize socket probe */
 static int init_sock_probe(sock_probe *s) {
-  s->tmp_socket = INVALID_SOCKET;
-  s->noBytesReturned = 0;
-  memset(&s->interfaceInfo, 0, sizeof(s->interfaceInfo));
+  ULONG flags = GAA_FLAG_INCLUDE_PREFIX, family = AF_UNSPEC, out_buflen = 0;
+  DWORD retval = 0;
 
-  if ((s->tmp_socket = xcom_checked_socket(AF_INET, SOCK_DGRAM, 0).val) ==
-      INVALID_SOCKET) {
-    return -1;
+  if (s == NULL) {
+    return 1;
   }
 
-  /*
-   * Get information about IP interfaces on this machine.
-   *
-   * FIXME: Should we rewrite to IPHelper API functions as they provide much of
-   * this already ?
-   */
-  if (WSAIoctl(s->tmp_socket, SIO_GET_INTERFACE_LIST, NULL, 0,
-               &(s->interfaceInfo), sizeof(s->interfaceInfo),
-               &(s->noBytesReturned), NULL, NULL) == SOCKET_ERROR) {
-    DWORD err = WSAGetLastError();
-    DBGOUT(NUMEXP(err); STREXP(gai_strerror(err)););
-    abort();
-  }
-  /* Extract interface list from registry */
-  reg_search(s, (char *)HKEY_LOCAL_MACHINE,
-             (char *)TEXT("System\\CurrentControlSet\\Services"));
+  out_buflen = WORKING_BUFFER_SIZE;
 
-  return 0;
+  s->addresses = (IP_ADAPTER_ADDRESSES *)malloc(out_buflen);
+  if (s->addresses == NULL) return 1;
+
+  retval = GetAdaptersAddresses(family, flags, NULL, s->addresses, &out_buflen);
+
+  /* LETS DEBUG SOME SHIT*/
+
+  PIP_ADAPTER_ADDRESSES curr_addresses = s->addresses;
+  while (curr_addresses) {
+    G_DEBUG("Adapter Friendly name: %S", curr_addresses->FriendlyName);
+    G_DEBUG("Adapter status: %s",
+            curr_addresses->OperStatus == IfOperStatusUp ? "UP" : "DOWN");
+
+    PIP_ADAPTER_UNICAST_ADDRESS_LH curr_unicast_address =
+        curr_addresses->FirstUnicastAddress;
+    while (curr_unicast_address) {
+      if (curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET ||
+          curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET6) {
+        s->number_of_interfaces++;
+      }
+      curr_unicast_address = curr_unicast_address->Next;
+    }
+
+    curr_addresses = curr_addresses->Next;
+  }
+
+  return retval != NO_ERROR;
 }
 
 /* Close socket of sock_probe */
 static void close_sock_probe(sock_probe *s) {
-  if (s->tmp_socket != INVALID_SOCKET) {
-    closesocket(s->tmp_socket);
-    s->tmp_socket = INVALID_SOCKET;
-  }
-}
-
-/* Close any open socket and free sock_probe */
-static void delete_sock_probe(sock_probe *s) {
-  close_sock_probe(s);
-  X_FREE(s);
+  if (s && s->addresses) free(s->addresses);
+  free(s);
 }
 
 /* Return the number of IP interfaces on this machine.*/
 static int number_of_interfaces(sock_probe *s) {
-  return s->noBytesReturned / sizeof(struct _INTERFACE_INFO);
+  if (s == NULL) {
+    return 0;
+  }
+  return s->number_of_interfaces;
 }
 
 /* Return TRUE if interface #count is running. */
 static bool_t is_if_running(sock_probe *s, int count) {
-  return (s->tmp_socket >= 0) && (s->interfaceInfo[count].iiFlags & IFF_UP);
+  if (s == NULL) {
+    return 0;
+  }
+  return 1;  // We will always report active because GetAdaptersAddresses
+             // always returns active interfaces.
+}
+
+struct interface_info {
+  PIP_ADAPTER_ADDRESSES network_interface;
+  PIP_ADAPTER_UNICAST_ADDRESS_LH network_address;
+};
+typedef struct interface_info interface_info;
+
+static interface_info get_interface(sock_probe *s, int count) {
+  int i = 0;
+  interface_info retval;
+  retval.network_address = NULL;
+  retval.network_interface = NULL;
+
+  idx_check_fail(count, number_of_interfaces(s)) {
+    PIP_ADAPTER_ADDRESSES curr_addresses = s->addresses;
+    while (curr_addresses && (i <= count)) {
+      PIP_ADAPTER_UNICAST_ADDRESS_LH curr_unicast_address =
+          curr_addresses->FirstUnicastAddress;
+      while (curr_unicast_address && (i <= count)) {
+        if (curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET ||
+            curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET6) {
+          if (i == count) {
+            retval.network_address = curr_unicast_address;
+            retval.network_interface = curr_addresses;
+          }
+          i++;
+        }
+        curr_unicast_address = curr_unicast_address->Next;
+      }
+
+      curr_addresses = curr_addresses->Next;
+    }
+  }
+
+  return retval;
 }
 
 /* Return the sockaddr of interface #count. */
-static sockaddr get_sockaddr(sock_probe *s, int count) {
-  /* s->ifrp[count].ifr_addr if of type sockaddr */
-  idx_check_fail(count, number_of_interfaces(s)) return s->interfaceInfo[count]
-      .iiAddress.Address;
+/**
+ * @brief Get the sockaddr object that pertains to a certain interface index
+ * Depending of the addr_operation parameter value, it can be from:
+ * - Netmask
+ * - Physical Address
+ *
+ * @param s an initialized sock_probe structure
+ * @param count the interface index to return
+ * @param out the return value sockaddr. NULL in case of error.
+ * @param addr_operation either request the sockaddr for the physical address or
+ * for a netmask
+ */
+static void get_sockaddr(sock_probe *s, int count, struct sockaddr **out,
+                         SockaddrOp addr_operation) {
+  int i = 0;
+
+  if (s == NULL) {
+    *out = NULL;
+  }
+
+  interface_info interface_info = get_interface(s, count);
+  if (interface_info.network_interface == NULL) {
+    *out = NULL;
+    return;
+  }
+
+  // Let see what the function caller wants...
+  switch (addr_operation) {
+    // Return the interface address sockaddr
+    case kSockaddrOpAddress:
+      *out = interface_info.network_address->Address.lpSockaddr;
+      break;
+    // Return the interface address netmask
+    case kSockaddrOpNetmask:
+      // Windows is the opposite of *Nix. While *Nix has a sockaddr that
+      // contains
+      // the netmask, and then you need to count the bits to see how many are
+      // set, in case of Windows, you already have the number of bits that
+      // are set in OnLinkPrefixLength field.
+      // The issue with that is that then you need to convert them to a network
+      // format. In case of IPv4, you have a method called
+      // ConvertLengthToIpv4Mask. In case of V6 you need to do it by hand
+      // setting the bits in the correct place of sin6_addr.s6_addr.
+      if (interface_info.network_address->Address.lpSockaddr->sa_family ==
+          AF_INET) {
+        struct sockaddr_in *out_value =
+            (struct sockaddr_in *)malloc(sizeof(struct sockaddr_in));
+        ConvertLengthToIpv4Mask(
+            interface_info.network_address->OnLinkPrefixLength,
+            &out_value->sin_addr.s_addr);
+        *out = (struct sockaddr *)out_value;
+      } else {
+        struct sockaddr_in6 *out_value =
+            (struct sockaddr_in6 *)calloc(1, sizeof(struct sockaddr_in6));
+        for (long i = interface_info.network_address->OnLinkPrefixLength, j = 0;
+             i > 0; i -= 8, ++j) {
+          out_value->sin6_addr.s6_addr[j] =
+              i >= 8 ? 0xff : (ULONG)((0xffU << (8 - i)));
+        }
+        *out = (struct sockaddr *)out_value;
+      }
+      break;
+    default:
+      break;
+  }
 }
 
-/* Return the IP address of interface #count. */
-static in_addr get_in_addr(sock_probe *s, int count) {
-  idx_check_fail(count, number_of_interfaces(s)) return s->interfaceInfo[count]
-      .iiAddress.AddressIn.sin_addr;
+static void get_sockaddr_address(sock_probe *s, int count,
+                                 struct sockaddr **out) {
+  get_sockaddr(s, count, out, kSockaddrOpAddress);
+}
+
+static void get_sockaddr_netmask(sock_probe *s, int count,
+                                 struct sockaddr **out) {
+  get_sockaddr(s, count, out, kSockaddrOpNetmask);
+}
+
+static char *get_if_name(sock_probe *s, int count) {
+  interface_info interface_info = get_interface(s, count);
+
+  if (interface_info.network_address == NULL) {
+    return NULL;
+  }
+
+  return interface_info.network_interface->AdapterName;
 }

@@ -249,6 +249,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifndef _WIN32
+#include <arpa/inet.h>
 #include <net/if.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
@@ -1094,7 +1095,7 @@ bool xcom_input_new_signal_connection() {
   assert(local_server_port != 0);
   assert(input_signal_connection == NULL);
   input_signal_connection =
-      connect_xcom((char *)"127.0.0.1", local_server_port, false);
+      connect_xcom((char *)"::1", local_server_port, false);
   return (input_signal_connection != NULL);
 }
 #else
@@ -1102,8 +1103,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port);
 void xcom_input_new_signal_connection(void) {
   assert(local_server_port != 0);
   assert(input_signal_connection == NULL);
-  input_signal_connection =
-      connect_xcom((char *)"127.0.0.1", local_server_port);
+  input_signal_connection = connect_xcom((char *)"::1", local_server_port);
   assert(input_signal_connection != NULL);
 }
 #endif
@@ -1265,7 +1265,7 @@ int xcom_taskmain2(xcom_port listen_port) {
         /* purecov: begin inspected */
         MAY_DBG(FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
         task_dump_err(local_fd.funerr);
-        g_critical("Unable to announce tcp port %d. Port already in use?",
+        g_critical("Unable to announce local tcp port %d. Port already in use?",
                    listen_port);
         if (xcom_comms_cb) {
           xcom_comms_cb(XCOM_COMMS_ERROR);
@@ -1277,7 +1277,7 @@ int xcom_taskmain2(xcom_port listen_port) {
         /* purecov: end */
       }
       /* Get the port local_server bound to. */
-      struct sockaddr_in bound_addr;
+      struct sockaddr_in6 bound_addr;
       socklen_t bound_addr_len = sizeof(bound_addr);
       int const error_code = getsockname(
           local_fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
@@ -1294,7 +1294,7 @@ int xcom_taskmain2(xcom_port listen_port) {
         return 1;
         /* purecov: end */
       }
-      local_server_port = ntohs(bound_addr.sin_port);
+      local_server_port = ntohs(bound_addr.sin6_port);
     }
 
     if (xcom_comms_cb) {
@@ -2435,6 +2435,34 @@ static bool_t add_node_unsafe_against_nr_cache_entries(app_data_ptr a) {
         nr_nodes_in_new_config, CACHED);
     return TRUE;
   }
+  return FALSE;
+}
+
+static bool_t add_node_unsafe_against_ipv4_old_nodes(app_data_ptr a) {
+  assert(a->body.c_t == add_node_type);
+
+  site_def const *latest_config = get_site_def();
+  if (latest_config && latest_config->x_proto >= minimum_ipv6_version())
+    return FALSE;
+
+  u_int const nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
+  node_address *nodes_to_add = a->body.app_u_u.nodes.node_list_val;
+
+  u_int i = 0;
+  xcom_port node_port = 0;
+  char node_addr[IP_MAX_SIZE];
+
+  for (; i < nr_nodes_to_add; i++) {
+    if (get_ip_and_port(nodes_to_add[i].address, node_addr, &node_port)) {
+      G_ERROR(
+          "Error parsing address from a joining node. Join operation will be "
+          "rejected");
+      return TRUE;
+    }
+
+    if (!is_node_v4_reachable(node_addr)) return TRUE;
+  }
+
   return FALSE;
 }
 
@@ -3945,6 +3973,15 @@ static u_int allow_add_node(app_data_ptr a) {
 
   if (add_node_unsafe_against_nr_cache_entries(a)) return 0;
 
+  if (add_node_unsafe_against_ipv4_old_nodes(a)) {
+    G_MESSAGE(
+        "This server is unable to join the group as the NIC used is configured "
+        "with IPv6 only and there are members in the group that are unable to "
+        "communicate using IPv6, only IPv4.Please configure this server to "
+        "join the group using an IPv4 address instead.");
+    return 0;
+  }
+
   u_int i = 0;
   for (; i < nr_nodes_to_add; i++) {
     if (node_exists(&nodes_to_change[i], &new_site_def->nodes) ||
@@ -4671,9 +4708,8 @@ again:
                 DBGOUT(FN; STRLIT("sending die_op to node "); NDBG(np->to, d);
                        SYCEXP(executed_msg); SYCEXP(max_synode);
                        SYCEXP(np->synode));
-                delete_pax_msg(
-                    np); /* Deallocate BEFORE potentially blocking call
-                        which will lose value of np */
+                delete_pax_msg(np); /* Deallocate BEFORE potentially blocking
+                                   call which will lose value of np */
               }
               WRITE_REPLY;
             }
@@ -5317,8 +5353,13 @@ void xcom_add_node(char *addr, xcom_port port, node_list *nl) {
 }
 
 void xcom_fsm_add_node(char *addr, node_list *nl) {
-  xcom_port node_port = xcom_get_port(addr);
-  char *node_addr = xcom_get_name(addr);
+  xcom_port node_port = 0;
+  char node_addr[IP_MAX_SIZE];
+
+  // We are not processing any error here since xcom_fsm_add_node does not
+  // have error processing. We will rely on error checking farther away from
+  // this execution.
+  get_ip_and_port(addr, node_addr, &node_port);
 
   if (xcom_mynode_match(node_addr, node_port)) {
     node_list x_nl;
@@ -5333,34 +5374,12 @@ void xcom_fsm_add_node(char *addr, node_list *nl) {
     a.nl = nl;
     XCOM_FSM(xa_add, void_arg(&a));
   }
-  free(node_addr);
 }
 /* purecov: end */
 
 void set_app_snap_handler(app_snap_handler x) { handle_app_snap = x; }
 
 void set_app_snap_getter(app_snap_getter x) { get_app_snap = x; }
-
-/* Initialize sockaddr based on server and port */
-static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
-                         socklen_t *sock_size, xcom_port port) {
-  /* Get address of server */
-  struct addrinfo *addr = 0;
-
-  checked_getaddrinfo(server, 0, 0, &addr);
-
-  if (addr == 0) {
-    return 0;
-  }
-
-  /* Copy first address */
-  memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);
-  *sock_size = (socklen_t)addr->ai_addrlen;
-  sock_addr->sin_port = htons(port);
-  freeaddrinfo(addr);
-
-  return 1;
-}
 
 static result checked_create_socket(int domain, int type, int protocol) {
   result retval = {0, 0};
@@ -5484,7 +5503,8 @@ static inline result xcom_shut_close_socket(int *sock) {
   ret_fd = -1;       \
   goto end
 
-static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
+static int timed_connect(int fd, struct sockaddr *sock_addr,
+                         socklen_t sock_size) {
   int timeout = 10000;
   int ret_fd = fd;
   int syserr;
@@ -5594,43 +5614,54 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
 #endif
   result fd = {0, 0};
   result ret = {0, 0};
-  struct sockaddr_in sock_addr;
+  connection_descriptor *cd = NULL;
+  int error = 0;
   socklen_t sock_size;
   char buf[SYS_STRERROR_SIZE];
 
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_DEBUG("connecting to %s %d", server, port);
-  /* Create socket */
-  if ((fd = checked_create_socket(AF_INET, SOCK_STREAM, 0)).val < 0) {
-    G_DEBUG("Error creating sockets.");
-    return NULL;
+
+  struct addrinfo *addr = NULL;
+
+  char buffer[20];
+  sprintf(buffer, "%d", port);
+
+  checked_getaddrinfo(server, buffer, 0, &addr);
+
+  if (addr == NULL) {
+    G_ERROR("Error retrieving server information.");
+    goto end;
   }
 
-  /* Get address of server */
-  if (!init_sockaddr(server, &sock_addr, &sock_size, port)) {
-    xcom_close_socket(&fd.val);
-    G_DEBUG("Error initializing socket addresses.");
-    return NULL;
+  /* Create socket after knowing the family that we are dealing with
+     getaddrinfo returns a list of possible addresses. We will alays default
+     to the first one in the list, which is V4 if applicable.
+   */
+  if ((fd = checked_create_socket(addr->ai_family, SOCK_STREAM, IPPROTO_TCP))
+          .val < 0) {
+    G_ERROR("Error creating socket in local GR->GCS connection.");
+    goto end;
   }
 
   /* Connect socket to address */
 
   SET_OS_ERR(0);
-  if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
+
+  if (timed_connect(fd.val, addr->ai_addr, addr->ai_addrlen) == -1) {
     fd.funerr = to_errno(GET_OS_ERR);
     G_DEBUG(
         "Connecting socket to address %s in port %d failed with error %d - "
         "%s.",
         server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
     xcom_close_socket(&fd.val);
-    return NULL;
+    goto end;
   }
   {
     int peer = 0;
     /* Sanity check before return */
     SET_OS_ERR(0);
-    ret.val = peer =
-        getpeername(fd.val, (struct sockaddr *)&sock_addr, &sock_size);
+    ret.val = peer = getpeername(fd.val, addr->ai_addr, &addr->ai_addrlen);
     ret.funerr = to_errno(GET_OS_ERR);
     if (peer >= 0) {
       ret = set_nodelay(fd.val);
@@ -5649,7 +5680,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
             "%s.",
             server, ret.funerr, strerror(ret.funerr));
 #endif
-        return NULL;
+        goto end;
       }
       G_DEBUG("client connected to %s %d fd %d", server, port, fd.val);
     } else {
@@ -5676,12 +5707,11 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
           "error %d -%s.",
           server, ret.funerr, strerror(ret.funerr));
 #endif
-      return NULL;
+      goto end;
     }
 
 #ifdef XCOM_HAVE_OPENSSL
     if (use_ssl && xcom_use_ssl()) {
-      connection_descriptor *cd = 0;
       SSL *ssl = SSL_new(client_ctx);
       G_DEBUG("Trying to connect using SSL.")
       SSL_set_fd(ssl, fd.val);
@@ -5697,7 +5727,8 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
         SSL_shutdown(ssl);
         SSL_free(ssl);
         xcom_shut_close_socket(&fd.val);
-        return NULL;
+
+        goto end;
       }
       DBGOUT(FN; STRLIT("ssl connected to "); STRLIT(server); NDBG(port, d);
              NDBG(fd.val, d); PTREXP(ssl));
@@ -5708,26 +5739,34 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
         SSL_shutdown(ssl);
         SSL_free(ssl);
         xcom_shut_close_socket(&fd.val);
-        return NULL;
+
+        goto end;
       }
 
       cd = new_connection(fd.val, ssl);
       set_connected(cd, CON_FD);
       G_DEBUG("Success connecting using SSL.")
-      return cd;
+
+      goto end;
     } else {
-      connection_descriptor *cd = new_connection(fd.val, 0);
+      cd = new_connection(fd.val, 0);
       set_connected(cd, CON_FD);
-      return cd;
+
+      goto end;
     }
 #else
     {
-      connection_descriptor *cd = new_connection(fd.val);
+      cd = new_connection(fd.val);
       set_connected(cd, CON_FD);
-      return cd;
+
+      goto end;
     }
 #endif
   }
+
+end:
+  if (addr) freeaddrinfo(addr);
+  return cd;
 }
 
 connection_descriptor *xcom_open_client_connection(char *server,
@@ -5784,6 +5823,91 @@ static int xcom_recv_proto(connection_descriptor *rfd, xcom_proto *x_proto,
 
 enum { TAG_START = 313 };
 
+/**
+ * @brief Checks if a given app_data is from a given cargo_type.
+ *
+ * @param a the app_data
+ * @param t the cargo type
+ * @return int true (1) if app_data a is from cargo_type t
+ */
+
+static inline int is_cargo_type(app_data_ptr a, cargo_type t) {
+  return a ? (a->body.c_t == t) : 0;
+}
+
+/**
+ * @brief Retrieves the address that was used in the add_node request
+ *
+ * @param a app data containing the node to add
+ * @return char* a pointer to the address being added.
+ */
+static char *get_add_node_address(app_data_ptr a, unsigned int *member) {
+  if (!is_cargo_type(a, add_node_type)) return NULL;
+
+  char *retval = NULL;
+  if ((*member) < a->body.app_u_u.nodes.node_list_len) {
+    retval = a->body.app_u_u.nodes.node_list_val[(*member)].address;
+    (*member)++;
+  }
+
+  return retval;
+}
+
+int is_node_v4_reachable(char *node_address) {
+  // Verify if we are reachable either by V4 and by V6 with the provided
+  // address.
+  struct addrinfo *my_own_information = NULL, *my_own_information_loop = NULL;
+  checked_getaddrinfo(node_address, NULL, NULL, &my_own_information);
+
+  my_own_information_loop = my_own_information;
+  int v4_reachable = 0;
+  while (!v4_reachable && my_own_information_loop) {
+    if (my_own_information_loop->ai_family == AF_INET) {
+      v4_reachable = 1;
+    }
+    my_own_information_loop = my_own_information_loop->ai_next;
+  }
+
+  if (my_own_information) freeaddrinfo(my_own_information);
+
+  return v4_reachable;
+}
+
+int are_we_allowed_to_upgrade_to_v6(app_data_ptr a) {
+  // This should the address we used to present ourselves to other nodes.
+  unsigned int list_member = 0;
+  char *added_node = NULL;
+
+  int is_v4_reachable = 0;
+  while ((added_node = get_add_node_address(a, &list_member)) != NULL) {
+    xcom_port my_own_port;
+    char my_own_address[IP_MAX_SIZE];
+    int ip_and_port_error =
+        get_ip_and_port(added_node, my_own_address, &my_own_port);
+
+    if (ip_and_port_error) {
+      G_DEBUG("Error retrieving IP and Port information");
+      return 0;
+    }
+
+    // Verify if we are reachable either by V4 and by V6 with the provided
+    // address.
+    // This means that the other side won't be able to contact us since we
+    // do not provide a public V4 address
+    if (!(is_v4_reachable = is_node_v4_reachable(my_own_address))) {
+      G_ERROR(
+          "Unable to add node to a group of older nodes. Please "
+          "reconfigure "
+          "you local address to an IPv4 address or configure your DNS to "
+          "provide "
+          "an IPv4 address");
+      return 0;
+    }
+  }
+
+  return is_v4_reachable;
+}
+
 static int64_t xcom_send_client_app_data(connection_descriptor *fd,
                                          app_data_ptr a, int force) {
   pax_msg *msg = pax_msg_new(null_synode, 0);
@@ -5814,6 +5938,18 @@ static int64_t xcom_send_client_app_data(connection_descriptor *fd,
       retval = -1;
       goto end;
     }
+
+    // This code will check if, in case of an upgrade if:
+    // - We are a node able to speak IPv6.
+    // - If we are connecting to a group that does not speak IPv6.
+    // - If our address is IPv4-compatible in order for the old group to be able
+    // to contact us back.
+    if (is_cargo_type(a, add_node_type) && x_proto < minimum_ipv6_version() &&
+        !are_we_allowed_to_upgrade_to_v6(a)) {
+      retval = -1;
+      goto end;
+    }
+
     G_DEBUG("client connection will use protocol version %d", x_proto);
     DBGOUT(STRLIT("client connection will use protocol version ");
            NDBG(x_proto, u); STRLIT(xcom_proto_to_str(x_proto)));

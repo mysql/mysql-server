@@ -32,6 +32,7 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stage_lz4.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 
 /*
   Time is defined in seconds.
@@ -111,25 +112,19 @@ int Gcs_xcom_utils::init_net() { return ::init_net(); }
 int Gcs_xcom_utils::deinit_net() { return ::deinit_net(); }
 
 bool is_valid_hostname(const std::string &server_and_port) {
-  std::string::size_type delim_pos = server_and_port.find_last_of(":");
-  std::string s_port =
-      server_and_port.substr(delim_pos + 1, server_and_port.length());
-  std::string hostname = server_and_port.substr(0, delim_pos);
-  int port;
+  char hostname[IP_MAX_SIZE];
+  xcom_port port = 0;
   bool error = false;
-  struct addrinfo *addr = NULL;
+  struct addrinfo *addr = nullptr;
 
-  if ((error = (delim_pos == std::string::npos))) goto end;
+  if ((error = get_ip_and_port(const_cast<char *>(server_and_port.c_str()),
+                               hostname, &port))) {
+    goto end;
+  }
 
   /* handle hostname*/
-  error = (checked_getaddrinfo(hostname.c_str(), 0, NULL, &addr) != 0);
+  error = (checked_getaddrinfo(hostname, 0, NULL, &addr) != 0);
   if (error) goto end;
-
-  /* handle port */
-  if ((error = !is_number(s_port))) goto end;
-
-  port = atoi(s_port.c_str());
-  if ((error = port > USHRT_MAX)) goto end;
 
 end:
   if (addr) freeaddrinfo(addr);
@@ -185,7 +180,7 @@ void fix_parameters_syntax(Gcs_interface_parameters &interface_params) {
     std::map<std::string, int> out;
 
     // add local private networks that one has an IP on by default
-    get_ipv4_local_private_addresses(out);
+    get_local_private_addresses(out);
 
     if (out.empty())
       ss << "127.0.0.1/32,::1/128,";
@@ -241,6 +236,8 @@ static enum_gcs_error is_valid_flag(const std::string param,
 bool is_parameters_syntax_correct(
     const Gcs_interface_parameters &interface_params) {
   enum_gcs_error error = GCS_OK;
+  Gcs_sock_probe_interface *sock_probe_interface =
+      new Gcs_sock_probe_interface_impl();
 
   // get the parameters
   const std::string *group_name_str =
@@ -333,9 +330,20 @@ bool is_parameters_syntax_correct(
     std::map<std::string, int> ips;
     std::map<std::string, int>::iterator it;
 
-    std::string::size_type delim_pos = (*local_node_str).find_last_of(":");
-    std::string host = (*local_node_str).substr(0, delim_pos);
-    std::string ip;
+    char host_str[IP_MAX_SIZE];
+    xcom_port local_node_port = 0;
+    if (get_ip_and_port(const_cast<char *>(local_node_str->c_str()), host_str,
+                        &local_node_port)) {
+      MYSQL_GCS_LOG_ERROR("Invalid hostname or IP address ("
+                          << *local_node_str->c_str()
+                          << ") assigned to the parameter "
+                          << "local_node!");
+      error = GCS_NOK;
+      goto end;
+    }
+
+    std::string host(host_str);
+    std::vector<std::string> ip;
 
     // first validate hostname
     if (!is_valid_hostname(*local_node_str)) {
@@ -355,11 +363,14 @@ bool is_parameters_syntax_correct(
       goto end;
     }
 
-    if (ip.compare(host) != 0)
-      MYSQL_GCS_LOG_INFO("Translated '" << host << "' to " << ip);
+    for (auto &ip_entry : ip) {
+      if (ip_entry.compare(host) != 0)
+        MYSQL_GCS_LOG_INFO("Translated '" << host << "' to "
+                                          << ip_entry.c_str());
+    }
 
     // second check that this host has that IP assigned
-    if (get_ipv4_local_addresses(ips, true)) {
+    if (get_local_addresses(*sock_probe_interface, ips, true)) {
       MYSQL_GCS_LOG_ERROR(
           "Unable to get the list of local IP addresses for "
           "the server!");
@@ -368,8 +379,14 @@ bool is_parameters_syntax_correct(
     }
 
     // see if any IP matches
-    for (it = ips.begin(); it != ips.end() && !matches_local_ip; it++)
-      matches_local_ip = (*it).first.compare(ip) == 0;
+    for (it = ips.begin(); it != ips.end() && !matches_local_ip; it++) {
+      for (auto &ip_entry : ip) {
+        matches_local_ip = (*it).first.compare(ip_entry) == 0;
+
+        if (matches_local_ip) break;
+      }
+    }
+
     if (!matches_local_ip) {
       MYSQL_GCS_LOG_ERROR(
           "There is no local IP address matching the one "
@@ -465,5 +482,6 @@ bool is_parameters_syntax_correct(
   }
 
 end:
+  delete sock_probe_interface;
   return error == GCS_NOK ? false : true;
 }

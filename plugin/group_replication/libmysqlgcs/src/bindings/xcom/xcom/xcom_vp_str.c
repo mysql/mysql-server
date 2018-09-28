@@ -224,6 +224,8 @@ const char *xcom_proto_to_str(xcom_proto x) {
       return "x_1_3";
     case x_1_4:
       return "x_1_4";
+    case x_1_5:
+      return "x_1_5";
     default:
       return "???";
   }

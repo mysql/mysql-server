@@ -106,6 +106,9 @@ site_def const *get_proposer_site();
 synode_no get_current_message();
 void start_run_tasks();
 
+int is_node_v4_reachable(char *node_address);
+int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
+
 #define RESET_CLIENT_MSG              \
   if (ep->client_msg) {               \
     msg_link_delete(&ep->client_msg); \

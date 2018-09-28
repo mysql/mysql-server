@@ -1,8 +1,8 @@
 ##################################################################
-# The purpose of this test is to exercise
-# gr_startup_check_node_seed_skips_own_address with a v4 address
+# The purpose of this test is to exercise 
+# gr_startup_check_node_seed_skips_own_address with a v6 address
 #
 ##################################################################
 
---let $localhost_address= 127.0.0.1:
+--let $localhost_address= [::1]:
 --source ../include/gr_startup_check_node_seed_skips_own_address.inc

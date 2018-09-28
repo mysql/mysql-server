@@ -38,6 +38,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_management.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_networking.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
@@ -614,7 +615,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @return connection descriptor to a peer
   */
   connection_descriptor *get_connection_to_node(
-      std::string local_node_ip,
       std::vector<Gcs_xcom_node_address *> *peers_list);
 
   // The group that this interface pertains
@@ -661,6 +661,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
   // Suspicions processing task
   My_xp_thread_impl m_suspicions_processing_thread;
+
+  // Proxy to GCS Sock Probe
+  Gcs_sock_probe_interface *m_sock_probe_interface;
 
  protected:
   /*

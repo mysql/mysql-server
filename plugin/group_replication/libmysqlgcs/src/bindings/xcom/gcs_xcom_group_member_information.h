@@ -81,6 +81,17 @@ class Gcs_xcom_node_address {
 
   std::string *get_member_representation() const;
 
+  /**
+   A Gcs_xcom_node_address holds the representation IP:PORT of an XCom node.
+   It is initialized with default values for IP = null and PORT = 0.
+
+   This method checks if this address contains valid values after a sucessfull
+   initialization or if it still contains the default ones.
+
+   @return true if this contains values other than the default values
+   */
+  bool is_valid() const;
+
  private:
   /*
     Member's address.

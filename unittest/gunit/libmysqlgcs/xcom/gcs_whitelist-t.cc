@@ -41,6 +41,7 @@ TEST_F(GcsWhitelist, ValidIPs) {
   ASSERT_TRUE(wl.is_valid("192.168.1.254"));
 
   ASSERT_TRUE(wl.is_valid("::1"));
+  ASSERT_TRUE(wl.is_valid("2606:b400:8b0:40:4308:1306:ad4a:6e51"));
   ASSERT_TRUE(wl.is_valid("::1/2"));
   ASSERT_TRUE(wl.is_valid("::1/64,192.168.1.2/24"));
   ASSERT_TRUE(wl.is_valid("::1/64,192.168.1.2/24,192.168.1.1"));
@@ -58,13 +59,15 @@ TEST_F(GcsWhitelist, InvalidConfiguration) {
 TEST_F(GcsWhitelist, ValidListIPv6) {
   Gcs_ip_whitelist wl;
   std::string list =
-      "::1/128,::ffff:192.168.1.1/24,fe80::2ab2:bdff:fe16:8d07/67";
+      "::1/128,192.168.1.1/24,fe80::2ab2:bdff:fe16:8d07/67, "
+      "2606:b400:8b0:40:4308:1306:ad4a:6e51";
   wl.configure(list);
 
   ASSERT_FALSE(wl.shall_block("::1"));
   ASSERT_FALSE(wl.shall_block("fe80::2ab2:bdff:fe16:8d07"));
+  ASSERT_FALSE(wl.shall_block("2606:b400:8b0:40:4308:1306:ad4a:6e51"));
   ASSERT_FALSE(wl.shall_block("::ffff:192.168.1.10"));
-  ASSERT_TRUE(wl.shall_block("192.168.1.10"));
+  ASSERT_FALSE(wl.shall_block("192.168.1.10"));
 }
 
 TEST_F(GcsWhitelist, ValidListIPv4) {
@@ -97,7 +100,8 @@ TEST_F(GcsWhitelist, DefaultList) {
 
   wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
   ASSERT_FALSE(wl.shall_block("127.0.0.1"));
-  ASSERT_TRUE(wl.shall_block("::1"));
+  ASSERT_FALSE(wl.shall_block("::1"));
+  ASSERT_FALSE(wl.shall_block("fe80::da2:aab6:88aa:5061"));
   ASSERT_FALSE(wl.shall_block("192.168.1.2"));
   ASSERT_FALSE(wl.shall_block("192.168.2.2"));
   ASSERT_FALSE(wl.shall_block("10.0.0.1"));
@@ -175,7 +179,13 @@ TEST_F(GcsWhitelist, ListWithHostname) {
   ASSERT_FALSE(xcs->get_ip_whitelist().get_configured_ip_whitelist().empty());
   ASSERT_FALSE(xcs->get_ip_whitelist().to_string().empty());
 
-  ASSERT_FALSE(xcs->get_ip_whitelist().shall_block("127.0.0.1"));
+  std::vector<std::pair<sa_family_t, std::string>> ips;
+  resolve_all_ip_addr_from_hostname("localhost", ips);
+
+  // This should not block to whatever address localhost resolves
+  for (auto &ip : ips) {
+    EXPECT_FALSE(xcs->get_ip_whitelist().shall_block(ip.second));
+  }
 
   // this finalizes the m_logger, so be careful to not add a call to
   // MYSQL_GCS_LOG after this line
@@ -233,15 +243,15 @@ TEST_F(GcsWhitelist, ListWithUnresolvableHostname) {
 
 TEST_F(GcsWhitelist, XComMembers) {
   Gcs_ip_whitelist wl;
-  char const *members[] = {"8.8.8.8:12435", "8.8.4.4:1234"};
+  char const *members[] = {"8.8.8.8:12435", "8.8.4.4:1234", "localhost:12346"};
   char **xcom_addrs = const_cast<char **>(members);
-  node_address *xcom_names = new_node_address(2, xcom_addrs);
+  node_address *xcom_names = new_node_address(3, xcom_addrs);
   site_def *xcom_config = new_site_def();
-  init_site_def(2, xcom_names, xcom_config);
+  init_site_def(3, xcom_names, xcom_config);
   wl.configure(Gcs_ip_whitelist::DEFAULT_WHITELIST);
 
   ASSERT_FALSE(wl.shall_block("127.0.0.1", xcom_config));
-  ASSERT_TRUE(wl.shall_block("::1", xcom_config));
+  ASSERT_FALSE(wl.shall_block("::1", xcom_config));
   ASSERT_FALSE(wl.shall_block("192.168.1.2", xcom_config));
   ASSERT_FALSE(wl.shall_block("192.168.2.2", xcom_config));
   ASSERT_FALSE(wl.shall_block("10.0.0.1", xcom_config));
@@ -258,7 +268,7 @@ TEST_F(GcsWhitelist, XComMembers) {
   ASSERT_TRUE(wl.shall_block("8.9.8.8", xcom_config));
   ASSERT_TRUE(wl.shall_block("9.8.8.8", xcom_config));
 
-  delete_node_address(2, xcom_names);
+  delete_node_address(3, xcom_names);
   free_site_def(xcom_config);
 }
 

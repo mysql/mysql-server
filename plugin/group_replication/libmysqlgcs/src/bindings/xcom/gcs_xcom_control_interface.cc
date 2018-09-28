@@ -120,6 +120,7 @@ Gcs_xcom_control::Gcs_xcom_control(
       m_join_sleep_time(0),
       m_suspicions_manager(new Gcs_suspicions_manager(xcom_proxy, this)),
       m_suspicions_processing_thread(),
+      m_sock_probe_interface(nullptr),
       m_xcom_running(false),
       m_leave_view_requested(false),
       m_leave_view_delivered(false),
@@ -141,6 +142,8 @@ Gcs_xcom_control::Gcs_xcom_control(
   */
   set_peer_nodes(xcom_peers);
 
+  m_sock_probe_interface = new Gcs_sock_probe_interface_impl();
+
   ARBITRATOR_HACK = 0;
 }
 
@@ -148,6 +151,7 @@ Gcs_xcom_control::~Gcs_xcom_control() {
   delete m_gid;
   delete m_local_node_info;
   delete m_suspicions_manager;
+  delete m_sock_probe_interface;
 
   set_terminate_suspicion_thread(true);
   m_suspicions_manager = NULL;
@@ -272,6 +276,31 @@ enum_gcs_error Gcs_xcom_control::do_join(bool retry) {
   return ret;
 }
 
+static bool skip_own_peer_address(std::map<std::string, int> &my_own_addresses,
+                                  int my_own_port, std::string &peer_address,
+                                  int peer_port) {
+  std::vector<std::string> peer_rep_ip;
+
+  bool resolve_error = resolve_ip_addr_from_hostname(peer_address, peer_rep_ip);
+  if (resolve_error) {
+    MYSQL_GCS_LOG_WARN("Unable to resolve peer address " << peer_address.c_str()
+                                                         << ". Skipping...")
+    return true;
+  }
+
+  for (auto &local_node_info_str_ip_entry : my_own_addresses) {
+    for (auto &peer_rep_ip_entry : peer_rep_ip) {
+      if (peer_rep_ip_entry.compare(local_node_info_str_ip_entry.first) == 0 &&
+          peer_port == my_own_port) {
+        // Skip own address if configured in the peer list
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 enum_gcs_error Gcs_xcom_control::retry_do_join() {
   /* Used to initialize xcom */
   int local_port = m_local_node_address->get_member_port();
@@ -369,40 +398,29 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
     char *addr = NULL;
     std::vector<Gcs_xcom_node_address *>::iterator it;
 
-    std::string local_node_info_str_ip;
-    bool resolve_error = false;
-    resolve_error = resolve_ip_addr_from_hostname(
-        m_local_node_address->get_member_ip(), local_node_info_str_ip);
+    std::map<std::string, int> local_node_info_str_ips;
+    bool interface_retrieve_error = false;
+    interface_retrieve_error = get_local_addresses(
+        *this->m_sock_probe_interface, local_node_info_str_ips);
 
-    if (resolve_error) {
-      MYSQL_GCS_LOG_ERROR("Error resolving local address name: "
+    if (interface_retrieve_error) {
+      MYSQL_GCS_LOG_ERROR("Error retrieving local interface addresses: "
                           << m_local_node_address->get_member_ip().c_str())
       goto err;
     }
-
     while (con == NULL && n < Gcs_xcom_proxy::connection_attempts) {
       for (it = m_initial_peers.begin();
            con == NULL && it != m_initial_peers.end(); it++) {
         Gcs_xcom_node_address *peer = *(it);
-        std::string peer_rep_ip;
 
-        resolve_error =
-            resolve_ip_addr_from_hostname(peer->get_member_ip(), peer_rep_ip);
-        if (resolve_error) {
-          MYSQL_GCS_LOG_WARN("Unable to resolve peer address "
-                             << peer->get_member_ip().c_str()
-                             << ". Skipping...")
-          continue;
-        }
-
-        if (peer_rep_ip.compare(local_node_info_str_ip) == 0 &&
-            peer->get_member_port() ==
-                m_local_node_address->get_member_port()) {
+        if (skip_own_peer_address(local_node_info_str_ips,
+                                  m_local_node_address->get_member_port(),
+                                  peer->get_member_ip(),
+                                  peer->get_member_port())) {
           MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
           // Skip own address if configured in the peer list
           continue;
         }
-
         port = peer->get_member_port();
         addr = (char *)peer->get_member_ip().c_str();
 
@@ -633,10 +651,20 @@ void Gcs_xcom_control::do_leave_view() {
 }
 
 connection_descriptor *Gcs_xcom_control::get_connection_to_node(
-    std::string local_node_ip,
     std::vector<Gcs_xcom_node_address *> *peers_list) {
   connection_descriptor *con = NULL;
   std::vector<Gcs_xcom_node_address *>::iterator it;
+
+  std::map<std::string, int> local_node_info_str_ips;
+  bool interface_retrieve_error = false;
+  interface_retrieve_error = get_local_addresses(*this->m_sock_probe_interface,
+                                                 local_node_info_str_ips);
+
+  if (interface_retrieve_error) {
+    MYSQL_GCS_LOG_ERROR("Error retrieving local interface addresses: "
+                        << m_local_node_address->get_member_ip().c_str())
+    return con;
+  }
 
   for (it = peers_list->begin(); (con == NULL) && it != peers_list->end();
        it++) {
@@ -645,20 +673,9 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
     xcom_port port = 0;
     char *addr = NULL;
 
-    bool resolve_error =
-        resolve_ip_addr_from_hostname(peer->get_member_ip(), peer_rep_ip);
-
-    if (resolve_error) {
-      MYSQL_GCS_LOG_WARN("get_connection_to_node: ("
-                         << local_node_ip << ") Unable to resolve peer address "
-                         << peer->get_member_ip().c_str() << ". Skipping...")
-      continue;
-    }
-
-    if (peer_rep_ip.compare(local_node_ip) == 0 &&
-        peer->get_member_port() == m_local_node_address->get_member_port()) {
-      MYSQL_GCS_LOG_TRACE("get_connection_to_node: (%s) Skipping own address.",
-                          local_node_ip.c_str())
+    if (skip_own_peer_address(
+            local_node_info_str_ips, m_local_node_address->get_member_port(),
+            peer->get_member_address(), peer->get_member_port())) {
       // Skip own address if configured in the peer list
       continue;
     }
@@ -667,20 +684,16 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
     addr = (char *)peer->get_member_ip().c_str();
 
     MYSQL_GCS_LOG_TRACE(
-        "get_connection_to_node: Client local port %s "
-        "xcom_client_open_connection to %s:%d",
-        local_node_ip.c_str(), addr, port)
+        "get_connection_to_node: xcom_client_open_connection to %s:%d", addr,
+        port)
 
     if ((con = m_xcom_proxy->xcom_client_open_connection(addr, port)) == NULL) {
       MYSQL_GCS_LOG_DEBUG(
-          "get_connection_to_node: Error while opening a connection to %s:%d "
-          "from: %s.",
-          addr, port, local_node_ip.c_str())
+          "get_connection_to_node: Error while opening a connection to %s:%d",
+          addr, port)
     } else
-      MYSQL_GCS_LOG_DEBUG(
-          "get_connection_to_node: Opened connection to %s:%d "
-          "from: %s. con is null? %d",
-          addr, port, local_node_ip.c_str(), (con == NULL))
+      MYSQL_GCS_LOG_DEBUG("get_connection_to_node: Opened connection to %s:%d ",
+                          "con is null? %d", addr, port, (con == NULL))
   }
 
   return con;
@@ -701,23 +714,6 @@ void Gcs_xcom_control::do_remove_node_from_group() {
     1-check the latest view to see if there are unknown peers
     2-try on known m_initial_peers
   */
-
-  // RESOLVE MY IP ADDRESS
-  std::string local_node_info_str_ip;
-  bool resolve_error = false;
-  resolve_error = resolve_ip_addr_from_hostname(
-      m_local_node_address->get_member_ip(), local_node_info_str_ip);
-
-  if (resolve_error) {
-    MYSQL_GCS_LOG_ERROR(
-        "do_remove_node_from_group: Error resolving local address name: "
-        << m_local_node_address->get_member_ip().c_str() << ". Leaving...")
-    return;
-  } else {
-    MYSQL_GCS_LOG_DEBUG(
-        "do_remove_node_from_group: Resolved local_node_info_str_ip= %s",
-        local_node_info_str_ip.c_str())
-  }
 
   // VIEW MEMBERS
   Gcs_view *current_view = m_view_control->get_current_view();
@@ -740,7 +736,7 @@ void Gcs_xcom_control::do_remove_node_from_group() {
     }
 
     if (!view_members.empty()) {
-      con = get_connection_to_node(local_node_info_str_ip, &view_members);
+      con = get_connection_to_node(&view_members);
 
       // CLEAN
       std::vector<Gcs_xcom_node_address *>::iterator clean_it;
@@ -762,7 +758,7 @@ void Gcs_xcom_control::do_remove_node_from_group() {
         "Using initial peers...",
         local_port)
 
-    con = get_connection_to_node(local_node_info_str_ip, &m_initial_peers);
+    con = get_connection_to_node(&m_initial_peers);
   }
 
   if (con && !m_leave_view_delivered && m_view_control->belongs_to_group()) {

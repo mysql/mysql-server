@@ -46,6 +46,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
+#define STRING_PORT_SIZE 6
+
 /**
  * Wrapper function which retries and checks errors from socket
  */
@@ -70,10 +72,11 @@ result xcom_checked_socket(int domain, int type, int protocol) {
 int checked_getaddrinfo(const char *nodename, const char *servname,
                         const struct addrinfo *hints, struct addrinfo **res) {
   int errval = 0;
-  /** FIXME: Lookup IPv4 only for now */
+
   struct addrinfo _hints;
   memset(&_hints, 0, sizeof(_hints));
-  _hints.ai_family = PF_INET;
+  _hints.ai_family = AF_UNSPEC;
+  _hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
   if (hints == NULL) hints = &_hints;
   do {
     if (*res) {
@@ -101,6 +104,18 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   }
   assert((errval == 0 && *res) || (errval != 0 && *res == NULL));
   return errval;
+}
+
+/**
+ @brief Wrapper function to checked_getaddrinfo that accepts a numeric port
+ */
+int checked_getaddrinfo_port(const char *nodename, xcom_port port,
+                             const struct addrinfo *hints,
+                             struct addrinfo **res) {
+  char buffer[STRING_PORT_SIZE];
+  sprintf(buffer, "%d", port);
+
+  return checked_getaddrinfo(nodename, buffer, hints, res);
 }
 
 struct infonode;

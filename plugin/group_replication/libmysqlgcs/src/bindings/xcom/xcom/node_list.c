@@ -32,12 +32,13 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_address.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-
-extern xcom_port xcom_get_port(char *a);
 
 /**
    Debug a node list.
@@ -68,9 +69,17 @@ node_list clone_node_list(node_list list) {
 
 /* OHKFIX Do something more intelligent than strcmp */
 int match_node(node_address *n1, node_address *n2, u_int with_uid) {
-  int retval = (n1 != 0 && n2 != 0 &&
-                (xcom_get_port(n1->address) == xcom_get_port(n2->address)) &&
-                strcmp(n1->address, n2->address) == 0);
+  char n1_ip[IP_MAX_SIZE], n2_ip[IP_MAX_SIZE];
+  xcom_port n1_port, n2_port;
+  int error_ipandport1, error_ipandport2;
+
+  if (n1 == 0 || n2 == 0) return 0;
+
+  error_ipandport1 = get_ip_and_port(n1->address, n1_ip, &n1_port);
+  error_ipandport2 = get_ip_and_port(n2->address, n2_ip, &n2_port);
+
+  int retval = (!error_ipandport1 && !error_ipandport2 &&
+                (n1_port == n2_port) && strcmp(n1->address, n2->address) == 0);
 
   if (with_uid) {
     int retval_with_uid = (n1->uuid.data.data_len == n2->uuid.data.data_len);
