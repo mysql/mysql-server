@@ -641,7 +641,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> DIAGNOSTICS_SYM       /* SQL-2003-N */
 %token<keyword> DIRECTORY_SYM
 %token<keyword> DISABLE_SYM
-%token<keyword> DISCARD
+%token<keyword> DISCARD_SYM           /* MYSQL */
 %token<keyword> DISK_SYM
 %token  DISTINCT                      /* SQL-2003-R */
 %token  DIV_SYM
@@ -1231,6 +1231,8 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
+%token<keyword> RETAIN_SYM                    /* MYSQL */
+%token<keyword> OLD_SYM                       /* SQL-2003-R */
 
 
 /*
@@ -1270,7 +1272,7 @@ void warn_about_deprecated_national(THD *thd)
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component key_cache_name
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
-        TEXT_STRING_sys_nonewline
+        TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         filter_wild_db_table_string
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
@@ -1439,7 +1441,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <keyword> ident_keyword label_keyword role_keyword
         role_or_label_keyword role_or_ident_keyword
 
-%type <lex_user> user create_or_alter_user alter_user user_func role
+%type <lex_user> user create_user alter_user user_func role
 
 %type <charset>
         opt_collate
@@ -1489,6 +1491,8 @@ void warn_about_deprecated_national(THD *thd)
         opt_full opt_extended
         opt_ignore_leaves
         opt_local
+        opt_retain_current_password
+        opt_discard_old_password
 
 %type <show_cmd_type> opt_show_cmd_type
 
@@ -7480,7 +7484,7 @@ alter_user_stmt:
           alter_user_command alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
-          opt_replace_password
+          opt_replace_password opt_retain_current_password
           {
             $2->auth.str= $5.str;
             $2->auth.length= $5.length;
@@ -7490,6 +7494,14 @@ alter_user_stmt:
               $2->uses_replace_clause= true;
             }
             Lex->contains_plaintext_password= true;
+            $2->discard_old_password= false;
+            $2->retain_current_password= $7;
+          }
+        | alter_user_command user_func DISCARD_SYM OLD_SYM PASSWORD
+          {
+            $2->discard_old_password= true;
+            $2->retain_current_password= false;
+            $2->auth= NULL_CSTR;
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
           {
@@ -7529,8 +7541,8 @@ alter_user_stmt:
         ;
 
 opt_replace_password:
-          /* empty */                   { $$ = LEX_CSTRING{nullptr, 0}; }
-        | REPLACE_SYM TEXT_STRING       { $$ = to_lex_cstring($2); }
+          /* empty */                       { $$ = LEX_CSTRING{nullptr, 0}; }
+        | REPLACE_SYM TEXT_STRING_password  { $$ = to_lex_cstring($2); }
         ;
 
 alter_resource_group_stmt:
@@ -7804,7 +7816,7 @@ opt_alter_command_list:
         ;
 
 standalone_alter_commands:
-          DISCARD TABLESPACE_SYM
+          DISCARD_SYM TABLESPACE_SYM
           {
             $$= NEW_PTN PT_alter_table_discard_tablespace;
           }
@@ -7884,7 +7896,7 @@ standalone_alter_commands:
           {
             $$= NEW_PTN PT_alter_table_exchange_partition($3, $6, $7);
           }
-        | DISCARD PARTITION_SYM all_or_alt_part_name_list
+        | DISCARD_SYM PARTITION_SYM all_or_alt_part_name_list
           TABLESPACE_SYM
           {
             $$= NEW_PTN PT_alter_table_discard_partition_tablespace($3);
@@ -13744,6 +13756,14 @@ TEXT_STRING_filesystem:
           }
         ;
 
+TEXT_STRING_password:
+          TEXT_STRING
+        ;
+
+TEXT_STRING_hash:
+          TEXT_STRING_sys
+        ;
+
 ident:
           IDENT_sys    { $$=$1; }
         | ident_keyword
@@ -14003,7 +14023,7 @@ role_or_label_keyword:
         | DIAGNOSTICS_SYM
         | DIRECTORY_SYM
         | DISABLE_SYM
-        | DISCARD
+        | DISCARD_SYM
         | DISK_SYM
         | DUMPFILE
         | DUPLICATE_SYM
@@ -14133,6 +14153,7 @@ role_or_label_keyword:
         | NUMBER_SYM
         | NVARCHAR_SYM
         | OFFSET_SYM
+        | OLD_SYM
         | ONE_SYM
         | ONLY_SYM
         | OPTIONAL_SYM
@@ -14185,6 +14206,7 @@ role_or_label_keyword:
         | RESOURCES
         | RESPECT_SYM
         | RESUME_SYM
+        | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
         | RETURNS_SYM
         | REUSE_SYM
@@ -14328,15 +14350,18 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_start_option_value_list_type($1, $2);
           }
-        | PASSWORD equal TEXT_STRING opt_replace_password
+        | PASSWORD equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
-            $$= NEW_PTN PT_option_value_no_option_type_password($3.str,
-                                                                $4.str, @4);
+            $$= NEW_PTN PT_option_value_no_option_type_password($3.str, $4.str,
+                                                                $5,
+                                                                @4);
           }
-        | PASSWORD FOR_SYM user equal TEXT_STRING opt_replace_password
+        | PASSWORD FOR_SYM user equal TEXT_STRING_password opt_replace_password opt_retain_current_password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5.str,
-                                                                    $6.str, @6);
+                                                                    $6.str,
+                                                                    $7,
+                                                                    @6);
           }
         ;
 
@@ -15177,13 +15202,24 @@ role_list:
           }
         ;
 
-create_or_alter_user:
-          user IDENTIFIED_SYM BY TEXT_STRING
+opt_retain_current_password:
+          /* empty */   { $$= false; }
+        | RETAIN_SYM CURRENT_SYM PASSWORD { $$= true; }
+        ;
+
+opt_discard_old_password:
+          /* empty */   { $$= false; }
+        | DISCARD_SYM OLD_SYM PASSWORD { $$= true; }
+
+create_user:
+          user IDENTIFIED_SYM BY TEXT_STRING_password
           {
             $$=$1;
             $1->auth.str= $4.str;
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text
@@ -15193,8 +15229,10 @@ create_or_alter_user:
             $1->plugin.length= $4.length;
             $1->auth= EMPTY_CSTR;
             $1->uses_identified_with_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15203,8 +15241,10 @@ create_or_alter_user:
             $1->auth.length= $6.length;
             $1->uses_identified_with_clause= true;
             $1->uses_authentication_string_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_sys
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15213,17 +15253,21 @@ create_or_alter_user:
             $1->auth.length= $6.length;
             $1->uses_identified_with_clause= true;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
             Lex->contains_plaintext_password= true;
           }
         | user
           {
             $$= $1;
             $1->auth= NULL_CSTR;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
           }
         ;
 
 alter_user:
-         user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING
+         user IDENTIFIED_SYM BY TEXT_STRING REPLACE_SYM TEXT_STRING_password opt_retain_current_password
           {
             $$=$1;
             $1->auth.str= $4.str;
@@ -15232,9 +15276,12 @@ alter_user:
             $1->current_auth.str= $6.str;
             $1->current_auth.length= $6.length;
             $1->uses_replace_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
             Lex->contains_plaintext_password= true;
           }
-        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING REPLACE_SYM TEXT_STRING
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password REPLACE_SYM TEXT_STRING_password
+          opt_retain_current_password
           {
             $$= $1;
             $1->plugin.str= $4.str;
@@ -15246,18 +15293,73 @@ alter_user:
             $1->uses_replace_clause= true;
             $1->uses_identified_with_clause= true;
             $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $9;
             Lex->contains_plaintext_password= true;
           }
-        | create_or_alter_user
+        | user IDENTIFIED_SYM BY TEXT_STRING_password opt_retain_current_password
+          {
+            $$=$1;
+            $1->auth.str= $4.str;
+            $1->auth.length= $4.length;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $5;
+            Lex->contains_plaintext_password= true;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth= EMPTY_CSTR;
+            $1->uses_identified_with_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= false;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_hash
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_authentication_string_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
+          }
+        | user IDENTIFIED_SYM WITH ident_or_text BY TEXT_STRING_password
+          opt_retain_current_password
+          {
+            $$= $1;
+            $1->plugin.str= $4.str;
+            $1->plugin.length= $4.length;
+            $1->auth.str= $6.str;
+            $1->auth.length= $6.length;
+            $1->uses_identified_with_clause= true;
+            $1->uses_identified_by_clause= true;
+            $1->discard_old_password= false;
+            $1->retain_current_password= $7;
+            Lex->contains_plaintext_password= true;
+          }
+        | user opt_discard_old_password
+          {
+            $$= $1;
+            $1->discard_old_password= $2;
+            $1->retain_current_password= false;
+            $1->auth= NULL_CSTR;
+          }
         ;
 
 create_user_list:
-          create_or_alter_user
+          create_user
           {
             if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
           }
-        | create_user_list ',' create_or_alter_user
+        | create_user_list ',' create_user
           {
             if (Lex->users_list.push_back($3))
               MYSQL_YYABORT;

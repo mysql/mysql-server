@@ -33,6 +33,7 @@
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/partitioned_rwlock.h"
+#include "sql/auth/user_table.h"
 #include "sql/sql_audit.h"
 #include "sql/table.h"
 #include "violite.h" /* SSL_type */
@@ -43,6 +44,7 @@ class GRANT_NAME;
 class GRANT_TABLE;
 class GRANT_COLUMN;
 struct TABLE;
+
 typedef struct user_resources USER_RESOURCES;
 void append_identifier(THD *thd, String *packet, const char *name,
                        size_t length);
@@ -127,8 +129,17 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      ulong privileges, const LEX_CSTRING &plugin,
-                     const LEX_CSTRING &auth, MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life, ulong what_is_set);
+                     const LEX_CSTRING &auth, const std::string &second_auth,
+                     MYSQL_TIME password_change_time, LEX_ALTER password_life,
+                     acl_table::Pod_user_what_to_update &what_to_update);
+void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
+                       const char *host, enum SSL_type ssl_type,
+                       const char *ssl_cipher, const char *x509_issuer,
+                       const char *x509_subject, USER_RESOURCES *mqh,
+                       ulong privileges, const LEX_CSTRING &plugin,
+                       const LEX_CSTRING &auth, const LEX_CSTRING &second_auth,
+                       MYSQL_TIME password_change_time, LEX_ALTER password_life,
+                       bool add_role_vertex);
 void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type, const char *ssl_cipher,
                      const char *x509_issuer, const char *x509_subject,
@@ -145,14 +156,13 @@ bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
 void clear_and_init_db_cache();
 bool acl_reload(THD *thd, bool locked = false);
 bool grant_reload(THD *thd, bool locked = false);
+void clean_user_cache();
+bool set_user_salt(ACL_USER *acl_user);
 
 /* sql_user_table */
 ulong get_access(TABLE *form, uint fieldnr, uint *next_field);
 int replace_db_table(THD *thd, TABLE *table, const char *db,
                      const LEX_USER &combo, ulong rights, bool revoke_grant);
-int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
-                       bool revoke_grant, bool can_create_user,
-                       ulong what_to_replace);
 int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
                                const LEX_USER *proxied_user,
                                bool with_grant_arg, bool revoke_grant);
@@ -331,12 +341,10 @@ Auth_id_ref create_authid_from(const LEX_CSTRING &user,
                                const LEX_CSTRING &host);
 bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
                          LEX_USER *user_from, LEX_USER *user_to);
-bool set_and_validate_user_attributes(THD *thd, LEX_USER *Str,
-                                      ulong &what_to_set,
-                                      bool is_privileged_user, bool is_role,
-                                      TABLE_LIST *table_list,
-                                      bool *history_check_done,
-                                      const char *cmd);
+bool set_and_validate_user_attributes(
+    THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
+    bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
+    bool *history_check_done, const char *cmd);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<const Role_id, Grant_privilege, role_id_hash>
     User_to_dynamic_privileges_map;

@@ -2335,6 +2335,8 @@ struct LEX_USER {
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_replace_clause;
+  bool retain_current_password;
+  bool discard_old_password;
   LEX_ALTER alter_status;
   /*
     Allocates the memory in the THD mem pool and initialize the members of

@@ -254,6 +254,7 @@ ERROR HY000: Can't initialize function 'version_tokens_show'; version_token plug
 # VERSION_TOKEN_ADMIN shouldn't be visible in SHOW PRIVILEGES
 SHOW PRIVILEGES;
 Privilege	Context	Comment
+APPLICATION_PASSWORD_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	

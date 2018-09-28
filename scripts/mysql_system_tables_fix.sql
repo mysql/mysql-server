@@ -689,6 +689,13 @@ COMMIT;
 SET @hadServiceConnectionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SERVICE_CONNECTION_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'SERVICE_CONNECTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE super_priv = 'Y' AND @hadServiceConnectionAdminPriv = 0;
+
+-- Add the privilege APPLICATION_PASSWORD_ADMIN for every user who has the
+-- privilege CREATE USER provided that there isn't a user who already has
+-- privilege APPLICATION_PASSWORD_ADMIN
+SET @hadApplicationPasswordAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'APPLICATION_PASSWORD_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables
@@ -890,6 +897,7 @@ ALTER TABLE user ADD Password_reuse_history smallint unsigned NULL DEFAULT NULL 
 ALTER TABLE user ADD Password_reuse_time smallint unsigned NULL DEFAULT NULL AFTER Password_reuse_history;
 ALTER TABLE user ADD Password_require_current enum('N', 'Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
 ALTER TABLE user MODIFY Password_require_current enum('N','Y') COLLATE utf8_general_ci DEFAULT NULL AFTER Password_reuse_time;
+ALTER TABLE user ADD User_attributes JSON DEFAULT NULL AFTER Password_require_current;
 
 --
 -- Change engine of the firewall tables to InnoDB
@@ -1038,7 +1046,7 @@ DROP PREPARE stmt;
 # SUPER, PERSIST_RO_VARIABLES_ADMIN, SYSTEM_VARIABLES_ADMIN privileges
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL,NULL);
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
 
 UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
 

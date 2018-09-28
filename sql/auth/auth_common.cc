@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,8 @@
 #include "sql/field.h"
 #include "sql/table.h"
 
-bool Acl_load_user_table_schema_factory::is_old_user_table_schema(
-    TABLE *table) {
+bool User_table_schema_factory::is_old_user_table_schema(TABLE *table) {
   Field *password_field =
-      table
-          ->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
+      table->field[User_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
   return strncmp(password_field->field_name, "Password", 8) == 0;
 }

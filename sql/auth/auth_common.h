@@ -262,6 +262,7 @@ enum mysql_user_table_field {
   MYSQL_USER_FIELD_PASSWORD_REUSE_HISTORY,
   MYSQL_USER_FIELD_PASSWORD_REUSE_TIME,
   MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT,
+  MYSQL_USER_FIELD_USER_ATTRIBUTES,
   MYSQL_USER_FIELD_COUNT
 };
 
@@ -347,10 +348,10 @@ enum mysql_dynamic_priv_table_field {
 /* When we run mysql_upgrade we must make sure that the server can be run
    using previous mysql.user table schema during acl_load.
 
-   Acl_load_user_table_schema is a common interface for the current and the
+   User_table_schema is a common interface for the current and the
                               previous mysql.user table schema.
  */
-class Acl_load_user_table_schema {
+class User_table_schema {
  public:
   virtual uint host_idx() = 0;
   virtual uint user_idx() = 0;
@@ -404,14 +405,16 @@ class Acl_load_user_table_schema {
   virtual uint password_reuse_time_idx() = 0;
   // Added in 8.0.13
   virtual uint password_require_current_idx() = 0;
+  // Added in 8.0.14
+  virtual uint user_attributes_idx() = 0;
 
-  virtual ~Acl_load_user_table_schema() {}
+  virtual ~User_table_schema() {}
 };
 
 /*
   This class describes indices for the current mysql.user table schema.
  */
-class Acl_load_user_table_current_schema : public Acl_load_user_table_schema {
+class User_table_current_schema : public User_table_schema {
  public:
   uint host_idx() { return MYSQL_USER_FIELD_HOST; }
   uint user_idx() { return MYSQL_USER_FIELD_USER; }
@@ -486,12 +489,13 @@ class Acl_load_user_table_current_schema : public Acl_load_user_table_schema {
   uint password_require_current_idx() {
     return MYSQL_USER_FIELD_PASSWORD_REQUIRE_CURRENT;
   }
+  uint user_attributes_idx() { return MYSQL_USER_FIELD_USER_ATTRIBUTES; }
 };
 
 /*
   This class describes indices for the old mysql.user table schema.
  */
-class Acl_load_user_table_old_schema : public Acl_load_user_table_schema {
+class User_table_old_schema : public User_table_schema {
  public:
   enum mysql_user_table_field_56 {
     MYSQL_USER_FIELD_HOST_56 = 0,
@@ -605,20 +609,20 @@ class Acl_load_user_table_old_schema : public Acl_load_user_table_schema {
   uint password_reuse_history_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint password_reuse_time_idx() { return MYSQL_USER_FIELD_COUNT_56; }
   uint password_require_current_idx() { return MYSQL_USER_FIELD_COUNT_56; }
+  uint user_attributes_idx() { return MYSQL_USER_FIELD_COUNT_56; }
 };
 
-class Acl_load_user_table_schema_factory {
+class User_table_schema_factory {
  public:
-  virtual Acl_load_user_table_schema *get_user_table_schema(TABLE *table) {
+  virtual User_table_schema *get_user_table_schema(TABLE *table) {
     return is_old_user_table_schema(table)
-               ? implicit_cast<Acl_load_user_table_schema *>(
-                     new Acl_load_user_table_old_schema())
-               : implicit_cast<Acl_load_user_table_schema *>(
-                     new Acl_load_user_table_current_schema());
+               ? implicit_cast<User_table_schema *>(new User_table_old_schema())
+               : implicit_cast<User_table_schema *>(
+                     new User_table_current_schema());
   }
 
   virtual bool is_old_user_table_schema(TABLE *table);
-  virtual ~Acl_load_user_table_schema_factory() {}
+  virtual ~User_table_schema_factory() {}
 };
 
 extern bool mysql_user_table_is_in_short_password_format;
@@ -656,13 +660,16 @@ bool acl_check_host(THD *thd, const char *host, const char *ip);
 #define ACCESS_RIGHTS_ATTR (1L << 5)   /* update privileges */
 #define ACCOUNT_LOCK_ATTR (1L << 6)    /* update account lock status */
 #define DIFFERENT_PLUGIN_ATTR \
-  (1L << 7) /* updated plugin with a different value */
+  (1L << 7)                       /* updated plugin with a different value */
+#define USER_ATTRIBUTES (1L << 8) /* Request to update user attributes */
 
 /* sql_user */
 void log_user(THD *thd, String *str, LEX_USER *user, bool comma);
-int check_change_password(THD *thd, const char *host, const char *user);
+bool check_change_password(THD *thd, const char *host, const char *user,
+                           bool retain_current_password);
 bool change_password(THD *thd, LEX_USER *user, char *password,
-                     const char *current_password);
+                     const char *current_password,
+                     bool retain_current_password);
 bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
                        bool is_role);
 bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);

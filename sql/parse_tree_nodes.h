@@ -1126,14 +1126,17 @@ class PT_option_value_no_option_type_password
 
   const char *password;
   const char *current_password;
+  bool retain_current_password;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password(const char *password_arg,
                                           const char *current_password_arg,
+                                          bool retain_current,
                                           const POS &expr_pos_arg)
       : password(password_arg),
         current_password(current_password_arg),
+        retain_current_password(retain_current),
         expr_pos(expr_pos_arg) {}
 
   virtual bool contextualize(Parse_context *pc);
@@ -1146,16 +1149,19 @@ class PT_option_value_no_option_type_password_for
   LEX_USER *user;
   const char *password;
   const char *current_password;
+  bool retain_current_password;
   POS expr_pos;
 
  public:
   PT_option_value_no_option_type_password_for(LEX_USER *user_arg,
                                               const char *password_arg,
                                               const char *current_password_arg,
+                                              bool retain_current,
                                               const POS &expr_pos_arg)
       : user(user_arg),
         password(password_arg),
         current_password(current_password_arg),
+        retain_current_password(retain_current),
         expr_pos(expr_pos_arg) {}
 
   virtual bool contextualize(Parse_context *pc);

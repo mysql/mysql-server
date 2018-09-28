@@ -90,6 +90,7 @@ user	CREATE TABLE `user` (
   `Password_reuse_history` smallint(5) unsigned DEFAULT NULL,
   `Password_reuse_time` smallint(5) unsigned DEFAULT NULL,
   `Password_require_current` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `User_attributes` json DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Users and global privileges'
 SHOW CREATE TABLE mysql.innodb_table_stats;

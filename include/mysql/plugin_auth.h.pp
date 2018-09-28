@@ -145,6 +145,8 @@ struct MYSQL_SERVER_AUTH_INFO {
   int password_used;
   const char *host_or_ip;
   unsigned int host_or_ip_length;
+  const char *additional_auth_string;
+  unsigned long additional_auth_string_length;
 };
 typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio,
                                    MYSQL_SERVER_AUTH_INFO *info);

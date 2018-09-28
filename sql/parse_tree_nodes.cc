@@ -441,8 +441,9 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
-  var = new (*THR_MALLOC) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password));
+  var = new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password),
+                                           const_cast<char *>(current_password),
+                                           retain_current_password);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -477,7 +478,8 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   if (!user) return true;
 
   set_var_password *var = new (*THR_MALLOC) set_var_password(
-      user, const_cast<char *>(password), const_cast<char *>(current_password));
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password);
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of Memory
   }

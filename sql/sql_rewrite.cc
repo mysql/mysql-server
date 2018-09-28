@@ -747,6 +747,14 @@ void Rewriter_alter_user::append_user_auth_info(LEX_USER *user, bool comma,
       str->append(STRING_WITH_LEN(" AS "));
       append_auth_str(user, str);
     }
+
+    if (user->retain_current_password) {
+      str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
+    }
+  }
+
+  if (user->discard_old_password) {
+    str->append(STRING_WITH_LEN(" DISCARD OLD PASSWORD"));
   }
 }
 /**
@@ -941,6 +949,8 @@ bool Rewriter_set_password::rewrite() const {
     rlb->append(user->plugin.str);
     rlb->append(STRING_WITH_LEN("' AS "));
     append_query_string(m_thd, system_charset_info, &auth_str, rlb);
+    if (user->retain_current_password)
+      rlb->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
     ret_val = true;
   } else {
     ret_val = parent::rewrite();

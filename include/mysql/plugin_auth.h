@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include <mysql/plugin.h>
 
-#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0102
+#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0200
 
 #include "plugin_auth_common.h"
 
@@ -108,6 +108,16 @@ struct MYSQL_SERVER_AUTH_INFO {
     Length of host_or_ip
   */
   unsigned int host_or_ip_length;
+
+  /**
+    Additional password
+  */
+  const char *additional_auth_string;
+
+  /**
+    Length of additional password
+  */
+  unsigned long additional_auth_string_length;
 };
 
 /**

@@ -18632,6 +18632,33 @@ ER_SERVER_STARTUP_ADMIN_INTERFACE
 ER_CANT_CREATE_ADMIN_THREAD
   eng "Can't create thread to handle admin connections (errno= %d)"
 
+ER_WARNING_RETAIN_CURRENT_PASSWORD_CLAUSE_VOID
+  eng "RETAIN CURRENT PASSWORD ignored for user '%s'@'%s' as its authentication plugin %s does not support multiple passwords."
+
+ER_WARNING_DISCARD_OLD_PASSWORD_CLAUSE_VOID
+  eng "DISCARD OLD PASSWORD ignored for user '%s'@'%s' as its authentication plugin %s does not support multiple passwords."
+
+ER_SECOND_PASSWORD_CANNOT_BE_EMPTY
+  eng "Empty password can not be retained as second password for user '%s'@'%s'."
+
+ER_PASSWORD_CANNOT_BE_RETAINED_ON_PLUGIN_CHANGE
+  eng "Current password can not be retained for user '%s'@'%s' because authentication plugin is being changed."
+
+ER_CURRENT_PASSWORD_CANNOT_BE_RETAINED
+  eng "Current password can not be retained for user '%s'@'%s' because new password is empty."
+
+ER_WARNING_AUTHCACHE_INVALID_USER_ATTRIBUTES
+  eng "Can not read and process value of User_attributes column from mysql.user table for user: '%s@%s'; Ignoring user."
+
+ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_SHA256_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
+  eng "Second password was used for login by user: '%s'@'%s'."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

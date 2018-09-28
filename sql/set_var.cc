@@ -1219,15 +1219,18 @@ void set_var_user::print(THD *, String *str) {
 *****************************************************************************/
 
 set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
-                                   char *current_passowrd_arg)
+                                   char *current_password_arg,
+                                   bool retain_current)
     : user(user_arg),
       password(password_arg),
-      current_passowrd(current_passowrd_arg) {
-  if (current_passowrd != nullptr) {
+      current_password(current_password_arg),
+      retain_current_password(retain_current) {
+  if (current_password != nullptr) {
     user_arg->uses_replace_clause = true;
-    user_arg->current_auth.str = current_passowrd_arg;
-    user_arg->current_auth.length = strlen(current_passowrd_arg);
+    user_arg->current_auth.str = current_password_arg;
+    user_arg->current_auth.length = strlen(current_password_arg);
   }
+  user_arg->retain_current_password = retain_current_password;
 }
 
 /**
@@ -1240,12 +1243,18 @@ set_var_password::set_var_password(LEX_USER *user_arg, char *password_arg,
 */
 int set_var_password::check(THD *thd) {
   /* Returns 1 as the function sends error to client */
-  return check_change_password(thd, user->host.str, user->user.str) ? 1 : 0;
+  return check_change_password(thd, user->host.str, user->user.str,
+                               retain_current_password)
+             ? 1
+             : 0;
 }
 
 int set_var_password::update(THD *thd) {
   /* Returns 1 as the function sends error to client */
-  return change_password(thd, user, password, current_passowrd) ? 1 : 0;
+  return change_password(thd, user, password, current_password,
+                         retain_current_password)
+             ? 1
+             : 0;
 }
 
 void set_var_password::print(THD *thd, String *str) {
@@ -1262,6 +1271,9 @@ void set_var_password::print(THD *thd, String *str) {
   str->append(STRING_WITH_LEN("<secret>"));
   if (user->uses_replace_clause) {
     str->append(STRING_WITH_LEN(" REPLACE <secret>"));
+  }
+  if (user->retain_current_password) {
+    str->append(STRING_WITH_LEN(" RETAIN CURRENT PASSWORD"));
   }
 }
 

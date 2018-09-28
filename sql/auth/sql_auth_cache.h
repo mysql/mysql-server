@@ -69,6 +69,8 @@ class ACL_HOST_AND_IP {
   const char *calc_ip(const char *ip_arg, long *val, char end);
 
  public:
+  ACL_HOST_AND_IP()
+      : hostname(nullptr), hostname_length(0), ip(0), ip_mask(0) {}
   const char *get_host() const { return hostname; }
   size_t get_host_len() const { return hostname_length; }
 
@@ -88,9 +90,16 @@ class ACL_HOST_AND_IP {
 
 class ACL_ACCESS {
  public:
+  ACL_ACCESS() : host(), sort(0), access(0) {}
   ACL_HOST_AND_IP host;
   ulong sort;
   ulong access;
+};
+
+class ACL_compare : public std::binary_function<ACL_ACCESS, ACL_ACCESS, bool> {
+ public:
+  bool operator()(const ACL_ACCESS &a, const ACL_ACCESS &b);
+  bool operator()(const ACL_ACCESS *a, const ACL_ACCESS *b);
 };
 
 /* ACL_HOST is used if no host is specified */
@@ -100,24 +109,39 @@ class ACL_HOST : public ACL_ACCESS {
   char *db;
 };
 
-class ACL_USER : public ACL_ACCESS {
+#define NUM_CREDENTIALS 2
+#define PRIMARY_CRED (NUM_CREDENTIALS - NUM_CREDENTIALS)
+#define SECOND_CRED (PRIMARY_CRED + 1)
+
+class Acl_credential {
  public:
-  USER_RESOURCES user_resource;
-  char *user;
+  Acl_credential() {
+    m_auth_string = {(char *)"", 0};
+    memset(m_salt, 0, SCRAMBLE_LENGTH + 1);
+    m_salt_len = 0;
+  }
+
+ public:
+  LEX_STRING m_auth_string;
   /**
     The salt variable is used as the password hash for
     native_password_authetication.
   */
-  uint8 salt[SCRAMBLE_LENGTH + 1];  // scrambled password in binary form
+  uint8 m_salt[SCRAMBLE_LENGTH + 1];  // scrambled password in binary form
   /**
     In the old protocol the salt_len indicated what type of autnetication
     protocol was used: 0 - no password, 4 - 3.20, 8 - 4.0,  20 - 4.1.1
   */
-  uint8 salt_len;
+  uint8 m_salt_len;
+};
+
+class ACL_USER : public ACL_ACCESS {
+ public:
+  USER_RESOURCES user_resource;
+  char *user;
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
   LEX_CSTRING plugin;
-  LEX_STRING auth_string;
   bool password_expired;
   bool can_authenticate;
   MYSQL_TIME password_last_changed;
@@ -160,7 +184,13 @@ class ACL_USER : public ACL_ACCESS {
   */
   Lex_acl_attrib_udyn password_require_current;
 
+  /**
+    Additional credentials
+  */
+  Acl_credential credentials[NUM_CREDENTIALS];
+
   ACL_USER *copy(MEM_ROOT *root);
+  ACL_USER();
 };
 
 class ACL_DB : public ACL_ACCESS {

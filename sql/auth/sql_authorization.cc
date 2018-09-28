@@ -2289,7 +2289,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   const char *db_name, *table_name;
   bool transactional_tables;
-  ulong what_to_set = 0;
+  acl_table::Pod_user_what_to_update what_to_set;
   bool result = false;
   int ret = 0;
   std::set<LEX_USER *> existing_users;
@@ -2422,7 +2422,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
 
     ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
-    if (this_user && (what_to_set & PLUGIN_ATTR))
+    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
       existing_users.insert(tmp_Str);
 
     db_name = table_list->get_db_name();
@@ -2556,7 +2556,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   const char *db_name, *table_name;
   bool transactional_tables;
-  ulong what_to_set = 0;
+  acl_table::Pod_user_what_to_update what_to_set;
   bool result = false;
   int ret;
   std::set<LEX_USER *> existing_users;
@@ -2612,7 +2612,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     ACL_USER *this_user = find_acl_user(Str->host.str, Str->user.str, true);
-    if (this_user && (what_to_set & PLUGIN_ATTR))
+    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
       existing_users.insert(tmp_Str);
 
     db_name = table_list->db;
@@ -2917,7 +2917,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   char tmp_db[NAME_LEN + 1];
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   bool transactional_tables;
-  ulong what_to_set = 0;
+  acl_table::Pod_user_what_to_update what_to_set;
   bool error = false;
   int ret;
   TABLE *dynpriv_table;
@@ -2983,12 +2983,13 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     }
 
     ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
-    if (this_user && (what_to_set & PLUGIN_ATTR))
+    if (this_user && (what_to_set.m_what & PLUGIN_ATTR))
       existing_users.insert(target_user);
+    what_to_set.m_what |= ACCESS_RIGHTS_ATTR;
 
     if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                   user, (!db ? rights : 0), revoke_grant, false,
-                                  (what_to_set | ACCESS_RIGHTS_ATTR)))) {
+                                  what_to_set))) {
       error = true;
       if (ret < 0) break;
 
@@ -4563,9 +4564,12 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
     /* copy password expire attributes to individual user */
     lex_user->alter_status = thd->lex->alter_password;
 
+    acl_table::Pod_user_what_to_update what_to_update;
+    what_to_update.m_what = (what_to_set | ACCESS_RIGHTS_ATTR);
+
     if ((ret = replace_user_table(thd, tables[ACL_TABLES::TABLE_USER].table,
                                   lex_user, ~(ulong)0, true, false,
-                                  (what_to_set | ACCESS_RIGHTS_ATTR)))) {
+                                  what_to_update))) {
       result = true;
       if (ret < 0) break;
 

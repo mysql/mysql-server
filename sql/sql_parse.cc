@@ -3741,10 +3741,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                                              user->user.str,
                                              lex->grant & GRANT_ACL))
               goto error;
-          } else if (is_acl_user(thd, user->host.str, user->user.str) &&
-                     user->auth.str &&
-                     check_change_password(thd, user->host.str, user->user.str))
-            goto error;
+          }
         }
       }
       if (first_table) {
@@ -4345,24 +4342,25 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_ALTER_USER: {
       LEX_USER *user, *tmp_user;
       bool changing_own_password = false;
-      bool own_password_expired = thd->security_context()->password_expired();
+      Security_context *sctx = thd->security_context();
+      bool own_password_expired = sctx->password_expired();
       bool check_permission = true;
 
       List_iterator<LEX_USER> user_list(lex->users_list);
       while ((tmp_user = user_list++)) {
         bool update_password_only = false;
         bool is_self = false;
+        bool second_password = false;
 
         /* If it is an empty lex_user update it with current user */
         if (!tmp_user->host.str && !tmp_user->user.str) {
           /* set user information as of the current user */
-          DBUG_ASSERT(thd->security_context()->priv_host().str);
-          tmp_user->host.str = (char *)thd->security_context()->priv_host().str;
-          tmp_user->host.length =
-              strlen(thd->security_context()->priv_host().str);
-          DBUG_ASSERT(thd->security_context()->user().str);
-          tmp_user->user.str = (char *)thd->security_context()->user().str;
-          tmp_user->user.length = strlen(thd->security_context()->user().str);
+          DBUG_ASSERT(sctx->priv_host().str);
+          tmp_user->host.str = (char *)sctx->priv_host().str;
+          tmp_user->host.length = strlen(sctx->priv_host().str);
+          DBUG_ASSERT(sctx->user().str);
+          tmp_user->user.str = (char *)sctx->user().str;
+          tmp_user->user.length = strlen(sctx->user().str);
         }
         if (!(user = get_current_user(thd, tmp_user))) goto error;
 
@@ -4382,18 +4380,32 @@ int mysql_execute_command(THD *thd, bool first_level) {
             (thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED))
           update_password_only = true;
 
-        is_self = !strcmp(thd->security_context()->user().length
-                              ? thd->security_context()->user().str
-                              : "",
+        is_self = !strcmp(sctx->user().length ? sctx->user().str : "",
                           user->user.str) &&
                   !my_strcasecmp(&my_charset_latin1, user->host.str,
-                                 thd->security_context()->priv_host().str);
+                                 sctx->priv_host().str);
         /*
           if user executes ALTER statement to change password only
-          for himself then skip access check.
+          for himself then skip access check - Provided preference to
+          retain/discard current password was specified.
         */
-        if (update_password_only && is_self) {
-          changing_own_password = true;
+
+        if (user->discard_old_password || user->retain_current_password) {
+          second_password = true;
+        }
+        if ((update_password_only || user->discard_old_password) && is_self) {
+          changing_own_password = update_password_only;
+          if (second_password) {
+            if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+                !sctx->check_access(CREATE_USER_ACL) &&
+                !(sctx->has_global_grant(
+                          STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"))
+                      .first)) {
+              my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                       "CREATE USER or APPLICATION_PASSWORD_ADMIN");
+              goto error;
+            }
+          }
           continue;
         } else if (check_permission) {
           if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
@@ -4412,7 +4424,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
         if (update_password_only &&
             likely((get_server_state() == SERVER_OPERATING)) &&
-            !strcmp(thd->security_context()->priv_user().str, "")) {
+            !strcmp(sctx->priv_user().str, "")) {
           my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
           goto error;
         }
@@ -6493,6 +6505,8 @@ void get_default_definer(THD *thd, LEX_USER *definer) {
   definer->uses_identified_by_clause = false;
   definer->uses_authentication_string_clause = false;
   definer->uses_replace_clause = false;
+  definer->retain_current_password = false;
+  definer->discard_old_password = false;
   definer->alter_status.update_password_expired_column = false;
   definer->alter_status.use_default_password_lifetime = true;
   definer->alter_status.expire_after_days = 0;
@@ -6555,6 +6569,8 @@ LEX_USER *get_current_user(THD *thd, LEX_USER *user) {
       default_definer->uses_replace_clause = user->uses_replace_clause;
       default_definer->current_auth.str = user->current_auth.str;
       default_definer->current_auth.length = user->current_auth.length;
+      default_definer->retain_current_password = user->retain_current_password;
+      default_definer->discard_old_password = user->discard_old_password;
       default_definer->plugin.str = user->plugin.str;
       default_definer->plugin.length = user->plugin.length;
       default_definer->auth.str = user->auth.str;

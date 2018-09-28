@@ -281,6 +281,7 @@ SET(SQL_SHARED_SOURCES
   auth/auth_common.cc
   auth/dynamic_privileges_impl.cc
   auth/dynamic_privilege_table.cc
+  auth/acl_table_user.cc
   auth/sql_authentication.cc
   auth/sql_auth_cache.cc
   auth/sql_authorization.cc
