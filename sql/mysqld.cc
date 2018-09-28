@@ -918,6 +918,7 @@ bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 bool opt_log_queries_not_using_indexes = 0;
 ulong opt_log_throttle_queries_not_using_indexes = 0;
+bool opt_log_slow_extra = false;
 bool opt_disable_networking = 0, opt_skip_show_db = 0;
 bool opt_skip_name_resolve = 0;
 bool opt_character_set_client_handshake = 1;

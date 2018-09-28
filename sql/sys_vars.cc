@@ -5278,6 +5278,25 @@ static Sys_var_bool Sys_slow_query_log(
     GLOBAL_VAR(opt_slow_log), CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(fix_slow_log_state));
 
+static bool check_slow_log_extra(sys_var *, THD *thd, set_var *) {
+  // If FILE is not one of the log-targets, succeed but warn!
+  if (!(log_output_options & LOG_FILE))
+    push_warning(
+        thd, Sql_condition::SL_WARNING,
+        ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE,
+        ER_THD(thd, ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE));
+
+  return false;
+}
+
+static Sys_var_bool Sys_slow_log_extra(
+    "log_slow_extra",
+    "Print more attributes to the slow query log file. Has no effect on "
+    "logging to table.",
+    GLOBAL_VAR(opt_log_slow_extra), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slow_log_extra),
+    ON_UPDATE(0));
+
 static bool check_not_empty_set(sys_var *, THD *, set_var *var) {
   return var->save_result.ulonglong_value == 0;
 }

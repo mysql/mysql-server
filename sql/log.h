@@ -163,31 +163,28 @@ class Log_event_handler {
   /**
      Log a query to the slow log.
 
-     @param thd               THD of the query
-     @param current_utime     Current timestamp in micro seconds
-     @param query_start_arg   Command start timestamp in micro seconds
-     @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed
-     once and passed to all general log event handlers
-     @param query_utime       Amount of time the query took to execute (in
-     microseconds)
-     @param lock_utime        Amount of time the query was locked (in
-     microseconds)
-     @param is_command        The flag which determines whether the sql_text is
-     a query or an administrator command (these are treated differently by the
-     old logging routines)
-     @param sql_text          The very text of the query or administrator
-     command processed
-     @param sql_text_len      The length of sql_text string
+     @param thd                THD of the query
+     @param current_utime      Current timestamp in microseconds
+     @param query_start_arg    Command start timestamp in microseconds
+     @param user_host          The pointer to the string with user\@host info
+     @param user_host_len      Length of the user_host string
+     @param query_utime        Number of microseconds query execution took
+     @param lock_utime         Number of microseconds the query was locked
+     @param is_command         The flag which determines whether the sql_text
+                               is a query or an administrator command
+     @param sql_text           The query or administrator in textual form
+     @param sql_text_len       The length of sql_text string
+     @param query_start_status Pointer to a snapshot of thd->status_var taken
+                               at the start of execution
 
-     @retval  false   OK
-     @retval  true    error occured
+     @return true if error, false otherwise.
   */
   virtual bool log_slow(THD *thd, ulonglong current_utime,
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len) = 0;
+                        const char *sql_text, size_t sql_text_len,
+                        struct System_status_var *query_start_status) = 0;
 
   /**
      Log command to the general log.
@@ -233,7 +230,8 @@ class Log_to_csv_event_handler : public Log_event_handler {
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len);
+                        const char *sql_text, size_t sql_text_len,
+                        struct System_status_var *query_start_status);
 
   /** @see Log_event_handler::log_general(). */
   virtual bool log_general(THD *thd, ulonglong event_utime,
@@ -332,13 +330,16 @@ class Query_logger {
   /**
      Log slow query with all enabled log event handlers.
 
-     @param thd           THD of the statement being logged.
-     @param query         The query string being logged.
-     @param query_length  The length of the query string.
+     @param thd                 THD of the statement being logged.
+     @param query               The query string being logged.
+     @param query_length        The length of the query string.
+     @param query_start_status  Pointer to a snapshot of thd->status_var taken
+                                at the start of execution
 
      @return true if error, false otherwise.
   */
-  bool slow_log_write(THD *thd, const char *query, size_t query_length);
+  bool slow_log_write(THD *thd, const char *query, size_t query_length,
+                      struct System_status_var *query_start_status);
 
   /**
      Write printf style message to general query log.
@@ -467,9 +468,11 @@ bool log_slow_applicable(THD *thd);
   Unconditionally writes the current statement (or its rewritten version if it
   exists) to the slow query log.
 
-  @param thd              thread handle
+  @param thd                 thread handle
+  @param query_start_status  Pointer to a snapshot of thd->status_var taken
+                             at the start of execution
 */
-void log_slow_do(THD *thd);
+void log_slow_do(THD *thd, struct System_status_var *query_start_status);
 
 /**
   Check whether we need to write the current statement to the slow query
@@ -481,9 +484,11 @@ void log_slow_do(THD *thd);
   A digest of suppressed statements may be logged instead of the current
   statement.
 
-  @param thd              thread handle
+  @param thd                 thread handle
+  @param query_start_status  Pointer to a snapshot of thd->status_var taken
+                             at the start of execution
 */
-void log_slow_statement(THD *thd);
+void log_slow_statement(THD *thd, struct System_status_var *query_start_status);
 
 /**
   @class Log_throttle
@@ -606,7 +611,7 @@ class Slow_log_throttle : public Log_throttle {
     The routine we call to actually log a line (i.e. our summary).
     The signature miraculously coincides with slow_log_print().
   */
-  bool (*log_summary)(THD *, const char *, size_t);
+  bool (*log_summary)(THD *, const char *, size_t, struct System_status_var *);
 
   /**
     Slow_log_throttle is shared between THDs.
@@ -633,7 +638,8 @@ class Slow_log_throttle : public Log_throttle {
     @param msg           use this template containing %lu as only non-literal
   */
   Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-                    bool (*logger)(THD *, const char *, size_t),
+                    bool (*logger)(THD *, const char *, size_t,
+                                   struct System_status_var *),
                     const char *msg);
 
   /**

@@ -331,27 +331,27 @@ class File_query_log {
   /**
      Log a query to the traditional slow log file.
 
-     @param thd               THD of the query
-     @param current_utime     Current timestamp in micro seconds
-     @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed
-     once and passed to all general log event handlers
-     @param query_utime       Amount of time the query took to execute (in
-     microseconds)
-     @param lock_utime        Amount of time the query was locked (in
-     microseconds)
-     @param is_command        The flag which determines whether the sql_text is
-     a query or an administrator command.
-     @param sql_text          The very text of the query or administrator
-     command processed
-     @param sql_text_len      The length of sql_text string
+     @param thd                THD of the query
+     @param current_utime      Current timestamp in microseconds
+     @param query_start_utime  Command start timestamp in microseconds
+     @param user_host          The pointer to the string with user\@host info
+     @param user_host_len      Length of the user_host string
+     @param query_utime        Number of microseconds query execution took
+     @param lock_utime         Number of microseconds the query was locked
+     @param is_command         The flag which determines whether the sql_text
+                               is a query or an administrator command
+     @param sql_text           The query or administrator in textual form
+     @param sql_text_len       The length of sql_text string
+     @param query_start        Pointer to a snapshot of thd->status_var taken
+                               at the start of execution
 
      @return true if error, false otherwise.
-*/
-  bool write_slow(THD *thd, ulonglong current_utime, const char *user_host,
+  */
+  bool write_slow(THD *thd, ulonglong current_utime,
+                  ulonglong query_start_utime, const char *user_host,
                   size_t user_host_len, ulonglong query_utime,
                   ulonglong lock_utime, bool is_command, const char *sql_text,
-                  size_t sql_text_len);
+                  size_t sql_text_len, struct System_status_var *query_start);
 
  private:
   /** Type of log file. */
@@ -681,10 +681,12 @@ err:
 }
 
 bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
+                                ulonglong query_start_utime,
                                 const char *user_host, size_t,
                                 ulonglong query_utime, ulonglong lock_utime,
                                 bool is_command, const char *sql_text,
-                                size_t sql_text_len) {
+                                size_t sql_text_len,
+                                struct System_status_var *query_start) {
   char buff[80], *end;
   char query_time_buff[22 + 7], lock_time_buff[22 + 7];
   size_t buff_len;
@@ -712,13 +714,89 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   /* For slow query log */
   sprintf(query_time_buff, "%.6f", ulonglong2double(query_utime) / 1000000.0);
   sprintf(lock_time_buff, "%.6f", ulonglong2double(lock_utime) / 1000000.0);
-  if (my_b_printf(&log_file,
-                  "# Query_time: %s  Lock_time: %s"
-                  " Rows_sent: %lu  Rows_examined: %lu\n",
-                  query_time_buff, lock_time_buff,
-                  (ulong)thd->get_sent_row_count(),
-                  (ulong)thd->get_examined_row_count()) == (uint)-1)
-    goto err;
+
+  /*
+    As a general rule, if opt_log_slow_extra is set, the caller will
+    have saved state at the beginning of execution, and passed in a
+    pointer to that state in query_start. As there are exceptions to
+    this rule however (e.g. in store routines), and for robustness,
+    we test for the presence of the actual information rather than the
+    the flag. If the "before" state is not available for whatever
+    reason, we emit a traditional "short" line; if the information is
+    available, we generate the now, "long" line (with "extra" information).
+  */
+  if (!query_start) {
+    if (my_b_printf(&log_file,
+                    "# Query_time: %s  Lock_time: %s"
+                    " Rows_sent: %lu  Rows_examined: %lu\n",
+                    query_time_buff, lock_time_buff,
+                    (ulong)thd->get_sent_row_count(),
+                    (ulong)thd->get_examined_row_count()) == (uint)-1)
+      goto err; /* purecov: inspected */
+  } else {
+    char start_time_buff[iso8601_size];
+    char end_time_buff[iso8601_size];
+
+    if (query_start_utime) {
+      make_iso8601_timestamp(start_time_buff, query_start_utime,
+                             opt_log_timestamps);
+      make_iso8601_timestamp(end_time_buff, query_start_utime + query_utime,
+                             opt_log_timestamps);
+    } else {
+      start_time_buff[0] = '\0'; /* purecov: inspected */
+      make_iso8601_timestamp(end_time_buff, current_utime, opt_log_timestamps);
+    }
+
+    if (my_b_printf(
+            &log_file,
+            "# Query_time: %s  Lock_time: %s"
+            " Rows_sent: %lu  Rows_examined: %lu"
+            " Thread_id: %lu Errno: %lu Killed: %lu"
+            " Bytes_received: %lu Bytes_sent: %lu"
+            " Read_first: %lu Read_last: %lu Read_key: %lu"
+            " Read_next: %lu Read_prev: %lu"
+            " Read_rnd: %lu Read_rnd_next: %lu"
+            " Sort_merge_passes: %lu Sort_range_count: %lu"
+            " Sort_rows: %lu Sort_scan_count: %lu"
+            " Created_tmp_disk_tables: %lu"
+            " Created_tmp_tables: %lu"
+            " Start: %s End: %s\n",
+            query_time_buff, lock_time_buff, (ulong)thd->get_sent_row_count(),
+            (ulong)thd->get_examined_row_count(), (ulong)thd->thread_id(),
+            (ulong)thd->get_protocol_classic()->get_net()->last_errno,
+            (ulong)thd->killed,
+            (ulong)(thd->status_var.bytes_received -
+                    query_start->bytes_received),
+            (ulong)(thd->status_var.bytes_sent - query_start->bytes_sent),
+            (ulong)(thd->status_var.ha_read_first_count -
+                    query_start->ha_read_first_count),
+            (ulong)(thd->status_var.ha_read_last_count -
+                    query_start->ha_read_last_count),
+            (ulong)(thd->status_var.ha_read_key_count -
+                    query_start->ha_read_key_count),
+            (ulong)(thd->status_var.ha_read_next_count -
+                    query_start->ha_read_next_count),
+            (ulong)(thd->status_var.ha_read_prev_count -
+                    query_start->ha_read_prev_count),
+            (ulong)(thd->status_var.ha_read_rnd_count -
+                    query_start->ha_read_rnd_count),
+            (ulong)(thd->status_var.ha_read_rnd_next_count -
+                    query_start->ha_read_rnd_next_count),
+            (ulong)(thd->status_var.filesort_merge_passes -
+                    query_start->filesort_merge_passes),
+            (ulong)(thd->status_var.filesort_range_count -
+                    query_start->filesort_range_count),
+            (ulong)(thd->status_var.filesort_rows - query_start->filesort_rows),
+            (ulong)(thd->status_var.filesort_scan_count -
+                    query_start->filesort_scan_count),
+            (ulong)(thd->status_var.created_tmp_disk_tables -
+                    query_start->created_tmp_disk_tables),
+            (ulong)(thd->status_var.created_tmp_tables -
+                    query_start->created_tmp_tables),
+            start_time_buff, end_time_buff) == (uint)-1)
+      goto err; /* purecov: inspected */
+  }
+
   if (thd->db().str && strcmp(thd->db().str, db)) {  // Database changed
     if (my_b_printf(&log_file, "use %s;\n", thd->db().str) == (uint)-1)
       goto err;
@@ -741,12 +819,12 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   }
 
   /*
-    This info used to show up randomly, depending on whether the query
-    checked the query start time or not. now we always write current
-    timestamp to the slow log
+    The timestamp used to only be set when the query had checked the
+    start time. Now the slow log always logs the query start time.
+    This ensures logs can be used to replicate queries accurately.
   */
   end = my_stpcpy(end, ",timestamp=");
-  end = int10_to_str((long)(current_utime / 1000000), end, 10);
+  end = int10_to_str((long)(query_start_utime / 1000000), end, 10);
 
   if (end != buff) {
     *end++ = ';';
@@ -905,7 +983,8 @@ err:
 bool Log_to_csv_event_handler::log_slow(
     THD *thd, ulonglong current_utime, ulonglong query_start_arg,
     const char *user_host, size_t user_host_len, ulonglong query_utime,
-    ulonglong lock_utime, bool, const char *sql_text, size_t sql_text_len) {
+    ulonglong lock_utime, bool, const char *sql_text, size_t sql_text_len,
+    struct System_status_var *) {
   TABLE *table = NULL;
   bool result = true;
   bool need_close = false;
@@ -1111,7 +1190,8 @@ class Log_to_file_event_handler : public Log_event_handler {
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len);
+                        const char *sql_text, size_t sql_text_len,
+                        struct System_status_var *query_start_status);
 
   /**
      Wrapper around File_query_log::write_general() for general log.
@@ -1145,16 +1225,18 @@ class Log_to_file_event_handler : public Log_event_handler {
 };
 
 bool Log_to_file_event_handler::log_slow(
-    THD *thd, ulonglong current_utime, ulonglong, const char *user_host,
-    size_t user_host_len, ulonglong query_utime, ulonglong lock_utime,
-    bool is_command, const char *sql_text, size_t sql_text_len) {
+    THD *thd, ulonglong current_utime, ulonglong query_start_utime,
+    const char *user_host, size_t user_host_len, ulonglong query_utime,
+    ulonglong lock_utime, bool is_command, const char *sql_text,
+    size_t sql_text_len, struct System_status_var *query_start_status) {
   if (!mysql_slow_log.is_open()) return false;
 
   Silence_log_table_errors error_handler;
   thd->push_internal_handler(&error_handler);
-  bool retval = mysql_slow_log.write_slow(
-      thd, current_utime, user_host, user_host_len, query_utime, lock_utime,
-      is_command, sql_text, sql_text_len);
+  bool retval = mysql_slow_log.write_slow(thd, current_utime, query_start_utime,
+                                          user_host, user_host_len, query_utime,
+                                          lock_utime, is_command, sql_text,
+                                          sql_text_len, query_start_status);
   thd->pop_internal_handler();
   return retval;
 }
@@ -1197,8 +1279,9 @@ void Query_logger::cleanup() {
   file_log_handler = NULL;
 }
 
-bool Query_logger::slow_log_write(THD *thd, const char *query,
-                                  size_t query_length) {
+bool Query_logger::slow_log_write(
+    THD *thd, const char *query, size_t query_length,
+    struct System_status_var *query_start_status) {
   DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
 
   if (!(*slow_log_handler_list)) return false;
@@ -1240,12 +1323,13 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   bool error = false;
   for (Log_event_handler **current_handler = slow_log_handler_list;
        *current_handler;) {
-    error |= (*current_handler++)
-                 ->log_slow(thd, current_utime,
-                            (thd->start_time.tv_sec * 1000000ULL) +
-                                thd->start_time.tv_usec,
-                            user_host_buff, user_host_len, query_utime,
-                            lock_utime, is_command, query, query_length);
+    error |=
+        (*current_handler++)
+            ->log_slow(
+                thd, current_utime,
+                (thd->start_time.tv_sec * 1000000ULL) + thd->start_time.tv_usec,
+                user_host_buff, user_host_len, query_utime, lock_utime,
+                is_command, query, query_length, query_start_status);
   }
 
   mysql_rwlock_unlock(&LOCK_logger);
@@ -1527,19 +1611,44 @@ bool log_slow_applicable(THD *thd) {
   DBUG_RETURN(false);
 }
 
-void log_slow_do(THD *thd) {
+/**
+  Unconditionally writes the current statement (or its rewritten version if it
+  exists) to the slow query log.
+
+  @param thd                 thread handle
+  @param query_start_status  Pointer to a snapshot of thd->status_var taken
+                             at the start of execution
+*/
+void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
   if (thd->rewritten_query.length())
     query_logger.slow_log_write(thd, thd->rewritten_query.c_ptr_safe(),
-                                thd->rewritten_query.length());
+                                thd->rewritten_query.length(),
+                                query_start_status);
   else
-    query_logger.slow_log_write(thd, thd->query().str, thd->query().length);
+    query_logger.slow_log_write(thd, thd->query().str, thd->query().length,
+                                query_start_status);
 }
 
-void log_slow_statement(THD *thd) {
-  if (log_slow_applicable(thd)) log_slow_do(thd);
+/**
+  Check whether we need to write the current statement to the slow query
+  log. If so, do so. This is a wrapper for the two functions above;
+  most callers should use this wrapper.  Only use the above functions
+  directly if you have expensive rewriting that you only need to do if
+  the query actually needs to be logged (e.g. SP variables / NAME_CONST
+  substitution when executing a PROCEDURE).
+  A digest of suppressed statements may be logged instead of the current
+  statement.
+
+  @param thd                 thread handle
+  @param query_start_status  Pointer to a snapshot of thd->status_var taken
+                             at the start of execution
+*/
+void log_slow_statement(THD *thd,
+                        struct System_status_var *query_start_status) {
+  if (log_slow_applicable(thd)) log_slow_do(thd, query_start_status);
 }
 
 void Log_throttle::new_window(ulonglong now) {
@@ -1553,9 +1662,11 @@ void Slow_log_throttle::new_window(ulonglong now) {
   total_lock_time = 0;
 }
 
-Slow_log_throttle::Slow_log_throttle(
-    ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-    bool (*logger)(THD *, const char *, size_t), const char *msg)
+Slow_log_throttle::Slow_log_throttle(ulong *threshold, mysql_mutex_t *lock,
+                                     ulong window_usecs,
+                                     bool (*logger)(THD *, const char *, size_t,
+                                                    struct System_status_var *),
+                                     const char *msg)
     : Log_throttle(window_usecs, msg),
       total_exec_time(0),
       total_lock_time(0),
@@ -1600,7 +1711,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   thd->set_security_context(&aggregate_sctx);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-  (*log_summary)(thd, buf, strlen(buf));
+  (*log_summary)(thd, buf, strlen(buf), nullptr); /* purecov: inspected */
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->set_security_context(save_sctx);
@@ -1716,8 +1827,14 @@ bool Error_log_throttle::flush() {
   return false;
 }
 
-static bool slow_log_write(THD *thd, const char *query, size_t query_length) {
-  return opt_slow_log && query_logger.slow_log_write(thd, query, query_length);
+static bool slow_log_write(THD *thd, /* purecov: inspected */
+                           const char *query, size_t query_length,
+                           struct System_status_var *query_start_status) {
+  return opt_slow_log &&                               /* purecov: inspected */
+         query_logger                                  /* purecov: inspected */
+             .slow_log_write(                          /* purecov: inspected */
+                             thd, query, query_length, /* purecov: inspected */
+                             query_start_status);      /* purecov: inspected */
 }
 
 Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,

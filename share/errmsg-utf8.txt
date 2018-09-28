@@ -8718,6 +8718,9 @@ ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION
 ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
   eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
 
+ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE
+  eng "slow query log file format changed as requested, but setting will have no effect when not actually logging to a file."
+
 #
 #  End of 8.0 error messages.
 #

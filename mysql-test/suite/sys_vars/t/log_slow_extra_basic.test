@@ -1,0 +1,78 @@
+--echo # WL#12393: Logging: Add new command line option for richer slow query logging
+--echo
+--echo # test global variable "log_slow_extra"
+--echo
+
+SELECT @@global.log_slow_extra INTO @old_lse;
+SELECT @@global.log_output     INTO @old_lo;
+SELECT @@global.slow_query_log INTO @old_sql;
+
+--echo # invalid values / types
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_extra=symbol;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_extra="string";
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL log_slow_extra=99;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL log_slow_extra=0.5;
+
+--echo
+--echo # only GLOBAL scope is valid
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION log_slow_extra=0;
+
+--echo
+
+--echo # valid values
+SET GLOBAL slow_query_log=0;
+
+SET GLOBAL log_slow_extra=0;
+SELECT @@global.log_slow_extra;
+
+SET GLOBAL log_slow_extra=1;
+SELECT @@global.log_slow_extra;
+
+SET GLOBAL log_slow_extra=DEFAULT;
+SELECT @@global.log_slow_extra;
+
+--echo
+
+--echo # warnings and errors
+
+SET GLOBAL slow_query_log=1;
+--echo
+
+--echo # Switching slow query log file format while target is not FILE is legal,
+--echo # but does nothing. Throw a warning!
+SET GLOBAL log_output="TABLE";
+SELECT @@global.log_slow_extra INTO @old;
+SET GLOBAL log_slow_extra=1;
+--echo # Value must have changed:
+SELECT @@global.log_slow_extra!=@old;
+SET GLOBAL log_slow_extra=DEFAULT;
+--echo
+
+--echo # Switching slow query log file format while target is not FILE is legal,
+--echo # but does nothing. Throw a warning!
+SET GLOBAL log_output="NONE";
+SELECT @@global.log_slow_extra INTO @old;
+SET GLOBAL log_slow_extra=1;
+--echo # Value must have changed:
+SELECT @@global.log_slow_extra!=@old;
+SET GLOBAL log_slow_extra=DEFAULT;
+--echo
+
+--echo # clean up
+SET GLOBAL log_slow_extra=@old_lse;
+SET GLOBAL log_output=@old_lo;
+SET GLOBAL slow_query_log=@old_sql;
+
+--echo
+
+--echo # READY

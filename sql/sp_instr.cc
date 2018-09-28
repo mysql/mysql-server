@@ -884,7 +884,12 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       the unmodified statement instead.
     */
     if (!need_subst) rc = subst_spvars(thd, this, &m_query);
-    log_slow_do(thd);
+    /*
+      We currently do not support --log-slow-extra for this case,
+      and therefore pass in a null-pointer instead of a pointer to
+      state at the beginning of execution.
+    */
+    log_slow_do(thd, nullptr);
   }
 
   /*

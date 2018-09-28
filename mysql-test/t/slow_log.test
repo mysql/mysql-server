@@ -1,0 +1,35 @@
+SET @save_sqlf=@@global.slow_query_log_file;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_slow.log';
+
+SET timestamp=10;
+SELECT unix_timestamp(), sleep(2);
+
+let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
+
+--perl
+   use strict;
+
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+   my $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     $result++ if ($line =~ /SET timestamp=10;/);
+   }
+   close(FILE);
+
+   if($result != 1) {
+     print "[ FAIL ] timestamp not found\n";
+   }
+   else {
+     print "[ PASS ] timestamp found\n";
+   }
+
+EOF
+
+SET @@global.slow_query_log_file=@save_sqlf;
+
+--remove_file $MYSQL_TMP_DIR/my_slow.log
