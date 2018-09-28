@@ -95,7 +95,7 @@ class MetadataServersStateListener
                                const std::string &replicaset_name)
       : dynamic_state_(dynamic_state), replicaset_name_(replicaset_name) {}
 
-  ~MetadataServersStateListener() {
+  ~MetadataServersStateListener() override {
     metadata_cache::MetadataCacheAPI::instance()->remove_listener(
         replicaset_name_, this);
   }
