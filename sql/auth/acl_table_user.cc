@@ -1747,8 +1747,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
 
   DBUG_ENTER("replace_user_table");
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
-  DBUG_ASSERT(!(what_to_update.m_what & USER_ATTRIBUTES) ||
-              what_to_update.m_what);
 
   return_value = user_table.driver();
 
