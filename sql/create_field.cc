@@ -704,8 +704,8 @@ size_t Create_field::max_display_width_in_bytes() const {
     // LONGBLOB_MAX_SIZE_IN_BYTES if the character set is multi-byte. So we must
     // ensure that we never return a value greater than
     // LONGBLOB_MAX_SIZE_IN_BYTES.
-    std::int64_t display_width =
-        max_display_width_in_codepoints() * charset->mbmaxlen;
+    std::int64_t display_width = max_display_width_in_codepoints() *
+                                 static_cast<std::int64_t>(charset->mbmaxlen);
     return static_cast<size_t>(std::min(
         display_width, static_cast<std::int64_t>(LONGBLOB_MAX_SIZE_IN_BYTES)));
   }
