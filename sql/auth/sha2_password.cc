@@ -1021,10 +1021,11 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (vio->write_packet(vio, (uchar *)&fast_auth_success, 1))
       DBUG_RETURN(CR_AUTH_HANDSHAKE);
     if (fast_auth_result.second) {
+      const char *username =
+          *info->authenticated_as ? info->authenticated_as : "";
       LogPluginErr(INFORMATION_LEVEL,
                    ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
-                   info->authenticated_as ? info->authenticated_as : "",
-                   hostname ? hostname : "");
+                   username, hostname ? hostname : "");
     }
 
     DBUG_RETURN(CR_OK);
@@ -1114,10 +1115,11 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   if (auth_success.first) DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
 
   if (auth_success.second) {
+    const char *username =
+        *info->authenticated_as ? info->authenticated_as : "";
     LogPluginErr(INFORMATION_LEVEL,
                  ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
-                 info->authenticated_as ? info->authenticated_as : "",
-                 hostname ? hostname : "");
+                 username, hostname ? hostname : "");
   }
 
   DBUG_RETURN(CR_OK);

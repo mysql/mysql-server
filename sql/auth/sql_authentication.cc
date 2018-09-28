@@ -3773,12 +3773,13 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       } else {
         if (second) {
           MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+          const char *username =
+              *info->authenticated_as ? info->authenticated_as : "";
           const char *hostname = mpvio->acl_user->host.get_host();
           LogPluginErr(
               INFORMATION_LEVEL,
               ER_MYSQL_NATIVE_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
-              info->authenticated_as ? info->authenticated_as : "",
-              hostname ? hostname : "");
+              username, hostname ? hostname : "");
         }
         DBUG_RETURN(CR_OK);
       }
@@ -4136,11 +4137,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     }
     if (result == 0) {
       MPVIO_EXT *mpvio = (MPVIO_EXT *)vio;
+      const char *username =
+          *info->authenticated_as ? info->authenticated_as : "";
       const char *hostname = mpvio->acl_user->host.get_host();
       LogPluginErr(INFORMATION_LEVEL,
                    ER_SHA256_PASSWORD_SECOND_PASSWORD_USED_INFORMATION,
-                   info->authenticated_as ? info->authenticated_as : "",
-                   hostname ? hostname : "");
+                   username, hostname ? hostname : "");
     }
   }
 
