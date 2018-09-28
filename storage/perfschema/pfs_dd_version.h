@@ -85,8 +85,15 @@
   performance_schema tables changed in MySQL 8.0.11 are
   - instance_log_resource was renamed to log_resource.
 
-  Version published is now 80011.
+  80014:
+
+  performance_schema tables changed in MySQL 8.0.14 are
+  - events_statements_current, added column QUERY_ID
+  - events_statements_history, added column QUERY_ID
+  - events_statements_history_long, added column QUERY_ID
+
+  Version published is now 80014.
 */
-static const uint PFS_DD_VERSION = 80011;
+static const uint PFS_DD_VERSION = 80014;
 
 #endif /* PFS_DD_VERSION_H */

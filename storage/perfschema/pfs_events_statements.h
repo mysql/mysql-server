@@ -43,6 +43,15 @@ struct PFS_host;
 
 /** A statement record. */
 struct PFS_events_statements : public PFS_events {
+  /*
+   MAINTAINER:
+   See pointer arithmetic in copy_events_statements(),
+   attribute here are copied in block.
+  */
+
+  /** STATEMENT_ID, from the SQL layer QUERY_ID. */
+  ulonglong m_statement_id;
+
   enum_object_type m_sp_type;
   char m_schema_name[NAME_LEN];
   uint m_schema_name_length;

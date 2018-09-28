@@ -3610,6 +3610,7 @@ class THD : public MDL_context_owner,
     mysql_mutex_lock(&LOCK_thd_data);
     query_id = new_query_id;
     mysql_mutex_unlock(&LOCK_thd_data);
+    MYSQL_SET_STATEMENT_QUERY_ID(m_statement_psi, new_query_id);
   }
 
   /**

@@ -59,9 +59,15 @@ create table test.pfs_published_schema
 # git blame will find you.
 #
 
+# Keeping track of all signatures published in GA ...
+
 insert into test.pfs_published_schema
  values("MySQL 8.0.11",
         "79252c8a82ca73426191822e10c9e7f174e466eb5961a976f2ca8c36be2e2fbe");
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.14",
+        "a8f7f77d7764da472255ade12060a7f1b24c0b519a6bc966835c26745819504e");
 
 create table test.pfs_check_table
   (id int(11) NOT NULL AUTO_INCREMENT,

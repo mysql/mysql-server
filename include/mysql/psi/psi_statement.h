@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,15 @@ typedef struct PSI_statement_bootstrap PSI_statement_bootstrap;
   @since PSI_STATEMENT_VERSION_1
 */
 struct PSI_statement_service_v1 {
+  /* No binary compatibility with old PLUGIN */
+  void *this_interface_is_obsolete;
+};
+
+/**
+  Performance Schema Statement Interface, version 2.
+  @since PSI_STATEMENT_VERSION_2
+*/
+struct PSI_statement_service_v2 {
   /** @sa register_statement_v1_t. */
   register_statement_v1_t register_statement;
   /** @sa get_thread_statement_locker_v1_t. */
@@ -70,6 +79,8 @@ struct PSI_statement_service_v1 {
   start_statement_v1_t start_statement;
   /** @sa set_statement_text_v1_t. */
   set_statement_text_v1_t set_statement_text;
+  /** @sa set_statement_query_id. */
+  set_statement_query_id_t set_statement_query_id;
   /** @sa set_statement_lock_time_t. */
   set_statement_lock_time_t set_statement_lock_time;
   /** @sa set_statement_rows_sent_t. */
@@ -133,7 +144,7 @@ struct PSI_statement_service_v1 {
   drop_sp_v1_t drop_sp;
 };
 
-typedef struct PSI_statement_service_v1 PSI_statement_service_t;
+typedef struct PSI_statement_service_v2 PSI_statement_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_statement_service_t *psi_statement_service;
 

@@ -91,6 +91,7 @@ Plugin_table table_events_statements_current::m_table_def(
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
+    "  STATEMENT_ID BIGINT unsigned,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -161,6 +162,7 @@ Plugin_table table_events_statements_history::m_table_def(
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
     "  NESTING_EVENT_LEVEL INTEGER,\n"
+    "  STATEMENT_ID BIGINT unsigned,\n"
     "  PRIMARY KEY (THREAD_ID, EVENT_ID) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -230,7 +232,8 @@ Plugin_table table_events_statements_history_long::m_table_def(
     "  NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
     "  NESTING_EVENT_ID BIGINT unsigned,\n"
     "  NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),\n"
-    "  NESTING_EVENT_LEVEL INTEGER\n",
+    "  NESTING_EVENT_LEVEL INTEGER,\n"
+    "  STATEMENT_ID BIGINT unsigned\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -295,6 +298,7 @@ int table_events_statements_common::make_row_part_1(
   }
 
   m_row.m_thread_internal_id = statement->m_thread_internal_id;
+  m_row.m_statement_id = statement->m_statement_id;
   m_row.m_event_id = statement->m_event_id;
   m_row.m_end_event_id = statement->m_end_event_id;
   m_row.m_nesting_event_id = statement->m_nesting_event_id;
@@ -613,6 +617,13 @@ int table_events_statements_common::read_row_values(TABLE *table,
           break;
         case 40: /* NESTING_EVENT_LEVEL */
           set_field_ulong(f, m_row.m_nesting_event_level);
+          break;
+        case 41: /* STATEMENT_ID */
+          if (m_row.m_statement_id != 0) {
+            set_field_ulonglong(f, m_row.m_statement_id);
+          } else {
+            f->set_null();
+          }
           break;
         default:
           DBUG_ASSERT(false);

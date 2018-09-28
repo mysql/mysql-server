@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,16 +47,23 @@ typedef unsigned int PSI_statement_key;
 /**
   @def PSI_STATEMENT_VERSION_1
   Performance Schema Statement Interface number for version 1.
-  This version is supported.
+  This version is deprecated.
 */
 #define PSI_STATEMENT_VERSION_1 1
 
 /**
+  @def PSI_STATEMENT_VERSION_2
+  Performance Schema Statement Interface number for version 2.
+  This version is supported.
+*/
+#define PSI_STATEMENT_VERSION_2 2
+
+/**
   @def PSI_CURRENT_STATEMENT_VERSION
   Performance Schema Statement Interface number for the most recent version.
-  The most current version is @c PSI_STATEMENT_VERSION_1
+  The most current version is @c PSI_STATEMENT_VERSION_2
 */
-#define PSI_CURRENT_STATEMENT_VERSION 1
+#define PSI_CURRENT_STATEMENT_VERSION 2
 
 /**
   Interface for an instrumented statement.
@@ -264,6 +271,15 @@ typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
 typedef void (*set_statement_text_v1_t)(struct PSI_statement_locker *locker,
                                         const char *text,
                                         unsigned int text_len);
+
+/**
+  Set a statement query id.
+  Introduced in MySQL 8.0.14
+  @param locker the statement locker
+  @param query_id the query id
+*/
+typedef void (*set_statement_query_id_t)(struct PSI_statement_locker *locker,
+                                         unsigned long long query_id);
 
 /**
   Set a statement event lock time.

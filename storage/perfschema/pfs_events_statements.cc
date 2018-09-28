@@ -150,9 +150,9 @@ static inline void copy_events_statements(PFS_events_statements *dest,
                                           const PFS_events_statements *source) {
   /* Copy all attributes except SQL TEXT and DIGEST */
   dest->PFS_events::operator=(*source);
-  memcpy(&dest->m_sp_type, &source->m_sp_type,
+  memcpy(&dest->m_statement_id, &source->m_statement_id,
          pointer_cast<const char *>(&source->m_sqltext) -
-             pointer_cast<const char *>(&source->m_sp_type));
+             pointer_cast<const char *>(&source->m_statement_id));
 
   /* Copy SQL TEXT */
   int sqltext_length = source->m_sqltext_length;

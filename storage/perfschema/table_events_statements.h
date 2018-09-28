@@ -161,6 +161,9 @@ struct row_events_statements {
   ulonglong m_no_index_used;
   /** Column NO_GOOD_INDEX_USED. */
   ulonglong m_no_good_index_used;
+
+  /** Column STATEMENT_ID. */
+  ulonglong m_statement_id;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_CURRENT. */
