@@ -630,7 +630,8 @@ typedef void *os_thread_ret_t;
   } while (0)
 #define UNIV_MEM_TRASH(addr, c, size) \
   do {                                \
-    ut_d(memset(addr, c, size));      \
+    void *p = (addr);                 \
+    ut_d(memset(p, c, size));         \
     UNIV_MEM_INVALID(addr, size);     \
   } while (0)
 #else
