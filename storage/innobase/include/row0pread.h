@@ -247,8 +247,8 @@ class Reader {
   std::atomic_size_t m_n_completed{};
 
   friend T;
-  friend class Secondary_engine_reader;
-  friend class Secondary_engine_partition_reader;
+  friend class Parallel_reader_adapter;
+  friend class Parallel_partition_reader_adapter;
 };
 
 /** Traverse an index in the leaf page block list order. */
@@ -337,21 +337,21 @@ struct Reader<T, R>::Ctx {
   Range m_range{};
 
   /** Table to which the index belongs to.
-  @note this is mainly required for the secondary engine project where parallel
-  scan can happen for partitioned tables as well and each thread could be
-  working on different partitions and hence different index. */
+  @note this is mainly required by an adapter where parallel scan can happen for
+  partitioned tables as well and each thread could be working on different
+  partitions and hence different index. */
   dict_table_t *m_table;
 
   /** Index to which the records in the range belong to.
-  @note this is mainly required for the secondary engine project where parallel
-  scan can happen for partitioned tables as well and each thread could be
-  working on different partitions and hence different index. */
+  @note this is mainly required by an adapter where parallel scan can happen for
+  partitioned tables as well and each thread could be working on different
+  partitions and hence different index. */
   dict_index_t *m_index;
 
   /** Transaction used for parallel read of the index.
-  @note this is mainly required for the secondary engine project where parallel
-  scan can happen for partitioned tables as well and each thread could be
-  working on different partitions and hence different index. */
+  @note this is mainly required by an adapter where parallel scan can happen for
+  partitioned tables as well and each thread could be working on different
+  partitions and hence different index. */
   trx_t *m_trx;
 
   /** Row prebuilt structure. */
@@ -428,8 +428,8 @@ class Key_reader : public Reader<Key_reader, Key_reader_row> {
       MY_ATTRIBUTE((warn_unused_result));
 
   friend Reader<Key_reader, Row>;
-  friend class Secondary_engine_reader;
-  friend class Secondary_engine_partition_reader;
+  friend class Parallel_reader_adapter;
+  friend class Parallel_partition_reader_adapter;
 };
 
 #endif /* !row0par_read_h */
