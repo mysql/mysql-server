@@ -96,7 +96,6 @@ void ndb_index_stat_restart();
 #include "sql/ndb_anyvalue.h"
 #include "sql/ndb_binlog_extra_row_info.h"
 #include "sql/ndb_binlog_thread.h"
-#include "sql/ndb_dist_priv_util.h"
 #include "sql/ndb_event_data.h"
 #include "sql/ndb_repl_tab.h"
 #include "sql/ndb_schema_dist.h"
@@ -549,43 +548,6 @@ static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
   DBUG_RETURN(error);
 }
 
-// Determine if privilege tables are distributed, ie. stored in NDB
-bool
-Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
-{
-  bool distributed= false;
-  Ndb_dist_priv_util dist_priv;
-  DBUG_ENTER("ndbcluster_distributed_privileges");
-
-  Ndb *ndb= check_ndb_in_thd(thd);
-  if (!ndb)
-    DBUG_RETURN(false); // MAGNUS, error message?
-
-  if (ndb->setDatabaseName(dist_priv.database()) != 0)
-    DBUG_RETURN(false);
-
-  const char* table_name;
-  while((table_name= dist_priv.iter_next_table()))
-  {
-    DBUG_PRINT("info", ("table_name: %s", table_name));
-    Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
-    if (ndbtab)
-    {
-      distributed= true;
-    }
-    else if (distributed)
-    {
-      ndb_log_error("Inconsistency detected in distributed "
-                    "privilege tables. Table '%s.%s' is not distributed",
-                    dist_priv.database(), table_name);
-      DBUG_RETURN(false);
-    }
-  }
-  DBUG_RETURN(distributed);
-}
-
-
 /*
   ndbcluster_binlog_log_query
 
@@ -655,9 +617,8 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
     case LOGCOM_ACL_NOTIFY: {
       DBUG_PRINT("info", ("Privilege tables have been modified"));
 
-      if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd)) {
-        DBUG_VOID_RETURN;
-      }
+      /* FIXME: WL#12505 ACL callback logic goes here. */
+      DBUG_VOID_RETURN;
 
       Ndb_schema_dist_client schema_dist_client(thd);
 
@@ -3847,9 +3808,7 @@ class Ndb_schema_event_handler {
 
     bool exists_in_DD;
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
-    if (tab.is_local_table(&exists_in_DD) &&
-       !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
-                                                      schema->name))
+    if (tab.is_local_table(&exists_in_DD))
     {
       ndb_log_error("NDB Binlog: Skipping locally defined table '%s.%s' "
                     "from binlog schema event '%s' from node %d.",

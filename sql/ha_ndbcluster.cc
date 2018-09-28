@@ -13601,24 +13601,12 @@ static void ndbcluster_drop_database(handlerton*, char *path)
   supported to store in NDB
 
 */
-static bool is_supported_system_table(const char *db,
-                                      const char *table_name,
-                                      bool is_sql_layer_system_table)
+static bool is_supported_system_table(const char *, const char *, bool)
 {
-  if (!is_sql_layer_system_table)
-  {
-    // No need to check tables which MySQL Server does not
-    // consider as system tables
-    return false;
-  }
-
-  if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
-  {
-    // Table is supported as distributed system table and should be allowed
-    // to be stored in NDB
-    return true;
-  }
-
+  /*
+    It is not currently supported to store any standard system tables
+    in NDB.
+  */
   return false;
 }
 
@@ -13693,34 +13681,6 @@ static int ndb_wait_setup_func(ulong max_wait)
   }
 
   mysql_mutex_unlock(&ndbcluster_mutex);
-
-  do
-  {
-    /**
-     * Check if we (might) need a flush privileges
-     */
-    THD* thd= current_thd;
-    bool own_thd= thd == NULL;
-    if (own_thd)
-    {
-      thd= ndb_create_thd((char*)&thd);
-      if (thd == 0)
-        break;
-    }
-
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      Ndb_local_connection mysqld(thd);
-      mysqld.raw_run_query("FLUSH PRIVILEGES", sizeof("FLUSH PRIVILEGES"), 0);
-    }
-
-    if (own_thd)
-    {
-      // TLS variables should not point to thd anymore.
-      thd->restore_globals();
-      delete thd;
-    }
-  } while (0);
 
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
@@ -14405,14 +14365,6 @@ ulonglong ha_ndbcluster::table_flags(void) const
     flag cabablity, but also turn off flag for OWN_BINLOGGING
   */
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
-    f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
-
-   /*
-     Allow MySQL Server to decide that STATEMENT logging should be used
-     for the distributed privilege tables. NOTE! This is a workaround
-     for generic problem with forcing STATEMENT logging see BUG16482501.
-   */
-  if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,m_tabname))
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
 
   /*

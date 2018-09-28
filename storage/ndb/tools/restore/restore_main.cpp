@@ -566,9 +566,8 @@ makeExternalTableName(const BaseString &internalName)
   return externalName;
 }
 
+// Exclude the legacy list of six privilege tables from Cluster 7.x
 #include "sql/ndb_dist_priv_util.h"
-
-// Exclude privilege tables unless explicitely included
 void
 exclude_privilege_tables()
 {

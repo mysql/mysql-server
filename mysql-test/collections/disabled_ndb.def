@@ -26,7 +26,6 @@ ndb_binlog.ndb_binlog_restore : Need WL#9185 MySQL Cluster support for new DD.
 ndb_ddl.alter_open_trans: Need WL#10164 Schema dist prepare phase
 
 # ndb_rpl suite tests
-ndb_rpl.ndb_dist_priv_ndb                  : BUG#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
 ndb_rpl.ndb_rpl_conflict_load_epoch_trans  : Not designed for determinism
 ndb_rpl.ndb_rpl_ctype_ucs2_def             : BUG#34661 rpl_ndb_ctype_ucs2_def fails in 6.2
@@ -42,9 +41,6 @@ ndb_rpl.ndb_rpl_ddl_open_trans : Need WL#9185 MySQL Cluster support for new DD.
 # Problem with DDL on tablespaces not synchronized between mysqlds,
 # this need to be implemented
 ndb_rpl.ndb_rpl_dd_advance : Need WL#9185 MySQL Cluster support for new DD.
-
-# Problem with distributed privilege tables in combination with shadow
-ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 
 # ndb suite tests
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
@@ -72,20 +68,6 @@ ndb.ndb_dd_alter : Need WL#9185 MySQL Cluster support for new DD
 ndb.ndb_fk_db    : Need WL#9185 MySQL Cluster support for new DD
 ndb.ndb_fk_no_fk : Need WL#9185 MySQL Cluster support for new DD
 
-# Problem with distributed privilege tables in combination with shadow
-# table behaviour causing the DD come severly out of synch on participants
-# Example:
-# --connection server1
-# ALTER TABLE mysql.db engine = NDB;
-# ALTER TABLE mysql.db engine = Innodb;
-#
-# --connection server2
-# SHOW CREATE TABLE mysql.db; << No mysql.db table here anymore
-#
-# Note! Probably we should reimplement distributed privilege tables
-# to just make them be in synch but stay in their original engine
-ndb.ndb_dist_priv : Need WL#9185 MySQL Cluster support for new DD
-
 # Need to remove stale .ndb files for DROP DATABASE
 ndb.drop_database_stale : Need WL#9185 MySQL Cluster support for new DD
 
@@ -98,9 +80,6 @@ ndb.ndb_alter_table_online_multi : Need WL#9185 MySQL Cluster support for new DD
 # Problem with failing ALTER, the Thd_ndb::open_tables contains
 # invalid THD_NDB_SHARE
 ndb.ndb_alter_table_error : Need WL#9185 MySQL Cluster support for new DD
-
-# Problem with different metadata in NDB dictionary and DD
-ndb.ndb_dist_priv_bug_13340854 : BUG#26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
 
 # Problem with table present in DD and not in SE
 ndb.ndb_restore_schema_rewrites : Need WL#9185 MySQL Cluster support for new DD

@@ -29,7 +29,6 @@
 
 #include "m_string.h"
 #include "sql/ndb_conflict.h"
-#include "sql/ndb_dist_priv_util.h"
 #include "sql/ndb_event_data.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_name_util.h"
@@ -714,15 +713,6 @@ NDB_SHARE::deinitialize(void)
               share->key_string(), share->use_count(),
               share->share_state_string(),
               (uint)share->state);
-      /**
-     * For unknown reasons...the dist-priv tables linger here
-     * TODO investigate why
-     */
-      if (Ndb_dist_priv_util::is_distributed_priv_table(share->db,
-                                                        share->table_name))
-      {
-        save--;
-      }
 #endif
       NDB_SHARE::real_free_share(&share);
     }
