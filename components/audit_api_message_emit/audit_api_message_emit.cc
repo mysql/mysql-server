@@ -62,6 +62,10 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_audit_api_message);
 class IError_handler {
  public:
   /**
+    Virtual destructor.
+  */
+  virtual ~IError_handler() {}
+  /**
     Error reporting method.
 
     @param message Error message.
