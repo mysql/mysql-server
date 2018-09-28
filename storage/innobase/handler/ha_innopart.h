@@ -616,7 +616,7 @@ class ha_innopart : public ha_innobase,
   @param[in, out]   num_threads     number of threads to be spawned
   @return error code
   @return 0 on success */
-  int secondary_engine_scan_get_num_threads(size_t &num_threads) override;
+  int pread_adapter_scan_get_num_threads(size_t &num_threads) override;
 
   /**
     Start parallel read of data.
@@ -630,10 +630,10 @@ class ha_innopart : public ha_innobase,
     @return error code
     @return 0 on success
    */
-  int secondary_engine_scan_parallel_load(
-      void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
-      secondary_engine_pload_row_cbk load_rows_fn,
-      secondary_engine_pload_end_cbk load_end_fn) override;
+  int pread_adapter_scan_parallel_load(
+      void **thread_contexts, pread_adapter_pload_init_cbk load_init_fn,
+      pread_adapter_pload_row_cbk load_rows_fn,
+      pread_adapter_pload_end_cbk load_end_fn) override;
 
  private:
   /** Pointer to Ha_innopart_share on the TABLE_SHARE. */

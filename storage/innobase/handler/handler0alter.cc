@@ -1139,7 +1139,7 @@ bool ha_innobase::prepare_inplace_alter_table(TABLE *altered_table,
       altered_table, ha_alter_info, old_dd_tab, new_dd_tab));
 }
 
-int ha_innobase::secondary_engine_scan_get_num_threads(size_t &num_threads) {
+int ha_innobase::pread_adapter_scan_get_num_threads(size_t &num_threads) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1157,26 +1157,26 @@ int ha_innobase::secondary_engine_scan_get_num_threads(size_t &num_threads) {
 
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  if (m_secondary_engine_reader != nullptr) {
-    ut_free(m_secondary_engine_reader);
+  if (m_parallel_reader != nullptr) {
+    ut_free(m_parallel_reader);
   }
 
-  m_secondary_engine_reader = UT_NEW_NOKEY(Secondary_engine_reader(
+  m_parallel_reader = UT_NEW_NOKEY(Parallel_reader_adapter(
       m_prebuilt->table, trx, index, n_threads, m_prebuilt));
 
-  if (m_secondary_engine_reader == nullptr) {
+  if (m_parallel_reader == nullptr) {
     return (HA_ERR_OUT_OF_MEM);
   }
 
-  num_threads = m_secondary_engine_reader->calc_num_threads();
+  num_threads = m_parallel_reader->calc_num_threads();
 
   return (0);
 }
 
-int ha_innobase::secondary_engine_scan_parallel_load(
-    void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
-    secondary_engine_pload_row_cbk load_rows_fn,
-    secondary_engine_pload_end_cbk load_end_fn) {
+int ha_innobase::pread_adapter_scan_parallel_load(
+    void **thread_contexts, pread_adapter_pload_init_cbk load_init_fn,
+    pread_adapter_pload_row_cbk load_rows_fn,
+    pread_adapter_pload_end_cbk load_end_fn) {
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
@@ -1187,24 +1187,23 @@ int ha_innobase::secondary_engine_scan_parallel_load(
   update_thd();
   build_template(true);
 
-  ut_ad(m_secondary_engine_reader != nullptr);
-  ut_ad(m_secondary_engine_reader->table() == m_prebuilt->table);
-  ut_ad(m_secondary_engine_reader->index() == m_prebuilt->table->first_index());
-  ut_ad(m_secondary_engine_reader->trx() == m_prebuilt->trx);
+  ut_ad(m_parallel_reader != nullptr);
+  ut_ad(m_parallel_reader->table() == m_prebuilt->table);
+  ut_ad(m_parallel_reader->index() == m_prebuilt->table->first_index());
+  ut_ad(m_parallel_reader->trx() == m_prebuilt->trx);
 
 #ifdef UNIV_DEBUG
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
-  ut_ad(m_secondary_engine_reader->n_threads() == n_threads);
+  ut_ad(m_parallel_reader->n_threads() == n_threads);
 #endif
 
-  m_secondary_engine_reader->set_callback(thread_contexts, load_init_fn,
-                                          load_rows_fn, load_end_fn);
+  m_parallel_reader->set_callback(thread_contexts, load_init_fn, load_rows_fn,
+                                  load_end_fn);
 
-  dberr_t err = m_secondary_engine_reader->read(
+  dberr_t err = m_parallel_reader->read(
       [&](size_t id, const buf_block_t *block, const rec_t *rec,
           dict_index_t *index, row_prebuilt_t *prebuilt) {
-        return (
-            m_secondary_engine_reader->process_rows(id, rec, index, prebuilt));
+        return (m_parallel_reader->process_rows(id, rec, index, prebuilt));
       });
 
   int error = convert_error_code_to_mysql(err, 0, ha_thd());
@@ -9559,20 +9558,20 @@ static inline Instant_Type innopart_support_instant(
   return (type);
 }
 
-int ha_innopart::secondary_engine_scan_get_num_threads(size_t &num_threads) {
+int ha_innopart::pread_adapter_scan_get_num_threads(size_t &num_threads) {
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  if (m_secondary_engine_reader != nullptr) {
-    ut_free(m_secondary_engine_reader);
+  if (m_parallel_reader != nullptr) {
+    ut_free(m_parallel_reader);
   }
 
   auto index = m_prebuilt->table->first_index();
 
-  m_secondary_engine_reader = UT_NEW_NOKEY(Secondary_engine_partition_reader(
+  m_parallel_reader = UT_NEW_NOKEY(Parallel_partition_reader_adapter(
       m_prebuilt->table, m_prebuilt->trx, index, n_threads, m_prebuilt,
       m_tot_parts));
 
-  if (m_secondary_engine_reader == nullptr) {
+  if (m_parallel_reader == nullptr) {
     return (HA_ERR_OUT_OF_MEM);
   }
 
@@ -9595,34 +9594,33 @@ int ha_innopart::secondary_engine_scan_get_num_threads(size_t &num_threads) {
     trx_start_if_not_started_xa(trx, false);
     trx_assign_read_view(trx);
 
-    m_secondary_engine_reader->set_info(
+    m_parallel_reader->set_info(
         m_prebuilt->table, m_prebuilt->table->first_index(), trx, m_prebuilt);
   }
 
-  num_threads = m_secondary_engine_reader->calc_num_threads();
+  num_threads = m_parallel_reader->calc_num_threads();
 
   return (0);
 }
 
-int ha_innopart::secondary_engine_scan_parallel_load(
-    void **thread_contexts, secondary_engine_pload_init_cbk load_init_fn,
-    secondary_engine_pload_row_cbk load_rows_fn,
-    secondary_engine_pload_end_cbk load_end_fn) {
-  ut_ad(m_secondary_engine_reader != nullptr);
+int ha_innopart::pread_adapter_scan_parallel_load(
+    void **thread_contexts, pread_adapter_pload_init_cbk load_init_fn,
+    pread_adapter_pload_row_cbk load_rows_fn,
+    pread_adapter_pload_end_cbk load_end_fn) {
+  ut_ad(m_parallel_reader != nullptr);
 
 #ifdef UNIV_DEBUG
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
-  ut_ad(m_secondary_engine_reader->n_threads() == n_threads);
+  ut_ad(m_parallel_reader->n_threads() == n_threads);
 #endif
 
-  m_secondary_engine_reader->set_callback(thread_contexts, load_init_fn,
-                                          load_rows_fn, load_end_fn);
+  m_parallel_reader->set_callback(thread_contexts, load_init_fn, load_rows_fn,
+                                  load_end_fn);
 
-  dberr_t err = m_secondary_engine_reader->read(
+  dberr_t err = m_parallel_reader->read(
       [&](size_t id, const buf_block_t *block, const rec_t *rec,
           dict_index_t *index, row_prebuilt_t *prebuilt) {
-        return (
-            m_secondary_engine_reader->process_rows(id, rec, index, prebuilt));
+        return (m_parallel_reader->process_rows(id, rec, index, prebuilt));
       });
 
   int error = convert_error_code_to_mysql(err, 0, ha_thd());

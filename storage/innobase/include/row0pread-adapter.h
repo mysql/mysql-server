@@ -24,27 +24,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include/row0sec_engine.h
-secondary engine-InnoDB parallel read interface.
+/** @file include/row0pread-adapter.h
+Parallel read adapter interface.
 
 Created 2018-02-28 by Darshan M N. */
 
-#ifndef row0secondary_engine_h
-#define row0secondary_engine_h
+#ifndef row0pread_adapter_h
+#define row0pread_adapter_h
 
 #include "row0pread.h"
 
-/** Size of the buffer used to store InnoDB records and sent to secondary engine
- * SE. */
-const uint64_t SECONDARY_ENGINE_SEND_BUFFER_SIZE = 2 * 1024 * 1024;
+/** Size of the buffer used to store InnoDB records and sent to the adapter*/
+const uint64_t ADAPTER_SEND_BUFFER_SIZE = 2 * 1024 * 1024;
 
 /** Traverse an index in the leaf page block list order and send records to
-secondary engine SE. */
-class Secondary_engine_reader : public Key_reader {
+ * adapter. */
+class Parallel_reader_adapter : public Key_reader {
   using Counter = ib_counter_t<size_t, 64, generic_indexer_t>;
 
   /** This callback is called by each parallel load thread at the beginning of
-  the parallel load for the secondary engine scan.
+  the parallel load for the adapter scan.
   @param cookie      The cookie for this thread
   @param ncols       Number of columns in each row
   @param row_len     The size of a row in bytes
@@ -60,23 +59,23 @@ class Secondary_engine_reader : public Key_reader {
                      represents the bitmask required to get the null bit. The
                      memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call. */
-  using secondary_engine_pload_init_cbk = std::function<void(
+  using pread_adapter_pload_init_cbk = std::function<void(
       void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
       ulong *null_byte_offsets, ulong *null_bitmasks)>;
 
   /** This callback is called by each parallel load thread when processing
-  of rows is required for the secondary engine scan.
+  of rows is required for the adapter scan.
   @param cookie    The cookie for this thread
   @param nrows     The nrows that are available
   @param rowdata   The mysql-in-memory row data buffer. It consistes of nrows
   number of records. */
-  using secondary_engine_pload_row_cbk =
+  using pread_adapter_pload_row_cbk =
       std::function<bool(void *cookie, uint nrows, void *rowdata)>;
 
   /** This callback is called by each parallel load thread when processing
-  of rows has eneded for the secondary engine scan.
+  of rows has eneded for the adapter scan.
   @param cookie    The cookie for this thread */
-  using secondary_engine_pload_end_cbk = std::function<void(void *cookie)>;
+  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
 
  public:
   /** Constructor.
@@ -85,22 +84,21 @@ class Secondary_engine_reader : public Key_reader {
   @param[in]    index           Index in table to scan.
   @param[in]    n_threads       Maximum threads to use for reading
   @param[in]    prebuilt        InnoDB row prebuilt structure */
-  Secondary_engine_reader(dict_table_t *table, trx_t *trx, dict_index_t *index,
+  Parallel_reader_adapter(dict_table_t *table, trx_t *trx, dict_index_t *index,
                           size_t n_threads, row_prebuilt_t *prebuilt)
       : Key_reader(table, trx, index, prebuilt, n_threads) {
     m_bufs.reserve(n_threads);
 
     for (size_t i = 0; i < n_threads; ++i) {
-      m_bufs[i] = static_cast<byte *>(
-          ut_malloc_nokey(SECONDARY_ENGINE_SEND_BUFFER_SIZE));
+      m_bufs[i] =
+          static_cast<byte *>(ut_malloc_nokey(ADAPTER_SEND_BUFFER_SIZE));
     }
 
-    m_secondary_engine_send_num_recs =
-        SECONDARY_ENGINE_SEND_BUFFER_SIZE / m_prebuilt->mysql_row_len;
+    m_send_num_recs = ADAPTER_SEND_BUFFER_SIZE / m_prebuilt->mysql_row_len;
   }
 
   /** Destructor. */
-  ~Secondary_engine_reader() {
+  ~Parallel_reader_adapter() {
     for (auto buf : m_bufs) {
       ut_free(buf);
     }
@@ -115,9 +113,9 @@ class Secondary_engine_reader : public Key_reader {
   @param[in]     load_end_fn     callback called by each parallel load thread
   when processing of rows has ended. */
   void set_callback(void **thread_contexts,
-                    secondary_engine_pload_init_cbk load_init_fn,
-                    secondary_engine_pload_row_cbk load_rows_fn,
-                    secondary_engine_pload_end_cbk load_end_fn) {
+                    pread_adapter_pload_init_cbk load_init_fn,
+                    pread_adapter_pload_row_cbk load_rows_fn,
+                    pread_adapter_pload_end_cbk load_end_fn) {
     m_thread_contexts = thread_contexts;
     m_load_init = load_init_fn;
     m_load_rows = load_rows_fn;
@@ -125,7 +123,7 @@ class Secondary_engine_reader : public Key_reader {
   }
 
   /** Convert the record in InnoDB format to MySQL format and send it to
-  secondary engine.
+  adapter.
   @param[in]      thread_id  Thread ID
   @param[in]      rec        InnoDB record
   @param[in]      index      InnoDB index which contains the record
@@ -135,7 +133,7 @@ class Secondary_engine_reader : public Key_reader {
                        row_prebuilt_t *prebuilt);
 
  protected:
-  /** Counter to track number of records sent to secondary engine */
+  /** Counter to track number of records sent to adapter */
   Counter n_total_recs_sent;
 
  private:
@@ -148,35 +146,35 @@ class Secondary_engine_reader : public Key_reader {
   /** Counter to track number of records processed by each row. */
   Counter n_recs;
 
-  /* secondary engine context for each of the spawned threads. */
+  /* adapter context for each of the spawned threads. */
   void **m_thread_contexts{nullptr};
 
-  /** secondary engine callback called by each parallel load thread at the
-  beginning of the parallel load for the secondary engine scan. */
-  secondary_engine_pload_init_cbk m_load_init;
+  /** adapter callback called by each parallel load thread at the
+  beginning of the parallel load for the adapter scan. */
+  pread_adapter_pload_init_cbk m_load_init;
 
-  /** secondary engine callback called by each parallel load thread when
-  processing of rows is required for the secondary engine scan. */
-  secondary_engine_pload_row_cbk m_load_rows;
+  /** adapter callback called by each parallel load thread when
+  processing of rows is required for the adapter scan. */
+  pread_adapter_pload_row_cbk m_load_rows;
 
-  /** secondary engine callback called by each parallel load thread when
-  processing of rows has ended for the secondary engine scan. */
-  secondary_engine_pload_end_cbk m_load_end;
+  /** adapter callback called by each parallel load thread when
+  processing of rows has ended for the adapter scan. */
+  pread_adapter_pload_end_cbk m_load_end;
 
-  /** Number of records to be sent across to secondary engine SE. */
-  uint64_t m_secondary_engine_send_num_recs;
+  /** Number of records to be sent across to adapter. */
+  uint64_t m_send_num_recs;
 
-  /** Buffer to store records to be sent to secondary engine SE. */
+  /** Buffer to store records to be sent to adapter. */
   std::vector<byte *> m_bufs;
 };
 
 /** Traverse all the indexes of a partitioned table in the leaf page block list
-order and send records to secondary engine SE. */
-class Secondary_engine_partition_reader : public Secondary_engine_reader {
+order and send records to adapter */
+class Parallel_partition_reader_adapter : public Parallel_reader_adapter {
   using Counter = ib_counter_t<size_t, 64, generic_indexer_t>;
 
   /** This callback is called by each parallel load thread at the beginning of
-  the parallel load for the secondary engine scan.
+  the parallel load for the adapter scan.
   @param cookie      The cookie for this thread
   @param ncols       Number of columns in each row
   @param row_len     The size of a row in bytes
@@ -192,23 +190,23 @@ class Secondary_engine_partition_reader : public Secondary_engine_reader {
                      represents the bitmask required to get the null bit. The
                      memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call. */
-  using secondary_engine_pload_init_cbk = std::function<void(
+  using pread_adapter_pload_init_cbk = std::function<void(
       void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
       ulong *null_byte_offsets, ulong *null_bitmasks)>;
 
   /** This callback is called by each parallel load thread when processing
-  of rows is required for the secondary engine scan.
+  of rows is required for the adapter scan.
   @param cookie    The cookie for this thread
   @param nrows     The nrows that are available
   @param rowdata   The mysql-in-memory row data buffer. It consistes of nrows
   number of records. */
-  using secondary_engine_pload_row_cbk =
+  using pread_adapter_pload_row_cbk =
       std::function<bool(void *cookie, uint nrows, void *rowdata)>;
 
   /** This callback is called by each parallel load thread when processing
-  of rows has eneded for the secondary engine scan.
+  of rows has eneded for the adapter scan.
   @param cookie    The cookie for this thread */
-  using secondary_engine_pload_end_cbk = std::function<void(void *cookie)>;
+  using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
 
  public:
   /** Constructor.
@@ -218,15 +216,15 @@ class Secondary_engine_partition_reader : public Secondary_engine_reader {
   @param[in]    n_threads       Maximum threads to use for reading
   @param[in]    prebuilt        InnoDB row prebuilt structure
   @param[in]    num_parts       total number of partitions present in a table */
-  Secondary_engine_partition_reader(dict_table_t *table, trx_t *trx,
+  Parallel_partition_reader_adapter(dict_table_t *table, trx_t *trx,
                                     dict_index_t *index, size_t n_threads,
                                     row_prebuilt_t *prebuilt,
                                     uint64_t num_parts)
-      : Secondary_engine_reader(table, trx, index, n_threads, prebuilt),
+      : Parallel_reader_adapter(table, trx, index, n_threads, prebuilt),
         m_num_parts(num_parts) {}
 
   /** Destructor */
-  ~Secondary_engine_partition_reader() {}
+  ~Parallel_partition_reader_adapter() {}
 
   /** Fetch number of threads that would be spawned for the parallel read.
   @return number of threads */
@@ -267,4 +265,4 @@ class Secondary_engine_partition_reader : public Secondary_engine_reader {
   uint64_t m_num_parts;
 };
 
-#endif /* !row0secondary_engine_h */
+#endif /* !row0pread_adapter_h */

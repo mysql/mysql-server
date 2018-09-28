@@ -24,15 +24,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file row/row0sec_engine.cc
-secondary engine-InnoDB parallel read interface implementation
+/** @file row/row0pread-adapter.cc
+Parallel read adapter interface implementation
 
 Created 2018-02-28 by Darshan M N */
 
-#include "row0sec_engine.h"
+#include "row0pread-adapter.h"
 #include "row0sel.h"
 
-dberr_t Secondary_engine_reader::worker(size_t id, Queue &ctxq, Function &f) {
+dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
   ulong *mysql_row_offsets;
   ulong *mysql_nullbit_offsets;
   ulong *mysql_null_bit_mask;
@@ -60,22 +60,18 @@ dberr_t Secondary_engine_reader::worker(size_t id, Queue &ctxq, Function &f) {
   /** It's possible that we might not have sent the records in the buffer when
   we have reached the end of records and the buffer is not full. Send them
   now. */
-  if (n_recs[id] % m_secondary_engine_send_num_recs != 0 && err == DB_SUCCESS) {
-    m_load_rows(m_thread_contexts[id],
-                n_recs[id] % m_secondary_engine_send_num_recs,
+  if (n_recs[id] % m_send_num_recs != 0 && err == DB_SUCCESS) {
+    m_load_rows(m_thread_contexts[id], n_recs[id] % m_send_num_recs,
                 (void *)m_bufs[id]);
-    n_total_recs_sent.add(id, n_recs[id] % m_secondary_engine_send_num_recs);
+    n_total_recs_sent.add(id, n_recs[id] % m_send_num_recs);
   }
-
-  std::cerr << "Total rows processed by InnoDB for secondary engine is "
-            << n_total_recs_sent << std::endl;
 
   m_load_end(m_thread_contexts[id]);
 
   return (err);
 }
 
-dberr_t Secondary_engine_reader::process_rows(size_t thread_id,
+dberr_t Parallel_reader_adapter::process_rows(size_t thread_id,
                                               const rec_t *rec,
                                               dict_index_t *index,
                                               row_prebuilt_t *prebuilt) {
@@ -88,8 +84,8 @@ dberr_t Secondary_engine_reader::process_rows(size_t thread_id,
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  auto rec_offset = (n_recs[thread_id] % m_secondary_engine_send_num_recs) *
-                    prebuilt->mysql_row_len;
+  auto rec_offset =
+      (n_recs[thread_id] % m_send_num_recs) * prebuilt->mysql_row_len;
 
   if (row_sel_store_mysql_rec(m_bufs[thread_id] + rec_offset, prebuilt, rec,
                               NULL, true, index, offsets, false, nullptr)) {
@@ -97,15 +93,14 @@ dberr_t Secondary_engine_reader::process_rows(size_t thread_id,
 
     n_recs.add(thread_id, 1);
 
-    /** Call the secondary engine callback if we have filled the buffer with
-    secondary engine_SEND_NUM_RECS number of records. */
-    if (n_recs[thread_id] % m_secondary_engine_send_num_recs == 0) {
-      if (m_load_rows(m_thread_contexts[thread_id],
-                      m_secondary_engine_send_num_recs,
+    /** Call the adapter callback if we have filled the buffer with
+    ADAPTER_SEND_NUM_RECS number of records. */
+    if (n_recs[thread_id] % m_send_num_recs == 0) {
+      if (m_load_rows(m_thread_contexts[thread_id], m_send_num_recs,
                       (void *)m_bufs[thread_id])) {
         err = DB_INTERRUPTED;
       }
-      n_total_recs_sent.add(thread_id, m_secondary_engine_send_num_recs);
+      n_total_recs_sent.add(thread_id, m_send_num_recs);
     }
   }
 
@@ -116,7 +111,7 @@ dberr_t Secondary_engine_reader::process_rows(size_t thread_id,
   return (err);
 }
 
-void Secondary_engine_partition_reader::set_info(dict_table_t *table,
+void Parallel_partition_reader_adapter::set_info(dict_table_t *table,
                                                  dict_index_t *index,
                                                  trx_t *trx,
                                                  row_prebuilt_t *prebuilt) {
@@ -126,7 +121,7 @@ void Secondary_engine_partition_reader::set_info(dict_table_t *table,
   m_prebuilt.push_back(prebuilt);
 }
 
-size_t Secondary_engine_partition_reader::calc_num_threads() {
+size_t Parallel_partition_reader_adapter::calc_num_threads() {
   size_t num_threads = 0;
 
   if (m_num_parts == 0) {
@@ -134,7 +129,7 @@ size_t Secondary_engine_partition_reader::calc_num_threads() {
   }
 
   for (uint i = 0; i < m_num_parts; ++i) {
-    Secondary_engine_reader::set_info(m_table[i], m_index[i], m_trx[i],
+    Parallel_reader_adapter::set_info(m_table[i], m_index[i], m_trx[i],
                                       m_prebuilt[i]);
     m_partitions.push_back(partition());
     num_threads += m_partitions[i].size();
@@ -143,14 +138,14 @@ size_t Secondary_engine_partition_reader::calc_num_threads() {
               << std::endl;
   }
 
-  Secondary_engine_reader::set_info(nullptr, nullptr, nullptr, m_prebuilt[0]);
+  Parallel_reader_adapter::set_info(nullptr, nullptr, nullptr, m_prebuilt[0]);
 
   num_threads = std::min(num_threads, m_n_threads);
 
   return (num_threads);
 }
 
-dberr_t Secondary_engine_partition_reader::read(Function &&f) {
+dberr_t Parallel_partition_reader_adapter::read(Function &&f) {
   m_n_threads = calc_num_threads();
 
   if (m_n_threads == 0) {
@@ -197,9 +192,6 @@ dberr_t Secondary_engine_partition_reader::read(Function &&f) {
   }
 
   m_ctxs.clear();
-
-  std::cerr << "Total rows processed by InnoDB for secondary engine is "
-            << n_total_recs_sent << std::endl;
 
   return (err);
 }
