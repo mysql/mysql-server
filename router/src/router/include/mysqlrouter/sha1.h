@@ -32,8 +32,6 @@
 namespace my_sha1 {
 
 void compute_sha1_hash(uint8_t *digest, const char *buf, size_t len);
-void compute_sha1_hash_multi(uint8_t *digest, const char *buf1, int len1,
-                             const char *buf2, int len2);
 
 }  // namespace my_sha1
 

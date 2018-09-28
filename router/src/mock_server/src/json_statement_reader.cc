@@ -30,15 +30,15 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <rapidjson/document.h>
+#include <rapidjson/error/en.h>
+#include <rapidjson/filereadstream.h>
+#include <rapidjson/schema.h>
+#include <rapidjson/stringbuffer.h>
 #include <cassert>
 #include <cerrno>
 #include <chrono>
 #include <memory>
-#include "rapidjson/document.h"
-#include "rapidjson/error/en.h"
-#include "rapidjson/filereadstream.h"
-#include "rapidjson/schema.h"
-#include "rapidjson/stringbuffer.h"
 
 #include "mysql_server_mock_schema.h"
 

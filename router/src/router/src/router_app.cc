@@ -34,6 +34,7 @@
 #include "hostname_validator.h"
 #include "keyring/keyring_manager.h"
 #include "mysql/harness/config_parser.h"
+#include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
@@ -308,6 +309,19 @@ void MySQLRouter::init_keyring(mysql_harness::Config &config) {
     } else {  // prompt password
       init_keyring_using_prompted_password();
     }
+  }
+}
+
+void MySQLRouter::init_dynamic_state(mysql_harness::Config &config) {
+  if (config.has_default("dynamic_state")) {
+    using mysql_harness::DynamicState;
+
+    const std::string dynamic_state_file = config.get_default("dynamic_state");
+    DIM::instance().set_DynamicState(
+        [=]() { return new DynamicState(dynamic_state_file); },
+        std::default_delete<mysql_harness::DynamicState>());
+    // force object creation, the further code relies on it's existence
+    DIM::instance().get_DynamicState();
   }
 }
 
@@ -726,6 +740,7 @@ void MySQLRouter::start() {
         "configuration. Exiting.");
 
   init_keyring(config);
+  init_dynamic_state(config);
 
   loader_->start();
 }
@@ -1258,6 +1273,8 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     std::string config_file_path = mysqlrouter::substitute_variable(
         MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.conf", "{origin}",
         origin_.str());
+    std::string state_file_path = mysqlrouter::substitute_variable(
+        MYSQL_ROUTER_DATA_FOLDER "/state.json", "{origin}", origin_.str());
     std::string master_key_path = mysqlrouter::substitute_variable(
         MYSQL_ROUTER_CONFIG_FOLDER "/mysqlrouter.key", "{origin}",
         origin_.str());
@@ -1283,9 +1300,9 @@ void MySQLRouter::bootstrap(const std::string &server_url) {
     keyring_info_.set_keyring_file(default_keyring_file);
     keyring_info_.set_master_key_file(master_key_path);
     config_gen.set_keyring_info(keyring_info_);
-    config_gen.bootstrap_system_deployment(config_file_path, bootstrap_options_,
-                                           bootstrap_multivalue_options_,
-                                           default_paths);
+    config_gen.bootstrap_system_deployment(
+        config_file_path, state_file_path, bootstrap_options_,
+        bootstrap_multivalue_options_, default_paths);
   } else {
     keyring_info_.set_keyring_file(kDefaultKeyringFileName);
     keyring_info_.set_master_key_file("mysqlrouter.key");

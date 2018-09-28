@@ -28,11 +28,12 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <rapidjson/document.h>
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
+#include "mock_server_rest_client.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
-#include "rapidjson/document.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -42,8 +43,6 @@
 Path g_origin_path;
 using ::testing::PrintToString;
 using mysqlrouter::MySQLSession;
-
-const std::string kMockServerGlobalsRestUri = "/api/v1/mock_server/globals/";
 
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
@@ -79,24 +78,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     if (!mode.empty()) result += std::string("mode=" + mode + "\n");
 
     return result;
-  }
-
-  std::string get_server_mock_globals_as_json_string(const unsigned http_port) {
-    IOContext io_ctx;
-    auto req = RestClient(io_ctx, "127.0.0.1", http_port)
-                   .request_sync(HttpMethod::Get, kMockServerGlobalsRestUri);
-    EXPECT_TRUE(req);
-    EXPECT_EQ(req.get_response_code(), 200u);
-    EXPECT_THAT(req.get_input_headers().get("Content-Type"),
-                ::testing::StrEq("application/json"));
-    auto resp_body = req.get_input_buffer();
-    EXPECT_GT(resp_body.length(), 0u);
-    auto resp_body_content = resp_body.pop_front(resp_body.length());
-
-    // parse json
-    std::string json_payload(resp_body_content.begin(),
-                             resp_body_content.end());
-    return json_payload;
   }
 
   int get_ttl_queries_count(const std::string &json_string) {
@@ -244,7 +225,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
 
   // let's ask the mock how many metadata queries it got after
   std::string server_globals =
-      get_server_mock_globals_as_json_string(md_server_http_port);
+      MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   int ttl_count = get_ttl_queries_count(server_globals);
 
   if (!test_params.at_least) {

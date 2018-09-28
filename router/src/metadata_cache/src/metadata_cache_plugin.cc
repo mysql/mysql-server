@@ -88,6 +88,38 @@ static mysqlrouter::SSLOptions make_ssl_options(
   return options;
 }
 
+class MetadataServersStateListener
+    : public metadata_cache::ReplicasetStateListenerInterface {
+ public:
+  MetadataServersStateListener(ClusterMetadataDynamicState &dynamic_state,
+                               const std::string &replicaset_name)
+      : dynamic_state_(dynamic_state), replicaset_name_(replicaset_name) {}
+
+  ~MetadataServersStateListener() {
+    metadata_cache::MetadataCacheAPI::instance()->remove_listener(
+        replicaset_name_, this);
+  }
+
+  void notify(const LookupResult &instances,
+              const bool /*md_servers_reachable*/) override {
+    auto md_servers = instances.instance_vector;
+
+    // need to convert from ManagedInstance to uri string
+    std::vector<std::string> metadata_servers_str;
+    for (auto &md_server : md_servers) {
+      metadata_servers_str.emplace_back(
+          "mysql://" + mysql_harness::TCPAddress(md_server).str());
+    }
+
+    dynamic_state_.set_metadata_servers(metadata_servers_str);
+    dynamic_state_.save();
+  }
+
+ private:
+  ClusterMetadataDynamicState &dynamic_state_;
+  std::string replicaset_name_;
+};
+
 /**
  * Initialize the metadata cache for fetching the information from the
  * metadata servers.
@@ -98,6 +130,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   mysqlrouter::MySQLClientThreadToken api_token;
 
   const mysql_harness::ConfigSection *section = get_config_section(env);
+  std::unique_ptr<ClusterMetadataDynamicState> md_cache_dynamic_state;
+  std::unique_ptr<MetadataServersStateListener> md_servers_state_listener;
 
   // launch metadata cache
   try {
@@ -125,10 +159,24 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 
     log_info("Starting Metadata Cache");
     // Initialize the metadata cache.
-    metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        config.bootstrap_addresses, config.user, password, ttl,
-        make_ssl_options(section), metadata_cluster, config.connect_timeout,
-        config.read_timeout, config.thread_stack_size);
+    auto md_cache = metadata_cache::MetadataCacheAPI::instance();
+    const std::string replicaset_id = config.get_group_replication_id();
+
+    md_cache->cache_init(replicaset_id, config.metadata_servers_addresses,
+                         config.user, password, ttl, make_ssl_options(section),
+                         metadata_cluster, config.connect_timeout,
+                         config.read_timeout, config.thread_stack_size);
+
+    // register callback
+    md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);
+    if (md_cache_dynamic_state) {
+      md_servers_state_listener.reset(new MetadataServersStateListener(
+          *md_cache_dynamic_state.get(), replicaset_id));
+      md_cache->add_listener(replicaset_id, md_servers_state_listener.get());
+    }
+
+    // start metadata cache
+    md_cache->cache_start();
   } catch (const std::runtime_error &exc) {  // metadata_cache::metadata_error
                                              // inherits from runtime_error
     log_error("%s", exc.what());  // TODO remove after Loader starts logging

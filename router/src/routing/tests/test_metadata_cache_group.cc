@@ -71,11 +71,13 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
-  MOCK_METHOD9(cache_init,
-               void(const std::vector<mysql_harness::TCPAddress> &,
-                    const std::string &, const std::string &,
-                    std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
-                    const std::string &, int, int, size_t));
+  MOCK_METHOD10(cache_init,
+                void(const std::string &,
+                     const std::vector<mysql_harness::TCPAddress> &,
+                     const std::string &, const std::string &,
+                     std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
+                     const std::string &, int, int, size_t));
+  MOCK_METHOD0(cache_start, void());
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
   bool is_initialized() noexcept override { return true; }

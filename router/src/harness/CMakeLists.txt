@@ -63,8 +63,18 @@ SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
 SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
                         ${SSL_INCLUDE_DIRS})
 
+#generate dynamic_satate_schema.cc
+FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/)
+ADD_CUSTOM_COMMAND(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.cc
+                   COMMAND json_schema_embedder
+                     ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_state_schema.js
+                     ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.cc
+                     "kStateFileJsonSchema")
+
 SET(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
+  src/dynamic_state.cc
+  src/dynamic_state_schema.cc
   src/loader_config.cc
   src/common.cc  src/filesystem.cc
   src/arg_handler.cc

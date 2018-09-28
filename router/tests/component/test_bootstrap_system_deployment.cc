@@ -24,6 +24,7 @@
 
 #include "common.h"
 #include "gmock/gmock.h"
+#include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 #include "utils.h"
@@ -42,60 +43,18 @@ Path g_origin_path;
 #ifndef SKIP_BOOTSTRAP_SYSTEM_DEPLOYMENT_TESTS
 
 class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
+                                            public RouterSystemLayout,
                                             public ::testing::Test {
  protected:
   void SetUp() override {
     set_origin(g_origin_path);
     RouterComponentTest::init();
-    init_tmp_dir();
+    init_system_layout_dir(get_mysqlrouter_exec(), g_origin_path);
 
     set_mysqlrouter_exec(Path(exec_file_));
   }
 
-  void TearDown() override {
-#ifdef __APPLE__
-    unlink(library_link_file_.c_str());
-#endif
-    purge_dir(tmp_dir_);
-  }
-
-  /*
-   * Create temporary directory that represents system deployment
-   * layout for mysql bootstrap. A mysql executable is copied to
-   * tmp_dir_/stage/bin/ and then an execution permission is assigned to it.
-   *
-   * After the test is completed, the whole temporary directory is deleted.
-   */
-  void init_tmp_dir() {
-    tmp_dir_ = get_tmp_dir();
-    mysqlrouter::mkdir(tmp_dir_ + "/stage/bin", 0700, true);
-    exec_file_ = tmp_dir_ + "/stage/bin/mysqlrouter";
-    mysqlrouter::mkdir(tmp_dir_ + "/stage/var/lib", 0700, true);
-    mysqlrouter::copy_file(get_mysqlrouter_exec().str(), exec_file_);
-#ifndef _WIN32
-    chmod(exec_file_.c_str(), 0700);
-#endif
-
-    // on MacOS we need to create symlink to library_output_directory
-    // inside our temp dir as mysqlrouter has @loader_path/../lib
-    // hardcoded by MYSQL_ADD_EXECUTABLE
-#ifdef __APPLE__
-    std::string cur_dir_name = g_origin_path.real_path().dirname().str();
-    const std::string library_output_dir =
-        cur_dir_name + "/library_output_directory";
-
-    library_link_file_ =
-        std::string(Path(tmp_dir_).real_path().str() + "/stage/lib");
-
-    if (symlink(library_output_dir.c_str(), library_link_file_.c_str())) {
-      throw std::runtime_error(
-          "Could not create symbolic link to library_output_directory: " +
-          std::to_string(errno));
-    }
-#endif
-
-    config_file_ = tmp_dir_ + "/stage/mysqlrouter.conf";
-  }
+  void TearDown() override { cleanup_system_layout(); }
 
   RouterComponentTest::CommandHandle run_server_mock() {
     const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
@@ -110,14 +69,10 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
   }
 
   TcpPortPool port_pool_;
-
-  std::string tmp_dir_;
-  std::string exec_file_;
-  std::string config_file_;
 #ifdef __APPLE__
   std::string library_link_file_;
 #endif
-  unsigned server_port_;
+  uint16_t server_port_;
 };
 
 /*

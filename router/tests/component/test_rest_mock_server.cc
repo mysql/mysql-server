@@ -35,11 +35,12 @@
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <rapidjson/document.h>
 #include "dim.h"
 #include "gmock/gmock.h"
+#include "mock_server_rest_client.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
-#include "rapidjson/document.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -47,8 +48,6 @@
 
 Path g_origin_path;
 
-static constexpr const char kMockServerGlobalsRestUri[] =
-    "/api/v1/mock_server/globals/";
 static constexpr const char kMockServerConnectionsRestUri[] =
     "/api/v1/mock_server/connections/";
 static constexpr const char kMockServerInvalidRestUri[] =
@@ -128,8 +127,8 @@ class RestMockServerScriptTest : public RestMockServerTest {
         << server_mock_.get_full_output();
   }
 
-  const unsigned server_port_;
-  const unsigned http_port_;
+  const uint16_t server_port_;
+  const uint16_t http_port_;
   const std::string json_stmts_;
 
   RouterComponentTest::CommandHandle server_mock_;

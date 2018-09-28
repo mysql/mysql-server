@@ -25,12 +25,14 @@ INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(helpers
   ${PROJECT_SOURCE_DIR}/src/harness/include
   ${PROJECT_SOURCE_DIR}/src/router/include/mysqlrouter
+  ${PROJECT_SOURCE_DIR}/src/http/include/
   )
 
 SET(helper_sources
   helpers/router_test_helpers.cc
   helpers/mysql_session_replayer.cc
   helpers/router_component_test.cc
+  helpers/router_component_system_layout.cc
   helpers/tcp_port_pool.cc
   helpers/script_generator.cc
 )

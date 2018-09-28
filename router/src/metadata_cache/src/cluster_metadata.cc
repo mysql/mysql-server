@@ -393,7 +393,7 @@ metadata_cache::ReplicasetStatus ClusterMetadata::check_replicaset_status(
 
 // throws metadata_cache::metadata_error
 ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
-    const std::string &cluster_name) {
+    const std::string &cluster_name, const std::string &group_replication_id) {
   log_debug("Updating metadata information for cluster '%s'",
             cluster_name.c_str());
 
@@ -403,7 +403,8 @@ ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
   // the topology that was configured, it will be compared later against current
   // topology reported by (a server in) replicaset)
   ReplicaSetsByName replicasets(fetch_instances_from_metadata_server(
-      cluster_name));  // throws metadata_cache::metadata_error
+      cluster_name,
+      group_replication_id));  // throws metadata_cache::metadata_error
   if (replicasets.empty())
     log_warning("No replicasets defined for cluster '%s'",
                 cluster_name.c_str());
@@ -422,7 +423,7 @@ ClusterMetadata::ReplicaSetsByName ClusterMetadata::fetch_instances(
 // throws metadata_cache::metadata_error
 ClusterMetadata::ReplicaSetsByName
 ClusterMetadata::fetch_instances_from_metadata_server(
-    const std::string &cluster_name) {
+    const std::string &cluster_name, const std::string &group_replication_id) {
   mysqlrouter::MetadataSchemaVersion expected_version =
       mysqlrouter::required_metadata_schema_version;
 
@@ -438,6 +439,17 @@ ClusterMetadata::fetch_instances_from_metadata_server(
         expected_version.minor, expected_version.patch,
         metadata_schema_version.major, metadata_schema_version.minor,
         metadata_schema_version.patch));
+  }
+
+  // If we have group replication id we also want to limit the results only for
+  // that group replication. For backward compatibility we need to check if it
+  // is not empty, we didn't store that information before introducing dynamic
+  // state file.
+  std::string limit_group_replication;
+  if (!group_replication_id.empty()) {
+    limit_group_replication =
+        " AND R.attributes->>'$.group_replication_group_name' = " +
+        metadata_connection_->quote(group_replication_id);
   }
 
   // Get expected topology (what was configured) from metadata server. This will
@@ -465,7 +477,8 @@ ClusterMetadata::fetch_instances_from_metadata_server(
       "JOIN mysql_innodb_cluster_metadata.hosts AS H "
       "ON I.host_id = H.host_id "
       "WHERE F.cluster_name = " +
-      metadata_connection_->quote(cluster_name) + ";");
+      metadata_connection_->quote(cluster_name) + limit_group_replication +
+      ";");
 
   // example response
   // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+

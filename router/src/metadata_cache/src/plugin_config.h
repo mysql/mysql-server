@@ -35,6 +35,7 @@
 #include <mysqlrouter/plugin_config.h>
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
+#include "mysqlrouter/cluster_metadata_dynamic_state.h"
 #include "tcp_address.h"
 
 extern "C" {
@@ -49,9 +50,9 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
    */
   MetadataCachePluginConfig(const mysql_harness::ConfigSection *section)
       : BasePluginConfig(section),
-        bootstrap_addresses(
-            get_bootstrap_servers(section, "bootstrap_server_addresses",
-                                  metadata_cache::kDefaultMetadataPort)),
+        metadata_cache_dynamic_state(get_dynamic_state()),
+        metadata_servers_addresses(get_metadata_servers(
+            section, metadata_cache::kDefaultMetadataPort)),
         user(get_option_string(section, "user")),
         ttl(get_option_milliseconds(section, "ttl", 0.0, 3600.0)),
         metadata_cluster(get_option_string(section, "metadata_cluster")),
@@ -67,8 +68,10 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   std::string get_default(const std::string &option) const override;
   bool is_required(const std::string &option) const override;
 
-  /** @brief MySQL Metadata host to connect with */
-  const std::vector<mysql_harness::TCPAddress> bootstrap_addresses;
+  mutable std::unique_ptr<ClusterMetadataDynamicState>
+      metadata_cache_dynamic_state;
+  /** @brief MySQL Metadata hosts to connect with */
+  const std::vector<mysql_harness::TCPAddress> metadata_servers_addresses;
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
   /** @brief TTL used for storing data in the cache */
@@ -84,6 +87,13 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief memory in kilobytes allocated for thread's stack */
   const unsigned int thread_stack_size;
 
+  /** @brief Gets Replication Group ID if preset in the dynamic configuration.
+   *
+   * @note  If there is no dynamic configuration (backward compatibility) it
+   * returns empty string.
+   */
+  std::string get_group_replication_id() const;
+
  private:
   /** @brief Gets a list of metadata servers.
    *
@@ -91,13 +101,13 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
    * Throws std::invalid_argument on errors.
    *
    * @param section Instance of ConfigSection
-   * @param option Option name in section
    * @param default_port Use this port when none was provided
    * @return std::vector<mysql_harness::TCPAddress>
    */
-  std::vector<mysql_harness::TCPAddress> get_bootstrap_servers(
-      const mysql_harness::ConfigSection *section, const std::string &option,
-      uint16_t default_port);
+  std::vector<mysql_harness::TCPAddress> get_metadata_servers(
+      const mysql_harness::ConfigSection *section, uint16_t default_port) const;
+
+  ClusterMetadataDynamicState *get_dynamic_state();
 };
 
 #endif  // METADATA_CACHE_PLUGIN_CONFIG_INCLUDED

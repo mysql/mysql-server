@@ -371,6 +371,9 @@ class Registry;
 namespace mysql_harness {
 class LoaderConfig;
 }
+namespace mysql_harness {
+class DynamicState;
+}
 
 namespace mysql_harness {
 
@@ -439,6 +442,15 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     deleter_Config_ = deleter;
   }
 
+  // DynamicState
+  void reset_DynamicState() { reset_generic(instance_DynamicState_); }
+  void set_DynamicState(
+      const std::function<mysql_harness::DynamicState *(void)> &factory,
+      const std::function<void(mysql_harness::DynamicState *)> &deleter) {
+    factory_DynamicState_ = factory;
+    deleter_DynamicState_ = deleter;
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // object getters [step 3] (used for singleton objects)
   ////////////////////////////////////////////////////////////////////////////////
@@ -459,6 +471,13 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   mysql_harness::LoaderConfig &get_Config() {
     return get_external_generic(instance_Config_, factory_Config_,
                                 deleter_Config_);
+  }
+
+  // DynamicState
+  bool is_DynamicState() { return (bool)instance_DynamicState_; }
+  mysql_harness::DynamicState &get_DynamicState() {
+    return get_external_generic(instance_DynamicState_, factory_DynamicState_,
+                                deleter_DynamicState_);
   }
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -505,6 +524,11 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   std::function<mysql_harness::LoaderConfig *(void)> factory_Config_;
   std::function<void(mysql_harness::LoaderConfig *)> deleter_Config_;
   UniquePtr<mysql_harness::LoaderConfig> instance_Config_;
+
+  // DynamicState
+  std::function<mysql_harness::DynamicState *(void)> factory_DynamicState_;
+  std::function<void(mysql_harness::DynamicState *)> deleter_DynamicState_;
+  UniquePtr<mysql_harness::DynamicState> instance_DynamicState_;
 
   ////////////////////////////////////////////////////////////////////////////////
   // utility functions
@@ -555,7 +579,7 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
 
   template <typename T>
   T &get_external_generic(UniquePtr<T> &object,
-                          const std::function<T *(void)> &factory,
+                          const std::function<T *()> &factory,
                           const std::function<void(T *)> &deleter) {
     mtx_.lock();
     std::shared_ptr<void> exit_trigger(nullptr, [&](void *) { mtx_.unlock(); });

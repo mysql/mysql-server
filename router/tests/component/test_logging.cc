@@ -112,7 +112,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
                "plugin. Exiting.") != line.npos;
   };
   EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher))
-      << get_router_log_output("mysqlrouter.log", logging_folder);
+      << get_router_log_output("mysqlrouter.log", get_logging_dir().str());
 }
 
 TEST_F(RouterLoggingTest, bad_logging_folder) {
@@ -625,7 +625,6 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
         [](mysql_harness::RandomGeneratorInterface *) {});
 
     temp_test_dir = get_tmp_dir();
-    logging_folder = get_tmp_dir();
 
     cluster_nodes_ports = {port_pool_.get_next_available(),
                            port_pool_.get_next_available(),
@@ -638,10 +637,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     write_json_file(get_data_dir());
   }
 
-  void TearDown() override {
-    purge_dir(temp_test_dir);
-    purge_dir(logging_folder);
-  }
+  void TearDown() override { purge_dir(temp_test_dir); }
 
   void write_json_file(const Path &data_dir) {
     std::map<std::string, std::string> json_vars = {
@@ -666,7 +662,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
                             json_vars);
   }
 
-  std::string get_metadata_cache_section(std::vector<unsigned> ports) {
+  std::string get_metadata_cache_section(std::vector<uint16_t> ports) {
     std::string metadata_caches = "bootstrap_server_addresses=";
 
     for (auto it = ports.begin(); it != ports.end(); ++it) {
@@ -703,7 +699,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   std::string init_keyring_and_config_file(const std::string &conf_dir) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
-    default_section["logging_folder"] = logging_folder;
+    default_section["logging_folder"] = get_logging_dir().str();
     return create_config_file(
         conf_dir,
         "[logger]\nlevel = DEBUG\n" + metadata_cache_section + routing_section,
@@ -713,9 +709,8 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   std::string json_primary_node_template_;
   std::string json_primary_node_;
   std::string temp_test_dir;
-  std::string logging_folder;
-  std::vector<unsigned> cluster_nodes_ports;
-  unsigned router_port;
+  std::vector<uint16_t> cluster_nodes_ports;
+  uint16_t router_port;
   std::string metadata_cache_section;
   std::string routing_section;
 };
@@ -738,16 +733,19 @@ TEST_F(MetadataCacheLoggingTest,
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
-  // with any of the bootstrap servers
+  // with any of the 3 metadata servers
   auto matcher = [](const std::string &line) -> bool {
     return line.find("metadata_cache ERROR") != line.npos &&
-           line.find("Failed connecting with any of the metadata servers") !=
+           line.find(
+               "Failed fetching metadata from any of the 3 metadata servers") !=
                line.npos;
   };
 
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher,
-                           std::chrono::milliseconds(5000)))
-      << get_router_log_output("mysqlrouter.log", logging_folder);
+  auto log_file = get_logging_dir();
+  log_file.append("mysqlrouter.log");
+  EXPECT_TRUE(
+      find_in_file(log_file.str(), matcher, std::chrono::milliseconds(5000)))
+      << get_router_log_output();
 }
 
 /**
@@ -782,9 +780,9 @@ TEST_F(MetadataCacheLoggingTest,
                      std::to_string(cluster_nodes_ports[0])) != line.npos;
   };
 
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", info_matcher,
-                           std::chrono::milliseconds(10000)))
-      << get_router_log_output("mysqlrouter.log", logging_folder);
+  EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
+                           info_matcher, std::chrono::milliseconds(10000)))
+      << get_router_log_output();
 
   auto warning_matcher = [](const std::string &line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
@@ -792,8 +790,8 @@ TEST_F(MetadataCacheLoggingTest,
                "While updating metadata, could not establish a connection to "
                "replicaset") != line.npos;
   };
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", warning_matcher,
-                           std::chrono::milliseconds(10000)))
+  EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
+                           warning_matcher, std::chrono::milliseconds(10000)))
       << get_router_log_output();
 }
 

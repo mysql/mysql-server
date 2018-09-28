@@ -72,9 +72,9 @@ using namespace mysqlrouter;
 
 #define RAPIDJSON_HAS_STDSTRING 1
 
+#include <rapidjson/filewritestream.h>
+#include <rapidjson/prettywriter.h>
 #include <cstdio>
-#include "rapidjson/filewritestream.h"
-#include "rapidjson/prettywriter.h"
 
 using StreamWriter =
     RAPIDJSON_NAMESPACE::PrettyWriter<RAPIDJSON_NAMESPACE::FileWriteStream>;

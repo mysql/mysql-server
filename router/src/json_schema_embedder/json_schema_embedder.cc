@@ -42,11 +42,12 @@ int main(int argc, const char **argv) {
 
   try {
     // get commandline args
-    if (argc != 3)
+    if (argc != 4)
       throw std::runtime_error(std::string("USAGE: ") + argv[0] +
-                               " <in_file> <out_file>");
+                               " <in_file> <out_file> <symbol_name>");
     const char *in_filename = argv[1];
     const char *out_filename = argv[2];
+    const char *symbol_name = argv[3];
 
     // open input and output files
     FILE *in_file;
@@ -65,8 +66,8 @@ int main(int argc, const char **argv) {
                  "//\n"
                  "// (see " __FILE__ ")\n"
                  "\n"
-                 "extern const char kSqlQueryJsonSchema[] = {\n",
-                 argv[0], argv[1], argv[2]))
+                 "extern const char %s[] = {\n",
+                 argv[0], argv[1], argv[2], symbol_name))
       throw_error("Failed writing output file", out_filename);
 
     // write array elements

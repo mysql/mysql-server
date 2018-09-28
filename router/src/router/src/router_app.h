@@ -406,6 +406,8 @@ class MySQLRouter {
 
   void init_keyring(mysql_harness::Config &config);
 
+  void init_dynamic_state(mysql_harness::Config &config);
+
   /**
    * @brief Initializes keyring using master-key-reader and master-key-writer.
    *

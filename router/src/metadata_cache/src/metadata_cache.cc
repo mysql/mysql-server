@@ -166,12 +166,15 @@
  *
  * Implemented in: `ClusterMetadata::connect()`
  *
- * MDC starts with a list of MD servers written in the configuration file, such
- * as:
+ * MDC starts with a list of MD servers written in the dynamic configuration
+ * (state) file, such as:
  *
- *     bootstrap_server_addresses = mysql://192.168.56.101:3310,
- *                                  mysql://192.168.56.101:3320,
- *                                  mysql://192.168.56.101:3330
+ *
+ * "cluster-metadata-servers": [
+ *          "mysql://192.168.56.101:3310",
+ *          "mysql://192.168.56.101:3320",
+ *          "mysql://192.168.56.101:3330"
+ *      ]
  *
  * It iterates through the list and tries to connect to each one, until
  * connection succeeds.
@@ -490,26 +493,22 @@
 IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
-    const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
+    const std::string &group_replication_id,
+    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     std::shared_ptr<MetaData>
         cluster_metadata,  // this could be changed to UniquePtr
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
     const std::string &cluster, size_t thread_stack_size)
-    : refresh_thread_(thread_stack_size) {
-  std::string host;
-  for (auto s : bootstrap_servers) {
-    metadata_cache::ManagedInstance bootstrap_server_instance;
-    host = (s.addr == "localhost" ? "127.0.0.1" : s.addr);
-    bootstrap_server_instance.host = host;
-    bootstrap_server_instance.port = s.port;
-    metadata_servers_.push_back(bootstrap_server_instance);
+    : group_replication_id_(group_replication_id),
+      refresh_thread_(thread_stack_size) {
+  for (const auto &s : metadata_servers) {
+    metadata_servers_.emplace_back(s);
   }
   ttl_ = ttl;
   cluster_name_ = cluster;
   terminated_ = terminator_.get_future();
   meta_data_ = cluster_metadata;
   ssl_options_ = ssl_options;
-  refresh();
 }
 
 void *MetadataCache::run_thread(void *context) {
@@ -575,16 +574,19 @@ void MetadataCache::stop() noexcept {
  *
  * @param replicaset_name The replicaset that is being looked up.
  */
-std::vector<metadata_cache::ManagedInstance> MetadataCache::replicaset_lookup(
+MetadataCache::metadata_servers_list_t MetadataCache::replicaset_lookup(
     const std::string &replicaset_name) {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-  auto replicaset = replicaset_data_.find(replicaset_name);
+  auto replicaset = (replicaset_name.empty())
+                        ? replicaset_data_.begin()
+                        : replicaset_data_.find(replicaset_name);
 
   if (replicaset == replicaset_data_.end()) {
     log_warning("Replicaset '%s' not available", replicaset_name.c_str());
     return {};
   }
-  return replicaset_data_[replicaset_name].members;
+
+  return replicaset->second.members;
 }
 
 bool metadata_cache::ManagedInstance::operator==(
@@ -597,6 +599,35 @@ bool metadata_cache::ManagedInstance::operator==(
          host == other.host &&
          location == other.location && port == other.port &&
          version_token == other.version_token && xport == other.xport;
+}
+
+metadata_cache::ManagedInstance::ManagedInstance(
+    const std::string &p_replicaset_name,
+    const std::string &p_mysql_server_uuid, const std::string &p_role,
+    const ServerMode p_mode, const float p_weight,
+    const unsigned int p_version_token, const std::string &p_location,
+    const std::string &p_host, const unsigned int p_port,
+    const unsigned int p_xport)
+    : replicaset_name(p_replicaset_name),
+      mysql_server_uuid(p_mysql_server_uuid),
+      role(p_role),
+      mode(p_mode),
+      weight(p_weight),
+      version_token(p_version_token),
+      location(p_location),
+      host(p_host),
+      port(p_port),
+      xport(p_xport) {}
+
+metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
+  host = addr.addr == "localhost" ? "127.0.0.1" : addr.addr;
+  port = addr.port;
+}
+
+metadata_cache::ManagedInstance::operator TCPAddress() const {
+  TCPAddress result(host, port);
+
+  return result;
 }
 
 inline bool compare_instance_lists(const MetaData::ReplicaSetsByName &map_a,
@@ -634,6 +665,7 @@ static const char *str_mode(metadata_cache::ServerMode mode) {
  * Refresh the metadata information in the cache.
  */
 void MetadataCache::refresh() {
+  bool changed{false}, fetched{false};
   // fetch metadata
   bool broke_loop = false;
   for (auto &metadata_server : metadata_servers_) {
@@ -648,13 +680,25 @@ void MetadataCache::refresh() {
                 metadata_server.mysql_server_uuid.c_str());
       continue;
     }
-    bool result = fetch_metadata_from_connected_instance();
-    if (result) return;  // successfully updated metadata
+    fetched = fetch_metadata_from_connected_instance(metadata_server, changed);
+    if (fetched) {
+      break;  // successfully updated metadata
+    }
+  }
+
+  if (fetched) {
+    // only now we can safely update the list of metadata servers
+    // when we no longer iterate over it
+    if (changed) {
+      metadata_servers_ = replicaset_lookup("" /*cluster_name_*/);
+    }
+    return;
   }
 
   // we failed to fetch metadata from any of the metadata servers
   if (!broke_loop)
-    log_error("Failed connecting with any of the metadata servers");
+    log_error("Failed fetching metadata from any of the %u metadata servers.",
+              static_cast<unsigned>(metadata_servers_.size()));
 
   // clearing metadata
   {
@@ -671,12 +715,24 @@ void MetadataCache::refresh() {
   }
 }
 
-bool MetadataCache::fetch_metadata_from_connected_instance() {
+bool MetadataCache::fetch_metadata_from_connected_instance(
+    const metadata_cache::ManagedInstance &instance, bool &changed) {
   try {
+    changed = false;
     // Fetch the metadata and store it in a temporary variable.
-    std::map<std::string, metadata_cache::ManagedReplicaSet>
-        replicaset_data_temp = meta_data_->fetch_instances(cluster_name_);
-    bool changed = false;
+    auto replicaset_data_temp =
+        meta_data_->fetch_instances(cluster_name_, group_replication_id_);
+
+    // this node no longer contains metadata for our group replication
+    // check the next node (if available)
+    if (replicaset_data_temp.empty()) {
+      log_warning(
+          "Tried node %s on host %s, port %d as a metadata server, it does not "
+          "contan metadata for replication group %s",
+          instance.mysql_server_uuid.c_str(), instance.host.c_str(),
+          instance.port, group_replication_id_.c_str());
+      return false;
+    }
 
     {
       // Ensure that the refresh does not result in an inconsistency during the
@@ -690,7 +746,7 @@ bool MetadataCache::fetch_metadata_from_connected_instance() {
 
     // we want to trigger those actions not only if the metadata has really
     // changed but also when something external (like unsuccessful client
-    // connection) triggered the refresh so that we werified if this wasn't
+    // connection) triggered the refresh so that we verified if this wasn't
     // false alarm and turn it off if it was
     if (changed) {
       log_info(
@@ -734,19 +790,6 @@ bool MetadataCache::fetch_metadata_from_connected_instance() {
 
       on_instances_changed(/*md_servers_reachable=*/true);
     }
-
-    /* Not sure about this, the metadata server could be stored elsewhere
-
-    // Fetch the set of servers in the primary replicaset. These servers
-    // store the metadata information.
-    std::vector<metadata_cache::ManagedInstance> metadata_servers_temp_ =
-      replicaset_lookup(cluster_name_);
-    // If the metadata replicaset contains servers, replace the current list
-    // of metadata servers with the new list.
-    if (!metadata_servers_temp_.empty()) {
-      std::lock_guard<std::mutex> lock(metadata_servers_mutex_);
-      metadata_servers_ = metadata_servers_temp_;
-    }*/
   } catch (const std::runtime_error &exc) {
     // fetching the meatadata failed
     log_error("Failed fetching metadata: %s", exc.what());
@@ -759,12 +802,13 @@ bool MetadataCache::fetch_metadata_from_connected_instance() {
 void MetadataCache::on_instances_changed(const bool md_servers_reachable) {
   std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
 
+  auto instances = replicaset_lookup("" /*cluster_name_*/);
+
   for (auto &replicaset_clb : listeners_) {
     const std::string replicaset_name = replicaset_clb.first;
-    auto res = replicaset_lookup(replicaset_name);
 
     for (auto each : listeners_[replicaset_name]) {
-      each->notify(res, md_servers_reachable);
+      each->notify(instances, md_servers_reachable);
     }
   }
 }

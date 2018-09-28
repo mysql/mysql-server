@@ -96,6 +96,8 @@ void require_innodb_metadata_is_ok(MySQLSession *mysql);
  */
 void require_innodb_group_replication_is_ok(MySQLSession *mysql);
 
+std::string get_group_replication_id(MySQLSession *mysql);
+
 }  // namespace mysqlrouter
 
 #endif  // ROUTER_CLUSTER_METADATA_INCLUDED

@@ -437,6 +437,25 @@ class RouterComponentTest {
       const std::string &file_name = "mysqlrouter.log",
       const std::string &file_path = "");
 
+  /** @brief returns the content of selected file as a string
+   *
+   * @param file_name name of the file
+   * @param file_path path to the file
+   */
+  std::string get_file_output(const std::string &file_name,
+                              const std::string &file_path);
+
+  /** @brief returns the content of selected file as a string
+   *
+   * @param file_name full path and name of the file
+   */
+  std::string get_file_output(const std::string &file_name);
+
+  // need to return void to be able to use ASSERT_ macros
+  void connect_client_and_query_port(unsigned router_port,
+                                     std::string &out_port,
+                                     bool should_fail = false);
+
  protected:
   /** @brief returns a [DEFAULT] section as string
    *

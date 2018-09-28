@@ -125,7 +125,9 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
    *
    * @return Map of replicaset ID, server list pairs.
    */
-  ReplicaSetsByName fetch_instances(const std::string &farm_name) override;
+  ReplicaSetsByName fetch_instances(
+      const std::string &farm_name,
+      const std::string &group_replication_id) override;
 
 #if 0  // not used so far
   /**

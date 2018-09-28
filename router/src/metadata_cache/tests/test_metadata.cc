@@ -494,7 +494,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       ClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1");
+          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
 
       EXPECT_EQ(1u, rs.size());
       EXPECT_EQ(4u, rs.at("replicaset-1").members.size());  // not set/checked
@@ -540,7 +540,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       ClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1");
+          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
 
       EXPECT_EQ(0u, rs.size());
     });
@@ -577,7 +577,7 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       ClusterMetadata::ReplicaSetsByName rs =
-          metadata.fetch_instances_from_metadata_server("replicaset-1");
+          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
 
       EXPECT_EQ(3u, rs.size());
       EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
@@ -635,7 +635,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     // metadata_cache::metadata_error
     ClusterMetadata::ReplicaSetsByName rs;
     try {
-      rs = metadata.fetch_instances_from_metadata_server("replicaset-1");
+      rs =
+          metadata.fetch_instances_from_metadata_server("replicaset-1", "0001");
       FAIL() << "Expected metadata_cache::metadata_error to be thrown";
     } catch (const metadata_cache::metadata_error &e) {
       EXPECT_STREQ("Error executing MySQL query: some error(42)", e.what());
@@ -1969,7 +1970,7 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_ok) {
 
   ASSERT_NO_THROW({
     ClusterMetadata::ReplicaSetsByName rs =
-        metadata.fetch_instances("replicaset-1");
+        metadata.fetch_instances("replicaset-1", "0001");
 
     EXPECT_EQ(1u, rs.size());
     EXPECT_EQ(3u, rs.at("replicaset-1").members.size());
@@ -2034,7 +2035,7 @@ TEST_F(MetadataTest, FetchInstances_1Replicaset_fail) {
   // it should clear its replicaset.members
   ASSERT_NO_THROW({
     ClusterMetadata::ReplicaSetsByName rs =
-        metadata.fetch_instances("replicaset-1");
+        metadata.fetch_instances("replicaset-1", "0001");
     EXPECT_EQ(1u, rs.size());
     EXPECT_EQ(0u, rs.at("replicaset-1").members.size());
   });

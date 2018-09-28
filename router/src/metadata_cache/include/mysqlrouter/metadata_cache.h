@@ -85,6 +85,17 @@ METADATA_API enum class InstanceStatus {
  */
 class METADATA_API ManagedInstance {
  public:
+  ManagedInstance() = default;
+  ManagedInstance(const std::string &p_replicaset_name,
+                  const std::string &p_mysql_server_uuid,
+                  const std::string &p_role, const ServerMode p_mode,
+                  const float p_weight, const unsigned int p_version_token,
+                  const std::string &p_location, const std::string &p_host,
+                  const unsigned int p_port, const unsigned int p_xport);
+
+  using TCPAddress = mysql_harness::TCPAddress;
+  explicit ManagedInstance(const TCPAddress &addr);
+  operator TCPAddress() const;
   bool operator==(const ManagedInstance &other) const;
 
   /** @brief The name of the replicaset to which the server belongs */
@@ -183,7 +194,7 @@ class METADATA_API ReplicasetStateListenerInterface {
    * unavailable
    */
   virtual void notify(const LookupResult &instances,
-                      const bool md_servers_reachable) noexcept = 0;
+                      const bool md_servers_reachable) = 0;
   virtual ~ReplicasetStateListenerInterface();
 };
 
@@ -243,7 +254,8 @@ METADATA_API class MetadataCacheAPIBase
    * Throws a std::runtime_error when the cache object was already
    * initialized.
    *
-   * @param bootstrap_servers The list of metadata servers from.
+   * @param group_replication_id id of the replication group
+   * @param metadata_servers The list of cluster metadata servers
    * @param user MySQL Metadata username
    * @param password MySQL Metadata password
    * @param ttl The time to live for the cached data
@@ -256,7 +268,8 @@ METADATA_API class MetadataCacheAPIBase
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
    */
   virtual void cache_init(
-      const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
+      const std::string &group_replication_id,
+      const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       const std::string &user, const std::string &password,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
@@ -264,6 +277,11 @@ METADATA_API class MetadataCacheAPIBase
           mysql_harness::kDefaultStackSizeInKiloBytes) = 0;
 
   virtual bool is_initialized() noexcept = 0;
+
+  /**
+   * @brief Start the metadata cache
+   */
+  virtual void cache_start() = 0;
 
   /**
    * @brief Teardown the metadata cache
@@ -335,13 +353,15 @@ METADATA_API class MetadataCacheAPI : public MetadataCacheAPIBase {
   static METADATA_API MetadataCacheAPIBase *instance();
 
   void cache_init(
-      const std::vector<mysql_harness::TCPAddress> &bootstrap_servers,
+      const std::string &group_replication_id,
+      const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       const std::string &user, const std::string &password,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
       size_t thread_stack_size) override;
 
   bool is_initialized() noexcept override { return is_initialized_; }
+  void cache_start() override;
 
   void cache_stop() noexcept override;
 

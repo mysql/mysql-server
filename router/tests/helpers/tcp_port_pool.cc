@@ -233,7 +233,7 @@ static bool try_to_connect(uint16_t port,
   return status >= 0;
 }
 
-unsigned TcpPortPool::get_next_available() {
+uint16_t TcpPortPool::get_next_available() {
   while (true) {
     if (number_of_ids_used_ >= kMaxPort) {
       throw std::runtime_error("No more available ports from UniquePortsGroup");

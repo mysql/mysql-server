@@ -25,6 +25,8 @@
 #ifndef _TCP_PORT_POOL_H_
 #define _TCP_PORT_POOL_H_
 
+#include <cstdint>
+
 /** @class UniqueID
  *
  * Helper class allowing mechanism to retrieve system-level unique identifier.
@@ -46,7 +48,7 @@ class UniqueId {
   bool lock_file(const std::string &file_name);
   std::string get_lock_file_dir() const;
 
-  unsigned id_;
+  uint16_t id_;
 #ifndef _WIN32
   int lock_file_fd_;
 #else
@@ -64,14 +66,14 @@ class UniqueId {
  **/
 class TcpPortPool {
  public:
-  TcpPortPool(unsigned start_from = 1, unsigned range = 300)
+  TcpPortPool(uint16_t start_from = 1, uint16_t range = 300)
       : unique_id_(start_from, range) {}
 
   TcpPortPool(const TcpPortPool &) = delete;
   TcpPortPool &operator=(const TcpPortPool &) = delete;
   TcpPortPool(TcpPortPool &&other) = default;
 
-  unsigned get_next_available();
+  uint16_t get_next_available();
 
  private:
   UniqueId unique_id_;

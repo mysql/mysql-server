@@ -34,6 +34,7 @@
 #include <map>
 #include <vector>
 
+#include "dim.h"
 #include "mysql/harness/logging/logging.h"
 
 using mysqlrouter::ms_to_seconds_string;
@@ -65,34 +66,85 @@ bool MetadataCachePluginConfig::is_required(const std::string &option) const {
   return std::find(required.begin(), required.end(), option) != required.end();
 }
 
+std::string MetadataCachePluginConfig::get_group_replication_id() const {
+  if (metadata_cache_dynamic_state) {
+    metadata_cache_dynamic_state->load();
+    return metadata_cache_dynamic_state->get_gr_id();
+  }
+
+  return "";
+}
+
 std::vector<mysql_harness::TCPAddress>
-MetadataCachePluginConfig::get_bootstrap_servers(
-    const mysql_harness::ConfigSection *section, const std::string &option,
-    uint16_t default_port) {
-  std::string value = get_option_string(section, option);
-  std::stringstream ss(value);
-
-  std::pair<std::string, uint16_t> bind_info;
-
-  std::string address;
+MetadataCachePluginConfig::get_metadata_servers(
+    const mysql_harness::ConfigSection *section, uint16_t default_port) const {
   std::vector<mysql_harness::TCPAddress> address_vector;
 
-  // Fetch the string that contains the list of bootstrap servers separated
-  // by a delimiter (,).
-  while (getline(ss, address, ',')) {
-    try {
-      mysqlrouter::URI u(address);
-      bind_info.first = u.host;
-      bind_info.second = u.port;
-      if (bind_info.second == 0) {
-        bind_info.second = default_port;
+  auto add_metadata_server = [&](const std::string &address) {
+    std::pair<std::string, uint16_t> bind_info;
+    mysqlrouter::URI u(address);
+    bind_info.first = u.host;
+    bind_info.second = u.port;
+    if (bind_info.second == 0) {
+      bind_info.second = default_port;
+    }
+    address_vector.push_back(
+        mysql_harness::TCPAddress(bind_info.first, bind_info.second));
+  };
+
+  if (metadata_cache_dynamic_state) {
+    if (section->has("bootstrap_server_addresses")) {
+      throw std::runtime_error(
+          "bootstrap_server_addresses is not allowed when dynamic state file "
+          "is used");
+    }
+
+    metadata_cache_dynamic_state->load();
+    // we do the save right away to check whether we have a write permission to
+    // the state file and if not to get an early error report and close the
+    // Router
+    metadata_cache_dynamic_state->save();
+
+    auto metadata_servers =
+        metadata_cache_dynamic_state->get_metadata_servers();
+    std::pair<std::string, uint16_t> bind_info;
+
+    for (const auto &address : metadata_servers) {
+      try {
+        add_metadata_server(address);
+      } catch (const std::runtime_error &exc) {
+        throw invalid_argument(
+            std::string("cluster-metadata-servers is incorrect (") +
+            exc.what() + ")");
       }
-      address_vector.push_back(
-          mysql_harness::TCPAddress(bind_info.first, bind_info.second));
-    } catch (const std::runtime_error &exc) {
-      throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
-                             exc.what() + ")");
+    }
+  } else {
+    const std::string option = "bootstrap_server_addresses";
+    std::string value = get_option_string(section, option);
+    std::stringstream ss(value);
+    std::string address;
+
+    // Fetch the string that contains the list of bootstrap servers separated
+    // by a delimiter (,).
+    while (getline(ss, address, ',')) {
+      try {
+        add_metadata_server(address);
+      } catch (const std::runtime_error &exc) {
+        throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
+                               exc.what() + ")");
+      }
     }
   }
+
   return address_vector;
+}
+
+ClusterMetadataDynamicState *MetadataCachePluginConfig::get_dynamic_state() {
+  bool use_dynamic_state = mysql_harness::DIM::instance().is_DynamicState();
+  if (!use_dynamic_state) {
+    return nullptr;
+  }
+
+  auto &dynamic_state_base = mysql_harness::DIM::instance().get_DynamicState();
+  return new ClusterMetadataDynamicState(&dynamic_state_base);
 }

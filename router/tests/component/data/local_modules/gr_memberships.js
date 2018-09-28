@@ -14,8 +14,9 @@ var uuid_v4 = function() {
  * @param {array} port_and_state port-number node is listening on and node-state ("ONLINE", "ERROR", ....)
  * @returns group replication membership resultset
  */
-exports.single_host = function(host, port_and_state) {
+exports.single_host = function(host, port_and_state, gr_id) {
   return port_and_state.map(function (current_value) {
-    return [ uuid_v4(), host, current_value[0], current_value[1] ];
+    return [ gr_id === undefined ? uuid_v4() : gr_id,
+                                   host, current_value[0], current_value[1] ];
   });
 };

@@ -120,6 +120,23 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
                          "already exists"));
 }
 
+TEST_F(RouterConfigTest,
+       IsExceptionThrownWhenTheSameOptionsTwiceInASingleSection) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_file = create_config_file(
+      conf_dir, "[section1]\ndynamic_state=a\ndynamic_state=b\n");
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " + conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  EXPECT_THAT(router.get_full_output(),
+              StartsWith("Error: Configuration error: Option 'dynamic_state' "
+                         "already defined."));
+}
+
 #ifdef _WIN32
 static bool isRouterServiceInstalled() {
   SC_HANDLE service, scm;

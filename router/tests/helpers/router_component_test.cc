@@ -50,6 +50,8 @@
 
 #include "dim.h"
 #include "keyring/keyring_manager.h"
+#include "mysql_session.h"
+#include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
 #include "random_generator.h"
@@ -578,17 +580,18 @@ std::string RouterComponentTest::make_DEFAULT_section(
                : "";
   };
 
-  return params ? std::string("[DEFAULT]\n") + l("logging_folder") +
-                      l("plugin_folder") + l("runtime_folder") +
-                      l("config_folder") + l("data_folder") +
-                      l("keyring_path") + l("master_key_path") +
-                      l("master_key_reader") + l("master_key_writer") + "\n"
-                : std::string("[DEFAULT]\n") +
-                      "logging_folder = " + logging_dir_.str() + "\n" +
-                      "plugin_folder = " + plugin_dir_.str() + "\n" +
-                      "runtime_folder = " + origin_dir_.str() + "\n" +
-                      "config_folder = " + origin_dir_.str() + "\n" +
-                      "data_folder = " + origin_dir_.str() + "\n\n";
+  return params
+             ? std::string("[DEFAULT]\n") + l("logging_folder") +
+                   l("plugin_folder") + l("runtime_folder") +
+                   l("config_folder") + l("data_folder") + l("keyring_path") +
+                   l("master_key_path") + l("master_key_reader") +
+                   l("master_key_writer") + l("dynamic_state") + "\n"
+             : std::string("[DEFAULT]\n") +
+                   "logging_folder = " + logging_dir_.str() + "\n" +
+                   "plugin_folder = " + plugin_dir_.str() + "\n" +
+                   "runtime_folder = " + origin_dir_.str() + "\n" +
+                   "config_folder = " + origin_dir_.str() + "\n" +
+                   "data_folder = " + origin_dir_.str() + "\n\n";
 }
 
 std::string RouterComponentTest::create_config_file(
@@ -661,7 +664,9 @@ bool RouterComponentTest::real_find_in_file(
   std::string line;
   while (std::getline(in_file, line)) {
     cur_pos = in_file.tellg();
-    if (predicate(line)) return true;
+    if (predicate(line)) {
+      return true;
+    }
   }
 
   return false;
@@ -669,16 +674,64 @@ bool RouterComponentTest::real_find_in_file(
 
 std::string RouterComponentTest::get_router_log_output(
     const std::string &file_name, const std::string &file_path) {
-  std::ifstream in_file;
   const std::string path = file_path.empty() ? logging_dir_.str() : file_path;
-  Path file(path + "/" + file_name);
+
+  return get_file_output(file_name, path);
+}
+
+std::string RouterComponentTest::get_file_output(const std::string &file_name,
+                                                 const std::string &file_path) {
+  return get_file_output(file_path + "/" + file_name);
+}
+
+std::string RouterComponentTest::get_file_output(const std::string &file_name) {
+  Path file(file_name);
+  std::ifstream in_file;
   in_file.open(file.c_str(), std::ifstream::in);
   if (!in_file) {
-    return "Could not open log file " + file.str() + " for reading.";
+    return "Could not open file " + file.str() + " for reading.";
   }
 
   std::string result((std::istreambuf_iterator<char>(in_file)),
                      std::istreambuf_iterator<char>());
 
   return result;
+}
+
+void RouterComponentTest::connect_client_and_query_port(unsigned router_port,
+                                                        std::string &out_port,
+                                                        bool should_fail) {
+  using mysqlrouter::MySQLSession;
+  MySQLSession client;
+
+  if (should_fail) {
+    try {
+      client.connect("127.0.0.1", router_port, "username", "password", "", "");
+    } catch (const std::exception &exc) {
+      if (std::string(exc.what()).find("Error connecting to MySQL server") !=
+          std::string::npos) {
+        out_port = "";
+        return;
+      } else
+        throw;
+    }
+    throw std::runtime_error(
+        "connect_client_and_query_port: did not fail as expected");
+
+  } else {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  }
+
+  std::unique_ptr<MySQLSession::ResultRow> result{
+      client.query_one("select @@port")};
+  if (nullptr == result.get()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: error querying the port");
+  }
+  if (1u != result->size()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: wrong number of columns returned " +
+        std::to_string(result->size()));
+  }
+  out_port = std::string((*result)[0]);
 }

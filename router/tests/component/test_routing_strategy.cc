@@ -23,7 +23,6 @@
 */
 
 #include "gmock/gmock.h"
-#include "mysql_session.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
@@ -31,7 +30,6 @@
 #include <thread>
 
 Path g_origin_path;
-using mysqlrouter::MySQLSession;
 
 class RouterRoutingStrategyTest : public RouterComponentTest {
  protected:
@@ -121,30 +119,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     if (!mode.empty()) result += std::string("mode=" + mode + "\n");
 
     return result;
-  }
-
-  // need to return void to be able to use ASSERT_ macros
-  void connect_client_and_query_port(unsigned router_port,
-                                     std::string &out_port,
-                                     bool should_fail = false) {
-    MySQLSession client;
-
-    if (should_fail) {
-      EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username",
-                                       "password", "", ""),
-                        std::exception, "Error connecting to MySQL server");
-      out_port = "";
-      return;
-    } else {
-      ASSERT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-    }
-
-    std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")};
-    ASSERT_NE(nullptr, result.get());
-    ASSERT_EQ(1u, result->size());
-    out_port = std::string((*result)[0]);
   }
 
   RouterComponentTest::CommandHandle launch_cluster_node(
@@ -336,7 +310,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   }
 
   // give the router a chance to initialise metadata-cache module
-  // there is currently now easy way to check that
+  // there is currently no easy way to check that
   std::this_thread::sleep_for(
       std::chrono::milliseconds(wait_for_cache_ready_timeout));
 
@@ -353,13 +327,13 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
     // for round-robin we can't be sure which server will be the starting one
     // on Solaris wait_for_port_ready() causes the router to switch to the next
     // server while on other OSes it does not. We check it the round robin is
-    // done on provided set od ids.
+    // done on provided set of ids.
     const auto &expected_nodes = test_params.expected_node_connections;
     std::string node_port;
     size_t first_port_id{0};
     for (size_t i = 0; i < expected_nodes.size() + 1;
          ++i) {  // + 1 to check that after
-                 // full round it strats from beginning
+                 // full round it starts from beginning
       ASSERT_NO_FATAL_FAILURE(
           connect_client_and_query_port(router_port, node_port));
       if (i == 0) {  // first-connection

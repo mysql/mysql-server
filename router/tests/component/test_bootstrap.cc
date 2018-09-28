@@ -23,6 +23,7 @@
 */
 
 #include <fstream>
+#include <string>
 
 #include "dim.h"
 #include "gmock/gmock.h"
@@ -214,11 +215,20 @@ void CommonBootstrapTest::bootstrap_failover(
         << mock_servers;
 
     // check the output configuration file:
-    // we check if the valid default ttl has been put in the configuraion
+    // 1. check if the valid default ttl has been put in the configuraion:
     EXPECT_TRUE(find_in_file(
         bootstrap_dir + "/mysqlrouter.conf",
         [](const std::string &line) -> bool { return line == "ttl=0.5"; },
         std::chrono::milliseconds(0)));
+    // 2. check that bootstrap server addresses is no longer in cofiguration
+    // file (it has been replaced with dynamic_config)
+    EXPECT_FALSE(find_in_file(
+        bootstrap_dir + "/mysqlrouter.conf",
+        [](const std::string &line) -> bool {
+          return line.find("bootstrap_server_addresses") != std::string::npos;
+        },
+        std::chrono::milliseconds(0)))
+        << get_file_output("mysqlrouter.conf", bootstrap_dir);
   }
 }
 

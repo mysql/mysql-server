@@ -778,7 +778,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
   std::string library_link_file_;
 #endif
 
-  unsigned server_port_;
+  uint16_t server_port_;
 };
 
 /**

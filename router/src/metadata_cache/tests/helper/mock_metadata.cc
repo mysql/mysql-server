@@ -188,8 +188,9 @@ MockNG::~MockNG() {}
  * @return Map of replicaset ID, server list pairs.
  */
 ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
-    const std::string &cluster_name) {
+    const std::string &cluster_name, const string &group_replication_id) {
   (void)cluster_name;
+  (void)group_replication_id;
   return replicaset_map;
 }
 

@@ -44,6 +44,7 @@ SET(lib_source_files
   config_files.cc
   config_generator.cc
   cluster_metadata.cc
+  cluster_metadata_dynamic_state.cc
   router_app.cc
   utils.cc
   uri.cc
