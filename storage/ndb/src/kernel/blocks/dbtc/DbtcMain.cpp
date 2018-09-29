@@ -21232,13 +21232,17 @@ Dbtc::execSCAN_TABREF(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = ref->apiConnectPtr;
-  tcConnectRecord.getPtr(tcPtr);
+  if (!tcConnectRecord.getValidPtr(tcPtr))
+  {
+    jam();
+    ndbassert(false);
+    return;
+  }
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(scanApiConnectPtr);
-
-  if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
+  if (!c_apiConnectRecordPool.getValidPtr(scanApiConnectPtr) ||
+      ! (transId[0] == scanApiConnectPtr.p->transid[0] &&
          transId[1] == scanApiConnectPtr.p->transid[1]))
   {
     jam();
