@@ -6140,7 +6140,7 @@ void MYSQL_BIN_LOG::make_log_name(char *buf, const char *log_ident) {
 */
 
 bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg) {
-  return !strcmp(log_file_name, log_file_name_arg);
+  return !compare_log_name(log_file_name, log_file_name_arg);
 }
 
 void MYSQL_BIN_LOG::inc_prep_xids(THD *thd) {
@@ -8615,10 +8615,13 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
 
   if (update_binlog_end_pos_after_sync) {
     THD *tmp_thd = final_queue;
-
+    const char *binlog_file = NULL;
+    my_off_t pos = 0;
     while (tmp_thd->next_to_commit != NULL) tmp_thd = tmp_thd->next_to_commit;
-    if (flush_error == 0 && sync_error == 0)
-      update_binlog_end_pos(tmp_thd->get_trans_pos());
+    if (flush_error == 0 && sync_error == 0) {
+      tmp_thd->get_trans_fixed_pos(&binlog_file, &pos);
+      update_binlog_end_pos(binlog_file, pos);
+    }
   }
 
   DEBUG_SYNC(thd, "bgc_after_sync_stage_before_commit_stage");
@@ -8881,9 +8884,11 @@ void MYSQL_BIN_LOG::update_binlog_end_pos(bool need_lock) {
   if (need_lock) unlock_binlog_end_pos();
 }
 
-inline void MYSQL_BIN_LOG::update_binlog_end_pos(my_off_t pos) {
+inline void MYSQL_BIN_LOG::update_binlog_end_pos(const char *file,
+                                                 my_off_t pos) {
   lock_binlog_end_pos();
-  if (pos > atomic_binlog_end_pos) atomic_binlog_end_pos = pos;
+  if (is_active(file) && (pos > atomic_binlog_end_pos))
+    atomic_binlog_end_pos = pos;
   signal_update();
   unlock_binlog_end_pos();
 }

@@ -685,7 +685,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   }
 
   void update_binlog_end_pos(bool need_lock = true);
-  void update_binlog_end_pos(my_off_t pos);
+  void update_binlog_end_pos(const char *file, my_off_t pos);
 
   int wait_for_update(const struct timespec *timeout);
 

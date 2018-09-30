@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @save_sync_binlog = @@GLOBAL.sync_binlog;
+SET GLOBAL sync_binlog = 1;
+CREATE TABLE t1(c1 INT) ENGINE=MYISAM;
+SET DEBUG_SYNC = 'bgc_between_flush_and_sync SIGNAL parked_in_sync WAIT_FOR continue';
+INSERT INTO t1 VALUES (10);;
+[connection default]
+SET DEBUG_SYNC = "now WAIT_FOR parked_in_sync";
+FLUSH LOGS;
+SET DEBUG_SYNC = "now SIGNAL continue";
+[connection master]
+INSERT INTO t1 VALUES (10);
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL sync_binlog = @save_sync_binlog;
+DROP TABLE t1;
+include/rpl_end.inc
