@@ -728,10 +728,10 @@ public:
     }
   }
 
-  void update_binlog_end_pos(my_off_t pos)
+  void update_binlog_end_pos(const char *file, my_off_t pos)
   {
     lock_binlog_end_pos();
-    if (pos > binlog_end_pos)
+    if (is_active(file) && pos > binlog_end_pos)
       binlog_end_pos= pos;
     signal_update();
     unlock_binlog_end_pos();
