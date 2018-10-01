@@ -4417,3 +4417,90 @@ SHOW CREATE TABLE child;
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
   WHERE referenced_table_schema='test' AND referenced_table_name='parent';
 DROP TABLES child, parent;
+
+
+--echo #
+--echo # Tests for bug#28608460 "POSSIBLE TO ADD INCONSISTENT PARENT TO ORPHAN
+--echo #                         FOREIGN KEY IF SE CHANGED".
+--echo #
+
+--echo #
+--echo # Check that consistency checks are performed when we add parent
+--echo # table to previously orphan foreign key by changing table storage
+--echo # engine.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk));
+CREATE TABLE parent (pk INT) ENGINE=MyISAM;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent ENGINE=InnoDB;
+DROP TABLE parent;
+CREATE TABLE parent (a INT) ENGINE=MyISAM;
+--error ER_FK_NO_COLUMN_PARENT
+ALTER TABLE parent ENGINE=InnoDB;
+DROP TABLE parent;
+CREATE TABLE parent (pk BIGINT PRIMARY KEY) ENGINE=MyISAM;
+--error ER_FK_INCOMPATIBLE_COLUMNS
+ALTER TABLE parent ENGINE=InnoDB;
+DROP TABLE parent;
+
+--echo #
+--echo # This should work for ALTER TABLE that combines change of SE
+--echo # with renaming of table.
+CREATE TABLE parent0 (pk INT) ENGINE=MyISAM;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent0 ENGINE=InnoDB, RENAME TO parent;
+DROP TABLE parent0;
+
+--echo #
+--echo # ALTER TABLE which combines change of SE and renaming of the
+--echo # table is executed as if we separately did change of SE and
+--echo # renamed table after that. I.e. consistency checks are also
+--echo # performed for orphan foreign keys which are associated with
+--echo # old table name.
+CREATE TABLE parent (pk INT) ENGINE=MyISAM;
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
+DROP TABLE parent;
+
+--echo #
+--echo # Check that unique constraint name is correctly updated when parent
+--echo # table is added to orphan foreign key by changing table SE.
+CREATE TABLE parent (pk INT, UNIQUE u(pk)) ENGINE=MyISAM;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+ALTER TABLE parent ENGINE=InnoDB;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+DROP TABLE parent;
+
+--echo #
+--echo # Since ALTER TABLE which combines change of SE and renaming of the
+--echo # table is executed as if we separately did change of SE and
+--echo # renamed table after that, the referenced table name should
+--echo # be updated too.
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
+SELECT referenced_table_name, unique_constraint_name FROM
+  information_schema.referential_constraints WHERE table_name = 'child';
+RENAME TABLE parent0 TO parent;
+DROP TABLES parent;
+
+--echo #
+--echo # Check that under LOCK TABLES, when adding parent for previously orphan
+--echo # foreign key by SE change, we check locks on child tables.
+CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
+LOCK TABLES parent WRITE;
+--error ER_TABLE_NOT_LOCKED
+ALTER TABLE parent ENGINE=InnoDB;
+UNLOCK TABLES;
+LOCK TABLES child READ, parent WRITE;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+ALTER TABLE parent ENGINE=InnoDB;
+UNLOCK TABLES;
+LOCK TABLES child WRITE, parent WRITE;
+ALTER TABLE parent ENGINE=InnoDB;
+UNLOCK TABLES;
+DROP TABLES child, parent;
+SET FOREIGN_KEY_CHECKS=1;
