@@ -606,6 +606,9 @@ Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
 Warning	1292	Incorrect datetime value: 'NULL'
+Warning	1292	Incorrect datetime value: 'NULL'
+Warning	1292	Incorrect datetime value: 'NULL'
+Warning	1292	Incorrect datetime value: 'NULL'
 End of 5.0 tests
 set @org_mode=@@sql_mode;
 create table t1 (da date default '1962-03-03 23:33:34', dt datetime default '1962-03-03');

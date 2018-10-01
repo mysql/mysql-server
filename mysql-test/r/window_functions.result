@@ -9229,6 +9229,7 @@ SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
 NULL
 Warnings:
 Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Incorrect datetime value: '| !*c>*{/'
 Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
 SELECT ((FIRST_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'))OVER())<=(1));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_patch; a JSON string or JSON type is required.

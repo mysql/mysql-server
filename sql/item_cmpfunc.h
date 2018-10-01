@@ -76,7 +76,6 @@ class Arg_comparator {
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
   Item *a_cache, *b_cache;  // Cached values of a and b items
-  bool is_nulls_eq;         // true <=> compare for the EQUAL_FUNC
   bool set_null;            // true <=> set owner->null_value
                             //   when one of arguments is NULL.
   longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
@@ -138,19 +137,11 @@ class Arg_comparator {
   int compare_int_unsigned_signed();
   int compare_int_unsigned();
   int compare_time_packed();
-  int compare_e_time_packed();
-  int compare_row();              // compare args[0] & args[1]
-  int compare_e_string();         // compare args[0] & args[1]
-  int compare_e_binary_string();  // compare args[0] & args[1]
-  int compare_e_real();           // compare args[0] & args[1]
-  int compare_e_decimal();        // compare args[0] & args[1]
-  int compare_e_int();            // compare args[0] & args[1]
-  int compare_e_int_diff_signedness();
-  int compare_e_row();  // compare args[0] & args[1]
+  int compare_row();  // compare args[0] & args[1]
   int compare_real_fixed();
-  int compare_e_real_fixed();
   int compare_datetime();  // compare args[0] & args[1] as DATETIMEs
   int compare_json();
+  bool compare_null_values();
 
   static bool can_compare_as_dates(Item *a, Item *b, ulonglong *const_val_arg);
 
@@ -158,11 +149,7 @@ class Arg_comparator {
                                   Item_result type);
   void set_datetime_cmp_func(Item_result_field *owner_arg, Item **a1,
                              Item **b1);
-  static arg_cmp_func comparator_matrix[5][2];
-  inline bool is_owner_equal_func() {
-    return (owner->type() == Item::FUNC_ITEM &&
-            ((Item_func *)owner)->functype() == Item_func::EQUAL_FUNC);
-  }
+  static arg_cmp_func comparator_matrix[5];
   void cleanup();
   /*
     Set correct cmp_context if items would be compared as INTs.
@@ -172,7 +159,6 @@ class Arg_comparator {
     if ((*a)->is_temporal()) (*a)->cmp_context = INT_RESULT;
     if ((*b)->is_temporal()) (*b)->cmp_context = INT_RESULT;
   }
-  friend class Item_func;
 };
 
 class Item_bool_func : public Item_int_func {
@@ -483,12 +469,18 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   friend class Arg_comparator;
 };
 
-class Item_bool_rowready_func2 : public Item_bool_func2 {
+/**
+  Item_func_comparison is a class for comparison functions that take two
+  arguments and return a boolean result.
+  It is a common class for the regular comparison operators (=, <>, <, <=,
+  >, >=) as well as the special <=> equality operator.
+*/
+class Item_func_comparison : public Item_bool_func2 {
  public:
-  Item_bool_rowready_func2(Item *a, Item *b) : Item_bool_func2(a, b) {
+  Item_func_comparison(Item *a, Item *b) : Item_bool_func2(a, b) {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
-  Item_bool_rowready_func2(const POS &pos, Item *a, Item *b)
+  Item_func_comparison(const POS &pos, Item *a, Item *b)
       : Item_bool_func2(pos, a, b) {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
@@ -720,11 +712,14 @@ class Item_func_nop_all final : public Item_func_not_all {
   Item *neg_transformer(THD *thd) override;
 };
 
-class Item_func_eq : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator equals (=)
+*/
+class Item_func_eq : public Item_func_comparison {
  public:
-  Item_func_eq(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_eq(Item *a, Item *b) : Item_func_comparison(a, b) {}
   Item_func_eq(const POS &pos, Item *a, Item *b)
-      : Item_bool_rowready_func2(pos, a, b) {}
+      : Item_func_comparison(pos, a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return EQ_FUNC; }
   enum Functype rev_functype() const override { return EQ_FUNC; }
@@ -741,13 +736,22 @@ class Item_func_eq : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_equal final : public Item_bool_rowready_func2 {
+/**
+  The <=> operator evaluates the same as
+
+    a IS NULL || b IS NULL ? a IS NULL == b IS NULL : a = b
+
+  a <=> b is equivalent to the standard operation a IS NOT DISTINCT FROM b.
+
+  Notice that the result is TRUE or FALSE, and never UNKNOWN.
+*/
+class Item_func_equal final : public Item_func_comparison {
  public:
-  Item_func_equal(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {
+  Item_func_equal(Item *a, Item *b) : Item_func_comparison(a, b) {
     null_on_null = false;
   }
   Item_func_equal(const POS &pos, Item *a, Item *b)
-      : Item_bool_rowready_func2(pos, a, b) {
+      : Item_func_comparison(pos, a, b) {
     null_on_null = false;
   }
   longlong val_int() override;
@@ -764,9 +768,12 @@ class Item_func_equal final : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_ge final : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator greater than or equals (>=)
+*/
+class Item_func_ge final : public Item_func_comparison {
  public:
-  Item_func_ge(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_ge(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GE_FUNC; }
   enum Functype rev_functype() const override { return LE_FUNC; }
@@ -781,9 +788,12 @@ class Item_func_ge final : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_gt final : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator greater than (>)
+*/
+class Item_func_gt final : public Item_func_comparison {
  public:
-  Item_func_gt(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_gt(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return GT_FUNC; }
   enum Functype rev_functype() const override { return LT_FUNC; }
@@ -798,9 +808,12 @@ class Item_func_gt final : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_le final : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator less than or equals (<=)
+*/
+class Item_func_le final : public Item_func_comparison {
  public:
-  Item_func_le(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_le(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return LE_FUNC; }
   enum Functype rev_functype() const override { return GE_FUNC; }
@@ -815,9 +828,12 @@ class Item_func_le final : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_lt final : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator less than (<)
+*/
+class Item_func_lt final : public Item_func_comparison {
  public:
-  Item_func_lt(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_lt(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return LT_FUNC; }
   enum Functype rev_functype() const override { return GT_FUNC; }
@@ -832,9 +848,12 @@ class Item_func_lt final : public Item_bool_rowready_func2 {
                              double rows_in_table) override;
 };
 
-class Item_func_ne final : public Item_bool_rowready_func2 {
+/**
+  Implements the comparison operator not equals (<>)
+*/
+class Item_func_ne final : public Item_func_comparison {
  public:
-  Item_func_ne(Item *a, Item *b) : Item_bool_rowready_func2(a, b) {}
+  Item_func_ne(Item *a, Item *b) : Item_func_comparison(a, b) {}
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }

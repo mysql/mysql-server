@@ -794,12 +794,12 @@ static get_opt_arg_source source_autocommit;
 */
 bool opt_help = false, opt_verbose = false;
 
-arg_cmp_func Arg_comparator::comparator_matrix[5][2] = {
-    {&Arg_comparator::compare_string, &Arg_comparator::compare_e_string},
-    {&Arg_comparator::compare_real, &Arg_comparator::compare_e_real},
-    {&Arg_comparator::compare_int_signed, &Arg_comparator::compare_e_int},
-    {&Arg_comparator::compare_row, &Arg_comparator::compare_e_row},
-    {&Arg_comparator::compare_decimal, &Arg_comparator::compare_e_decimal}};
+arg_cmp_func Arg_comparator::comparator_matrix[5] = {
+    &Arg_comparator::compare_string,      // Compare strings
+    &Arg_comparator::compare_real,        // Compare float values
+    &Arg_comparator::compare_int_signed,  // Compare signed int values
+    &Arg_comparator::compare_row,         // Compare row values
+    &Arg_comparator::compare_decimal};    // Compare decimal values
 
 PSI_file_key key_file_binlog_cache;
 PSI_file_key key_file_binlog_index_cache;

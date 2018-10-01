@@ -791,8 +791,10 @@ ERROR 2201E: Invalid argument for logarithm
 DELETE IGNORE FROM t1 where a <=> ln(0);
 Warnings:
 Warning	3020	Invalid argument for logarithm
+Warning	3020	Invalid argument for logarithm
 SHOW WARNINGS;
 Level	Code	Message
+Warning	3020	Invalid argument for logarithm
 Warning	3020	Invalid argument for logarithm
 #
 # STRICT MODE and IGNORE test case for MULTI DELETE

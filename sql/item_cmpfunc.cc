@@ -666,7 +666,7 @@ void Arg_comparator::cleanup() {
 bool Arg_comparator::set_compare_func(Item_result_field *item,
                                       Item_result type) {
   owner = item;
-  func = comparator_matrix[type][is_owner_equal_func()];
+  func = comparator_matrix[type];
 
   switch (type) {
     case ROW_RESULT: {
@@ -708,8 +708,6 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
         */
         if (func == &Arg_comparator::compare_string)
           func = &Arg_comparator::compare_binary_string;
-        else if (func == &Arg_comparator::compare_e_string)
-          func = &Arg_comparator::compare_e_binary_string;
 
         /*
           As this is binary compassion, mark all fields that they can't be
@@ -726,8 +724,7 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
     }
     case INT_RESULT: {
       if ((*a)->is_temporal() && (*b)->is_temporal()) {
-        func = is_owner_equal_func() ? &Arg_comparator::compare_e_time_packed
-                                     : &Arg_comparator::compare_time_packed;
+        func = &Arg_comparator::compare_time_packed;
       } else if (func == &Arg_comparator::compare_int_signed) {
         if ((*a)->unsigned_flag)
           func = (((*b)->unsigned_flag)
@@ -735,9 +732,6 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
                       : &Arg_comparator::compare_int_unsigned_signed);
         else if ((*b)->unsigned_flag)
           func = &Arg_comparator::compare_int_signed_unsigned;
-      } else if (func == &Arg_comparator::compare_e_int) {
-        if ((*a)->unsigned_flag ^ (*b)->unsigned_flag)
-          func = &Arg_comparator::compare_e_int_diff_signedness;
       }
       break;
     }
@@ -748,8 +742,6 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
         precision = 5 / log_10[max((*a)->decimals, (*b)->decimals) + 1];
         if (func == &Arg_comparator::compare_real)
           func = &Arg_comparator::compare_real_fixed;
-        else if (func == &Arg_comparator::compare_e_real)
-          func = &Arg_comparator::compare_e_real_fixed;
       }
       break;
     }
@@ -1023,7 +1015,6 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
                              ((*b)->result_type() == STRING_RESULT &&
                               (*b)->data_type() == MYSQL_TYPE_JSON))) {
     // Use the JSON comparator if at least one of the arguments is JSON.
-    is_nulls_eq = is_owner_equal_func();
     func = &Arg_comparator::compare_json;
     return false;
   }
@@ -1053,7 +1044,6 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
         b = &b_cache;
       }
     }
-    is_nulls_eq = is_owner_equal_func();
     func = &Arg_comparator::compare_datetime;
     get_value_a_func = &get_datetime_value;
     get_value_b_func = &get_datetime_value;
@@ -1068,7 +1058,6 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
     /* Compare TIME values as integers. */
     a_cache = 0;
     b_cache = 0;
-    is_nulls_eq = is_owner_equal_func();
     func = &Arg_comparator::compare_datetime;
     get_value_a_func = &get_time_value;
     get_value_b_func = &get_time_value;
@@ -1142,7 +1131,6 @@ bool Arg_comparator::try_year_cmp_func(Item_result type) {
   } else
     return false;
 
-  is_nulls_eq = is_owner_equal_func();
   func = &Arg_comparator::compare_datetime;
   set_cmp_context_for_datetime();
 
@@ -1188,7 +1176,6 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
   b = b1;
   a_cache = 0;
   b_cache = 0;
-  is_nulls_eq = false;
   func = &Arg_comparator::compare_datetime;
   get_value_a_func = &get_datetime_value;
   get_value_b_func = &get_datetime_value;
@@ -1303,30 +1290,21 @@ static longlong get_year_value(THD *, Item ***item_arg, Item **, const Item *,
   return year_to_longlong_datetime_packed(static_cast<long>(value));
 }
 
-/*
-  Compare items values as dates.
+/**
+  Compare item values as dates.
 
-  SYNOPSIS
-    Arg_comparator::compare_datetime()
+  Compare items values as DATE/DATETIME for regular comparison functions.
+  The correct DATETIME values are obtained with help of
+  the get_datetime_value() function.
 
-  DESCRIPTION
-    Compare items values as DATE/DATETIME for both EQUAL_FUNC and from other
-    comparison functions. The correct DATETIME values are obtained
-    with help of the get_datetime_value() function.
-
-  RETURN
-    If is_nulls_eq is true:
-       1    if items are equal or both are null
-       0    otherwise
-    If is_nulls_eq is false:
-      -1   a < b or at least one item is null
-       0   a == b
-       1   a > b
+  @returns
+    -1   a < b or at least one item is null
+     0   a == b
+     1   a > b
     See the table:
-    is_nulls_eq | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
-    a_is_null   | 1 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |
-    b_is_null   | 1 | 1 | 0 | 0 | 1 | 1 | 0 | 0 |
-    result      | 1 | 0 | 0 |0/1|-1 |-1 |-1 |-1/0/1|
+    a_is_null   | 1 | 0 | 1 | 0 |
+    b_is_null   | 1 | 1 | 0 | 0 |
+    result      |-1 |-1 |-1 |-1/0/1|
 */
 
 int Arg_comparator::compare_datetime() {
@@ -1336,23 +1314,22 @@ int Arg_comparator::compare_datetime() {
 
   /* Get DATE/DATETIME/TIME value of the 'a' item. */
   a_value = (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null);
-  if (!is_nulls_eq && a_is_null) {
-    if (set_null) owner->null_value = 1;
+  if (a_is_null) {
+    if (set_null) owner->null_value = true;
     return -1;
   }
 
   /* Get DATE/DATETIME/TIME value of the 'b' item. */
   b_value = (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null);
-  if (a_is_null || b_is_null) {
-    if (set_null) owner->null_value = is_nulls_eq ? 0 : 1;
-    return is_nulls_eq ? (a_is_null == b_is_null) : -1;
+  if (b_is_null) {
+    if (set_null) owner->null_value = true;
+    return -1;
   }
 
   /* Here we have two not-NULL values. */
-  if (set_null) owner->null_value = 0;
+  if (set_null) owner->null_value = false;
 
   /* Compare values. */
-  if (is_nulls_eq) return (a_value == b_value);
   return a_value < b_value ? -1 : (a_value > b_value ? 1 : 0);
 }
 
@@ -1415,15 +1392,10 @@ static bool get_json_arg(Item *arg, String *value, String *tmp,
   If one of the arguments is NULL, and the owner is not EQUAL_FUNC,
   the null_value flag of the owner will be set to true.
 
-  @return
-
-    If is_nulls_eq is true, return 1 if both items are not NULL and
-    they are equal, or if both items are NULL; otherwise, return 0.
-
-    If is_nulls_eq is false, return -1 if at least one of the items is
-    NULL or if the first item is less than the second item, return 0
-    if the two items are equal, return 1 if the first item is greater
-    than the second item.
+  @return -1 if at least one of the items is NULL or if the first item is
+             less than the second item,
+           0 if the two items are equal
+           1 if the first item is greater than the second item.
 */
 int Arg_comparator::compare_json() {
   char buf[STRING_BUFFER_USUAL_SIZE];
@@ -1435,10 +1407,8 @@ int Arg_comparator::compare_json() {
 
   bool a_is_null = (*a)->null_value;
   if (a_is_null) {
-    if (!is_nulls_eq) {
-      if (set_null) owner->null_value = true;
-      return -1;
-    }
+    if (set_null) owner->null_value = true;
+    return -1;
   }
 
   // Get the JSON value in the b Item.
@@ -1447,27 +1417,12 @@ int Arg_comparator::compare_json() {
 
   bool b_is_null = (*b)->null_value;
   if (b_is_null) {
-    if (!is_nulls_eq) {
-      if (set_null) owner->null_value = true;
-      return -1;
-    }
+    if (set_null) owner->null_value = true;
+    return -1;
   }
 
   if (set_null) owner->null_value = false;
 
-  /*
-    If we were called by the <=> operator, we should return 0/1
-    instead of -1/0/1. 0 means not equal, 1 means equal. The <=>
-    operator considers two NULLs equal.
-  */
-  if (is_nulls_eq) {
-    if (a_is_null || b_is_null)
-      return a_is_null == b_is_null;
-    else
-      return aw.compare(bw) == 0;
-  }
-
-  // Otherwise, return -1/0/1.
   return aw.compare(bw);
 }
 
@@ -1511,26 +1466,6 @@ int Arg_comparator::compare_binary_string() {
   return -1;
 }
 
-/**
-  Compare strings, but take into account that NULL == NULL.
-*/
-
-int Arg_comparator::compare_e_string() {
-  String *res1, *res2;
-  res1 = (*a)->val_str(&value1);
-  res2 = (*b)->val_str(&value2);
-  if (!res1 || !res2) return (res1 == res2);
-  return (sortcmp(res1, res2, cmp_collation.collation) == 0);
-}
-
-int Arg_comparator::compare_e_binary_string() {
-  String *res1, *res2;
-  res1 = (*a)->val_str(&value1);
-  res2 = (*b)->val_str(&value2);
-  if (!res1 || !res2) return (res1 == res2);
-  return (stringcmp(res1, res2) == 0);
-}
-
 int Arg_comparator::compare_real() {
   /*
     Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
@@ -1567,23 +1502,6 @@ int Arg_comparator::compare_decimal() {
   return -1;
 }
 
-int Arg_comparator::compare_e_real() {
-  double val1 = (*a)->val_real();
-  double val2 = (*b)->val_real();
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (val1 == val2);
-}
-
-int Arg_comparator::compare_e_decimal() {
-  my_decimal decimal1, decimal2;
-  my_decimal *val1 = (*a)->val_decimal(&decimal1);
-  my_decimal *val2 = (*b)->val_decimal(&decimal2);
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (my_decimal_cmp(val1, val2) == 0);
-}
-
 int Arg_comparator::compare_real_fixed() {
   /*
     Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
@@ -1603,14 +1521,6 @@ int Arg_comparator::compare_real_fixed() {
   }
   if (set_null) owner->null_value = 1;
   return -1;
-}
-
-int Arg_comparator::compare_e_real_fixed() {
-  double val1 = (*a)->val_real();
-  double val2 = (*b)->val_real();
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (val1 == val2 || fabs(val1 - val2) < precision);
 }
 
 int Arg_comparator::compare_int_signed() {
@@ -1661,17 +1571,6 @@ int Arg_comparator::compare_time_packed() {
   }
   if (set_null) owner->null_value = 1;
   return -1;
-}
-
-/**
-  Compare arguments using numeric packed representation for '<=>'.
-*/
-int Arg_comparator::compare_e_time_packed() {
-  longlong val1 = (*a)->val_time_temporal();
-  longlong val2 = (*b)->val_time_temporal();
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (val1 == val2);
 }
 
 /**
@@ -1732,25 +1631,6 @@ int Arg_comparator::compare_int_unsigned_signed() {
   return -1;
 }
 
-int Arg_comparator::compare_e_int() {
-  longlong val1 = (*a)->val_int();
-  longlong val2 = (*b)->val_int();
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (val1 == val2);
-}
-
-/**
-  Compare unsigned *a with signed *b or signed *a with unsigned *b.
-*/
-int Arg_comparator::compare_e_int_diff_signedness() {
-  longlong val1 = (*a)->val_int();
-  longlong val2 = (*b)->val_int();
-  if ((*a)->null_value || (*b)->null_value)
-    return ((*a)->null_value && (*b)->null_value);
-  return (val1 >= 0) && (val1 == val2);
-}
-
 int Arg_comparator::compare_row() {
   int res = 0;
   bool was_null = 0;
@@ -1797,14 +1677,55 @@ int Arg_comparator::compare_row() {
   return 0;
 }
 
-int Arg_comparator::compare_e_row() {
-  (*a)->bring_value();
-  (*b)->bring_value();
-  uint n = (*a)->cols();
-  for (uint i = 0; i < n; i++) {
-    if (!comparators[i].compare()) return 0;
+/**
+  Compare two argument items, or a pair of elements from two argument rows,
+  for NULL values.
+
+  @param a First item
+  @param b Second item
+  @param[out] result True if both items are NULL, false otherwise,
+                     when return value is true.
+
+  @returns true if at least one of the items is NULL
+*/
+static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
+  if (a->result_type() == ROW_RESULT) {
+    a->bring_value();
+    b->bring_value();
+    /*
+     Compare matching array elements. If only one element in a pair is NULL,
+     result is false, otherwise move to next pair. If the values from all pairs
+     are NULL, result is true.
+    */
+    bool have_null_items = false;
+    for (uint i = 0; i < a->cols(); i++) {
+      if (compare_pair_for_nulls(a->element_index(i), b->element_index(i),
+                                 result)) {
+        have_null_items = true;
+        if (!*result) return true;
+      }
+    }
+    return have_null_items;
   }
-  return 1;
+  const bool a_null = a->maybe_null && a->is_null();
+  const bool b_null = b->maybe_null && b->is_null();
+  if (a_null || b_null) {
+    *result = a_null == b_null;
+    return true;
+  }
+  return false;
+}
+
+/**
+  Compare NULL values for two arguments. When called, we know that at least
+  one argument contains a NULL value.
+
+  @returns true if both arguments are NULL, false if one argument is NULL
+*/
+bool Arg_comparator::compare_null_values() {
+  bool result;
+  (void)compare_pair_for_nulls(*a, *b, &result);
+  return result;
 }
 
 bool Item_func_truth::resolve_type(THD *) {
@@ -2172,7 +2093,13 @@ bool Item_func_equal::resolve_type(THD *thd) {
 
 longlong Item_func_equal::val_int() {
   DBUG_ASSERT(fixed == 1);
-  return cmp.compare();
+  // Perform regular equality check first:
+  int value = cmp.compare();
+  // If comparison is not NULL, we have a result:
+  if (!null_value) return value == 0 ? 1 : 0;
+  null_value = false;
+  // Check NULL values for both arguments
+  return longlong(cmp.compare_null_values());
 }
 
 float Item_func_ne::get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -5672,7 +5599,7 @@ Item *Item_func_not::neg_transformer(THD *) /* NOT(x)  ->  x */
   return args[0];
 }
 
-Item *Item_bool_rowready_func2::neg_transformer(THD *) {
+Item *Item_func_comparison::neg_transformer(THD *) {
   Item *item = negated_item();
   return item;
 }
@@ -5787,7 +5714,7 @@ Item *Item_func_le::negated_item() /* a <= b  ->  a > b */
 /**
   just fake method, should never be called.
 */
-Item *Item_bool_rowready_func2::negated_item() {
+Item *Item_func_comparison::negated_item() {
   DBUG_ASSERT(0);
   return 0;
 }
