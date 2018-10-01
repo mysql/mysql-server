@@ -21,7 +21,6 @@
 
 [DEFAULT]
 logging_folder = /var/log/mysqlrouter/
-#plugin_folder = /usr/lib/x86_64-linux-gnu/mysqlrouter
 runtime_folder = /var/run/mysqlrouter
 config_folder = /etc/mysqlrouter
 

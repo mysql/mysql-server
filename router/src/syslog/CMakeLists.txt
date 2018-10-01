@@ -21,5 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 IF(NOT WIN32)
-  add_harness_plugin(syslog SOURCES src/syslog.cc)
+  add_harness_plugin(
+    syslog SOURCES src/syslog.cc
+    DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+    )
 ENDIF()
