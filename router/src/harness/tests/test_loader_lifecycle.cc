@@ -1607,7 +1607,12 @@ TEST_F(LifecycleTest, send_signals2) {
 }
 #endif
 
-TEST_F(LifecycleTest, wait_for_stop) {
+/*
+ * Disabling as this test needs revising, it continues to fail on macos
+ * on pb2 with an error like:
+ * Failure Expected: (200) > (time_diff( t0, t1)), actual: 200 vs 239
+ */
+TEST_F(LifecycleTest, DISABLED_wait_for_stop) {
   // This test is really about testing Harness API function wait_for_stop(),
   // when passed a timeout value. It is used when start/stop = exit_slow, and
   // here we verify its behaviour.
