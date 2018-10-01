@@ -247,6 +247,7 @@ SET(SQL_GIS_SOURCES
   gis/simplify.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
+  gis/st_units_of_measure.cc
   gis/touches.cc
   gis/transform.cc
   gis/union.cc

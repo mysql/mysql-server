@@ -380,6 +380,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_area
+  gis_distance
   gis_geometries
   gis_is_simple
   gis_isvalid
