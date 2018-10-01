@@ -301,7 +301,12 @@ bool Rpl_encryption::enable(THD *thd) {
   }
 
   /* Revert enabling on error */
-  if (res) m_enabled = false;
+  if (res)
+    m_enabled = false;
+  else {
+    /* Cleanup any error if we are going to enable the option */
+    if (current_thd->is_error()) current_thd->clear_error();
+  }
   DBUG_PRINT("debug", ("m_enabled= %s", m_enabled ? "true" : "false"));
   DBUG_RETURN(res);
 }
@@ -311,6 +316,8 @@ void Rpl_encryption::disable(THD *thd) {
   DBUG_ASSERT(m_initialized);
   m_enabled = false;
   rotate_logs(thd);
+  /* Cleanup any error if we are going to disable the option */
+  if (current_thd->is_error()) current_thd->clear_error();
   m_master_key_recovered = false;
   DBUG_VOID_RETURN;
 }
@@ -805,14 +812,14 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
       Rpl_encryption::report_keyring_error(error_and_key.first,
                                            m_key_id.c_str());
     } else if (!error_and_key.second.empty()) {
-      unsigned char buffer[Aes_ctr_decryptor::PASSWORD_LENGTH];
+      unsigned char buffer[Aes_ctr::PASSWORD_LENGTH];
 
       if (my_aes_decrypt(m_encrypted_password.data(),
                          m_encrypted_password.length(), buffer,
                          error_and_key.second.data(),
                          error_and_key.second.length(), my_aes_256_cbc,
                          m_iv.data(), false) != MY_AES_BAD_DATA)
-        file_password.append(buffer, Aes_ctr_decryptor::PASSWORD_LENGTH);
+        file_password.append(buffer, Aes_ctr::PASSWORD_LENGTH);
     }
   }
 #endif
@@ -820,13 +827,11 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
 }
 
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_encryptor() {
-  std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_encryptor);
-  return cypher;
+  return Aes_ctr::get_encryptor();
 }
 
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_decryptor() {
-  std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_decryptor);
-  return cypher;
+  return Aes_ctr::get_decryptor();
 }
 
 Key_string Rpl_encryption_header_v1::generate_new_file_password() {
@@ -834,9 +839,9 @@ Key_string Rpl_encryption_header_v1::generate_new_file_password() {
 #ifdef MYSQL_SERVER
   Rpl_encryption::Rpl_encryption_key master_key =
       rpl_encryption.get_master_key();
-  unsigned char password[Aes_ctr_encryptor::PASSWORD_LENGTH];
-  unsigned char encrypted_password[Aes_ctr_encryptor::PASSWORD_LENGTH];
-  unsigned char iv[Aes_ctr_encryptor::AES_BLOCK_SIZE];
+  unsigned char password[Aes_ctr::PASSWORD_LENGTH];
+  unsigned char encrypted_password[Aes_ctr::PASSWORD_LENGTH];
+  unsigned char iv[Aes_ctr::AES_BLOCK_SIZE];
   bool error = false;
 
   /* Generate password, it is a random string. */
@@ -851,7 +856,7 @@ Key_string Rpl_encryption_header_v1::generate_new_file_password() {
 
   /* Generate iv, it is a random string. */
   if (!error) {
-    error = my_rand_buffer(iv, Aes_ctr_encryptor::AES_BLOCK_SIZE);
+    error = my_rand_buffer(iv, Aes_ctr::AES_BLOCK_SIZE);
     m_iv = Key_string(iv, sizeof(iv));
   }
 

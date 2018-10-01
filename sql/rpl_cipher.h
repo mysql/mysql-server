@@ -17,6 +17,7 @@
 #define RPL_CIPHER_INCLUDED
 
 #include <openssl/evp.h>
+#include <memory>
 #include <string>
 
 /**
@@ -134,6 +135,42 @@ class Rpl_cipher {
   int m_header_size = 0;
 };
 
+/**
+  @class Aes_ctr
+
+  The class provides standards to be used by the Aes_ctr ciphers.
+*/
+class Aes_ctr {
+ public:
+  static const int PASSWORD_LENGTH = 32;
+  static const int AES_BLOCK_SIZE = 16;
+  static const int FILE_KEY_LENGTH = 32;
+  /**
+    Returns the message digest function to be uses when opening the cipher.
+
+    @return SHA-512 message digest.
+  */
+  static const EVP_MD *get_evp_md() { return EVP_sha512(); };
+  /**
+    Returns the cipher to be uses when using the cipher.
+
+    @return AES-256-CTR.
+  */
+  static const EVP_CIPHER *get_evp_cipher() { return EVP_aes_256_ctr(); };
+  /**
+    Returns a new unique Rpl_cipher encryptor.
+
+    @return A new Rpl_cipher encryptor.
+  */
+  static std::unique_ptr<Rpl_cipher> get_encryptor();
+  /**
+    Returns a new unique Rpl_cipher decryptor.
+
+    @return A new Rpl_cipher decryptor.
+  */
+  static std::unique_ptr<Rpl_cipher> get_decryptor();
+};
+
 enum Cipher_type { ENCRYPT, DECRYPT };
 
 /**
@@ -145,9 +182,9 @@ enum Cipher_type { ENCRYPT, DECRYPT };
 template <Cipher_type TYPE>
 class Aes_ctr_cipher : public Rpl_cipher {
  public:
-  static const int PASSWORD_LENGTH = 32;
-  static const int AES_BLOCK_SIZE = 16;
-  static const int FILE_KEY_LENGTH = 32;
+  static const int PASSWORD_LENGTH = Aes_ctr::PASSWORD_LENGTH;
+  static const int AES_BLOCK_SIZE = Aes_ctr::AES_BLOCK_SIZE;
+  static const int FILE_KEY_LENGTH = Aes_ctr::FILE_KEY_LENGTH;
 
   virtual ~Aes_ctr_cipher();
 

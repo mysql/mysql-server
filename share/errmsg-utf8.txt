@@ -8736,6 +8736,9 @@ ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
 ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED
   eng "Expression of functional index '%s' cannot refer to a row value."
 
+ER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
+  eng "Failed to encrypt content to write into binlog file: %s."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18739,6 +18742,9 @@ ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY
 
 ER_SECONDARY_ENGINE_PLUGIN
   eng "%s"
+
+ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
+  eng "Failed to encrypt content to write into binlog file: %s."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.
