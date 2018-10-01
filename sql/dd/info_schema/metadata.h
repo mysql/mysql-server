@@ -62,7 +62,7 @@ namespace info_schema {
     Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
     to INT.
 
-  80012: Current
+  Current 80012: Published in 8.0.12
   ------------------------------------
   Changes from version 80011:
 
@@ -76,9 +76,18 @@ namespace info_schema {
     This column prints out the expression for functional key parts, or SQL NULL
     if it is a regular key part. For functional key parts, COLUMN_NAME is set to
     SQL NULL.
+
+  80013: Current
+  ------------------------------------
+  Changes from version 80012
+
+  - WL#11000 ST_Distance with units
+    Adds a new view `information_schema`.`st_units_of_measure` with columns
+    `UNIT_NAME`, `CONVERSION_FACTOR`, `DESCRIPTION`, and `UNIT_TYPE`. This view
+    contains the supported spatial units.
 */
 
-static const uint IS_DD_VERSION = 80012;
+static const uint IS_DD_VERSION = 80013;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

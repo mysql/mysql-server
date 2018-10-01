@@ -135,6 +135,7 @@ Database: information_schema
 | STATISTICS                            |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
@@ -205,6 +206,7 @@ Database: INFORMATION_SCHEMA
 | STATISTICS                            |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | TABLES                                |
 | TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |

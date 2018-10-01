@@ -1640,8 +1640,6 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'));
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200, 300);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
-SELECT ST_DISTANCE(ST_GEOMFROMTEXT('POINT(1 1)'), ST_GEOMFROMTEXT('POINT(0 0)'), 200);
-ERROR 42000: Incorrect parameter count in the call to native function 'ST_DISTANCE'
 # Clean up
 DROP TABLE gis_geometrycollection;
 DROP TABLE gis_geometrycollection_2;
@@ -2528,3 +2526,4 @@ x'00000000010100000000000000000000000000000000000000'
 ERROR 22023: Invalid GIS data provided to function st_distance.
 DO ST_DISTANCE(POINT(1.7e+308, 1.7e308), POINT(-1.7e308, -1.7e308));
 ERROR 22023: Invalid GIS data provided to function st_distance.
+SELECT UNIT_NAME, CONVERSION_FACTOR, UNIT_TYPE, DESCRIPTION FROM INFORMATION_SCHEMA.ST_UNITS_OF_MEASURE;

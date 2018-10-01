@@ -286,6 +286,10 @@ def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION	3	NULL	YES	varc
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	5	NULL	NO	varchar	4096	12288	NULL	NULL	NULL	utf8	utf8_bin	varchar(4096)			select			NULL
 def	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	6	NULL	YES	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	1	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	2	NULL	YES	varchar	7	21	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(7)			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	CONVERSION_FACTOR	3	NULL	YES	double	NULL	NULL	22	NULL	NULL	NULL	NULL	double			select			NULL
+def	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	4	NULL	YES	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select			NULL
 def	information_schema	TABLES	TABLE_CATALOG	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLES	TABLE_SCHEMA	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	TABLES	TABLE_NAME	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -431,6 +435,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	binary	NULL	NULL
 NULL	datetime	NULL	NULL
+NULL	double	NULL	NULL
 NULL	int	NULL	NULL
 NULL	json	NULL	NULL
 NULL	timestamp	NULL	NULL
@@ -733,6 +738,10 @@ NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	SRS_ID	int	NULL	NULL	NULL	N
 NULL	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	ORGANIZATION_COORDSYS_ID	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DEFINITION	varchar	4096	12288	utf8	utf8_bin	varchar(4096)
 3.0000	information_schema	ST_SPATIAL_REFERENCE_SYSTEMS	DESCRIPTION	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
+3.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_NAME	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+3.0000	information_schema	ST_UNITS_OF_MEASURE	UNIT_TYPE	varchar	7	21	utf8	utf8_general_ci	varchar(7)
+NULL	information_schema	ST_UNITS_OF_MEASURE	CONVERSION_FACTOR	double	NULL	NULL	NULL	NULL	double
+3.0000	information_schema	ST_UNITS_OF_MEASURE	DESCRIPTION	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 3.0000	information_schema	TABLES	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)

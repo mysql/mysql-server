@@ -85,6 +85,7 @@ SCHEMA_PRIVILEGES
 STATISTICS
 ST_GEOMETRY_COLUMNS
 ST_SPATIAL_REFERENCE_SYSTEMS
+ST_UNITS_OF_MEASURE
 TABLES
 TABLESPACES
 TABLE_CONSTRAINTS
@@ -845,7 +846,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	34
+information_schema	35
 mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1146,7 +1147,7 @@ table_schema='information_schema' AND
 GROUP BY column_type ORDER BY num, column_type;
 COLUMN_TYPE	GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name)	num
 varchar(30)	information_schema.PROFILING,information_schema.PROFILING	2
-varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.VIEWS	2
+varchar(7)	information_schema.INNODB_TABLESPACES_BRIEF,information_schema.ST_UNITS_OF_MEASURE,information_schema.VIEWS	3
 varchar(20)	information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PLUGINS,information_schema.PROFILING	4
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
@@ -1288,14 +1289,12 @@ group by t.table_name order by num1, t.table_name COLLATE utf8_general_ci;
 TABLE_NAME	group_concat(t.table_schema, '.', t.table_name)	num1
 CHARACTER_SETS	information_schema.CHARACTER_SETS	1
 COLLATIONS	information_schema.COLLATIONS	1
-COLLATION_CHARACTER_SET_APPLICABILITY	information_schema.COLLATION_CHARACTER_SET_APPLICABILITY	1
 COLUMNS	information_schema.COLUMNS	1
 COLUMN_PRIVILEGES	information_schema.COLUMN_PRIVILEGES	1
 COLUMN_STATISTICS	information_schema.COLUMN_STATISTICS	1
 ENGINES	information_schema.ENGINES	1
 EVENTS	information_schema.EVENTS	1
 FILES	information_schema.FILES	1
-KEYWORDS	information_schema.KEYWORDS	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
@@ -1311,6 +1310,7 @@ SCHEMA_PRIVILEGES	information_schema.SCHEMA_PRIVILEGES	1
 STATISTICS	information_schema.STATISTICS	1
 ST_GEOMETRY_COLUMNS	information_schema.ST_GEOMETRY_COLUMNS	1
 ST_SPATIAL_REFERENCE_SYSTEMS	information_schema.ST_SPATIAL_REFERENCE_SYSTEMS	1
+ST_UNITS_OF_MEASURE	information_schema.ST_UNITS_OF_MEASURE	1
 TABLES	information_schema.TABLES	1
 TABLESPACES	information_schema.TABLESPACES	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
@@ -2441,6 +2441,7 @@ SCHEMA_PRIVILEGES	TABLE_SCHEMA
 STATISTICS	TABLE_SCHEMA
 ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
 ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME
+ST_UNITS_OF_MEASURE	UNIT_NAME
 TABLES	TABLE_SCHEMA
 TABLESPACES	TABLESPACE_NAME
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA
@@ -2494,6 +2495,7 @@ SCHEMA_PRIVILEGES	TABLE_SCHEMA
 STATISTICS	TABLE_SCHEMA
 ST_GEOMETRY_COLUMNS	TABLE_SCHEMA
 ST_SPATIAL_REFERENCE_SYSTEMS	SRS_NAME
+ST_UNITS_OF_MEASURE	UNIT_NAME
 TABLES	TABLE_SCHEMA
 TABLESPACES	TABLESPACE_NAME
 TABLE_CONSTRAINTS	CONSTRAINT_SCHEMA

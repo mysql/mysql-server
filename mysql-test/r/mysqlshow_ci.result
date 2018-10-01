@@ -134,6 +134,7 @@ Database: information_schema
 | SCHEMATA                              |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
@@ -204,6 +205,7 @@ Database: INFORMATION_SCHEMA
 | SCHEMATA                              |
 | ST_GEOMETRY_COLUMNS                   |
 | ST_SPATIAL_REFERENCE_SYSTEMS          |
+| ST_UNITS_OF_MEASURE                   |
 | STATISTICS                            |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
