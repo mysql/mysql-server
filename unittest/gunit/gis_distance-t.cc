@@ -20,11 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <gtest/gtest.h>
+#include "mysqld_error.h"
 #include "sql/gis/st_units_of_measure.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace distance_unittest {
 
-TEST(DistanceTest, unordered_map) {
+class DistanceTest : public ::testing::Test {
+ public:
+  my_testing::Server_initializer initializer;
+
+  DistanceTest() {}
+  virtual void SetUp() { initializer.SetUp(); }
+  virtual void TearDown() { initializer.TearDown(); }
+  THD *thd() { return initializer.thd(); }
+  virtual ~DistanceTest() {}
+};
+TEST_F(DistanceTest, unordered_map) {
   auto units = gis::units();
   auto find_res = units.find("metre");
   EXPECT_TRUE(find_res->first == "metre");
@@ -37,5 +49,17 @@ TEST(DistanceTest, unordered_map) {
   find_res = units.find("Clarke's foot");
   EXPECT_FALSE(find_res == units.end());
 }
-//
+TEST_F(DistanceTest, get_conversion_factor) {
+  double conversion_factor = 0;
+  EXPECT_FALSE(gis::get_conversion_factor("metre", &conversion_factor));
+  EXPECT_FALSE(gis::get_conversion_factor("METRE", &conversion_factor));
+  EXPECT_FALSE(gis::get_conversion_factor("British foot (Sears 1922)",
+                                          &conversion_factor));
+  EXPECT_FALSE(gis::get_conversion_factor("claRke'S LInk", &conversion_factor));
+}
+TEST_F(DistanceTest, er_unit_not_found) {
+  initializer.set_expected_error(ER_UNIT_NOT_FOUND);
+  double conversion_factor = 0;
+  EXPECT_TRUE(gis::get_conversion_factor("MITRE", &conversion_factor));
+}
 }  // namespace distance_unittest

@@ -60,6 +60,7 @@
 #include "sql/gis/length.h"
 #include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
+#include "sql/gis/st_units_of_measure.h"
 #include "sql/gis/transform.h"
 #include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
@@ -5174,7 +5175,6 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
 }
 
 double Item_func_distance::val_real() {
-  DBUG_ENTER("Item_func_distance::val_real");
   DBUG_ASSERT(fixed == 1);
 
   String tmp_value1;
@@ -5185,13 +5185,13 @@ double Item_func_distance::val_real() {
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
   if (res1 == nullptr || res2 == nullptr) {
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   const dd::Spatial_reference_system *srs1 = nullptr;
@@ -5203,28 +5203,68 @@ double Item_func_distance::val_real() {
           current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
       gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
   gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
   if (srid1 != srid2) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   double distance;
-  bool null;
-  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null))
-    DBUG_RETURN(error_real());
-
-  if (null) {
+  if (gis::distance(srs1, g1.get(), g2.get(), &distance, &null_value)) {
+    return error_real();
+  }
+  if (null_value) {
     DBUG_ASSERT(maybe_null);
-    null_value = true;
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
-  DBUG_RETURN(distance);
+  if (3 == arg_count) {
+    String buffer;
+    String *unit = args[2]->val_str(&buffer);
+    if (!args[2]->null_value) {
+      double conversion_factor = 0;
+
+      uint convert_errors = 0;
+      String converted_string;
+      if (converted_string.copy(unit->ptr(), unit->length(), unit->charset(),
+                                &my_charset_utf8mb4_0900_ai_ci,
+                                &convert_errors) ||
+          convert_errors) {
+        my_error(ER_OOM, MYF(0));
+        return error_real();
+      }
+      std::string unit_name =
+          std::string(converted_string.ptr(), converted_string.length());
+      if (nullptr == srs1) {
+        my_error(ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT, MYF(0), "st_distance",
+                 unit_name.c_str());
+        return error_real();
+      }
+
+      if (gis::get_conversion_factor(unit_name, &conversion_factor)) {
+        return error_real();
+      }
+      distance *= srs1->linear_unit() / conversion_factor;
+      if (std::isinf(distance)) {
+        /* purecov: begin inspected */
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "result", func_name());
+        return error_real();
+        /* purecov: end */
+      }
+
+      return distance;
+    } else {
+      DBUG_ASSERT(maybe_null);
+      null_value = true;
+      return 0.0;
+    }
+  }
+
+  return distance;
 }
 
 double Item_func_st_distance_sphere::val_real() {

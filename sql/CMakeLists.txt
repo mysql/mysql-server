@@ -233,6 +233,7 @@ SET(SQL_GIS_SOURCES
   gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
+  gis/distance_functor.cc
   gis/distance_sphere.cc
   gis/equals.cc
   gis/gc_utils.cc

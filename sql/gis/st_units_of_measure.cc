@@ -22,6 +22,7 @@
 
 #include "sql/gis/st_units_of_measure.h"
 #include <m_ctype.h>
+#include "mysqld_error.h"
 namespace gis {
 
 collation_unordered_map<std::string, Unit> units() {
@@ -111,6 +112,19 @@ collation_unordered_map<std::string, Unit> units() {
       Unit(Unit_Type::kLinear, 0.20116756);
 
   return units;
+}
+
+bool get_conversion_factor(const std::string &unit, double *conversion_factor) {
+  DBUG_ASSERT(conversion_factor);
+  collation_unordered_map<std::string, Unit> unit_table = units();
+  collation_unordered_map<std::string, Unit>::iterator unit_it =
+      unit_table.find(unit);
+  if (unit_it == unit_table.end()) {
+    my_error(ER_UNIT_NOT_FOUND, myf(0), unit.c_str());
+    return true;
+  }
+  *conversion_factor = unit_it->second.conversion_factor;
+  return false;
 }
 
 }  // namespace gis

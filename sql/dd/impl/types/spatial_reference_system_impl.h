@@ -226,6 +226,10 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     }
   }
 
+  double linear_unit() const override {
+    return m_parsed_definition->linear_unit();
+  }
+
   virtual double angular_unit() const override {
     return m_parsed_definition->angular_unit();
   }

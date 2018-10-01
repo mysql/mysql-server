@@ -51,6 +51,14 @@ struct Unit {
 /// @return Map of supported units for ST_DISTANCE
 collation_unordered_map<std::string, Unit> units();
 
+/// Retrieves the length of the unit in meters.
+/// @param unit the name of the unit we want the conversion factor for.
+/// @param[out] conversion_factor A pointer to where the result should be put,
+/// not touched in case of error.
+/// @retval True if unit is not found.
+/// @retval False in case of success.
+bool get_conversion_factor(const std::string &unit, double *conversion_factor);
+
 }  // namespace gis
 
 #endif  // SQL_GIS_ST_UNITS_OF_MEASURE_H_INCLUDED

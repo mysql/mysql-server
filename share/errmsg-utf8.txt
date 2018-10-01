@@ -18719,6 +18719,12 @@ ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_WAIT_FOR_SYNC_BEFORE_EXEC
 ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED
   eng "Error waiting for group executed transactions commit on session '%u'."
 
+ER_UNIT_NOT_FOUND SU001
+  eng "There's no unit of measure named '%s'."
+
+ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
+  eng "The geometry passed to function %s is in SRID 0, which doesn't specify a length unit. Can't convert to '%s'."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
