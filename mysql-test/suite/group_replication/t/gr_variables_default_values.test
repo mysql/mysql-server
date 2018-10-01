@@ -358,7 +358,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
 --eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_replication_consistency_g"
---eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_replication_consistency_s"
+--eval SET @@SESSION.group_replication_consistency= "$saved_gr_replication_consistency_s"
 --enable_query_log
 
 --let $total_gr_vars=
