@@ -45,10 +45,7 @@ FLUSH LOGS;
 
 SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
 
-let $date=`SELECT CURDATE() + 1`;
---disable_query_log
---send_eval PURGE BINARY LOGS BEFORE $date;
---enable_query_log
+--send PURGE BINARY LOGS BEFORE '2038-01-19'
 
 --connect(con2,localhost,root,,)
 
