@@ -225,7 +225,7 @@ class CountDownLatch {
 
     @param       count     The number of requirements to wait
   */
-  CountDownLatch(uint count) : count(count) {
+  CountDownLatch(uint count) : count(count), error(false) {
     mysql_mutex_init(key_GR_LOCK_count_down_latch, &lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_count_down_latch, &cond);
   }
@@ -238,9 +238,26 @@ class CountDownLatch {
   /**
     Block until the number of requirements reaches zero.
   */
-  void wait() {
+  void wait(ulong timeout = 0) {
     mysql_mutex_lock(&lock);
-    while (count > 0) mysql_cond_wait(&cond, &lock);
+
+    if (timeout > 0) {
+      ulong time_lapsed = 0;
+      struct timespec abstime;
+
+      while (count > 0 && timeout > time_lapsed) {
+        set_timespec(&abstime, 1);
+        mysql_cond_timedwait(&cond, &lock, &abstime);
+        time_lapsed++;
+      }
+
+      if (count > 0 && timeout == time_lapsed) {
+        error = true;
+      }
+    } else {
+      while (count > 0) mysql_cond_wait(&cond, &lock);
+    }
+
     mysql_mutex_unlock(&lock);
   }
 
@@ -267,10 +284,25 @@ class CountDownLatch {
     return res;
   }
 
+  /**
+    Set error flag, once this latch is release the waiter can check
+    if it was due to a error or due to correct termination.
+  */
+  void set_error() { error = true; }
+
+  /**
+    Get latch release reason.
+
+    @return  true   the latch was released due to a error
+             false  the latch was released on correct termination
+  */
+  bool get_error() { return error; }
+
  private:
   mysql_mutex_t lock;
   mysql_cond_t cond;
   int count;
+  bool error;
 };
 
 /**
@@ -292,13 +324,37 @@ class Wait_ticket {
   }
 
   virtual ~Wait_ticket() {
+    clear();
+    mysql_cond_destroy(&cond);
+    mysql_mutex_destroy(&lock);
+  }
+
+  void clear() {
+    mysql_mutex_lock(&lock);
+    DBUG_ASSERT(false == blocked);
+    DBUG_ASSERT(false == waiting);
+
     for (typename std::map<K, CountDownLatch *>::iterator it = map.begin();
          it != map.end(); ++it)
       delete it->second; /* purecov: inspected */
     map.clear();
+    mysql_mutex_unlock(&lock);
+  }
 
-    mysql_cond_destroy(&cond);
-    mysql_mutex_destroy(&lock);
+  /**
+    Check if there are waiting tickets.
+    @return
+         @retval true    empty
+         @retval false   otherwise
+  */
+  bool empty() {
+    bool result = false;
+
+    mysql_mutex_lock(&lock);
+    result = map.empty();
+    mysql_mutex_unlock(&lock);
+
+    return result;
   }
 
   /**
@@ -342,11 +398,13 @@ class Wait_ticket {
    @note The ticket is removed after the wait.
 
     @param       key       The key that identifies the ticket
+    @param       timeout   maximum time in seconds to wait
+                           by default is 0, which means no timeout
     @return
          @retval 0         success
          @retval !=0       key doesn't exist, or the Ticket is blocked
   */
-  int waitTicket(const K &key) {
+  int waitTicket(const K &key, ulong timeout = 0) {
     int error = 0;
     CountDownLatch *cdl = NULL;
 
@@ -365,7 +423,8 @@ class Wait_ticket {
     mysql_mutex_unlock(&lock);
 
     if (cdl != NULL) {
-      cdl->wait();
+      cdl->wait(timeout);
+      error = cdl->get_error() ? 1 : 0;
 
       mysql_mutex_lock(&lock);
       delete cdl;
@@ -385,20 +444,26 @@ class Wait_ticket {
   /**
    Set ticket status to done.
 
-    @param       key       The key that identifies the ticket
+    @param       key                   The key that identifies the ticket
+    @param       release_due_to_error  Inform the thread waiting that the
+                                        release is due to a error
     @return
          @retval 0         success
          @retval !=0       (key doesn't exist)
   */
-  int releaseTicket(const K &key) {
+  int releaseTicket(const K &key, bool release_due_to_error = false) {
     int error = 0;
 
     mysql_mutex_lock(&lock);
     typename std::map<K, CountDownLatch *>::iterator it = map.find(key);
     if (it == map.end())
       error = 1;
-    else
+    else {
+      if (release_due_to_error) {
+        it->second->set_error();
+      }
       it->second->countDown();
+    }
     mysql_mutex_unlock(&lock);
 
     return error;

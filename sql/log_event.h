@@ -3652,17 +3652,8 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
     @retval SIDNO if successful
     @retval negative if adding SID to global_sid_map causes an error.
   */
-  rpl_sidno get_sidno(bool need_lock) {
-    if (spec.gtid.sidno < 0) {
-      if (need_lock)
-        global_sid_lock->rdlock();
-      else
-        global_sid_lock->assert_some_lock();
-      spec.gtid.sidno = global_sid_map->add_sid(sid);
-      if (need_lock) global_sid_lock->unlock();
-    }
-    return spec.gtid.sidno;
-  }
+  rpl_sidno get_sidno(bool need_lock);
+
   /**
     Return the SIDNO relative to the given Sid_map for this GTID.
 

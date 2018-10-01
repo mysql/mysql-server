@@ -1,0 +1,91 @@
+################################################################################
+# Validate group_replication_consistency= 'BEFORE' behaviour when executed
+# concurrently with STOP GROUP_REPLICATION.
+#
+# Test:
+# 00. The test requires one server: M1.
+# 01. Bootstrap the group on server1.
+#     Stop it making it to block just before leave the group.
+# 02. Execute transaction T1 with BEFORE consistency, it
+#     will not be allowed to execute since plugin is stopping,
+#     otherwise there may be a deadlock on the waiting conditions.
+# 03. Execute transaction T1 with EVENTUAL consistency (and
+#     without any precedent AFTER transaction), it will be
+#     allowed to execute since there are nothing to wait for.
+# 04. Resume the plugin stop.
+# 05. Clean up.
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Bootstrap the group on server1.
+--echo #     Stop it making it to block just before leave the group.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+--source include/start_and_bootstrap_group_replication.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_hold_stop_before_leave_the_group';
+--send STOP GROUP_REPLICATION
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State='debug sync point: now' AND Info='STOP GROUP_REPLICATION'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 02. Execute transaction T1 with BEFORE consistency, it
+--echo #     will not be allowed to execute since plugin is stopping,
+--echo #     otherwise there may be a deadlock on the waiting conditions.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+--error ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
+SELECT * FROM t1;
+
+
+--echo
+--echo ############################################################
+--echo # 03. Execute transaction T1 with EVENTUAL consistency (and
+--echo #     without any precedent AFTER transaction), it will be
+--echo #     allowed to execute since there are nothing to wait for.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@SESSION.group_replication_consistency= 'EVENTUAL';
+SELECT * FROM t1;
+
+
+--echo
+--echo ############################################################
+--echo # 04. Resume the plugin stop.
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "now SIGNAL signal.resume_stop_before_leave_the_group";
+SET @@GLOBAL.DEBUG= '-d,group_replication_hold_stop_before_leave_the_group';
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+--let $group_replication_member_state= OFFLINE
+--source include/gr_wait_for_member_state.inc
+--source include/assert_and_disable_read_only.inc
+
+
+--echo
+--echo ############################################################
+--echo # 05. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@SESSION.group_replication_consistency= DEFAULT;
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

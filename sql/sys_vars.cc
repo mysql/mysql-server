@@ -6349,12 +6349,13 @@ static bool check_group_replication_consistency(sys_var *self, THD *thd,
 }
 
 static const char *group_replication_consistency_names[] = {
-    "EVENTUAL", "BEFORE_ON_PRIMARY_FAILOVER", NullS};
+    "EVENTUAL", "BEFORE_ON_PRIMARY_FAILOVER", "BEFORE",
+    "AFTER",    "BEFORE_AND_AFTER",           NullS};
 
 static Sys_var_enum Sys_group_replication_consistency(
     "group_replication_consistency",
     "Transaction consistency guarantee, possible values: EVENTUAL, "
-    "BEFORE_ON_PRIMARY_FAILOVER",
+    "BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER, BEFORE_AND_AFTER",
     SESSION_VAR(group_replication_consistency), CMD_LINE(OPT_ARG),
     group_replication_consistency_names,
     DEFAULT(GROUP_REPLICATION_CONSISTENCY_EVENTUAL), NO_MUTEX_GUARD,

@@ -33,6 +33,7 @@
   not through plugin_server_include.h.
 */
 
+#include <list>
 #include <map>
 #include <set>
 #include <sstream>
@@ -536,6 +537,21 @@ class Group_member_info_manager_interface {
   virtual std::vector<Group_member_info *> *get_all_members() = 0;
 
   /**
+    Retrieves all ONLINE Group members managed by this site, or
+    NULL if any group member version is from a version lower than
+    #TRANSACTION_WITH_GUARANTEES_VERSION.
+
+    @return  list of all ONLINE members, if all members have version
+             equal or greater than #TRANSACTION_WITH_GUARANTEES_VERSION
+             otherwise  NULL
+
+    @note the memory allocated for the list ownership belongs to the
+          caller
+   */
+  virtual std::list<Gcs_member_identifier> *get_online_members_with_guarantees(
+      const Gcs_member_identifier &exclude_member) = 0;
+
+  /**
     Adds a new member to be managed by this Group manager
 
     @param[in] new_member new group member
@@ -703,6 +719,9 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
       Gcs_member_identifier idx);
 
   std::vector<Group_member_info *> *get_all_members();
+
+  std::list<Gcs_member_identifier> *get_online_members_with_guarantees(
+      const Gcs_member_identifier &exclude_member);
 
   void add(Group_member_info *new_member);
 

@@ -27,6 +27,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
@@ -83,6 +84,8 @@ Asynchronous_channels_state_observer *asynchronous_channels_state_observer =
     NULL;
 Group_transaction_observation_manager *group_transaction_observation_manager =
     NULL;
+// The plugin transaction consistency manager
+Transaction_consistency_manager *transaction_consistency_manager;
 // Lock to check if the plugin is running or not.
 Checkable_rwlock *plugin_stop_lock;
 // Class to coordinate access to the plugin stop lock
@@ -148,7 +151,7 @@ Compatibility_module *compatibility_mgr = NULL;
 const char *group_replication_plugin_name = "group_replication";
 char *group_name_var = NULL;
 bool start_group_replication_at_boot_var = true;
-rpl_sidno group_sidno;
+rpl_sidno group_sidno = 0;
 bool single_primary_mode_var = false;
 bool enforce_update_everywhere_checks_var = true;
 
@@ -267,8 +270,8 @@ bool allow_local_lower_version_join_var = 0;
 /* Define what debug options will be activated */
 char *communication_debug_options_var = NULL;
 
-/* Certification latch */
-Wait_ticket<my_thread_id> *certification_latch;
+/* Transactions latch */
+Wait_ticket<my_thread_id> *transactions_latch;
 
 /*
   Internal auxiliary functions signatures.
@@ -333,6 +336,11 @@ bool is_plugin_configured_and_starting() { return group_member_mgr_configured; }
 
 int plugin_group_replication_set_retrieved_certification_info(void *info) {
   return recovery_module->set_retrieved_cert_info(info);
+}
+
+rpl_sidno get_group_sidno() {
+  DBUG_ASSERT(group_sidno > 0);
+  return group_sidno;
 }
 
 /**
@@ -527,10 +535,8 @@ int plugin_group_replication_start(char **) {
     goto err;
   }
 
-  /*
-    Instantiate certification latch.
-  */
-  certification_latch = new Wait_ticket<my_thread_id>();
+  DBUG_ASSERT(transactions_latch->empty());
+
   // Reset the coordinator in case there was a previous stop.
   group_action_coordinator->reset_coordinator_process();
 
@@ -723,6 +729,9 @@ int initialize_plugin_and_join(
     error = view_change_notifier->get_error();
     goto err;
   }
+
+  transaction_consistency_manager->register_transaction_observer();
+  transaction_consistency_manager->plugin_started();
   group_replication_running = true;
   plugin_is_stopping = false;
   log_primary_member_details();
@@ -761,11 +770,7 @@ err:
           "process");
     }
 
-    if (certification_latch != NULL) {
-      delete certification_latch; /* purecov: inspected */
-      certification_latch = NULL; /* purecov: inspected */
-    }
-
+    DBUG_ASSERT(transactions_latch->empty());
     // Inform the transaction observer that we won't apply any further backlog
     // (because we are erroring out).
     hold_transactions->disable();
@@ -975,9 +980,16 @@ int plugin_group_replication_stop(char **error_message) {
 
   plugin_is_waiting_to_set_server_read_mode = true;
 
+  transaction_consistency_manager->plugin_is_stopping();
+
+  DBUG_EXECUTE_IF("group_replication_hold_stop_before_leave_the_group", {
+    const char act[] = "now wait_for signal.resume_stop_before_leave_the_group";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   // wait for all transactions waiting for certification
   bool timeout =
-      certification_latch->block_until_empty(TRANSACTION_KILL_TIMEOUT);
+      transactions_latch->block_until_empty(TRANSACTION_KILL_TIMEOUT);
   if (timeout) {
     // if they are blocked, kill them
     blocked_transaction_handler->unblock_waiting_transactions();
@@ -1016,6 +1028,14 @@ int plugin_group_replication_stop(char **error_message) {
     delete primary_election_handler;
     primary_election_handler = NULL;
   }
+
+  /*
+    Clear transaction consistency manager, waiting transactions
+    were already killed above under the protection of
+    shared_plugin_stop_lock.
+  */
+  transaction_consistency_manager->unregister_transaction_observer();
+  transaction_consistency_manager->clear();
 
   DBUG_RETURN(error);
 }
@@ -1108,13 +1128,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
   delete blocked_transaction_handler;
   blocked_transaction_handler = NULL;
 
-  /*
-    Destroy certification latch.
-  */
-  if (certification_latch != NULL) {
-    delete certification_latch;
-    certification_latch = NULL;
-  }
+  DBUG_ASSERT(transactions_latch->empty());
 
   if (group_member_mgr != NULL && local_member_info != NULL) {
     Notification_context ctx;
@@ -1163,7 +1177,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   );
 
   shared_plugin_stop_lock = new Shared_writelock(plugin_stop_lock);
-
+  transactions_latch = new Wait_ticket<my_thread_id>();
+  transaction_consistency_manager = new Transaction_consistency_manager();
   hold_transactions = new Hold_transactions();
 
   plugin_info_ptr = plugin_info;
@@ -1326,6 +1341,10 @@ int plugin_group_replication_deinit(void *p) {
   unregister_udfs();
 
   if (hold_transactions) delete hold_transactions;
+  delete transaction_consistency_manager;
+  transaction_consistency_manager = NULL;
+  delete transactions_latch;
+  transactions_latch = NULL;
 
   mysql_mutex_destroy(&plugin_running_mutex);
   mysql_mutex_destroy(&force_members_running_mutex);

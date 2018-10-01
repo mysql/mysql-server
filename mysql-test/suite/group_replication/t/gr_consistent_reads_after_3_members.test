@@ -1,0 +1,58 @@
+################################################################################
+# Validate group_replication_consistency= 'AFTER' with 3 members.
+# This test is to cover all code paths, that is, we have 2 remote members which
+# will acknowledge the transaction but only the 2nd prepare will release the
+# COMMIT.
+#
+# Test:
+# 00. The test requires three servers: M1, M2 and M3.
+# 01. Create a table on the group.
+# 02. Validate data.
+# 03. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Create a table on the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+
+
+--echo
+--echo ############################################################
+--echo # 02. Validate data.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= 'There is 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 03. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

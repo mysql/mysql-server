@@ -107,7 +107,8 @@ class Primary_election_handler : public Group_transaction_listener {
   */
   void unregister_transaction_observer();
 
-  virtual int before_transaction_begin(ulong gr_consistency_level,
+  virtual int before_transaction_begin(my_thread_id thread_id,
+                                       ulong gr_consistency_level,
                                        ulong hold_timeout,
                                        enum_rpl_channel_type channel_type);
   virtual int before_commit(
@@ -120,7 +121,8 @@ class Primary_election_handler : public Group_transaction_listener {
 
   virtual int after_rollback(my_thread_id thread_id);
 
-  virtual int after_commit(my_thread_id thread_id);
+  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                           rpl_gno gno);
 
  private:
   /**

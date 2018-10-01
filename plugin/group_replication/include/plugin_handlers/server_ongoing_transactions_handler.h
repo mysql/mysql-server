@@ -66,7 +66,8 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
   /** Abort any running waiting process */
   void abort_waiting_process();
 
-  virtual int before_transaction_begin(ulong gr_consistency_level,
+  virtual int before_transaction_begin(my_thread_id thread_id,
+                                       ulong gr_consistency_level,
                                        ulong hold_timeout,
                                        enum_rpl_channel_type rpl_channel_type);
 
@@ -80,7 +81,8 @@ class Server_ongoing_transactions_handler : public Group_transaction_listener {
 
   virtual int after_rollback(my_thread_id thread_id);
 
-  virtual int after_commit(my_thread_id thread_id);
+  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                           rpl_gno gno);
 
  private:
   /** The transactions that finished while the service is running */

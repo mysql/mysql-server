@@ -8721,6 +8721,18 @@ ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
 ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE
   eng "slow query log file format changed as requested, but setting will have no effect when not actually logging to a file."
 
+ER_GRP_TRX_CONSISTENCY_NOT_ALLOWED
+  eng "The option group_replication_consistency cannot be used on the current member state."
+
+ER_GRP_TRX_CONSISTENCY_BEFORE
+  eng "Error while waiting for group transactions commit on group_replication_consistency= 'BEFORE'."
+
+ER_GRP_TRX_CONSISTENCY_AFTER_ON_TRX_BEGIN
+  eng "Error while waiting for transactions with group_replication_consistency= 'AFTER' to commit."
+
+ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
+  eng "The Group Replication plugin is stopping, therefore new transactions are not allowed to start."
+
 #
 #  End of 8.0 error messages.
 #
@@ -13641,7 +13653,7 @@ ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
   eng "Due to a plugin error, some transactions were unable to be certified and will now rollback."
 
 ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
-  eng "Error when trying to unblock non certified transactions. Check for consistency errors when restarting the service"
+  eng "Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service"
 
 ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
   eng "This server is working as secondary member with primary member address %s:%u."
@@ -18661,6 +18673,51 @@ ER_SHA256_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
 
 ER_CACHING_SHA2_PASSWORD_SECOND_PASSWORD_USED_INFORMATION
   eng "Second password was used for login by user: '%s'@'%s'."
+
+ER_GRP_RPL_SEND_TRX_PREPARED_MESSAGE_FAILED
+  eng "Error sending transaction '%d:%lld' prepared message from session '%u'."
+
+ER_GRP_RPL_RELEASE_COMMIT_AFTER_GROUP_PREPARE_FAILED
+  eng "Error releasing transaction '%d:%lld' for commit on session '%u' after being prepared on all group members."
+
+ER_GRP_RPL_TRX_ALREADY_EXISTS_ON_TCM_ON_AFTER_CERTIFICATION
+  eng "Transaction '%d:%lld' already exists on Group Replication consistency manager while being registered after conflict detection."
+
+ER_GRP_RPL_FAILED_TO_INSERT_TRX_ON_TCM_ON_AFTER_CERTIFICATION
+  eng "Error registering transaction '%d:%lld' on Group Replication consistency manager after conflict detection."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_GROUP_PREPARE_FAILED
+  eng "Error registering transaction '%d:%lld' from session '%u' to wait for being prepared on all group members."
+
+ER_GRP_RPL_TRX_WAIT_FOR_GROUP_PREPARE_FAILED
+  eng "Error on transaction '%d:%lld' from session '%u' while waiting for being prepared on all group members."
+
+ER_GRP_RPL_TRX_DOES_NOT_EXIST_ON_TCM_ON_HANDLE_REMOTE_PREPARE
+  eng "Transaction '%d:%lld' does not exist on Group Replication consistency manager while receiving remote transaction prepare."
+
+ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_DEPENDENCIES_COMMIT_FAILED
+  eng "Error releasing transaction '%d:%lld' for execution on session '%u' after its dependencies did complete commit."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_DEPENDENCIES_FAILED
+  eng "Error registering transaction from session '%u' to wait for its dependencies to complete commit."
+
+ER_GRP_RPL_WAIT_FOR_DEPENDENCIES_FAILED
+  eng "Error on session '%u' while waiting for its dependencies to complete commit."
+
+ER_GRP_RPL_REGISTER_TRX_TO_WAIT_FOR_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error registering transaction from session '%u' to wait for sync before execution."
+
+ER_GRP_RPL_SEND_TRX_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error sending sync before execution message from session '%u'."
+
+ER_GRP_RPL_TRX_WAIT_FOR_SYNC_BEFORE_EXECUTION_FAILED
+  eng "Error on transaction from session '%u' while waiting for sync before execution."
+
+ER_GRP_RPL_RELEASE_BEGIN_TRX_AFTER_WAIT_FOR_SYNC_BEFORE_EXEC
+  eng "Error releasing transaction for execution on session '%u' after wait for sync before execution."
+
+ER_GRP_RPL_TRX_WAIT_FOR_GROUP_GTID_EXECUTED
+  eng "Error waiting for group executed transactions commit on session '%u'."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

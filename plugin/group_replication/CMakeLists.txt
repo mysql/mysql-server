@@ -26,6 +26,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
   src/auto_increment.cc
   src/certifier.cc
+  src/consistency_manager.cc
   src/delayed_plugin_initialization.cc
   src/gcs_event_handlers.cc
   src/gcs_logger.cc
@@ -71,6 +72,10 @@ SET(GROUP_REPLICATION_SOURCES
   src/plugin_messages/group_validation_message.cc
   src/plugin_messages/recovery_message.cc
   src/plugin_messages/single_primary_message.cc
+  src/plugin_messages/sync_before_execution_message.cc
+  src/plugin_messages/transaction_message.cc
+  src/plugin_messages/transaction_prepared_message.cc
+  src/plugin_messages/transaction_with_guarantee_message.cc
   src/plugin_handlers/primary_election_validation_handler.cc
   src/plugin_observers/channel_observation_manager.cc
   src/plugin_observers/group_event_observer.cc

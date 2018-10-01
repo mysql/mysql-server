@@ -165,7 +165,9 @@ extern PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_group_event_observation_list,
     key_GR_RWLOCK_io_cache_unused_list,
     key_GR_RWLOCK_plugin_stop,
-    key_GR_RWLOCK_transaction_observation_list;
+    key_GR_RWLOCK_transaction_observation_list,
+    key_GR_RWLOCK_transaction_consistency_manager_map,
+    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier;
 
 extern PSI_stage_info info_GR_STAGE_multi_primary_mode_switch_pending_transactions,
     info_GR_STAGE_multi_primary_mode_switch_step_completion,

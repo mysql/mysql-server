@@ -1,0 +1,158 @@
+################################################################################
+# Validate group_replication_consistency= 'AFTER' behaviour against transactions
+# coming from asynchronous channels, they shall block until precedent prepared
+# consistent transactions are committed.
+#
+# Test:
+# 00. The test requires three servers: M1, M2 and M3.
+# 01. Bootstrap group with M1, add M2.
+# 02. Replicate from server3 into server2.
+# 03. Make server2 block before send its prepare message.
+# 04. Execute T1 on server1 with
+#     @@SESSION.group_replication_consistency= 'AFTER'
+# 05. Wait until T1 is prepared on server2.
+# 06. Execute T2 on server3, it will wait for T1 on server2.
+# 07. Make server2 do send its prepare message.
+# 08. Validate data.
+# 09. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Bootstrap group with M1, add M2.
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 02. Replicate from server3 into server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_3 SERVER_3_PORT
+--eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+
+--let $rpl_channel_name='ch3_2'
+--source include/start_slave.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 03. Make server2 block before send its prepare message.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 04. Execute T1 on server1 with
+--echo #     @@SESSION.group_replication_consistency= 'AFTER'
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@SESSION.group_replication_consistency= 'AFTER';
+--send INSERT INTO t1 VALUES (1)
+
+
+--echo
+--echo ############################################################
+--echo # 05. Wait until T1 is prepared on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+
+--echo
+--echo ############################################################
+--echo # 06. Execute T2 on server3, it will wait for T1 on server2.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (3);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='system user' AND state='Executing hook on transaction begin.' AND info='BEGIN'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 07. Make server2 do send its prepare message.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Signal debug sync to continue.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 08. Validate data.
+# Wait for T2
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+--let $assert_text= 'There is a 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a 3 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=3, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is a 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is a 3 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=3, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= 'There is no 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is a 3 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=3, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 09. Clean up.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch3_2'
+--source include/stop_slave.inc
+--let $rpl_channel_name=
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+
+--source include/group_replication_end.inc

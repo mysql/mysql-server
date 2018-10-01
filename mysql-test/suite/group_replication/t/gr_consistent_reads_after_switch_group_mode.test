@@ -1,0 +1,138 @@
+################################################################################
+# Validate group_replication_consistency= 'AFTER' behaviour against group mode
+# change.
+#
+# Test:
+# 00. The test requires three servers: M1, M2 and M3.
+# 01. Create a table on the group.
+# 02. Make server3 block before send its prepare message.
+# 03. Execute T1 on server1.
+# 04. Wait until T1 is prepared on server3.
+# 05. Change group mode to single primary, with server1 as
+#     primary.
+# 06. Make server3 do send its prepare message.
+# 07. Get outcome of the group mode change.
+# 08. Validate data.
+# 09. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Create a table on the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 02. Make server3 block before send its prepare message.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 03. Execute T1 on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--send INSERT INTO t1 VALUES (1)
+
+
+--echo
+--echo ############################################################
+--echo # 04. Wait until T1 is prepared on server3.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Wait for the debug sync to be reached.
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+
+--echo
+--echo ############################################################
+--echo # 05. Change group mode to single primary, with server1 as
+--echo #     primary.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--replace_result $server1_uuid MEMBER1_UUID
+--send_eval SELECT group_replication_switch_to_single_primary_mode("$server1_uuid")
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.' AND info LIKE 'SELECT group_replication_switch_to_single_primary_mode(%'
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 06. Make server3 do send its prepare message.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+# Signal debug sync to continue.
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+
+
+--echo
+--echo ############################################################
+--echo # 07. Get outcome of the group mode change.
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--replace_result $server1_uuid MEMBER1_UUID
+--reap
+--source include/gr_assert_secondary_member.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/gr_assert_primary_member.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_assert_secondary_member.inc
+
+
+--echo
+--echo ############################################################
+--echo # 08. Validate data.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--reap
+
+--let $assert_text= 'There is a 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'There is a 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= 'There is a 1 value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+
+--echo
+--echo ############################################################
+--echo # 09. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

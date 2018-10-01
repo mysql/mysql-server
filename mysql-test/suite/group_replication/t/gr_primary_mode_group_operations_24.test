@@ -57,6 +57,13 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 --let $restart_parameters=restart:--group-replication-start-on-boot=0 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
 --source include/kill_and_restart_mysqld.inc
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--error CR_SERVER_LOST
+--reap
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc
 
@@ -87,9 +94,6 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-
---error CR_SERVER_LOST
---reap
 
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1

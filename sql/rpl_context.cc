@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,4 +176,19 @@ void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
   m_listener = NULL;
   m_gtid_set = NULL;
   m_sid_map = NULL;
+}
+
+Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
+  m_last_used_gtid = std::unique_ptr<Gtid>(new Gtid{0, 0});
+}
+
+Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() {}
+
+void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid) {
+  (*m_last_used_gtid).set(gtid.sidno, gtid.gno);
+}
+
+void Last_used_gtid_tracker_ctx::get_last_used_gtid(Gtid &gtid) {
+  gtid.sidno = (*m_last_used_gtid).sidno;
+  gtid.gno = (*m_last_used_gtid).gno;
 }

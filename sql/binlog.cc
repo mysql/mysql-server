@@ -2580,8 +2580,14 @@ end:
       XA-rollback commits the new gtid_state, if transaction
       is not empty.
     */
-    else
+    else {
       gtid_state->update_on_commit(thd);
+      /*
+        Inform hook listeners that a XA ROLLBACK did commit, that
+        is, did log a transaction to the binary log.
+      */
+      (void)RUN_HOOK(transaction, after_commit, (thd, all));
+    }
   }
   /*
     When a statement errors out on auto-commit mode it is rollback
@@ -6426,7 +6432,6 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
   // Check pre-conditions
   mysql_mutex_assert_owner(&LOCK_log);
   DBUG_ASSERT(is_relay_log);
-  DBUG_ASSERT(current_thd->system_thread == SYSTEM_THREAD_SLAVE_IO);
 
   /*
     We allow the relay log rotation by relay log size
@@ -7885,8 +7890,14 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
       Mark the flag m_is_binlogged to true only after we are done
       with checking all the error cases.
     */
-    if (is_loggable_xa_prepare(thd))
+    if (is_loggable_xa_prepare(thd)) {
       thd->get_transaction()->xid_state()->set_binlogged();
+      /*
+        Inform hook listeners that a XA PREPARE did commit, that
+        is, did log a transaction to the binary log.
+      */
+      (void)RUN_HOOK(transaction, after_commit, (thd, all));
+    }
   } else if (!skip_commit) {
     if (ha_commit_low(thd, all)) DBUG_RETURN(RESULT_INCONSISTENT);
   }

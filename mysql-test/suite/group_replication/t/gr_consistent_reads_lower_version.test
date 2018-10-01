@@ -1,0 +1,117 @@
+################################################################################
+# Validate that BEFORE can be used when there are lower version members on the
+# group.
+# Validate that AFTER and BEFORE_AND_AFTER can not be used when there are lower
+# version members on the group.
+#
+# Test:
+# 00. The test requires two servers: M1 and M2.
+# 01. Create one table on the group.
+# 02. Force that there is a lower version member.
+# 03. Test BEFORE consistency, it is allowed.
+# 04. Test AFTER consistency, it is not allowed.
+# 05. Test BEFORE_AND_AFTER consistency, it is not allowed.
+# 06. Validate data.
+# 07. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 01. Create one table on the group.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 02. Force that there is a lower version member.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_lower_version_on_group_replication_consistency';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_lower_version_on_group_replication_consistency';
+
+
+--echo
+--echo ############################################################
+--echo # 03. Test BEFORE consistency, it is allowed.
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+INSERT INTO t1 VALUES (1);
+
+
+--echo
+--echo ############################################################
+--echo # 04. Test AFTER consistency, it is not allowed.
+SET @@SESSION.group_replication_consistency= 'AFTER';
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT INTO t1 VALUES (2);
+
+
+--echo
+--echo ############################################################
+--echo # 05. Test BEFORE_AND_AFTER consistency, it is not allowed.
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT INTO t1 VALUES (3);
+
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= '-d,group_replication_force_lower_version_on_group_replication_consistency';
+
+
+--echo
+--echo ############################################################
+--echo # 06. Validate data.
+--source include/rpl_sync.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= '1 exists in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= '2 does not exist in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=2, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= '3 does not exist in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=3, count, 1] = 0
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= '1 exists in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= '2 does not exist in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=2, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= '3 does not exist in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=3, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 07. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

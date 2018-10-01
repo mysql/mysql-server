@@ -1,0 +1,16 @@
+!include ../my.cnf
+
+[mysqld]
+
+[mysqld.1]
+group_replication_member_weight=80
+
+[mysqld.2]
+group_replication_member_weight=70
+
+[mysqld.3]
+group_replication_member_weight=60
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

@@ -1,0 +1,67 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Create two tables on the group.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 02. Lock table t1 on server2 to block a future update.
+[connection server_2]
+LOCK table t1 READ;
+
+############################################################
+# 03. Execute transaction T1, the transaction will block on
+#     server2 due to the table lock.
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (100);
+COMMIT;
+
+############################################################
+# 04. Wait until T1 is delivered to server2.
+[connection server2]
+
+############################################################
+# 05. Execute a read transaction on server2 with
+#     group_replication_consistency= 'BEFORE' , it will wait
+#     for T1 commit.
+[connection server_2_1]
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+SELECT COUNT(*) AS count FROM t2 WHERE c1 >= 99;
+[connection server2]
+
+############################################################
+# 06. Execute a group mode switch, it will wait for the
+#     UNLOCK TABLES.
+[connection slave]
+SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
+[connection server2]
+
+############################################################
+# 07. Unblock T1 on server2.
+[connection server_2]
+UNLOCK TABLES;
+[connection server_2_1]
+count
+1
+SET @@SESSION.group_replication_consistency= DEFAULT;
+[connection slave]
+group_replication_switch_to_single_primary_mode("MEMBER1_UUID")
+Mode switched to single-primary successfully.
+include/gr_assert_secondary_member.inc
+[connection server1]
+
+############################################################
+# 08. Clean up.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

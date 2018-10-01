@@ -16,6 +16,9 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
 # 3. Kill server that is executing action
 [connection server_1]
 # Kill and restart:--group-replication-start-on-boot=0 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+[connection server1]
+ERROR HY000: Lost connection to MySQL server during query
+[connection server_1]
 include/rpl_reconnect.inc
 
 # 4. Confirm other members executed the action
@@ -27,5 +30,4 @@ include/gr_assert_secondary_member.inc
 
 # 5. Clean up
 [connection server1]
-ERROR HY000: Lost connection to MySQL server during query
 include/group_replication_end.inc

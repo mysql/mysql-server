@@ -845,8 +845,8 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   mi->rli->get_gtid_set()->to_string(&retrieved_gtid_set_buf);
   mi->rli->get_sid_lock()->unlock();
 
-  int error =
-      mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf, timeout);
+  int error = mi->rli->wait_for_gtid_set(current_thd, retrieved_gtid_set_buf,
+                                         timeout, false);
   my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 

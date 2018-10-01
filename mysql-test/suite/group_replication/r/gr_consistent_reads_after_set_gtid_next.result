@@ -1,0 +1,82 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Create two tables on the group.
+[connection server1]
+SET @@SESSION.group_replication_consistency= 'AFTER';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 02. Lock table t1 on server2 to block a future update.
+[connection server_2]
+LOCK table t1 READ;
+
+############################################################
+# 03. Execute transaction T1, the transaction will block since
+#     server2 cannot prepare.
+[connection server1]
+SET GTID_NEXT= "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1";
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+COMMIT;
+
+############################################################
+# 04. Validate transactions status.
+[connection server_1]
+[connection server2]
+
+############################################################
+# 05. Since T1 is not yet prepared on server2, new
+#     transactions are allowed.
+[connection server2]
+include/assert.inc ['There are no values in table t2']
+
+############################################################
+# 06. Force server2 to block between T1 prepare and commit
+#     and unlock table t1.
+[connection server_2_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
+[connection server_2]
+UNLOCK TABLES;
+[connection server_2_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
+
+############################################################
+# 07. Now that T1 is prepared on server2, server1 COMMIT is
+#     unblocked.
+[connection server1]
+SET GTID_NEXT= 'AUTOMATIC';
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+
+############################################################
+# 08. Now that T1 is prepared on server2 but it is not yet
+#     committed, new transactions are held.
+[connection server_2]
+SELECT COUNT(*) AS count FROM t2 WHERE c1=1;
+[connection server2]
+
+############################################################
+# 09. Unblock T1 prepare on server2.
+[connection server_2_1]
+SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
+[connection server_2]
+count
+1
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+
+############################################################
+# 10. Clean up.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+SET @@SESSION.group_replication_consistency= DEFAULT;
+include/group_replication_end.inc

@@ -1,0 +1,77 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Bootstrap group with M1, add M2.
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 02. Replicate from server3 into server2.
+[connection server2]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_3_PORT for channel 'ch3_2';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch3_2']
+[connection server3]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 03. Make server2 block before send its prepare message.
+[connection server2]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_before_message_send_after_applier_prepare';
+
+############################################################
+# 04. Execute T1 on server1 with
+#     @@SESSION.group_replication_consistency= 'AFTER'
+[connection server1]
+SET @@SESSION.group_replication_consistency= 'AFTER';
+INSERT INTO t1 VALUES (1);
+
+############################################################
+# 05. Wait until T1 is prepared on server2.
+[connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_before_message_send_after_applier_prepare_waiting";
+
+############################################################
+# 06. Execute T2 on server3, it will wait for T1 on server2.
+[connection server3]
+INSERT INTO t1 VALUES (3);
+[connection server2]
+
+############################################################
+# 07. Make server2 do send its prepare message.
+[connection server2]
+SET DEBUG_SYNC= 'now SIGNAL signal.after_before_message_send_after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_before_message_send_after_applier_prepare';
+
+############################################################
+# 08. Validate data.
+include/rpl_sync.inc
+[connection server1]
+SET @@SESSION.group_replication_consistency= DEFAULT;
+include/assert.inc ['There is a 1 value in table t1']
+include/assert.inc ['There is a 3 value in table t1']
+[connection server2]
+include/assert.inc ['There is a 1 value in table t1']
+include/assert.inc ['There is a 3 value in table t1']
+[connection server3]
+include/assert.inc ['There is no 1 value in table t1']
+include/assert.inc ['There is a 3 value in table t1']
+include/diff_tables.inc [server1:t1, server2:t1]
+
+############################################################
+# 09. Clean up.
+[connection server3]
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server2]
+include/stop_slave.inc [FOR CHANNEL 'ch3_2']
+RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+include/group_replication_end.inc

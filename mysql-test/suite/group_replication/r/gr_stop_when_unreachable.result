@@ -33,7 +33,7 @@ INSERT INTO t1 VALUES (2);
 [connection server_1]
 include/stop_group_replication.inc
 [connection server1]
-ERROR 40000: Plugin instructed the server to rollback the current transaction.
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
 #
 # 5. Clean up.
 #
@@ -45,6 +45,8 @@ call mtr.add_suppression("Due to a plugin error, some transactions were unable t
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("read failed");
+call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session .*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
 [connection server_2]
 include/rpl_reconnect.inc

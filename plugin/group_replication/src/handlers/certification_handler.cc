@@ -25,6 +25,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
 #include "plugin/group_replication/include/plugin.h"
 
@@ -216,6 +217,8 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
   Transaction_context_log_event *tcle = NULL;
   Log_event *event = NULL;
   Gtid_log_event *gle = NULL;
+  std::list<Gcs_member_identifier> *online_members =
+      pevent->get_online_members();
 
   /*
     Get transaction context.
@@ -245,6 +248,18 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                UUID_LENGTH);
 
   /*
+    Group contains members that do not support transactions with group
+    coordination, thence the transaction must rollback.
+  */
+  DBUG_EXECUTE_IF(
+      "group_replication_force_lower_version_on_group_replication_consistency",
+      { online_members = NULL; };);
+  if (pevent->get_consistency_level() >= GROUP_REPLICATION_CONSISTENCY_AFTER &&
+      NULL == online_members) {
+    goto after_certify;
+  }
+
+  /*
     Certify transaction.
   */
   seq_number =
@@ -252,6 +267,7 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
                            !tcle->is_gtid_specified(), tcle->get_server_uuid(),
                            gle, local_transaction);
 
+after_certify:
   if (local_transaction) {
     /*
       Local transaction.
@@ -291,7 +307,14 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
     }
 
     if (seq_number > 0) {
+      const rpl_sid *sid = NULL;
+      rpl_sidno sidno = group_sidno;
+      rpl_gno gno = seq_number;
+
       if (tcle->is_gtid_specified()) {
+        sid = gle->get_sid();
+        sidno = gle->get_sidno(true);
+        gno = gle->get_gno();
         error =
             cert_module->add_specified_gtid_to_group_gtid_executed(gle, true);
         DBUG_EXECUTE_IF("unable_to_add_specified_gtid_for_local_transaction",
@@ -300,17 +323,34 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
         if (error) {
           LogPluginErr(ERROR_LEVEL,
                        ER_GRP_RPL_ADD_GTID_INFO_WITH_LOCAL_GTID_FAILED);
-          certification_latch->releaseTicket(tcle->get_thread_id());
+          transactions_latch->releaseTicket(tcle->get_thread_id());
           cont->signal(1, true);
           goto end;
         }
       } else {
-        if (cert_module->add_group_gtid_to_group_gtid_executed(seq_number,
-                                                               true)) {
+        if (cert_module->add_group_gtid_to_group_gtid_executed(gno, true)) {
           /* purecov: begin inspected */
           LogPluginErr(ERROR_LEVEL,
                        ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_LOCAL_GTID_FAILED);
-          certification_latch->releaseTicket(tcle->get_thread_id());
+          transactions_latch->releaseTicket(tcle->get_thread_id());
+          cont->signal(1, true);
+          error = 1;
+          goto end;
+          /* purecov: end */
+        }
+      }
+
+      if (pevent->get_consistency_level() >=
+          GROUP_REPLICATION_CONSISTENCY_AFTER) {
+        Transaction_consistency_info *transaction_consistency_info =
+            new Transaction_consistency_info(
+                tcle->get_thread_id(), local_transaction, sid, sidno, gno,
+                pevent->get_consistency_level(), pevent->get_online_members());
+        pevent->release_online_members_memory_ownership();
+        if (transaction_consistency_manager->after_certification(
+                transaction_consistency_info)) {
+          /* purecov: begin inspected */
+          delete transaction_consistency_info;
           cont->signal(1, true);
           error = 1;
           goto end;
@@ -319,7 +359,13 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
       }
     }
 
-    if (certification_latch->releaseTicket(tcle->get_thread_id())) {
+    /*
+      We only release the local transaction here when its consistency
+      does not require group coordination.
+    */
+    if ((seq_number <= 0 || pevent->get_consistency_level() <
+                                GROUP_REPLICATION_CONSISTENCY_AFTER) &&
+        transactions_latch->releaseTicket(tcle->get_thread_id())) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_NOTIFY_CERTIFICATION_OUTCOME_FAILED);
       cont->signal(1, true);
@@ -335,9 +381,13 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
       Remote transaction.
     */
     if (seq_number > 0) {
+      const rpl_sid *sid = NULL;
+      rpl_sidno sidno = group_sidno;
+      rpl_gno gno = seq_number;
+
       if (!tcle->is_gtid_specified()) {
         // Create new GTID event.
-        Gtid gtid = {group_sidno, seq_number};
+        Gtid gtid = {sidno, gno};
         Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
         Gtid_log_event *gle_generated = new Gtid_log_event(
             gle->server_id, gle->is_using_trans_cache(), gle->last_committed,
@@ -353,8 +403,7 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
 
         // Add the gtid information in the executed gtid set for the remote
         // transaction which have gtid specified.
-        if (cert_module->add_group_gtid_to_group_gtid_executed(seq_number,
-                                                               false)) {
+        if (cert_module->add_group_gtid_to_group_gtid_executed(gno, false)) {
           /* purecov: begin inspected */
           LogPluginErr(ERROR_LEVEL,
                        ER_GRP_RPL_ADD_GTID_INFO_WITHOUT_REMOTE_GTID_FAILED);
@@ -366,6 +415,9 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
       }
 
       else {
+        sid = gle->get_sid();
+        sidno = gle->get_sidno(true);
+        gno = gle->get_gno();
         error =
             cert_module->add_specified_gtid_to_group_gtid_executed(gle, false);
         DBUG_EXECUTE_IF("unable_to_add_specified_gtid_for_remote_transaction",
@@ -376,6 +428,24 @@ int Certification_handler::handle_transaction_id(Pipeline_event *pevent,
           LogPluginErr(ERROR_LEVEL,
                        ER_GRP_RPL_ADD_GTID_INFO_WITH_REMOTE_GTID_FAILED);
           cont->signal(1, true);
+          goto end;
+          /* purecov: end */
+        }
+      }
+
+      if (pevent->get_consistency_level() >=
+          GROUP_REPLICATION_CONSISTENCY_AFTER) {
+        Transaction_consistency_info *transaction_consistency_info =
+            new Transaction_consistency_info(
+                tcle->get_thread_id(), local_transaction, sid, sidno, gno,
+                pevent->get_consistency_level(), pevent->get_online_members());
+        pevent->release_online_members_memory_ownership();
+        if (transaction_consistency_manager->after_certification(
+                transaction_consistency_info)) {
+          /* purecov: begin inspected */
+          delete transaction_consistency_info;
+          cont->signal(1, true);
+          error = 1;
           goto end;
           /* purecov: end */
         }

@@ -349,7 +349,8 @@ The following options may be given as the first argument:
  GROUP_CONCAT()
  --group-replication-consistency[=name] 
  Transaction consistency guarantee, possible values:
- EVENTUAL, BEFORE_ON_PRIMARY_FAILOVER
+ EVENTUAL, BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER,
+ BEFORE_AND_AFTER
  --gtid-executed-compression-period[=#] 
  When binlog is disabled, a background thread wakes up to
  compress the gtid_executed table every

@@ -26,6 +26,8 @@ call mtr.add_suppression("The member has failed to gracefully leave the group.")
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("Plugin group_replication reported: 'Error while waiting for conflict detection procedure to finish on session.*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
 
 # 4. Uninstall plugin will return error due plugin being in use
@@ -36,10 +38,10 @@ ERROR HY000: Plugin 'group_replication' cannot be uninstalled now. Plugin is bus
 
 # 6. Clean-up
 [connection server1]
-include/rpl_start_server.inc [server_number=1]
-include/rpl_reconnect.inc
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 Got one of the listed errors
+include/rpl_start_server.inc [server_number=1]
+include/rpl_reconnect.inc
 [connection server2]
 DROP TABLE test.t1;
 [connection server_1]

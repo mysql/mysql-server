@@ -1,0 +1,28 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Start a single member group.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 02. Validate all values on a single member group.
+SET @@SESSION.group_replication_consistency= 'BEFORE';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET @@SESSION.group_replication_consistency= 'AFTER';
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+CREATE TABLE t3 (c1 INT NOT NULL PRIMARY KEY);
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+############################################################
+# 03. Clean up.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+include/group_replication_end.inc

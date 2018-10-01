@@ -446,7 +446,7 @@ void Primary_election_handler::unregister_transaction_observer() {
 }
 
 int Primary_election_handler::before_transaction_begin(
-    ulong gr_consistency, ulong hold_timeout,
+    my_thread_id, ulong gr_consistency, ulong hold_timeout,
     enum_rpl_channel_type channel_type) {
   DBUG_ENTER("Primary_election_handler::before_transaction_begin");
 
@@ -467,18 +467,21 @@ int Primary_election_handler::before_transaction_begin(
   DBUG_RETURN(0);
 }
 
+/*
+  These methods are necessary to fulfil the Group_transaction_listener
+  interface.
+*/
+/* purecov: begin inspected */
 int Primary_election_handler::before_commit(
     my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0; /* purecov: inspected */
+  return 0;
 }
-
 int Primary_election_handler::before_rollback(
     my_thread_id, Group_transaction_listener::enum_transaction_origin) {
-  return 0; /* purecov: inspected */
+  return 0;
 }
-int Primary_election_handler::after_rollback(my_thread_id) {
-  return 0; /* purecov: inspected */
+int Primary_election_handler::after_rollback(my_thread_id) { return 0; }
+int Primary_election_handler::after_commit(my_thread_id, rpl_sidno, rpl_gno) {
+  return 0;
 }
-int Primary_election_handler::after_commit(my_thread_id) {
-  return 0; /* purecov: inspected */
-}
+/* purecov: end */

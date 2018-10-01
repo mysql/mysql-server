@@ -372,3 +372,15 @@ void global_thd_manager_add_thd(THD *thd) {
 void global_thd_manager_remove_thd(THD *thd) {
   Global_THD_manager::get_instance()->remove_thd(thd);
 }
+
+bool is_gtid_committed(const Gtid &gtid) {
+  bool result = false;
+  global_sid_lock->rdlock();
+
+  DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+
+  result = gtid_state->is_executed(gtid);
+
+  global_sid_lock->unlock();
+  return result;
+}

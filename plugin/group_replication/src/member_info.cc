@@ -26,6 +26,7 @@
 
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "plugin/group_replication/include/plugin_constants.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
 using std::map;
@@ -646,6 +647,35 @@ vector<Group_member_info *> *Group_member_info_manager::get_all_members() {
 
   mysql_mutex_unlock(&update_lock);
   return all_members;
+}
+
+std::list<Gcs_member_identifier>
+    *Group_member_info_manager::get_online_members_with_guarantees(
+        const Gcs_member_identifier &exclude_member) {
+  std::list<Gcs_member_identifier> *online_members = NULL;
+  mysql_mutex_lock(&update_lock);
+
+  for (map<string, Group_member_info *>::iterator it = members->begin();
+       it != members->end(); it++) {
+    if ((*it).second->get_member_version().get_version() <
+        TRANSACTION_WITH_GUARANTEES_VERSION) {
+      goto end; /* purecov: inspected */
+    }
+  }
+
+  online_members = new std::list<Gcs_member_identifier>();
+  for (map<string, Group_member_info *>::iterator it = members->begin();
+       it != members->end(); it++) {
+    if ((*it).second->get_recovery_status() ==
+            Group_member_info::MEMBER_ONLINE &&
+        !((*it).second->get_gcs_member_id() == exclude_member)) {
+      online_members->push_back((*it).second->get_gcs_member_id());
+    }
+  }
+
+end:
+  mysql_mutex_unlock(&update_lock);
+  return online_members;
 }
 
 void Group_member_info_manager::add(Group_member_info *new_member) {

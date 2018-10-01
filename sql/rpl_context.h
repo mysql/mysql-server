@@ -24,12 +24,14 @@
 #define RPL_SESSION_H
 
 #include <sys/types.h>
+#include <memory>
 
 #include "my_inttypes.h"  // IWYU pragma: keep
 
 class Gtid_set;
 class Sid_map;
 class THD;
+struct Gtid;
 
 /** Type of replication channel thread/transaction might be associated to*/
 enum enum_rpl_channel_type {
@@ -224,6 +226,32 @@ class Dependency_tracker_ctx {
   int64 m_last_session_sequence_number;
 };
 
+/**
+  This class tracks the last used GTID per session.
+*/
+class Last_used_gtid_tracker_ctx {
+ public:
+  Last_used_gtid_tracker_ctx();
+  virtual ~Last_used_gtid_tracker_ctx();
+
+  /**
+   Set the last used GTID the session.
+
+   @param[in]  gtid  the used gtid.
+  */
+  void set_last_used_gtid(const Gtid &gtid);
+
+  /**
+   Get the last used GTID the session.
+
+   @param[out]  gtid  the used gtid.
+  */
+  void get_last_used_gtid(Gtid &gtid);
+
+ private:
+  std::unique_ptr<Gtid> m_last_used_gtid;
+};
+
 /*
   This class SHALL encapsulate the replication context associated with the THD
   object.
@@ -232,6 +260,7 @@ class Rpl_thd_context {
  private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
+  Last_used_gtid_tracker_ctx m_last_used_gtid_tracker_ctx;
   /** If this thread is a channel, what is its type*/
   enum_rpl_channel_type rpl_channel_type;
 
@@ -247,6 +276,10 @@ class Rpl_thd_context {
 
   inline Dependency_tracker_ctx &dependency_tracker_ctx() {
     return m_dependency_tracker_ctx;
+  }
+
+  inline Last_used_gtid_tracker_ctx &last_used_gtid_tracker_ctx() {
+    return m_last_used_gtid_tracker_ctx;
   }
 
   enum_rpl_channel_type get_rpl_channel_type() { return rpl_channel_type; }

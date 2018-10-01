@@ -43,11 +43,13 @@ class Group_transaction_listener {
 
   /**
     Executed before a transaction begins
+    @param thread_id   the transaction thread id
     @param gr_consistency_level  the current consistency level for this session
     @param hold_timeout the max time to execute an action on this transaction
     @param rpl_channel_type type channel that receives transaction
   */
-  virtual int before_transaction_begin(ulong gr_consistency_level,
+  virtual int before_transaction_begin(my_thread_id thread_id,
+                                       ulong gr_consistency_level,
                                        ulong hold_timeout,
                                        enum_rpl_channel_type channel_type) = 0;
 
@@ -69,8 +71,11 @@ class Group_transaction_listener {
   /**
     Executed after commit
     @param thread_id   the transaction thread id
+    @param sidno       the transaction sidno
+    @param gno         the transaction gno
   */
-  virtual int after_commit(my_thread_id thread_id) = 0;
+  virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
+                           rpl_gno gno) = 0;
   /**
     Executed after rollback
     @param thread_id   the transaction thread id
@@ -105,11 +110,13 @@ class Group_transaction_observation_manager {
 
   /**
     Executed before a transaction begins
+    @param thread_id   the transaction thread id
     @param gr_consistency_level  the current consistency level for this session
     @param hold_timeout the max time to execute an action on this transaction
     @param rpl_channel_type type channel that receives transaction
   */
-  int before_transaction_begin(ulong gr_consistency_level, ulong hold_timeout,
+  int before_transaction_begin(my_thread_id thread_id,
+                               ulong gr_consistency_level, ulong hold_timeout,
                                enum_rpl_channel_type rpl_channel_type);
 
   /*
@@ -128,9 +135,10 @@ class Group_transaction_observation_manager {
   /*
     Executed after commit
     @param thread_id   the transaction thread id
-    @param origin      who applied it
+    @param sidno       the transaction sidno
+    @param gno         the transaction gno
   */
-  int after_commit(my_thread_id thread_id);
+  int after_commit(my_thread_id thread_id, rpl_sidno sidno, rpl_gno gno);
 
   /*
     Executed after rollback

@@ -12571,6 +12571,18 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   }
 }
 
+rpl_sidno Gtid_log_event::get_sidno(bool need_lock) {
+  if (spec.gtid.sidno < 0) {
+    if (need_lock)
+      global_sid_lock->rdlock();
+    else
+      global_sid_lock->assert_some_lock();
+    spec.gtid.sidno = global_sid_map->add_sid(sid);
+    if (need_lock) global_sid_lock->unlock();
+  }
+  return spec.gtid.sidno;
+}
+
 Previous_gtids_log_event::Previous_gtids_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Previous_gtids_event(buf, description_event),

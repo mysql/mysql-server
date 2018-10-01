@@ -1,0 +1,5 @@
+################################################################################
+# Validate that XA transactions do work on Group Replication with
+# group_replication_consistency= AFTER
+################################################################################
+--source gr_xa.test

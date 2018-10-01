@@ -33,9 +33,12 @@
 
 enum enum_group_replication_consistency_level {
   // allow executing reads from newer primary even when backlog isn't applied
-  GROUP_REPLICATION_CONSISTENCY_EVENTUAL,
+  GROUP_REPLICATION_CONSISTENCY_EVENTUAL = 0,
   // hold data reads and writes on the new primary until applies all the backlog
-  GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER
+  GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER = 1,
+  GROUP_REPLICATION_CONSISTENCY_BEFORE = 2,
+  GROUP_REPLICATION_CONSISTENCY_AFTER = 3,
+  GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER = 4
 };
 
 /*

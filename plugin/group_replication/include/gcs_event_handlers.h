@@ -93,6 +93,10 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
    received via on_message_received(...)
    */
   void handle_transactional_message(const Gcs_message &message) const;
+  void handle_transactional_with_guarantee_message(
+      const Gcs_message &message) const;
+  void handle_transaction_prepared_message(const Gcs_message &message) const;
+  void handle_sync_before_execution_message(const Gcs_message &message) const;
   void handle_certifier_message(const Gcs_message &message) const;
   void handle_recovery_message(Plugin_gcs_message *message) const;
   void handle_stats_message(const Gcs_message &message) const;

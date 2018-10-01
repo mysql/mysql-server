@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <list>
+
 #include <assert.h>
 #include <errno.h>
 #include <mysql/group_replication_priv.h>
@@ -35,6 +37,7 @@
 #include "plugin/group_replication/include/plugin_messages/single_primary_message.h"
 #include "plugin/group_replication/include/plugin_server_include.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
 char applier_module_channel_name[] = "group_replication_applier";
 bool applier_thread_is_exiting = false;
@@ -288,6 +291,21 @@ int Applier_module::apply_view_change_packet(
 
   Pipeline_event *pevent = new Pipeline_event(view_change_event, fde_evt);
   pevent->mark_event(SINGLE_VIEW_EVENT);
+
+  /*
+    If there are prepared consistent transactions waiting for the
+    prepare acknowledge, the View_change_log_event must be delayed
+    to after those transactions are committed, since they belong to
+    the previous view.
+  */
+  if (transaction_consistency_manager->has_local_prepared_transactions()) {
+    DBUG_PRINT("info", ("Delaying the log of the view '%s' to after local "
+                        "prepared transactions",
+                        view_change_packet->view_id.c_str()));
+    transaction_consistency_manager->schedule_view_change_event(pevent);
+    return error;
+  }
+
   error = inject_event_into_pipeline(pevent, cont);
   delete pevent;
 
@@ -312,7 +330,15 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
     Data_packet *new_packet = new Data_packet(payload, event_len);
     payload = payload + event_len;
 
-    Pipeline_event *pevent = new Pipeline_event(new_packet, fde_evt);
+    std::list<Gcs_member_identifier> *online_members = NULL;
+    if (NULL != data_packet->m_online_members) {
+      online_members =
+          new std::list<Gcs_member_identifier>(*data_packet->m_online_members);
+    }
+
+    Pipeline_event *pevent =
+        new Pipeline_event(new_packet, fde_evt, UNDEFINED_EVENT_MODIFIER,
+                           data_packet->m_consistency_level, online_members);
     error = inject_event_into_pipeline(pevent, cont);
 
     delete pevent;
@@ -343,6 +369,24 @@ int Applier_module::apply_single_primary_action_packet(
   }
 
   return error;
+}
+
+int Applier_module::apply_transaction_prepared_action_packet(
+    Transaction_prepared_action_packet *packet) {
+  return transaction_consistency_manager->handle_remote_prepare(
+      packet->get_sid(), packet->m_gno, packet->m_gcs_member_id);
+}
+
+int Applier_module::apply_sync_before_execution_action_packet(
+    Sync_before_execution_action_packet *packet) {
+  return transaction_consistency_manager->handle_sync_before_execution_message(
+      packet->m_thread_id, packet->m_gcs_member_id);
+}
+
+int Applier_module::apply_leaving_members_action_packet(
+    Leaving_members_action_packet *packet) {
+  return transaction_consistency_manager->handle_member_leave(
+      packet->m_leaving_members);
 }
 
 int Applier_module::applier_thread_handle() {
@@ -419,6 +463,21 @@ int Applier_module::applier_thread_handle() {
       case SINGLE_PRIMARY_PACKET_TYPE:
         packet_application_error = apply_single_primary_action_packet(
             (Single_primary_action_packet *)packet);
+        this->incoming->pop();
+        break;
+      case TRANSACTION_PREPARED_PACKET_TYPE:
+        packet_application_error = apply_transaction_prepared_action_packet(
+            static_cast<Transaction_prepared_action_packet *>(packet));
+        this->incoming->pop();
+        break;
+      case SYNC_BEFORE_EXECUTION_PACKET_TYPE:
+        packet_application_error = apply_sync_before_execution_action_packet(
+            static_cast<Sync_before_execution_action_packet *>(packet));
+        this->incoming->pop();
+        break;
+      case LEAVING_MEMBERS_PACKET_TYPE:
+        packet_application_error = apply_leaving_members_action_packet(
+            static_cast<Leaving_members_action_packet *>(packet));
         this->incoming->pop();
         break;
       default:

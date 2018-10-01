@@ -134,7 +134,7 @@ SET @@GLOBAL.group_replication_unreachable_majority_timeout= 11;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--error ER_RUN_HOOK_ERROR
 --reap
 
 --echo # The server's read_only mode should be enabled
@@ -162,6 +162,8 @@ call mtr.add_suppression("The member lost contact with a majority of the members
 call mtr.add_suppression("'This member could not reach a majority of the members for more than.*");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Due to a plugin error, some transactions were unable to be certified and will now rollback.");
+call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session.*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");

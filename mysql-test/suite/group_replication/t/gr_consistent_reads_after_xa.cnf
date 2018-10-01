@@ -1,0 +1,8 @@
+!include ../my.cnf
+
+[mysqld]
+group_replication_consistency= AFTER
+
+[mysqld.1]
+
+[mysqld.2]

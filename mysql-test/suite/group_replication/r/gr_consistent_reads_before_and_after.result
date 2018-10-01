@@ -1,0 +1,91 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 01. Create two tables on the group.
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY);
+include/rpl_sync.inc
+
+############################################################
+# 02. Lock table t1 on server2 to block a future update.
+[connection server_2]
+LOCK table t1 READ;
+
+############################################################
+# 03. Execute transaction T1, the transaction will block on
+#     server2 due to the table lock.
+[connection server1]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+COMMIT;
+
+############################################################
+# 04. Wait until T1 is delivered to server2.
+[connection server2]
+
+############################################################
+# 05. Execute a write transaction T2 on server2 with
+#     group_replication_consistency= 'BEFORE_AND_AFTER' , it
+#     will wait for T1 commit and will make new transactions
+#     wait for T2.
+[connection server_2_1]
+SET @@SESSION.group_replication_consistency= 'BEFORE_AND_AFTER';
+UPDATE t2 SET c1=99 WHERE c1=1;
+[connection server2]
+
+############################################################
+# 06. Force server1 to block between T2 prepare and commit.
+[connection server_1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_wait_on_after_applier_prepare';
+
+############################################################
+# 07. Unblock T1 on server2.
+[connection server_2]
+UNLOCK TABLES;
+[connection server_2_1]
+SET @@SESSION.group_replication_consistency= DEFAULT;
+
+############################################################
+# 08. Wait until T2 reaches prepare on server1.
+[connection server_1]
+SET DEBUG_SYNC= "now WAIT_FOR signal.after_applier_prepare_waiting";
+
+############################################################
+# 09. Now that T2 is prepared on server1 but it is not yet
+#     committed, new transactions (T3) are hold on server1.
+[connection server_1_1]
+SELECT COUNT(*) AS count FROM t2 WHERE c1=99;
+[connection server1]
+
+############################################################
+# 10. Unblock T2 prepare on server1.
+[connection server_1]
+SET DEBUG_SYNC= 'now SIGNAL signal.after_applier_prepare_continue';
+SET @@GLOBAL.DEBUG= '-d,group_replication_wait_on_after_applier_prepare';
+[connection server_1_1]
+count
+1
+
+############################################################
+# 11. Validate data.
+[connection server1]
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+[connection server2]
+include/assert.inc ['There is 1 value in table t1']
+include/assert.inc ['There is 1 value in table t2']
+include/diff_tables.inc [server1:t1, server2:t1]
+include/diff_tables.inc [server1:t2, server2:t2]
+
+############################################################
+# 12. Clean up.
+[connection server1]
+DROP TABLE t1;
+DROP TABLE t2;
+include/group_replication_end.inc

@@ -50,6 +50,7 @@
 
 // Forward declarations
 class Hold_transactions;
+class Transaction_consistency_manager;
 
 // Definition of system var structures
 
@@ -87,8 +88,9 @@ extern char *communication_debug_file_var;
 extern bool plugin_is_setting_read_mode;
 // Flag to register server rest master command invocations
 extern bool known_server_reset;
-// Certification latch
-extern Wait_ticket<my_thread_id> *certification_latch;
+// Latch used as the control point of the event driven
+// management of the transactions.
+extern Wait_ticket<my_thread_id> *transactions_latch;
 extern ulong exit_state_action_var;
 extern std::atomic<bool> plugin_is_stopping;
 
@@ -102,6 +104,7 @@ extern Group_events_observation_manager *group_events_observation_manager;
 extern Channel_observation_manager_list *channel_observation_manager_list;
 extern Asynchronous_channels_state_observer
     *asynchronous_channels_state_observer;
+extern Transaction_consistency_manager *transaction_consistency_manager;
 // Lock for the applier and recovery module to prevent the race between STOP
 // Group replication and ongoing transactions.
 extern Group_transaction_observation_manager
@@ -137,6 +140,7 @@ void set_single_primary_mode_var(bool option);
 void set_auto_increment_handler_values();
 void reset_auto_increment_handler_values(bool force_reset = false);
 SERVICE_TYPE(registry) * get_plugin_registry();
+rpl_sidno get_group_sidno();
 
 // Plugin public methods
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info);
