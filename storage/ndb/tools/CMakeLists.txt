@@ -219,10 +219,6 @@ IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
 ENDIF()
 ENDIF()
 
-# Install the ndb_dist_priv.sql script
-INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
-        DESTINATION ${INSTALL_MYSQLSHAREDIR})
-
 if(NOT WIN32)
   SET(TARGET_RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR}/runtime_output_directory)

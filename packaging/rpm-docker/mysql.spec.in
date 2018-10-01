@@ -321,7 +321,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%attr(644, root, root) %{_datadir}/mysql-*/ndb_dist_priv.sql
 %{_datadir}/mysql-*/memcache-api/
 %endif
 

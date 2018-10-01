@@ -1147,10 +1147,6 @@ fi
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
-%if 0%{?cluster}
-%attr(644, root, root) %{_datadir}/mysql-*/ndb_dist_priv.sql
-%endif
-
 %files common
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
