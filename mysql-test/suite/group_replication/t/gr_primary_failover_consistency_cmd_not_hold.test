@@ -25,7 +25,6 @@
 ########################################################################
 
 --source include/have_debug.inc
---source include/not_windows.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --let $rpl_server_count= 2
@@ -68,7 +67,7 @@ DO SLEEP(1);
 --echo
 --echo # 5. Validate SQL command EMPTY will not block
 
---exec $MYSQL --comments -e '-- sql comment'
+--exec $MYSQL --comments -e "-- sql comment"
 
 --echo
 --echo # 6. Validate SQL command USE will not block
