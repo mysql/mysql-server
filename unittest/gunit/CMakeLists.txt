@@ -231,9 +231,10 @@ SET(DISABLE_PSI_OPTIONS
   "-DDISABLE_PSI_STAGE"
   )
 
+
+MY_INCLUDE_SYSTEM_DIRECTORIES(ICU)
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  SYSTEM ${ICU_INCLUDE_DIRS}
 )
 
 # main-wrapper libraries (with tap-compatible option).
