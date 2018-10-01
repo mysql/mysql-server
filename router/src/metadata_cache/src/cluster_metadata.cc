@@ -136,8 +136,8 @@ bool ClusterMetadata::connect(
   }
 
   if (do_connect(*metadata_connection_, metadata_server)) {
-    log_info("Connected with metadata server running on %s:%i",
-             metadata_server.host.c_str(), metadata_server.port);
+    log_debug("Connected with metadata server running on %s:%i",
+              metadata_server.host.c_str(), metadata_server.port);
     return true;
   }
 
@@ -199,8 +199,8 @@ void ClusterMetadata::update_replicaset_status(
     }
 
     assert(gr_member_connection->is_connected());
-    log_info("Connected to replicaset '%s' through %s", name.c_str(),
-             mi_addr.c_str());
+    log_debug("Connected to replicaset '%s' through %s", name.c_str(),
+              mi_addr.c_str());
 
     try {
       bool single_primary_mode = true;
