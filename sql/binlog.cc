@@ -3606,9 +3606,9 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
 err:
   if (binlog_error_action == ABORT_SERVER) {
     exec_binlog_error_action_abort(
-        "Either disk is full or file system is read "
-        "only while opening the binlog. Aborting the"
-        " server.");
+        "Either disk is full, file system is read only or "
+        "there was an encryption error while opening the binlog. "
+        "Aborting the server.");
   } else
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING, name, errno);
 
@@ -4901,9 +4901,9 @@ err:
   close_purge_index_file();
   if (binlog_error_action == ABORT_SERVER) {
     exec_binlog_error_action_abort(
-        "Either disk is full or file system is read "
-        "only while opening the binlog. Aborting the"
-        " server.");
+        "Either disk is full, file system is read only or "
+        "there was an encryption error while opening the binlog. "
+        "Aborting the server.");
   } else {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_USE_FOR_LOGGING,
            (new_name) ? new_name : name, errno);

@@ -301,7 +301,12 @@ bool Rpl_encryption::enable(THD *thd) {
   }
 
   /* Revert enabling on error */
-  if (res) m_enabled = false;
+  if (res)
+    m_enabled = false;
+  else {
+    /* Cleanup any error if we are going to enable the option */
+    if (current_thd->is_error()) current_thd->clear_error();
+  }
   DBUG_PRINT("debug", ("m_enabled= %s", m_enabled ? "true" : "false"));
   DBUG_RETURN(res);
 }
@@ -311,6 +316,8 @@ void Rpl_encryption::disable(THD *thd) {
   DBUG_ASSERT(m_initialized);
   m_enabled = false;
   rotate_logs(thd);
+  /* Cleanup any error if we are going to disable the option */
+  if (current_thd->is_error()) current_thd->clear_error();
   m_master_key_recovered = false;
   DBUG_VOID_RETURN;
 }
@@ -580,8 +587,6 @@ bool Rpl_encryption::generate_master_key_on_keyring(uint32 seqno) {
 
 #endif  // MYSQL_SERVER
 
-int Rpl_cipher::get_header_size() { return m_header_size; }
-
 const char *Rpl_encryption_header::ENCRYPTION_MAGIC = "\xfd\x62\x69\x6e";
 
 Rpl_encryption_header::~Rpl_encryption_header() {
@@ -807,14 +812,14 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
       Rpl_encryption::report_keyring_error(error_and_key.first,
                                            m_key_id.c_str());
     } else if (!error_and_key.second.empty()) {
-      unsigned char buffer[Aes_ctr_decryptor::PASSWORD_LENGTH];
+      unsigned char buffer[Aes_ctr::PASSWORD_LENGTH];
 
       if (my_aes_decrypt(m_encrypted_password.data(),
                          m_encrypted_password.length(), buffer,
                          error_and_key.second.data(),
                          error_and_key.second.length(), my_aes_256_cbc,
                          m_iv.data(), false) != MY_AES_BAD_DATA)
-        file_password.append(buffer, Aes_ctr_decryptor::PASSWORD_LENGTH);
+        file_password.append(buffer, Aes_ctr::PASSWORD_LENGTH);
     }
   }
 #endif
@@ -822,13 +827,11 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
 }
 
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_encryptor() {
-  std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_encryptor);
-  return cypher;
+  return Aes_ctr::get_encryptor();
 }
 
 std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_decryptor() {
-  std::unique_ptr<Rpl_cipher> cypher(new Aes_ctr_decryptor);
-  return cypher;
+  return Aes_ctr::get_decryptor();
 }
 
 Key_string Rpl_encryption_header_v1::generate_new_file_password() {
@@ -836,9 +839,9 @@ Key_string Rpl_encryption_header_v1::generate_new_file_password() {
 #ifdef MYSQL_SERVER
   Rpl_encryption::Rpl_encryption_key master_key =
       rpl_encryption.get_master_key();
-  unsigned char password[Aes_ctr_encryptor::PASSWORD_LENGTH];
-  unsigned char encrypted_password[Aes_ctr_encryptor::PASSWORD_LENGTH];
-  unsigned char iv[Aes_ctr_encryptor::AES_BLOCK_SIZE];
+  unsigned char password[Aes_ctr::PASSWORD_LENGTH];
+  unsigned char encrypted_password[Aes_ctr::PASSWORD_LENGTH];
+  unsigned char iv[Aes_ctr::AES_BLOCK_SIZE];
   bool error = false;
 
   /* Generate password, it is a random string. */
@@ -853,7 +856,7 @@ Key_string Rpl_encryption_header_v1::generate_new_file_password() {
 
   /* Generate iv, it is a random string. */
   if (!error) {
-    error = my_rand_buffer(iv, Aes_ctr_encryptor::AES_BLOCK_SIZE);
+    error = my_rand_buffer(iv, Aes_ctr::AES_BLOCK_SIZE);
     m_iv = Key_string(iv, sizeof(iv));
   }
 
@@ -895,122 +898,3 @@ std::string Rpl_encryption_header_v1::key_id_with_suffix(
 #endif
   return ostr.str();
 }
-
-template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::open(const Key_string &password, int header_size) {
-  m_header_size = header_size;
-  if (EVP_BytesToKey(EVP_aes_256_ctr(), EVP_sha512(), NULL, password.data(),
-                     password.length(), 1, m_file_key, m_iv) == 0)
-    return true;
-
-  /*
-    AES-CTR counter is set to 0. Data stream is always encrypted beginning with
-    counter 0.
-  */
-  return init_cipher(0);
-}
-
-template <Cipher_type TYPE>
-Aes_ctr_cipher<TYPE>::~Aes_ctr_cipher<TYPE>() {
-  close();
-}
-
-template <Cipher_type TYPE>
-void Aes_ctr_cipher<TYPE>::close() {
-  deinit_cipher();
-}
-
-template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::set_stream_offset(uint64_t offset) {
-  unsigned char buffer[AES_BLOCK_SIZE];
-  /* A seek in the down stream would overflow the offset */
-  if (offset > UINT64_MAX - m_header_size) return true;
-
-  deinit_cipher();
-  if (init_cipher(offset)) return true;
-  /*
-    The cipher works with blocks. While init_cipher() above is called it will
-    initialize the cipher assuming it is pointing to the beginning of a block,
-    the following encrypt/decrypt operations will adjust the cipher to point to
-    the requested offset in the block, so next encrypt/decrypt operations will
-    work fine without the need to take care of reading from/writing to the
-    middle of a block.
-  */
-  if (TYPE == Cipher_type::ENCRYPT)
-    return encrypt(buffer, buffer, offset % AES_BLOCK_SIZE);
-  else
-    return decrypt(buffer, buffer, offset % AES_BLOCK_SIZE);
-}
-
-template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
-  DBUG_ENTER(" Aes_ctr_cipher::init_cipher");
-
-  uint64_t counter = offset / AES_BLOCK_SIZE;
-
-  DBUG_ASSERT(m_ctx == nullptr);
-  m_ctx = EVP_CIPHER_CTX_new();
-  if (m_ctx == nullptr) DBUG_RETURN(true);
-
-  /*
-    AES's IV is 16 bytes.
-    In CTR mode, we will use the last 8 bytes as the counter.
-    Counter is stored in big-endian.
-  */
-  int8store(m_iv + 8, counter);
-  /* int8store stores it in little-endian, so swap it to big-endian */
-  std::swap(m_iv[8], m_iv[15]);
-  std::swap(m_iv[9], m_iv[14]);
-  std::swap(m_iv[10], m_iv[13]);
-  std::swap(m_iv[11], m_iv[12]);
-
-  int res;
-  /* EVP_EncryptInit_ex() return 1 for success and 0 for failure */
-  if (TYPE == Cipher_type::ENCRYPT)
-    res = EVP_EncryptInit_ex(m_ctx, EVP_aes_256_ctr(), NULL, m_file_key, m_iv);
-  else
-    res = EVP_DecryptInit_ex(m_ctx, EVP_aes_256_ctr(), NULL, m_file_key, m_iv);
-  DBUG_RETURN(res == 0);
-}
-
-template <Cipher_type TYPE>
-void Aes_ctr_cipher<TYPE>::deinit_cipher() {
-  if (m_ctx) EVP_CIPHER_CTX_free(m_ctx);
-  m_ctx = nullptr;
-}
-
-template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
-                                   const unsigned char *src, int length) {
-  int out_len = 0;
-
-  if (TYPE == Cipher_type::DECRYPT) {
-    /* It should never be called by a decrypt cipher */
-    DBUG_ASSERT(0);
-    return true;
-  }
-
-  if (EVP_EncryptUpdate(m_ctx, dest, &out_len, src, length) == 0) return true;
-
-  DBUG_ASSERT(out_len == length);
-  return false;
-}
-
-template <Cipher_type TYPE>
-bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
-                                   const unsigned char *src, int length) {
-  int out_len = 0;
-
-  if (TYPE == Cipher_type::ENCRYPT) {
-    /* It should never be called by an encrypt cipher */
-    DBUG_ASSERT(0);
-    return true;
-  }
-
-  if (EVP_DecryptUpdate(m_ctx, dest, &out_len, src, length) == 0) return true;
-  DBUG_ASSERT(out_len == length);
-  return false;
-}
-
-template class Aes_ctr_cipher<Cipher_type::ENCRYPT>;
-template class Aes_ctr_cipher<Cipher_type::DECRYPT>;

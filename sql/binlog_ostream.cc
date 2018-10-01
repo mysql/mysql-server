@@ -149,6 +149,15 @@ Binlog_cache_storage::~Binlog_cache_storage() { close(); }
 
 Binlog_encryption_ostream::~Binlog_encryption_ostream() { close(); }
 
+#define THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR                        \
+  char err_msg[MYSQL_ERRMSG_SIZE];                                          \
+  ERR_error_string_n(ERR_get_error(), err_msg, MYSQL_ERRMSG_SIZE);          \
+  LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT, err_msg); \
+  if (current_thd) {                                                        \
+    if (current_thd->is_error()) current_thd->clear_error();                \
+    my_error(ER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT, MYF(0), err_msg);         \
+  }
+
 bool Binlog_encryption_ostream::open(
     std::unique_ptr<Truncatable_ostream> down_ostream) {
   DBUG_ASSERT(down_ostream != nullptr);
@@ -156,7 +165,11 @@ bool Binlog_encryption_ostream::open(
   const Key_string password_str = m_header->generate_new_file_password();
   m_encryptor.reset(nullptr);
   m_encryptor = m_header->get_encryptor();
-  if (m_encryptor->open(password_str, m_header->get_header_size())) return true;
+  if (m_encryptor->open(password_str, m_header->get_header_size())) {
+    THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+    m_encryptor.reset(nullptr);
+    return true;
+  }
   m_down_ostream = std::move(down_ostream);
   return m_header->serialize(m_down_ostream.get());
 }
@@ -170,8 +183,12 @@ bool Binlog_encryption_ostream::open(
   m_header = std::move(header);
   m_encryptor.reset(nullptr);
   m_encryptor = m_header->get_encryptor();
-  m_encryptor->open(m_header->decrypt_file_password(),
-                    m_header->get_header_size());
+  if (m_encryptor->open(m_header->decrypt_file_password(),
+                        m_header->get_header_size())) {
+    THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+    m_encryptor.reset(nullptr);
+    return true;
+  }
 
   return seek(0);
 }
@@ -196,7 +213,11 @@ bool Binlog_encryption_ostream::write(const unsigned char *buffer,
     int encrypt_len =
         std::min(length, static_cast<my_off_t>(ENCRYPT_BUFFER_SIZE));
 
-    if (m_encryptor->encrypt(encrypt_buffer, ptr, encrypt_len)) return true;
+    if (m_encryptor->encrypt(encrypt_buffer, ptr, encrypt_len)) {
+      THROW_RPL_ENCRYPTION_FAILED_TO_ENCRYPT_ERROR;
+      return true;
+    }
+
     if (m_down_ostream->write(encrypt_buffer, encrypt_len)) return true;
 
     ptr += encrypt_len;

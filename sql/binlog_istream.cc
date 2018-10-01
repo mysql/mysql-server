@@ -65,6 +65,8 @@ const char *Binlog_read_error::get_str() const {
              "please check if keyring plugin is loaded";
     case READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED:
       return "Reading encrypted log files directly is not supported.";
+    case ERROR_DECRYPTING_FILE:
+      return "Failed to decrypt content read from binlog file.";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       DBUG_ASSERT(0);
@@ -95,7 +97,8 @@ bool Binlog_encryption_istream::open(
   m_decryptor = encryption_header->get_decryptor();
   if (m_decryptor->open(password, encryption_header->get_header_size())) {
     m_decryptor.reset(nullptr);
-    DBUG_RETURN(true);
+    DBUG_RETURN(
+        binlog_read_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE));
   }
 
   DBUG_RETURN(false);

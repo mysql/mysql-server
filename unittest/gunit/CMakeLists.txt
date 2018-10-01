@@ -331,6 +331,7 @@ SET(TESTS
   prealloced_array
   priority_queue
   record_buffer
+  rpl_cipher
   sql_class_header
   sql_list
   sql_plist
@@ -446,6 +447,7 @@ ENDFOREACH()
 SET(SQL_GUNIT_LIB_SOURCE 
   ${CMAKE_SOURCE_DIR}/sql/filesort_utils.cc 
   ${CMAKE_SOURCE_DIR}/sql/mdl.cc
+  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/sql_list.cc
   ${CMAKE_SOURCE_DIR}/sql/stateless_allocator.cc
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
