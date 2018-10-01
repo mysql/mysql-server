@@ -18,7 +18,7 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=gcol_ndb --vard
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=ndb_memcache --vardir=var-memc-ndb --suite=ndb_memcache
 
 # Run the meb and meb_ptr suites
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=MEB --vardir=var-meb --suite=meb,meb_ptr
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=MEB --vardir=var-meb --suite=meb,meb_ptr
 
 # Run the group_replication suite
 perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
