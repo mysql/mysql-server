@@ -80,7 +80,6 @@ class Query_result_insert : public Query_result_interceptor {
      Creates a Query_result_insert for routing a result set to an existing
      table.
 
-     @param thd              Thread handle
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
      @param target_columns   See details.
@@ -123,12 +122,12 @@ are found inside the COPY_INFO.
      target_columns is columns1, if not empty then 'info' must manage defaults
      of other columns than columns1.
   */
-  Query_result_insert(THD *thd, TABLE_LIST *table_list_par, TABLE *table_par,
+  Query_result_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                       List<Item> *target_columns,
                       List<Item> *target_or_source_columns,
                       List<Item> *update_fields, List<Item> *update_values,
                       enum_duplicates duplic)
-      : Query_result_interceptor(thd),
+      : Query_result_interceptor(),
         table_list(table_list_par),
         table(table_par),
         fields(target_or_source_columns),
@@ -146,14 +145,14 @@ are found inside the COPY_INFO.
 
  public:
   bool need_explain_interceptor() const override { return true; }
-  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  bool start_execution() override;
-  bool send_data(List<Item> &items) override;
-  virtual void store_values(List<Item> &values);
-  void send_error(uint errcode, const char *err) override;
-  bool send_eof() override;
-  void abort_result_set() override;
-  void cleanup() override;
+  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  bool start_execution(THD *thd) override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  virtual void store_values(THD *thd, List<Item> &values);
+  void send_error(THD *thd, uint errcode, const char *err) override;
+  bool send_eof(THD *thd) override;
+  void abort_result_set(THD *thd) override;
+  void cleanup(THD *thd) override;
 
  private:
   /**
@@ -186,22 +185,21 @@ class Query_result_create final : public Query_result_insert {
   handlerton *m_post_ddl_ht;
 
  public:
-  Query_result_create(THD *thd, TABLE_LIST *table_arg,
-                      HA_CREATE_INFO *create_info_par,
+  Query_result_create(TABLE_LIST *table_arg, HA_CREATE_INFO *create_info_par,
                       Alter_info *alter_info_arg, List<Item> &select_fields,
                       enum_duplicates duplic, TABLE_LIST *select_tables_arg);
 
-  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
-  void store_values(List<Item> &values) override;
-  void send_error(uint errcode, const char *err) override;
-  bool send_eof() override;
-  void abort_result_set() override;
-  bool start_execution() override;
+  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
+  void store_values(THD *thd, List<Item> &values) override;
+  void send_error(THD *thd, uint errcode, const char *err) override;
+  bool send_eof(THD *thd) override;
+  void abort_result_set(THD *thd) override;
+  bool start_execution(THD *thd) override;
 
  private:
   bool stmt_binlog_is_trans() const override;
-  int binlog_show_create_table();
-  void drop_open_table();
+  int binlog_show_create_table(THD *thd);
+  void drop_open_table(THD *thd);
 };
 
 /**

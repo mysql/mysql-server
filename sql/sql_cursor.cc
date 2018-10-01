@@ -96,10 +96,11 @@ class Query_result_materialize final : public Query_result_union {
   Query_result *result; /**< the result object of the caller (PS or SP) */
  public:
   Materialized_cursor *materialized_cursor;
-  Query_result_materialize(THD *thd, Query_result *result_arg)
-      : Query_result_union(thd), result(result_arg), materialized_cursor(0) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) override;
-  void cleanup() override {
+  Query_result_materialize(Query_result *result_arg)
+      : Query_result_union(), result(result_arg), materialized_cursor(0) {}
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  void cleanup(THD *) override {
     table = NULL;  // Pass table object to Materialized_cursor
   }
 };
@@ -131,7 +132,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   LEX *lex = thd->lex;
 
   if (!(result_materialize =
-            new (thd->mem_root) Query_result_materialize(thd, result)))
+            new (thd->mem_root) Query_result_materialize(result)))
     return true;
 
   save_result = lex->result;
@@ -163,7 +164,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   if (rc) {
     if (result_materialize->materialized_cursor) {
       /* Rollback metadata in the client-server protocol. */
-      result_materialize->abort_result_set();
+      result_materialize->abort_result_set(thd);
 
       delete result_materialize->materialized_cursor;
     }
@@ -277,7 +278,8 @@ int Materialized_cursor::send_result_set_metadata(
     mysql_execute_command() is finished, item_list can not be used for
     sending metadata, because it references closed table.
   */
-  rc = result->send_result_set_metadata(item_list, Protocol::SEND_NUM_ROWS);
+  rc =
+      result->send_result_set_metadata(thd, item_list, Protocol::SEND_NUM_ROWS);
 
 end:
   thd->swap_query_arena(backup_arena, &m_arena);
@@ -294,7 +296,7 @@ int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
 
   /* Create a list of fields and start sequential scan. */
 
-  rc = result->prepare(item_list, &fake_unit);
+  rc = result->prepare(thd, item_list, &fake_unit);
   rc = !rc && table->file->ha_rnd_init(true);
   is_rnd_inited = !rc;
 
@@ -304,9 +306,9 @@ int Materialized_cursor::open(JOIN *join MY_ATTRIBUTE((unused))) {
 
   if (!rc) {
     thd->server_status |= SERVER_STATUS_CURSOR_EXISTS;
-    result->send_eof();
+    result->send_eof(thd);
   } else {
-    result->abort_result_set();
+    result->abort_result_set(thd);
   }
 
   return rc;
@@ -337,17 +339,17 @@ bool Materialized_cursor::fetch(ulong num_rows) {
       the error has already been set. Return true if the error
       is set.
     */
-    if (result->send_data(item_list)) return true;
+    if (result->send_data(thd, item_list)) return true;
   }
 
   switch (res) {
     case 0:
       thd->server_status |= SERVER_STATUS_CURSOR_EXISTS;
-      result->send_eof();
+      result->send_eof(thd);
       break;
     case HA_ERR_END_OF_FILE:
       thd->server_status |= SERVER_STATUS_LAST_ROW_SENT;
-      result->send_eof();
+      result->send_eof(thd);
       close();
       break;
     default:
@@ -382,7 +384,8 @@ Materialized_cursor::~Materialized_cursor() {
  Query_result_materialize
 ****************************************************************************/
 
-bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
+bool Query_result_materialize::send_result_set_metadata(THD *thd,
+                                                        List<Item> &list,
                                                         uint) {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_field_list(), false,

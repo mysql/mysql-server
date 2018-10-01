@@ -928,7 +928,7 @@ class SELECT_LEX {
   void set_having_cond(Item *cond) { m_having_cond = cond; }
   void set_query_result(Query_result *result) { m_query_result = result; }
   Query_result *query_result() const { return m_query_result; }
-  bool change_query_result(Query_result_interceptor *new_result,
+  bool change_query_result(THD *thd, Query_result_interceptor *new_result,
                            Query_result_interceptor *old_result);
 
   /// Set base options for a query block (and active options too)

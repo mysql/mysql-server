@@ -278,10 +278,9 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       Query_result_create is currently not re-execution friendly and
       needs to be created for every execution of a PS/SP.
     */
-    if ((result = new (thd->mem_root)
-             Query_result_create(thd, create_table, &create_info, &alter_info,
-                                 select_lex->item_list, lex->duplicates,
-                                 query_expression_tables))) {
+    if ((result = new (thd->mem_root) Query_result_create(
+             create_table, &create_info, &alter_info, select_lex->item_list,
+             lex->duplicates, query_expression_tables))) {
       // For objects acquired during table creation.
       dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 

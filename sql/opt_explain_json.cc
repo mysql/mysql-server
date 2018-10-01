@@ -2012,7 +2012,7 @@ bool Explain_format_JSON::end_context(enum_parsing_context ctx) {
 
     List<Item> field_list;
     ret = (item == NULL || field_list.push_back(item) ||
-           output->send_data(field_list));
+           output->send_data(current_thd, field_list));
   } else if (ctx == CTX_DERIVED) {
     if (!current_context->parent->find_and_set_derived(current_context)) {
       DBUG_ASSERT(!"No derived table found!");
@@ -2031,7 +2031,7 @@ bool Explain_format_JSON::send_headers(Query_result *result) {
   Item *item = new Item_empty_string("EXPLAIN", 78, system_charset_info);
   if (item == NULL || field_list.push_back(item)) return true;
   return result->send_result_set_metadata(
-      field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+      current_thd, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
 }
 
 void qep_row::format_extra(Opt_trace_object *obj) {

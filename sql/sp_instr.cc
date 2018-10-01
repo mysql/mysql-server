@@ -1457,7 +1457,7 @@ bool sp_instr_cpush::execute(THD *thd, uint *nextp) {
 
   // sp_instr_cpush::execute() just registers the cursor in the runtime context.
 
-  return thd->sp_runtime_ctx->push_cursor(thd, this);
+  return thd->sp_runtime_ctx->push_cursor(this);
 }
 
 bool sp_instr_cpush::exec_core(THD *thd, uint *) {

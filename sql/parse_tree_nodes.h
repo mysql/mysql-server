@@ -1501,8 +1501,7 @@ class PT_into_destination_outfile final : public PT_into_destination {
 
     LEX *lex = pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->result =
-              new (*THR_MALLOC) Query_result_export(pc->thd, &m_exchange)))
+    if (!(lex->result = new (*THR_MALLOC) Query_result_export(&m_exchange)))
       return true;
 
     return false;
@@ -1525,8 +1524,7 @@ class PT_into_destination_dumpfile final : public PT_into_destination {
     LEX *lex = pc->thd->lex;
     if (!lex->is_explain()) {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->result =
-                new (*THR_MALLOC) Query_result_dump(pc->thd, &m_exchange)))
+      if (!(lex->result = new (*THR_MALLOC) Query_result_dump(&m_exchange)))
         return true;
     }
     return false;
@@ -1591,7 +1589,7 @@ class PT_select_var_list : public PT_into_destination {
     LEX *const lex = pc->thd->lex;
     if (lex->is_explain()) return false;
 
-    Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar(pc->thd);
+    Query_dumpvar *dumpvar = new (pc->mem_root) Query_dumpvar();
     if (dumpvar == NULL) return true;
 
     dumpvar->var_list = value;

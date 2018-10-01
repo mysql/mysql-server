@@ -1849,7 +1849,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
 bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
                                        SELECT_LEX *select) {
   DBUG_ENTER("explain_single_table_modification");
-  Query_result_send result(ethd);
+  Query_result_send result;
   const THD *const query_thd = select->master_unit()->thd;
   const bool other = (query_thd != ethd);
   bool ret;
@@ -1866,7 +1866,7 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
     prepare/initialize Query_result_send object manually.
   */
   List<Item> dummy;
-  if (result.prepare(dummy, ethd->lex->unit))
+  if (result.prepare(ethd, dummy, ethd->lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
 
   ethd->lex->explain_format->send_headers(&result);
@@ -1905,7 +1905,7 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
             ethd->is_error();
   }
   if (ret)
-    result.abort_result_set();
+    result.abort_result_set(ethd);
   else {
     if (!other) {
       StringBuffer<1024> str;
@@ -1916,7 +1916,7 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
       push_warning(ethd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
     }
 
-    result.send_eof();
+    result.send_eof(ethd);
   }
   DBUG_RETURN(ret);
 }
@@ -2052,13 +2052,13 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit) {
                          ? unit->query_result()
                          : unit->first_select()->query_result();
 
-  Query_result_explain explain_wrapper(ethd, unit, explain_result);
+  Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other) {
-    if (!((explain_result = new (*THR_MALLOC) Query_result_send(ethd))))
+    if (!((explain_result = new (*THR_MALLOC) Query_result_send())))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
-    if (explain_result->prepare(dummy, ethd->lex->unit))
+    if (explain_result->prepare(ethd, dummy, ethd->lex->unit))
       DBUG_RETURN(true); /* purecov: inspected */
   } else {
     DBUG_ASSERT(unit->is_optimized());
@@ -2112,9 +2112,9 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit) {
   }
 
   if (res)
-    explain_result->abort_result_set();
+    explain_result->abort_result_set(ethd);
   else
-    explain_result->send_eof();
+    explain_result->send_eof(ethd);
 
   if (other) destroy(explain_result);
 

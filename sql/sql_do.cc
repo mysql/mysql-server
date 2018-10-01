@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include "sql/sql_list.h"
 #include "sql_string.h"
 
-bool Query_result_do::send_data(List<Item> &items) {
+bool Query_result_do::send_data(THD *thd, List<Item> &items) {
   DBUG_ENTER("Query_result_do::send_data");
 
   char buffer[MAX_FIELD_WIDTH];
@@ -47,7 +47,7 @@ bool Query_result_do::send_data(List<Item> &items) {
   DBUG_RETURN(false);
 }
 
-bool Query_result_do::send_eof() {
+bool Query_result_do::send_eof(THD *thd) {
   /*
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)

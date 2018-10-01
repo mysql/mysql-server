@@ -4773,12 +4773,12 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables) {
         to prepend EXPLAIN to any query and receive output for it,
         even if the query itself redirects the output.
       */
-      Query_result *const result = new (*THR_MALLOC) Query_result_send(thd);
+      Query_result *const result = new (thd->mem_root) Query_result_send();
       if (!result) DBUG_RETURN(true); /* purecov: inspected */
       res = handle_query(thd, lex, result, 0, 0);
     } else {
       Query_result *result = lex->result;
-      if (!result && !(result = new (*THR_MALLOC) Query_result_send(thd)))
+      if (!result && !(result = new (thd->mem_root) Query_result_send()))
         DBUG_RETURN(true); /* purecov: inspected */
       Query_result *save_result = result;
       res = handle_query(thd, lex, result, 0, 0);

@@ -58,14 +58,15 @@
 
 using std::min;
 
-bool Query_result_send::send_result_set_metadata(List<Item> &list, uint flags) {
+bool Query_result_send::send_result_set_metadata(THD *thd, List<Item> &list,
+                                                 uint flags) {
   bool res;
   if (!(res = thd->send_result_metadata(&list, flags)))
     is_result_set_started = true;
   return res;
 }
 
-void Query_result_send::abort_result_set() {
+void Query_result_send::abort_result_set(THD *thd) {
   DBUG_ENTER("Query_result_send::abort_result_set");
 
   if (is_result_set_started && thd->sp_runtime_ctx) {
@@ -85,7 +86,7 @@ void Query_result_send::abort_result_set() {
 
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(List<Item> &items) {
+bool Query_result_send::send_data(THD *thd, List<Item> &items) {
   Protocol *protocol = thd->get_protocol();
   DBUG_ENTER("Query_result_send::send_data");
 
@@ -99,7 +100,7 @@ bool Query_result_send::send_data(List<Item> &items) {
   DBUG_RETURN(protocol->end_row());
 }
 
-bool Query_result_send::send_eof() {
+bool Query_result_send::send_eof(THD *thd) {
   /*
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -137,7 +138,7 @@ bool sql_exchange::escaped_given(void) {
   Handling writing to file
 ************************************************************************/
 
-void Query_result_to_file::send_error(uint errcode, const char *err) {
+void Query_result_to_file::send_error(THD *, uint errcode, const char *err) {
   my_message(errcode, err, MYF(0));
   if (file > 0) {
     (void)end_io_cache(&cache);
@@ -148,7 +149,7 @@ void Query_result_to_file::send_error(uint errcode, const char *err) {
   }
 }
 
-bool Query_result_to_file::send_eof() {
+bool Query_result_to_file::send_eof(THD *thd) {
   bool error = (end_io_cache(&cache) != 0);
   if (mysql_file_close(file, MYF(MY_WME)) || thd->is_error()) error = true;
 
@@ -159,7 +160,7 @@ bool Query_result_to_file::send_eof() {
   return error;
 }
 
-void Query_result_to_file::cleanup() {
+void Query_result_to_file::cleanup(THD *) {
   /* In case of error send_eof() may be not called: close the file here. */
   if (file >= 0) {
     (void)end_io_cache(&cache);
@@ -230,7 +231,8 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   return file;
 }
 
-bool Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u) {
+bool Query_result_export::prepare(THD *thd, List<Item> &list,
+                                  SELECT_LEX_UNIT *u) {
   bool blob_flag = false;
   bool string_results = false, non_string_results = false;
   unit = u;
@@ -319,7 +321,7 @@ bool Query_result_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u) {
   return false;
 }
 
-bool Query_result_export::start_execution() {
+bool Query_result_export::start_execution(THD *thd) {
   if ((file = create_file(thd, path, exchange, &cache)) < 0) return true;
   return false;
 }
@@ -330,7 +332,7 @@ bool Query_result_export::start_execution() {
              : (int)(uchar)(x) == field_term_char) || \
    (int)(uchar)(x) == line_sep_char || !(x))
 
-bool Query_result_export::send_data(List<Item> &items) {
+bool Query_result_export::send_data(THD *thd, List<Item> &items) {
   DBUG_ENTER("Query_result_export::send_data");
   char buff[MAX_FIELD_WIDTH], null_buff[2], space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
@@ -610,26 +612,26 @@ err:
   DBUG_RETURN(true);
 }
 
-void Query_result_export::cleanup() {
+void Query_result_export::cleanup(THD *thd) {
   thd->set_sent_row_count(row_count);
-  Query_result_to_file::cleanup();
+  Query_result_to_file::cleanup(thd);
 }
 
 /***************************************************************************
 ** Dump of query to a binary file
 ***************************************************************************/
 
-bool Query_result_dump::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_dump::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
   unit = u;
   return false;
 }
 
-bool Query_result_dump::start_execution() {
+bool Query_result_dump::start_execution(THD *thd) {
   if ((file = create_file(thd, path, exchange, &cache)) < 0) return true;
   return false;
 }
 
-bool Query_result_dump::send_data(List<Item> &items) {
+bool Query_result_dump::send_data(THD *, List<Item> &items) {
   List_iterator_fast<Item> li(items);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
@@ -662,7 +664,7 @@ err:
   Dump of select to variables
 ***************************************************************************/
 
-bool Query_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u) {
+bool Query_dumpvar::prepare(THD *, List<Item> &list, SELECT_LEX_UNIT *u) {
   unit = u;
 
   if (var_list.elements != list.elements) {
@@ -678,7 +680,7 @@ bool Query_dumpvar::check_simple_select() const {
   return true;
 }
 
-bool Query_dumpvar::send_data(List<Item> &items) {
+bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
   List_iterator_fast<PT_select_var> var_li(var_list);
   List_iterator<Item> it(items);
   Item *item;
@@ -711,7 +713,7 @@ bool Query_dumpvar::send_data(List<Item> &items) {
   DBUG_RETURN(thd->is_error());
 }
 
-bool Query_dumpvar::send_eof() {
+bool Query_dumpvar::send_eof(THD *thd) {
   if (!row_count)
     push_warning(thd, Sql_condition::SL_WARNING, ER_SP_FETCH_NO_DATA,
                  ER_THD(thd, ER_SP_FETCH_NO_DATA));

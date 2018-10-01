@@ -1337,8 +1337,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
                                 OPTION_BUFFER_RESULT);
 
     Prepared_stmt_arena_holder ps_holder(thd);
-    result = new (*THR_MALLOC)
-        Query_result_update(thd, update_fields, update_value_list);
+    result = new (thd->mem_root)
+        Query_result_update(update_fields, update_value_list);
     if (result == NULL) DBUG_RETURN(true); /* purecov: inspected */
 
     select->set_query_result(result);
@@ -1523,7 +1523,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     DBUG_RETURN(true); /* purecov: inspected */
 
   if (select->query_result() &&
-      select->query_result()->prepare(select->fields_list, lex->unit))
+      select->query_result()->prepare(thd, select->fields_list, lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
 
   Opt_trace_array trace_steps(trace, "steps");
@@ -1551,7 +1551,7 @@ bool Sql_cmd_update::execute_inner(THD *thd) {
   Connect fields with tables and create list of tables that are updated
 */
 
-bool Query_result_update::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   SQL_I_List<TABLE_LIST> update;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
@@ -1789,6 +1789,7 @@ bool Query_result_update::optimize() {
 
   SELECT_LEX *const select = unit->first_select();
   JOIN *const join = select->join;
+  THD *thd = join->thd;
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
@@ -1992,7 +1993,7 @@ bool Query_result_update::optimize() {
   DBUG_RETURN(0);
 }
 
-void Query_result_update::cleanup() {
+void Query_result_update::cleanup(THD *thd) {
   TABLE_LIST *table;
   for (table = update_tables; table; table = table->next_local) {
     table->table->no_cache = 0;
@@ -2016,7 +2017,7 @@ void Query_result_update::cleanup() {
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
 }
 
-bool Query_result_update::send_data(List<Item> &) {
+bool Query_result_update::send_data(THD *thd, List<Item> &) {
   TABLE_LIST *cur_table;
   DBUG_ENTER("Query_result_update::send_data");
 
@@ -2160,12 +2161,12 @@ bool Query_result_update::send_data(List<Item> &) {
   DBUG_RETURN(false);
 }
 
-void Query_result_update::send_error(uint errcode, const char *err) {
+void Query_result_update::send_error(THD *, uint errcode, const char *err) {
   /* First send error what ever it is ... */
   my_error(errcode, MYF(0), err);
 }
 
-void Query_result_update::abort_result_set() {
+void Query_result_update::abort_result_set(THD *thd) {
   /* the error was handled or nothing deleted and no side effects return */
   if (error_handled ||
       (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT) &&
@@ -2182,7 +2183,7 @@ void Query_result_update::abort_result_set() {
         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
     if (!update_completed && update_table_count > 1) {
       /* @todo: Add warning here */
-      (void)do_updates();
+      (void)do_updates(thd);
     }
   }
   if (thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
@@ -2208,7 +2209,7 @@ void Query_result_update::abort_result_set() {
       thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 }
 
-bool Query_result_update::do_updates() {
+bool Query_result_update::do_updates(THD *thd) {
   TABLE_LIST *cur_table;
   int local_error = 0;
   ha_rows org_updated;
@@ -2335,7 +2336,7 @@ bool Query_result_update::do_updates() {
            copy_field_ptr++)
         copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
-      if (table->in_use->is_error()) goto err;
+      if (thd->is_error()) goto err;
 
       // The above didn't update generated columns
       if (table->vfield &&
@@ -2422,7 +2423,7 @@ err:
   DBUG_RETURN(true);
 }
 
-bool Query_result_update::send_eof() {
+bool Query_result_update::send_eof(THD *thd) {
   char buff[STRING_BUFFER_USUAL_SIZE];
   ulonglong id;
   THD::killed_state killed_status = THD::NOT_KILLED;
@@ -2434,7 +2435,7 @@ bool Query_result_update::send_eof() {
      error takes into account killed status gained in do_updates()
   */
   int local_error = thd->is_error();
-  if (!local_error) local_error = (update_table_count) ? do_updates() : 0;
+  if (!local_error) local_error = (update_table_count) ? do_updates(thd) : 0;
   /*
     if local_error is not set ON until after do_updates() then
     later carried out killing should not affect binlogging.

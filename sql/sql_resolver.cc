@@ -431,7 +431,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   // Setup full-text functions after resolving HAVING
   if (has_ft_funcs() && setup_ftfuncs(thd, this)) DBUG_RETURN(true);
 
-  if (query_result() && query_result()->prepare(fields_list, unit))
+  if (query_result() && query_result()->prepare(thd, fields_list, unit))
     DBUG_RETURN(true);
 
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))

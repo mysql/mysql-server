@@ -1267,7 +1267,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
 
     result = new (thd->mem_root) Query_result_insert(
-        thd, table_list, insert_table, &insert_field_list, &insert_field_list,
+        table_list, insert_table, &insert_field_list, &insert_field_list,
         &update_field_list, &update_value_list, duplicates);
     if (result == NULL) DBUG_RETURN(true); /* purecov: inspected */
 
@@ -1995,7 +1995,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   return thd->is_error();
 }
 
-bool Query_result_insert::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_insert::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   DBUG_ENTER("Query_result_insert::prepare");
 
   LEX *const lex = thd->lex;
@@ -2052,7 +2052,7 @@ bool Query_result_insert::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
   @returns false always
 */
 
-bool Query_result_insert::start_execution() {
+bool Query_result_insert::start_execution(THD *thd) {
   DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES && !thd->lex->is_explain()) {
     DBUG_ASSERT(!bulk_insert_started);
@@ -2063,7 +2063,7 @@ bool Query_result_insert::start_execution() {
   DBUG_RETURN(false);
 }
 
-void Query_result_insert::cleanup() {
+void Query_result_insert::cleanup(THD *thd) {
   DBUG_ENTER("Query_result_insert::cleanup");
   if (table) {
     table->next_number_field = 0;
@@ -2074,12 +2074,12 @@ void Query_result_insert::cleanup() {
   DBUG_VOID_RETURN;
 }
 
-bool Query_result_insert::send_data(List<Item> &values) {
+bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
   DBUG_ENTER("Query_result_insert::send_data");
   bool error = 0;
 
   thd->check_for_truncated_fields = CHECK_FIELD_WARN;
-  store_values(values);
+  store_values(thd, values);
   thd->check_for_truncated_fields = CHECK_FIELD_ERROR_FOR_NULL;
   if (thd->is_error()) {
     table->auto_increment_field_not_null = false;
@@ -2128,7 +2128,7 @@ bool Query_result_insert::send_data(List<Item> &values) {
   DBUG_RETURN(error);
 }
 
-void Query_result_insert::store_values(List<Item> &values) {
+void Query_result_insert::store_values(THD *thd, List<Item> &values) {
   if (fields->elements) {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
@@ -2141,7 +2141,7 @@ void Query_result_insert::store_values(List<Item> &values) {
   check_that_all_fields_are_given_values(thd, table, table_list);
 }
 
-void Query_result_insert::send_error(uint errcode, const char *err) {
+void Query_result_insert::send_error(THD *, uint errcode, const char *err) {
   DBUG_ENTER("Query_result_insert::send_error");
 
   my_message(errcode, err, MYF(0));
@@ -2153,7 +2153,7 @@ bool Query_result_insert::stmt_binlog_is_trans() const {
   return table->file->has_transactions();
 }
 
-bool Query_result_insert::send_eof() {
+bool Query_result_insert::send_eof(THD *thd) {
   int error;
   ulonglong id, row_count;
   bool changed MY_ATTRIBUTE((unused));
@@ -2252,7 +2252,7 @@ bool Query_result_insert::send_eof() {
   DBUG_RETURN(false);
 }
 
-void Query_result_insert::abort_result_set() {
+void Query_result_insert::abort_result_set(THD *thd) {
   DBUG_ENTER("Query_result_insert::abort_result_set");
   /*
     If the creation of the table failed (due to a syntax error, for
@@ -2482,14 +2482,13 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   DBUG_RETURN(table);
 }
 
-Query_result_create::Query_result_create(THD *thd, TABLE_LIST *table_arg,
+Query_result_create::Query_result_create(TABLE_LIST *table_arg,
                                          HA_CREATE_INFO *create_info_par,
                                          Alter_info *alter_info_arg,
                                          List<Item> &select_fields,
                                          enum_duplicates duplic,
                                          TABLE_LIST *select_tables_arg)
-    : Query_result_insert(thd,
-                          NULL,  // table_list_par
+    : Query_result_insert(NULL,  // table_list_par
                           NULL,  // table_par
                           NULL,  // target_columns
                           &select_fields,
@@ -2506,13 +2505,15 @@ Query_result_create::Query_result_create(THD *thd, TABLE_LIST *table_arg,
 /**
   Create the new table from the selected items.
 
+  @param thd     Thread handle.
   @param values  List of items to be used as new columns
   @param u       Select
 
   @returns false if success, true if error.
 */
 
-bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u) {
+bool Query_result_create::prepare(THD *thd, List<Item> &values,
+                                  SELECT_LEX_UNIT *u) {
   DBUG_ENTER("Query_result_create::prepare");
 
   unit = u;
@@ -2555,7 +2556,7 @@ bool Query_result_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u) {
   @returns false if success, true if error
 */
 
-bool Query_result_create::start_execution() {
+bool Query_result_create::start_execution(THD *thd) {
   DBUG_ENTER("Query_result_create::start_execution");
   DEBUG_SYNC(thd, "create_table_select_before_lock");
 
@@ -2569,7 +2570,7 @@ bool Query_result_create::start_execution() {
     the table) and thus can't get aborted.
   */
   if (!(extra_lock = mysql_lock_tables(thd, &table, 1, 0)) ||
-      binlog_show_create_table()) {
+      binlog_show_create_table(thd)) {
     if (extra_lock) {
       mysql_unlock_tables(thd, extra_lock);
       extra_lock = 0;
@@ -2650,7 +2651,7 @@ bool Query_result_create::start_execution() {
   statement until the statement has finished.
 */
 
-int Query_result_create::binlog_show_create_table() {
+int Query_result_create::binlog_show_create_table(THD *thd) {
   DBUG_ENTER("Query_result_create::binlog_show_create_table");
 
   TABLE_LIST *save_next_global = create_table->next_global;
@@ -2719,12 +2720,12 @@ int Query_result_create::binlog_show_create_table() {
   DBUG_RETURN(result);
 }
 
-void Query_result_create::store_values(List<Item> &values) {
+void Query_result_create::store_values(THD *thd, List<Item> &values) {
   fill_record_n_invoke_before_triggers(thd, field, values, table,
                                        TRG_EVENT_INSERT, table->s->fields);
 }
 
-void Query_result_create::send_error(uint errcode, const char *err) {
+void Query_result_create::send_error(THD *thd, uint errcode, const char *err) {
   DBUG_ENTER("Query_result_create::send_error");
 
   DBUG_PRINT("info",
@@ -2745,7 +2746,7 @@ void Query_result_create::send_error(uint errcode, const char *err) {
 
   */
   Disable_binlog_guard binlog_guard(thd);
-  Query_result_insert::send_error(errcode, err);
+  Query_result_insert::send_error(thd, errcode, err);
 
   DBUG_VOID_RETURN;
 }
@@ -2758,7 +2759,7 @@ bool Query_result_create::stmt_binlog_is_trans() const {
   return (table->s->db_type()->flags & HTON_SUPPORTS_ATOMIC_DDL);
 }
 
-bool Query_result_create::send_eof() {
+bool Query_result_create::send_eof(THD *thd) {
   /*
     The routine that writes the statement in the binary log
     is in Query_result_insert::send_eof(). For that reason, we
@@ -2838,9 +2839,9 @@ bool Query_result_create::send_eof() {
                                                 &uncommitted_tables);
   }
 
-  if (!error) error = Query_result_insert::send_eof();
+  if (!error) error = Query_result_insert::send_eof(thd);
   if (error)
-    abort_result_set();
+    abort_result_set(thd);
   else {
     bool commit_error = false;
     /*
@@ -2893,7 +2894,7 @@ bool Query_result_create::send_eof() {
         and a data lock on it, if any, has been released.
 */
 
-void Query_result_create::drop_open_table() {
+void Query_result_create::drop_open_table(THD *thd) {
   DBUG_ENTER("Query_result_create::drop_open_table");
 
   if (table->s->tmp_table) {
@@ -2954,7 +2955,7 @@ void Query_result_create::drop_open_table() {
   DBUG_VOID_RETURN;
 }
 
-void Query_result_create::abort_result_set() {
+void Query_result_create::abort_result_set(THD *thd) {
   DBUG_ENTER("Query_result_create::abort_result_set");
 
   /*
@@ -2974,7 +2975,7 @@ void Query_result_create::abort_result_set() {
   */
   {
     Disable_binlog_guard binlog_guard(thd);
-    Query_result_insert::abort_result_set();
+    Query_result_insert::abort_result_set(thd);
     thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
   }
   /* possible error of writing binary log is ignored deliberately */
@@ -2988,7 +2989,7 @@ void Query_result_create::abort_result_set() {
 
   if (table) {
     table->auto_increment_field_not_null = false;
-    drop_open_table();
+    drop_open_table(thd);
     table = 0;  // Safety
   }
 

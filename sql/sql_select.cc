@@ -225,7 +225,7 @@ err:
   (void)unit->cleanup(false);
 
   // Abort the result set (if it has been prepared).
-  result->abort_result_set();
+  result->abort_result_set(thd);
 
   DBUG_RETURN(thd->is_error());
 }
@@ -432,15 +432,15 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
       redirects the output.
     */
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    result = new (thd->mem_root) Query_result_send(thd);
+    result = new (thd->mem_root) Query_result_send();
     if (!result) return true; /* purecov: inspected */
   } else {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     if (lex->result == NULL) {
       if (sql_command_code() == SQLCOM_SELECT)
-        lex->result = new (thd->mem_root) Query_result_send(thd);
+        lex->result = new (thd->mem_root) Query_result_send();
       else if (sql_command_code() == SQLCOM_DO)
-        lex->result = new (thd->mem_root) Query_result_do(thd);
+        lex->result = new (thd->mem_root) Query_result_do();
       if (lex->result == NULL) return true; /* purecov: inspected */
     }
     result = lex->result;
@@ -612,7 +612,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   lex->clear_values_map();
 
   // Perform statement-specific cleanup for Query_result
-  if (result != NULL) result->cleanup();
+  if (result != NULL) result->cleanup(thd);
 
   thd->save_current_query_costs();
 
@@ -646,8 +646,8 @@ err:
 
   // Abort and cleanup the result set (if it has been prepared).
   if (result != NULL) {
-    result->abort_result_set();
-    result->cleanup();
+    result->abort_result_set(thd);
+    result->cleanup(thd);
   }
   if (error_handler_active) thd->pop_internal_handler();
 
@@ -1422,7 +1422,7 @@ bool JOIN::prepare_result() {
     }
   }
 
-  if (select_lex->query_result()->start_execution()) goto err;
+  if (select_lex->query_result()->start_execution(thd)) goto err;
 
   if ((select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC))
@@ -3698,6 +3698,7 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
 
   Call prepare() on the new Query_result if we decide to use it.
 
+  @param thd        Thread handle
   @param new_result New Query_result object
   @param old_result Old Query_result object (NULL to force change)
 
@@ -3705,16 +3706,17 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
   @retval true  Error
 */
 
-bool SELECT_LEX::change_query_result(Query_result_interceptor *new_result,
+bool SELECT_LEX::change_query_result(THD *thd,
+                                     Query_result_interceptor *new_result,
                                      Query_result_interceptor *old_result) {
   DBUG_ENTER("SELECT_LEX::change_query_result");
   if (old_result == NULL || query_result() == old_result) {
     set_query_result(new_result);
-    if (query_result()->prepare(fields_list, master_unit()))
+    if (query_result()->prepare(thd, fields_list, master_unit()))
       DBUG_RETURN(true); /* purecov: inspected */
     DBUG_RETURN(false);
   } else {
-    const bool ret = query_result()->change_query_result(new_result);
+    const bool ret = query_result()->change_query_result(thd, new_result);
     DBUG_RETURN(ret);
   }
 }

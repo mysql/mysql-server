@@ -79,12 +79,12 @@
 #include "sql/window.h"  // Window
 #include "template_utils.h"
 
-bool Query_result_union::prepare(List<Item> &, SELECT_LEX_UNIT *u) {
+bool Query_result_union::prepare(THD *, List<Item> &, SELECT_LEX_UNIT *u) {
   unit = u;
   return false;
 }
 
-bool Query_result_union::send_data(List<Item> &values) {
+bool Query_result_union::send_data(THD *thd, List<Item> &values) {
   if (fill_record(thd, table, table->visible_field_ptr(), values, NULL, NULL))
     return true; /* purecov: inspected */
 
@@ -109,7 +109,7 @@ bool Query_result_union::send_data(List<Item> &values) {
   return false;
 }
 
-bool Query_result_union::send_eof() { return false; }
+bool Query_result_union::send_eof(THD *) { return false; }
 
 bool Query_result_union::flush() { return false; }
 
@@ -222,9 +222,8 @@ class Query_result_union_direct final : public Query_result_union {
   ha_rows limit;
 
  public:
-  Query_result_union_direct(THD *thd, Query_result *result,
-                            SELECT_LEX *last_select_lex)
-      : Query_result_union(thd),
+  Query_result_union_direct(Query_result *result, SELECT_LEX *last_select_lex)
+      : Query_result_union(),
         result(result),
         last_select_lex(last_select_lex),
         optimized(false),
@@ -233,69 +232,64 @@ class Query_result_union_direct final : public Query_result_union {
         current_found_rows(0) {
     unit = last_select_lex->master_unit();
   }
-  bool change_query_result(Query_result *new_result) override;
+  bool change_query_result(THD *thd, Query_result *new_result) override;
   uint field_count(List<Item> &) const override {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return 0;           /* purecov: inspected */
   }
-  bool postponed_prepare(List<Item> &types) override;
-  bool send_result_set_metadata(List<Item> &list, uint flags) override;
-  bool send_data(List<Item> &items) override;
+  bool postponed_prepare(THD *thd, List<Item> &types) override;
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  bool send_data(THD *thd, List<Item> &items) override;
   bool optimize() override {
     if (optimized) return false;
     optimized = true;
 
     return result->optimize();
   }
-  bool start_execution() override {
+  bool start_execution(THD *thd) override {
     if (execution_started) return false;
     execution_started = true;
-    return result->start_execution();
+    return result->start_execution(thd);
   }
-  void send_error(uint errcode, const char *err) override {
-    result->send_error(errcode, err); /* purecov: inspected */
+  void send_error(THD *thd, uint errcode, const char *err) override {
+    result->send_error(thd, errcode, err); /* purecov: inspected */
   }
-  bool send_eof() override;
+  bool send_eof(THD *thd) override;
   bool flush() override { return false; }
   bool check_simple_select() const override {
     // Only called for top-level Query_results, usually Query_result_send
     DBUG_ASSERT(false); /* purecov: inspected */
     return false;       /* purecov: inspected */
   }
-  void abort_result_set() override {
-    result->abort_result_set(); /* purecov: inspected */
+  void abort_result_set(THD *thd) override {
+    result->abort_result_set(thd); /* purecov: inspected */
   }
-  void cleanup() override {}
-  void set_thd(THD *) {
-    /*
-      Only called for top-level Query_results, usually Query_result_send,
-      and for the results of subquery engines
-      (select_<something>_subselect).
-    */
-    DBUG_ASSERT(false); /* purecov: inspected */
-  }
+  void cleanup(THD *) override {}
 };
 
 /**
   Replace the current query result with new_result and prepare it.
 
+  @param thd        Thread handle
   @param new_result New query result
 
   @returns false if success, true if error
 */
-bool Query_result_union_direct::change_query_result(Query_result *new_result) {
+bool Query_result_union_direct::change_query_result(THD *thd,
+                                                    Query_result *new_result) {
   result = new_result;
-  return result->prepare(unit->types, unit);
+  return result->prepare(thd, unit->types, unit);
 }
 
-bool Query_result_union_direct::postponed_prepare(List<Item> &types) {
+bool Query_result_union_direct::postponed_prepare(THD *thd, List<Item> &types) {
   if (result == NULL) return false;
 
-  return result->prepare(types, unit);
+  return result->prepare(thd, types, unit);
 }
 
-bool Query_result_union_direct::send_result_set_metadata(List<Item> &,
+bool Query_result_union_direct::send_result_set_metadata(THD *thd, List<Item> &,
                                                          uint flags) {
   if (result_set_metadata_sent) return false;
   result_set_metadata_sent = true;
@@ -312,10 +306,10 @@ bool Query_result_union_direct::send_result_set_metadata(List<Item> &,
   else
     limit = HA_POS_ERROR; /* purecov: inspected */
 
-  return result->send_result_set_metadata(unit->types, flags);
+  return result->send_result_set_metadata(thd, unit->types, flags);
 }
 
-bool Query_result_union_direct::send_data(List<Item> &items) {
+bool Query_result_union_direct::send_data(THD *thd, List<Item> &items) {
   if (limit == 0) return false;
   limit--;
   if (offset) {
@@ -326,10 +320,10 @@ bool Query_result_union_direct::send_data(List<Item> &items) {
   if (fill_record(thd, table, table->field, items, NULL, NULL))
     return true; /* purecov: inspected */
 
-  return result->send_data(unit->item_list);
+  return result->send_data(thd, unit->item_list);
 }
 
-bool Query_result_union_direct::send_eof() {
+bool Query_result_union_direct::send_eof(THD *thd) {
   /*
     Accumulate the found_rows count for the current query block into the UNION.
     Number of rows returned from a query block is always non-negative.
@@ -362,7 +356,7 @@ bool Query_result_union_direct::send_eof() {
     optimized = false;
     execution_started = false;
 
-    return result->send_eof();
+    return result->send_eof(thd);
   } else
     return false;
 }
@@ -465,7 +459,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   DBUG_ENTER("SELECT_LEX_UNIT::prepare");
 
   DBUG_ASSERT(!is_prepared());
-  Change_current_select save_select(thd);
+  Change_current_select save_select(thd_arg);
 
   Query_result *tmp_result;
   bool instantiate_tmp_table = false;
@@ -488,14 +482,14 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   // Create query result object for use by underlying query blocks
   if (!simple_query_expression) {
     if (is_union() && !union_needs_tmp_table()) {
-      if (!(tmp_result = union_result = new (*THR_MALLOC)
-                Query_result_union_direct(thd, sel_result, last_select)))
+      if (!(tmp_result = union_result = new (thd_arg->mem_root)
+                Query_result_union_direct(sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL) fake_select_lex = NULL;
       instantiate_tmp_table = false;
     } else {
       if (!(tmp_result = union_result =
-                new (*THR_MALLOC) Query_result_union(thd)))
+                new (thd_arg->mem_root) Query_result_union()))
         goto err; /* purecov: inspected */
       instantiate_tmp_table = true;
     }
@@ -641,7 +635,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     If the query is using Query_result_union_direct, we have postponed
     preparation of the underlying Query_result until column types are known.
   */
-  if (union_result != NULL && union_result->postponed_prepare(types)) goto err;
+  if (union_result != NULL && union_result->postponed_prepare(thd_arg, types))
+    goto err;
 
   if (!simple_query_expression) {
     /*
@@ -673,8 +668,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
       create_options |= TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(
-            thd, &types, union_distinct != nullptr, create_options, "", false,
-            instantiate_tmp_table))
+            thd_arg, &types, union_distinct != nullptr, create_options, "",
+            false, instantiate_tmp_table))
       goto err;
     result_table_list = TABLE_LIST();
     result_table_list.db = (char *)"";
@@ -688,7 +683,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
     result_table_list.set_privileges(SELECT_ACL);
 
     if (!item_list.elements) {
-      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      Prepared_stmt_arena_holder ps_arena_holder(thd_arg);
       if (table->fill_item_list(&item_list)) goto err; /* purecov: inspected */
     } else {
       /*
@@ -1301,7 +1296,7 @@ bool SELECT_LEX_UNIT::cleanup(bool full) {
 
   // fake_select_lex's table depends on Temp_table_param inside union_result
   if (full && union_result) {
-    union_result->cleanup();
+    union_result->cleanup(thd);
     destroy(union_result);
     union_result = NULL;  // Safety
     if (table) free_tmp_table(thd, table);
@@ -1369,7 +1364,8 @@ bool SELECT_LEX_UNIT::change_query_result(
     Query_result_interceptor *new_result,
     Query_result_interceptor *old_result) {
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-    if (sl->query_result() && sl->change_query_result(new_result, old_result))
+    if (sl->query_result() &&
+        sl->change_query_result(thd, new_result, old_result))
       return true; /* purecov: inspected */
   }
   set_query_result(new_result);

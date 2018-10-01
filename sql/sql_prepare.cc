@@ -954,7 +954,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
   DBUG_ASSERT(!lex->is_explain());
 
   if (!lex->result) {
-    if (!(lex->result = new (stmt->m_arena.mem_root) Query_result_send(thd)))
+    if (!(lex->result = new (stmt->m_arena.mem_root) Query_result_send()))
       goto error; /* purecov: inspected */
   }
 
@@ -989,7 +989,7 @@ bool send_statement(THD *thd, const Prepared_statement *stmt, uint no_columns,
 
   // Send
   if (types && result &&
-      result->send_result_set_metadata(*types, Protocol::SEND_EOF))
+      result->send_result_set_metadata(thd, *types, Protocol::SEND_EOF))
     return true; /* purecov: inspected */
 
   // Flag that a response has already been sent
@@ -1812,8 +1812,6 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex) {
 
   lex->set_current_select(lex->select_lex);
 
-  if (lex->result) lex->result->set_thd(thd);
-
   lex->allow_sum_func = 0;
   lex->m_deny_window_func = 0;
   lex->in_sum_func = NULL;
@@ -2122,7 +2120,8 @@ void mysql_stmt_get_longdata(THD *thd, Prepared_statement *stmt,
  Select_fetch_protocol_binary
 ****************************************************************************/
 
-bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
+bool Query_fetch_protocol_binary::send_result_set_metadata(THD *thd,
+                                                           List<Item> &list,
                                                            uint flags) {
   bool rc;
 
@@ -2135,13 +2134,13 @@ bool Query_fetch_protocol_binary::send_result_set_metadata(List<Item> &list,
     a cursor.
   */
   thd->push_protocol(&protocol);
-  rc = Query_result_send::send_result_set_metadata(list, flags);
+  rc = Query_result_send::send_result_set_metadata(thd, list, flags);
   thd->pop_protocol();
 
   return rc;
 }
 
-bool Query_fetch_protocol_binary::send_eof() {
+bool Query_fetch_protocol_binary::send_eof(THD *thd) {
   /*
     Don't send EOF if we're in error condition (which implies we've already
     sent or are sending an error)
@@ -2152,14 +2151,14 @@ bool Query_fetch_protocol_binary::send_eof() {
   return false;
 }
 
-bool Query_fetch_protocol_binary::send_data(List<Item> &fields) {
+bool Query_fetch_protocol_binary::send_data(THD *thd, List<Item> &fields) {
   bool rc;
 
   // set the current client capabilities before switching the protocol
   protocol.set_client_capabilities(
       thd->get_protocol()->get_client_capabilities());
   thd->push_protocol(&protocol);
-  rc = Query_result_send::send_data(fields);
+  rc = Query_result_send::send_data(thd, fields);
   thd->pop_protocol();
   return rc;
 }
@@ -3119,7 +3118,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
       if (thd->is_classic_protocol())
         result = new (m_arena.mem_root) Query_fetch_protocol_binary(thd);
       else
-        result = new (m_arena.mem_root) Query_result_send(thd);
+        result = new (m_arena.mem_root) Query_result_send();
       if (!result) {
         error = true;  // OOM
       } else if ((error = mysql_open_cursor(thd, result, &cursor))) {

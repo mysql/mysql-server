@@ -321,11 +321,12 @@ class Query_fetch_protocol_binary final : public Query_result_send {
   Protocol_binary protocol;
 
  public:
-  Query_fetch_protocol_binary(THD *thd)
-      : Query_result_send(thd), protocol(thd) {}
-  bool send_result_set_metadata(List<Item> &list, uint flags) override;
-  bool send_data(List<Item> &items) override;
-  bool send_eof() override;
+  explicit Query_fetch_protocol_binary(THD *thd)
+      : Query_result_send(), protocol(thd) {}
+  bool send_result_set_metadata(THD *thd, List<Item> &list,
+                                uint flags) override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_eof(THD *thd) override;
 };
 
 class Server_side_cursor;

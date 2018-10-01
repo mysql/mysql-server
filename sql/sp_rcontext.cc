@@ -152,7 +152,7 @@ bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item) {
   return sp_eval_expr(thd, m_return_value_fld, return_value_item);
 }
 
-bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i) {
+bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
   /*
     We should create cursors on the system heap because:
      - they could be (and usually are) used in several instructions,
@@ -160,7 +160,7 @@ bool sp_rcontext::push_cursor(THD *thd, sp_instr_cpush *i) {
      - a cursor can be pushed/popped many times in a loop, having these objects
        on callers' mem-root would lead to a memory leak in every iteration.
   */
-  sp_cursor *c = new (std::nothrow) sp_cursor(thd, i);
+  sp_cursor *c = new (std::nothrow) sp_cursor(i);
 
   if (!c) {
     sql_alloc_error_handler();
@@ -511,17 +511,18 @@ bool sp_cursor::fetch(List<sp_variable> *vars) {
 // sp_cursor::Query_fetch_into_spvars implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool sp_cursor::Query_fetch_into_spvars::prepare(List<Item> &fields,
+bool sp_cursor::Query_fetch_into_spvars::prepare(THD *thd, List<Item> &fields,
                                                  SELECT_LEX_UNIT *u) {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.
   */
   field_count = fields.elements;
-  return Query_result_interceptor::prepare(fields, u);
+  return Query_result_interceptor::prepare(thd, fields, u);
 }
 
-bool sp_cursor::Query_fetch_into_spvars::send_data(List<Item> &items) {
+bool sp_cursor::Query_fetch_into_spvars::send_data(THD *thd,
+                                                   List<Item> &items) {
   List_iterator_fast<sp_variable> spvar_iter(*spvar_list);
   List_iterator_fast<Item> item_iter(items);
   sp_variable *spvar;

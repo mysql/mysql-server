@@ -44,24 +44,26 @@ class Query_result_union : public Query_result_interceptor {
  public:
   TABLE *table;
 
-  Query_result_union(THD *thd)
-      : Query_result_interceptor(thd), m_rows_in_table(0), table(0) {}
-  bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
+  Query_result_union()
+      : Query_result_interceptor(), m_rows_in_table(0), table(0) {}
+  bool prepare(THD *thd, List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() if preparation has been postponed until column type
     information is computed (used by Query_result_union_direct).
 
+    @param thd   Thread handle
     @param types Column types
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(List<Item> &types MY_ATTRIBUTE((unused))) {
+  virtual bool postponed_prepare(THD *thd MY_ATTRIBUTE((unused)),
+                                 List<Item> &types MY_ATTRIBUTE((unused))) {
     return false;
   }
-  bool send_data(List<Item> &items) override;
-  bool send_eof() override;
+  bool send_data(THD *thd, List<Item> &items) override;
+  bool send_eof(THD *thd) override;
   virtual bool flush();
-  void cleanup() override { (void)reset(); }
+  void cleanup(THD *) override { (void)reset(); }
   bool reset() override;
   bool create_result_table(THD *thd, List<Item> *column_types, bool is_distinct,
                            ulonglong options, const char *alias,

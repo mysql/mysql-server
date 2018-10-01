@@ -317,8 +317,8 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
   bool max;
   bool was_values;  // Set if we have found at least one row
  public:
-  Item_maxmin_subselect(THD *thd, Item_subselect *parent,
-                        SELECT_LEX *select_lex, bool max, bool ignore_nulls);
+  Item_maxmin_subselect(Item_subselect *parent, SELECT_LEX *select_lex,
+                        bool max, bool ignore_nulls);
   void print(String *str, enum_query_type query_type) override;
   void cleanup() override;
   bool any_value() { return was_values; }
@@ -648,8 +648,6 @@ class subselect_engine {
   */
   virtual void cleanup() = 0;
 
-  /// Sets "thd" for 'result'. Should be called before prepare()
-  void set_thd_for_result();
   virtual bool prepare() = 0;
   virtual void fix_length_and_dec(Item_cache **row) = 0;
   /*

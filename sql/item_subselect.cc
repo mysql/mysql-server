@@ -570,8 +570,6 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(engine->get_item() == this);
 #endif
 
-  engine->set_thd_for_result();
-
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar *)&res)) return true;
 
   if (!(res = engine->prepare())) {
@@ -881,12 +879,12 @@ void Item_subselect::print(String *str, enum_query_type query_type) {
 /* Single value subselect interface class */
 class Query_result_scalar_subquery : public Query_result_subquery {
  public:
-  Query_result_scalar_subquery(THD *thd, Item_subselect *item_arg)
-      : Query_result_subquery(thd, item_arg) {}
-  bool send_data(List<Item> &items);
+  explicit Query_result_scalar_subquery(Item_subselect *item_arg)
+      : Query_result_subquery(item_arg) {}
+  bool send_data(THD *thd, List<Item> &items);
 };
 
-bool Query_result_scalar_subquery::send_data(List<Item> &items) {
+bool Query_result_scalar_subquery::send_data(THD *thd, List<Item> &items) {
   DBUG_ENTER("Query_result_scalar_subquery::send_data");
   Item_singlerow_subselect *it = (Item_singlerow_subselect *)item;
   if (it->assigned()) {
@@ -905,8 +903,8 @@ bool Query_result_scalar_subquery::send_data(List<Item> &items) {
 Item_singlerow_subselect::Item_singlerow_subselect(SELECT_LEX *select_lex)
     : Item_subselect(), value(0), no_rows(false) {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
-  init(select_lex,
-       new (*THR_MALLOC) Query_result_scalar_subquery(current_thd, this));
+  init(select_lex, new (select_lex->master_unit()->thd->mem_root)
+                       Query_result_scalar_subquery(this));
   maybe_null = 1;  // if the subquery is empty, value is NULL
   max_columns = UINT_MAX;
   DBUG_VOID_RETURN;
@@ -943,14 +941,14 @@ class Query_result_max_min_subquery final : public Query_result_subquery {
   bool ignore_nulls;
 
  public:
-  Query_result_max_min_subquery(THD *thd, Item_subselect *item_arg, bool mx,
+  Query_result_max_min_subquery(Item_subselect *item_arg, bool mx,
                                 bool ignore_nulls)
-      : Query_result_subquery(thd, item_arg),
+      : Query_result_subquery(item_arg),
         cache(0),
         fmax(mx),
         ignore_nulls(ignore_nulls) {}
-  void cleanup() override;
-  bool send_data(List<Item> &items) override;
+  void cleanup(THD *thd) override;
+  bool send_data(THD *thd, List<Item> &items) override;
 
  private:
   bool cmp_real();
@@ -959,13 +957,13 @@ class Query_result_max_min_subquery final : public Query_result_subquery {
   bool cmp_str();
 };
 
-void Query_result_max_min_subquery::cleanup() {
+void Query_result_max_min_subquery::cleanup(THD *) {
   DBUG_ENTER("Query_result_max_min_subquery::cleanup");
   cache = 0;
   DBUG_VOID_RETURN;
 }
 
-bool Query_result_max_min_subquery::send_data(List<Item> &items) {
+bool Query_result_max_min_subquery::send_data(THD *, List<Item> &items) {
   DBUG_ENTER("Query_result_max_min_subquery::send_data");
   Item_maxmin_subselect *it = (Item_maxmin_subselect *)item;
   List_iterator_fast<Item> li(items);
@@ -1091,15 +1089,15 @@ bool Query_result_max_min_subquery::cmp_str() {
                 : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
-Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
-                                             Item_subselect *parent,
+Item_maxmin_subselect::Item_maxmin_subselect(Item_subselect *parent,
                                              SELECT_LEX *select_lex,
                                              bool max_arg, bool ignore_nulls)
     : Item_singlerow_subselect(), was_values(false) {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max = max_arg;
-  init(select_lex, new (*THR_MALLOC) Query_result_max_min_subquery(
-                       thd_param, this, max_arg, ignore_nulls));
+  init(select_lex,
+       new (select_lex->master_unit()->thd->mem_root)
+           Query_result_max_min_subquery(this, max_arg, ignore_nulls));
   max_columns = 1;
   maybe_null = 1;
   max_columns = 1;
@@ -1340,12 +1338,12 @@ bool Item_singlerow_subselect::val_bool() {
 /* EXISTS subselect interface class */
 class Query_result_exists_subquery : public Query_result_subquery {
  public:
-  Query_result_exists_subquery(THD *thd, Item_subselect *item_arg)
-      : Query_result_subquery(thd, item_arg) {}
-  bool send_data(List<Item> &items);
+  explicit Query_result_exists_subquery(Item_subselect *item_arg)
+      : Query_result_subquery(item_arg) {}
+  bool send_data(THD *thd, List<Item> &items);
 };
 
-bool Query_result_exists_subquery::send_data(List<Item> &) {
+bool Query_result_exists_subquery::send_data(THD *, List<Item> &) {
   DBUG_ENTER("Query_result_exists_subquery::send_data");
   Item_exists_subselect *it = (Item_exists_subselect *)item;
   /*
@@ -1366,8 +1364,8 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
       sj_convert_priority(0),
       embedding_join_nest(NULL) {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  init(select,
-       new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
+  init(select, new (select->master_unit()->thd->mem_root)
+                   Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
   null_value = false;  // can't be NULL
   maybe_null = 0;      // can't be NULL
@@ -1402,8 +1400,8 @@ Item_in_subselect::Item_in_subselect(Item *left_exp, SELECT_LEX *select)
       pushed_cond_guards(NULL),
       upper_item(NULL) {
   DBUG_ENTER("Item_in_subselect::Item_in_subselect");
-  init(select,
-       new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
+  init(select, new (select->master_unit()->thd->mem_root)
+                   Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
   maybe_null = 1;
   reset();
@@ -1440,8 +1438,8 @@ bool Item_in_subselect::itemize(Parse_context *pc, Item **res) {
       pt_subselect->contextualize(pc))
     return true;
   SELECT_LEX *select_lex = pt_subselect->value();
-  init(select_lex,
-       new (*THR_MALLOC) Query_result_exists_subquery(pc->thd, this));
+  init(select_lex, new (select_lex->master_unit()->thd->mem_root)
+                       Query_result_exists_subquery(this));
   if (test_limit()) return true;
   return false;
 }
@@ -1453,8 +1451,7 @@ Item_allany_subselect::Item_allany_subselect(Item *left_exp,
   DBUG_ENTER("Item_allany_subselect::Item_allany_subselect");
   left_expr = left_exp;
   func = func_creator(all_arg);
-  init(select,
-       new (*THR_MALLOC) Query_result_exists_subquery(current_thd, this));
+  init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = 1;
   abort_on_null = 0;
   reset();
@@ -1760,7 +1757,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
                           "> ALL/ANY (SELECT)", "MIN (SELECT)");
       oto1.add("chosen", true);
       Item_maxmin_subselect *item;
-      subs = item = new Item_maxmin_subselect(thd, this, select, func->l_op(),
+      subs = item = new Item_maxmin_subselect(this, select, func->l_op(),
                                               substype() == ANY_SUBS);
       if (upper_item) upper_item->set_sub_test(item);
     }
@@ -2672,14 +2669,6 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type) {
   Item_subselect::print(str, query_type);
 }
 
-void subselect_engine::set_thd_for_result() {
-  /*
-    Query_result's constructor sets neither Query_result::thd nor
-    Query_result::unit.
-  */
-  if (result) result->set_thd(item->unit->thd);
-}
-
 subselect_single_select_engine::subselect_single_select_engine(
     SELECT_LEX *select, Query_result_interceptor *result_arg,
     Item_subselect *item_arg)
@@ -2690,14 +2679,14 @@ subselect_single_select_engine::subselect_single_select_engine(
 void subselect_single_select_engine::cleanup() {
   DBUG_ENTER("subselect_single_select_engine::cleanup");
   item->unit->reset_executed();
-  result->cleanup();
+  result->cleanup(item->unit->thd);
   DBUG_VOID_RETURN;
 }
 
 void subselect_union_engine::cleanup() {
   DBUG_ENTER("subselect_union_engine::cleanup");
   item->unit->reset_executed();
-  result->cleanup();
+  result->cleanup(item->unit->thd);
   DBUG_VOID_RETURN;
 }
 
@@ -3358,7 +3347,7 @@ bool subselect_single_select_engine::change_query_result(
     Item_subselect *si, Query_result_subquery *res) {
   item = si;
   result = res;
-  return select_lex->change_query_result(result, NULL);
+  return select_lex->change_query_result(item->unit->thd, result, NULL);
 }
 
 /**
@@ -3447,7 +3436,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns) {
     managed (created/filled/etc) internally by the interceptor.
   */
   THD *const thd = item->unit->thd;
-  if (!(tmp_result_sink = new (*THR_MALLOC) Query_result_union(thd)))
+  if (!(tmp_result_sink = new (thd->mem_root) Query_result_union()))
     DBUG_RETURN(true);
   if (tmp_result_sink->create_result_table(
           thd, tmp_columns,
@@ -3597,7 +3586,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns) {
   */
   materialize_engine->prepare();
   /* Let our engine reuse this query plan for materialization. */
-  materialize_engine->select_lex->change_query_result(result, NULL);
+  materialize_engine->select_lex->change_query_result(thd, result, NULL);
 
   DBUG_RETURN(false);
 }
@@ -3620,8 +3609,9 @@ subselect_hash_sj_engine::~subselect_hash_sj_engine() {
 void subselect_hash_sj_engine::cleanup() {
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized = false;
-  if (result != nullptr) result->cleanup(); /* Resets the temp table as well. */
   THD *const thd = item->unit->thd;
+  if (result != nullptr)
+    result->cleanup(thd); /* Resets the temp table as well. */
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
   if (tab != nullptr) {
     TABLE *const table = tab->table();

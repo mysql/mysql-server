@@ -234,6 +234,6 @@ bool Explain_format_traditional::flush_entry() {
     if (push(&items, column_buffer.col_message, nil)) return true;
   }
 
-  if (output->send_data(items)) return true;
+  if (output->send_data(current_thd, items)) return true;
   return false;
 }

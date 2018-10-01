@@ -1566,7 +1566,7 @@ int THD::send_explain_fields(Query_result *result) {
   field_list.push_back(new Item_empty_string("Extra", 255, cs));
   item->maybe_null = 1;
   return (result->send_result_set_metadata(
-      field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
+      this, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
 enum_vio_type THD::get_vio_type() {

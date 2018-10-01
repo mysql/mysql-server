@@ -226,7 +226,7 @@ void JOIN::exec() {
     if (select_lex->cond_value != Item::COND_FALSE &&
         (!where_cond || where_cond->val_int())) {
       if (query_result->send_result_set_metadata(
-              *columns_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+              thd, *columns_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
         DBUG_VOID_RETURN;
 
       /*
@@ -237,10 +237,11 @@ void JOIN::exec() {
       */
       if (((select_lex->having_value != Item::COND_FALSE) &&
            having_is_true(having_cond)) &&
-          should_send_current_row() && query_result->send_data(fields_list))
+          should_send_current_row() &&
+          query_result->send_data(thd, fields_list))
         error = 1;
       else {
-        error = (int)query_result->send_eof();
+        error = (int)query_result->send_eof(thd);
         send_records = calc_found_rows ? 1 : thd->get_sent_row_count();
       }
       /* Query block (without union) always returns 0 or 1 row */
@@ -272,7 +273,7 @@ void JOIN::exec() {
   THD_STAGE_INFO(thd, stage_sending_data);
   DBUG_PRINT("info", ("%s", thd->proc_info));
   if (query_result->send_result_set_metadata(
-          *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
+          thd, *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     /* purecov: begin inspected */
     error = 1;
     DBUG_VOID_RETURN;
@@ -422,7 +423,7 @@ bool JOIN::rollup_send_data(uint idx) {
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(having_cond)) {
       if (send_records < unit->select_limit_cnt && should_send_current_row() &&
-          select_lex->query_result()->send_data(rollup.fields_list[i]))
+          select_lex->query_result()->send_data(thd, rollup.fields_list[i]))
         return true;
       send_records++;
     }
@@ -828,9 +829,10 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
   }
 
   SELECT_LEX *const select = join->select_lex;
+  THD *thd = join->thd;
 
   if (!(select->query_result()->send_result_set_metadata(
-          fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))) {
+          thd, fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))) {
     bool send_error = false;
     if (join->send_row_on_empty_set()) {
       // Mark tables as containing only NULL values
@@ -850,9 +852,9 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
       }
 
       if (having_is_true(join->having_cond) && join->should_send_current_row())
-        send_error = select->query_result()->send_data(fields);
+        send_error = select->query_result()->send_data(thd, fields);
     }
-    if (!send_error) select->query_result()->send_eof();  // Should be safe
+    if (!send_error) select->query_result()->send_eof(thd);  // Should be safe
   }
   DBUG_VOID_RETURN;
 }
@@ -1109,6 +1111,7 @@ static int do_select(JOIN *join) {
   DBUG_ENTER("do_select");
 
   join->send_records = 0;
+  THD *thd = join->thd;
 
   if (join->plan_is_const() && !join->need_tmp_before_win) {
     Next_select_func end_select = join->get_end_select_func();
@@ -1147,7 +1150,7 @@ static int do_select(JOIN *join) {
       else {
         if (having_is_true(join->having_cond) &&
             join->should_send_current_row())
-          rc = join->select_lex->query_result()->send_data(*join->fields);
+          rc = join->select_lex->query_result()->send_data(thd, *join->fields);
 
         // Restore NULL values if needed.
         if (save_nullinfo) join->restore_fields(save_nullinfo);
@@ -1158,7 +1161,7 @@ static int do_select(JOIN *join) {
       (the join condition and piece of where clause
       relevant to this join table).
     */
-    if (join->thd->is_error()) error = NESTED_LOOP_ERROR;
+    if (thd->is_error()) error = NESTED_LOOP_ERROR;
   } else if (join->select_count) {
     QEP_TAB *qep_tab = join->qep_tab;
     error = end_send_count(join, qep_tab);
@@ -1169,7 +1172,7 @@ static int do_select(JOIN *join) {
     if (error >= NESTED_LOOP_OK) error = join->first_select(join, qep_tab, 1);
   }
 
-  join->thd->current_found_rows = join->send_records;
+  thd->current_found_rows = join->send_records;
   /*
     For "order by with limit", we cannot rely on send_records, but need
     to use the rowcount read originally into the join_tab applying the
@@ -1192,7 +1195,7 @@ static int do_select(JOIN *join) {
     if (sort_tab->filesort && join->calc_found_rows &&
         sort_tab->filesort->sortorder &&
         sort_tab->filesort->limit != HA_POS_ERROR) {
-      join->thd->current_found_rows = sort_tab->records();
+      thd->current_found_rows = sort_tab->records();
     }
   }
 
@@ -1210,13 +1213,13 @@ static int do_select(JOIN *join) {
         Sic: this branch works even if rc != 0, e.g. when
         send_data above returns an error.
       */
-      if (join->select_lex->query_result()->send_eof())
+      if (join->select_lex->query_result()->send_eof(thd))
         rc = 1;  // Don't send error
       DBUG_PRINT("info", ("%ld records output", (long)join->send_records));
     }
   }
 
-  rc = join->thd->is_error() ? -1 : rc;
+  rc = thd->is_error() ? -1 : rc;
 #ifndef DBUG_OFF
   if (rc) {
     DBUG_PRINT("error", ("Error: do_select() failed"));
@@ -3153,6 +3156,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     pointed content. But you can read qep_tab[-1] then.
   */
   DBUG_ASSERT(qep_tab == NULL || qep_tab > join->qep_tab);
+  THD *thd = join->thd;
 
   if (!end_of_records) {
     int error;
@@ -3175,7 +3179,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
         (join->qep_tab[0].quick_optim() &&
          join->qep_tab[0].quick_optim()->is_loose_index_scan())) {
       // Copy non-aggregated fields when loose index scan is used.
-      if (copy_fields(&join->tmp_table_param, join->thd))
+      if (copy_fields(&join->tmp_table_param, thd))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
     // Filter HAVING if not done earlier
@@ -3183,11 +3187,11 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
       DBUG_RETURN(NESTED_LOOP_OK);  // Didn't match having
     error = 0;
     if (join->should_send_current_row())
-      error = join->select_lex->query_result()->send_data(*fields);
+      error = join->select_lex->query_result()->send_data(thd, *fields);
     if (error) DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     ++join->send_records;
-    join->thd->get_stmt_da()->inc_current_row_for_condition();
+    thd->get_stmt_da()->inc_current_row_for_condition();
     if (join->send_records >= join->unit->select_limit_cnt &&
         !join->do_send_rows) {
       /*
@@ -3270,6 +3274,7 @@ enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab) {
   List_iterator_fast<Item> it(join->all_fields);
   Item *item;
   int error = 0;
+  THD *thd = join->thd;
 
   while ((item = it++)) {
     if (item->type() == Item::SUM_FUNC_ITEM &&
@@ -3288,10 +3293,10 @@ enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab) {
     SET @s =1;
     SELECT @s, COUNT(*) FROM t1;
   */
-  if (copy_fields(&join->tmp_table_param, join->thd)) return NESTED_LOOP_ERROR;
+  if (copy_fields(&join->tmp_table_param, thd)) return NESTED_LOOP_ERROR;
 
   if (having_is_true(join->having_cond)) {
-    if (join->select_lex->query_result()->send_data(*join->fields))
+    if (join->select_lex->query_result()->send_data(thd, *join->fields))
       return NESTED_LOOP_ERROR;
     join->send_records++;
   }
@@ -3305,6 +3310,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
   int idx = -1;
   enum_nested_loop_state ok_code = NESTED_LOOP_OK;
   DBUG_ENTER("end_send_group");
+  THD *thd = join->thd;
 
   List<Item> *fields;
   if (qep_tab) {
@@ -3369,9 +3375,9 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
             error = -1;  // Didn't satisfy having
           else {
             if (join->should_send_current_row())
-              error = join->select_lex->query_result()->send_data(*fields);
+              error = join->select_lex->query_result()->send_data(thd, *fields);
             join->send_records++;
-            join->thd->get_stmt_da()->inc_current_row_for_condition();
+            thd->get_stmt_da()->inc_current_row_for_condition();
             join->group_sent = true;
           }
           if (join->rollup.state != ROLLUP::STATE_NONE && error <= 0) {
@@ -3429,7 +3435,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         slice.
       */
       Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
-      if (copy_fields(&join->tmp_table_param, join->thd))  // (1)
+      if (copy_fields(&join->tmp_table_param, thd))  // (1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs,
                              join->sum_funcs_end[idx + 1]))  //(2)
