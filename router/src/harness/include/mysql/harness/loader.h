@@ -683,7 +683,7 @@ DECLARE_TEST(LifecycleTest, NoInstances);
 DECLARE_TEST(LifecycleTest, EmptyErrorMessage);
 DECLARE_TEST(LifecycleTest, send_signals);
 DECLARE_TEST(LifecycleTest, send_signals2);
-DECLARE_TEST(LifecycleTest, wait_for_stop);
+DECLARE_TEST(LifecycleTest, DISABLED_wait_for_stop);
 DECLARE_TEST(LifecycleTest, InitThrows);
 DECLARE_TEST(LifecycleTest, StartThrows);
 DECLARE_TEST(LifecycleTest, StopThrows);
@@ -1011,7 +1011,7 @@ class HARNESS_EXPORT Loader {
   FRIEND_TEST(::LifecycleTest, EmptyErrorMessage);
   FRIEND_TEST(::LifecycleTest, send_signals);
   FRIEND_TEST(::LifecycleTest, send_signals2);
-  FRIEND_TEST(::LifecycleTest, wait_for_stop);
+  FRIEND_TEST(::LifecycleTest, DISABLED_wait_for_stop);
   FRIEND_TEST(::LifecycleTest, InitThrows);
   FRIEND_TEST(::LifecycleTest, StartThrows);
   FRIEND_TEST(::LifecycleTest, StopThrows);
