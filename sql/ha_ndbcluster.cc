@@ -77,6 +77,7 @@
 #include "sql/partition_info.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_lex.h"
+#include "sql/strfunc.h"
 #include "storage/ndb/include/ndb_global.h"
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
@@ -18039,7 +18040,7 @@ int ndbcluster_get_tablespace(THD* thd,
       DBUG_ASSERT(tablespace);
       const size_t tablespace_len= strlen(tablespace);
       DBUG_PRINT("info", ("Found tablespace '%s'", tablespace));
-      thd->make_lex_string(tablespace_name, tablespace, tablespace_len, false);
+      lex_string_strmake(thd->mem_root, tablespace_name, tablespace, tablespace_len);
     }
   }
 

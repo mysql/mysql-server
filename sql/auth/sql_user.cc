@@ -75,6 +75,7 @@
 #include "sql/sql_parse.h"  /* check_access */
 #include "sql/sql_plugin.h" /* lock_plugin_data etc. */
 #include "sql/sql_plugin_ref.h"
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -305,10 +306,10 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
       */
       lex->default_roles = new (thd->mem_root) List<LEX_USER>;
       for (auto &&role : default_roles) {
-        if (!(tmp_user = thd->make_lex_string(tmp_user, role.first.str,
-                                              role.first.length, true)) ||
-            !(tmp_host = thd->make_lex_string(tmp_host, role.second.str,
-                                              role.second.length, true))) {
+        if (!(tmp_user = make_lex_string_root(thd->mem_root, role.first.str,
+                                              role.first.length)) ||
+            !(tmp_host = make_lex_string_root(thd->mem_root, role.second.str,
+                                              role.second.length))) {
           error = 1;
           goto err;
         }
@@ -1348,12 +1349,12 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   combo->plugin.str = acl_user->plugin.str;
   combo->plugin.length = acl_user->plugin.length;
 
-  thd->make_lex_string(&combo->user, combo->user.str, strlen(combo->user.str),
-                       0);
-  thd->make_lex_string(&combo->host, combo->host.str, strlen(combo->host.str),
-                       0);
-  thd->make_lex_string(&combo->plugin, combo->plugin.str,
-                       strlen(combo->plugin.str), 0);
+  lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
+                     strlen(combo->user.str));
+  lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
+                     strlen(combo->host.str));
+  lex_string_strmake(thd->mem_root, &combo->plugin, combo->plugin.str,
+                     strlen(combo->plugin.str));
   optimize_plugin_compare_by_pointer(&combo->plugin);
   combo->auth.str = new_password;
   combo->auth.length = new_password_len;

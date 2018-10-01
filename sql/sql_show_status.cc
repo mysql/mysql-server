@@ -33,6 +33,7 @@
 #include "sql/parse_tree_nodes.h"  // PT_select_item_list
 #include "sql/sql_class.h"         // THD
 #include "sql/sql_lex.h"           // Query_options
+#include "sql/strfunc.h"
 #include "sql_string.h"
 
 /**
@@ -141,13 +142,13 @@ static SELECT_LEX *build_query(const POS &pos, THD *thd,
 
   /* ... performance_schema ... */
   LEX_CSTRING tmp_db_name;
-  if (!thd->make_lex_string(&tmp_db_name, pfs.str, pfs.length, false))
+  if (lex_string_strmake(thd->mem_root, &tmp_db_name, pfs.str, pfs.length))
     return NULL;
 
   /* ... <table_name> ... */
   LEX_CSTRING tmp_table_name;
-  if (!thd->make_lex_string(&tmp_table_name, table_name.str, table_name.length,
-                            false))
+  if (lex_string_strmake(thd->mem_root, &tmp_table_name, table_name.str,
+                         table_name.length))
     return NULL;
 
   /* ... performance_schema.<table_name> ... */

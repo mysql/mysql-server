@@ -35,6 +35,7 @@
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_class.h"
+#include "sql/strfunc.h"
 #include "sql/table.h"
 #include "storage/ndb/include/ndbapi/NdbEventOperation.hpp"
 
@@ -608,12 +609,14 @@ NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY* new_key)
         // NOTE! This causes a slight memory leak since the already existing
         // strings are not release until the mem_root is eventually
         // released.
-        lex_string_copy(&event_data->mem_root,
-                        &event_data->shadow_table->s->db,
-                        share->db);
-        lex_string_copy(&event_data->mem_root,
-                        &event_data->shadow_table->s->table_name,
-                        share->table_name);
+        lex_string_strmake(&event_data->mem_root,
+                           &event_data->shadow_table->s->db,
+                           share->db,
+                           strlen(share->db));
+        lex_string_strmake(&event_data->mem_root,
+                           &event_data->shadow_table->s->table_name,
+                           share->table_name,
+                           strlen(share->table_name));
       }
       else
       {

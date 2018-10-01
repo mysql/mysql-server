@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"  // parse_sql
 #include "sql/sql_show.h"   // append_identifier
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/trigger_creation_ctx.h"  // Trigger_creation_ctx
 #include "sql_string.h"
@@ -117,8 +118,7 @@ static bool construct_definer_value(MEM_ROOT *mem_root, LEX_CSTRING *definer,
       strxmov(definer_buf, definer_user.str, "@", definer_host.str, NullS) -
       definer_buf;
 
-  return make_lex_string_root(mem_root, definer, definer_buf, definer_len,
-                              false) == nullptr;
+  return lex_string_strmake(mem_root, definer, definer_buf, definer_len);
 }
 
 /**
@@ -237,24 +237,21 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
 
   default_db_cl = default_db_cl ? default_db_cl : thd->collation();
 
-  if (make_lex_string_root(&subject_table->mem_root, &client_cs_name,
-                           thd->charset()->csname,
-                           strlen(thd->charset()->csname), false) == nullptr ||
-      make_lex_string_root(&subject_table->mem_root, &connection_cl_name,
-                           thd->variables.collation_connection->name,
-                           strlen(thd->variables.collation_connection->name),
-                           false) == nullptr ||
-      make_lex_string_root(&subject_table->mem_root, &db_cl_name,
-                           default_db_cl->name, strlen(default_db_cl->name),
-                           false) == nullptr)
+  if (lex_string_strmake(&subject_table->mem_root, &client_cs_name,
+                         thd->charset()->csname,
+                         strlen(thd->charset()->csname)) ||
+      lex_string_strmake(&subject_table->mem_root, &connection_cl_name,
+                         thd->variables.collation_connection->name,
+                         strlen(thd->variables.collation_connection->name)) ||
+      lex_string_strmake(&subject_table->mem_root, &db_cl_name,
+                         default_db_cl->name, strlen(default_db_cl->name)))
     return nullptr;
 
   // Copy trigger name into the proper mem-root.
 
   LEX_CSTRING trigger_name;
-  if (make_lex_string_root(&subject_table->mem_root, &trigger_name,
-                           lex->spname->m_name.str, lex->spname->m_name.length,
-                           false) == nullptr)
+  if (lex_string_strmake(&subject_table->mem_root, &trigger_name,
+                         lex->spname->m_name.str, lex->spname->m_name.length))
     return nullptr;
 
   // Construct two CREATE TRIGGER statements, allocate DEFINER-clause.
@@ -276,14 +273,13 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   // Copy CREATE TRIGGER statement for DD into the proper mem-root.
 
   LEX_CSTRING definition, definition_utf8;
-  if (make_lex_string_root(&subject_table->mem_root, &definition,
-                           lex->sphead->m_body.str, lex->sphead->m_body.length,
-                           false) == nullptr)
+  if (lex_string_strmake(&subject_table->mem_root, &definition,
+                         lex->sphead->m_body.str, lex->sphead->m_body.length))
     return nullptr;
 
-  if (make_lex_string_root(&subject_table->mem_root, &definition_utf8,
-                           lex->sphead->m_body_utf8.str,
-                           lex->sphead->m_body_utf8.length, false) == nullptr)
+  if (lex_string_strmake(&subject_table->mem_root, &definition_utf8,
+                         lex->sphead->m_body_utf8.str,
+                         lex->sphead->m_body_utf8.length))
     return nullptr;
 
   // Create a new Trigger instance.
@@ -491,9 +487,9 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
     Allocate a memory buffer on the memroot and copy there a full trigger
     definition statement.
   */
-  if (!make_lex_string_root(m_mem_root, &m_full_trigger_definition,
-                            full_trigger_definition.c_ptr_quick(),
-                            full_trigger_definition.length(), false))
+  if (lex_string_strmake(m_mem_root, &m_full_trigger_definition,
+                         full_trigger_definition.c_ptr_quick(),
+                         full_trigger_definition.length()))
     return true;
 
   if (parser_state.init(thd, m_full_trigger_definition.str,
@@ -579,17 +575,20 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
 
     // Make a copy of trigger name and set it.
     LEX_STRING s, def, def_utf8;
-    if (!lex_string_copy(m_mem_root, &s, *trigger_name_ptr)) {
+    if (lex_string_strmake(m_mem_root, &s, trigger_name_ptr->str,
+                           trigger_name_ptr->length)) {
       fatal_error = true;
       goto cleanup;
     }
 
-    if (!lex_string_copy(m_mem_root, &def, *trigger_body_ptr)) {
+    if (lex_string_strmake(m_mem_root, &def, trigger_body_ptr->str,
+                           trigger_body_ptr->length)) {
       fatal_error = true;
       goto cleanup;
     }
 
-    if (!lex_string_copy(m_mem_root, &def_utf8, *trigger_body_utf8_ptr)) {
+    if (lex_string_strmake(m_mem_root, &def_utf8, trigger_body_utf8_ptr->str,
+                           trigger_body_utf8_ptr->length)) {
       fatal_error = true;
       goto cleanup;
     }

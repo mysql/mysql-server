@@ -130,6 +130,7 @@
 #include "sql/sql_table.h"   // build_table_filename
 #include "sql/sql_update.h"  // records_are_comparable
 #include "sql/sql_view.h"    // mysql_make_view
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"                     // TABLE_LIST
 #include "sql/table_cache.h"               // table_cache_manager
@@ -9489,8 +9490,7 @@ bool mysql_rm_tmp_tables(void) {
           !memcmp(file->name, tmp_file_prefix, tmp_file_prefix_length)) {
         size_t filePath_len = snprintf(filePath, sizeof(filePath), "%s%c%s",
                                        tmpdir, FN_LIBCHAR, file->name);
-        file_str = make_lex_string_root(&files_root, (LEX_STRING *)NULL,
-                                        filePath, filePath_len, true);
+        file_str = make_lex_string_root(&files_root, filePath, filePath_len);
 
         if (file_str == NULL || files.push_back(file_str, &files_root)) {
           /* purecov: begin inspected */

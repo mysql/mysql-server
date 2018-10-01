@@ -59,6 +59,7 @@
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_thd_internal_api.h"
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
@@ -575,7 +576,10 @@ char *thd_strmake(MYSQL_THD thd, const char *str, size_t size) {
 MYSQL_LEX_STRING *thd_make_lex_string(MYSQL_THD thd, MYSQL_LEX_STRING *lex_str,
                                       const char *str, size_t size,
                                       int allocate_lex_string) {
-  return thd->make_lex_string(lex_str, str, size, (bool)allocate_lex_string);
+  if (allocate_lex_string != 0)
+    return make_lex_string_root(thd->mem_root, str, size);
+  if (lex_string_strmake(thd->mem_root, lex_str, str, size)) return nullptr;
+  return lex_str;
 }
 
 void *thd_memdup(MYSQL_THD thd, const void *str, size_t size) {

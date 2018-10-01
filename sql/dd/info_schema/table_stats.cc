@@ -650,10 +650,10 @@ ulonglong Table_statistics::read_stat_by_open_table(
   lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;
 
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
-  if (!thd->make_lex_string(&db_name_lex_cstr, schema_name_ptr.ptr(),
-                            schema_name_ptr.length(), false) ||
-      !thd->make_lex_string(&table_name_lex_cstr, table_name_ptr.ptr(),
-                            table_name_ptr.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &db_name_lex_cstr,
+                         schema_name_ptr.ptr(), schema_name_ptr.length()) ||
+      lex_string_strmake(thd->mem_root, &table_name_lex_cstr,
+                         table_name_ptr.ptr(), table_name_ptr.length())) {
     error = -1;
     goto end;
   }

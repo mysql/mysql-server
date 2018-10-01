@@ -2145,20 +2145,20 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
     uint i = 0;
 
     for (const dd::Foreign_key *fk : tab_obj->foreign_keys()) {
-      if (!make_lex_string_root(
-              &share->mem_root, &share->foreign_key[i].referenced_table_db,
-              fk->referenced_table_schema_name().c_str(),
-              fk->referenced_table_schema_name().length(), false))
+      if (lex_string_strmake(&share->mem_root,
+                             &share->foreign_key[i].referenced_table_db,
+                             fk->referenced_table_schema_name().c_str(),
+                             fk->referenced_table_schema_name().length()))
         return true;
-      if (!make_lex_string_root(&share->mem_root,
-                                &share->foreign_key[i].referenced_table_name,
-                                fk->referenced_table_name().c_str(),
-                                fk->referenced_table_name().length(), false))
+      if (lex_string_strmake(&share->mem_root,
+                             &share->foreign_key[i].referenced_table_name,
+                             fk->referenced_table_name().c_str(),
+                             fk->referenced_table_name().length()))
         return true;
-      if (!make_lex_string_root(&share->mem_root,
-                                &share->foreign_key[i].unique_constraint_name,
-                                fk->unique_constraint_name().c_str(),
-                                fk->unique_constraint_name().length(), false))
+      if (lex_string_strmake(&share->mem_root,
+                             &share->foreign_key[i].unique_constraint_name,
+                             fk->unique_constraint_name().c_str(),
+                             fk->unique_constraint_name().length()))
         return true;
 
       share->foreign_key[i].update_rule = fk->update_rule();
@@ -2173,10 +2173,10 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
       uint j = 0;
 
       for (const dd::Foreign_key_element *fk_el : fk->elements()) {
-        if (!make_lex_string_root(&share->mem_root,
-                                  &share->foreign_key[i].column_name[j],
-                                  fk_el->column().name().c_str(),
-                                  fk_el->column().name().length(), false))
+        if (lex_string_strmake(&share->mem_root,
+                               &share->foreign_key[i].column_name[j],
+                               fk_el->column().name().c_str(),
+                               fk_el->column().name().length()))
           return true;
 
         ++j;
@@ -2197,17 +2197,16 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
     uint i = 0;
 
     for (const dd::Foreign_key_parent *fk_p : tab_obj->foreign_key_parents()) {
-      if (!make_lex_string_root(
-              &share->mem_root,
-              &share->foreign_key_parent[i].referencing_table_db,
-              fk_p->child_schema_name().c_str(),
-              fk_p->child_schema_name().length(), false))
+      if (lex_string_strmake(&share->mem_root,
+                             &share->foreign_key_parent[i].referencing_table_db,
+                             fk_p->child_schema_name().c_str(),
+                             fk_p->child_schema_name().length()))
         return true;
-      if (!make_lex_string_root(
+      if (lex_string_strmake(
               &share->mem_root,
               &share->foreign_key_parent[i].referencing_table_name,
               fk_p->child_table_name().c_str(),
-              fk_p->child_table_name().length(), false))
+              fk_p->child_table_name().length()))
         return true;
       share->foreign_key_parent[i].update_rule = fk_p->update_rule();
       share->foreign_key_parent[i].delete_rule = fk_p->delete_rule();

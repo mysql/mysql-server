@@ -73,6 +73,7 @@
 #include "sql/sql_parse.h"  // create_default_definer
 #include "sql/sql_show.h"   // append_identifier
 #include "sql/sql_table.h"  // write_bin_log
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -904,8 +905,8 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure (NOTE: TABLE_LIST::source will be removed) */
   view->source = thd->lex->create_view_select;
 
-  if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
-                            view_query.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
+                         view_query.length())) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }
@@ -987,8 +988,8 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
                         system_charset_info))
     DBUG_RETURN(true);
 
-  if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
-                            is_query.length(), false)) {
+  if (lex_string_strmake(thd->mem_root, &view->view_body_utf8, is_query.ptr(),
+                         is_query.length())) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }

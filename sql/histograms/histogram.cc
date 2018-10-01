@@ -220,14 +220,14 @@ Histogram::Histogram(MEM_ROOT *mem_root, const std::string &db_name,
       m_mem_root(mem_root),
       m_hist_type(type),
       m_data_type(data_type) {
-  make_lex_string_root(m_mem_root, &m_database_name, db_name.c_str(),
-                       db_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_database_name, db_name.c_str(),
+                     db_name.length());
 
-  make_lex_string_root(m_mem_root, &m_table_name, tbl_name.c_str(),
-                       tbl_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_table_name, tbl_name.c_str(),
+                     tbl_name.length());
 
-  make_lex_string_root(m_mem_root, &m_column_name, col_name.c_str(),
-                       col_name.length(), false);
+  lex_string_strmake(m_mem_root, &m_column_name, col_name.c_str(),
+                     col_name.length());
 }
 
 Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
@@ -238,14 +238,14 @@ Histogram::Histogram(MEM_ROOT *mem_root, const Histogram &other)
       m_mem_root(mem_root),
       m_hist_type(other.m_hist_type),
       m_data_type(other.m_data_type) {
-  make_lex_string_root(m_mem_root, &m_database_name, other.m_database_name.str,
-                       other.m_database_name.length, false);
+  lex_string_strmake(m_mem_root, &m_database_name, other.m_database_name.str,
+                     other.m_database_name.length);
 
-  make_lex_string_root(m_mem_root, &m_table_name, other.m_table_name.str,
-                       other.m_table_name.length, false);
+  lex_string_strmake(m_mem_root, &m_table_name, other.m_table_name.str,
+                     other.m_table_name.length);
 
-  make_lex_string_root(m_mem_root, &m_column_name, other.m_column_name.str,
-                       other.m_column_name.length, false);
+  lex_string_strmake(m_mem_root, &m_column_name, other.m_column_name.str,
+                     other.m_column_name.length);
 }
 
 bool Histogram::histogram_to_json(Json_object *json_object) const {

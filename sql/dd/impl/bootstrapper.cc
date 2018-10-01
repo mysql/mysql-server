@@ -78,6 +78,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_prepare.h"  // Ed_connection
 #include "sql/stateless_allocator.h"
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -87,7 +88,7 @@
 bool execute_query(THD *thd, const dd::String_type &q_buf) {
   Ed_connection con(thd);
   LEX_STRING str;
-  thd->make_lex_string(&str, q_buf.c_str(), q_buf.length(), false);
+  lex_string_strmake(thd->mem_root, &str, q_buf.c_str(), q_buf.length());
   if (con.execute_direct(str)) {
     // Report error to log file during bootstrap.
     if (dd::bootstrap::DD_bootstrap_ctx::instance().get_stage() <

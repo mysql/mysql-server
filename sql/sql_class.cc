@@ -82,6 +82,7 @@
 #include "sql/sql_profile.h"
 #include "sql/sql_time.h"   // my_timeval_trunc
 #include "sql/sql_timer.h"  // thd_timer_destroy
+#include "sql/strfunc.h"
 #include "sql/table.h"
 #include "sql/tc_log.h"
 #include "sql/thr_malloc.h"
@@ -1441,50 +1442,6 @@ void THD::cleanup_after_query() {
   if (rli_slave) rli_slave->cleanup_after_query();
   // Set the default "cute" mode for the execution environment:
   check_for_truncated_fields = CHECK_FIELD_IGNORE;
-}
-
-LEX_CSTRING *make_lex_string_root(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
-                                  const char *str, size_t length,
-                                  bool allocate_lex_string) {
-  if (allocate_lex_string)
-    if (!(lex_str = (LEX_CSTRING *)alloc_root(mem_root, sizeof(LEX_CSTRING))))
-      return 0;
-  if (!(lex_str->str = strmake_root(mem_root, str, length))) return 0;
-  lex_str->length = length;
-  return lex_str;
-}
-
-LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, LEX_STRING *lex_str,
-                                 const char *str, size_t length,
-                                 bool allocate_lex_string) {
-  if (allocate_lex_string)
-    if (!(lex_str = (LEX_STRING *)alloc_root(mem_root, sizeof(LEX_STRING))))
-      return 0;
-  if (!(lex_str->str = strmake_root(mem_root, str, length))) return 0;
-  lex_str->length = length;
-  return lex_str;
-}
-
-LEX_CSTRING *THD::make_lex_string(LEX_CSTRING *lex_str, const char *str,
-                                  size_t length, bool allocate_lex_string) {
-  return make_lex_string_root(mem_root, lex_str, str, length,
-                              allocate_lex_string);
-}
-
-/**
-  Create a LEX_STRING in this connection.
-
-  @param lex_str  pointer to LEX_STRING object to be initialized
-  @param str      initializer to be copied into lex_str
-  @param length   length of str, in bytes
-  @param allocate_lex_string  if true, allocate new LEX_STRING object,
-                              instead of using lex_str value
-  @return  NULL on failure, or pointer to the LEX_STRING object
-*/
-LEX_STRING *THD::make_lex_string(LEX_STRING *lex_str, const char *str,
-                                 size_t length, bool allocate_lex_string) {
-  return make_lex_string_root(mem_root, lex_str, str, length,
-                              allocate_lex_string);
 }
 
 /*

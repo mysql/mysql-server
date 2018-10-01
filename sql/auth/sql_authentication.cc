@@ -85,6 +85,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // my_plugin_lock_by_name
 #include "sql/sql_time.h"    // Interval
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/tztime.h"  // Time_zone
 #include "sql_common.h"  // mpvio_info
@@ -1728,9 +1729,9 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
         if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
           mpvio->acl_user_plugin = mpvio->acl_user->plugin;
         else
-          make_lex_string_root(mpvio->mem_root, &mpvio->acl_user_plugin,
-                               acl_user_tmp->plugin.str,
-                               acl_user_tmp->plugin.length, 0);
+          lex_string_strmake(mpvio->mem_root, &mpvio->acl_user_plugin,
+                             acl_user_tmp->plugin.str,
+                             acl_user_tmp->plugin.length);
         break;
       }
     }
@@ -2083,8 +2084,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     DBUG_RETURN(true);
   mpvio->auth_info.user_name_length = user_len;
 
-  if (make_lex_string_root(mpvio->mem_root, &mpvio->db, db_buff, db_len, 0) ==
-      0)
+  if (lex_string_strmake(mpvio->mem_root, &mpvio->db, db_buff, db_len))
     DBUG_RETURN(true); /* The error is set by make_lex_string(). */
 
   if (!initialized) {
@@ -2588,7 +2588,7 @@ skip_to_ssl:
     user_len -= 2;
   }
 
-  if (make_lex_string_root(mpvio->mem_root, &mpvio->db, db, db_len, 0) == 0)
+  if (lex_string_strmake(mpvio->mem_root, &mpvio->db, db, db_len))
     return packet_error; /* The error is set by make_lex_string(). */
   if (mpvio->auth_info.user_name) my_free(mpvio->auth_info.user_name);
   if (!(mpvio->auth_info.user_name = my_strndup(key_memory_MPVIO_EXT_auth_info,

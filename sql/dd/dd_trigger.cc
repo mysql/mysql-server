@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_list.h"   // List
 #include "sql/sql_servers.h"
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/trigger.h"  // Trigger
@@ -286,27 +287,26 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
     LEX_CSTRING subject_table_name = {table_name, strlen(table_name)};
     LEX_CSTRING definition, definition_utf8;
 
-    if (make_lex_string_root(
-            mem_root, &definition, trigger->action_statement().c_str(),
-            trigger->action_statement().length(), false) == nullptr)
+    if (lex_string_strmake(mem_root, &definition,
+                           trigger->action_statement().c_str(),
+                           trigger->action_statement().length()))
       DBUG_RETURN(true);
 
-    if (make_lex_string_root(mem_root, &definition_utf8,
-                             trigger->action_statement_utf8().c_str(),
-                             trigger->action_statement_utf8().length(),
-                             false) == nullptr)
+    if (lex_string_strmake(mem_root, &definition_utf8,
+                           trigger->action_statement_utf8().c_str(),
+                           trigger->action_statement_utf8().length()))
       DBUG_RETURN(true);
 
     LEX_CSTRING definer_user;
-    if (make_lex_string_root(
-            mem_root, &definer_user, trigger->definer_user().c_str(),
-            trigger->definer_user().length(), false) == nullptr)
+    if (lex_string_strmake(mem_root, &definer_user,
+                           trigger->definer_user().c_str(),
+                           trigger->definer_user().length()))
       DBUG_RETURN(true);
 
     LEX_CSTRING definer_host;
-    if (make_lex_string_root(
-            mem_root, &definer_host, trigger->definer_host().c_str(),
-            trigger->definer_host().length(), false) == nullptr)
+    if (lex_string_strmake(mem_root, &definer_host,
+                           trigger->definer_host().c_str(),
+                           trigger->definer_host().length()))
       DBUG_RETURN(true);
 
     const CHARSET_INFO *client_cs =
@@ -323,14 +323,14 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
     if (schema_cs == nullptr) schema_cs = thd->variables.collation_database;
 
     LEX_CSTRING client_cs_name, connection_cl_name, db_cl_name, trigger_name;
-    if (make_lex_string_root(mem_root, &client_cs_name, client_cs->csname,
-                             strlen(client_cs->csname), false) == nullptr ||
-        make_lex_string_root(mem_root, &connection_cl_name, connection_cs->name,
-                             strlen(connection_cs->name), false) == nullptr ||
-        make_lex_string_root(mem_root, &db_cl_name, schema_cs->name,
-                             strlen(schema_cs->name), false) == nullptr ||
-        make_lex_string_root(mem_root, &trigger_name, trigger->name().c_str(),
-                             trigger->name().length(), false) == nullptr)
+    if (lex_string_strmake(mem_root, &client_cs_name, client_cs->csname,
+                           strlen(client_cs->csname)) ||
+        lex_string_strmake(mem_root, &connection_cl_name, connection_cs->name,
+                           strlen(connection_cs->name)) ||
+        lex_string_strmake(mem_root, &db_cl_name, schema_cs->name,
+                           strlen(schema_cs->name)) ||
+        lex_string_strmake(mem_root, &trigger_name, trigger->name().c_str(),
+                           trigger->name().length()))
       DBUG_RETURN(true);
 
     ::Trigger *trigger_to_add = ::Trigger::create_from_dd(

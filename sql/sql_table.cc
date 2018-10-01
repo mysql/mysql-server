@@ -14387,9 +14387,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (validate_tablespace_name_length(create_info->tablespace))
       DBUG_RETURN(true);
 
-    if (!thd->make_lex_string(&table_list->target_tablespace_name,
-                              create_info->tablespace,
-                              strlen(create_info->tablespace), false)) {
+    if (lex_string_strmake(thd->mem_root, &table_list->target_tablespace_name,
+                           create_info->tablespace,
+                           strlen(create_info->tablespace))) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(true);
     }

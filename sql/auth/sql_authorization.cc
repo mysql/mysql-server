@@ -115,6 +115,7 @@
 #include "sql/sql_parse.h" /* get_current_user */
 #include "sql/sql_show.h"  /* append_identifier */
 #include "sql/sql_view.h"  /* VIEW_ANY_ACL */
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -4771,10 +4772,10 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   tables->db = (char *)sp_db;
   tables->table_name = tables->alias = (char *)sp_name;
 
-  thd->make_lex_string(&combo->user, combo->user.str, strlen(combo->user.str),
-                       0);
-  thd->make_lex_string(&combo->host, combo->host.str, strlen(combo->host.str),
-                       0);
+  lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
+                     strlen(combo->user.str));
+  lex_string_strmake(thd->mem_root, &combo->host, combo->host.str,
+                     strlen(combo->host.str));
 
   if (user_list.push_back(combo)) DBUG_RETURN(true);
 

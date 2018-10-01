@@ -53,6 +53,7 @@
 #include "sql/sql_select.h"      // handle_query()
 #include "sql/sql_table.h"       // mysql_create_like_table()
 #include "sql/sql_tablespace.h"  // validate_tablespace_name()
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "thr_lock.h"
@@ -144,9 +145,9 @@ bool Sql_cmd_create_table::execute(THD *thd) {
                                  create_info.db_type))
       return true;
 
-    if (!thd->make_lex_string(&create_table->target_tablespace_name,
-                              create_info.tablespace,
-                              strlen(create_info.tablespace), false))
+    if (lex_string_strmake(thd->mem_root, &create_table->target_tablespace_name,
+                           create_info.tablespace,
+                           strlen(create_info.tablespace)))
       return true;
   }
 

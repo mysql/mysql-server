@@ -317,3 +317,26 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 
   return result->str;
 }
+
+LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, const char *str,
+                                 size_t length) {
+  auto lex_str =
+      reinterpret_cast<LEX_STRING *>(alloc_root(mem_root, sizeof(LEX_STRING)));
+  if (lex_str == nullptr || lex_string_strmake(mem_root, lex_str, str, length))
+    return nullptr;
+  return lex_str;
+}
+
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_STRING *lex_str,
+                        const char *str, size_t length) {
+  if (!(lex_str->str = strmake_root(mem_root, str, length))) return true;
+  lex_str->length = length;
+  return false;
+}
+
+bool lex_string_strmake(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
+                        const char *str, size_t length) {
+  if (!(lex_str->str = strmake_root(mem_root, str, length))) return true;
+  lex_str->length = length;
+  return false;
+}

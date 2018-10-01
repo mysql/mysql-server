@@ -153,7 +153,8 @@
 #include "sql/sql_test.h"           // mysql_print_status
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
-#include "sql/sql_view.h"          // mysql_create_view
+#include "sql/sql_view.h"  // mysql_create_view
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"  // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
@@ -4647,8 +4648,8 @@ bool show_precheck(THD *thd, LEX *lex, bool lock) {
       if (!lock) break;
 
       LEX_STRING lex_str_db;
-      if (make_lex_string_root(thd->mem_root, &lex_str_db, lex->select_lex->db,
-                               strlen(lex->select_lex->db), false) == nullptr)
+      if (lex_string_strmake(thd->mem_root, &lex_str_db, lex->select_lex->db,
+                             strlen(lex->select_lex->db)))
         return true;
 
       // Acquire IX MDL lock on schema name.

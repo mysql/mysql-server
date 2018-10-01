@@ -2704,11 +2704,6 @@ class THD : public MDL_context_owner,
     return !stmt_arena->is_stmt_prepare();
   }
 
-  LEX_CSTRING *make_lex_string(LEX_CSTRING *lex_str, const char *str,
-                               size_t length, bool allocate_lex_string);
-  LEX_STRING *make_lex_string(LEX_STRING *lex_str, const char *str,
-                              size_t length, bool allocate_lex_string);
-
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                       const char *from, size_t from_length,
                       const CHARSET_INFO *from_cs);
@@ -4083,28 +4078,6 @@ inline void my_eof(THD *thd) {
          TRANSACTION_INFO_TRACKER))
         ->add_trx_state(thd, TX_RESULT_SET);
   }
-}
-
-LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, LEX_STRING *lex_str,
-                                 const char *str, size_t length,
-                                 bool allocate_lex_string);
-LEX_CSTRING *make_lex_string_root(MEM_ROOT *mem_root, LEX_CSTRING *lex_str,
-                                  const char *str, size_t length,
-                                  bool allocate_lex_string);
-
-inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
-                                   const char *src, size_t src_len) {
-  return make_lex_string_root(root, dst, src, src_len, false);
-}
-
-inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
-                                   const LEX_STRING &src) {
-  return make_lex_string_root(root, dst, src.str, src.length, false);
-}
-
-inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
-                                   const char *src) {
-  return make_lex_string_root(root, dst, src, strlen(src), false);
 }
 
 bool add_item_to_list(THD *thd, Item *item);

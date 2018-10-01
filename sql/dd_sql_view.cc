@@ -57,6 +57,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"   // LEX
 #include "sql/sql_view.h"  // mysql_register_view
+#include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE_LIST
 #include "sql/thd_raii.h"
@@ -494,8 +495,8 @@ static bool open_views_and_update_metadata(
     }
     Sql_mode_parse_guard parse_guard(thd);
     thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
-    if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
-                              view_query.length(), false))
+    if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
+                           view_query.length()))
       DBUG_RETURN(true);
 
     // Update view metadata in the data-dictionary tables.
