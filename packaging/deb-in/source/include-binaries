@@ -98,6 +98,7 @@ debian/extra/libtest_sql_stmt-plugin
 debian/extra/libtest_sql_sqlmode-plugin
 debian/extra/libtest_sql_stored_procedures_functions-plugin
 debian/extra/libtest_sql_views_triggers-plugin
+debian/extra/libtest_sql_reset_connection-plugin
 debian/extra/libtest_x_sessions_deinit-plugin
 debian/extra/libtest_x_sessions_init-plugin
 debian/extra/locking_service-plugin

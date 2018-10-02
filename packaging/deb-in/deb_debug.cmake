@@ -143,6 +143,7 @@ usr/lib/mysql/plugin/debug/libtest_sql_stmt.so
 usr/lib/mysql/plugin/debug/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 usr/lib/mysql/plugin/debug/libtest_sql_views_triggers.so
+usr/lib/mysql/plugin/debug/libtest_sql_reset_connection.so
 usr/lib/mysql/plugin/debug/libtest_x_sessions_deinit.so
 usr/lib/mysql/plugin/debug/libtest_x_sessions_init.so
 usr/lib/mysql/plugin/debug/qa_auth_client.so
