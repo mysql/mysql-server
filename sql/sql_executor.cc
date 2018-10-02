@@ -1194,6 +1194,24 @@ unique_ptr_destroy_only<RowIterator> CreateNestedLoopIterator(
                              join_type, pfs_batch_mode));
 }
 
+static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
+    THD *thd, QEP_TAB *qep_tab, unique_ptr_destroy_only<RowIterator> iterator) {
+  CacheInvalidatorIterator *invalidator = new (thd->mem_root)
+      CacheInvalidatorIterator(thd, move(iterator), qep_tab->table()->alias);
+
+  table_map deps = qep_tab->lateral_derived_tables_depend_on_me;
+  for (QEP_TAB **tab2 = qep_tab->join()->map2qep_tab; deps;
+       tab2++, deps >>= 1) {
+    if (!(deps & 1)) continue;
+    if ((*tab2)->invalidators == nullptr) {
+      (*tab2)->invalidators = new (thd->mem_root)
+          Mem_root_array<const CacheInvalidatorIterator *>(thd->mem_root);
+    }
+    (*tab2)->invalidators->push_back(invalidator);
+  }
+  return unique_ptr_destroy_only<RowIterator>(invalidator);
+}
+
 /*
   If a condition cannot be applied right away, for instance because it is a
   WHERE condition and we're on the right side of an outer join, we have to
@@ -1269,6 +1287,16 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
   param->items_to_copy = copy_func;
 }
 
+/** Similar to PendingCondition, but for cache invalidator iterators. */
+struct PendingInvalidator {
+  /**
+    The table whose every (post-join) row invalidates one or more derived
+    lateral tables.
+   */
+  QEP_TAB *qep_tab;
+  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+};
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. Currently only handles inner and outer joins,
@@ -1299,11 +1327,18 @@ static void ConvertItemsToCopy(List<Item> *items, Field **fields,
   @param pending_conditions if nullptr, we are not at the right (inner) side of
     any outer join and can evaluate conditions immediately. If not, we need to
     push any WHERE predicates to that vector and evaluate them only after joins.
+  @param pending_invalidators similar to pending_conditions, but for tables
+    that should have a CacheInvalidatorIterator synthesized for them;
+    NULL-complemented rows must also invalidate materialized lateral derived
+  tables.
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
-    vector<PendingCondition> *pending_conditions) {
+    vector<PendingCondition> *pending_conditions,
+    vector<PendingInvalidator> *pending_invalidators) {
   DBUG_ASSERT(last_idx > first_idx);
+  DBUG_ASSERT((pending_conditions == nullptr) ==
+              (pending_invalidators == nullptr));
   unique_ptr_destroy_only<RowIterator> iterator = nullptr;
 
   // A special case: If we are at the top but the first table is an outer
@@ -1311,12 +1346,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   // of said join.
   bool is_top_level_outer_join = false;
   vector<PendingCondition> top_level_pending_conditions;
+  vector<PendingInvalidator> top_level_pending_invalidators;
   if (pending_conditions == nullptr &&
       qep_tabs[first_idx].last_inner() != NO_PLAN_IDX) {
     is_top_level_outer_join = true;
     iterator.reset(new (thd->mem_root)
                        FakeSingleRowIterator(thd, /*examined_rows=*/nullptr));
     pending_conditions = &top_level_pending_conditions;
+    pending_invalidators = &top_level_pending_invalidators;
   }
 
   // NOTE: i is advanced in in one of two ways:
@@ -1336,11 +1373,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // and then join the returned root into our existing tree.
       unique_ptr_destroy_only<RowIterator> subtree_iterator;
       vector<PendingCondition> subtree_pending_conditions;
+      vector<PendingInvalidator> subtree_pending_invalidators;
       if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
-        subtree_iterator = ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs,
-                                        thd, pending_conditions);
+        subtree_iterator =
+            ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs, thd,
+                         pending_conditions, pending_invalidators);
 
         // Pick out any conditions that should be directly above this join
         // (ie., the ON conditions for this specific join).
@@ -1353,11 +1392,23 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             ++it;
           }
         }
+
+        // Similarly, for invalidators.
+        for (auto it = pending_invalidators->begin();
+             it != pending_invalidators->end();) {
+          if (it->table_index_to_attach_to == int(i)) {
+            subtree_pending_invalidators.push_back(*it);
+            it = pending_invalidators->erase(it);
+          } else {
+            ++it;
+          }
+        }
       } else {
         // We can check the WHERE predicates on this table right away
-        // after the join.
+        // after the join (and similarly, set up invalidators).
         subtree_iterator = ConnectJoins(i, qep_tab->last_inner() + 1, qep_tabs,
-                                        thd, &subtree_pending_conditions);
+                                        thd, &subtree_pending_conditions,
+                                        &subtree_pending_invalidators);
       }
 
       JoinType join_type;
@@ -1379,6 +1430,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       iterator = PossiblyAttachFilterIterator(move(iterator),
                                               subtree_pending_conditions, thd);
 
+      // It's highly unlikely that we have more than one pending QEP_TAB here
+      // (the most common case will be zero), so don't bother combining them
+      // into one invalidator.
+      for (const PendingInvalidator &invalidator :
+           subtree_pending_invalidators) {
+        iterator =
+            CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
+      }
+
       i = qep_tab->last_inner() + 1;
       continue;
     }
@@ -1389,14 +1449,33 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
                          &subjoin->tmp_table_param);
 
+      bool rematerialize = qep_tab->rematerialize;
+      if (qep_tab->join()->select_lex->uncacheable) {
+        // If the query is uncacheable, we need to rematerialize it each and
+        // every time it's read. In particular, this can happen for LATERAL
+        // tables.
+        rematerialize = true;
+      }
+
       bool copy_fields_and_items_in_materialize =
           !subjoin->streaming_aggregation;
       table_iterator.reset(new (thd->mem_root) MaterializeIterator(
           thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
           qep_tab->table(), move(qep_tab->read_record.iterator),
           subjoin->select_lex, subjoin,
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
-          qep_tab->rematerialize, subjoin->tmp_table_param.end_write_records));
+          /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
+          subjoin->tmp_table_param.end_write_records));
+
+      if (!rematerialize) {
+        MaterializeIterator *materialize =
+            down_cast<MaterializeIterator *>(table_iterator.get());
+        if (qep_tab->invalidators != nullptr) {
+          for (const CacheInvalidatorIterator *iterator :
+               *qep_tab->invalidators) {
+            materialize->AddInvalidator(iterator);
+          }
+        }
+      }
     } else {
       table_iterator = move(qep_tab->read_record.iterator);
     }
@@ -1474,6 +1553,16 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     table_iterator = PossiblyAttachFilterIterator(move(table_iterator),
                                                   predicates_below_join, thd);
 
+    if (qep_tab->lateral_derived_tables_depend_on_me) {
+      if (pending_invalidators != nullptr) {
+        pending_invalidators->push_back(PendingInvalidator{
+            qep_tab, /*table_index_to_attach_to=*/i});  // FIXME
+      } else {
+        table_iterator =
+            CreateInvalidatorIterator(thd, qep_tab, move(table_iterator));
+      }
+    }
+
     if (iterator == nullptr) {
       // We are the first table in this join.
       iterator = move(table_iterator);
@@ -1523,6 +1612,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   if (is_top_level_outer_join) {
     iterator = PossiblyAttachFilterIterator(move(iterator),
                                             top_level_pending_conditions, thd);
+
+    // We can't have any invalidators here, because there's no later table
+    // to invalidate.
+    DBUG_ASSERT(top_level_pending_invalidators.empty());
   }
   return iterator;
 }
@@ -1639,8 +1732,8 @@ void JOIN::create_iterators() {
                                               vector<Item *>{where_cond}, thd);
     }
   } else {
-    iterator =
-        ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr);
+    iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd, nullptr,
+                            nullptr);
   }
 
   // Deal with any materialization happening at the end (typically for sorting,
@@ -1717,6 +1810,9 @@ void JOIN::create_iterators() {
           move(qep_tab->read_record.iterator), select_lex, this,
           qep_tab->ref_item_slice, copy_fields_and_items,
           /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records));
+
+      // NOTE: There's no need to call join->add_materialize_iterator(),
+      // as this iterator always rematerializes anyway.
     }
 
     // TODO: Pull the filtering out of filesort, so this works for

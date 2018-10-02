@@ -363,6 +363,53 @@ class NestedLoopIterator final : public RowIterator {
 };
 
 /**
+  An iterator that helps invalidating caches. Every time a row passes through it
+  or it changes state in any other way, it increments its “generation” counter.
+  This allows MaterializeIterator to see whether any of its dependencies has
+  changed, and then force a rematerialization -- this is typically used for
+  LATERAL tables, where we're joining in a derived table that depends on
+  something earlier in the join.
+ */
+class CacheInvalidatorIterator final : public RowIterator {
+ public:
+  CacheInvalidatorIterator(THD *thd,
+                           unique_ptr_destroy_only<RowIterator> source_iterator,
+                           const std::string &name)
+      : RowIterator(thd),
+        m_source_iterator(move(source_iterator)),
+        m_name(name) {}
+
+  bool Init() override {
+    ++m_generation;
+    return m_source_iterator->Init();
+  }
+
+  int Read() override {
+    ++m_generation;
+    return m_source_iterator->Read();
+  }
+
+  void SetNullRowFlag(bool is_null_row) override {
+    ++m_generation;
+    m_source_iterator->SetNullRowFlag(is_null_row);
+  }
+
+  void UnlockRow() override { m_source_iterator->UnlockRow(); }
+  std::vector<std::string> DebugString() const override;
+  std::vector<Child> children() const override {
+    return {Child{m_source_iterator.get(), ""}};
+  }
+
+  int64_t generation() const { return m_generation; }
+  std::string name() const { return m_name; }
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_source_iterator;
+  int64_t m_generation = 0;
+  std::string m_name;
+};
+
+/**
   Handles materialization; the first call to Init() will scan the given iterator
   to the end, store the results in a temporary table (optionally with
   deduplication), and then Read() will allow you to read that table repeatedly
@@ -418,6 +465,13 @@ class MaterializeIterator final : public TableRowIterator {
   // locks to other transactions.
   void UnlockRow() override {}
 
+  /**
+    Add a cache invalidator that must be checked on every Init().
+    If its generation has increased since last materialize, we need to
+    rematerialize even if m_rematerialize is false.
+   */
+  void AddInvalidator(const CacheInvalidatorIterator *invalidator);
+
  private:
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
@@ -440,6 +494,12 @@ class MaterializeIterator final : public TableRowIterator {
 
   /// See constructor.
   const ha_rows m_limit_rows;
+
+  struct Invalidator {
+    const CacheInvalidatorIterator *iterator;
+    int64_t generation_at_last_materialize;
+  };
+  Mem_root_array<Invalidator> m_invalidators;
 
   /// Whether we are deduplicating using a hash field on the temporary
   /// table. (This condition mirrors check_unique_constraint().)

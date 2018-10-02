@@ -1,4 +1,3 @@
-skip LATERAL support is broken, fixed in a later patch in the series
 --source include/have_optimizer_trace.inc
 set optimizer_trace_max_mem_size=10000000,@@session.optimizer_trace="enabled=on";
 let $show_trace=
@@ -437,6 +436,7 @@ drop table t3;
 let $query=
 select * from t1, lateral (select * from (select * from (select t1.a from t2) as dt limit 1) dt2) dt3;
 
+eval explain format=tree $query;  # Demonstrates Materialize -> Temporary table (forced rematerialization always).
 eval explain $query;
 eval $query;
 

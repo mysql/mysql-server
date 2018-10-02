@@ -42,6 +42,7 @@
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
 
+class CacheInvalidatorIterator;
 class Field;
 class Field_longlong;
 class Filesort;
@@ -679,6 +680,8 @@ class QEP_TAB : public QEP_shared_owner {
      and clarity in EXPLAIN.
   */
   table_map lateral_derived_tables_depend_on_me;
+
+  Mem_root_array<const CacheInvalidatorIterator *> *invalidators = nullptr;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined

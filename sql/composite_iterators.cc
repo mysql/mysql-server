@@ -473,6 +473,12 @@ vector<string> NestedLoopIterator::DebugString() const {
   }
 }
 
+vector<string> CacheInvalidatorIterator::DebugString() const {
+  string ret =
+      string("Invalidate materialized tables (row from ") + m_name + ")";
+  return {ret};
+}
+
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *tmp_table_param, TABLE *table,
@@ -488,12 +494,32 @@ MaterializeIterator::MaterializeIterator(
       m_ref_slice(ref_slice),
       m_copy_fields_and_items(copy_fields_and_items),
       m_rematerialize(rematerialize),
-      m_limit_rows(limit_rows) {}
+      m_limit_rows(limit_rows),
+      m_invalidators(thd->mem_root) {}
 
 bool MaterializeIterator::Init() {
-  if (table()->materialized && !m_rematerialize) {
-    // Just a rescan of the same table.
-    return m_table_iterator->Init();
+  if (table()->materialized) {
+    bool rematerialize = m_rematerialize;
+
+    if (!rematerialize) {
+      // See if any lateral tables that we depend on have changed since last
+      // time (which would force a rematerialization).
+      //
+      // TODO: It would be better, although probably much harder, to check the
+      // actual column values instead of just whether we've seen any new rows.
+      for (const Invalidator &invalidator : m_invalidators) {
+        if (invalidator.iterator->generation() !=
+            invalidator.generation_at_last_materialize) {
+          rematerialize = true;
+          break;
+        }
+      }
+    }
+
+    if (!rematerialize) {
+      // Just a rescan of the same table.
+      return m_table_iterator->Init();
+    }
   }
   table()->set_not_started();
 
@@ -514,6 +540,10 @@ bool MaterializeIterator::Init() {
       }
       empty_record(table());
     }
+
+    table()->file->ha_delete_all_rows();
+    m_join->unit->clear_corr_ctes();
+
     // If we are removing duplicates by way of a hash field
     // (see doing_hash_deduplication() for an explanation), we need to
     // initialize scanning of the index over that hash field. (This is entirely
@@ -582,6 +612,11 @@ bool MaterializeIterator::Init() {
     DEBUG_SYNC(thd(), "after_materialize_derived");
   }
 
+  for (Invalidator &invalidator : m_invalidators) {
+    invalidator.generation_at_last_materialize =
+        invalidator.iterator->generation();
+  }
+
   return m_table_iterator->Init();
 }
 
@@ -643,6 +678,20 @@ vector<string> MaterializeIterator::DebugString() const {
   if (doing_hash_deduplication() || any_unique_index) {
     str += " with deduplication";
   }
+
+  if (!m_invalidators.empty()) {
+    bool first = true;
+    str += " (invalidate on row from ";
+    for (const Invalidator &invalidator : m_invalidators) {
+      if (!first) {
+        str += "; ";
+      }
+      first = false;
+      str += invalidator.iterator->name();
+    }
+    str += ")";
+  }
+
   ret.push_back(str);
   return ret;
 }
@@ -665,6 +714,17 @@ vector<RowIterator::Child> MaterializeIterator::children() const {
   // DebugString() instead. (Anything else would look confusingly much like a
   // join.)
   return vector<Child>{{m_subquery_iterator.get(), heading}};
+}
+
+void MaterializeIterator::AddInvalidator(
+    const CacheInvalidatorIterator *invalidator) {
+  m_invalidators.push_back(
+      Invalidator{invalidator, /*generation_at_last_materialize=*/-1});
+
+  // If we're invalidated, the join also needs to invalidate all of its
+  // own materialization operations, but it will automatically do so by
+  // virtue of the SELECT_LEX being marked as uncachable
+  // (create_iterators() always sets rematerialize=true for such cases).
 }
 
 TemptableAggregateIterator::TemptableAggregateIterator(
@@ -700,6 +760,8 @@ bool TemptableAggregateIterator::Init() {
     }
     empty_record(table());
   }
+
+  table()->file->ha_delete_all_rows();
 
   // Initialize the index used for finding the groups.
   if (table()->file->ha_index_init(0, 0)) {

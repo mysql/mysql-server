@@ -300,3 +300,59 @@ EXPLAIN
         -> Table scan on t1
 
 DROP TABLE t1;
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING ( a ),
+LATERAL ( SELECT * FROM t3 WHERE t3.a = t2.a LIMIT 1 ) t3d,
+LATERAL ( SELECT * FROM t3 WHERE t3.a > t1.a LIMIT 1 ) t4d;
+EXPLAIN
+-> Nested loop inner join
+    -> Nested loop inner join
+        -> Invalidate materialized tables (row from t2)
+            -> Nested loop left join
+                -> Invalidate materialized tables (row from t1)
+                    -> Table scan on t1
+                -> Filter: (t2.a = t1.a)
+                    -> Table scan on t2
+        -> Table scan on t3d
+            -> Materialize (invalidate on row from t2)
+                -> Limit: 1 row(s)
+                    -> Filter: (t3.a = t2.a)
+                        -> Table scan on t3
+    -> Table scan on t4d
+        -> Materialize (invalidate on row from t1)
+            -> Limit: 1 row(s)
+                -> Filter: (t3.a > t1.a)
+                    -> Table scan on t3
+
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 ( a INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( a INTEGER );
+CREATE TABLE t4 ( a INTEGER );
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
+t2 LEFT JOIN t3 USING ( a ) CROSS JOIN
+LATERAL ( SELECT * FROM t4 WHERE t4.a = t3.a LIMIT 1 ) t4d
+) ON t1.a = t4d.a;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on t1
+    -> Nested loop inner join
+        -> Invalidate materialized tables (row from t3)
+            -> Nested loop left join
+                -> Table scan on t2
+                -> Filter: (t3.a = t2.a)
+                    -> Table scan on t3
+        -> Index lookup on t4d using <auto_key0> (a=t1.a)
+            -> Materialize (invalidate on row from t3)
+                -> Limit: 1 row(s)
+                    -> Filter: (t4.a = t3.a)
+                        -> Table scan on t4
+
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1, t2, t3, t4;
