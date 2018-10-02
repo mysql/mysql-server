@@ -243,20 +243,17 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   ASSERT_THAT(router.kill(), testing::Eq(0));
 }
 
-// Note: +1 becuase the router queries for the metadata twice when it
-// initializes. Whenever that gets fixed and this test starts failing try
-// removing '+1'
 INSTANTIATE_TEST_CASE_P(
     CheckTTLIsUsedCorrectly, MetadataChacheTTLTestParam,
     ::testing::Values(
-        MetadataTTLTestParams("0.4", std::chrono::milliseconds(600), 2 + 1),
-        MetadataTTLTestParams("1", std::chrono::milliseconds(2500), 3 + 1),
+        MetadataTTLTestParams("0.4", std::chrono::milliseconds(600), 2),
+        MetadataTTLTestParams("1", std::chrono::milliseconds(2500), 3),
         // check that default is 0.5 if not provided:
-        MetadataTTLTestParams("", std::chrono::milliseconds(1750), 4 + 1),
+        MetadataTTLTestParams("", std::chrono::milliseconds(1750), 4),
         // check that for 0 there are multiple ttl queries (we can't really
         // guess how many there will be, but we should be able to safely assume
         // that in 1 second it shold be at least 5 queries)
-        MetadataTTLTestParams("0", std::chrono::milliseconds(1000), 5 + 1,
+        MetadataTTLTestParams("0", std::chrono::milliseconds(1000), 5,
                               /*at_least=*/true)));
 
 class MetadataChacheTTLTestParamInvalid
