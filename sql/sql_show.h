@@ -129,14 +129,15 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg, bool show_database);
 
-void append_identifier(THD *thd, String *packet, const char *name,
+void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,
                        const CHARSET_INFO *to_cs);
 
-void append_identifier(THD *thd, String *packet, const char *name,
+void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length);
 
-inline void append_identifier(THD *thd, String *packet, Simple_cstring str) {
+inline void append_identifier(const THD *thd, String *packet,
+                              Simple_cstring str) {
   append_identifier(thd, packet, str.ptr(), str.length());
 }
 void mysqld_list_fields(THD *thd, TABLE_LIST *table, const char *wild);
@@ -210,7 +211,8 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  size_t *length, bool *is_null = NULL);
 
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
-int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
+int get_quote_char_for_identifier(const THD *thd, const char *name,
+                                  size_t length);
 
 bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
                                            bool can_deadlock);

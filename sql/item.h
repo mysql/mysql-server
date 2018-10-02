@@ -3617,7 +3617,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
 
   const String *query_val_str(THD *thd, String *str) const;
 
-  bool convert_str_value(THD *thd);
+  bool convert_str_value();
 
   /*
     Parameter is treated as constant during execution, thus it will not be

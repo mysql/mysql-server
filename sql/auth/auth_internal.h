@@ -46,7 +46,7 @@ class GRANT_COLUMN;
 struct TABLE;
 
 typedef struct user_resources USER_RESOURCES;
-void append_identifier(THD *thd, String *packet, const char *name,
+void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length);
 typedef std::map<std::string, unsigned long> Column_map;
 struct Grant_table_aggregate {

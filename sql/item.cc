@@ -3759,8 +3759,7 @@ const String *Item_param::query_val_str(THD *thd, String *str) const {
   connection.
 */
 
-bool Item_param::convert_str_value(THD *thd) {
-  bool rc = false;
+bool Item_param::convert_str_value() {
   if (state == STRING_VALUE || state == LONG_DATA_VALUE) {
     if (value.cs_info.final_character_set_of_str_value == NULL ||
         value.cs_info.character_set_of_placeholder == NULL)
@@ -3773,9 +3772,14 @@ bool Item_param::convert_str_value(THD *thd) {
     */
     if (value.cs_info.final_character_set_of_str_value !=
         value.cs_info.character_set_of_placeholder) {
-      rc = thd->convert_string(&str_value,
-                               value.cs_info.character_set_of_placeholder,
-                               value.cs_info.final_character_set_of_str_value);
+      uint dummy_errors;
+      StringBuffer<STRING_BUFFER_USUAL_SIZE> convert_buffer;
+      if (convert_buffer.copy(str_value.ptr(), str_value.length(),
+                              value.cs_info.character_set_of_placeholder,
+                              value.cs_info.final_character_set_of_str_value,
+                              &dummy_errors))
+        return true;
+      if (str_value.copy(convert_buffer)) return true;
     } else
       str_value.set_charset(value.cs_info.final_character_set_of_str_value);
     /* Here str_value is guaranteed to be in final_character_set_of_str_value */
@@ -3793,7 +3797,7 @@ bool Item_param::convert_str_value(THD *thd) {
     /* Synchronize item charset with value charset */
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
   }
-  return rc;
+  return false;
 }
 
 Item *Item_param::clone_item() const {

@@ -47,14 +47,7 @@ class I_List;
 template <class T>
 class List;
 union COM_DATA;
-
-#ifdef __cplusplus
 class THD;
-
-#define MYSQL_THD THD *
-#else
-#define MYSQL_THD void *
-#endif
 
 class Protocol_classic : public Protocol {
  private:
@@ -62,9 +55,9 @@ class Protocol_classic : public Protocol {
   virtual bool parse_packet(union COM_DATA *data, enum_server_command cmd);
 
  protected:
-  MYSQL_THD m_thd;
+  THD *m_thd;
   String *packet;
-  String *convert;
+  String convert;
   uint field_pos;
   bool send_metadata;
 #ifndef DBUG_OFF

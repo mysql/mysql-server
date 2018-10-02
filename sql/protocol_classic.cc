@@ -516,9 +516,10 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
       Thus conversion directly to "packet" is not worthy.
       Let's use "convert" as a temporary buffer.
     */
-    return (convert->copy((const char *)from, length, from_cs, to_cs,
-                          &dummy_errors) ||
-            net_store_data((const uchar *)convert->ptr(), convert->length()));
+    return (convert.copy(pointer_cast<const char *>(from), length, from_cs,
+                         to_cs, &dummy_errors) ||
+            net_store_data(pointer_cast<const uchar *>(convert.ptr()),
+                           convert.length()));
   }
 
   size_t packet_length = packet->length();
@@ -1246,7 +1247,6 @@ uchar *net_store_data(uchar *to, longlong from) {
 void Protocol_classic::init(THD *thd_arg) {
   m_thd = thd_arg;
   packet = &m_thd->packet;
-  convert = &m_thd->convert_buffer;
 #ifndef DBUG_OFF
   field_types = 0;
 #endif
@@ -1268,6 +1268,8 @@ bool Protocol_classic::send_ok(uint server_status, uint statement_warn_count,
   const bool retval =
       net_send_ok(m_thd, server_status, statement_warn_count, affected_rows,
                   last_insert_id, message, false);
+  // Reclaim some memory
+  convert.shrink(m_thd->variables.net_buffer_length);
   DBUG_RETURN(retval);
 }
 
@@ -1292,6 +1294,8 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
                          true);
   else
     retval = net_send_eof(m_thd, server_status, statement_warn_count);
+  // Reclaim some memory
+  convert.shrink(m_thd->variables.net_buffer_length);
   DBUG_RETURN(retval);
 }
 
@@ -1306,6 +1310,8 @@ bool Protocol_classic::send_error(uint sql_errno, const char *err_msg,
   DBUG_ENTER("Protocol_classic::send_error");
   const bool retval =
       net_send_error_packet(m_thd, sql_errno, err_msg, sql_state);
+  // Reclaim some memory
+  convert.shrink(m_thd->variables.net_buffer_length);
   DBUG_RETURN(retval);
 }
 

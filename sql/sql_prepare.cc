@@ -767,14 +767,14 @@ bool Prepared_statement::insert_params(String *query, PS_PARAM *parameters) {
       DBUG_RETURN(true);
     if (with_log) {
       res = param->query_val_str(thd, &str);
-      if (param->convert_str_value(thd)) DBUG_RETURN(true); /* out of memory */
+      if (param->convert_str_value()) DBUG_RETURN(true); /* out of memory */
 
       if (query->replace(param->pos_in_query + length, 1, *res))
         DBUG_RETURN(true);
 
       length += res->length() - 1;
     } else {
-      if (param->convert_str_value(thd)) DBUG_RETURN(true); /* out of memory */
+      if (param->convert_str_value()) DBUG_RETURN(true); /* out of memory */
     }
     param->sync_clones();
   }
@@ -892,7 +892,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING> &varnames,
       if (param->set_from_user_var(thd, entry)) goto error;
       val = param->query_val_str(thd, &buf);
 
-      if (param->convert_str_value(thd)) goto error;
+      if (param->convert_str_value()) goto error;
 
       size_t num_bytes = param->pos_in_query - length;
       if (query->length() + num_bytes + val->length() >
@@ -905,7 +905,7 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING> &varnames,
 
       length = param->pos_in_query + 1;
     } else {
-      if (param->set_from_user_var(thd, entry) || param->convert_str_value(thd))
+      if (param->set_from_user_var(thd, entry) || param->convert_str_value())
         goto error;
     }
     param->sync_clones();

@@ -981,7 +981,7 @@ void append_identifier(String *packet, const char *name, size_t length) {
   @param to_cs                 Charset information about the target string
 */
 
-void append_identifier(THD *thd, String *packet, const char *name,
+void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length, const CHARSET_INFO *from_cs,
                        const CHARSET_INFO *to_cs) {
   const char *name_end;
@@ -993,8 +993,13 @@ void append_identifier(THD *thd, String *packet, const char *name,
   size_t to_length = length;
   String to_string(name, length, from_cs);
 
-  if (from_cs != NULL && to_cs != NULL && from_cs != to_cs)
-    thd->convert_string(&to_string, from_cs, to_cs);
+  if (from_cs != NULL && to_cs != NULL && from_cs != to_cs) {
+    uint dummy_errors;
+    StringBuffer<MAX_FIELD_WIDTH> convert_buffer;
+    convert_buffer.copy(to_string.ptr(), to_string.length(), from_cs, to_cs,
+                        &dummy_errors);
+    to_string.copy(convert_buffer);
+  }
 
   if (to_cs != NULL) {
     to_name = to_string.c_ptr();
@@ -1061,7 +1066,8 @@ void append_identifier(THD *thd, String *packet, const char *name,
     #	  Quote character
 */
 
-int get_quote_char_for_identifier(THD *thd, const char *name, size_t length) {
+int get_quote_char_for_identifier(const THD *thd, const char *name,
+                                  size_t length) {
   if (length && !is_keyword(name, length) && !require_quotes(name, length) &&
       !(thd->variables.option_bits & OPTION_QUOTE_SHOW_CREATE))
     return EOF;
@@ -1069,7 +1075,7 @@ int get_quote_char_for_identifier(THD *thd, const char *name, size_t length) {
   return '`';
 }
 
-void append_identifier(THD *thd, String *packet, const char *name,
+void append_identifier(const THD *thd, String *packet, const char *name,
                        size_t length) {
   if (thd == 0)
     append_identifier(packet, name, length);
