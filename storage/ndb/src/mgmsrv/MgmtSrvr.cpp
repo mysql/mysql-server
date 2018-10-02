@@ -2225,6 +2225,15 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
     ndbout_c("Stopped %d nodes", nodes.count());
 #endif
 
+  if (!nodes.count())
+  {
+    /*
+     * When no alive data nodes are found, can return the function as
+     * restart cannot be performed without any data nodes being started.
+     */
+    return 0;
+  }
+
   /*
    * The wait for all nodes to reach NOT_STARTED state is
    * split into 2 separate checks:
