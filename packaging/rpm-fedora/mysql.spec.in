@@ -169,6 +169,7 @@ Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
+Obsoletes:      mariadb-connector-c-config
 Obsoletes:      mariadb-cracklib-password-check
 Obsoletes:      mariadb-gssapi-server
 Obsoletes:      mariadb-rocksdb-engine
