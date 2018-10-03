@@ -39,6 +39,7 @@ ON(b.engine_lock_id = blocking_engine_lock_id)
 ORDER BY b.lock_mode;
 object_name	lock_type	lock_mode	lock_status	lock_data	object_name	lock_type	lock_mode	lock_status	lock_data
 t1	RECORD	X	WAITING	1	t1	RECORD	X	GRANTED	1
+t1	RECORD	X	WAITING	1	t1	RECORD	X,REC_NOT_GAP	GRANTED	1
 SELECT r.object_name,r.lock_type,r.lock_mode,r.lock_status,r.lock_data
 FROM information_schema.innodb_trx
 JOIN performance_schema.data_locks r

@@ -252,7 +252,7 @@ void set_field_varchar_utf8(Field *f, const char *str) {
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
 
-void set_field_varchar_utf8(Field *f, const char *str, uint len) {
+void set_field_varchar_utf8(Field *f, const char *str, size_t len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);

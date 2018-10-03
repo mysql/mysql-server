@@ -1,0 +1,32 @@
+Bug #28733170
+PERFORMANCE_SCHEMA.DATA_LOCKS DOES NOT HANDLE JOINS CORRECTLY
+CREATE TABLE t1(
+id INT PRIMARY KEY
+) Engine=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 FOR UPDATE;
+id
+1
+2
+CREATE TABLE t2 (
+id INT PRIMARY KEY AUTO_INCREMENT,
+lock_id VARCHAR(200) NOT NULL
+) Engine=InnoDB;
+INSERT INTO t2 (lock_id)
+SELECT engine_lock_id
+FROM performance_schema.data_locks
+WHERE object_name='t1';
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+6
+SELECT COUNT(t2.id)
+FROM t2
+JOIN performance_schema.data_locks dl
+ON(dl.engine_lock_id = t2.lock_id)
+ORDER BY t2.id;
+COUNT(t2.id)
+6
+DROP TABLE t2;
+ROLLBACK;
+DROP TABLE t1;

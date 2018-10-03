@@ -653,12 +653,12 @@ class PFS_data_lock_container : public PSI_server_data_lock_container {
     New rows added will continue to use the current index.
   */
   void shrink();
-  row_data_lock *get_row(unsigned int index);
+  row_data_lock *get_row(size_t index);
 
   void set_filter(PFS_index_data_locks *filter) { m_filter = filter; }
 
  private:
-  unsigned int m_logical_row_index;
+  size_t m_logical_row_index;
   std::vector<row_data_lock> m_rows;
   PFS_data_cache m_cache;
   PFS_index_data_locks *m_filter;
@@ -706,12 +706,12 @@ class PFS_data_lock_wait_container
     New rows added will continue to use the current index.
   */
   void shrink();
-  row_data_lock_wait *get_row(unsigned int index);
+  row_data_lock_wait *get_row(size_t index);
 
   void set_filter(PFS_index_data_lock_waits *filter) { m_filter = filter; }
 
  private:
-  unsigned int m_logical_row_index;
+  size_t m_logical_row_index;
   std::vector<row_data_lock_wait> m_rows;
   PFS_data_cache m_cache;
   PFS_index_data_lock_waits *m_filter;

@@ -340,7 +340,7 @@ void PFS_data_lock_container::shrink() {
   m_cache.clear();
 }
 
-row_data_lock *PFS_data_lock_container::get_row(unsigned int index) {
+row_data_lock *PFS_data_lock_container::get_row(size_t index) {
   if (index < m_logical_row_index) {
     /*
       This row existed, before a call to ::shrink().
@@ -350,7 +350,7 @@ row_data_lock *PFS_data_lock_container::get_row(unsigned int index) {
     return NULL;
   }
 
-  unsigned int physical_index = index - m_logical_row_index;
+  size_t physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size()) {
     return &m_rows[physical_index];
@@ -488,6 +488,7 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
 }
 
 void PFS_data_lock_wait_container::clear() {
+  m_logical_row_index = 0;
   m_rows.clear();
   m_cache.clear();
 }
@@ -500,7 +501,7 @@ void PFS_data_lock_wait_container::shrink() {
   m_cache.clear();
 }
 
-row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index) {
+row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
   if (index < m_logical_row_index) {
     /*
       This row existed, before a call to ::shrink().
@@ -510,7 +511,7 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(unsigned int index) {
     return NULL;
   }
 
-  unsigned int physical_index = index - m_logical_row_index;
+  size_t physical_index = index - m_logical_row_index;
 
   if (physical_index < m_rows.size()) {
     return &m_rows[physical_index];
