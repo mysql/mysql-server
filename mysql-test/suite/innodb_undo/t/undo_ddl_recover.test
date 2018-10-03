@@ -31,7 +31,7 @@ BEGIN
 END |
 delimiter ;|
 
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '3.ibu';
 
 CALL populate_t1();
 
@@ -46,7 +46,7 @@ source include/wait_until_undo_space_is_empty.inc;
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo';
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
-       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+       WHERE TABLESPACE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
 
 --echo #
 --echo # Crash before deleting the tablespace file during the DDL_LOG apply.

@@ -1859,8 +1859,9 @@ bool Fil_path::is_undo_tablespace_name(const std::string &name) {
 
   const auto end = basename.end();
 
-  /* 5 is the minimum length for an explicit undo space name. */
-  if (basename.length() < sizeof(DOT_IBU)) {
+  /* 5 is the minimum length for an explicit undo space name.
+  It must be at least this long; "_.ibu". */
+  if (basename.length() <= strlen(DOT_IBU)) {
     return (false);
   }
 
