@@ -376,12 +376,15 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache has the "
       "current metadata from the second metadata server");
-#ifndef _WIN32
-  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-#else
+#ifdef _WIN32
   // On windows the mysql_real_connect that we use, will take about 2 seconds to
   // figure out it needs to try another metadata server
   std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+#elif defined(__sparc__)
+  // It also takes quite a long time on Sparc Solaris
+  std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+#else
+  std::this_thread::sleep_for(std::chrono::milliseconds(5 * kTTL));
 #endif
 
   SCOPED_TRACE(
