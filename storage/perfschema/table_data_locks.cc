@@ -110,19 +110,23 @@ table_data_locks::table_data_locks()
   }
 }
 
-table_data_locks::~table_data_locks() {
+void table_data_locks::destroy_iterators() {
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {
     if (m_iterator[i] != NULL) {
       g_data_lock_inspector[i]->destroy_data_lock_iterator(m_iterator[i]);
+      m_iterator[i] = NULL;
     }
   }
 }
+
+table_data_locks::~table_data_locks() { destroy_iterators(); }
 
 void table_data_locks::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
   m_pk_pos.reset();
   m_container.clear();
+  destroy_iterators();
 }
 
 int table_data_locks::rnd_next(void) {

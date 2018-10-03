@@ -276,7 +276,7 @@ void set_field_varchar_utf8(Field *f, const char *str);
   @param str the string to assign
   @param len the length of the string to assign
 */
-void set_field_varchar_utf8(Field *f, const char *str, uint len);
+void set_field_varchar_utf8(Field *f, const char *str, size_t len);
 
 /**
   Helper, read a value from a @code varchar utf8 @endcode field.
@@ -613,11 +613,11 @@ struct PFS_object_row {
   /** Column SCHEMA_NAME. */
   char m_schema_name[NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  size_t m_schema_name_length;
   /** Column OBJECT_NAME. */
   char m_object_name[NAME_LEN];
   /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  size_t m_object_name_length;
 
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
@@ -635,15 +635,15 @@ struct PFS_column_row {
   /** Column SCHEMA_NAME. */
   char m_schema_name[NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  size_t m_schema_name_length;
   /** Column OBJECT_NAME. */
   char m_object_name[NAME_LEN];
   /** Length in bytes of @c m_object_name. */
-  uint m_object_name_length;
+  size_t m_object_name_length;
   /** Column OBJECT_NAME. */
   char m_column_name[NAME_LEN];
   /** Length in bytes of @c m_column_name. */
-  uint m_column_name_length;
+  size_t m_column_name_length;
 
   /** Build a row from a memory buffer. */
   int make_row(const MDL_key *pfs);
@@ -658,7 +658,7 @@ struct PFS_index_row {
   /** Column INDEX_NAME. */
   char m_index_name[NAME_LEN];
   /** Length in bytes of @c m_index_name. */
-  uint m_index_name_length;
+  size_t m_index_name_length;
 
   /** Build a row from a memory buffer. */
   int make_index_name(PFS_table_share_index *pfs_index, uint table_index);

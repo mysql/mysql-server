@@ -1,0 +1,46 @@
+--echo Bug #28733170
+--echo PERFORMANCE_SCHEMA.DATA_LOCKS DOES NOT HANDLE JOINS CORRECTLY
+
+CREATE TABLE t1(
+  id INT PRIMARY KEY
+) Engine=InnoDB;
+
+# Create a situation in which a transaction holds more than one lock.
+BEGIN;
+INSERT INTO t1 VALUES (1),(2);
+SELECT * FROM t1 FOR UPDATE;
+
+--connect (C1, localhost, root,,)
+
+    # Store all engine_lock_id-s in t2
+
+    CREATE TABLE t2 (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        lock_id VARCHAR(200) NOT NULL
+    ) Engine=InnoDB;
+
+    INSERT INTO t2 (lock_id)
+        SELECT engine_lock_id
+        FROM performance_schema.data_locks
+        WHERE object_name='t1';
+
+    # We expect the number of rows in the JOIN
+    # to be equal to the number of rows in t2.
+    # The bug was causing this JOIN to return only single row.
+
+    SELECT COUNT(*) FROM t2;
+
+    SELECT COUNT(t2.id)
+    FROM t2
+    JOIN performance_schema.data_locks dl
+    ON(dl.engine_lock_id = t2.lock_id)
+    ORDER BY t2.id;
+
+    DROP TABLE t2;
+
+--connection default
+ROLLBACK;
+
+--disconnect C1
+
+DROP TABLE t1;

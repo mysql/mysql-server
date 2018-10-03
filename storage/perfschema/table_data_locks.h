@@ -110,6 +110,8 @@ class table_data_locks : public PFS_engine_table {
 
   table_data_locks();
 
+  void destroy_iterators();
+
  public:
   ~table_data_locks();
 
