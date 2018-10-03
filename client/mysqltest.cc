@@ -216,7 +216,7 @@ static const char *opt_offload_count_file;
 static const char *opt_secondary_engine;
 static int opt_change_propagation;
 
-Secondary_engine secondary_engine;
+static Secondary_engine *secondary_engine = nullptr;
 
 #ifdef _WIN32
 static DWORD opt_safe_process_pid;
@@ -1336,6 +1336,8 @@ static void free_used_memory() {
   // Delete the exptected errors pointer
   delete expected_errors;
 
+  delete secondary_engine;
+
   if (connections) close_connections();
   close_files();
   delete var_hash;
@@ -1380,8 +1382,9 @@ static void cleanup_and_exit(int exit_code) {
     }
 
     // Save the final value of secondary engine execution status.
-    if (secondary_engine.offload_count(&cur_con->mysql, "after")) exit_code = 1;
-    secondary_engine.report_offload_count(opt_offload_count_file);
+    if (secondary_engine->offload_count(&cur_con->mysql, "after"))
+      exit_code = 1;
+    secondary_engine->report_offload_count(opt_offload_count_file);
   }
 
   free_used_memory();
@@ -5292,7 +5295,7 @@ static void do_shutdown_server(struct st_command *command) {
   if (opt_offload_count_file) {
     // Save the value of secondary engine execution status
     // before shutting down the server.
-    if (secondary_engine.offload_count(&cur_con->mysql, "after"))
+    if (secondary_engine->offload_count(&cur_con->mysql, "after"))
       cleanup_and_exit(1);
   }
 
@@ -7638,11 +7641,11 @@ static void run_query_normal(struct st_connection *cn,
   DBUG_PRINT("enter", ("query: '%-.60s'", query));
 
   if (opt_change_propagation != -1) {
-    secondary_engine.match_statement(query, expected_errors->count());
-    if (secondary_engine.statement_type()) {
+    secondary_engine->match_statement(query, expected_errors->count());
+    if (secondary_engine->statement_type()) {
       std::vector<unsigned int> ignore_errors = expected_errors->errors();
       // Run secondary engine unload statements.
-      if (secondary_engine.run_unload_statements(mysql, ignore_errors))
+      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
         die("Original query '%s'.", query);
     }
   }
@@ -7747,10 +7750,10 @@ end:
   */
   var_set_errno(mysql_errno(mysql));
 
-  if (opt_change_propagation != -1 && secondary_engine.statement_type()) {
+  if (opt_change_propagation != -1 && secondary_engine->statement_type()) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
-    if (secondary_engine.run_load_statements(mysql, ignore_errors))
+    if (secondary_engine->run_load_statements(mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
 
@@ -7784,11 +7787,11 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
   DBUG_PRINT("query", ("'%-.60s'", query));
 
   if (opt_change_propagation != -1) {
-    secondary_engine.match_statement(query, expected_errors->count());
-    if (secondary_engine.statement_type()) {
+    secondary_engine->match_statement(query, expected_errors->count());
+    if (secondary_engine->statement_type()) {
       std::vector<unsigned int> ignore_errors = expected_errors->errors();
       // Run secondary engine unload statements.
-      if (secondary_engine.run_unload_statements(mysql, ignore_errors))
+      if (secondary_engine->run_unload_statements(mysql, ignore_errors))
         die("Original query '%s'.", query);
     }
   }
@@ -7978,10 +7981,10 @@ end:
     cur_con->stmt = NULL;
   }
 
-  if (opt_change_propagation != -1 && secondary_engine.statement_type()) {
+  if (opt_change_propagation != -1 && secondary_engine->statement_type()) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
-    if (secondary_engine.run_load_statements(mysql, ignore_errors))
+    if (secondary_engine->run_load_statements(mysql, ignore_errors))
       die("Original query '%s'.", query);
   }
 
@@ -8906,12 +8909,12 @@ int main(int argc, char **argv) {
 
   if (opt_change_propagation != -1) {
     secondary_engine =
-        Secondary_engine(opt_change_propagation, opt_secondary_engine);
+        new Secondary_engine(opt_change_propagation, opt_secondary_engine);
   }
 
   if (opt_offload_count_file) {
     // Save the initial value of secondary engine execution status.
-    if (secondary_engine.offload_count(&cur_con->mysql, "before"))
+    if (secondary_engine->offload_count(&cur_con->mysql, "before"))
       cleanup_and_exit(1);
   }
 
@@ -9284,7 +9287,7 @@ int main(int argc, char **argv) {
           if (opt_offload_count_file) {
             // Save the value of secondary engine execution status
             // before shutting down the server.
-            if (secondary_engine.offload_count(&cur_con->mysql, "after"))
+            if (secondary_engine->offload_count(&cur_con->mysql, "after"))
               cleanup_and_exit(1);
           }
 
