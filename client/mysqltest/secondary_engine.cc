@@ -58,7 +58,8 @@ Secondary_engine::Secondary_engine(bool change_propagation,
       m_secondary_load_errors{
           get_errcode_from_name("ER_CHECK_NOT_IMPLEMENTED"),
           get_errcode_from_name("ER_SECONDARY_ENGINE_PLUGIN"),
-          get_errcode_from_name("ER_TABLESPACE_DISCARDED")},
+          get_errcode_from_name("ER_TABLESPACE_DISCARDED"),
+          get_errcode_from_name("ER_WRONG_OBJECT")},
       m_secondary_unload_errors{
           get_errcode_from_name("ER_BAD_LOG_STATEMENT"),
           get_errcode_from_name("ER_DBACCESS_DENIED_ERROR"),
