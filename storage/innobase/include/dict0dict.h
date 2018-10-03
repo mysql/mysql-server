@@ -1238,6 +1238,10 @@ struct dict_sys_t {
   /** The hard-coded tablespace name innodb_file_per_table. */
   static const char *s_file_per_table_name;
 
+  /** These two undo tablespaces cannot be dropped. */
+  static const char *s_default_undo_space_name_1;
+  static const char *s_default_undo_space_name_2;
+
   /** The table ID of mysql.innodb_dynamic_metadata */
   static constexpr table_id_t s_dynamic_meta_table_id = 2;
 

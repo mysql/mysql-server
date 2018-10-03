@@ -351,8 +351,7 @@ void trx_rsegs_init(purge_pq_t *purge_queue) {
     /* If there are no undo logs in this explicit undo tablespace at
     startup, mark it empty so that it will not be used until the state
     recorded in the DD can be applied in apply_dd_undo_state(). */
-    if (undo_space->num() > FSP_IMPLICIT_UNDO_TABLESPACES &&
-        !undo_space->is_empty()) {
+    if (undo_space->is_explicit() && !undo_space->is_empty()) {
       size_t cur_size = purge_queue->size();
       if (purge_queue_size == cur_size) {
         undo_space->set_empty();

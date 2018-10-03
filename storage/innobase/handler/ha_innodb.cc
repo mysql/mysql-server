@@ -3028,7 +3028,7 @@ bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
   }
 
   /* Get the state of undo tablespaces from the DD. */
-  dd_space_states state = dd_tablespace_get_state_enum(dd_space);
+  dd_space_states state = dd_tablespace_get_state_enum(dd_space, space_id);
 
   undo::spaces->s_lock();
 
@@ -3036,6 +3036,9 @@ bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
   undo::Tablespace *undo_space = undo::spaces->find(space_num);
 
   switch (state) {
+    case DD_SPACE_STATE__LAST:
+      /* If the "state" key is missing the DD might have been built with
+      an older version. */
     case DD_SPACE_STATE_ACTIVE:
       /* Explicit undo spaces with no undo logs are set empty during
       startup to avoid getting undo. */
@@ -3060,7 +3063,6 @@ bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
     case DD_SPACE_STATE_NORMAL:
     case DD_SPACE_STATE_DISCARDED:
     case DD_SPACE_STATE_CORRUPTED:
-    case DD_SPACE_STATE__LAST:
       success = false;
       break;
   }
@@ -3426,7 +3428,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(
   if (dc->fetch_global_components(&tablespaces)) {
     /* Failed to fetch the tablespaces from the DD. */
 
-    return (true);
+    return (DD_FAILURE);
   }
 
   Validate_files validator;
@@ -3590,6 +3592,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
       break;
     }
     case DICT_RECOVERY_RESTART_SERVER:
+      /* Traverse dd::tablespaces and apply/validate this metadata. */
       if (boot_tablespaces(thd, &moved_count)) {
         return (true);
       }
@@ -10159,7 +10162,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   table = dict_mem_table_create(m_table_name, space_id, actual_n_cols, num_v,
                                 m_flags, m_flags2);
 
-  /* Set dd tablespae id */
+  /* Set dd tablespace id */
   table->dd_space_id = dd_space_id;
 
   /* Set the hidden doc_id column. */
@@ -10864,9 +10867,16 @@ static int validate_tablespace_name(ts_command_type ts_command,
         err = HA_WRONG_CREATE_OPTION;
       }
     } else {
-      /* Allow an implicit undo tablespace to be set
-      active or inactive. */
-      if (ts_command != ALTER_UNDO_TABLESPACE) {
+      /* Allow any undo tablespace to be set active or inactive.
+      And any undo tablespace can be dropped except the default two
+      implicit spaces.  All other DDL should not work on tablespaces
+      that start with "innodb_". */
+      bool allow =
+          (ts_command == ALTER_UNDO_TABLESPACE ||
+           (ts_command == DROP_UNDO_TABLESPACE &&
+            0 != strcmp(name, dict_sys_t::s_default_undo_space_name_1) &&
+            0 != strcmp(name, dict_sys_t::s_default_undo_space_name_2)));
+      if (!allow) {
         my_printf_error(ER_WRONG_TABLESPACE_NAME,
                         "InnoDB: Tablespace names starting"
                         " with `%s` are reserved.",
@@ -14539,10 +14549,8 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
   }
 
   /* Get the current state of the undo tablespace from the DD. */
-  const dd::Properties &p = dd_space->se_private_data();
-  ut_ad(p.exists(dd_space_key_strings[DD_SPACE_STATE]));
   dd::String_type dd_state;
-  p.get(dd_space_key_strings[DD_SPACE_STATE], &dd_state);
+  dd_tablespace_get_state(dd_space, &dd_state, space_id);
 
   /* Serialize all undo tablespace DDLs */
   mutex_enter(&(undo::ddl_mutex));
@@ -14620,12 +14628,13 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   space_id_t space_num = undo::id2num(space_id);
   undo::Tablespace *undo_space = undo::spaces->find(space_num);
 
-  /* Verify that the undo tablespace is explicit, has been
-  altered inactive and is now empty. */
-  if (undo_space->is_implicit() || !undo_space->is_empty()) {
+  /* Verify that the undo tablespace is not one of the first two undo spaces,
+  has been altered inactive and is now empty. */
+  if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES ||
+      !undo_space->is_empty()) {
     ib::error err;
     err << "Cannot drop undo tablespace '" << undo_space->space_name();
-    if (undo_space->is_implicit()) {
+    if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES) {
       err << "' because it was not created explicitly.";
     } else if (undo_space->is_active() || undo_space->is_inactive_implicit()) {
       err << "' because it is active. "

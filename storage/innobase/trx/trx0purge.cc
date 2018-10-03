@@ -774,6 +774,9 @@ void Tablespace::set_file_name(const char *file_name) {
     m_file_name = nullptr;
   }
 
+  /* Explicit undo tablespaces use an IBU extension. */
+  m_implicit = (Fil_path::has_suffix(IBU, file_name) ? false : true);
+
   size_t size_undo_dir = strlen(srv_undo_dir);
   size_t size_sep =
       srv_undo_dir[size_undo_dir - 1] == OS_PATH_SEPARATOR ? 0 : 1;
@@ -1117,8 +1120,8 @@ tablespace qualifies for TRUNCATE (size > threshold).
 static bool trx_purge_mark_undo_for_truncate() {
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
 
-  /* We always have at least 2 undo spaces, but they might not both be active.
-   */
+  /* We always have at least 2 undo spaces,
+  but they might not both be active. */
   ut_a(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
   /* Return true if an undo tablespace is already marked for truncate. */

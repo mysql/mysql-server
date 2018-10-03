@@ -153,6 +153,8 @@ enum dd_space_keys {
   DD_SPACE_FLAGS,
   /** Tablespace identifier */
   DD_SPACE_ID,
+  /** Discard attribute */
+  DD_SPACE_DISCARD,
   /** Server version */
   DD_SPACE_SERVER_VERSION,
   /** TABLESPACE_VERSION */
@@ -192,17 +194,18 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 /** InnoDB private key strings for dd::Tablespace.
 @see dd_space_keys */
 const char *const dd_space_key_strings[DD_SPACE__LAST] = {
-    "flags", "id", "server_version", "space_version", "state"};
+    "flags", "id", "discard", "server_version", "space_version", "state"};
 
 /** InnoDB private value strings for key string "state" in dd::Tablespace.
 @see dd_space_state_values */
-const char *const dd_space_state_values[DD_SPACE_STATE__LAST] = {
+const char *const dd_space_state_values[DD_SPACE_STATE__LAST + 1] = {
     "normal",    /* for IBD spaces */
     "discarded", /* for IBD spaces */
     "corrupted", /* for IBD spaces */
     "active",    /* for undo spaces*/
     "inactive",  /* for undo spaces */
-    "empty"      /* for undo spaces */
+    "empty",     /* for undo spaces */
+    "unknown"    /* for non-existing or unknown spaces */
 };
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
@@ -765,7 +768,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
-                                   dd::String_type &state,
+                                   dd::String_type *state,
                                    dict_table_t *dd_spaces);
 
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
@@ -1134,18 +1137,43 @@ void dd_tablespace_set_state(dd::Tablespace *dd_space, dd_space_states state);
 
 /** Set Space ID and state attribute in se_private_data of mysql.tablespaces
 for the named tablespace.
-@param[in]  tablespace_name  tablespace name
-@param[in]  space_id         tablespace id
-@param[in]  state            value to set for key 'state'
+@param[in]  space_name  tablespace name
+@param[in]  space_id    tablespace id
+@param[in]  state       value to set for key 'state'
 @return DB_SUCCESS or DD_FAILURE. */
-bool dd_tablespace_set_id_and_state(const char *tablespace_name,
-                                    space_id_t space_id, dd_space_states state);
+bool dd_tablespace_set_id_and_state(const char *space_name, space_id_t space_id,
+                                    dd_space_states state);
 
-/** Get the state attribute from se_private_data of mysql.tablespaces
-for the named tablespace.
-@param[in]  dd_space    dd::Tablespace object
-@return value associated with the key 'state' */
-dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space);
+/** Get state attribute value in dd::Tablespace::se_private_data
+@param[in]     dd_space  dd::Tablespace object
+@param[in,out] state     tablespace state attribute
+@param[in]     space_id  tablespace ID */
+void dd_tablespace_get_state(const dd::Tablespace *dd_space,
+                             dd::String_type *state,
+                             space_id_t space_id = SPACE_UNKNOWN);
+
+/** Get state attribute value in dd::Tablespace::se_private_data
+@param[in]     p         dd::Properties for dd::Tablespace::se_private_data
+@param[in,out] state  tablespace state attribute
+@param[in]     space_id  tablespace ID */
+void dd_tablespace_get_state(const dd::Properties *p, dd::String_type *state,
+                             space_id_t space_id = SPACE_UNKNOWN);
+
+/** Get the enum for the state of the undo tablespace
+from either dd::Tablespace::se_private_data or undo::Tablespace
+@param[in]  dd_space  dd::Tablespace object
+@param[in]  space_id  tablespace ID
+@return enumerated value associated with the key 'state' */
+dd_space_states dd_tablespace_get_state_enum(
+    const dd::Tablespace *dd_space, space_id_t space_id = SPACE_UNKNOWN);
+
+/** Get the enum for the state of the undo tablespace
+from either dd::Tablespace::se_private_data or undo::Tablespace
+@param[in]  p         dd::Properties for dd::Tablespace::se_private_data
+@param[in]  space_id  tablespace ID
+@return enumerated value associated with the key 'state' */
+dd_space_states dd_tablespace_get_state_enum(
+    const dd::Properties *p, space_id_t space_id = SPACE_UNKNOWN);
 
 /** Get the discarded state from se_private_data of tablespace
 @param[in]	dd_space	dd::Tablespace object */
@@ -1182,8 +1210,9 @@ void dd_release_mdl(MDL_ticket *mdl_ticket);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Update all InnoDB tablespace cache objects. This step is done post
-dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
-Update the cached tablespace objects, if they differ from dictionary
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is
+consistent. Update the cached tablespace objects, if they differ from
+dictionary
 @param[in,out]	thd	thread handle
 @retval	true	on error
 @retval	false	on success */
