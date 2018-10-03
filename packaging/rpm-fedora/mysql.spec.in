@@ -105,6 +105,11 @@ BuildRequires:  perl(Time::localtime)
 %if 0%{?fedora} > 24
 BuildRequires:  perl-generators
 %endif
+%if 0%{?fedora} > 28
+BuildRequires:  compat-openssl10-devel
+%else
+BuildRequires:  openssl-devel
+%endif
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
@@ -113,7 +118,6 @@ BuildRequires:  multilib-rpm-config
 BuildRequires:  ncurses-devel
 BuildRequires:  numactl-devel
 BuildRequires:  openldap-devel
-BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
