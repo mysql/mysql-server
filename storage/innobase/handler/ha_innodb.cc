@@ -2380,8 +2380,7 @@ dberr_t Compression::validate(const char *algorithm) {
 @return true if no algorithm requested */
 bool Encryption::is_none(const char *algorithm) {
   /* NULL is the same as NONE */
-  if (algorithm == NULL || innobase_strcasecmp(algorithm, "n") == 0 ||
-      innobase_strcasecmp(algorithm, "") == 0) {
+  if (algorithm == NULL || innobase_strcasecmp(algorithm, "n") == 0) {
     return (true);
   }
 
@@ -11330,7 +11329,7 @@ const char *create_table_info_t::create_options_are_invalid() {
   }
 
   /* Check the encryption option. */
-  if (ret == NULL && m_create_info->encrypt_type.length > 0) {
+  if (ret == NULL && m_create_info->encrypt_type.str != nullptr) {
     dberr_t err;
 
     err = Encryption::validate(m_create_info->encrypt_type.str);
@@ -14130,12 +14129,16 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
     DBUG_RETURN(error);
   }
 
-  if ((oldenc.empty() || Encryption::is_none(oldenc.data())) &&
-      !Encryption::is_none(newenc.data())) {
+  /* If old tablespace definition says it's encrypted */
+  bool is_old_encrypted =
+      !(oldenc.empty() || Encryption::is_none(oldenc.data()));
+  /* If new tablespace definition says it's encrypted */
+  bool is_new_encrypted = !Encryption::is_none(newenc.data());
+
+  if (!is_old_encrypted && is_new_encrypted) {
     /* Encrypt tablespace */
     to_encrypt = true;
-  } else if (!Encryption::is_none(oldenc.data()) &&
-             Encryption::is_none(newenc.data())) {
+  } else if (is_old_encrypted && !is_new_encrypted) {
     /* Unencrypt tablespace */
     to_encrypt = false;
   } else {
