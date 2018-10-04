@@ -381,6 +381,9 @@ void init_thread_mask(int *mask, Master_info *mi, bool inverse) {
 void lock_slave_threads(Master_info *mi) {
   DBUG_ENTER("lock_slave_threads");
 
+  // protection against mixed locking order (see header)
+  mi->channel_assert_some_wrlock();
+
   // TODO: see if we can do this without dual mutex
   mysql_mutex_lock(&mi->run_lock);
   mysql_mutex_lock(&mi->rli->run_lock);

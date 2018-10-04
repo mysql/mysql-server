@@ -1272,6 +1272,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
   mi = channel_map.get_default_channel_mi();
 
   if (mi != NULL) {
+    mi->channel_wrlock();
     lock_slave_threads(mi);
     init_thread_mask(&running, mi, false);
     if (!running) {
@@ -1307,6 +1308,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
       my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
     }
     unlock_slave_threads(mi);
+    mi->channel_unlock();
   }
   channel_map.unlock();
   return ret;

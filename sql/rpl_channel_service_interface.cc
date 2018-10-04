@@ -470,6 +470,8 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   int server_thd_mask = 0;
   int error = 0;
   bool thd_init = false;
+
+  mi->channel_wrlock();
   lock_slave_threads(mi);
 
   init_thread_mask(&server_thd_mask, mi, 0 /* not inverse*/);
@@ -493,6 +495,7 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
 
 end:
   unlock_slave_threads(mi);
+  mi->channel_unlock();
 
   if (thd_init) {
     clean_thread_context();

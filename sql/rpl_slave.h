@@ -132,31 +132,32 @@ extern bool server_id_supplied;
 
   [init_slave() does not need it it's called early].
 
-  (consider start_slave_thread() which, when starting the I/O thread, releases
-  mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock).
-
   ## In Master_info (mi) ##
 
   ### m_channel_lock ###
 
-  This rwlock is used to protect the existence of the Master_info object
-  (protect the channel existence). As the server is able to run channel
-  administrative statements in concurrent server sessions (it is possible to
-  START SLAVE FOR CHANNEL 'ch1' while doing STOP SLAVE FOR CHANNEL 'ch2' for
-  example), any channel specific operation can:
-    a) rdlock(m_channel_map_lock) // No channels can be added or removed
-    b) mi = channel_map.get_mi(channel_name)
-    c) if (mi == NULL) // The channel does not exist
-    d) rdlock(m_channel_lock) // This channel is in use, cannot be removed
-    e) unlock(m_channel_map_lock) // Channels can be added or removed again
-    f) channel specific operations
-    g) unlock(m_channel_lock) // This channel is not in use anymore
+  It is used to SERIALIZE ALL administrative commands of replication: START
+  SLAVE, STOP SLAVE, CHANGE MASTER, RESET SLAVE, delete_slave_info_objects
+  (when mysqld stops)
+
+  This thus protects us against a handful of deadlocks, being the know ones
+  around lock_slave_threads and the mixed order they are acquired in some
+  operations:
+
+   + consider start_slave_thread() which, when starting the I/O thread,
+     releases mi->run_lock, keeps rli->run_lock, and tries to re-acquire
+     mi->run_lock.
+
+   + Same applies to stop_slave() where a stop of the I/O thread will
+     mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock.
+     For the SQL thread, the order is the opposite.
 
   ### run_lock ###
 
   Protects all information about the running state: slave_running, thd
   and the existence of the I/O thread itself (to stop/start it, you need
   this mutex).
+  Check the above m_channel_lock about locking order.
 
   ### data_lock ###
 
@@ -173,6 +174,7 @@ extern bool server_id_supplied;
 
   Same as Master_info's one. However, note that run_lock does not protect
   Relay_log_info.run_state. That is protected by data_lock.
+  Check the above m_channel_lock about locking order.
 
   ### data_lock ###
 
@@ -232,7 +234,7 @@ extern bool server_id_supplied;
       channel_map.wrlock, (change_master)
 
     change_master:
-      mi->channel_wrlock, mi.run_lock, rli.run_lock, (global_init_info),
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, (global_init_info),
   (purge_relay_logs), (init_relay_log_pos), rli.err_lock
 
     global_init_info:
@@ -252,13 +254,14 @@ extern bool server_id_supplied;
 
     stop_slave:
       channel_map rdlock,
-      ( mi.run_lock, thd.LOCK_thd_data
+      ( mi.channel_wrlock, mi.run_lock, thd.LOCK_thd_data
       | rli.run_lock, thd.LOCK_thd_data
       | relay.LOCK_log
       )
 
     start_slave:
-      mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, rli.data_lock,
+      global_sid_lock->wrlock
 
     mysql_bin_log.reset_logs:
       .LOCK_log, .LOCK_index, global_sid_lock->wrlock
@@ -272,8 +275,8 @@ extern bool server_id_supplied;
       binlog.LOCK_index, global_sid_lock->wrlock, LOCK_reset_gtid_table
 
     reset_slave:
-      mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
-      THD::LOCK_thd_data, relay.LOCK_log, relay.LOCK_index,
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, (purge_relay_logs)
+      rli.data_lock, THD::LOCK_thd_data, relay.LOCK_log, relay.LOCK_index,
       global_sid_lock->wrlock
 
     purge_logs:
@@ -478,6 +481,17 @@ const char *print_slave_db_safe(const char *db);
 
 void end_slave();                 /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
+/**
+  This method locks both (in this order)
+    mi->run_lock
+    rli->run_lock
+
+  @param mi The associated master info object
+
+  @note this method shall be invoked while locking mi->m_channel_lock
+  for writes. This is due to the mixed order in which these locks are released
+  and acquired in such method as the slave threads start and stop methods.
+*/
 void lock_slave_threads(Master_info *mi);
 void unlock_slave_threads(Master_info *mi);
 void init_thread_mask(int *mask, Master_info *mi, bool inverse);
