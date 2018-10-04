@@ -2780,11 +2780,24 @@ reexecute:
       !thd->is_fatal_error() && !thd->is_killed()) {
     // If we have an error due to a metadata change, reprepare the
     // statement and execute it again.
-    if (reprepare_observer.is_invalidated() &&
-        reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) {
+    if (reprepare_observer.is_invalidated()) {
       DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
-      thd->clear_error();
-      error = reprepare(false);
+
+      if ((reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) &&
+          DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
+                           true)) {
+        thd->clear_error();
+        error = reprepare(false);
+      } else {
+        /*
+          Reprepare_observer sets error status in DA but Sql_condition is not
+          added. Please check Reprepare_observer::report_error(). Pushing
+          Sql_condition for ER_NEED_REPREPARE here.
+        */
+        Diagnostics_area *da = thd->get_stmt_da();
+        da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
+                         Sql_condition::SL_ERROR, da->message_text());
+      }
     }
     // Otherwise, if execution failed during optimization and the
     // statement used a secondary storage engine, we disable the
