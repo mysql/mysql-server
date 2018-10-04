@@ -141,6 +141,8 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+--source include/stop_group_replication.inc
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
