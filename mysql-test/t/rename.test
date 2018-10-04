@@ -547,8 +547,7 @@ INSERT INTO t3 VALUES (3);
 --echo # Parent key name should be 'pk'.
 SELECT unique_constraint_name FROM information_schema.referential_constraints WHERE table_name = 't3';
 --echo # Parent definition should be aware of new child as well.
---echo # Doesn't work yet. Apparently some bug in InnoDB.
-# --error ER_ROW_IS_REFERENCED_2
+--error ER_ROW_IS_REFERENCED_2
 DELETE FROM t4;
 UNLOCK TABLES;
 DROP TABLE t3, t4;
