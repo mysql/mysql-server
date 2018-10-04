@@ -193,6 +193,13 @@ void Qmgr::execCONTINUEB(Signal* signal)
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000, 1);
     return;
   }
+  case ZNOTIFY_STATE_CHANGE:
+  {
+    jam();
+    handleStateChange(signal, tdata0);
+    return;
+  }
+
   default:
     jam();
     // ZCOULD_NOT_OCCUR_ERROR;
@@ -7956,4 +7963,79 @@ Qmgr::execISOLATE_ORD(Signal* signal)
   }
 
   ndbabort();
+}
+
+
+void
+Qmgr::execNODE_STATE_REP(Signal* signal)
+{
+  jam();
+  const NodeState prevState = getNodeState();
+  SimulatedBlock::execNODE_STATE_REP(signal);
+
+  /* Check whether we are changing state */
+  const Uint32 prevStartLevel = prevState.startLevel;
+  const Uint32 newStartLevel = getNodeState().startLevel;
+
+  if (newStartLevel != prevStartLevel)
+  {
+    jam();
+    /* Inform APIs */
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = 1;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
+}
+
+void
+Qmgr::handleStateChange(Signal* signal, Uint32 nodeToNotify)
+{
+  jam();
+  bool take_a_break = false;
+
+  do
+  {
+    const NodeInfo::NodeType nt =
+      (const NodeInfo::NodeType) getNodeInfo(nodeToNotify).m_type;
+
+    if (nt == NodeInfo::API ||
+        nt == NodeInfo::MGM)
+    {
+      jam();
+
+      NodeRecPtr notifyNode;
+      notifyNode.i = nodeToNotify;
+      ptrCheckGuard(notifyNode, MAX_NODES, nodeRec);
+
+      if (notifyNode.p->phase == ZAPI_ACTIVE)
+      {
+        jam();
+        ndbassert(c_connectedNodes.get(nodeToNotify));
+
+        /**
+         * Ok, send an unsolicited API_REGCONF to inform
+         * the API of the state change
+         */
+        set_hb_count(nodeToNotify) = 0;
+        sendApiRegConf(signal, nodeToNotify);
+
+        take_a_break = true;
+      }
+    }
+
+    nodeToNotify++;
+  } while (nodeToNotify < MAX_NODES &&
+           !take_a_break);
+
+  if (nodeToNotify < MAX_NODES)
+  {
+    jam();
+    signal->theData[0] = ZNOTIFY_STATE_CHANGE;
+    signal->theData[1] = nodeToNotify;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+
+  return;
 }
