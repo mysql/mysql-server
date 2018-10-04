@@ -1,5 +1,3 @@
-# test is timing dependent, skip when valgrinding
--- source include/not_valgrind.inc
 -- source include/have_ndb.inc
 -- source include/have_multi_ndb.inc
 
@@ -44,7 +42,7 @@ let $wait_condition = select count(*) = 4
 ## Note also that in normal case the main part of restart time is not spent
 ## waiting for db nodes.
 let $mysqld_restart_time_partial_cluster_limit =
-  `select (@@ndb_wait_connected + $mysqld_restart_time_full_cluster)/2`;
+  `select $mysqld_restart_time_full_cluster + (@@ndb_wait_connected / 2)`;
 #echo $mysqld_restart_time_partial_cluster_limit;
 
 # Stop two data nodes, one with node group, one without
@@ -68,12 +66,12 @@ let $mysqld_restart_time_partial_cluster= `select timestampdiff(second, '$start_
 
 if (`select $mysqld_restart_time_partial_cluster >= $mysqld_restart_time_partial_cluster_limit`)
 {
+  select * from ndbinfo.transporters;
   select now();
   echo mysqld_restart_time_full_cluster: $mysqld_restart_time_full_cluster;
   echo mysqld_restart_time_partial_cluster: $mysqld_restart_time_partial_cluster;
   echo mysqld_restart_time_partial_cluster_limit: $mysqld_restart_time_partial_cluster_limit;
   select @@ndb_wait_connected;
-  select * from ndbinfo.transporters;
   -- die Restart took longer time then expected, indicates either bug or extreme load on test machine.
 }
 
