@@ -52,6 +52,7 @@ call mtr.add_suppression("Failed to establish an internal server connection to e
 call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not.*");
 call mtr.add_suppression(".* read failed");
+call mtr.add_suppression("\\[GCS\\] Unable to resolve peer address.");
 SET SESSION sql_log_bin = 1;
 
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
