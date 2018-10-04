@@ -1350,6 +1350,25 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   uint32 stored_flags;
   idx_options->get_uint32("flags", &stored_flags);
   DBUG_ASSERT((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
+
+  //  Beginning in 8.0.12 HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
+  //  if the SE does not support it. If the index was created prior to 8.0.12
+  //  these bits may be set in the flags option, and when being added to
+  //  key_info->flags, the ALTER algorithm analysis will be broken because the
+  //  intermediate table is created without these flags, and hence, the
+  //  analysis will incorrectly conclude that all indexes have changed.
+  //
+  //  To workaround this issue, we remove the flags below, depending on the SE
+  //  capabilities, when preparing the table share. Thus, if we ALTER the table
+  //  at a later stage, indexes not being touched by the ALTER statement will
+  //  have the same flags both in the source table and the intermediate table,
+  //  and hence, the algorithm analysis will come to the right conclusion.
+  if (ha_check_storage_engine_flag(share->db_type(),
+                                   HTON_SUPPORTS_PACKED_KEYS) == 0) {
+    // Given the assert above, we could just have set stored_flags to 0 here,
+    // but keep it like this in case new flags are added.
+    stored_flags &= ~(HA_PACK_KEY | HA_BINARY_PACK_KEY);
+  }
   keyinfo->flags |= stored_flags;
 
   // Block size
