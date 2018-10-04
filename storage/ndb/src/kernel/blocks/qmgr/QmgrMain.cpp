@@ -7979,8 +7979,7 @@ Qmgr::handleStateChange(Signal* signal, Uint32 nodeToNotify)
 
   do
   {
-    const NodeInfo::NodeType nt =
-      (const NodeInfo::NodeType) getNodeInfo(nodeToNotify).m_type;
+    const NodeInfo::NodeType nt = getNodeInfo(nodeToNotify).getType();
 
     if (nt == NodeInfo::API ||
         nt == NodeInfo::MGM)
