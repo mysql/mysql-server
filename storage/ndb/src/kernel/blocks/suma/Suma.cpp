@@ -3228,9 +3228,12 @@ Suma::SyncRecord::nextScan(Signal* signal)
 void
 Suma::execSCAN_FRAGREF(Signal* signal){
   jamEntry();
-
-//  ScanFragRef * const ref = (ScanFragRef*)signal->getDataPtr();
-  ndbrequire(false);
+  DBUG_ENTER("Suma::execSCAN_FRAGREF");
+  ScanFragRef * const ref = (ScanFragRef*)signal->getDataPtr();
+  Ptr<SyncRecord> syncPtr;
+  c_syncPool.getPtr(syncPtr, ref->senderData);
+  syncPtr.p->completeScan(signal, ref->errorCode);
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -3351,6 +3354,7 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
     SubSyncRef * const ref = (SubSyncRef*)signal->getDataPtrSend();
     ref->senderRef = suma.reference();
     ref->senderData = m_senderData;
+    ref->errorCode = error;
     suma.sendSignal(m_senderRef, GSN_SUB_SYNC_REF, signal,
 		    SubSyncRef::SignalLength, JBB);
   }
