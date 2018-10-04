@@ -640,6 +640,26 @@ test.t1	analyze	status	OK
 drop index idxcol on t1;
 #cleanup
 drop table t1;
+#
+# Bug#27613173 - Undefined behaviour in mysqld when ndb_index_stat_sample values are corrupt
+#
+#setup
+create table t1 (a int auto_increment primary key, b int, key(b)) engine ndb;
+#insert sufficient rows to create index stats
+#run analyze to create index stats
+analyze table test.t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+#poison the index_stat_sample table
+update mysql.ndb_index_stat_sample set stat_value = repeat('T', 2000) limit 50;
+#disconnect the mysqld from ndb to force it to reload the index stats
+#wait for it to reconnect
+#run query to confirm that the invalid stats doesn't break mysqld
+select * from information_schema.tables;
+#check if the error is properly logged in the mysqld error log
+Pattern "\[NdbApi\] ERROR    -- ndb_index_stat key\/value has different length than expected" found
+#cleanup
+drop table t1;
 set @is_enable = @is_enable_default;
 set @is_enable = NULL;
 # is_enable_on=0 is_enable_off=0

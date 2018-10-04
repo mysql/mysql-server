@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 #include <NdbEventOperation.hpp>
 #include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #undef min
 #undef max
@@ -64,8 +66,6 @@ NdbIndexStatImpl::init()
   // buffers
   m_keySpecBuf = 0;
   m_valueSpecBuf = 0;
-  m_keyDataBuf = 0;
-  m_valueDataBuf = 0;
   // cache
   m_cacheBuild = 0;
   m_cacheQuery = 0;
@@ -762,14 +762,6 @@ NdbIndexStatImpl::set_index(const NdbDictionary::Index& index,
     }
   }
 
-  // data buffers (rounded to word)
-  m_keyDataBuf = new Uint8 [m_keyData.get_max_len4()];
-  m_valueDataBuf = new Uint8 [m_valueData.get_max_len4()];
-  if (m_keyDataBuf == 0 || m_valueDataBuf == 0)
-  {
-    setError(NoMemError, __LINE__);
-    return -1;
-  }
   m_keyData.set_buf(m_keyDataBuf, m_keyData.get_max_len());
   m_valueData.set_buf(m_valueDataBuf, m_valueData.get_max_len());
 
@@ -785,8 +777,6 @@ NdbIndexStatImpl::reset_index()
   m_valueSpec.reset();
   delete [] m_keySpecBuf;
   delete [] m_valueSpecBuf;
-  delete [] m_keyDataBuf;
-  delete [] m_valueDataBuf;
   init();
 }
 
@@ -1175,6 +1165,28 @@ NdbIndexStatImpl::read_next(Con& con)
     if (ret == -1)
       setError(con, __LINE__);
     return ret;
+  }
+
+  /* varbinary column length is in first two bytes */
+  const Uint32 keyDataLen = m_keyDataBuf[0] + (m_keyDataBuf[1] << 8) + 2;
+  const Uint32 valueDataLen = m_valueDataBuf[0] + (m_valueDataBuf[1] << 8) + 2;
+
+  /* if the keyDataLen is more than that of buffer's max length or if the
+   * valueDataLen doesn't match the expected buffer length, report error */
+  if (keyDataLen > m_keyData.get_max_len() ||
+      valueDataLen != m_valueData.get_max_len())
+  {
+    g_eventLogger->error("ndb_index_stat key/value "
+                         "has different length than expected");
+    g_eventLogger->error("  index id : `%u`, table id : `%u`",
+                         m_indexId, m_tableId);
+    g_eventLogger->error("  key data length : `%u`, "
+                         "expected maximum length : `%u`",
+                         keyDataLen, m_keyData.get_max_len());
+    g_eventLogger->error("  value data length : `%u`, expected length : `%u`",
+                         valueDataLen, m_valueData.get_max_len());
+    setError(AlienUpdate, __LINE__, NdbPack::Error::InternalError);
+    return -1;
   }
 
   /*
