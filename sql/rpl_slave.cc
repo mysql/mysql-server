@@ -320,6 +320,9 @@ void lock_slave_threads(Master_info* mi)
 {
   DBUG_ENTER("lock_slave_threads");
 
+  //protection against mixed locking order (see header)
+  mi->channel_assert_some_wrlock();
+
   //TODO: see if we can do this without dual mutex
   mysql_mutex_lock(&mi->run_lock);
   mysql_mutex_lock(&mi->rli->run_lock);
@@ -6136,6 +6139,18 @@ extern "C" void *handle_slave_worker(void *arg)
                     rli->get_for_channel_str());
     goto err;
   }
+
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
+
   mysql_mutex_lock(&w->info_thd_lock);
   w->info_thd= thd;
   mysql_mutex_unlock(&w->info_thd_lock);
@@ -7200,6 +7215,17 @@ extern "C" void *handle_slave_sql(void *arg)
     commit_order_mngr= new Commit_order_manager(rli->opt_slave_parallel_workers);
 
   rli->set_commit_order_manager(commit_order_mngr);
+
+  if (channel_map.is_group_replication_channel_name(rli->get_channel())) {
+    if (channel_map.is_group_replication_channel_name(rli->get_channel(),
+                                                      true)) {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_APPLIER_CHANNEL);
+    } else {
+      thd->rpl_thd_ctx.set_rpl_channel_type(GR_RECOVERY_CHANNEL);
+    }
+  } else {
+    thd->rpl_thd_ctx.set_rpl_channel_type(RPL_STANDARD_CHANNEL);
+  }
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 

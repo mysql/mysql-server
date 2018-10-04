@@ -24,6 +24,13 @@ class Gtid_set;
 class Sid_map;
 class THD;
 
+/** Type of replication channel thread/transaction might be associated to*/
+enum enum_rpl_channel_type {
+  NO_CHANNEL_INFO = 0,       // No information exists about the channel
+  RPL_STANDARD_CHANNEL = 1,  // It is a standard replication channel
+  GR_APPLIER_CHANNEL = 2,    // It is a GR applier channel
+  GR_RECOVERY_CHANNEL = 3    // It is a GR recovery channel
+};
 
 /**
    This class is an interface for session consistency instrumentation
@@ -90,7 +97,7 @@ private:
    The last statement should return a set of GTIDs.
   */
   ulong m_curr_session_track_gtids;
-  
+
 protected:
 
   /*
@@ -228,13 +235,14 @@ class Rpl_thd_context
 private:
   Session_consistency_gtids_ctx m_session_gtids_ctx;
   Dependency_tracker_ctx m_dependency_tracker_ctx;
+  /** If this thread is a channel, what is its type*/
+  enum_rpl_channel_type rpl_channel_type;
 
-  // make these private
   Rpl_thd_context(const Rpl_thd_context& rsc);
   Rpl_thd_context& operator=(const Rpl_thd_context& rsc);
 public:
 
-  Rpl_thd_context() { }
+  Rpl_thd_context() : rpl_channel_type(NO_CHANNEL_INFO) {}
 
   inline Session_consistency_gtids_ctx& session_gtids_ctx()
   {
@@ -244,6 +252,12 @@ public:
   inline Dependency_tracker_ctx& dependency_tracker_ctx()
   {
     return m_dependency_tracker_ctx;
+  }
+
+  enum_rpl_channel_type get_rpl_channel_type() { return rpl_channel_type; }
+
+  void set_rpl_channel_type(enum_rpl_channel_type rpl_channel_type_arg) {
+    rpl_channel_type = rpl_channel_type_arg;
   }
 };
 
