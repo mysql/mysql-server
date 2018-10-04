@@ -6862,8 +6862,8 @@ int mysqld_main(int argc, char **argv) {
       application PID e.g.: MySQLShutdown1890; MySQLShutdown2342
     */
 
-    snprintf(shutdown_event_name, sizeof(shutdown_event_name),
-             "mysqld%s_shutdown", get_monitor_pid());
+    int10_to_str((int)GetCurrentProcessId(),
+                 my_stpcpy(shutdown_event_name, "MYSQLShutdown"), 10);
     int10_to_str((int)GetCurrentProcessId(),
                  my_stpcpy(restart_event_name, "MYSQLRestart"), 10);
   }
