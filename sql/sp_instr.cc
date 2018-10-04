@@ -674,6 +674,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
                                                  bool open_tables) {
   Reprepare_observer reprepare_observer;
   int reprepare_attempt = 0;
+  const int MAX_REPREPARE_ATTEMPTS = 3;
 
   while (true) {
     DBUG_EXECUTE_IF("simulate_bug18831513", { invalidate(); });
@@ -732,19 +733,33 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
           to the user;
         - if we've got an error, different from ER_NEED_REPREPARE, we need to
           raise it to the user;
-        - we take only 3 attempts to reprepare the query, otherwise we might end
-          up in the endless loop.
     */
-    if (stmt_reprepare_observer && !thd->is_fatal_error() && !thd->killed &&
-        thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
-        reprepare_attempt++ < 3) {
-      DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
-
-      thd->clear_error();
-      free_lex();
-      invalidate();
-    } else
+    if (stmt_reprepare_observer == nullptr || thd->is_fatal_error() ||
+        thd->killed || thd->get_stmt_da()->mysql_errno() != ER_NEED_REPREPARE)
       return true;
+
+    /*
+      We take only 3 attempts to reprepare the query, otherwise we might end
+      up in the endless loop.
+    */
+    DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
+    if ((reprepare_attempt++ >= MAX_REPREPARE_ATTEMPTS) ||
+        DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", true,
+                         false)) {
+      /*
+        Reprepare_observer sets error status in DA but Sql_condition is not
+        added. Please check Reprepare_observer::report_error(). Pushing
+        Sql_condition for ER_NEED_REPREPARE here.
+      */
+      Diagnostics_area *da = thd->get_stmt_da();
+      da->push_warning(thd, da->mysql_errno(), da->returned_sqlstate(),
+                       Sql_condition::SL_ERROR, da->message_text());
+      return true;
+    }
+
+    thd->clear_error();
+    free_lex();
+    invalidate();
   }
 }
 
