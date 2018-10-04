@@ -158,8 +158,6 @@ TEST_F(Keys_container_test, InitWithFileWithCorrect_2_0_Struct) {
   delete sample_key;  // unused in this test
 }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
 TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   const char *keyring_incorrect_version = "./keyring_incorrect_version";
   remove(keyring_incorrect_version);
@@ -174,7 +172,6 @@ TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion) {
   remove(keyring_incorrect_version);
   delete sample_key;  // unused in this test
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG) {
   const char *keyring_incorrect_tag = "./keyring_incorrect_tag";

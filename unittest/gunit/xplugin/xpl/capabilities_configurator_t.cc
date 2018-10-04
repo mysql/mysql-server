@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -160,11 +160,6 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_doesNothing_whenEmpty) {
   assert_get(empty);
 }
 
-/*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsAllCapabilities) {
   assert_get(mock_handlers);
 }
@@ -177,7 +172,6 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps) {
 
   assert_get(supported_handlers);
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability) {
@@ -195,7 +189,6 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
   sut->commit();
 }
 
-#if !defined(HAVE_UBSAN)
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_success_whenAllRequestedCapsSucceded) {
   ngs::unique_ptr<Capabilities> caps(new Capabilities());
@@ -216,7 +209,6 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
                 expect_commit);
   sut->commit();
 }
-#endif
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
        prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast) {

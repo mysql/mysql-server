@@ -218,8 +218,6 @@ TEST_F(Keyring_api_test, StoreValidTypes) {
       0);
 }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
 TEST_F(Keyring_api_test, StoreInvalidType) {
   EXPECT_CALL(
       *((Mock_logger *)logger.get()),
@@ -235,7 +233,6 @@ TEST_F(Keyring_api_test, StoreInvalidType) {
             0);
   ASSERT_TRUE(key == NULL);
 }
-#endif  // HAVE_UBSAN
 
 TEST_F(Keyring_api_test, StoreTwiceTheSameDifferentTypes) {
   EXPECT_EQ(
@@ -392,8 +389,6 @@ TEST_F(Keyring_api_test, NullUser) {
   key = NULL;
 }
 
-// HAVE_UBSAN: undefined behaviour in gmock.
-#if !defined(HAVE_UBSAN)
 TEST_F(Keyring_api_test, NullKeyId) {
   EXPECT_CALL(*((Mock_logger *)logger.get()),
               log(ERROR_LEVEL,
@@ -473,6 +468,5 @@ TEST_F(Keyring_api_test, NullKeyId) {
                   StrEq("Error while generating key: key_id cannot be empty")));
   EXPECT_EQ(mysql_key_generate("", "AES", NULL, 128), 1);
 }
-#endif  // HAVE_UBSAN
 
 }  // namespace keyring__api_unittest

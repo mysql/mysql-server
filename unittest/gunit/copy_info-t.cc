@@ -249,11 +249,6 @@ TEST_F(CopyInfoTest, getFunctionDefaultColumns) {
 }
 
 /*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
-/*
   Here we test that calling COPY_INFO::set_function_defaults() indeed causes
   store_timestamp to be called on the columns that are not on the list of
   assigned_columns. We seize the opportunity to test
@@ -293,6 +288,5 @@ TEST_F(CopyInfoTest, setFunctionDefaults) {
   EXPECT_CALL(c, store_timestamp(_)).Times(0);
   insert.set_function_defaults(&table);
 }
-#endif  // HAVE_UBSAN
 
 }  // namespace copy_info_unittest

@@ -179,7 +179,6 @@ class SuccessSetCapabilityHanderTlsTestSuite
  public:
 };
 
-#if !defined(HAVE_UBSAN)
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_success_forValidParametersAndTlsSupportedOnTcpip) {
   auto s = GetParam();
@@ -194,7 +193,6 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
 
   sut.commit();
 }
-#endif  // HAVE_UBSAN
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsSupportedOnNamedPipe) {
@@ -291,11 +289,6 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name) {
   ASSERT_STREQ("authentication.mechanisms", sut.name().c_str());
 }
 
-/*
-  HAVE_UBSAN: undefined behaviour in gmock.
-  runtime error: member call on null pointer of type 'const struct ResultHolder'
- */
-#if !defined(HAVE_UBSAN)
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
   std::vector<std::string> names;
   Any any;
@@ -337,7 +330,6 @@ TEST_F(CapabilityHanderAuthMechTestSuite,
     ASSERT_STREQ(names[i].c_str(), a.scalar().v_string().value().c_str());
   }
 }
-#endif  // HAVE_UBSAN
 
 class Capability_hander_client_interactive_test_suite : public Test {
  public:
