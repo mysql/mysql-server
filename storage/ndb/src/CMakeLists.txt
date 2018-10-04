@@ -22,6 +22,7 @@
 
 INCLUDE(libutils)
 
+
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -36,6 +37,8 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
           "error=placement-new"
           # Downgrade -Werror=deprecated-copy to warning for gcc 9
           "error=deprecated-copy"
+          # Downgrade -Werror=ignored-qualifiers to warning for gcc 9
+          "error=ignored-qualifiers"
           )
     STRING(REPLACE "-" "_" warning_ ${warning})
     STRING(TOUPPER ${warning_} WARNING)
