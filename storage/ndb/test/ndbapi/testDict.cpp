@@ -565,7 +565,7 @@ int runCreateAndDropAtRandom(NDBT_Context* ctx, NDBT_Step* step)
           int icols = 1 + myRandom48(tcols);
           if (icols > NDB_MAX_ATTRIBUTES_IN_INDEX)
             icols = NDB_MAX_ATTRIBUTES_IN_INDEX;
-          char indName[200];
+          char indName[256];
           sprintf(indName, "%s_X%d", tabName, inum);
           NdbDictionary::Index ind(indName);
           ind.setTable(tabName);

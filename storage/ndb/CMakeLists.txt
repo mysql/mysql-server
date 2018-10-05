@@ -160,6 +160,13 @@ ELSE()
     MESSAGE(STATUS "Building NdbApi examples for \"-devbld\" debug build")
     SET(WITH_NDBAPI_EXAMPLES ON)
   ENDIF()
+  # Turn on build of NDB tests automatically for "-werror" builds
+  IF(PACKAGE_SUFFIX STREQUAL "-werror")
+    MESSAGE(STATUS "Building NDB test programs for \"-werror\" build")
+    SET(WITH_NDB_TEST ON)
+    MESSAGE(STATUS "Building NdbApi examples for \"-werror\" build")
+    SET(WITH_NDBAPI_EXAMPLES ON)
+  ENDIF()
 ENDIF()
 
 OPTION(WITH_ERROR_INSERT

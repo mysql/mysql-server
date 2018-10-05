@@ -1131,7 +1131,7 @@ runBug14702377(NDBT_Context* ctx, NDBT_Step* step)
       int msec = (int)(t2-t1);
       const NdbError& txerr = pTx->getNdbError();
       const NdbError& operr = pOp->getNdbError();
-      char info2[200];
+      char info2[300];
       sprintf(info2, "%s msec=%d ret=%d txerr=%d operr=%d",
                       info1, msec, ret, txerr.code, operr.code);
       g_info << "PK read T1 done: " << info2 << endl;
