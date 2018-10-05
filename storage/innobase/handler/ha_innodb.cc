@@ -14198,11 +14198,6 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
 
-  if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS &&
-      !new_dd_space->options().exists("encryption")) {
-    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-  }
-
   /* Name validation should be ensured from the SQL layer. */
   ut_ad(0 == validate_tablespace_name(ALTER_TABLESPACE,
                                       alter_info->tablespace_name));
@@ -14223,11 +14218,15 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
     DBUG_RETURN(HA_ERR_NOT_ALLOWED_COMMAND);
   }
 
-  /* ALTER_TABLESPACE_OPTIONS; ENCRYPTION */
+  /* ALTER_TABLESPACE_OPTIONS */
   if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_OPTIONS) {
-    ut_ad(new_dd_space->options().exists("encryption"));
-    DBUG_RETURN(innobase_alter_encrypt_tablespace(hton, thd, alter_info,
-                                                  old_dd_space, new_dd_space));
+    if (new_dd_space->options().exists("encryption")) {
+      DBUG_RETURN(innobase_alter_encrypt_tablespace(
+          hton, thd, alter_info, old_dd_space, new_dd_space));
+    } else {
+      /* Ignore any other ALTER_TABLESPACE_OPTIONS */
+      DBUG_RETURN(0);
+    }
   }
 
   /* ALTER_TABLESPACE_RENAME */
