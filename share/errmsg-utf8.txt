@@ -18725,6 +18725,9 @@ ER_UNIT_NOT_FOUND SU001
 ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
   eng "The geometry passed to function %s is in SRID 0, which doesn't specify a length unit. Can't convert to '%s'."
 
+ER_WARN_PROPERTY_STRING_PARSE_FAILED
+  eng "Could not parse key-value pairs in property string '%s'"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

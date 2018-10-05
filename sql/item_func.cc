@@ -7921,6 +7921,15 @@ longlong Item_func_can_access_view::val_int() {
   bool is_view_valid = true;
   std::unique_ptr<dd::Properties> view_options(
       dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!view_options.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           options_ptr->c_ptr_safe());
+    DBUG_ASSERT(false);
+    DBUG_RETURN(0);
+  }
+
   if (view_options->get_bool("view_valid", &is_view_valid)) DBUG_RETURN(0);
 
   THD *thd = current_thd;
@@ -8242,6 +8251,14 @@ longlong Item_func_internal_keys_disabled::val_int() {
   // Read table option from properties
   std::unique_ptr<dd::Properties> p(
       dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           options_ptr->c_ptr_safe());
+    DBUG_ASSERT(false);
+    DBUG_RETURN(0);
+  }
 
   // Read keys_disabled sub type.
   uint keys_disabled = 0;
@@ -8639,6 +8656,14 @@ longlong Item_func_internal_get_view_warning_or_error::val_int() {
     bool is_view_valid = true;
     std::unique_ptr<dd::Properties> view_options(
         dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
+
+    // Warn if the property string is corrupt.
+    if (!view_options.get()) {
+      LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+             options_ptr->c_ptr_safe());
+      DBUG_ASSERT(false);
+      DBUG_RETURN(0);
+    }
 
     // Return 0 if get_bool() or push_view_warning_or_error() fails
     if (view_options->get_bool("view_valid", &is_view_valid)) DBUG_RETURN(0);
