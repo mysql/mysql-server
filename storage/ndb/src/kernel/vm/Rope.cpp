@@ -191,7 +191,7 @@ bool packFinalWord(const char * src, Uint32 & dest, Uint32 len) {
 bool
 LocalRope::appendBuffer(const char * s, Uint32 len) {
   if(DEBUG_ROPE)
-    ndbout_c("LocalRope::appendBuffer(%s, %d)", s, (int) len);
+    ndbout_c("LocalRope::appendBuffer(%d)", (int) len);
   bool ok = append((const Uint32*) s, len >> 2);
   if(ok) {
     Uint32 tail;
@@ -229,10 +229,16 @@ LocalRope::erase(){
 Uint32
 LocalRope::hash(const char * p, Uint32 len, Uint32 starter){
   Uint32 h = starter;
+  const char * data = p;
   for (; len > 0; len--)
-    h = (h << 5) + h + (* p++);
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::hash(%s, %d) : 0x%x -> 0x%x", p, len, starter, h);
+    h = (h << 5) + h + (* data++);
+  if(DEBUG_ROPE) {
+    char msg_buffer[ROPE_COPY_BUFFER_SIZE];
+    strncpy(msg_buffer, p, sizeof(msg_buffer));
+    msg_buffer[sizeof(msg_buffer)-1] = '\0';
+    ndbout_c("LocalRope::hash(%s, %d) : 0x%x -> 0x%x",
+             msg_buffer, len, starter, h);
+  }
   return h;
 }
 
