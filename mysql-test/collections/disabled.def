@@ -45,6 +45,12 @@ main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled i
 # Upgrade tests failing frequently on Solaris
 main.mysql_upgrade                    @solaris : Bug#28146052 2018-07-30 Erlend
 main.mysql_upgrade_slave_master_info  @solaris : Bug#28146052 2018-07-30 Erlend
+i_main.mysql_upgrade_gtid             @solaris : Bug#28146052 2018-07-30 Erlend
+main.dd_schema_definition_after_upgrade_debug @solaris : Bug#28146052 2018-10-05 Erlend
+main.dd_upgrade_test                          @solaris : Bug#28146052 2018-10-05 Erlend
+main.dd_upgrade_partition                     @solaris : Bug#28146052 2018-10-05 Erlend
+main.component-upgrade                        @solaris : Bug#28146052 2018-10-05 Erlend
+rpl.rpl_mysql_upgrade                         @solaris : Bug#28146052 2018-10-05 Erlend
 
 # max_parts suite tests
 max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
