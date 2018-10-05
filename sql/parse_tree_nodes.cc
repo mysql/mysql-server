@@ -1503,17 +1503,16 @@ bool PT_create_table_default_charset::contextualize(
 }
 
 bool set_default_collation(HA_CREATE_INFO *create_info,
-                           const CHARSET_INFO *value) {
-  DBUG_ASSERT(value != nullptr);
+                           const CHARSET_INFO *collation) {
+  DBUG_ASSERT(collation != nullptr);
+  DBUG_ASSERT(
+      (create_info->default_table_charset == nullptr) ==
+      ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) == 0));
 
-  if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
-      create_info->default_table_charset &&
-      !(value = merge_charset_and_collation(create_info->default_table_charset,
-                                            value))) {
+  if (merge_charset_and_collation(create_info->default_table_charset, collation,
+                                  &create_info->default_table_charset)) {
     return true;
   }
-
-  create_info->default_table_charset = value;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_COLLATE;
   return false;
@@ -2315,17 +2314,11 @@ Sql_cmd *PT_show_tables::make_cmd(THD *thd) {
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
-  const CHARSET_INFO *cs = m_type->get_charset();
+  const CHARSET_INFO *cs;
+  if (merge_charset_and_collation(m_type->get_charset(), m_collation, &cs))
+    return true;
   if (cs == nullptr) {
-    if (m_collation != nullptr)
-      cs = m_collation;
-    else
-      cs = pc->thd->variables.collation_connection;
-  } else {
-    cs = merge_charset_and_collation(cs, m_collation);
-    if (cs == nullptr) {
-      return true;
-    }
+    cs = pc->thd->variables.collation_connection;
   }
 
   m_column.init(pc->thd,

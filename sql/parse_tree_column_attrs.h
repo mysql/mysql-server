@@ -160,17 +160,14 @@ class PT_collate_column_attr : public PT_column_attr_base {
 
  public:
   explicit PT_collate_column_attr(const CHARSET_INFO *collation)
-      : collation(collation) {}
+      : collation(collation) {
+    DBUG_ASSERT(collation != nullptr);
+  }
 
   bool apply_collation(const CHARSET_INFO **to,
                        bool *has_explicit_collation) const override {
     *has_explicit_collation = true;
-    if (*to == nullptr) {
-      *to = collation;
-      return false;
-    }
-    *to = merge_charset_and_collation(*to, collation);
-    return *to == nullptr;
+    return merge_charset_and_collation(*to, collation, to);
   }
 };
 

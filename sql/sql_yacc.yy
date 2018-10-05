@@ -3279,7 +3279,7 @@ sp_fdparam:
             CONTEXTUALIZE($2);
             enum_field_types field_type= $2->type;
             const CHARSET_INFO *cs= $2->get_charset();
-            if (merge_sp_var_charset_and_collation(&cs, cs, $3))
+            if (merge_sp_var_charset_and_collation(cs, $3, &cs))
               MYSQL_YYABORT;
 
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
@@ -3351,7 +3351,7 @@ sp_pdparam:
             CONTEXTUALIZE($3);
             enum_field_types field_type= $3->type;
             const CHARSET_INFO *cs= $3->get_charset();
-            if (merge_sp_var_charset_and_collation(&cs, cs, $4))
+            if (merge_sp_var_charset_and_collation(cs, $4, &cs))
               MYSQL_YYABORT;
 
             sp_variable *spvar= pctx->add_variable(thd,
@@ -3447,7 +3447,7 @@ sp_decl:
             CONTEXTUALIZE($3);
             enum enum_field_types var_type= $3->type;
             const CHARSET_INFO *cs= $3->get_charset();
-            if (merge_sp_var_charset_and_collation(&cs, cs, $4))
+            if (merge_sp_var_charset_and_collation(cs, $4, &cs))
               MYSQL_YYABORT;
 
             uint num_vars= pctx->context_var_count();
@@ -15958,7 +15958,7 @@ sf_tail:
             CONTEXTUALIZE($9);
             enum_field_types field_type= $9->type;
             const CHARSET_INFO *cs= $9->get_charset();
-            if (merge_sp_var_charset_and_collation(&cs, cs, $10))
+            if (merge_sp_var_charset_and_collation(cs, $10, &cs))
               MYSQL_YYABORT;
 
             /*
