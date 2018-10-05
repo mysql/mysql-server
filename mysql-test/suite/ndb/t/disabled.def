@@ -19,3 +19,5 @@ ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 
+# Fails on slow machines
+ndb.ndb_bushy_joins: Bug#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
