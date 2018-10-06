@@ -395,6 +395,6 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --echo ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
-SET SESSION debug= '-d,alter_encrypt_tablespace_page_6';
-SET SESSION debug= '-d,flush_each_dirtied_page';
+let $restart_parameters = restart:;
+--source include/restart_mysqld_no_echo.inc
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;

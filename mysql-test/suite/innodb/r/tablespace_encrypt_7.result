@@ -389,5 +389,3 @@ ALTER TABLESPACE encrypt_ts encryption='Y';
 ###########
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
-SET SESSION debug= '-d,alter_encrypt_tablespace_page_6';
-SET SESSION debug= '-d,flush_each_dirtied_page';

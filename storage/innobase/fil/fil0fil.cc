@@ -9736,6 +9736,10 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   byte *key = nullptr;
   bool is_new = false;
 
+#ifdef UNIV_DEBUG
+  bool is_allocated = false;
+#endif
+
   fil_space_t *space = fil_space_get(space_id);
 
   /* An undo space might be open but not have the ENCRYPTION bit set
@@ -9757,13 +9761,17 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
       if (recv_key.space_id == space_id) {
         iv = recv_key.iv;
         key = recv_key.ptr;
-
-        DBUG_EXECUTE_IF(
-            "dont_update_key_found_during_REDO_scan",
-            key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
-            iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN)););
       }
     }
+
+#ifdef UNIV_DEBUG
+    if (key != nullptr) {
+      DBUG_EXECUTE_IF(
+          "dont_update_key_found_during_REDO_scan", is_allocated = true;
+          key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+          iv = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN)););
+    }
+#endif
 
     if (key == nullptr) {
       key = static_cast<byte *>(ut_malloc_nokey(ENCRYPTION_KEY_LEN));
@@ -9829,6 +9837,13 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
       space->encryption_klen = ENCRYPTION_KEY_LEN;
     }
   }
+
+#ifdef UNIV_DEBUG
+  if (is_allocated) {
+    DBUG_EXECUTE_IF("dont_update_key_found_during_REDO_scan", ut_free(key);
+                    ut_free(iv););
+  }
+#endif
 
   return (ptr);
 }
