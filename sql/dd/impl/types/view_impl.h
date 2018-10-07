@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@
 #include <new>
 
 #include "my_inttypes.h"
+#include "sql/dd/impl/properties_impl.h"
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/abstract_table_impl.h"  // dd::Abstract_table_impl
 #include "sql/dd/impl/types/entity_object_impl.h"
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
-#include "sql/dd/properties.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/view.h"          // dd::View
@@ -188,9 +188,9 @@ class View_impl : public Abstract_table_impl, public View {
   // Explicit list of column names.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &column_names() const { return *m_column_names; }
+  virtual const Properties &column_names() const { return m_column_names; }
 
-  virtual Properties &column_names() { return *m_column_names; }
+  virtual Properties &column_names() { return m_column_names; }
 
   /////////////////////////////////////////////////////////////////////////
   // View_table collection.
@@ -234,10 +234,12 @@ class View_impl : public Abstract_table_impl, public View {
     return Abstract_table_impl::options();
   }
   virtual Properties &options() { return Abstract_table_impl::options(); }
-  virtual bool set_options_raw(const String_type &options_raw) {
-    return Abstract_table_impl::set_options_raw(options_raw);
+  virtual bool set_options(const Properties &options) {
+    return Abstract_table_impl::set_options(options);
   }
-  virtual bool set_column_names_raw(const String_type &column_names_raw);
+  virtual bool set_options(const String_type &options_raw) {
+    return Abstract_table_impl::set_options(options_raw);
+  }
   virtual ulonglong created(bool convert_time) const {
     return Abstract_table_impl::created(convert_time);
   }
@@ -282,7 +284,7 @@ class View_impl : public Abstract_table_impl, public View {
   String_type m_definer_user;
   String_type m_definer_host;
 
-  std::unique_ptr<Properties> m_column_names;
+  Properties_impl m_column_names;
 
   // Collections.
 

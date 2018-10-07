@@ -339,9 +339,12 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     if (!names_dict.empty())  // Explicit names were provided
     {
       std::string i_s = std::to_string(i);
-      String_type value = names_dict.value(String_type(i_s.begin(), i_s.end()));
-      char *name = static_cast<char *>(
-          strmake_root(thd->mem_root, value.c_str(), value.length()));
+      String_type value;
+      char *name = nullptr;
+      if (!names_dict.get(String_type(i_s.begin(), i_s.end()), &value)) {
+        name = static_cast<char *>(
+            strmake_root(thd->mem_root, value.c_str(), value.length()));
+      }
       if (!name) DBUG_RETURN(true); /* purecov: inspected */
       cr_field->field_name = name;
     }
@@ -564,7 +567,7 @@ static bool fill_dd_view_definition(THD *thd, View *view_obj,
   dd::Properties *view_options = &view_obj->options();
   view_options->set("timestamp",
                     String_type(view->timestamp.str, view->timestamp.length));
-  view_options->set_bool("view_valid", true);
+  view_options->set("view_valid", true);
 
   // Fill view columns information in View object.
   if (fill_dd_view_columns(thd, view_obj, view)) return true;
@@ -686,7 +689,8 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
       std::string i_s = std::to_string(++i);
       String_type key(i_s.begin(), i_s.end());
       if (!names_dict.exists(key)) break;
-      String_type value = names_dict.value(key);
+      String_type value;
+      names_dict.get(key, &value);
       char *name = static_cast<char *>(
           strmake_root(mem_root, value.c_str(), value.length()));
       if (!name || (names_array->push_back({name, value.length()})))
@@ -709,7 +713,7 @@ bool update_view_status(THD *thd, const char *schema_name,
 
   // Update view error status.
   dd::Properties *view_options = &new_view->options();
-  view_options->set_bool("view_valid", status);
+  view_options->set("view_valid", status);
 
   Disable_gtid_state_update_guard disabler(thd);
 

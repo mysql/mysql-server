@@ -577,7 +577,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Secondary storage engine.
   if (table_options->exists("secondary_engine")) {
-    table_options->get("secondary_engine", share->secondary_engine,
+    table_options->get("secondary_engine", &share->secondary_engine,
                        &share->mem_root);
   } else {
     // If no secondary storage engine is set, the share cannot
@@ -611,41 +611,41 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   share->db_low_byte_first = true;
 
   // Read other table options
-  uint64 option_value;
-  bool bool_opt;
+  uint64 option_value = 0;
+  bool bool_opt = false;
 
   // Max rows
   if (table_options->exists("max_rows"))
-    table_options->get_uint64("max_rows", &share->max_rows);
+    table_options->get("max_rows", &share->max_rows);
 
   // Min rows
   if (table_options->exists("min_rows"))
-    table_options->get_uint64("min_rows", &share->min_rows);
+    table_options->get("min_rows", &share->min_rows);
 
   // Options from HA_CREATE_INFO::table_options/TABLE_SHARE::db_create_options.
   share->db_create_options = 0;
 
-  table_options->get_bool("pack_record", &bool_opt);
+  table_options->get("pack_record", &bool_opt);
   if (bool_opt) share->db_create_options |= HA_OPTION_PACK_RECORD;
 
   if (table_options->exists("pack_keys")) {
-    table_options->get_bool("pack_keys", &bool_opt);
+    table_options->get("pack_keys", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_PACK_KEYS : HA_OPTION_NO_PACK_KEYS;
   }
 
   if (table_options->exists("checksum")) {
-    table_options->get_bool("checksum", &bool_opt);
+    table_options->get("checksum", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_CHECKSUM;
   }
 
   if (table_options->exists("delay_key_write")) {
-    table_options->get_bool("delay_key_write", &bool_opt);
+    table_options->get("delay_key_write", &bool_opt);
     if (bool_opt) share->db_create_options |= HA_OPTION_DELAY_KEY_WRITE;
   }
 
   if (table_options->exists("stats_persistent")) {
-    table_options->get_bool("stats_persistent", &bool_opt);
+    table_options->get("stats_persistent", &bool_opt);
     share->db_create_options |=
         bool_opt ? HA_OPTION_STATS_PERSISTENT : HA_OPTION_NO_STATS_PERSISTENT;
   }
@@ -655,7 +655,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   // Average row length
 
   if (table_options->exists("avg_row_length")) {
-    table_options->get_uint64("avg_row_length", &option_value);
+    table_options->get("avg_row_length", &option_value);
     share->avg_row_length = static_cast<ulong>(option_value);
   }
 
@@ -676,7 +676,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Then one which was explicitly specified by user for this table.
   if (table_options->exists("row_type")) {
-    table_options->get_uint64("row_type", &option_value);
+    table_options->get("row_type", &option_value);
     share->row_type =
         dd_get_old_row_format((dd::Table::enum_row_format)option_value);
   } else
@@ -684,11 +684,11 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Stats_sample_pages
   if (table_options->exists("stats_sample_pages"))
-    table_options->get_uint32("stats_sample_pages", &share->stats_sample_pages);
+    table_options->get("stats_sample_pages", &share->stats_sample_pages);
 
   // Stats_auto_recalc
   if (table_options->exists("stats_auto_recalc")) {
-    table_options->get_uint64("stats_auto_recalc", &option_value);
+    table_options->get("stats_auto_recalc", &option_value);
     share->stats_auto_recalc = (enum_stats_auto_recalc)option_value;
   }
 
@@ -700,7 +700,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   // needed?
 
   // key block size
-  table_options->get_uint32("key_block_size", &share->key_block_size);
+  table_options->get("key_block_size", &share->key_block_size);
 
   // Prepare the default_value buffer.
   if (prepare_default_value_buffer_and_table_share(thd, *tab_obj, share))
@@ -708,8 +708,8 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Storage media flags
   if (table_options->exists("storage")) {
-    uint32 option_value;
-    table_options->get_uint32("storage", &option_value);
+    uint32 option_value = 0;
+    table_options->get("storage", &option_value);
     share->default_storage_media = static_cast<ha_storage_media>(option_value);
   } else
     share->default_storage_media = HA_SM_DEFAULT;
@@ -727,16 +727,16 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Read Connection strings
   if (table_options->exists("connection_string"))
-    table_options->get("connection_string", share->connect_string,
+    table_options->get("connection_string", &share->connect_string,
                        &share->mem_root);
 
   // Read Compress string
   if (table_options->exists("compress"))
-    table_options->get("compress", share->compress, &share->mem_root);
+    table_options->get("compress", &share->compress, &share->mem_root);
 
   // Read Encrypt string
   if (table_options->exists("encrypt_type"))
-    table_options->get("encrypt_type", share->encrypt_type, &share->mem_root);
+    table_options->get("encrypt_type", &share->encrypt_type, &share->mem_root);
 
   return false;
 }
@@ -752,8 +752,8 @@ static uint column_preamble_bits(const dd::Column *col_obj) {
   if (col_obj->is_nullable()) result++;
 
   if (col_obj->type() == dd::enum_column_types::BIT) {
-    bool treat_bit_as_char;
-    (void)col_obj->options().get_bool("treat_bit_as_char", &treat_bit_as_char);
+    bool treat_bit_as_char = false;
+    (void)col_obj->options().get("treat_bit_as_char", &treat_bit_as_char);
 
     if (!treat_bit_as_char) result += col_obj->char_length() & 7;
   }
@@ -872,14 +872,15 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   auto geom_type = Field::GEOM_GEOMETRY;
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
-    uint32 sub_type;
-    column_options->get_uint32("geom_type", &sub_type);
+    uint32 sub_type = 0;
+    column_options->get("geom_type", &sub_type);
     geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 
   bool treat_bit_as_char = false;
-  if (field_type == MYSQL_TYPE_BIT)
-    column_options->get_bool("treat_bit_as_char", &treat_bit_as_char);
+  if (field_type == MYSQL_TYPE_BIT) {
+    column_options->get("treat_bit_as_char", &treat_bit_as_char);
+  }
 
   return make_field(share, ptr, field_length, null_pos, null_bit, field_type,
                     charset, geom_type, auto_flags, interval, name,
@@ -926,7 +927,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   bool treat_bit_as_char = false;
   if (field_type == MYSQL_TYPE_BIT)
-    column_options->get_bool("treat_bit_as_char", &treat_bit_as_char);
+    column_options->get("treat_bit_as_char", &treat_bit_as_char);
 
   // Collation ID
   charset = dd_get_mysql_charset(col_obj->collation_id());
@@ -945,20 +946,20 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
     uint32 sub_type;
-    column_options->get_uint32("geom_type", &sub_type);
+    column_options->get("geom_type", &sub_type);
   }
 
   // Read values of storage media and column format options
   if (column_options->exists("storage")) {
-    uint32 option_value;
-    column_options->get_uint32("storage", &option_value);
+    uint32 option_value = 0;
+    column_options->get("storage", &option_value);
     field_storage = static_cast<ha_storage_media>(option_value);
   } else
     field_storage = HA_SM_DEFAULT;
 
   if (column_options->exists("column_format")) {
-    uint32 option_value;
-    column_options->get_uint32("column_format", &option_value);
+    uint32 option_value = 0;
+    column_options->get("column_format", &option_value);
     field_column_format = static_cast<column_format_type>(option_value);
   } else
     field_column_format = COLUMN_FORMAT_TYPE_DEFAULT;
@@ -1347,8 +1348,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
     See fill_dd_indexes_for_keyinfo() for explanation why we store these flags
     explicitly.
   */
-  uint32 stored_flags;
-  idx_options->get_uint32("flags", &stored_flags);
+  uint32 stored_flags = 0;
+  idx_options->get("flags", &stored_flags);
   DBUG_ASSERT((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
 
   //  Beginning in 8.0.12 HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
@@ -1373,7 +1374,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Block size
   if (idx_options->exists("block_size")) {
-    idx_options->get_uint32("block_size", &keyinfo->block_size);
+    idx_options->get("block_size", &keyinfo->block_size);
 
     DBUG_ASSERT(keyinfo->block_size);
 
@@ -1383,13 +1384,8 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   // Read field parser
   if (idx_options->exists("parser_name")) {
     LEX_CSTRING parser_name;
-    dd::String_type pn = idx_options->value_cstr("parser_name");
-
-    DBUG_ASSERT(!pn.empty());
-
-    parser_name.str =
-        (char *)strmake_root(&share->mem_root, pn.c_str(), pn.length());
-    parser_name.length = pn.length();
+    if (idx_options->get("parser_name", &parser_name, &share->mem_root))
+      DBUG_ASSERT(false);
 
     keyinfo->parser =
         my_plugin_lock_by_name(NULL, parser_name, MYSQL_FTPARSER_PLUGIN);
@@ -1610,8 +1606,7 @@ static char *copy_option_string(MEM_ROOT *mem_root,
                                 const dd::Properties &options,
                                 const dd::String_type &key) {
   dd::String_type tmp_str;
-  options.get(key, tmp_str);
-  if (tmp_str.length()) {
+  if (options.exists(key) && !options.get(key, &tmp_str) && tmp_str.length()) {
     return strdup_root(mem_root, tmp_str.c_str());
   }
   return NULL;
@@ -1621,10 +1616,10 @@ static void get_partition_options(MEM_ROOT *mem_root,
                                   partition_element *part_elem,
                                   const dd::Properties &part_options) {
   if (part_options.exists("max_rows"))
-    part_options.get_uint64("max_rows", &part_elem->part_max_rows);
+    part_options.get("max_rows", &part_elem->part_max_rows);
 
   if (part_options.exists("min_rows"))
-    part_options.get_uint64("min_rows", &part_elem->part_min_rows);
+    part_options.get("min_rows", &part_elem->part_min_rows);
 
   part_elem->data_file_name =
       copy_option_string(mem_root, part_options, "data_file_name");
@@ -1633,7 +1628,7 @@ static void get_partition_options(MEM_ROOT *mem_root,
 
   uint32 nodegroup_id = UNDEF_NODEGROUP;
   if (part_options.exists("nodegroup_id"))
-    part_options.get_uint32("nodegroup_id", &nodegroup_id);
+    part_options.get("nodegroup_id", &nodegroup_id);
 
   DBUG_ASSERT(nodegroup_id <= 0xFFFF);
   part_elem->nodegroup_id = nodegroup_id;
@@ -1751,14 +1746,14 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       } else {
         if (part_value->value_utf8()[0] == '-') {
           part_elem->signed_flag = true;
-          if (dd::Properties::to_int64(part_value->value_utf8(),
+          if (dd::Properties::from_str(part_value->value_utf8(),
                                        &part_elem->range_value)) {
             return true;
           }
         } else {
           part_elem->signed_flag = false;
-          if (dd::Properties::to_uint64(part_value->value_utf8(),
-                                        (ulonglong *)&part_elem->range_value)) {
+          if (dd::Properties::from_str(part_value->value_utf8(),
+                                       (ulonglong *)&part_elem->range_value)) {
             return true;
           }
         }
@@ -1812,13 +1807,13 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         DBUG_ASSERT(!list_val->unsigned_flag && !list_val->value);
         if (part_value->value_utf8()[0] == '-') {
           list_val->unsigned_flag = false;
-          if (dd::Properties::to_int64(part_value->value_utf8(),
+          if (dd::Properties::from_str(part_value->value_utf8(),
                                        &list_val->value))
             return true;
         } else {
           list_val->unsigned_flag = true;
-          if (dd::Properties::to_uint64(part_value->value_utf8(),
-                                        (ulonglong *)&list_val->value))
+          if (dd::Properties::from_str(part_value->value_utf8(),
+                                       (ulonglong *)&list_val->value))
             return true;
         }
       }

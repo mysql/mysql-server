@@ -3723,7 +3723,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
     const dd::Properties &p = old_dd_tab->se_private_data();
     if (dict_table_is_file_per_table(old_table) &&
         p.exists(dd_table_key_strings[DD_TABLE_DISCARD])) {
-      p.get_bool(dd_table_key_strings[DD_TABLE_DISCARD], &discarded);
+      p.get(dd_table_key_strings[DD_TABLE_DISCARD], &discarded);
     }
 
     dd::Object_id dd_space_id;
@@ -3757,8 +3757,8 @@ static void dd_commit_inplace_update_instant_meta(const dict_table_t *table,
 
   ut_ad(table->has_instant_cols());
 
-  new_dd_tab->se_private_data().set_uint32(
-      dd_table_key_strings[DD_TABLE_INSTANT_COLS], table->get_instant_cols());
+  new_dd_tab->se_private_data().set(dd_table_key_strings[DD_TABLE_INSTANT_COLS],
+                                    table->get_instant_cols());
 
   for (uint16_t i = 0; i < table->get_n_user_cols(); ++i) {
     const dict_col_t *col = table->get_col(i);
@@ -3804,7 +3804,7 @@ static void dd_commit_inplace_update_partition_instant_meta(
   uint16_t i = 0;
   for (auto part : *new_dd_tab->leaf_partitions()) {
     if (part_share->get_table_part(i)->has_instant_cols()) {
-      part->se_private_data().set_uint32(
+      part->se_private_data().set(
           dd_partition_key_strings[DD_PARTITION_INSTANT_COLS],
           part_share->get_table_part(i)->get_instant_cols());
     }
@@ -3874,7 +3874,7 @@ static void dd_commit_inplace_alter_table(
   /* For discarded table, need set this to dd. */
   if (old_info.m_discarded) {
     dd::Properties &p = new_dd_tab->se_private_data();
-    p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], true);
+    p.set(dd_table_key_strings[DD_TABLE_DISCARD], true);
   }
 }
 
@@ -3901,11 +3901,11 @@ static void dd_commit_instant_table(const dict_table_t *new_table,
     uint32_t instant_cols = new_table->get_n_user_cols();
 
     if (dd_table_has_instant_cols(*old_dd_tab)) {
-      old_dd_tab->se_private_data().get_uint32(
+      old_dd_tab->se_private_data().get(
           dd_table_key_strings[DD_TABLE_INSTANT_COLS], &instant_cols);
     }
 
-    new_dd_tab->se_private_data().set_uint32(
+    new_dd_tab->se_private_data().set(
         dd_table_key_strings[DD_TABLE_INSTANT_COLS], instant_cols);
   }
 
@@ -3930,7 +3930,7 @@ static void dd_commit_instant_part(const dict_table_t *new_table,
                                    dd::Partition *new_part) {
   if (!new_part->se_private_data().exists(
           dd_partition_key_strings[DD_PARTITION_INSTANT_COLS])) {
-    new_part->se_private_data().set_uint32(
+    new_part->se_private_data().set(
         dd_partition_key_strings[DD_PARTITION_INSTANT_COLS],
         new_table->get_n_user_cols());
   }
@@ -3938,11 +3938,11 @@ static void dd_commit_instant_part(const dict_table_t *new_table,
   uint32_t part_instant;
   uint32_t table_instant;
   bool fail;
-  fail = new_part->se_private_data().get_uint32(
+  fail = new_part->se_private_data().get(
       dd_partition_key_strings[DD_PARTITION_INSTANT_COLS], &part_instant);
   ut_ad(!fail);
   ut_ad(part_instant <= new_table->get_n_user_cols());
-  fail = new_part->table().se_private_data().get_uint32(
+  fail = new_part->table().se_private_data().get(
       dd_table_key_strings[DD_TABLE_INSTANT_COLS], &table_instant);
   ut_ad(!fail);
   ut_ad(table_instant <= part_instant);
@@ -7993,11 +7993,12 @@ int alter_part::create(const char *part_name, dd::Partition *dd_part,
   dd::Properties &options = dd_table.options();
   uint32 key_block_size;
   ut_ad(options.exists("key_block_size"));
-  options.get_uint32("key_block_size", &key_block_size);
+  options.get("key_block_size", &key_block_size);
 
   dd::Properties &part_options = dd_part->options();
   dd::String_type data_file_name;
-  part_options.get(data_file_name_key, data_file_name);
+  if (part_options.exists(data_file_name_key))
+    (void)part_options.get(data_file_name_key, &data_file_name);
   /* index_file_name is not allowed for now */
   char full_path[FN_REFLEN];
   if (!data_file_name.empty()) {
@@ -10485,12 +10486,13 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
           swap_index->se_private_data().size());
 
     if (!part_index->se_private_data().empty()) {
-      dd::Properties_impl p_se_data;
-      p_se_data.assign(part_index->se_private_data());
+      std::unique_ptr<dd::Properties> p_se_data(
+          dd::Properties::parse_properties(""));
+      p_se_data->insert_values(part_index->se_private_data());
       part_index->se_private_data().clear();
-      part_index->se_private_data().assign(swap_index->se_private_data());
+      part_index->set_se_private_data(swap_index->se_private_data());
       swap_index->se_private_data().clear();
-      swap_index->se_private_data().assign(p_se_data);
+      swap_index->set_se_private_data(*p_se_data);
     }
 
     ut_ad(part_table_i != part_table->indexes()->end());

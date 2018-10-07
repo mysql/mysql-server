@@ -23,6 +23,7 @@
 #include "sql/dd/impl/types/table_impl.h"
 
 #include <string.h>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -75,13 +76,19 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
+static const std::set<String_type> default_valid_se_private_data_keys = {
+    // NDB keys:
+    "object_version",
+    // InnoDB keys:
+    "autoinc", "data_directory", "discard", "instant_col", "version"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl()
     : m_se_private_id(INVALID_OBJECT_ID),
-      m_se_private_data(new Properties_impl()),
+      m_se_private_data(default_valid_se_private_data_keys),
       m_row_format(RF_FIXED),
       m_is_temporary(false),
       m_partition_type(PT_NONE),
@@ -96,26 +103,6 @@ Table_impl::Table_impl()
       m_tablespace_id(INVALID_OBJECT_ID) {}
 
 Table_impl::~Table_impl() { delete_container_pointers(m_foreign_key_parents); }
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Table_impl::set_se_private_data_raw(
-    const String_type &se_private_data_raw) {
-  Properties *properties =
-      Properties_impl::parse_properties(se_private_data_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_se_private_data.reset(properties);
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Table_impl::set_se_private_data(const Properties &se_private_data) {
-  m_se_private_data->assign(se_private_data);
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -417,7 +404,7 @@ bool Table_impl::restore_attributes(const Raw_record &r) {
   m_collation_id = r.read_ref_id(Tables::FIELD_COLLATION_ID);
   m_tablespace_id = r.read_ref_id(Tables::FIELD_TABLESPACE_ID);
 
-  set_se_private_data_raw(r.read_str(Tables::FIELD_SE_PRIVATE_DATA, ""));
+  set_se_private_data(r.read_str(Tables::FIELD_SE_PRIVATE_DATA, ""));
 
   m_engine = r.read_str(Tables::FIELD_ENGINE);
 
@@ -479,7 +466,7 @@ bool Table_impl::store_attributes(Raw_record *r) {
          r->store(Tables::FIELD_ENGINE, m_engine) ||
          r->store_ref_id(Tables::FIELD_COLLATION_ID, m_collation_id) ||
          r->store(Tables::FIELD_COMMENT, m_comment) ||
-         r->store(Tables::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
+         r->store(Tables::FIELD_SE_PRIVATE_DATA, m_se_private_data) ||
          r->store(Tables::FIELD_SE_PRIVATE_ID, m_se_private_id,
                   m_se_private_id == (Object_id)-1) ||
          r->store(Tables::FIELD_ROW_FORMAT, m_row_format) ||
@@ -597,7 +584,7 @@ void Table_impl::debug_print(String_type &outb) const {
      << m_last_checked_for_upgrade_version_id << "; "
      << "m_collation: {OID: " << m_collation_id << "}; "
      << "m_comment: " << m_comment << "; "
-     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
+     << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_se_private_id: {OID: " << m_se_private_id << "}; "
      << "m_row_format: " << m_row_format << "; "
      << "m_is_temporary: " << m_is_temporary << "; "
@@ -948,8 +935,7 @@ Table_impl::Table_impl(const Table_impl &src)
       m_comment(src.m_comment),
       m_last_checked_for_upgrade_version_id{
           src.m_last_checked_for_upgrade_version_id},
-      m_se_private_data(Properties_impl::parse_properties(
-          src.m_se_private_data->raw_string())),
+      m_se_private_data(src.m_se_private_data),
       m_row_format(src.m_row_format),
       m_is_temporary(src.m_is_temporary),
       m_partition_type(src.m_partition_type),

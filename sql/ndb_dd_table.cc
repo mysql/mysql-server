@@ -46,8 +46,8 @@ ndb_dd_table_set_object_id_and_version(dd::Table* table_def,
                        object_id, object_version));
 
   table_def->set_se_private_id(object_id);
-  table_def->se_private_data().set_int32(object_version_key,
-                                         object_version);
+  table_def->se_private_data().set(object_version_key,
+                                   object_version);
   DBUG_VOID_RETURN;
 }
 
@@ -72,8 +72,8 @@ ndb_dd_table_get_object_id_and_version(const dd::Table* table_def,
     DBUG_RETURN(false);
   }
 
-  if (table_def->se_private_data().get_int32(object_version_key,
-                                             &object_version))
+  if (table_def->se_private_data().get(object_version_key,
+                                       &object_version))
   {
     DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
                          object_version_key));

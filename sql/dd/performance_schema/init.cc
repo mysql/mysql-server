@@ -330,7 +330,7 @@ bool init_pfs_tables(enum_dd_init_type init_type) {
 }
 
 void set_PS_version_for_table(dd::Properties *table_options) {
-  table_options->set_bool(SERVER_PS_TABLE_PROPERTY_NAME, true);
+  table_options->set(SERVER_PS_TABLE_PROPERTY_NAME, true);
 }
 
 }  // namespace performance_schema

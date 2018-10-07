@@ -70,7 +70,7 @@ static size_t column_pack_length(const dd::Column &col_obj) {
   bool treat_bit_as_char = false;
 
   if (col_obj.type() == dd::enum_column_types::BIT) {
-    if (col_obj.options().get_bool("treat_bit_as_char", &treat_bit_as_char))
+    if (col_obj.options().get("treat_bit_as_char", &treat_bit_as_char))
       DBUG_ASSERT(false); /* purecov: deadcode */
   }
   return calc_pack_length(col_obj.type(), col_obj.char_length(),
@@ -98,7 +98,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
                                TABLE_SHARE *share) {
   // Get the table property 'pack_record' and initialize out parameters.
   bool pack_record;
-  if (table.options().get_bool("pack_record", &pack_record)) return true;
+  if (table.options().get("pack_record", &pack_record)) return true;
 
   DBUG_ASSERT(share);
   share->fields = 0;
@@ -118,7 +118,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
     // adjust record length accordingly.
     if (col_obj->type() == dd::enum_column_types::BIT) {
       bool treat_bit_as_char;
-      if (col_obj->options().get_bool("treat_bit_as_char", &treat_bit_as_char))
+      if (col_obj->options().get("treat_bit_as_char", &treat_bit_as_char))
         return true;
 
       if (!treat_bit_as_char && (col_obj->char_length() & 7))

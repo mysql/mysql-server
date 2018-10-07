@@ -23,6 +23,7 @@
 #include "sql/dd/impl/types/abstract_table_impl.h"
 
 #include <new>
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -60,6 +61,33 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
+static const std::set<String_type> default_valid_option_keys = {
+    "avg_row_length",
+    "checksum",
+    "compress",
+    "connection_string",
+    "delay_key_write",
+    "encrypt_type",
+    "explicit_tablespace",
+    "key_block_size",
+    "keys_disabled",
+    "max_rows",
+    "min_rows",
+    "pack_keys",
+    "pack_record",
+    "plugin_version",
+    "row_type",
+    "secondary_engine",
+    "server_i_s_table",
+    "server_p_s_table",
+    "stats_auto_recalc",
+    "stats_persistent",
+    "stats_sample_pages",
+    "storage",
+    "tablespace",
+    "timestamp",
+    "view_valid"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Abstract_table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -69,21 +97,9 @@ Abstract_table_impl::Abstract_table_impl()
       m_created(0),
       m_last_altered(0),
       m_hidden(HT_VISIBLE),
-      m_options(new Properties_impl()),
+      m_options(default_valid_option_keys),
       m_columns(),
       m_schema_id(INVALID_OBJECT_ID) {}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Abstract_table_impl::set_options_raw(const String_type &options_raw) {
-  Properties *properties = Properties_impl::parse_properties(options_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_options.reset(properties);
-  return false;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -131,7 +147,7 @@ bool Abstract_table_impl::restore_attributes(const Raw_record &r) {
 
   // Special cases dealing with NULL values for nullable fields
 
-  set_options_raw(r.read_str(Tables::FIELD_OPTIONS, ""));
+  set_options(r.read_str(Tables::FIELD_OPTIONS, ""));
 
   return false;
 }
@@ -161,7 +177,7 @@ bool Abstract_table_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(Tables::FIELD_SCHEMA_ID, m_schema_id) ||
          r->store(Tables::FIELD_TYPE, static_cast<int>(type())) ||
          r->store(Tables::FIELD_MYSQL_VERSION_ID, m_mysql_version_id) ||
-         r->store(Tables::FIELD_OPTIONS, *m_options) ||
+         r->store(Tables::FIELD_OPTIONS, m_options) ||
          r->store(Tables::FIELD_CREATED, m_created) ||
          r->store(Tables::FIELD_LAST_ALTERED, m_last_altered) ||
          r->store(Tables::FIELD_HIDDEN, static_cast<int>(m_hidden));
@@ -222,7 +238,7 @@ void Abstract_table_impl::debug_print(String_type &outb) const {
      << "m_schema: {OID: " << m_schema_id << "}; "
      << "m_name: " << name() << "; "
      << "m_mysql_version_id: " << m_mysql_version_id << "; "
-     << "m_options " << m_options->raw_string() << "; "
+     << "m_options " << m_options.raw_string() << "; "
      << "m_created: " << m_created << "; "
      << "m_last_altered: " << m_last_altered << "; "
      << "m_hidden: " << m_hidden << "; "
@@ -320,7 +336,7 @@ Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
       m_created(src.m_created),
       m_last_altered(src.m_last_altered),
       m_hidden(src.m_hidden),
-      m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
+      m_options(src.m_options),
       m_columns(),
       m_schema_id(src.m_schema_id) {
   m_columns.deep_copy(src.m_columns, this);

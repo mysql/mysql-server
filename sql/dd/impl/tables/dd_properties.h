@@ -188,7 +188,7 @@ class DD_properties : public Object_table_impl {
 
  private:
   // A cache of the table contents.
-  std::unique_ptr<Properties> m_properties;
+  Properties_impl m_properties;
 
   // Definitions of the valid property types. Used for internal validation.
   enum class Property_type { UNSIGNED_INT_32, CHARACTER_STRING, PROPERTIES };

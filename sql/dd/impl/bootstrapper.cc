@@ -162,8 +162,8 @@ void store_predefined_tablespace_metadata(THD *thd) {
     // Create the dd::Tablespace object.
     std::unique_ptr<Tablespace> tablespace(dd::create_object<Tablespace>());
     tablespace->set_name(tablespace_def->get_name());
-    tablespace->set_options_raw(tablespace_def->get_options());
-    tablespace->set_se_private_data_raw(tablespace_def->get_se_private_data());
+    tablespace->set_options(tablespace_def->get_options());
+    tablespace->set_se_private_data(tablespace_def->get_se_private_data());
     tablespace->set_engine(tablespace_def->get_engine());
 
     // Loop over the tablespace files, create dd::Tablespace_file objects.
@@ -175,7 +175,7 @@ void store_predefined_tablespace_metadata(THD *thd) {
     while ((file = file_it++)) {
       Tablespace_file *space_file = tablespace->add_file();
       space_file->set_filename(file->get_name());
-      space_file->set_se_private_data_raw(file->get_se_private_data());
+      space_file->set_se_private_data(file->get_se_private_data());
     }
 
     /*
@@ -220,8 +220,12 @@ bool update_system_tables(THD *thd) {
     my_error(ER_DD_INIT_FAILED, MYF(0));
     return true;
   }
-
-  for (dd::Properties::Iterator it = system_tables_props->begin();
+  /*
+    We would normally use a range based loop here, but the developerstudio
+    compiler on Solaris does not handle this when the base collection has
+    pure virtual begin() and end() functions.
+  */
+  for (Properties::const_iterator it = system_tables_props->begin();
        it != system_tables_props->end(); ++it) {
     // Check if this is a CORE, INERT, SECOND or DDSE table.
     if (!dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
@@ -246,7 +250,7 @@ bool update_system_tables(THD *thd) {
       */
       String_type tbl_prop_str;
       if (!system_tables_props->exists(it->first) ||
-          system_tables_props->get(it->first, tbl_prop_str))
+          system_tables_props->get(it->first, &tbl_prop_str))
         continue;
 
       const Object_table *table_def = System_tables::instance()->find_table(
@@ -259,7 +263,7 @@ bool update_system_tables(THD *thd) {
       String_type def;
       if (tbl_props->get(dd::tables::DD_properties::dd_key(
                              dd::tables::DD_properties::DD_property::DEF),
-                         def)) {
+                         &def)) {
         my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), it->first.c_str());
         return true;
       }
@@ -1514,12 +1518,11 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
           dd::Properties::parse_properties(""));
 
       using dd::tables::DD_properties;
-      tbl_props->set_uint64(
-          DD_properties::dd_key(DD_properties::DD_property::ID),
-          dd_table->se_private_id());
+      tbl_props->set(DD_properties::dd_key(DD_properties::DD_property::ID),
+                     dd_table->se_private_id());
       tbl_props->set(DD_properties::dd_key(DD_properties::DD_property::DATA),
                      dd_table->se_private_data().raw_string());
-      tbl_props->set_uint64(
+      tbl_props->set(
           DD_properties::dd_key(DD_properties::DD_property::SPACE_ID),
           dd_table->tablespace_id());
 

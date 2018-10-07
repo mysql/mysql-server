@@ -126,7 +126,8 @@ bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
   // Empty keys are rejected, empty values are ok
   if (key == "") return true;
 
-  props->set(key, val);
+  // Silently skip invalid keys.
+  if (props->valid_key(key)) props->set(key, val);
 
   return eat_pairs(it, end, props);
 }

@@ -136,7 +136,7 @@ class Object_table_definition_impl : public Object_table_definition {
           element_defs.find(it.second);
       DBUG_ASSERT(element_def != element_defs.end());
       element->set(key(Label::LABEL), it.first);
-      element->set_int32(key(Label::POSITION), it.second);
+      element->set(key(Label::POSITION), it.second);
       element->set(key(Label::DEFINITION), element_def->second);
 
       Stringstream_type ss;
@@ -152,16 +152,21 @@ class Object_table_definition_impl : public Object_table_definition {
     DBUG_ASSERT(element_defs != nullptr);
     std::unique_ptr<Properties> properties(
         Properties::parse_properties(prop_str));
-    for (Properties::Iterator it = properties->begin(); it != properties->end();
-         ++it) {
+    /*
+      We would normally use a range based loop here, but the developerstudio
+      compiler on Solaris does not handle this when the base collection has
+      pure virtual begin() and end() functions.
+    */
+    for (Properties::const_iterator it = properties->begin();
+         it != properties->end(); ++it) {
       String_type label;
       int pos = 0;
       String_type def;
       std::unique_ptr<Properties> element(
           Properties::parse_properties(it->second));
-      if (element->get(key(Label::LABEL), label) ||
-          element->get_int32(key(Label::POSITION), &pos) ||
-          element->get(key(Label::DEFINITION), def))
+      if (element->get(key(Label::LABEL), &label) ||
+          element->get(key(Label::POSITION), &pos) ||
+          element->get(key(Label::DEFINITION), &def))
         return true;
 
       add_element(pos, label, def, element_numbers, element_defs);
@@ -353,17 +358,17 @@ class Object_table_definition_impl : public Object_table_definition {
 
   virtual bool restore_from_properties(const Properties &table_def_properties) {
     String_type property_str;
-    if (table_def_properties.get(key(Label::NAME), m_table_name) ||
-        table_def_properties.get(key(Label::FIELDS), property_str) ||
+    if (table_def_properties.get(key(Label::NAME), &m_table_name) ||
+        table_def_properties.get(key(Label::FIELDS), &property_str) ||
         set_element_properties(property_str, &m_field_numbers,
                                &m_field_definitions) ||
-        table_def_properties.get(key(Label::INDEXES), property_str) ||
+        table_def_properties.get(key(Label::INDEXES), &property_str) ||
         set_element_properties(property_str, &m_index_numbers,
                                &m_index_definitions) ||
-        table_def_properties.get(key(Label::FOREIGN_KEYS), property_str) ||
+        table_def_properties.get(key(Label::FOREIGN_KEYS), &property_str) ||
         set_element_properties(property_str, &m_foreign_key_numbers,
                                &m_foreign_key_definitions) ||
-        table_def_properties.get(key(Label::OPTIONS), property_str) ||
+        table_def_properties.get(key(Label::OPTIONS), &property_str) ||
         set_element_properties(property_str, &m_option_numbers,
                                &m_option_definitions))
       return true;

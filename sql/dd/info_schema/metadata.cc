@@ -223,9 +223,9 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   dd::Properties *view_options = &view_obj->options();
   if (version != UNKNOWN_PLUGIN_VERSION)
-    view_options->set_uint32(PLUGIN_VERSION_STRING, version);
+    view_options->set(PLUGIN_VERSION_STRING, version);
   else
-    view_options->set_bool(SERVER_I_S_TABLE_STRING, true);
+    view_options->set(SERVER_I_S_TABLE_STRING, true);
 
   /*
     Fill columns details
@@ -407,9 +407,9 @@ bool update_plugins_I_S_metadata(THD *thd) {
     plugin_ref plugin = my_plugin_lock_by_name(thd, plugin_name,
                                                MYSQL_INFORMATION_SCHEMA_PLUGIN);
     if (plugin != nullptr) {
-      unsigned int plugin_version;
+      unsigned int plugin_version = 0;
       st_plugin_int *plugin_int = plugin_ref_to_int(plugin);
-      view_options->get_uint32(PLUGIN_VERSION_STRING, &plugin_version);
+      view_options->get(PLUGIN_VERSION_STRING, &plugin_version);
 
       // Testing to make sure we update plugins when version changes.
       DBUG_EXECUTE_IF("test_i_s_metadata_version",

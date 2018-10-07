@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "sql/dd/impl/properties_impl.h"  // Properties_impl
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
@@ -107,11 +108,17 @@ class Abstract_table_impl : public Entity_object_impl,
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return *m_options; }
+  virtual const Properties &options() const { return m_options; }
 
-  virtual Properties &options() { return *m_options; }
+  virtual Properties &options() { return m_options; }
 
-  virtual bool set_options_raw(const String_type &options_raw);
+  virtual bool set_options(const Properties &options) {
+    return m_options.insert_values(options);
+  }
+
+  virtual bool set_options(const String_type &options_raw) {
+    return m_options.insert_values(options_raw);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -194,7 +201,7 @@ class Abstract_table_impl : public Entity_object_impl,
 
   enum_hidden_type m_hidden;
 
-  std::unique_ptr<Properties> m_options;
+  Properties_impl m_options;
 
   // References to tightly-coupled objects.
 

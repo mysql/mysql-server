@@ -7930,7 +7930,7 @@ longlong Item_func_can_access_view::val_int() {
     DBUG_RETURN(0);
   }
 
-  if (view_options->get_bool("view_valid", &is_view_valid)) DBUG_RETURN(0);
+  if (view_options->get("view_valid", &is_view_valid)) DBUG_RETURN(0);
 
   THD *thd = current_thd;
   if (!is_view_valid) {
@@ -8262,7 +8262,7 @@ longlong Item_func_internal_keys_disabled::val_int() {
 
   // Read keys_disabled sub type.
   uint keys_disabled = 0;
-  p->get_uint32("keys_disabled", &keys_disabled);
+  p->get("keys_disabled", &keys_disabled);
 
   DBUG_RETURN(keys_disabled);
 }
@@ -8666,7 +8666,7 @@ longlong Item_func_internal_get_view_warning_or_error::val_int() {
     }
 
     // Return 0 if get_bool() or push_view_warning_or_error() fails
-    if (view_options->get_bool("view_valid", &is_view_valid)) DBUG_RETURN(0);
+    if (view_options->get("view_valid", &is_view_valid)) DBUG_RETURN(0);
 
     if (is_view_valid == false) {
       push_view_warning_or_error(current_thd, schema_name_ptr->c_ptr_safe(),

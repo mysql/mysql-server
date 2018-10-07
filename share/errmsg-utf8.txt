@@ -18728,6 +18728,9 @@ ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT SU001
 ER_WARN_PROPERTY_STRING_PARSE_FAILED
   eng "Could not parse key-value pairs in property string '%s'"
 
+ER_INVALID_PROPERTY_KEY
+  eng "Property key '%s' is invalid."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

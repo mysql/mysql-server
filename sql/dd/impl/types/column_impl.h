@@ -30,6 +30,7 @@
 
 #include "my_dbug.h"
 #include "nullable.h"
+#include "sql/dd/impl/properties_impl.h"           // Properties_impl
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
@@ -358,23 +359,31 @@ class Column_impl : public Entity_object_impl, public Column {
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const { return *m_options; }
+  virtual const Properties &options() const { return m_options; }
 
-  virtual Properties &options() { return *m_options; }
+  virtual Properties &options() { return m_options; }
 
-  virtual bool set_options_raw(const String_type &options_raw);
+  virtual bool set_options(const String_type &options_raw) {
+    return m_options.insert_values(options_raw);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
   virtual const Properties &se_private_data() const {
-    return *m_se_private_data;
+    return m_se_private_data;
   }
 
-  virtual Properties &se_private_data() { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return m_se_private_data; }
 
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
+  virtual bool set_se_private_data(const Properties &se_private_data) {
+    return m_se_private_data.insert_values(se_private_data);
+  }
+
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+    return m_se_private_data.insert_values(se_private_data_raw);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Column key type.
@@ -481,8 +490,8 @@ class Column_impl : public Entity_object_impl, public Column {
   String_type m_generation_expression;
   String_type m_generation_expression_utf8;
 
-  std::unique_ptr<Properties> m_options;
-  std::unique_ptr<Properties> m_se_private_data;
+  Properties_impl m_options;
+  Properties_impl m_se_private_data;
 
   // References to tightly-coupled objects.
 

@@ -32,6 +32,7 @@
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/dd.h"
+#include "sql/dd/impl/properties_impl.h"
 #include "sql/dd/impl/sdi.h"
 #include "sql/dd/impl/sdi_impl.h"
 #include "sql/dd/impl/types/column_impl.h"
@@ -80,8 +81,9 @@ bool equal_prefix_chars_driver(const dd::String_type &a,
 
 static void mock_properties(dd::Properties &p, uint64 size) {
   for (uint64 i = 0; i < size; ++i) {
-    std::string key = std::to_string(i);
-    p.set_uint64(dd::String_type{key.begin(), key.end()}, i);
+    dd::String_type key =
+        (dynamic_cast<dd::Properties_impl &>(p)).valid_key_at(i);
+    p.set(key, i);
   }
 }
 
