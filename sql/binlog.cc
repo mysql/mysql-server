@@ -2926,6 +2926,28 @@ err:
   DBUG_RETURN(-1);
 }
 
+bool is_transaction_empty(THD *thd)
+{
+  DBUG_ENTER("is_transaction_empty");
+  int rw_ha_count= check_trx_rw_engines(thd, Transaction_ctx::SESSION);
+  rw_ha_count+= check_trx_rw_engines(thd, Transaction_ctx::STMT);
+  DBUG_RETURN(rw_ha_count == 0);
+}
+
+int check_trx_rw_engines(THD *thd, Transaction_ctx::enum_trx_scope trx_scope)
+{
+  DBUG_ENTER("check_trx_rw_engines");
+
+  int rw_ha_count= 0;
+  Ha_trx_info *ha_list=
+      (Ha_trx_info *)thd->get_transaction()->ha_trx_info(trx_scope);
+
+  for (Ha_trx_info *ha_info= ha_list; ha_info; ha_info= ha_info->next()) {
+    if (ha_info->is_trx_read_write())
+      ++rw_ha_count;
+  }
+  DBUG_RETURN(rw_ha_count);
+}
 
 bool is_empty_transaction_in_binlog_cache(const THD* thd)
 {
