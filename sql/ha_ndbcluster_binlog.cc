@@ -831,13 +831,14 @@ migrate_table_with_old_extra_metadata(THD *thd, Ndb *ndb,
                                       bool force_overwrite)
 {
 #ifndef BUG27543602
-  // Skip installation of the ndb_index_stat* tables as a
-  // temporary workaround for Bug 27543602. They can still
-  // be accessed from ndb tools
+  // Temporary workaround for Bug 27543602
   if (strcmp(NDB_REP_DB, schema_name) == 0 &&
       (strcmp("ndb_index_stat_head", table_name) == 0 ||
        strcmp("ndb_index_stat_sample", table_name) == 0))
   {
+    ndb_log_info("Skipped installation of the ndb_index_stat table '%s.%s'. "
+                 "The table can still be accessed using NDB tools",
+                 schema_name, table_name);
     return true;
   }
 #endif

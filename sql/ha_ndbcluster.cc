@@ -13263,11 +13263,26 @@ int ndbcluster_discover(handlerton*, THD* thd,
                         size_t *frmlen)
 {
   DBUG_ENTER("ndbcluster_discover");
-  DBUG_PRINT("enter", ("db: %s, name: %s", db, name)); 
+  DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 
   Ndb* ndb;
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+#ifndef BUG27543602
+  // Temporary workaround for Bug 27543602
+  if (strcmp(NDB_REP_DB, db) == 0 &&
+      (strcmp("ndb_index_stat_head", name) == 0 ||
+       strcmp("ndb_index_stat_sample", name) == 0))
+  {
+    Thd_ndb *thd_ndb= get_thd_ndb(thd);
+    thd_ndb->push_warning("The table '%s' exists but cannot be installed into "
+                          "DD. The table can still be accessed using NDB tools",
+                          name);
+    DBUG_RETURN(1);
+  }
+#endif
+
   if (ndb->setDatabaseName(db))
   {
     ERR_RETURN(ndb->getNdbError());
