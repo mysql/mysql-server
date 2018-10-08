@@ -1469,8 +1469,9 @@ void Certifier::update_certified_transaction_count(bool result,
   else
     negative_cert++;
 
-  if (local_member_info->get_recovery_status() ==
-      Group_member_info::MEMBER_ONLINE) {
+  const Group_member_info::Group_member_status member_status =
+      local_member_info->get_recovery_status();
+  if (member_status == Group_member_info::MEMBER_ONLINE) {
     applier_module->get_pipeline_stats_member_collector()
         ->increment_transactions_certified();
 
@@ -1481,6 +1482,14 @@ void Certifier::update_certified_transaction_count(bool result,
     if (local_transaction && !result) {
       applier_module->get_pipeline_stats_member_collector()
           ->increment_transactions_local_rollback();
+    }
+  } else if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
+    applier_module->get_pipeline_stats_member_collector()
+        ->increment_transactions_certified_during_recovery();
+
+    if (!result) {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_certified_negatively_during_recovery();
     }
   }
 }
