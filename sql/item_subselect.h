@@ -160,7 +160,7 @@ class Item_subselect : public Item_result_field {
     used_tables_cache |= add_tables;
   }
 
-  virtual subs_type substype() { return UNKNOWN_SUBS; }
+  virtual subs_type substype() const { return UNKNOWN_SUBS; }
 
   /*
     We need this method, because some compilers do not allow 'this'
@@ -256,7 +256,7 @@ class Item_singlerow_subselect : public Item_subselect {
       : Item_subselect(), value(0), row(0), no_rows(false) {}
 
   void cleanup() override;
-  subs_type substype() override { return SINGLEROW_SUBS; }
+  subs_type substype() const override { return SINGLEROW_SUBS; }
 
   void reset() override;
   trans_res select_transformer(SELECT_LEX *select) override;
@@ -393,7 +393,7 @@ class Item_exists_subselect : public Item_subselect {
     exec_method = EXEC_EXISTS;
     return RES_OK;
   }
-  subs_type substype() override { return EXISTS_SUBS; }
+  subs_type substype() const override { return EXISTS_SUBS; }
   void reset() override { value = 0; }
 
   enum Item_result result_type() const override { return INT_RESULT; }
@@ -551,7 +551,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool itemize(Parse_context *pc, Item **res) override;
 
   void cleanup() override;
-  subs_type substype() override { return IN_SUBS; }
+  subs_type substype() const override { return IN_SUBS; }
   void reset() override {
     value = 0;
     null_value = 0;
@@ -610,7 +610,7 @@ class Item_allany_subselect final : public Item_in_subselect {
                         SELECT_LEX *select, bool all);
 
   // only ALL subquery has upper not
-  subs_type substype() override { return all ? ALL_SUBS : ANY_SUBS; }
+  subs_type substype() const override { return all ? ALL_SUBS : ANY_SUBS; }
   trans_res select_transformer(SELECT_LEX *select) override;
   void print(String *str, enum_query_type query_type) override;
 };
