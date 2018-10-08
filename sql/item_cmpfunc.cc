@@ -405,7 +405,7 @@ bool Item_func_not_all::empty_underlying_subquery() {
   */
   if (subselect && subselect->substype() != Item_subselect::ANY_SUBS &&
       !subselect->unit->item->is_evaluated())
-    subselect->unit->item->exec();
+    subselect->unit->item->exec(current_thd);
   return ((test_sum_item && !test_sum_item->any_value()) ||
           (test_sub_item && !test_sub_item->any_value()));
 }

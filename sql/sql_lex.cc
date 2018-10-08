@@ -565,8 +565,6 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
       new (thd->mem_root) SELECT_LEX_UNIT(parsing_place);
   if (!sel_unit) DBUG_RETURN(NULL); /* purecov: inspected */
 
-  sel_unit->thd = thd;
-
   // Link the new "unit" below the current select_lex, if any
   if (curr_select != NULL) sel_unit->include_down(this, curr_select);
 
@@ -737,7 +735,6 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 
   select->parent_lex = this;
 
-  sel_unit->thd = thd;
   select->include_down(this, sel_unit);
 
   select->include_in_global(&all_selects_list);
@@ -1995,7 +1992,6 @@ SELECT_LEX_UNIT::SELECT_LEX_UNIT(enum_parsing_context parsing_context)
       select_limit_cnt(HA_POS_ERROR),
       offset_limit_cnt(0),
       item(NULL),
-      thd(NULL),
       fake_select_lex(NULL),
       saved_fake_select_lex(NULL),
       union_distinct(NULL),
@@ -2243,7 +2239,7 @@ void SELECT_LEX_UNIT::exclude_level() {
 /**
   Exclude subtree of current unit from tree of SELECTs
 */
-void SELECT_LEX_UNIT::exclude_tree() {
+void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
   SELECT_LEX *sl = first_select();
   while (sl) {
     SELECT_LEX *next_select = sl->next_select();
@@ -2261,7 +2257,7 @@ void SELECT_LEX_UNIT::exclude_tree() {
       Reference to this query block is lost after it's excluded. Cleanup must
       be done at this point to free memory.
     */
-    sl->cleanup(true);
+    sl->cleanup(thd, true);
     sl->invalidate();
     sl = next_select;
   }
@@ -2368,31 +2364,32 @@ bool SELECT_LEX::test_limit() {
   return (0);
 }
 
-enum_parsing_context SELECT_LEX_UNIT::get_explain_marker() const {
+enum_parsing_context SELECT_LEX_UNIT::get_explain_marker(THD *thd) const {
   thd->query_plan.assert_plan_is_locked_if_other();
   return explain_marker;
 }
 
-void SELECT_LEX_UNIT::set_explain_marker(enum_parsing_context m) {
+void SELECT_LEX_UNIT::set_explain_marker(THD *thd, enum_parsing_context m) {
   thd->lock_query_plan();
   explain_marker = m;
   thd->unlock_query_plan();
 }
 
-void SELECT_LEX_UNIT::set_explain_marker_from(const SELECT_LEX_UNIT *u) {
+void SELECT_LEX_UNIT::set_explain_marker_from(THD *thd,
+                                              const SELECT_LEX_UNIT *u) {
   thd->lock_query_plan();
   explain_marker = u->explain_marker;
   thd->unlock_query_plan();
 }
 
-ha_rows SELECT_LEX::get_offset() {
+ha_rows SELECT_LEX::get_offset(THD *thd) {
   ulonglong val = 0;
 
   if (offset_limit) {
     // see comment for st_select_lex::get_limit()
     bool fix_fields_successful = true;
     if (!offset_limit->fixed) {
-      fix_fields_successful = !offset_limit->fix_fields(master->thd, NULL);
+      fix_fields_successful = !offset_limit->fix_fields(thd, NULL);
       DBUG_ASSERT(fix_fields_successful);
     }
     val = fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
@@ -2401,7 +2398,7 @@ ha_rows SELECT_LEX::get_offset() {
   return ha_rows(val);
 }
 
-ha_rows SELECT_LEX::get_limit() {
+ha_rows SELECT_LEX::get_limit(THD *thd) {
   ulonglong val = HA_POS_ERROR;
 
   if (select_limit) {
@@ -2432,7 +2429,7 @@ ha_rows SELECT_LEX::get_limit() {
     */
     bool fix_fields_successful = true;
     if (!select_limit->fixed) {
-      fix_fields_successful = !select_limit->fix_fields(master->thd, NULL);
+      fix_fields_successful = !select_limit->fix_fields(thd, NULL);
       DBUG_ASSERT(fix_fields_successful);
     }
     val = fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
@@ -2531,7 +2528,8 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
   return false;
 }
 
-void SELECT_LEX_UNIT::print(String *str, enum_query_type query_type) {
+void SELECT_LEX_UNIT::print(const THD *thd, String *str,
+                            enum_query_type query_type) {
   if (m_with_clause) m_with_clause->print(thd, str, query_type);
   bool union_all = !union_distinct;
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
@@ -2787,7 +2785,7 @@ void TABLE_LIST::print(const THD *thd, String *str,
         if (derived_unit()->m_lateral_deps)
           str->append(STRING_WITH_LEN("lateral "));
         str->append('(');
-        derived->print(str, query_type);
+        derived->print(thd, str, query_type);
         str->append(')');
       }
       cmp_name = "";  // Force printing of alias
@@ -3686,15 +3684,12 @@ bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
 /**
   Prepare sources for offset and limit counters.
 
-  @param thd_arg thread handler
+  @param thd      thread handler
   @param provider SELECT_LEX to get offset and limit from.
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
-                                    SELECT_LEX *provider) {
-  /// @todo Remove THD from class SELECT_LEX_UNIT
-  DBUG_ASSERT(this->thd == thd_arg);
+bool SELECT_LEX_UNIT::prepare_limit(THD *thd, SELECT_LEX *provider) {
   if (provider->offset_limit && provider->offset_limit->fix_fields(thd, NULL))
     return true; /* purecov: inspected */
 
@@ -3707,22 +3702,19 @@ bool SELECT_LEX_UNIT::prepare_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
 /**
   Set limit and offset for query expression object
 
-  @param thd_arg thread handler
+  @param thd      thread handler
   @param provider SELECT_LEX to get offset and limit from.
 
   @returns false if success, true if error
 */
-bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
-                                SELECT_LEX *provider) {
-  /// @todo Remove THD from class SELECT_LEX_UNIT
-  DBUG_ASSERT(this->thd == thd_arg);
+bool SELECT_LEX_UNIT::set_limit(THD *thd, SELECT_LEX *provider) {
   if (provider->offset_limit)
-    offset_limit_cnt = provider->get_offset();
+    offset_limit_cnt = provider->get_offset(thd);
   else
     offset_limit_cnt = 0;
 
   if (provider->select_limit)
-    select_limit_cnt = provider->get_limit();
+    select_limit_cnt = provider->get_limit(thd);
   else
     select_limit_cnt = HA_POS_ERROR;
 
@@ -3743,12 +3735,12 @@ bool SELECT_LEX_UNIT::set_limit(THD *thd_arg MY_ATTRIBUTE((unused)),
   @todo figure out if the test for "top-level unit" is necessary - see
   bug#23022426.
 */
-bool SELECT_LEX_UNIT::union_needs_tmp_table() {
+bool SELECT_LEX_UNIT::union_needs_tmp_table(LEX *lex) {
   return union_distinct != NULL ||
          global_parameters()->order_list.elements != 0 ||
-         ((thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
-           thd->lex->sql_command == SQLCOM_REPLACE_SELECT) &&
-          thd->lex->unit == this);
+         ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+           lex->sql_command == SQLCOM_REPLACE_SELECT) &&
+          lex->unit == this);
 }
 
 /**
@@ -3810,8 +3802,8 @@ bool SELECT_LEX_UNIT::is_mergeable() const {
   original structure of the query. This is less likely to cause changes in
   variable assignment order.
 */
-bool SELECT_LEX_UNIT::merge_heuristic() const {
-  if (thd->lex->set_var_list.elements != 0) return false;
+bool SELECT_LEX_UNIT::merge_heuristic(const LEX *lex) const {
+  if (lex->set_var_list.elements != 0) return false;
 
   SELECT_LEX *const select = first_select();
   Item *item;
@@ -4118,7 +4110,7 @@ void LEX::cleanup_after_one_table_open() {
     /* cleunup underlying units (units of VIEW) */
     for (SELECT_LEX_UNIT *un = select_lex->first_inner_unit(); un;
          un = un->next_unit())
-      un->cleanup(true);
+      un->cleanup(thd, true);
     /* reduce all selects list to default state */
     all_selects_list = select_lex;
     /* remove underlying units (units of VIEW) subtree */
@@ -4350,12 +4342,6 @@ void SELECT_LEX::include_chain_in_global(SELECT_LEX **start) {
   last_select->link_next->link_prev = &last_select->link_next;
   link_prev = start;
   *start = this;
-}
-
-void SELECT_LEX::set_join(JOIN *join_arg) {
-  master_unit()->thd->lock_query_plan();
-  join = join_arg;
-  master_unit()->thd->unlock_query_plan();
 }
 
 /**

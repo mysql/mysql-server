@@ -2808,7 +2808,7 @@ struct TABLE_LIST {
   bool materialize_derived(THD *thd);
 
   /// Clean up the query expression for a materialized derived table
-  bool cleanup_derived();
+  bool cleanup_derived(THD *thd);
 
   /// Prepare security context for a view
   bool prepare_security(THD *thd);

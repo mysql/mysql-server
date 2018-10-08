@@ -437,7 +437,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  if (has_sj_candidates() && flatten_subqueries()) DBUG_RETURN(true);
+  if (has_sj_candidates() && flatten_subqueries(thd)) DBUG_RETURN(true);
 
   set_sj_candidates(NULL);
 
@@ -1244,8 +1244,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
     oto1.add("chosen", chose_semijoin);
   }
 
-  if (!chose_semijoin &&
-      subq_predicate->select_transformer(this) == Item_subselect::RES_ERROR)
+  if (!chose_semijoin && subq_predicate->select_transformer(thd, this) ==
+                             Item_subselect::RES_ERROR)
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
@@ -2089,6 +2089,7 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
   Convert a subquery predicate of this query block into a TABLE_LIST semi-join
   nest.
 
+  @param thd         Thread handle
   @param subq_pred   Subquery predicate to be converted.
                      This is either an IN, =ANY or EXISTS predicate.
 
@@ -2132,10 +2133,9 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
   constant for the lifetime of the Prepared Statement.
 */
 bool SELECT_LEX::convert_subquery_to_semijoin(
-    Item_exists_subselect *subq_pred) {
+    THD *thd, Item_exists_subselect *subq_pred) {
   TABLE_LIST *emb_tbl_nest = NULL;
   List<TABLE_LIST> *emb_join_list = &top_join_list;
-  THD *const thd = subq_pred->unit->thd;
   DBUG_ENTER("convert_subquery_to_semijoin");
 
   DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS);
@@ -2551,7 +2551,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   if (derived_table->algorithm == VIEW_ALGORITHM_UNDEFINED) {
     const bool merge_heuristic =
         (derived_table->is_view() || allow_merge_derived) &&
-        derived_unit->merge_heuristic();
+        derived_unit->merge_heuristic(thd->lex);
     if (!hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
                           merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
       DBUG_RETURN(false);
@@ -2839,7 +2839,7 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     false  OK
     true   Error
 */
-bool SELECT_LEX::flatten_subqueries() {
+bool SELECT_LEX::flatten_subqueries(THD *thd) {
   DBUG_ENTER("flatten_subqueries");
 
   DBUG_ASSERT(has_sj_candidates());
@@ -2847,7 +2847,6 @@ bool SELECT_LEX::flatten_subqueries() {
   Item_exists_subselect **subq, **subq_begin = sj_candidates->begin(),
                                 **subq_end = sj_candidates->end();
 
-  THD *const thd = (*subq_begin)->unit->thd;
   Opt_trace_context *const trace = &thd->opt_trace;
 
   /*
@@ -2964,7 +2963,7 @@ bool SELECT_LEX::flatten_subqueries() {
                         (*subq)->unit->first_select()->select_number,
                         "IN (SELECT)", "semijoin");
     oto1.add("chosen", true);
-    if (convert_subquery_to_semijoin(*subq)) DBUG_RETURN(true);
+    if (convert_subquery_to_semijoin(thd, *subq)) DBUG_RETURN(true);
   }
   /*
     3. Finalize the subqueries that we did not convert,
@@ -2986,7 +2985,7 @@ bool SELECT_LEX::flatten_subqueries() {
     thd->lex->set_current_select((*subq)->unit->first_select());
 
     // This is the only part of the function which uses a JOIN.
-    res = (*subq)->select_transformer((*subq)->unit->first_select());
+    res = (*subq)->select_transformer(thd, (*subq)->unit->first_select());
 
     thd->lex->set_current_select(save_select_lex);
 

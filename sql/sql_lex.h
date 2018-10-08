@@ -712,7 +712,6 @@ class SELECT_LEX_UNIT {
   ha_rows select_limit_cnt, offset_limit_cnt;
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
-  THD *thd;  ///< Thread handler
   /**
     Helper query block for query expression with UNION or multi-level
     ORDER BY/LIMIT
@@ -768,7 +767,7 @@ class SELECT_LEX_UNIT {
   bool is_mergeable() const;
 
   /// @return true if query expression is recommended to be merged
-  bool merge_heuristic() const;
+  bool merge_heuristic(const LEX *lex) const;
 
   /// @return the query block this query expression belongs to as subquery
   SELECT_LEX *outer_select() const { return master; }
@@ -798,12 +797,12 @@ class SELECT_LEX_UNIT {
                ulonglong removed_options);
   bool optimize(THD *thd);
   bool execute(THD *thd);
-  bool explain(THD *ethd);
-  bool cleanup(bool full);
+  bool explain(THD *explain_thd, THD *query_thd);
+  bool cleanup(THD *thd, bool full);
   inline void unclean() { cleaned = UC_DIRTY; }
   void reinit_exec_mechanism();
 
-  void print(String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
   bool accept(Select_lex_visitor *visitor);
 
   bool add_fake_select_lex(THD *thd);
@@ -815,14 +814,13 @@ class SELECT_LEX_UNIT {
   bool is_prepared() const { return prepared; }
   bool is_optimized() const { return optimized; }
   bool is_executed() const { return executed; }
-  bool change_query_result(Query_result_interceptor *result,
+  bool change_query_result(THD *thd, Query_result_interceptor *result,
                            Query_result_interceptor *old_result);
   bool prepare_limit(THD *thd, SELECT_LEX *provider);
   bool set_limit(THD *thd, SELECT_LEX *provider);
-  void set_thd(THD *thd_arg) { thd = thd_arg; }
 
   inline bool is_union() const;
-  bool union_needs_tmp_table();
+  bool union_needs_tmp_table(LEX *lex);
   /// @returns true if mixes UNION DISTINCT and UNION ALL
   bool mixed_union_operators() const;
 
@@ -833,7 +831,7 @@ class SELECT_LEX_UNIT {
   void exclude_level();
 
   /// Exclude subtree of current unit from tree of SELECTs
-  void exclude_tree();
+  void exclude_tree(THD *thd);
 
   /// Renumber query blocks of a query expression according to supplied LEX
   void renumber_selects(LEX *lex);
@@ -843,9 +841,9 @@ class SELECT_LEX_UNIT {
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
 
-  enum_parsing_context get_explain_marker() const;
-  void set_explain_marker(enum_parsing_context m);
-  void set_explain_marker_from(const SELECT_LEX_UNIT *u);
+  enum_parsing_context get_explain_marker(THD *thd) const;
+  void set_explain_marker(THD *thd, enum_parsing_context m);
+  void set_explain_marker_from(THD *thd, const SELECT_LEX_UNIT *u);
 
 #ifndef DBUG_OFF
   /**
@@ -1448,7 +1446,7 @@ class SELECT_LEX {
 
     @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
-  ha_rows get_offset();
+  ha_rows get_offset(THD *thd);
   /**
    Get limit.
 
@@ -1458,7 +1456,7 @@ class SELECT_LEX {
 
    @todo Integrate better with SELECT_LEX_UNIT::set_limit()
   */
-  ha_rows get_limit();
+  ha_rows get_limit(THD *thd);
 
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
@@ -1666,11 +1664,12 @@ class SELECT_LEX {
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
     SELECT_LEX_UNITs).
+    @param thd   thread handle
     @param full  if false only partial cleanup is done, JOINs and JOIN_TABs are
     kept to provide info for EXPLAIN CONNECTION; if true, complete cleanup is
     done, all JOINs are freed.
   */
-  bool cleanup(bool full);
+  bool cleanup(THD *thd, bool full);
   /*
     Recursively cleanup the join of this select lex and of all nested
     select lexes. This is not a full cleanup.
@@ -1736,12 +1735,6 @@ class SELECT_LEX {
   void renumber(LEX *lex);
 
   /**
-     Set pointer to corresponding JOIN object.
-     The function sets the pointer only after acquiring THD::LOCK_query_plan
-     mutex. This is needed to avoid races when EXPLAIN FOR CONNECTION is used.
-  */
-  void set_join(JOIN *join_arg);
-  /**
     Does permanent transformations which are local to a query block (which do
     not merge it to another block).
   */
@@ -1785,14 +1778,14 @@ class SELECT_LEX {
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join, Item **sj_cond);
 
  private:
-  bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
+  bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   bool resolve_rollup(THD *thd);
   bool change_func_or_wf_group_ref(THD *thd, Item *func, bool *changed);
 
  public:
-  bool flatten_subqueries();
+  bool flatten_subqueries(THD *thd);
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
   }

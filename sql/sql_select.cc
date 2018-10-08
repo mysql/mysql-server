@@ -142,8 +142,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   SELECT_LEX *const select = unit->first_select();
   bool res;
 
-  DBUG_ASSERT(thd == unit->thd);
-
   DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
               !unit->is_executed());
 
@@ -196,7 +194,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   }
 
   if (lex->is_explain()) {
-    if (explain_query(thd, unit)) goto err; /* purecov: inspected */
+    if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
   } else {
     if (single_query) {
       select->join->exec();
@@ -213,7 +211,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(false);
+  res = unit->cleanup(thd, false);
 
   DBUG_RETURN(res);
 
@@ -222,7 +220,7 @@ err:
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
   THD_STAGE_INFO(thd, stage_end);
 
-  (void)unit->cleanup(false);
+  (void)unit->cleanup(thd, false);
 
   // Abort the result set (if it has been prepared).
   result->abort_result_set(thd);
@@ -364,7 +362,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   SELECT_LEX_UNIT *const unit = lex->unit;
 
-  DBUG_ASSERT(thd == unit->thd && !is_prepared());
+  DBUG_ASSERT(!is_prepared());
 
   DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
               !unit->is_executed());
@@ -386,7 +384,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
           needs_explicit_preparation() ? MYSQL_OPEN_FORCE_SHARED_MDL : 0)) {
     if (thd->is_error())  // @todo - dictionary code should be fixed
       goto err;
-    (void)unit->cleanup(false);
+    (void)unit->cleanup(thd, false);
     DBUG_RETURN(true);
   }
 #ifndef DBUG_OFF
@@ -412,7 +410,7 @@ err:
   DBUG_ASSERT(thd->is_error());
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
 
-  (void)unit->cleanup(false);
+  (void)unit->cleanup(thd, false);
 
   DBUG_RETURN(true);
 }
@@ -520,7 +518,6 @@ bool Sql_cmd_dml::execute(THD *thd) {
   Ignore_error_handler ignore_handler;
   Strict_error_handler strict_handler;
 
-  DBUG_ASSERT(thd == unit->thd);
   // @todo - enable when needs_explicit_preparation is changed
   // DBUG_ASSERT(!needs_explicit_preparation() || is_prepared());
 
@@ -608,7 +605,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(false);
+  res = unit->cleanup(thd, false);
   lex->clear_values_map();
 
   // Perform statement-specific cleanup for Query_result
@@ -641,7 +638,7 @@ err:
   THD_STAGE_INFO(thd, stage_end);
   prepare_only = true;
 
-  (void)unit->cleanup(false);
+  (void)unit->cleanup(thd, false);
   lex->clear_values_map();
 
   // Abort and cleanup the result set (if it has been prepared).
@@ -689,7 +686,7 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   }
 
   if (lex->is_explain()) {
-    if (explain_query(thd, unit)) return true; /* purecov: inspected */
+    if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
   } else {
     if (unit->is_simple()) {
       unit->first_select()->join->exec();
@@ -1510,10 +1507,16 @@ bool SELECT_LEX::optimize(THD *thd) {
   DBUG_ENTER("SELECT_LEX::optimize");
 
   DBUG_ASSERT(join == NULL);
-  JOIN *const join_local = new (*THR_MALLOC) JOIN(thd, this);
+  JOIN *const join_local = new (thd->mem_root) JOIN(thd, this);
   if (!join_local) DBUG_RETURN(true); /* purecov: inspected */
 
-  set_join(join_local);
+  /*
+    Updating SELECT_LEX::join requires acquiring THD::LOCK_query_plan
+    to avoid races when EXPLAIN FOR CONNECTION is used.
+  */
+  thd->lock_query_plan();
+  join = join_local;
+  thd->unlock_query_plan();
 
   if (join->optimize()) DBUG_RETURN(true);
 
@@ -3411,16 +3414,17 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
 /**
   Free joins of subselect of this select.
 
+  @param thd      thread handle
   @param select   pointer to SELECT_LEX which subselects joins we will free
 
   @todo when the final use of this function (from SET statements) is removed,
   this function can be deleted.
 */
 
-void free_underlaid_joins(SELECT_LEX *select) {
+void free_underlaid_joins(THD *thd, SELECT_LEX *select) {
   for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
        unit = unit->next_unit())
-    unit->cleanup(false);
+    unit->cleanup(thd, false);
 }
 
 /****************************************************************************

@@ -103,7 +103,7 @@ class View_metadata_updater_context {
     m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
-    m_thd->lex->unit->cleanup(true);
+    m_thd->lex->unit->cleanup(m_thd, true);
     lex_end(m_thd->lex);
     delete static_cast<st_lex_local *>(m_thd->lex);
     m_thd->lex = m_saved_lex;
@@ -494,7 +494,7 @@ static bool open_views_and_update_metadata(
         order->used_alias = false;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
-    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
+    thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
     if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
                            view_query.length()))
       DBUG_RETURN(true);
@@ -518,7 +518,7 @@ static bool open_views_and_update_metadata(
         res = trans_commit_stmt(thd) || trans_commit(thd);
     }
     if (res) {
-      view_lex->unit->cleanup(true);
+      view_lex->unit->cleanup(thd, true);
       lex_end(view_lex);
       thd->lex = org_lex;
       DBUG_RETURN(true);
@@ -526,7 +526,7 @@ static bool open_views_and_update_metadata(
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
 
-    view_lex->unit->cleanup(true);
+    view_lex->unit->cleanup(thd, true);
     lex_end(view_lex);
     thd->lex = org_lex;
   }

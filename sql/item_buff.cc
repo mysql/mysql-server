@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,16 +56,16 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   switch (item->result_type()) {
     case STRING_RESULT:
       if (item->is_temporal())
-        return new (*THR_MALLOC) Cached_item_temporal(item);
+        return new (thd->mem_root) Cached_item_temporal(item);
       if (item->data_type() == MYSQL_TYPE_JSON)
-        return new (*THR_MALLOC) Cached_item_json(item);
-      return new (*THR_MALLOC) Cached_item_str(thd, item);
+        return new (thd->mem_root) Cached_item_json(item);
+      return new (thd->mem_root) Cached_item_str(thd, item);
     case INT_RESULT:
-      return new (*THR_MALLOC) Cached_item_int(item);
+      return new (thd->mem_root) Cached_item_int(item);
     case REAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_real(item);
+      return new (thd->mem_root) Cached_item_real(item);
     case DECIMAL_RESULT:
-      return new (*THR_MALLOC) Cached_item_decimal(item);
+      return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);

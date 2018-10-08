@@ -1849,7 +1849,7 @@ static int view_store_create_info(const THD *thd, TABLE_LIST *table,
     database.
   */
   table->view_query()->unit->print(
-      buff, enum_query_type(QT_TO_ARGUMENT_CHARSET | QT_NO_DEFAULT_DB));
+      thd, buff, enum_query_type(QT_TO_ARGUMENT_CHARSET | QT_NO_DEFAULT_DB));
 
   if (table->with_check != VIEW_CHECK_NONE) {
     if (table->with_check == VIEW_CHECK_LOCAL)
@@ -3472,7 +3472,7 @@ static bool fill_schema_table_by_open(
   }
 
 end:
-  lex->unit->cleanup(true);
+  lex->unit->cleanup(thd, true);
 
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);

@@ -389,7 +389,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       if (thd->lex->is_explain()) {
         Modification_plan plan(thd, MT_UPDATE, table, "Impossible WHERE", true,
                                0);
-        bool err = explain_single_table_modification(thd, &plan, select_lex);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
         DBUG_RETURN(err);
       }
     }
@@ -415,7 +416,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "No matching rows after partition pruning", true,
                                0);
-        bool err = explain_single_table_modification(thd, &plan, select_lex);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
         DBUG_RETURN(err);
       }
       my_ok(thd);
@@ -451,7 +453,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       if (thd->lex->is_explain()) {
         Modification_plan plan(thd, MT_UPDATE, table, "Impossible WHERE", true,
                                0);
-        bool err = explain_single_table_modification(thd, &plan, select_lex);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
         DBUG_RETURN(err);
       }
 
@@ -547,7 +550,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
     if (thd->lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
       DBUG_RETURN(err);
     }
 
@@ -1529,7 +1532,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   Opt_trace_array trace_steps(trace, "steps");
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
 
-  if (select->has_sj_candidates() && select->flatten_subqueries())
+  if (select->has_sj_candidates() && select->flatten_subqueries(thd))
     DBUG_RETURN(true); /* purecov: inspected */
 
   select->set_sj_candidates(NULL);

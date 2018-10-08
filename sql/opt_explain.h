@@ -159,12 +159,14 @@ class Query_result_explain final : public Query_result_send {
   }
 };
 
-bool explain_no_table(THD *thd, SELECT_LEX *select_lex, const char *message,
-                      enum_parsing_context ctx);
-bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
+bool explain_no_table(THD *explain_thd, THD *query_thd, SELECT_LEX *select_lex,
+                      const char *message, enum_parsing_context ctx);
+bool explain_single_table_modification(THD *explain_thd, THD *query_thd,
+                                       const Modification_plan *plan,
                                        SELECT_LEX *select);
-bool explain_query(THD *thd, SELECT_LEX_UNIT *unit);
-bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
+bool explain_query(THD *explain_thd, THD *query_thd, SELECT_LEX_UNIT *unit);
+bool explain_query_specification(THD *explain_thd, THD *query_thd,
+                                 SELECT_LEX *select_lex,
                                  enum_parsing_context ctx);
 
 class Sql_cmd_explain_other_thread final : public Sql_cmd {

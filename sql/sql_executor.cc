@@ -2738,7 +2738,7 @@ int join_materialize_derived(QEP_TAB *tab) {
     return NESTED_LOOP_OK;
 
   bool res = derived->materialize_derived(thd);
-  res |= derived->cleanup_derived();
+  res |= derived->cleanup_derived(thd);
   DEBUG_SYNC(thd, "after_materialize_derived");
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }

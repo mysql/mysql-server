@@ -203,7 +203,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning", true,
                              0);
-      bool err = explain_single_table_modification(thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
       DBUG_RETURN(err);
     }
   }
@@ -248,7 +248,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     Modification_plan plan(thd, MT_DELETE, table, "Deleting all rows", false,
                            maybe_deleted);
     if (lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
       DBUG_RETURN(err);
     }
 
@@ -291,7 +291,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       if (lex->is_explain()) {
         Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE", true,
                                0);
-        bool err = explain_single_table_modification(thd, &plan, select_lex);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
         DBUG_RETURN(err);
       }
     }
@@ -323,7 +324,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       Modification_plan plan(thd, MT_DELETE, table,
                              "No matching rows after partition pruning", true,
                              0);
-      bool err = explain_single_table_modification(thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
       DBUG_RETURN(err);
     }
     my_ok(thd, 0);
@@ -352,7 +353,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       if (lex->is_explain()) {
         Modification_plan plan(thd, MT_DELETE, table, "Impossible WHERE", true,
                                0);
-        bool err = explain_single_table_modification(thd, &plan, select_lex);
+        bool err =
+            explain_single_table_modification(thd, thd, &plan, select_lex);
         DBUG_RETURN(err);
       }
 
@@ -408,7 +410,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     DEBUG_SYNC(thd, "planned_single_delete");
 
     if (lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
       DBUG_RETURN(err);
     }
 
@@ -766,7 +768,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   opt_trace_print_expanded_query(thd, select, &trace_wrapper);
 
-  if (select->has_sj_candidates() && select->flatten_subqueries())
+  if (select->has_sj_candidates() && select->flatten_subqueries(thd))
     DBUG_RETURN(true);
 
   select->set_sj_candidates(NULL);

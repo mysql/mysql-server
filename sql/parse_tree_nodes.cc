@@ -1391,7 +1391,7 @@ void PT_common_table_expr::print(const THD *thd, String *str,
         // If 2+ references exist, show the one which is shown in EXPLAIN
         tl->query_block_id_for_explain() == tl->query_block_id()) {
       str->append('(');
-      tl->derived_unit()->print(str, query_type);
+      tl->derived_unit()->print(thd, str, query_type);
       str->append(')');
       found = true;
       break;

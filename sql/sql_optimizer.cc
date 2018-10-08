@@ -10110,9 +10110,9 @@ bool JOIN::decide_subquery_strategy() {
                  " comparison operator and with contained window functions");
         return true;
       }
-      return in_pred->finalize_exists_transform(select_lex);
+      return in_pred->finalize_exists_transform(thd, select_lex);
     case Item_exists_subselect::EXEC_MATERIALIZATION:
-      return in_pred->finalize_materialization_transform(this);
+      return in_pred->finalize_materialization_transform(thd, this);
     default:
       DBUG_ASSERT(false);
       return true;

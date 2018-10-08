@@ -741,7 +741,7 @@ err_with_rollback:
 err:
   THD_STAGE_INFO(thd, stage_end);
   lex->link_first_table_back(view, link_to_local);
-  unit->cleanup(true);
+  unit->cleanup(thd, true);
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -895,9 +895,10 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     // view definition.
     Sql_mode_parse_guard parse_guard(thd);
 
-    lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
-    lex->unit->print(&is_query, enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                                QT_WITHOUT_INTRODUCERS));
+    lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    lex->unit->print(
+        thd, &is_query,
+        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
   }
   DBUG_PRINT("info",
              ("View: %*.s", (int)view_query.length(), view_query.ptr()));

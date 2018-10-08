@@ -243,7 +243,7 @@ bool Common_table_expr::substitute_recursive_reference(THD *thd,
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
-  tl->derived_unit()->exclude_tree();
+  tl->derived_unit()->exclude_tree(thd);
   tl->set_derived_unit(NULL);
   tl->set_privileges(SELECT_ACL);
   return false;
@@ -865,7 +865,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
    Clean up the query expression for a materialized derived table
 */
 
-bool TABLE_LIST::cleanup_derived() {
+bool TABLE_LIST::cleanup_derived(THD *thd) {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-  return derived_unit()->cleanup(false);
+  return derived_unit()->cleanup(thd, false);
 }

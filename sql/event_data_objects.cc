@@ -1179,7 +1179,7 @@ end:
     }
   }
   if (save_sctx) event_sctx.restore_security_context(thd, save_sctx);
-  thd->lex->unit->cleanup(true);
+  thd->lex->unit->cleanup(thd, true);
   thd->end_statement();
   thd->cleanup_after_query();
   /* Avoid races with SHOW PROCESSLIST */

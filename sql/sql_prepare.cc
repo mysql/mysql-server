@@ -1782,7 +1782,6 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex) {
       unit->types.empty();
       /* for derived tables & PS (which can't be reset by Item_subquery) */
       unit->reinit_exec_mechanism();
-      unit->set_thd(thd);
     }
   }
 
@@ -2549,7 +2548,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   */
   DBUG_ASSERT(lex->sphead == NULL || error != 0);
   /* The order is important */
-  lex->unit->cleanup(true);
+  lex->unit->cleanup(thd, true);
 
   lex->clear_values_map();
 
