@@ -796,20 +796,22 @@ bool Item_temporal_func::check_precision() {
   Appends function name with argument list or fractional seconds part
   to the String str.
 
+  @param[in]      thd         Thread handle
   @param[in,out]  str         String to which the func_name and decimals/
                               argument list should be appended.
   @param[in]      query_type  Query type
 
 */
 
-void Item_temporal_func::print(String *str, enum_query_type query_type) {
+void Item_temporal_func::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   str->append(func_name());
   str->append('(');
 
   // When the functions have arguments specified
-  if (arg_count)
-    print_args(str, 0, query_type);
-  else if (decimals) {
+  if (arg_count) {
+    print_args(thd, str, 0, query_type);
+  } else if (decimals) {
     /*
       For temporal functions like NOW, CURTIME and SYSDATE which can specify
       fractional seconds part.
@@ -926,7 +928,7 @@ bool Item_date_literal::eq(const Item *item, bool) const {
          cached_time.eq(((Item_date_literal *)item)->cached_time);
 }
 
-void Item_date_literal::print(String *str, enum_query_type) {
+void Item_date_literal::print(const THD *, String *str, enum_query_type) {
   str->append("DATE'");
   str->append(cached_time.cptr());
   str->append('\'');
@@ -938,7 +940,7 @@ bool Item_datetime_literal::eq(const Item *item, bool) const {
          cached_time.eq(((Item_datetime_literal *)item)->cached_time);
 }
 
-void Item_datetime_literal::print(String *str, enum_query_type) {
+void Item_datetime_literal::print(const THD *, String *str, enum_query_type) {
   str->append("TIMESTAMP'");
   str->append(cached_time.cptr());
   str->append('\'');
@@ -950,7 +952,7 @@ bool Item_time_literal::eq(const Item *item, bool) const {
          cached_time.eq(((Item_time_literal *)item)->cached_time);
 }
 
-void Item_time_literal::print(String *str, enum_query_type) {
+void Item_time_literal::print(const THD *, String *str, enum_query_type) {
   str->append("TIME'");
   str->append(cached_time.cptr());
   str->append('\'');
@@ -2199,21 +2201,23 @@ const char *interval_names[] = {"year",
                                 "minute_microsecond",
                                 "second_microsecond"};
 
-void Item_date_add_interval::print(String *str, enum_query_type query_type) {
+void Item_date_add_interval::print(const THD *thd, String *str,
+                                   enum_query_type query_type) {
   str->append('(');
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(date_sub_interval ? " - interval " : " + interval ");
-  args[1]->print(str, query_type);
+  args[1]->print(thd, str, query_type);
   str->append(' ');
   str->append(interval_names[int_type]);
   str->append(')');
 }
 
-void Item_extract::print(String *str, enum_query_type query_type) {
+void Item_extract::print(const THD *thd, String *str,
+                         enum_query_type query_type) {
   str->append(STRING_WITH_LEN("extract("));
   str->append(interval_names[int_type]);
   str->append(STRING_WITH_LEN(" from "));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(')');
 }
 
@@ -2398,9 +2402,10 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const {
   return 1;
 }
 
-void Item_datetime_typecast::print(String *str, enum_query_type query_type) {
+void Item_datetime_typecast::print(const THD *thd, String *str,
+                                   enum_query_type query_type) {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   if (decimals) str->append_parenthesized(decimals);
@@ -2420,9 +2425,10 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
               ltime, decimals, &warnings, current_thd->is_fsp_truncate_mode()));
 }
 
-void Item_time_typecast::print(String *str, enum_query_type query_type) {
+void Item_time_typecast::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   if (decimals) str->append_parenthesized(decimals);
@@ -2441,9 +2447,10 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime) {
   return false;
 }
 
-void Item_date_typecast::print(String *str, enum_query_type query_type) {
+void Item_date_typecast::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   str->append(')');
@@ -2601,7 +2608,8 @@ null_date:
   return true;
 }
 
-void Item_func_add_time::print(String *str, enum_query_type query_type) {
+void Item_func_add_time::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   if (is_date) {
     DBUG_ASSERT(sign > 0);
     str->append(STRING_WITH_LEN("timestamp("));
@@ -2611,9 +2619,9 @@ void Item_func_add_time::print(String *str, enum_query_type query_type) {
     else
       str->append(STRING_WITH_LEN("subtime("));
   }
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(',');
-  args[1]->print(str, query_type);
+  args[1]->print(thd, str, query_type);
   str->append(')');
 }
 
@@ -2856,7 +2864,8 @@ null_date:
   return 0;
 }
 
-void Item_func_timestamp_diff::print(String *str, enum_query_type query_type) {
+void Item_func_timestamp_diff::print(const THD *thd, String *str,
+                                     enum_query_type query_type) {
   str->append(func_name());
   str->append('(');
 
@@ -2894,7 +2903,7 @@ void Item_func_timestamp_diff::print(String *str, enum_query_type query_type) {
 
   for (uint i = 0; i < 2; i++) {
     str->append(',');
-    args[i]->print(str, query_type);
+    args[i]->print(thd, str, query_type);
   }
   str->append(')');
 }
@@ -2926,7 +2935,8 @@ String *Item_func_get_format::val_str_ascii(String *str) {
   return 0;
 }
 
-void Item_func_get_format::print(String *str, enum_query_type query_type) {
+void Item_func_get_format::print(const THD *thd, String *str,
+                                 enum_query_type query_type) {
   str->append(func_name());
   str->append('(');
 
@@ -2943,7 +2953,7 @@ void Item_func_get_format::print(String *str, enum_query_type query_type) {
     default:
       DBUG_ASSERT(0);
   }
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(')');
 }
 

@@ -2547,24 +2547,25 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
   if (fake_select_lex) {
     if (fake_select_lex->order_list.elements) {
       str->append(STRING_WITH_LEN(" order by "));
-      fake_select_lex->print_order(str, fake_select_lex->order_list.first,
+      fake_select_lex->print_order(thd, str, fake_select_lex->order_list.first,
                                    query_type);
     }
-    fake_select_lex->print_limit(str, query_type);
+    fake_select_lex->print_limit(thd, str, query_type);
   } else if (saved_fake_select_lex)
-    saved_fake_select_lex->print_limit(str, query_type);
+    saved_fake_select_lex->print_limit(thd, str, query_type);
 }
 
-void SELECT_LEX::print_order(String *str, ORDER *order,
+void SELECT_LEX::print_order(const THD *thd, String *str, ORDER *order,
                              enum_query_type query_type) {
   for (; order; order = order->next) {
-    (*order->item)->print_for_order(str, query_type, order->used_alias);
+    (*order->item)->print_for_order(thd, str, query_type, order->used_alias);
     if (order->direction == ORDER_DESC) str->append(STRING_WITH_LEN(" desc"));
     if (order->next) str->append(',');
   }
 }
 
-void SELECT_LEX::print_limit(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_limit(const THD *thd, String *str,
+                             enum_query_type query_type) {
   SELECT_LEX_UNIT *unit = master_unit();
   Item_subselect *item = unit->item;
 
@@ -2578,10 +2579,10 @@ void SELECT_LEX::print_limit(String *str, enum_query_type query_type) {
   if (explicit_limit) {
     str->append(STRING_WITH_LEN(" limit "));
     if (offset_limit) {
-      offset_limit->print(str, query_type);
+      offset_limit->print(thd, str, query_type);
       str->append(',');
     }
-    select_limit->print(str, query_type);
+    select_limit->print(thd, str, query_type);
   }
 }
 
@@ -2679,7 +2680,7 @@ static void print_table_array(const THD *thd, String *str,
     // Print join condition
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
-      cond->print(str, query_type);
+      cond->print(thd, str, query_type);
       str->append(')');
     }
     first = false;
@@ -2900,14 +2901,14 @@ void SELECT_LEX::print_select(const THD *thd, String *str,
 
   print_hints(thd, str, query_type);
   print_select_options(str);
-  print_item_list(str, query_type);
+  print_item_list(thd, str, query_type);
   print_from_clause(thd, str, query_type);
-  print_where_cond(str, query_type);
-  print_group_by(str, query_type);
-  print_having(str, query_type);
+  print_where_cond(thd, str, query_type);
+  print_group_by(thd, str, query_type);
+  print_having(thd, str, query_type);
   print_windows(thd, str, query_type);
-  print_order_by(str, query_type);
-  print_limit(str, query_type);
+  print_order_by(thd, str, query_type);
+  print_limit(thd, str, query_type);
   // PROCEDURE unsupported here
 }
 
@@ -2923,7 +2924,7 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     auto *t = table_list.first;
     t->print(thd, str, query_type);  // table identifier
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(str, query_type, item_list,
+    print_update_list(thd, str, query_type, item_list,
                       *sql_cmd_update->update_value_list);
     /*
       Print join condition (may happen with a merged view's WHERE condition
@@ -2932,19 +2933,19 @@ void SELECT_LEX::print_update(const THD *thd, String *str,
     Item *const cond = t->join_cond();
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
-      cond->print(str, query_type);
+      cond->print(thd, str, query_type);
       str->append(')');
     }
-    print_where_cond(str, query_type);
-    print_order_by(str, query_type);
-    print_limit(str, query_type);
+    print_where_cond(thd, str, query_type);
+    print_order_by(thd, str, query_type);
+    print_limit(thd, str, query_type);
   } else {
     // Multi table update
     print_join(thd, str, &top_join_list, query_type);
     str->append(STRING_WITH_LEN(" set "));
-    print_update_list(str, query_type, item_list,
+    print_update_list(thd, str, query_type, item_list,
                       *sql_cmd_update->update_value_list);
-    print_where_cond(str, query_type);
+    print_where_cond(thd, str, query_type);
   }
 }
 
@@ -2965,18 +2966,18 @@ void SELECT_LEX::print_delete(const THD *thd, String *str,
     Item *const cond = t->join_cond();
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
-      cond->print(str, query_type);
+      cond->print(thd, str, query_type);
       str->append(')');
     }
-    print_where_cond(str, query_type);
-    print_order_by(str, query_type);
-    print_limit(str, query_type);
+    print_where_cond(thd, str, query_type);
+    print_order_by(thd, str, query_type);
+    print_limit(thd, str, query_type);
   } else {
     // Multi table delete
     print_table_references(thd, str, parent_lex->query_tables, query_type);
     str->append(STRING_WITH_LEN(" from "));
     print_join(thd, str, &top_join_list, query_type);
-    print_where_cond(str, query_type);
+    print_where_cond(thd, str, query_type);
   }
 }
 
@@ -3002,12 +3003,12 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
                         : table_list.first;
   tbl->print(thd, str, query_type);  // table identifier
 
-  print_insert_fields(str, query_type);
+  print_insert_fields(thd, str, query_type);
   str->append(STRING_WITH_LEN(" "));
 
   if (parent_lex->sql_command == SQLCOM_INSERT ||
       parent_lex->sql_command == SQLCOM_REPLACE) {
-    print_insert_values(str, query_type);
+    print_insert_values(thd, str, query_type);
   } else {
     /*
       Print only QB name hint here since other hints were printed in the
@@ -3020,7 +3021,7 @@ void SELECT_LEX::print_insert(const THD *thd, String *str,
       static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd);
   if (sql_cmd_insert->update_field_list.elements > 0) {
     str->append(STRING_WITH_LEN(" on duplicate key update "));
-    print_update_list(str, query_type, sql_cmd_insert->update_field_list,
+    print_update_list(thd, str, query_type, sql_cmd_insert->update_field_list,
                       sql_cmd_insert->update_value_list);
   }
 }
@@ -3150,7 +3151,8 @@ void SELECT_LEX::print_table_references(const THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_item_list(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_item_list(const THD *thd, String *str,
+                                 enum_query_type query_type) {
   // Item List
   bool first = true;
   List_iterator_fast<Item> it(item_list);
@@ -3167,14 +3169,15 @@ void SELECT_LEX::print_item_list(String *str, enum_query_type query_type) {
         Do not print auto-generated aliases in subqueries. It has no purpose
         in a view definition or other contexts where the query is printed.
       */
-      item->print(str, query_type);
+      item->print(thd, str, query_type);
     } else
-      item->print_item_w_name(str, query_type);
+      item->print_item_w_name(thd, str, query_type);
     /** @note that 'INTO variable' clauses are not printed */
   }
 }
 
-void SELECT_LEX::print_update_list(String *str, enum_query_type query_type,
+void SELECT_LEX::print_update_list(const THD *thd, String *str,
+                                   enum_query_type query_type,
                                    List<Item> fields, List<Item> values) {
   List_iterator<Item> it_column(fields), it_value(values);
   Item *column, *value;
@@ -3185,13 +3188,14 @@ void SELECT_LEX::print_update_list(String *str, enum_query_type query_type,
     else
       str->append(',');
 
-    column->print(str, query_type);
+    column->print(thd, str, query_type);
     str->append(STRING_WITH_LEN(" = "));
-    value->print(str, enum_query_type(query_type & ~QT_NO_DATA_EXPANSION));
+    value->print(thd, str, enum_query_type(query_type & ~QT_NO_DATA_EXPANSION));
   }
 }
 
-void SELECT_LEX::print_insert_fields(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_insert_fields(const THD *thd, String *str,
+                                     enum_query_type query_type) {
   List<Item> fields = static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd)
                           ->insert_field_list;
   if (fields.elements > 0) {
@@ -3204,13 +3208,14 @@ void SELECT_LEX::print_insert_fields(String *str, enum_query_type query_type) {
       else
         str->append(',');
 
-      field->print(str, query_type);
+      field->print(thd, str, query_type);
     }
     str->append(')');
   }
 }
 
-void SELECT_LEX::print_insert_values(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_insert_values(const THD *thd, String *str,
+                                     enum_query_type query_type) {
   str->append(STRING_WITH_LEN("values "));
   List_iterator<List_item> it_row(
       static_cast<Sql_cmd_insert_base *>(parent_lex->m_sql_cmd)
@@ -3231,7 +3236,7 @@ void SELECT_LEX::print_insert_values(String *str, enum_query_type query_type) {
       else
         str->append(',');
 
-      item->print(str, query_type);
+      item->print(thd, str, query_type);
     }
     str->append(')');
   }
@@ -3255,7 +3260,8 @@ void SELECT_LEX::print_from_clause(const THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_where_cond(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_where_cond(const THD *thd, String *str,
+                                  enum_query_type query_type) {
   // Where
   Item *const cur_where =
       (join && join->is_optimized()) ? join->where_cond : m_where_cond;
@@ -3263,17 +3269,18 @@ void SELECT_LEX::print_where_cond(String *str, enum_query_type query_type) {
   if (cur_where || cond_value != Item::COND_UNDEF) {
     str->append(STRING_WITH_LEN(" where "));
     if (cur_where)
-      cur_where->print(str, query_type);
+      cur_where->print(thd, str, query_type);
     else
       str->append(cond_value != Item::COND_FALSE ? "1" : "0");
   }
 }
 
-void SELECT_LEX::print_group_by(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_group_by(const THD *thd, String *str,
+                                enum_query_type query_type) {
   // group by & olap
   if (group_list.elements) {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, group_list.first, query_type);
+    print_order(thd, str, group_list.first, query_type);
     switch (olap) {
       case ROLLUP_TYPE:
         str->append(STRING_WITH_LEN(" with rollup"));
@@ -3283,7 +3290,8 @@ void SELECT_LEX::print_group_by(String *str, enum_query_type query_type) {
   }
 }
 
-void SELECT_LEX::print_having(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_having(const THD *thd, String *str,
+                              enum_query_type query_type) {
   // having
   Item *const cur_having = (join && join->having_for_explain != (Item *)1)
                                ? join->having_for_explain
@@ -3292,7 +3300,7 @@ void SELECT_LEX::print_having(String *str, enum_query_type query_type) {
   if (cur_having || having_value != Item::COND_UNDEF) {
     str->append(STRING_WITH_LEN(" having "));
     if (cur_having)
-      cur_having->print(str, query_type);
+      cur_having->print(thd, str, query_type);
     else
       str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
@@ -3320,10 +3328,11 @@ void SELECT_LEX::print_windows(const THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_order_by(String *str, enum_query_type query_type) {
+void SELECT_LEX::print_order_by(const THD *thd, String *str,
+                                enum_query_type query_type) {
   if (order_list.elements) {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, order_list.first, query_type);
+    print_order(thd, str, order_list.first, query_type);
   }
 }
 

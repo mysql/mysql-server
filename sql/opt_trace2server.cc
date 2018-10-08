@@ -227,7 +227,7 @@ Opt_trace_start::Opt_trace_start(THD *thd, TABLE_LIST *tbl,
       if (instr != NULL) {
         String buffer;
         buffer.set_charset(system_charset_info);
-        instr->print(&buffer);
+        instr->print(thd, &buffer);
         ctx->set_query(buffer.ptr(), buffer.length(), query_charset);
       } else
         ctx->set_query(query, query_length, query_charset);

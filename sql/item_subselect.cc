@@ -860,10 +860,11 @@ void Item_subselect::update_used_tables() {
     used_tables_cache &= ~engine->upper_select_const_tables();
 }
 
-void Item_subselect::print(String *str, enum_query_type query_type) {
+void Item_subselect::print(const THD *thd, String *str,
+                           enum_query_type query_type) {
   if (engine) {
     str->append('(');
-    engine->print(current_thd, str, query_type);
+    engine->print(thd, str, query_type);
     str->append(')');
   } else
     str->append("(...)");
@@ -1110,9 +1111,10 @@ void Item_maxmin_subselect::cleanup() {
   DBUG_VOID_RETURN;
 }
 
-void Item_maxmin_subselect::print(String *str, enum_query_type query_type) {
+void Item_maxmin_subselect::print(const THD *thd, String *str,
+                                  enum_query_type query_type) {
   str->append(max ? "<max>" : "<min>", 5);
-  Item_singlerow_subselect::print(str, query_type);
+  Item_singlerow_subselect::print(thd, str, query_type);
 }
 
 void Item_singlerow_subselect::reset() {
@@ -1361,9 +1363,10 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
   DBUG_VOID_RETURN;
 }
 
-void Item_exists_subselect::print(String *str, enum_query_type query_type) {
+void Item_exists_subselect::print(const THD *thd, String *str,
+                                  enum_query_type query_type) {
   str->append(STRING_WITH_LEN("exists"));
-  Item_subselect::print(str, query_type);
+  Item_subselect::print(thd, str, query_type);
 }
 
 bool Item_in_subselect::test_limit() {
@@ -2470,14 +2473,15 @@ err:
   DBUG_RETURN(res);
 }
 
-void Item_in_subselect::print(String *str, enum_query_type query_type) {
+void Item_in_subselect::print(const THD *thd, String *str,
+                              enum_query_type query_type) {
   if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {
-    left_expr->print(str, query_type);
+    left_expr->print(thd, str, query_type);
     str->append(STRING_WITH_LEN(" in "));
   }
-  Item_subselect::print(str, query_type);
+  Item_subselect::print(thd, str, query_type);
 }
 
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
@@ -2643,16 +2647,17 @@ Item_subselect::trans_res Item_allany_subselect::select_transformer(
 
 bool Item_subselect::is_evaluated() const { return unit->is_executed(); }
 
-void Item_allany_subselect::print(String *str, enum_query_type query_type) {
+void Item_allany_subselect::print(const THD *thd, String *str,
+                                  enum_query_type query_type) {
   if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {
-    left_expr->print(str, query_type);
+    left_expr->print(thd, str, query_type);
     str->append(' ');
     str->append(func->symbol(all));
     str->append(all ? " all " : " any ", 5);
   }
-  Item_subselect::print(str, query_type);
+  Item_subselect::print(thd, str, query_type);
 }
 
 subselect_single_select_engine::subselect_single_select_engine(
@@ -3241,17 +3246,17 @@ table_map subselect_union_engine::upper_select_const_tables() const {
   return calc_const_tables(unit->outer_select()->leaf_tables);
 }
 
-void subselect_single_select_engine::print(THD *thd, String *str,
+void subselect_single_select_engine::print(const THD *thd, String *str,
                                            enum_query_type query_type) {
   item->unit->print(thd, str, query_type);
 }
 
-void subselect_union_engine::print(THD *thd, String *str,
+void subselect_union_engine::print(const THD *thd, String *str,
                                    enum_query_type query_type) {
   unit->print(thd, str, query_type);
 }
 
-void subselect_indexsubquery_engine::print(THD *, String *str,
+void subselect_indexsubquery_engine::print(const THD *thd, String *str,
                                            enum_query_type query_type) {
   const bool unique = tab->type() == JT_EQ_REF;
   const bool check_null = tab->type() == JT_REF_OR_NULL;
@@ -3260,7 +3265,7 @@ void subselect_indexsubquery_engine::print(THD *, String *str,
     str->append(STRING_WITH_LEN("<primary_index_lookup>("));
   else
     str->append(STRING_WITH_LEN("<index_lookup>("));
-  tab->ref().items[0]->print(str, query_type);
+  tab->ref().items[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" in "));
   TABLE *const table = tab->table();
   if (tab->table_ref && tab->table_ref->uses_materialization()) {
@@ -3281,11 +3286,11 @@ void subselect_indexsubquery_engine::print(THD *, String *str,
   if (check_null) str->append(STRING_WITH_LEN(" checking NULL"));
   if (cond) {
     str->append(STRING_WITH_LEN(" where "));
-    cond->print(str, query_type);
+    cond->print(thd, str, query_type);
   }
   if (having) {
     str->append(STRING_WITH_LEN(" having "));
-    having->print(str, query_type);
+    having->print(thd, str, query_type);
   }
   str->append(')');
 }
@@ -3715,7 +3720,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
   Print the state of this engine into a string for debugging and views.
 */
 
-void subselect_hash_sj_engine::print(THD *thd, String *str,
+void subselect_hash_sj_engine::print(const THD *thd, String *str,
                                      enum_query_type query_type) {
   str->append(STRING_WITH_LEN(" <materialize> ("));
   materialize_engine->print(thd, str, query_type);

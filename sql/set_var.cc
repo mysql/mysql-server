@@ -1122,11 +1122,11 @@ int set_var::update(THD *thd) {
   return ret;
 }
 
-void set_var::print_short(String *str) {
+void set_var::print_short(const THD *thd, String *str) {
   str->append(var->name.str, var->name.length);
   str->append(STRING_WITH_LEN("="));
   if (value)
-    value->print(str, QT_ORDINARY);
+    value->print(thd, str, QT_ORDINARY);
   else
     str->append(STRING_WITH_LEN("DEFAULT"));
 }
@@ -1134,9 +1134,10 @@ void set_var::print_short(String *str) {
 /**
   Self-print assignment
 
+  @param thd Thread handle
   @param str String buffer to append the partial assignment to.
 */
-void set_var::print(const THD *, String *str) {
+void set_var::print(const THD *thd, String *str) {
   switch (type) {
     case OPT_PERSIST:
       str->append("PERSIST ");
@@ -1154,7 +1155,7 @@ void set_var::print(const THD *, String *str) {
     str->append(base.str, base.length);
     str->append(STRING_WITH_LEN("."));
   }
-  print_short(str);
+  print_short(thd, str);
 }
 
 /*****************************************************************************
@@ -1210,8 +1211,8 @@ int set_var_user::update(THD *thd) {
   return 0;
 }
 
-void set_var_user::print(const THD *, String *str) {
-  user_var_item->print_assignment(str, QT_ORDINARY);
+void set_var_user::print(const THD *thd, String *str) {
+  user_var_item->print_assignment(thd, str, QT_ORDINARY);
 }
 
 /*****************************************************************************

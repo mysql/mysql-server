@@ -1488,7 +1488,7 @@ ndb_serialize_cond(const Item *item, void *arg)
 #ifndef DBUG_OFF
             char buff[256];
             String str(buff, 0, system_charset_info);
-            const_cast<Item*>(item)->print(&str, QT_ORDINARY);
+            const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
             DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
 #endif
             NDB_ITEM_QUALIFICATION q;
@@ -1749,7 +1749,7 @@ ndb_serialize_cond(const Item *item, void *arg)
   #ifndef DBUG_OFF
               char buff[256];
               String str(buff, 0, system_charset_info);
-              const_cast<Item*>(item)->print(&str, QT_ORDINARY);
+              const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
               DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
   #endif
               NDB_ITEM_QUALIFICATION q;

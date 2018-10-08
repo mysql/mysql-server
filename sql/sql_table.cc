@@ -4794,7 +4794,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       auto flags =
           enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
       String out;
-      expression->print(&out, flags);
+      expression->print(thd, &out, flags);
 
       // Append a NULL-terminator, since Item::print does not necessarily add
       // one.

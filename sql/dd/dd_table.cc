@@ -1481,7 +1481,8 @@ static bool fill_dd_partition_from_create_info(
       // No point in including schema and table name for identifiers
       // since any columns must be in this table.
       part_info->part_expr->print(
-          &tmp, enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
+          thd, &tmp,
+          enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
 
       if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN) {
         my_error(ER_PART_EXPR_TOO_LONG, MYF(0));
@@ -1542,7 +1543,7 @@ static bool fill_dd_partition_from_create_info(
         // No point in including schema and table name for identifiers
         // since any columns must be in this table.
         part_info->subpart_expr->print(
-            &tmp,
+            thd, &tmp,
             enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
 
         if (tmp.numchars() > PARTITION_EXPR_CHAR_LEN) {

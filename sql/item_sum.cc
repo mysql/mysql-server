@@ -453,20 +453,20 @@ void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select) {
   set_aggregation();
 }
 
-void Item_sum::print(String *str, enum_query_type query_type) {
+void Item_sum::print(const THD *thd, String *str, enum_query_type query_type) {
   str->append(func_name());
   str->append('(');
   if (has_with_distinct()) str->append("distinct ");
 
   for (uint i = 0; i < arg_count; i++) {
     if (i) str->append(',');
-    args[i]->print(str, query_type);
+    args[i]->print(thd, str, query_type);
   }
   str->append(')');
 
   if (m_window) {
     str->append(" OVER ");
-    m_window->print(current_thd, str, query_type, false);
+    m_window->print(thd, str, query_type, false);
   }
 }
 
@@ -3675,12 +3675,13 @@ void Item_udf_sum::cleanup() {
   Item_sum::cleanup();
 }
 
-void Item_udf_sum::print(String *str, enum_query_type query_type) {
+void Item_udf_sum::print(const THD *thd, String *str,
+                         enum_query_type query_type) {
   str->append(func_name());
   str->append('(');
   for (uint i = 0; i < arg_count; i++) {
     if (i) str->append(',');
-    args[i]->print(str, query_type);
+    args[i]->print(thd, str, query_type);
   }
   str->append(')');
 }
@@ -4403,18 +4404,19 @@ String *Item_func_group_concat::val_str(String *) {
   return &result;
 }
 
-void Item_func_group_concat::print(String *str, enum_query_type query_type) {
+void Item_func_group_concat::print(const THD *thd, String *str,
+                                   enum_query_type query_type) {
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct) str->append(STRING_WITH_LEN("distinct "));
   for (uint i = 0; i < arg_count_field; i++) {
     if (i) str->append(',');
-    args[i]->print(str, query_type);
+    args[i]->print(thd, str, query_type);
   }
   if (arg_count_order) {
     str->append(STRING_WITH_LEN(" order by "));
     for (uint i = 0; i < arg_count_order; i++) {
       if (i) str->append(',');
-      args[i + arg_count_field]->print(str, query_type);
+      args[i + arg_count_field]->print(thd, str, query_type);
       if (order_array[i].direction == ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else

@@ -2496,7 +2496,7 @@ void Value_generator::print_expr(THD *thd, String *out) {
   Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags = enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
-  expr_item->print(out, flags);
+  expr_item->print(thd, out, flags);
 }
 
 bool unpack_value_generator(THD *thd, TABLE *table, Field *field,

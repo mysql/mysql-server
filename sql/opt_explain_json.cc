@@ -1226,7 +1226,8 @@ class window_ctx : public join_ctx {
         for (; ord != NULL; ord = ord->next) {
           String str;
           (*ord->item)
-              ->print_for_order(&str, (enum_query_type)(QT_NO_DB | QT_NO_TABLE),
+              ->print_for_order(current_thd, &str,
+                                (enum_query_type)(QT_NO_DB | QT_NO_TABLE),
                                 ord->used_alias);
           if (ord->direction == ORDER_DESC)
             str.append(STRING_WITH_LEN(" desc"));

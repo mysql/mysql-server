@@ -1480,9 +1480,10 @@ bool Item_json_typecast::val_json(Json_wrapper *wr) {
   return false;
 }
 
-void Item_json_typecast::print(String *str, enum_query_type query_type) {
+void Item_json_typecast::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str, query_type);
+  args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   str->append(')');

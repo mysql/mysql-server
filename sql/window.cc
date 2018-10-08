@@ -1340,7 +1340,7 @@ void Window::reset_execution_state(Reset_level level) {
   m_row_has_fields_in_out_table = 0;
 }
 
-void Window::print_border(String *str, PT_border *border,
+void Window::print_border(const THD *thd, String *str, PT_border *border,
                           enum_query_type qt) const {
   const PT_border &b = *border;
   switch (b.m_border_type) {
@@ -1352,12 +1352,12 @@ void Window::print_border(String *str, PT_border *border,
 
       if (b.m_date_time) {
         str->append("INTERVAL ");
-        b.m_value->print(str, qt);
+        b.m_value->print(thd, str, qt);
         str->append(' ');
         str->append(interval_names[b.m_int_type]);
         str->append(' ');
       } else
-        b.m_value->print(str, qt);
+        b.m_value->print(thd, str, qt);
 
       str->append(b.m_border_type == WBT_VALUE_PRECEDING ? " PRECEDING"
                                                          : " FOLLOWING");
@@ -1371,16 +1371,17 @@ void Window::print_border(String *str, PT_border *border,
   }
 }
 
-void Window::print_frame(String *str, enum_query_type qt) const {
+void Window::print_frame(const THD *thd, String *str,
+                         enum_query_type qt) const {
   const PT_frame &f = *m_frame;
   str->append(f.m_unit == WFU_ROWS
                   ? "ROWS "
                   : (f.m_unit == WFU_RANGE ? "RANGE " : "GROUPS "));
 
   str->append("BETWEEN ");
-  print_border(str, f.m_from, qt);
+  print_border(thd, str, f.m_from, qt);
   str->append(" AND ");
-  print_border(str, f.m_to, qt);
+  print_border(thd, str, f.m_to, qt);
 }
 
 void Window::print(const THD *thd, String *str, enum_query_type qt,
@@ -1399,18 +1400,18 @@ void Window::print(const THD *thd, String *str, enum_query_type qt,
 
     if (m_partition_by != nullptr) {
       str->append("PARTITION BY ");
-      SELECT_LEX::print_order(str, m_partition_by->value.first, qt);
+      SELECT_LEX::print_order(thd, str, m_partition_by->value.first, qt);
       str->append(' ');
     }
 
     if (m_order_by != nullptr) {
       str->append("ORDER BY ");
-      SELECT_LEX::print_order(str, m_order_by->value.first, qt);
+      SELECT_LEX::print_order(thd, str, m_order_by->value.first, qt);
       str->append(' ');
     }
 
     if (!m_frame->m_originally_absent) {
-      print_frame(str, qt);
+      print_frame(thd, str, qt);
     }
 
     str->append(") ");

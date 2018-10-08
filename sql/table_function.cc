@@ -916,7 +916,7 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
 
 bool Table_function_json::print(String *str, enum_query_type query_type) {
   if (str->append(STRING_WITH_LEN("json_table("))) return true;
-  source->print(str, query_type);
+  source->print(thd, str, query_type);
   return (thd->is_error() || str->append(STRING_WITH_LEN(", ")) ||
           print_nested_path(m_columns->head(), str, query_type) ||
           str->append(')'));

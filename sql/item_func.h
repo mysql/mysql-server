@@ -328,9 +328,10 @@ class Item_func : public Item_result_field {
   inline uint argument_count() const { return arg_count; }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
-  void print(String *str, enum_query_type query_type) override;
-  void print_op(String *str, enum_query_type query_type);
-  void print_args(String *str, uint from, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print_op(const THD *thd, String *str, enum_query_type query_type);
+  void print_args(const THD *thd, String *str, uint from,
+                  enum_query_type query_type);
   virtual void fix_num_length_and_dec();
   virtual bool is_deprecated() const { return false; }
   bool get_arg0_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) {
@@ -433,13 +434,7 @@ class Item_func : public Item_result_field {
                 Item_transformer transformer, uchar *arg_t) override;
   void traverse_cond(Cond_traverser traverser, void *arg,
                      traverse_order order) override;
-  inline void raise_numeric_overflow(const char *type_name) {
-    char buf[256];
-    String str(buf, sizeof(buf), system_charset_info);
-    str.length(0);
-    print(&str, QT_NO_DATA_EXPANSION);
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
-  }
+  void raise_numeric_overflow(const char *type_name);
   inline double raise_float_overflow() {
     raise_numeric_overflow("DOUBLE");
     return 0.0;
@@ -792,8 +787,8 @@ class Item_num_op : public Item_func_numhybrid {
 
   virtual void result_precision() = 0;
 
-  void print(String *str, enum_query_type query_type) override {
-    print_op(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    print_op(thd, str, query_type);
   }
 
   void set_numeric_type() override;
@@ -900,7 +895,7 @@ class Item_func_signed : public Item_int_func {
   longlong val_int() override;
   longlong val_int_from_str(int *error);
   bool resolve_type(THD *thd) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   uint decimal_precision() const override {
     return args[0]->decimal_precision();
   }
@@ -914,7 +909,7 @@ class Item_func_unsigned final : public Item_func_signed {
   }
   const char *func_name() const override { return "cast_as_unsigned"; }
   longlong val_int() override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
@@ -940,7 +935,7 @@ class Item_decimal_typecast final : public Item_func {
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override { return "decimal_typecast"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class Item_func_additive_op : public Item_num_op {
@@ -1023,8 +1018,8 @@ class Item_func_int_div final : public Item_int_func {
   const char *func_name() const override { return "DIV"; }
   bool resolve_type(THD *thd) override;
 
-  void print(String *str, enum_query_type query_type) override {
-    print_op(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    print_op(thd, str, query_type);
   }
 
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -1496,7 +1491,7 @@ class Item_func_locate : public Item_int_func {
   const char *func_name() const override { return "locate"; }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class Item_func_instr final : public Item_func_locate {
@@ -1597,8 +1592,8 @@ class Item_func_bit : public Item_func {
   double val_real() override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
 
-  void print(String *str, enum_query_type query_type) override {
-    print_op(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    print_op(thd, str, query_type);
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     if (hybrid_type == INT_RESULT)
@@ -1741,8 +1736,8 @@ class Item_func_bit_neg final : public Item_func_bit {
  public:
   Item_func_bit_neg(const POS &pos, Item *a) : Item_func_bit(pos, a) {}
   const char *func_name() const override { return "~"; }
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    Item_func::print(thd, str, query_type);
   }
 
  private:
@@ -1793,7 +1788,7 @@ class Item_func_benchmark final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
@@ -1901,7 +1896,7 @@ class Item_udf_func : public Item_func {
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
   bool is_expensive() override { return true; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -2995,8 +2990,9 @@ class Item_func_set_user_var : public Item_var_func {
   enum Item_result result_type() const override { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
-  void print(String *str, enum_query_type query_type) override;
-  void print_assignment(String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print_assignment(const THD *thd, String *str,
+                        enum_query_type query_type);
   const char *func_name() const override { return "set_user_var"; }
 
   type_conversion_status save_in_field(Field *field, bool no_conversions,
@@ -3036,7 +3032,7 @@ class Item_func_get_user_var : public Item_var_func,
   String *val_str(String *str) override;
   bool resolve_type(THD *) override;
   void update_used_tables() override {}  // Keep existing used tables
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   enum Item_result result_type() const override;
   /*
     We must always return variables as strings to guard against selects of type
@@ -3090,7 +3086,7 @@ class Item_user_var_as_out_param : public Item {
 
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   void set_null_value(const CHARSET_INFO *cs);
   void set_value(const char *str, size_t length, const CHARSET_INFO *cs);
 };
@@ -3156,7 +3152,7 @@ class Item_func_get_system_var final : public Item_var_func {
                            size_t name_len_arg);
   enum Functype functype() const override { return GSYSVAR_FUNC; }
   bool resolve_type(THD *) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   table_map used_tables() const override { return 0; }
   bool is_non_const_over_literals(uchar *) override { return true; }
   enum Item_result result_type() const override;
@@ -3255,7 +3251,7 @@ class Item_func_match final : public Item_real_func {
     return val_real() != 0.0;
   }
   double val_real() override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
   bool fix_index(const THD *thd);
   bool init_search(THD *thd);

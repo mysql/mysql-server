@@ -389,7 +389,7 @@ class Item_json_typecast final : public Item_json_func {
   Item_json_typecast(THD *thd, const POS &pos, Item *a)
       : Item_json_func(thd, pos, a) {}
 
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   const char *func_name() const override { return "cast_as_json"; }
   const char *cast_type() const { return "json"; }
   bool val_json(Json_wrapper *wr) override;

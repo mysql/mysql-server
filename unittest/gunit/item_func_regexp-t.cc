@@ -54,7 +54,7 @@ class ItemFuncRegexpTest : public ::testing::Test {
     item->itemize(&pc, &item);
     item->fix_fields(thd(), nullptr);
     String buf;
-    item->print(&buf, QT_ORDINARY);
+    item->print(thd(), &buf, QT_ORDINARY);
     EXPECT_STREQ(expected, buf.c_ptr_safe());
   }
 };

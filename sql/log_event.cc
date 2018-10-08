@@ -770,7 +770,7 @@ char *str_to_hex(char *to, const char *from, size_t len) {
   information in 'csinfo' is used.
 */
 
-int append_query_string(THD *thd, const CHARSET_INFO *csinfo,
+int append_query_string(const THD *thd, const CHARSET_INFO *csinfo,
                         String const *from, String *to) {
   char *beg, *ptr;
   size_t const orig_len = to->length();
@@ -7220,7 +7220,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
         append_identifier(thd, &str, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
       else
-        item->print(&str, QT_ORDINARY);
+        item->print(thd, &str, QT_ORDINARY);
       str.append(", ");
     }
     // remvoe the last ", "

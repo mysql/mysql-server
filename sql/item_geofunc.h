@@ -857,7 +857,7 @@ class Item_func_spatial_collection : public Item_geometry_func {
     for (unsigned int i = 0; i < arg_count; ++i) {
       if (args[i]->fixed && args[i]->data_type() != MYSQL_TYPE_GEOMETRY) {
         String str;
-        args[i]->print(&str, QT_NO_DATA_EXPANSION);
+        args[i]->print(thd, &str, QT_NO_DATA_EXPANSION);
         str.append('\0');
         my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "non geometric", str.ptr());
         return true;
@@ -900,8 +900,8 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
   }
 
   const char *func_name() const override;
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -977,8 +977,8 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override {
-    Item_func::print(str, query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    Item_func::print(thd, str, query_type);
   }
   longlong val_int() override;
   bool is_null() override {

@@ -396,9 +396,10 @@ class set_var : public set_var_base {
   /**
     Print variable in short form.
 
+    @param thd Thread handle.
     @param str String buffer to append the partial assignment to.
   */
-  void print_short(String *str);
+  void print_short(const THD *thd, String *str);
   void print(const THD *, String *str); /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||

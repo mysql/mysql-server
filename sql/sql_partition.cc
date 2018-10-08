@@ -2365,7 +2365,8 @@ char *generate_partition_syntax(partition_info *part_info, uint *buf_length,
       // No point in including schema and table name for identifiers
       // since any columns must be in this table.
       part_info->part_expr->print(
-          &tmp, enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
+          current_thd, &tmp,
+          enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
       err += add_string_len(fptr, tmp.ptr(), tmp.length());
     } else {
       err += add_string_len(fptr, part_info->part_func_string,
@@ -2404,7 +2405,7 @@ char *generate_partition_syntax(partition_info *part_info, uint *buf_length,
         // No point in including schema and table name for identifiers
         // since any columns must be in this table.
         part_info->subpart_expr->print(
-            &tmp,
+            current_thd, &tmp,
             enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
         err += add_string_len(fptr, tmp.ptr(), tmp.length());
       } else {

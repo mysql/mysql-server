@@ -1395,8 +1395,9 @@ class Window {
     @param  before  True if 'before' is wanted; false if 'after' is.
   */
   bool before_or_after_frame(bool before);
-  void print_frame(String *str, enum_query_type qt) const;
-  void print_border(String *str, PT_border *b, enum_query_type qt) const;
+  void print_frame(const THD *thd, String *str, enum_query_type qt) const;
+  void print_border(const THD *thd, String *str, PT_border *b,
+                    enum_query_type qt) const;
 
   /**
     Reorder windows and eliminate redundant ordering. If a window has the

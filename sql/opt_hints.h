@@ -658,9 +658,10 @@ class Sys_var_hint {
   /**
     Print applicable hints.
 
+    @param thd   Thread handle
     @param str   Pointer to string object
   */
-  void print(String *str);
+  void print(const THD *thd, String *str);
 };
 
 /**

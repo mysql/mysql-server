@@ -534,7 +534,7 @@ class Item_temporal_func : public Item_func {
     DBUG_ASSERT(fixed);
     return decimals;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 /**
@@ -887,7 +887,7 @@ class Item_date_literal final : public Item_date_func {
     fixed = true;
   }
   const char *func_name() const override { return "date_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   longlong val_date_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -930,7 +930,7 @@ class Item_time_literal final : public Item_time_func {
     fixed = true;
   }
   const char *func_name() const override { return "time_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   longlong val_time_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -973,7 +973,7 @@ class Item_datetime_literal final : public Item_datetime_func {
     fixed = true;
   }
   const char *func_name() const override { return "datetime_literal"; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   longlong val_date_temporal() override {
     DBUG_ASSERT(fixed);
     return cached_time.val_packed();
@@ -1326,7 +1326,7 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
   const char *func_name() const override { return "date_add_interval"; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class Item_extract final : public Item_int_func {
@@ -1341,7 +1341,7 @@ class Item_extract final : public Item_int_func {
   const char *func_name() const override { return "extract"; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     switch (int_type) {
@@ -1387,7 +1387,7 @@ class Item_date_typecast final : public Item_date_func {
     maybe_null = 1;
   }
 
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   const char *func_name() const override { return "cast_as_date"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override;
@@ -1410,7 +1410,7 @@ class Item_time_typecast final : public Item_time_func {
     detect_precision_from_arg = false;
     decimals = dec_arg;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   const char *func_name() const override { return "cast_as_time"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   bool get_time(MYSQL_TIME *ltime) override;
@@ -1439,7 +1439,7 @@ class Item_datetime_typecast final : public Item_datetime_func {
     detect_precision_from_arg = false;
     decimals = dec_arg;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   const char *func_name() const override { return "cast_as_datetime"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   const char *cast_type() const { return "datetime"; }
@@ -1482,7 +1482,7 @@ class Item_func_add_time final : public Item_temporal_hybrid_func {
       : Item_func_add_time(pos, a, b, false, false) {}
 
   bool resolve_type(THD *) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   const char *func_name() const override { return "add_time"; }
 };
 
@@ -1542,7 +1542,7 @@ class Item_func_timestamp_diff final : public Item_int_func {
     maybe_null = true;
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 enum date_time_format {
@@ -1565,7 +1565,7 @@ class Item_func_get_format final : public Item_str_ascii_func {
     set_data_type_string(17, default_charset());
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class Item_func_str_to_date final : public Item_temporal_hybrid_func {

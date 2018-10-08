@@ -601,7 +601,7 @@ class Item_sum : public Item_result_field {
     used_tables_cache = 0;
     forced_const = true;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;
   /**
@@ -1881,7 +1881,7 @@ class Item_udf_sum : public Item_sum {
   void reset_field() override {}
   void update_field() override {}
   void cleanup() override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class Item_sum_udf_float final : public Item_udf_sum {
@@ -2105,7 +2105,7 @@ class Item_func_group_concat final : public Item_sum {
   String *val_str(String *str) override;
   Item *copy_or_same(THD *thd) override;
   void no_rows_in_result() override {}
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool change_context_processor(uchar *cntx) override {
     context = reinterpret_cast<Name_resolution_context *>(cntx);
     return false;

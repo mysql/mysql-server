@@ -1841,16 +1841,19 @@ class Item : public Parse_tree_node {
     query and why they should be generated from the Item-tree, @see
     mysql_register_view().
   */
-  virtual void print(String *str, enum_query_type) { str->append(full_name()); }
+  virtual void print(const THD *, String *str, enum_query_type) {
+    str->append(full_name());
+  }
 
-  void print_item_w_name(String *, enum_query_type query_type);
+  void print_item_w_name(const THD *thd, String *, enum_query_type query_type);
   /**
      Prints the item when it's part of ORDER BY and GROUP BY.
+     @param  thd            Thread handle
      @param  str            String to print to
      @param  query_type     How to format the item
      @param  used_alias     Whether item was referenced with alias.
   */
-  void print_for_order(String *str, enum_query_type query_type,
+  void print_for_order(const THD *thd, String *str, enum_query_type query_type,
                        bool used_alias);
 
   virtual void update_used_tables() {}
@@ -2862,7 +2865,7 @@ class Item_splocal final : public Item_sp_variable,
   const Item *this_item() const override;
   Item **this_item_addr(THD *thd, Item **) override;
 
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
  public:
   inline uint get_var_idx() const { return m_var_idx; }
@@ -2904,7 +2907,7 @@ class Item_case_expr final : public Item_sp_variable {
     Item_case_expr can not occur in views, so here it is only for debug
     purposes.
   */
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
  private:
   uint m_case_expr_id;
@@ -2945,7 +2948,7 @@ class Item_name_const final : public Item {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   bool is_null() override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
   Item_result result_type() const override { return value_item->result_type(); }
 
@@ -3114,8 +3117,8 @@ class Item_ident : public Item {
   bool aggregate_check_group(uchar *arg) override;
   Bool3 local_column(const SELECT_LEX *sl) const override;
 
-  void print(String *str, enum_query_type query_type) override {
-    print(str, query_type, db_name, table_name);
+  void print(const THD *thd, String *str, enum_query_type query_type) override {
+    print(thd, str, query_type, db_name, table_name);
   }
 
  protected:
@@ -3136,13 +3139,14 @@ class Item_ident : public Item {
     this function prints db_name_arg and table_name_arg parameters instead of
     this->db_name and this->table_name respectively.
 
+    @param       thd            Thread handle.
     @param [out] str            Output string buffer.
     @param       query_type     Bitmap to control printing details.
     @param       db_name_arg    String to output as a column database name.
     @param       table_name_arg String to output as a column table name.
   */
-  void print(String *str, enum_query_type query_type, const char *db_name_arg,
-             const char *table_name_arg) const;
+  void print(const THD *thd, String *str, enum_query_type query_type,
+             const char *db_name_arg, const char *table_name_arg) const;
 
  public:
   bool change_context_processor(uchar *cntx) override {
@@ -3338,7 +3342,7 @@ class Item_field : public Item_ident {
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   Item *update_value_transformer(uchar *select_arg) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool is_outer_field() const override {
     DBUG_ASSERT(fixed);
     return table_ref->outer_join || table_ref->outer_join_nest();
@@ -3468,7 +3472,7 @@ class Item_null : public Item_basic_constant {
   Item *clone_item() const override { return new Item_null(item_name); }
   bool is_null() override { return true; }
 
-  void print(String *str, enum_query_type query_type) override {
+  void print(const THD *, String *str, enum_query_type query_type) override {
     str->append(query_type == QT_NORMALIZED_FORMAT ? "?" : "NULL");
   }
 
@@ -3615,7 +3619,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   */
   void (*set_param_func)(Item_param *param, uchar **pos, ulong len);
 
-  const String *query_val_str(THD *thd, String *str) const;
+  const String *query_val_str(const THD *thd, String *str) const;
 
   bool convert_str_value();
 
@@ -3626,7 +3630,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   table_map used_tables() const override {
     return state != NO_VALUE ? 0 : INNER_TABLE_BIT;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool is_null() override {
     DBUG_ASSERT(state != NO_VALUE);
     return state == NULL_VALUE;
@@ -3797,7 +3801,7 @@ class Item_int : public Item_num {
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   Item *clone_item() const override { return new Item_int(this); }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   Item_num *neg() override {
     value = -value;
     return this;
@@ -3893,7 +3897,7 @@ class Item_uint : public Item_int {
   Item *clone_item() const override {
     return new Item_uint(item_name, value, max_length);
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   Item_num *neg() override;
   uint decimal_precision() const override { return max_length; }
 };
@@ -3932,7 +3936,7 @@ class Item_decimal : public Item_num {
   Item *clone_item() const override {
     return new Item_decimal(item_name, &decimal_value, decimals, max_length);
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   Item_num *neg() override {
     my_decimal_neg(&decimal_value);
     unsigned_flag = !decimal_value.sign();
@@ -4021,7 +4025,7 @@ class Item_float : public Item_num {
     value = -value;
     return this;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool eq(const Item *, bool binary_cmp) const override;
 };
 
@@ -4033,7 +4037,9 @@ class Item_func_pi : public Item_float {
       : Item_float(pos, null_name_string, M_PI, 6, 8),
         func_name(NAME_STRING("pi()")) {}
 
-  void print(String *str, enum_query_type) override { str->append(func_name); }
+  void print(const THD *, String *str, enum_query_type) override {
+    str->append(func_name);
+  }
 
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 };
@@ -4183,7 +4189,7 @@ class Item_string : public Item_basic_constant {
     max_length = static_cast<uint32>(str_value.numchars() *
                                      collation.collation->mbmaxlen);
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool check_partition_func_processor(uchar *) override { return false; }
 
   /**
@@ -4250,7 +4256,7 @@ class Item_static_string_func : public Item_string {
 
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
 
-  inline void print(String *str, enum_query_type) override {
+  void print(const THD *, String *str, enum_query_type) override {
     str->append(func_name);
   }
 
@@ -4358,7 +4364,7 @@ class Item_hex_string : public Item_basic_constant {
     return INT_RESULT;
   }
   Item_result cast_to_int_type() const override { return INT_RESULT; }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
@@ -4586,7 +4592,7 @@ class Item_ref : public Item_ident {
     */
     return false;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   void cleanup() override;
   Item_field *field_for_view_update() override {
     return (*ref)->field_for_view_update();
@@ -4844,7 +4850,7 @@ class Item_ref_null_helper final : public Item_ref {
   my_decimal *val_decimal(my_decimal *) override;
   bool val_bool() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   /*
     we add RAND_TABLE_BIT to prevent moving this item from HAVING to WHERE
   */
@@ -4892,7 +4898,7 @@ class Item_temporal_with_ref : public Item_int_with_ref {
       : Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_flag) {
     decimals = decimals_arg;
   }
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     DBUG_ASSERT(0);
     return true;
@@ -5287,7 +5293,7 @@ class Item_default_value final : public Item_field {
   enum Type type() const override { return DEFAULT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
   bool fix_fields(THD *, Item **) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   table_map used_tables() const override { return 0; }
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
 
@@ -5332,7 +5338,7 @@ class Item_insert_value final : public Item_field {
   enum Type type() const override { return INSERT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
   bool fix_fields(THD *, Item **) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   /*
    We use RAND_TABLE_BIT to prevent Item_insert_value from
    being treated as a constant and precalculated before execution
@@ -5407,7 +5413,7 @@ class Item_trigger_field final : public Item_field,
   enum Type type() const override { return TRIGGER_FIELD_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override;
   bool fix_fields(THD *, Item **) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   table_map used_tables() const override { return 0; }
   Field *get_tmp_table_field() override { return 0; }
   Item *copy_or_same(THD *) override { return this; }
@@ -5536,7 +5542,7 @@ class Item_cache : public Item_basic_constant {
   static Item_cache *get_cache(const Item *item, const Item_result type);
   table_map used_tables() const override { return used_table_map; }
   virtual void keep_array() {}
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool eq_def(Field *field) {
     return cached_field && cached_field->eq_def(field);
   }

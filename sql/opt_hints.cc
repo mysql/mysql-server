@@ -187,8 +187,8 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   return NULL;
 }
 
-void Opt_hints_global::print_irregular_hints(const THD *, String *str) {
-  if (sys_var_hint) sys_var_hint->print(str);
+void Opt_hints_global::print_irregular_hints(const THD *thd, String *str) {
+  if (sys_var_hint) sys_var_hint->print(thd, str);
 }
 
 Opt_hints_qb::Opt_hints_qb(Opt_hints *opt_hints_arg, MEM_ROOT *mem_root_arg,
@@ -577,13 +577,14 @@ PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
 /**
   Function prints hint using the info from set_var variable.
 
+  @param thd            Thread handle
   @param str            Pointer to string object
   @param var            Pointer to set_var object
 */
 
-static void print_hint_from_var(String *str, set_var *var) {
+static void print_hint_from_var(const THD *thd, String *str, set_var *var) {
   str->append(STRING_WITH_LEN("SET_VAR("));
-  var->print_short(str);
+  var->print_short(thd, str);
   str->append(STRING_WITH_LEN(") "));
 }
 
@@ -683,10 +684,10 @@ void Sys_var_hint::restore_vars(THD *thd) {
   thd->pop_internal_handler();
 }
 
-void Sys_var_hint::print(String *str) {
+void Sys_var_hint::print(const THD *thd, String *str) {
   for (uint i = 0; i < var_list.size(); i++) {
     Hint_set_var *hint_var = var_list[i];
-    if (hint_var->save_value) print_hint_from_var(str, hint_var->var);
+    if (hint_var->save_value) print_hint_from_var(thd, str, hint_var->var);
   }
 }
 

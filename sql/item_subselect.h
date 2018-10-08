@@ -193,7 +193,7 @@ class Item_subselect : public Item_result_field {
   table_map not_null_tables() const override { return 0; }
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   virtual bool have_guarded_conds() { return false; }
   bool change_engine(subselect_engine *eng) {
     old_engine = engine;
@@ -319,7 +319,7 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
  public:
   Item_maxmin_subselect(Item_subselect *parent, SELECT_LEX *select_lex,
                         bool max, bool ignore_nulls);
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   void cleanup() override;
   bool any_value() { return was_values; }
   void register_value() { was_values = true; }
@@ -407,7 +407,7 @@ class Item_exists_subselect : public Item_subselect {
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   bool resolve_type(THD *thd) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 
   friend class Query_result_exists_subquery;
   friend class subselect_indexsubquery_engine;
@@ -577,7 +577,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool is_top_level_item() const { return abort_on_null; }
 
   bool test_limit();
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
@@ -614,7 +614,7 @@ class Item_allany_subselect final : public Item_in_subselect {
   // only ALL subquery has upper not
   subs_type substype() const override { return all ? ALL_SUBS : ANY_SUBS; }
   trans_res select_transformer(THD *thd, SELECT_LEX *select) override;
-  void print(String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
 };
 
 class subselect_engine {
@@ -677,7 +677,8 @@ class subselect_engine {
   bool may_be_null() const { return maybe_null; }
   virtual table_map upper_select_const_tables() const = 0;
   static table_map calc_const_tables(TABLE_LIST *);
-  virtual void print(THD *thd, String *str, enum_query_type query_type) = 0;
+  virtual void print(const THD *thd, String *str,
+                     enum_query_type query_type) = 0;
   virtual bool change_query_result(THD *thd, Item_subselect *si,
                                    Query_result_subquery *result) = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
@@ -708,7 +709,7 @@ class subselect_single_select_engine final : public subselect_engine {
   uint8 uncacheable() const override;
   void exclude() override;
   table_map upper_select_const_tables() const override;
-  void print(THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result) override;
   enum_engine_type engine_type() const override { return SINGLE_SELECT_ENGINE; }
@@ -729,7 +730,7 @@ class subselect_union_engine final : public subselect_engine {
   uint8 uncacheable() const override;
   void exclude() override;
   table_map upper_select_const_tables() const override;
-  void print(THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result) override;
   enum_engine_type engine_type() const override { return UNION_ENGINE; }
@@ -781,7 +782,7 @@ class subselect_indexsubquery_engine : public subselect_engine {
         cond(where),
         having(having_arg) {}
   bool exec(THD *thd) override;
-  void print(THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   enum_engine_type engine_type() const override { return INDEXSUBQUERY_ENGINE; }
   void cleanup(THD *) override {}
   bool prepare(THD *thd) override;
@@ -856,7 +857,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   void cleanup(THD *thd) override;
   bool prepare(THD *thd) override { return materialize_engine->prepare(thd); }
   bool exec(THD *thd) override;
-  void print(THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str, enum_query_type query_type) override;
   uint cols() const override { return materialize_engine->cols(); }
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 

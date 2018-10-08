@@ -3169,7 +3169,7 @@ bool sp_head::show_routine_code(THD *thd) {
     protocol->store((longlong)ip);
 
     buffer.set("", 0, system_charset_info);
-    i->print(&buffer);
+    i->print(thd, &buffer);
     protocol->store(buffer.ptr(), buffer.length(), system_charset_info);
     if ((res = protocol->end_row())) break;
   }

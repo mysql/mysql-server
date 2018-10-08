@@ -331,7 +331,8 @@ int mysql_parser_visit_tree(MYSQL_THD thd, parse_node_visit_function processor,
 
 MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item) {
   String str;
-  static_cast<Item *>(item)->print(&str, QT_ORDINARY);
+  static_cast<Item *>(item)->print(mysql_parser_current_session(), &str,
+                                   QT_ORDINARY);
   MYSQL_LEX_STRING res = {new char[str.length()], 0};
   if (res.str != NULL) {
     res.length = str.length();

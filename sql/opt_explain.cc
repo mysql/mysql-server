@@ -143,7 +143,7 @@ class Explain {
     Lazy_condition(Item *condition_arg) : condition(condition_arg) {}
     virtual bool eval(String *ret) {
       ret->length(0);
-      if (condition) condition->print(ret, cond_print_flags);
+      if (condition) condition->print(current_thd, ret, cond_print_flags);
       return false;
     }
   };
@@ -890,9 +890,10 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     StringBuffer<160> buff(cs);
     if (fmt->is_hierarchical() && can_print_clauses()) {
       if (table->file->pushed_idx_cond)
-        table->file->pushed_idx_cond->print(&buff, cond_print_flags);
+        table->file->pushed_idx_cond->print(explain_thd, &buff,
+                                            cond_print_flags);
       else
-        tab->cache_idx_cond->print(&buff, cond_print_flags);
+        tab->cache_idx_cond->print(explain_thd, &buff, cond_print_flags);
     }
     if (push_extra(ET_USING_INDEX_CONDITION, buff))
       return true; /* purecov: inspected */
@@ -973,7 +974,8 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
           pushed_cond) {
         StringBuffer<64> buff(cs);
         if (can_print_clauses())
-          ((Item *)pushed_cond)->print(&buff, cond_print_flags);
+          const_cast<Item *>(pushed_cond)
+              ->print(explain_thd, &buff, cond_print_flags);
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff)) return true;
       } else {
         if (fmt->is_hierarchical() && can_print_clauses()) {
