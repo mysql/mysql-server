@@ -323,6 +323,14 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     const bool isStatScan = AccScanReq::getStatScanFlag(req->requestInfo);
     if (unlikely(isStatScan)) {
       jam();
+      // Check if index stat can handle this index length
+      Uint32 indexMaxKeyBytes = indexPtr.p->m_keySpec.get_max_data_len(false);
+      if (indexMaxKeyBytes > (StatOp::MaxKeySize * 4)) {
+        jam();
+        errorCode = AccScanRef::TuxInvalidKeySize;
+        break;
+      }
+
       if (!scanPtr.p->m_readCommitted) {
         jam();
         errorCode = AccScanRef::TuxInvalidLockMode;
