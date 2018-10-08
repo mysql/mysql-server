@@ -218,7 +218,7 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
   for (node = 0; node < number_of_nodes; node++) {
     int has_ipv4_address = 0;
 
-    struct addrinfo *node_addr = NULL;
+    struct addrinfo *node_addr = NULL, *node_addr_cycle = NULL;
 
     char ip[IP_MAX_SIZE];
     xcom_port port;
@@ -232,12 +232,15 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
 
     // Lets cycle through all returned addresses and check if at least one
     // address is reachable via IPv4.
-    while (!has_ipv4_address && node_addr) {
-      if (node_addr->ai_family == AF_INET) {
+    node_addr_cycle = node_addr;
+    while (!has_ipv4_address && node_addr_cycle) {
+      if (node_addr_cycle->ai_family == AF_INET) {
         has_ipv4_address = 1;
       }
-      node_addr = node_addr->ai_next;
+      node_addr_cycle = node_addr_cycle->ai_next;
     }
+
+    if (node_addr) freeaddrinfo(node_addr);
 
     if (!has_ipv4_address) return 1;
   }
