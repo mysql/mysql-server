@@ -838,6 +838,18 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
   return (name);
 }
 
+void Tablespace::alter_active() {
+  if (is_empty()) {
+    set_active();
+  } else if (is_inactive_explicit()) {
+    if (purge_sys->undo_trunc.get_marked_space_num() == m_num) {
+      set_inactive_implicit();
+    } else {
+      set_active();
+    }
+  }
+}
+
 dberr_t start_logging(Tablespace *undo_space) {
 #ifdef UNIV_DEBUG
   static int fail_start_logging_count;

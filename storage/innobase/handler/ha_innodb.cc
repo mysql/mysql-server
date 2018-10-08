@@ -3924,7 +3924,7 @@ static int innodb_log_file_size_init() {
     static const char *var_name_buf_pool_size = "innodb_buffer_pool_size";
     enum enum_variable_source source;
 
-    auto_buf_pool_size_in_gb = srv_buf_pool_size / GB;
+    auto_buf_pool_size_in_gb = static_cast<double>(srv_buf_pool_size / GB);
 
     /* If user has set buffer pool size in .cnf, we will not use it as base
     line for log_file_size auto tuning, instead, we will get the value of
@@ -3943,9 +3943,9 @@ static int innodb_log_file_size_init() {
         if (server_mem < 1.0) {
           ;
         } else if (server_mem <= 4.0) {
-          auto_buf_pool_size_in_gb = static_cast<ulint>(server_mem * 0.5);
+          auto_buf_pool_size_in_gb = static_cast<double>(server_mem * 0.5);
         } else
-          auto_buf_pool_size_in_gb = static_cast<ulint>(server_mem * 0.75);
+          auto_buf_pool_size_in_gb = static_cast<double>(server_mem * 0.75);
       }
     }
 
@@ -3985,9 +3985,10 @@ static int innodb_log_file_size_init() {
         if (auto_buf_pool_size_in_gb < 1.0) {
           ;
         } else if (auto_buf_pool_size_in_gb < 8.0) {
-          srv_n_log_files = round(auto_buf_pool_size_in_gb);
+          srv_n_log_files = static_cast<ulong>(round(auto_buf_pool_size_in_gb));
         } else if (auto_buf_pool_size_in_gb <= 128.0) {
-          srv_n_log_files = round(auto_buf_pool_size_in_gb * 0.75);
+          srv_n_log_files =
+              static_cast<ulong>(round(auto_buf_pool_size_in_gb * 0.75));
         } else {
           srv_n_log_files = 64;
         }
@@ -14464,9 +14465,14 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
     to active before this undo_space is truncated. */
     ulint other_active_spaces = 0;
     for (auto undo_ts : undo::spaces->m_spaces) {
-      if (undo_ts != undo_space &&
-          (undo_ts->is_active() || undo_ts->is_inactive_implicit())) {
-        other_active_spaces++;
+      if (undo_ts != undo_space) {
+        if (undo_ts->is_active()) {
+          other_active_spaces++;
+        } else if (undo_ts->is_inactive_implicit() &&
+                   purge_sys->undo_trunc.get_marked_space_num() ==
+                       undo_ts->num()) {
+          other_active_spaces++;
+        }
       }
     }
 
@@ -14664,8 +14670,8 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
 @param[in]	alter_info	How to do the command
 @param[in]	old_ts_def	Old version of dd::Tablespace object for the
 tablespace
-@param[in,out]	new_ts_def	New version of dd::Tablespace object for the
-tablespace. Can be adjusted by SE. Changes will be persisted in the
+@param[in,out]	new_ts_def	New version of dd::Tablespace object for
+the tablespace. Can be adjusted by SE. Changes will be persisted in the
 data-dictionary at statement commit.
 @return MySQL error code*/
 static int innobase_alter_tablespace(handlerton *hton, THD *thd,
@@ -15170,11 +15176,11 @@ void innodb_set_buf_pool_size(long long buf_pool_size) {
   srv_buf_pool_curr_size = buf_pool_size;
 }
 
-/** Calculates the key number used inside MySQL for an Innobase index. We will
- first check the "index translation table" for a match of the index to get
- the index number. If there does not exist an "index translation table",
- or not able to find the index in the translation table, then we will fall back
- to the traditional way of looping through dict_index_t list to find a
+/** Calculates the key number used inside MySQL for an Innobase index. We
+ will first check the "index translation table" for a match of the index to
+ get the index number. If there does not exist an "index translation table",
+ or not able to find the index in the translation table, then we will fall
+ back to the traditional way of looping through dict_index_t list to find a
  match. In this case, we have to take into account if we generated a
  default clustered index for the table
  @return the key number used inside MySQL */

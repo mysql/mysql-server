@@ -590,23 +590,15 @@ struct Tablespace {
   }
 
   /** Make the undo tablespace active again so that it will
-  be used for new transactions. When the purge thread is
-  done with the truncation it sets the undo space to empty
-  if the state was active_explicit. If it is still being
-  truncated in the active_explicit state, this will set the
-  state to active_implicit so that when the truncation is
-  finished the purge thread will set it to active. */
-  void alter_active() {
-    if (m_rsegs->is_empty()) {
-      m_rsegs->x_lock();
-      m_rsegs->set_active();
-      m_rsegs->x_unlock();
-    } else if (m_rsegs->is_inactive_explicit()) {
-      m_rsegs->x_lock();
-      m_rsegs->set_inactive_implicit();
-      m_rsegs->x_unlock();
-    }
-  }
+  be used for new transactions.
+  If current State is ___ then do:
+  empty:            Set active.
+  active_implicit:  Ignore.  It was not altered inactive. When it is done
+                    being truncated it will go back to active.
+  active_explicit:  Depends if it is marked for truncation.
+    marked:         Set to inactive_implicit. the next state will be active.
+    not yet:        Set to active so that it does not get truncated.  */
+  void alter_active();
 
   /** Set the state of the undo tablespace to empty so that it
   can be dropped. */
