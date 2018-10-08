@@ -314,6 +314,10 @@ class Properties {
   void debug() const;
 #endif
 
+  Properties() = default;
+
+  Properties(const Properties &) = default;
+
   virtual ~Properties() {}
 };
 
