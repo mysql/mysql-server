@@ -559,6 +559,13 @@ class Group_member_info_manager_interface {
   virtual void add(Group_member_info *new_member) = 0;
 
   /**
+    Removes all members of the group and update new local member.
+
+    @param[in] update_local_member new Group member
+   */
+  virtual void update(Group_member_info *update_local_member) = 0;
+
+  /**
     Updates all members of the group. Typically used after a view change.
 
     @param[in] new_members new Group members
@@ -724,6 +731,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
       const Gcs_member_identifier &exclude_member);
 
   void add(Group_member_info *new_member);
+
+  void update(Group_member_info *update_local_member);
 
   void update(std::vector<Group_member_info *> *new_members);
 
