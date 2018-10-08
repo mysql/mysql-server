@@ -839,9 +839,11 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
       enforce_update_everywhere_checks_var, member_weight_var,
       gr_lower_case_table_names);
 
+  // Update membership info of member itself
+  if (group_member_mgr != NULL) group_member_mgr->update(local_member_info);
   // Create the membership info visible for the group
-  delete group_member_mgr;
-  group_member_mgr = new Group_member_info_manager(local_member_info);
+  else
+    group_member_mgr = new Group_member_info_manager(local_member_info);
   group_member_mgr_configured = true;
 
   LogPluginErr(

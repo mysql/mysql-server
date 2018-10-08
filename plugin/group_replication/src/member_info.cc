@@ -686,6 +686,17 @@ void Group_member_info_manager::add(Group_member_info *new_member) {
   mysql_mutex_unlock(&update_lock);
 }
 
+void Group_member_info_manager::update(Group_member_info *update_local_member) {
+  mysql_mutex_lock(&update_lock);
+
+  this->clear_members();
+  members->clear();
+  this->local_member_info = update_local_member;
+  (*members)[update_local_member->get_uuid()] = update_local_member;
+
+  mysql_mutex_unlock(&update_lock);
+}
+
 void Group_member_info_manager::update(
     vector<Group_member_info *> *new_members) {
   mysql_mutex_lock(&update_lock);
