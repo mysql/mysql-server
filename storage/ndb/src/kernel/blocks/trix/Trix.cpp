@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -928,7 +928,8 @@ void Trix::execSUB_SYNC_REF(Signal* signal)
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
-  buildFailed(signal, subRecPtr, BuildIndxRef::InternalError);
+  buildFailed(signal, subRecPtr,
+              (BuildIndxRef::ErrorCode)subSyncRef->errorCode);
   DBUG_VOID_RETURN;
 }
 
@@ -2734,7 +2735,8 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   ndbrequire(ah[3].getAttributeId() == 3 && kz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = 3 + MAX_INDEX_STAT_KEY_SIZE;
+  // avmax = other pk attributes + length + max index stat key size
+  const Uint32 avmax = 3 + 1 + MAX_INDEX_STAT_KEY_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);
@@ -2909,7 +2911,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   ndbrequire(kz != 0 && vz != 0);
 
   // AFTER_VALUES
-  const Uint32 avmax = MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
+  // avmax = length + max key size + length + max value size
+  const Uint32 avmax = 2 + MAX_INDEX_STAT_KEY_SIZE + MAX_INDEX_STAT_VALUE_SIZE;
   Uint32 av[avmax];
   SegmentedSectionPtr ptr1;
   handle.getSection(ptr1, SubTableData::AFTER_VALUES);

@@ -12910,17 +12910,27 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
 
 int ha_ndbcluster::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 {
-  int err;
-  if ((err= update_stats(thd, 1)) != 0)
-    return err;
-  const bool index_stat_enable= THDVAR(NULL, index_stat_enable) &&
-                                THDVAR(thd, index_stat_enable);
-  if (index_stat_enable)
+  DBUG_ENTER("ha_ndbcluster::analyze");
+
+  // update table partition statistics
+  int error = update_stats(thd, 1);
+
+  // analyze index if index stat is enabled
+  if (error == 0 &&
+      THDVAR(NULL, index_stat_enable) && THDVAR(thd, index_stat_enable))
   {
-    if ((err= analyze_index(thd)) != 0)
-      return err;
+    error = analyze_index(thd);
   }
-  return 0;
+
+  // handle any errors
+  if (error != 0)
+  {
+    // Push the ndb error into stack before returning
+    NdbError ndberr = (get_ndb(thd))->getNdbError(error);
+    ndb_my_error(&ndberr);
+    DBUG_RETURN(HA_ADMIN_FAILED);
+  }
+  DBUG_RETURN(0);
 }
 
 int
