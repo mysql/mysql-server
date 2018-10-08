@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -93,6 +93,7 @@ public:
    */
 
   enum {
+    InvalidKeySize = 911, // index has an unsupported key size
     NoSysTables = 4714,   // all sys tables missing
     NoIndexStats = 4715,  // given index has no stored stats
     UsageError = 4716,    // wrong state, invalid input
