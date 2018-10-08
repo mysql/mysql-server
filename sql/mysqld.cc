@@ -2928,16 +2928,27 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
   server_components_init_wait();
   for (;;) {
     int sig;
+    int rc;
+    bool error;
 #ifdef __APPLE__
-    while (sigwait(&set, &sig) == EINTR) {
+    while ((rc = sigwait(&set, &sig)) == EINTR) {
     }
+    error = rc != 0;
 #else
     siginfo_t sig_info;
-    while (sigwaitinfo(&set, &sig_info) == EINTR) {
+    while ((rc = sigwaitinfo(&set, &sig_info)) == -1 && errno == EINTR) {
     }
-    sig = sig_info.si_signo;
+    error = rc == -1;
+    if (!error) sig = sig_info.si_signo;
 #endif             // __APPLE__
-    if (cleanup_done) {
+    if (error)
+      sql_print_error(
+          "Fatal error in signal handling thread. sigwait/sigwaitinfo returned "
+          "error  %d\n. Exiting signal handler "
+          "thread.",
+          errno);
+
+    if (error || cleanup_done) {
       my_thread_end();
       my_thread_exit(0);  // Safety
       return NULL;        // Avoid compiler warnings
