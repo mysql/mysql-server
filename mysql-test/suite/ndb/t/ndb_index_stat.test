@@ -476,5 +476,49 @@ drop index idxcol on t1;
 --echo #cleanup
 drop table t1;
 
+--echo #
+--echo # Bug#27613173 - Undefined behaviour in mysqld when ndb_index_stat_sample values are corrupt
+--echo #
+
+--echo #setup
+create table t1 (a int auto_increment primary key, b int, key(b)) engine ndb;
+
+--echo #insert sufficient rows to create index stats
+--disable_query_log
+let $i = 100;
+while ($i)
+{
+  eval insert into t1 (b) values ($i);
+  dec $i;
+}
+--enable_query_log
+
+--echo #run analyze to create index stats
+analyze table test.t1;
+
+--echo #poison the index_stat_sample table
+update mysql.ndb_index_stat_sample set stat_value = repeat('T', 2000) limit 50;
+
+--echo #disconnect the mysqld from ndb to force it to reload the index stats
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 900 49"  >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 900 63"  >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 900 127" >> $NDB_TOOLS_OUTPUT
+
+--echo #wait for it to reconnect
+--source suite/ndb/include/ndb_wait_connected.inc
+
+--echo #run query to confirm that the invalid stats doesn't break mysqld
+--disable_result_log
+select * from information_schema.tables;
+--enable_result_log
+
+--echo #check if the error is properly logged in the mysqld error log
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
+--let SEARCH_PATTERN=\[NdbApi\] ERROR    -- ndb_index_stat key\/value has different length than expected
+--source include/search_pattern.inc
+
+--echo #cleanup
+drop table t1;
+
 set @is_enable = @is_enable_default;
 source ndb_index_stat_enable.inc;
