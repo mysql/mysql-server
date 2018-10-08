@@ -648,9 +648,8 @@ void Item::print_item_w_name(String *str, enum_query_type query_type) {
   print(str, query_type);
 
   if (item_name.is_set() && query_type != QT_NORMALIZED_FORMAT) {
-    THD *thd = current_thd;
     str->append(STRING_WITH_LEN(" AS "));
-    append_identifier(thd, str, item_name);
+    append_identifier(current_thd, str, item_name);
   }
 }
 
@@ -2566,7 +2565,7 @@ const char *Item_ident::full_name() const {
 void Item_ident::print(String *str, enum_query_type query_type,
                        const char *db_name_arg,
                        const char *table_name_arg) const {
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   const char *d_name = db_name_arg, *t_name = table_name_arg;
 

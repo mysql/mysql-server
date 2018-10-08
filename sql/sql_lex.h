@@ -481,7 +481,7 @@ class Index_hint {
     key_name.length = length;
   }
 
-  void print(THD *thd, String *str);
+  void print(const THD *thd, String *str);
 };
 
 /*
@@ -1465,7 +1465,7 @@ class SELECT_LEX {
 
   /// Setup the array containing references to base items
   bool setup_base_ref_items(THD *thd);
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the SELECT_LEX object.
@@ -1474,7 +1474,7 @@ class SELECT_LEX {
     @param      query_type   Options to print out string output
     @param[out] str          String of output.
   */
-  void print_select(THD *thd, String *str, enum_query_type query_type);
+  void print_select(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the UPDATE statement.
@@ -1483,7 +1483,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_update(THD *thd, String *str, enum_query_type query_type);
+  void print_update(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the DELETE statement.
@@ -1492,7 +1492,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_delete(THD *thd, String *str, enum_query_type query_type);
+  void print_delete(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of the INSERT statement.
@@ -1501,7 +1501,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_insert(THD *thd, String *str, enum_query_type query_type);
+  void print_insert(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print detail of Hints.
@@ -1510,7 +1510,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_hints(THD *thd, String *str, enum_query_type query_type);
+  void print_hints(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print error.
@@ -1522,7 +1522,7 @@ class SELECT_LEX {
     @retval false   If there is no error
     @retval true    else
   */
-  bool print_error(THD *thd, String *str);
+  bool print_error(const THD *thd, String *str);
 
   /**
     Print select options.
@@ -1560,7 +1560,8 @@ class SELECT_LEX {
     @param      table_list   TABLE_LIST object
     @param      query_type   Options to print out string output
   */
-  void print_table_references(THD *thd, String *str, TABLE_LIST *table_list,
+  void print_table_references(const THD *thd, String *str,
+                              TABLE_LIST *table_list,
                               enum_query_type query_type);
 
   /**
@@ -1606,7 +1607,8 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_from_clause(THD *thd, String *str, enum_query_type query_type);
+  void print_from_clause(const THD *thd, String *str,
+                         enum_query_type query_type);
 
   /**
     Print list of conditions in WHERE clause.
@@ -1639,7 +1641,7 @@ class SELECT_LEX {
     @param[out] str          String of output
     @param      query_type   Options to print out string output
   */
-  void print_windows(THD *thd, String *str, enum_query_type query_type);
+  void print_windows(const THD *thd, String *str, enum_query_type query_type);
 
   /**
     Print list of items in ORDER BY clause.
@@ -4322,7 +4324,7 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd);
 
 bool check_select_for_locking_clause(THD *);
 
-void print_derived_column_names(THD *thd, String *str,
+void print_derived_column_names(const THD *thd, String *str,
                                 const Create_col_name_list *column_names);
 
 /**

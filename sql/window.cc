@@ -1383,7 +1383,7 @@ void Window::print_frame(String *str, enum_query_type qt) const {
   print_border(str, f.m_to, qt);
 }
 
-void Window::print(THD *thd, String *str, enum_query_type qt,
+void Window::print(const THD *thd, String *str, enum_query_type qt,
                    bool expand_definition) const {
   if (m_name != nullptr && !expand_definition) {
     append_identifier(thd, str, m_name->item_name.ptr(),

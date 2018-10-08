@@ -53,7 +53,7 @@ bool migrate_events_to_dd(THD *thd);
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
 */
-bool build_event_sp(THD *thd, const char *name, size_t name_len,
+bool build_event_sp(const THD *thd, const char *name, size_t name_len,
                     const char *body, size_t body_len, dd::String_type *sp_sql);
 
 }  // namespace upgrade_57

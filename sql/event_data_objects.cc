@@ -911,7 +911,7 @@ static void append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
 
 */
 
-int Event_timed::get_create_event(THD *thd, String *buf) {
+int Event_timed::get_create_event(const THD *thd, String *buf) {
   char tmp_buf[2 * STRING_BUFFER_USUAL_SIZE];
   String expr_buf(tmp_buf, sizeof(tmp_buf), system_charset_info);
   expr_buf.length(0);

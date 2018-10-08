@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class PT_hint : public Parse_tree_node {
     @param thd             Pointer to THD object
     @param str             Pointer to String object
   */
-  virtual void append_args(THD *thd MY_ATTRIBUTE((unused)),
+  virtual void append_args(const THD *thd MY_ATTRIBUTE((unused)),
                            String *str MY_ATTRIBUTE((unused))) const {}
 };
 
@@ -157,7 +157,7 @@ class PT_qb_level_hint : public PT_hint {
     @param thd             Pointer to THD object
     @param str             Pointer to String object
   */
-  virtual void append_args(THD *thd, String *str) const;
+  virtual void append_args(const THD *thd, String *str) const;
   virtual Hint_param_table_list *get_table_list() { return &table_list; }
 };
 
@@ -221,8 +221,8 @@ class PT_key_level_hint : public PT_hint {
     @return  true in case of error,
              false otherwise
   */
-  virtual bool contextualize(Parse_context *pc) override;
-  void append_args(THD *thd, String *str) const override;
+  bool contextualize(Parse_context *pc) override;
+  void append_args(const THD *thd, String *str) const override;
 };
 
 /**
@@ -246,8 +246,8 @@ class PT_hint_qb_name : public PT_hint {
     @return  true in case of error,
              false otherwise
   */
-  virtual bool contextualize(Parse_context *pc);
-  virtual void append_args(THD *thd, String *str) const {
+  bool contextualize(Parse_context *pc) override;
+  void append_args(const THD *thd, String *str) const override {
     append_identifier(thd, str, qb_name.str, qb_name.length);
   }
 };
@@ -274,7 +274,7 @@ class PT_hint_max_execution_time : public PT_hint {
              false otherwise
   */
   virtual bool contextualize(Parse_context *pc);
-  virtual void append_args(THD *, String *str) const {
+  virtual void append_args(const THD *, String *str) const {
     str->append_ulonglong(milliseconds);
   }
 };
@@ -326,7 +326,7 @@ class PT_hint_resource_group : public PT_hint {
              false otherwise
   */
 
-  virtual bool contextualize(Parse_context *pc);
+  bool contextualize(Parse_context *pc) override;
 
   /**
     Append hint arguments to given string.
@@ -335,7 +335,7 @@ class PT_hint_resource_group : public PT_hint {
     @param str      Pointer to String object.
   */
 
-  virtual void append_args(THD *thd, String *str) const {
+  void append_args(const THD *thd, String *str) const override {
     append_identifier(thd, str, m_resource_group_name.str,
                       m_resource_group_name.length);
   }

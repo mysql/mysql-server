@@ -1370,7 +1370,7 @@ static bool add_part_col_vals(partition_info *part_info,
   return false;
 }
 
-static void collect_partition_expr(THD *thd, List<char> &field_list,
+static void collect_partition_expr(const THD *thd, List<char> &field_list,
                                    String *str) {
   List_iterator<char> part_it(field_list);
   ulong no_fields = field_list.elements;

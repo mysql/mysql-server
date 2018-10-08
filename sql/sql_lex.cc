@@ -1959,7 +1959,7 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str) {
    @param  column_names List to print, or NULL
 */
 
-void print_derived_column_names(THD *thd, String *str,
+void print_derived_column_names(const THD *thd, String *str,
                                 const Create_col_name_list *column_names) {
   if (!column_names) return;
   str->append(" (");
@@ -2596,7 +2596,7 @@ void SELECT_LEX::print_limit(String *str, enum_query_type query_type) {
   @param[out] str         appends the index hint here
 */
 
-void Index_hint::print(THD *thd, String *str) {
+void Index_hint::print(const THD *thd, String *str) {
   switch (type) {
     case INDEX_HINT_IGNORE:
       str->append(STRING_WITH_LEN("IGNORE INDEX"));
@@ -2636,7 +2636,8 @@ void Index_hint::print(THD *thd, String *str) {
 
 typedef Prealloced_array<TABLE_LIST *, 8> Table_array;
 
-static void print_table_array(THD *thd, String *str, const Table_array &tables,
+static void print_table_array(const THD *thd, String *str,
+                              const Table_array &tables,
                               enum_query_type query_type) {
   DBUG_ASSERT(!tables.empty());
 
@@ -2696,7 +2697,7 @@ static void print_table_array(THD *thd, String *str, const Table_array &tables,
   @param query_type    type of the query is being generated
 */
 
-static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables,
+static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
                        enum_query_type query_type) {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
@@ -2759,7 +2760,7 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd) {
   @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str,
+void TABLE_LIST::print(const THD *thd, String *str,
                        enum_query_type query_type) const {
   if (nested_join) {
     str->append('(');
@@ -2855,7 +2856,8 @@ void TABLE_LIST::print(THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type) {
+void SELECT_LEX::print(const THD *thd, String *str,
+                       enum_query_type query_type) {
   /* QQ: thd may not be set for sub queries, but this should be fixed */
   if (!thd) thd = current_thd;
 
@@ -2885,7 +2887,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type) {
     print_select(thd, str, query_type);
 }
 
-void SELECT_LEX::print_select(THD *thd, String *str,
+void SELECT_LEX::print_select(const THD *thd, String *str,
                               enum_query_type query_type) {
   if (query_type & QT_SHOW_SELECT_NUMBER) {
     /* it makes EXPLAIN's "id" column understandable */
@@ -2911,7 +2913,7 @@ void SELECT_LEX::print_select(THD *thd, String *str,
   // PROCEDURE unsupported here
 }
 
-void SELECT_LEX::print_update(THD *thd, String *str,
+void SELECT_LEX::print_update(const THD *thd, String *str,
                               enum_query_type query_type) {
   Sql_cmd_update *sql_cmd_update =
       (static_cast<Sql_cmd_update *>(parent_lex->m_sql_cmd));
@@ -2948,7 +2950,7 @@ void SELECT_LEX::print_update(THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_delete(THD *thd, String *str,
+void SELECT_LEX::print_delete(const THD *thd, String *str,
                               enum_query_type query_type) {
   str->append(STRING_WITH_LEN("delete "));
   print_hints(thd, str, query_type);
@@ -2980,7 +2982,7 @@ void SELECT_LEX::print_delete(THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_insert(THD *thd, String *str,
+void SELECT_LEX::print_insert(const THD *thd, String *str,
                               enum_query_type query_type) {
   /**
     USES: 'INSERT INTO table (fields) VALUES values' syntax over
@@ -3025,7 +3027,7 @@ void SELECT_LEX::print_insert(THD *thd, String *str,
   }
 }
 
-void SELECT_LEX::print_hints(THD *thd, String *str,
+void SELECT_LEX::print_hints(const THD *thd, String *str,
                              enum_query_type query_type) {
   if (thd->lex->opt_hints_global) {
     char buff[NAME_LEN];
@@ -3048,7 +3050,7 @@ void SELECT_LEX::print_hints(THD *thd, String *str,
   }
 }
 
-bool SELECT_LEX::print_error(THD *thd, String *str) {
+bool SELECT_LEX::print_error(const THD *thd, String *str) {
   if (thd->is_error()) {
     /*
       It is possible that this query block had an optimization error, but the
@@ -3116,7 +3118,7 @@ void SELECT_LEX::print_insert_options(String *str) {
   if (parent_lex->is_ignore()) str->append(STRING_WITH_LEN("ignore "));
 }
 
-void SELECT_LEX::print_table_references(THD *thd, String *str,
+void SELECT_LEX::print_table_references(const THD *thd, String *str,
                                         TABLE_LIST *table_list,
                                         enum_query_type query_type) {
   bool first = true;
@@ -3237,7 +3239,7 @@ void SELECT_LEX::print_insert_values(String *str, enum_query_type query_type) {
   }
 }
 
-void SELECT_LEX::print_from_clause(THD *thd, String *str,
+void SELECT_LEX::print_from_clause(const THD *thd, String *str,
                                    enum_query_type query_type) {
   /*
     from clause
@@ -3298,7 +3300,7 @@ void SELECT_LEX::print_having(String *str, enum_query_type query_type) {
   }
 }
 
-void SELECT_LEX::print_windows(THD *thd, String *str,
+void SELECT_LEX::print_windows(const THD *thd, String *str,
                                enum_query_type query_type) {
   List_iterator<Window> li(m_windows);
   Window *w;

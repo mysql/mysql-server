@@ -145,7 +145,7 @@ class Event_timed : public Event_queue_element {
   virtual bool fill_event_info(THD *thd, const dd::Event &event,
                                const char *schema_name);
 
-  int get_create_event(THD *thd, String *buf);
+  int get_create_event(const THD *thd, String *buf);
 
   Event_timed(const Event_timed &) = delete;
   void operator=(Event_timed &) = delete;

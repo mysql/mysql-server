@@ -1374,7 +1374,7 @@ class Window {
     return m_name->val_str(nullptr)->ptr();
   }
 
-  void print(THD *thd, String *str, enum_query_type qt,
+  void print(const THD *thd, String *str, enum_query_type qt,
              bool expand_definition) const;
 
   bool has_windowing_steps() const;

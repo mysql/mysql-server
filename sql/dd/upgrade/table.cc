@@ -780,8 +780,8 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
   @param[in]  view_name view name.
   @param[in]  cs        Charset Information.
 */
-static void create_alter_view_stmt(THD *thd, TABLE_LIST *view_ref, String *str,
-                                   const String_type &db_name,
+static void create_alter_view_stmt(const THD *thd, TABLE_LIST *view_ref,
+                                   String *str, const String_type &db_name,
                                    const String_type &view_name,
                                    const CHARSET_INFO *cs) {
   str->append(STRING_WITH_LEN("ALTER "));

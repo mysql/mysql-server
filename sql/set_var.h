@@ -351,7 +351,7 @@ class set_var_base {
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value
-  virtual void print(THD *thd, String *str) = 0;  ///< To self-print
+  virtual void print(const THD *thd, String *str) = 0;  ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -399,7 +399,7 @@ class set_var : public set_var_base {
     @param str String buffer to append the partial assignment to.
   */
   void print_short(String *str);
-  void print(THD *, String *str); /* To self-print */
+  void print(const THD *, String *str); /* To self-print */
   bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
@@ -420,7 +420,7 @@ class set_var_user : public set_var_base {
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* For SET PASSWORD */
@@ -438,7 +438,7 @@ class set_var_password : public set_var_base {
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* For SET NAMES and SET CHARACTER SET */
@@ -466,7 +466,7 @@ class set_var_collation_client : public set_var_base {
   int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str); /* To self-print */
+  void print(const THD *thd, String *str); /* To self-print */
 };
 
 /* optional things, have_* variables */

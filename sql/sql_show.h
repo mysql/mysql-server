@@ -147,7 +147,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname, HA_CREATE_INFO *create);
 void mysqld_list_processes(THD *thd, const char *user, bool verbose);
 bool mysqld_show_privileges(THD *thd);
 void calc_sum_of_all_status(System_status_var *to);
-void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
+void append_definer(const THD *thd, String *buffer,
+                    const LEX_CSTRING &definer_user,
                     const LEX_CSTRING &definer_host);
 int add_status_vars(const SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
@@ -158,7 +159,7 @@ bool get_status_var(THD *thd, SHOW_VAR *list, const char *name,
 void reset_status_vars();
 ulonglong get_status_vars_version(void);
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
-void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
+void view_store_options(const THD *thd, TABLE_LIST *table, String *buff);
 
 void init_fill_schema_files_row(TABLE *table);
 bool schema_table_store_record(THD *thd, TABLE *table);

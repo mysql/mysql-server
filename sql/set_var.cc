@@ -1136,7 +1136,7 @@ void set_var::print_short(String *str) {
 
   @param str String buffer to append the partial assignment to.
 */
-void set_var::print(THD *, String *str) {
+void set_var::print(const THD *, String *str) {
   switch (type) {
     case OPT_PERSIST:
       str->append("PERSIST ");
@@ -1210,7 +1210,7 @@ int set_var_user::update(THD *thd) {
   return 0;
 }
 
-void set_var_user::print(THD *, String *str) {
+void set_var_user::print(const THD *, String *str) {
   user_var_item->print_assignment(str, QT_ORDINARY);
 }
 
@@ -1257,7 +1257,7 @@ int set_var_password::update(THD *thd) {
              : 0;
 }
 
-void set_var_password::print(THD *thd, String *str) {
+void set_var_password::print(const THD *thd, String *str) {
   if (user->user.str != NULL && user->user.length > 0) {
     str->append(STRING_WITH_LEN("PASSWORD FOR "));
     append_identifier(thd, str, user->user.str, user->user.length);
@@ -1321,7 +1321,7 @@ int set_var_collation_client::update(THD *thd) {
   return 0;
 }
 
-void set_var_collation_client::print(THD *, String *str) {
+void set_var_collation_client::print(const THD *, String *str) {
   str->append((set_cs_flags & SET_CS_NAMES) ? "NAMES " : "CHARACTER SET ");
   if (set_cs_flags & SET_CS_DEFAULT)
     str->append("DEFAULT");

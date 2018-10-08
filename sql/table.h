@@ -2561,7 +2561,7 @@ struct TABLE_LIST {
   void cleanup_items();
 
   /// Produce a textual identification of this object
-  void print(THD *thd, String *str, enum_query_type query_type) const;
+  void print(const THD *thd, String *str, enum_query_type query_type) const;
 
   /// Check which single table inside a view that matches a table map
   bool check_single_table(TABLE_LIST **table_ref, table_map map);

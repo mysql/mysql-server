@@ -7000,7 +7000,7 @@ void Item_func_sp::cleanup() {
 }
 
 const char *Item_func_sp::func_name() const {
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   /* Calculate length to avoid reallocation of string for sure */
   size_t len =
       (((m_name->m_explicit_name ? m_name->m_db.length : 0) +

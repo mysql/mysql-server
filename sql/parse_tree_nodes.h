@@ -305,7 +305,7 @@ class PT_common_table_expr : public Parse_tree_node {
   bool is(const Common_table_expr *other) const {
     return other == &m_postparse;
   }
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
 
  private:
   LEX_STRING m_name;
@@ -395,7 +395,7 @@ class PT_with_clause : public Parse_tree_node {
   void leave_parsing_definition(const TABLE_LIST *old) {
     m_most_inner_in_parsing = old;
   }
-  void print(THD *thd, String *str, enum_query_type query_type);
+  void print(const THD *thd, String *str, enum_query_type query_type);
 
  private:
   /// All CTEs of this clause
@@ -858,7 +858,7 @@ class PT_table_locking_clause : public PT_locking_clause {
 
  private:
   /// @todo Move this function to Table_ident?
-  void print_table_ident(THD *thd, const Table_ident *ident, String *s) {
+  void print_table_ident(const THD *thd, const Table_ident *ident, String *s) {
     LEX_CSTRING db = ident->db;
     LEX_CSTRING table = ident->table;
     if (db.length > 0) {

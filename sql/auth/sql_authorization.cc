@@ -1222,7 +1222,7 @@ void get_table_access_map(ACL_USER *acl_user, Table_access_map *table_map) {
       ulong table_access = grant_table->privs;
       if ((table_access | grant_table->cols) != 0) {
         String q_name;
-        THD *thd = table_map->get_thd();
+        const THD *thd = table_map->get_thd();
         append_identifier(thd, &q_name, grant_table->db,
                           strlen(grant_table->db));
         q_name.append(".");
@@ -5562,7 +5562,7 @@ void get_granted_roles(LEX_USER *user, List_of_granted_roles *granted_roles) {
   @param thd The thread handler
   @param roles [out] A list of Role_id granted to the current user.
 */
-void get_active_roles(THD *thd, List_of_granted_roles *roles) {
+void get_active_roles(const THD *thd, List_of_granted_roles *roles) {
   /*
     We need the order of the current roles to stay consistent across platforms
     so we copy the list of active roles here and sort the list.
@@ -5582,7 +5582,7 @@ void get_active_roles(THD *thd, List_of_granted_roles *roles) {
   @returns pointer to a string with all active roles or "NONE" if none found
  */
 
-void func_current_role(THD *thd, String *active_role) {
+void func_current_role(const THD *thd, String *active_role) {
   List_of_granted_roles roles;
   get_active_roles(thd, &roles);
   if (roles.size() == 0) {

@@ -185,7 +185,8 @@ static void append_algorithm(TABLE_LIST *table, String *buff);
 
 static Item *make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
 
-static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
+static int view_store_create_info(const THD *thd, TABLE_LIST *table,
+                                  String *buff);
 
 /***************************************************************************
 ** List all table types supported
@@ -1766,7 +1767,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
   }
 }
 
-void view_store_options(THD *thd, TABLE_LIST *table, String *buff) {
+void view_store_options(const THD *thd, TABLE_LIST *table, String *buff) {
   append_algorithm(table, buff);
   append_definer(thd, buff, table->definer.user, table->definer.host);
   if (table->view_suid)
@@ -1808,7 +1809,8 @@ static void append_algorithm(TABLE_LIST *table, String *buff) {
   @param definer_host  host name part of definer
 */
 
-void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
+void append_definer(const THD *thd, String *buffer,
+                    const LEX_CSTRING &definer_user,
                     const LEX_CSTRING &definer_host) {
   buffer->append(STRING_WITH_LEN("DEFINER="));
   append_identifier(thd, buffer, definer_user.str, definer_user.length);
@@ -1817,7 +1819,8 @@ void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
   buffer->append(' ');
 }
 
-static int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff) {
+static int view_store_create_info(const THD *thd, TABLE_LIST *table,
+                                  String *buff) {
   bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
 
   // Print compact view name if the view belongs to the current database

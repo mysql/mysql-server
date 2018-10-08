@@ -822,7 +822,7 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 
 void update_mandatory_roles(void);
 bool check_authorization_id_string(const char *buffer, size_t length);
-void func_current_role(THD *thd, String *active_role);
+void func_current_role(const THD *thd, String *active_role);
 
 extern volatile uint32 global_password_history, global_password_reuse_interval;
 

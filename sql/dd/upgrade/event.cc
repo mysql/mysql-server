@@ -626,7 +626,7 @@ err:
 /**
   Helper function to create a stored procedure from an event body.
 */
-bool build_event_sp(THD *thd, const char *name, size_t name_len,
+bool build_event_sp(const THD *thd, const char *name, size_t name_len,
                     const char *body, size_t body_len,
                     dd::String_type *sp_sql) {
   const uint STATIC_SQL_LENGTH = 44;

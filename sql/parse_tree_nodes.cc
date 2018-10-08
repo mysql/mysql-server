@@ -1343,7 +1343,8 @@ PT_common_table_expr::PT_common_table_expr(
     m_name.length = my_casedn_str(files_charset_info, m_name.str);
 }
 
-void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
+void PT_with_clause::print(const THD *thd, String *str,
+                           enum_query_type query_type) {
   size_t len1 = str->length();
   str->append("with ");
   if (m_recursive) str->append("recursive ");
@@ -1361,7 +1362,7 @@ void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
     str->append(" ");
 }
 
-void PT_common_table_expr::print(THD *thd, String *str,
+void PT_common_table_expr::print(const THD *thd, String *str,
                                  enum_query_type query_type) {
   size_t len = str->length();
   append_identifier(thd, str, m_name.str, m_name.length);

@@ -1384,7 +1384,7 @@ int ha_myisammrg::create(const char *name, TABLE *, HA_CREATE_INFO *create_info,
 void ha_myisammrg::append_create_info(String *packet) {
   const char *current_db;
   size_t db_length;
-  THD *thd = current_thd;
+  const THD *thd = current_thd;
   TABLE_LIST *open_table, *first;
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED) {

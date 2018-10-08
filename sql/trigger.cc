@@ -430,7 +430,7 @@ bool Trigger::execute(THD *thd) {
 }
 
 bool Trigger::create_full_trigger_definition(
-    THD *thd, String *full_trg_definition) const {
+    const THD *thd, String *full_trg_definition) const {
   bool ret = full_trg_definition->append(STRING_WITH_LEN("CREATE "));
   append_definer(thd, full_trg_definition, get_definer_user(),
                  get_definer_host());

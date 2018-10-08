@@ -1650,8 +1650,8 @@ class Drop_tables_ctx {
   quoting and schema part if necessary.
 */
 
-static void append_table_ident(THD *thd, String *to, const TABLE_LIST *table,
-                               bool force_db) {
+static void append_table_ident(const THD *thd, String *to,
+                               const TABLE_LIST *table, bool force_db) {
   //  Don't write the database name if it is the current one.
   if (thd->db().str == NULL || strcmp(table->db, thd->db().str) != 0 ||
       force_db) {

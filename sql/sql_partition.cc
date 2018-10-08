@@ -1770,8 +1770,7 @@ static int add_part_field_list(File fptr, List<char> field_list) {
 
 static int add_ident_string(File fptr, const char *name) {
   String name_string("", 0, system_charset_info);
-  THD *thd = current_thd;
-  append_identifier(thd, &name_string, name, strlen(name));
+  append_identifier(current_thd, &name_string, name, strlen(name));
   return add_string_object(fptr, &name_string);
 }
 

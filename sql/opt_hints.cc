@@ -122,7 +122,7 @@ Opt_hints *Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
   return NULL;
 }
 
-void Opt_hints::print(THD *thd, String *str, enum_query_type query_type) {
+void Opt_hints::print(const THD *thd, String *str, enum_query_type query_type) {
   for (uint i = 0; i < MAX_HINT_ENUM; i++) {
     if (opt_hint_info[i].irregular_hint) continue;
     opt_hints_enum hint = static_cast<opt_hints_enum>(i);
@@ -187,8 +187,7 @@ PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   return NULL;
 }
 
-void Opt_hints_global::print_irregular_hints(THD *thd MY_ATTRIBUTE((unused)),
-                                             String *str) {
+void Opt_hints_global::print_irregular_hints(const THD *, String *str) {
   if (sys_var_hint) sys_var_hint->print(str);
 }
 
@@ -268,7 +267,7 @@ Item_exists_subselect::enum_exec_method Opt_hints_qb::subquery_strategy()
   return Item_exists_subselect::EXEC_UNSPECIFIED;
 }
 
-void Opt_hints_qb::print_irregular_hints(THD *thd, String *str) {
+void Opt_hints_qb::print_irregular_hints(const THD *thd, String *str) {
   /* Print join order hints */
   for (uint i = 0; i < join_order_hints.size(); i++) {
     if (join_order_hints_ignored & (1ULL << i)) continue;
@@ -765,7 +764,7 @@ bool hint_table_state(const THD *thd, const TABLE_LIST *table_list,
   return thd->optimizer_switch_flag(optimizer_switch);
 }
 
-void append_table_name(THD *thd, String *str, const LEX_CSTRING *qb_name,
+void append_table_name(const THD *thd, String *str, const LEX_CSTRING *qb_name,
                        const LEX_CSTRING *table_name) {
   /* Append table name */
   append_identifier(thd, str, table_name->str, table_name->length);

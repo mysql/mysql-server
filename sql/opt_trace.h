@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -979,7 +979,7 @@ class SELECT_LEX;
    @param  select_lex  query's parse tree
    @param  trace_object  Opt_trace_object to which the query will be added
 */
-void opt_trace_print_expanded_query(THD *thd, SELECT_LEX *select_lex,
+void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object);
 
 /**

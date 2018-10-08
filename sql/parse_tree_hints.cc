@@ -260,7 +260,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
   return false;
 }
 
-void PT_qb_level_hint::append_args(THD *thd, String *str) const {
+void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
   switch (type()) {
     case SEMIJOIN_HINT_ENUM: {
       int count = 0;
@@ -359,7 +359,7 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
   return false;
 }
 
-void PT_key_level_hint::append_args(THD *thd, String *str) const {
+void PT_key_level_hint::append_args(const THD *thd, String *str) const {
   if (type() == INDEX_MERGE_HINT_ENUM || type() == SKIP_SCAN_HINT_ENUM) {
     for (uint i = 0; i < key_list.size(); i++) {
       const LEX_CSTRING *key_name = &key_list.at(i);
