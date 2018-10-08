@@ -336,7 +336,6 @@ public:
     int desc_all(Uint32 cnt, Endian::Value from_endian);
     // getters
     Uint32 get_max_len() const;
-    Uint32 get_max_len4() const;
     Uint32 get_var_bytes() const;
     const void* get_full_buf() const;
     Uint32 get_full_len() const;
@@ -804,16 +803,6 @@ inline Uint32
 NdbPack::Data::get_max_len() const
 {
   return m_varBytes + m_spec.get_max_data_len(m_allNullable);
-}
-
-inline Uint32
-NdbPack::Data::get_max_len4() const
-{
-  Uint32 len4 = get_max_len();
-  len4 += 3;
-  len4 /= 4;
-  len4 *= 4;
-  return len4;
 }
 
 inline Uint32

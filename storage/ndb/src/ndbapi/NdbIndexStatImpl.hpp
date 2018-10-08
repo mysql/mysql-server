@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,8 +65,10 @@ public:
   NdbPack::Type* m_valueSpecBuf;
   NdbPack::Data m_keyData;
   NdbPack::Data m_valueData;
-  Uint8* m_keyDataBuf;
-  Uint8* m_valueDataBuf;
+  // full length buffers with 2 bytes for
+  // length bytes rounded up to nearest word
+  Uint8 m_keyDataBuf[((MaxKeyBytes + 2 + 3)/4) * 4];
+  Uint8 m_valueDataBuf[((MaxValueCBytes + 2 + 3)/4) * 4];
   Cache* m_cacheBuild;
   Cache* m_cacheQuery;
   Cache* m_cacheClean;
