@@ -7513,7 +7513,9 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
-  error|= mysql_bin_log.gtid_end_transaction(thd);
+
+  if (!error)
+    error = mysql_bin_log.gtid_end_transaction(thd);
 
   return error;
 }

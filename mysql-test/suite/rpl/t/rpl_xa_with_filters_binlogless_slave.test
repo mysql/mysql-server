@@ -78,13 +78,6 @@ if ($gtid_mode_value == 1)
 }
 
 #
-# Ensure that the transaction didn't get logged into the binary log
-#
---let $event_sequence= Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA COMMIT.*
---let $invert= 1
---source include/assert_binlog_events.inc
-
-#
 # Clear replication filters in order for the transaction to succeed.
 #
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
