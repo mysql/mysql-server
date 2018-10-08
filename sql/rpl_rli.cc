@@ -1288,12 +1288,15 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     */
     XID_STATE *xid_state = thd->get_transaction()->xid_state();
     if (!xid_state->has_state(XID_STATE::XA_NOTR)) {
-      DBUG_ASSERT(DBUG_EVALUATE_IF("simulate_commit_failure", 1,
-                                   xid_state->has_state(XID_STATE::XA_ACTIVE)));
+      DBUG_ASSERT(
+          DBUG_EVALUATE_IF("simulate_commit_failure", 1,
+                           xid_state->has_state(XID_STATE::XA_ACTIVE) ||
+                               xid_state->has_state(XID_STATE::XA_IDLE)));
 
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
+      thd->rpl_unflag_detached_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
