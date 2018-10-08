@@ -2445,6 +2445,10 @@ bool Dictionary_client::update(T *new_object) {
   // Make sure the object has a valid object id.
   DBUG_ASSERT(new_object->id() != INVALID_OBJECT_ID);
 
+  // Avoid updating DD object that modifies m_registry_uncommitted cache
+  // during attachable read-write transaction.
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
+
   // The new_object instance should not be present in the committed registry.
   Cache_element<typename T::Cache_partition> *element = NULL;
 
@@ -2525,6 +2529,11 @@ bool Dictionary_client::update(T *new_object) {
 template <typename T>
 void Dictionary_client::register_uncommitted_object(T *object) {
   Cache_element<typename T::Cache_partition> *element = nullptr;
+
+  // Avoid registering uncommitted object during attachable read-write
+  // transaction processing.
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
+
 #ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
