@@ -3179,11 +3179,46 @@ class Ndb_schema_event_handler {
 
   class Ndb_schema_op
   {
+    /*
+       Unpack arbitrary length varbinary field and return pointer to zero
+       terminated string allocated in current memory root.
+
+       @param field The field to unpack
+       @return pointer to string allocated in current MEM_ROOT
+    */
+    static char* unpack_varbinary(Field *field) {
+      /*
+        The Schema_dist_client will check the schema of the ndb_schema table
+        and will not send any commands unless the table fulfills requirements.
+        Thus this function assumes that the field is always a varbinary
+        (with at least 63 bytes length since that's the legacy min limit)
+      */
+      ndbcluster::ndbrequire(field->type() == MYSQL_TYPE_VARCHAR);
+      ndbcluster::ndbrequire(field->field_length >= 63);
+
+      // Calculate number of length bytes, this depends on fields max length
+      const uint length_bytes = HA_VARCHAR_PACKLENGTH(field->field_length);
+      ndbcluster::ndbrequire(length_bytes <= 2);
+
+      // Read length of the varbinary which is stored in the field
+      const uint varbinary_length =
+          length_bytes == 1 ? static_cast<uint>(*field->ptr) : uint2korr(field->ptr);
+      DBUG_PRINT("info", ("varbinary length: %u", varbinary_length));
+      // Check that varbinary length is not greater than fields max length
+      // (this would indicate that corrupted data has been written to table)
+      ndbcluster::ndbrequire(varbinary_length <= field->field_length);
+
+      const char *varbinary_start =
+          reinterpret_cast<const char *>(field->ptr + length_bytes);
+      return sql_strmake(varbinary_start, varbinary_length);
+    }
+
     // Unpack Ndb_schema_op from event_data pointer
     void unpack_event(const Ndb_event_data *event_data)
     {
       TABLE *table= event_data->shadow_table;
-      Field **field;
+      Field **field = table->field;
+
       /* unpack blob values */
       uchar* blobs_buffer= 0;
       uint blobs_buffer_size= 0;
@@ -3200,22 +3235,16 @@ class Ndb_schema_event_handler {
           DBUG_ASSERT(false);
         }
       }
-      /* db varchar 1 length uchar */
-      field= table->field;
-      db_length= *(uint8*)(*field)->ptr;
-      DBUG_ASSERT(db_length <= (*field)->field_length);
-      DBUG_ASSERT((*field)->field_length + 1 == sizeof(db));
-      memcpy(db, (*field)->ptr + 1, db_length);
-      db[db_length]= 0;
-      /* name varchar 1 length uchar */
+
+      /* db, varbinary */
+      db = unpack_varbinary(*field);
       field++;
-      name_length= *(uint8*)(*field)->ptr;
-      DBUG_ASSERT(name_length <= (*field)->field_length);
-      DBUG_ASSERT((*field)->field_length + 1 == sizeof(name));
-      memcpy(name, (*field)->ptr + 1, name_length);
-      name[name_length]= 0;
+
+      /* name, varbinary */
+      name = unpack_varbinary(*field);
+      field++;
+
       /* slock fixed length */
-      field++;
       slock_length= (*field)->field_length;
       DBUG_ASSERT((*field)->field_length == sizeof(slock_buf));
       memcpy(slock_buf, (*field)->ptr, slock_length);
@@ -3251,10 +3280,12 @@ class Ndb_schema_event_handler {
     }
 
   public:
-    uchar db_length;
-    char db[64];
-    uchar name_length;
-    char name[64];
+    // Note! The db, name and query variables point to memory allocated
+    // in the current MEM_ROOT. When the Ndb_schema_op is put in the list to be
+    // executed after epoch the pointer _values_ are copied and still
+    // point to same strings inside the MEM_ROOT.
+    char* db;
+    char* name;
     uchar slock_length;
     uint32 slock_buf[SCHEMA_SLOCK_SIZE/4];
     MY_BITMAP slock;
@@ -3281,7 +3312,7 @@ class Ndb_schema_event_handler {
                   schema_op->slock_buf, 8*SCHEMA_SLOCK_SIZE, false);
       schema_op->unpack_event(event_data);
       schema_op->any_value= any_value;
-      DBUG_PRINT("exit", ("%s.%s: query: '%s'  type: %d",
+      DBUG_PRINT("exit", ("'%s.%s': query: '%s' type: %d",
                           schema_op->db, schema_op->name,
                           schema_op->query,
                           schema_op->type));
