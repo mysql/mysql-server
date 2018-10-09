@@ -2285,13 +2285,10 @@ static bool validate_value_generator_expr(Item *expr, const char *column_name,
     my_error(err_code, MYF(0), column_name);
     DBUG_RETURN(true);
   }
-  // ROW values are not allowed
-  else if (expr->cols() != 1) {
-    err_code = is_gen_col ? ER_GENERATED_COLUMN_ROW_VALUE
-                          : ER_DEFAULT_VAL_GENERATED_ROW_VALUE;
-    my_error(err_code, MYF(0), column_name);
-    DBUG_RETURN(true);
-  }
+
+  // Assert that we aren't dealing with ROW values (rejected in
+  // pre_validate_value_generator_expr()).
+  DBUG_ASSERT(expr->cols() == 1);
 
   // Sub-queries are not allowed (already checked by parser, hence the assert)
   DBUG_ASSERT(!expr->has_subquery());
