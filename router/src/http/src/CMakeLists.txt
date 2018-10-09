@@ -83,6 +83,21 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_backend
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/
   PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../include/)
 
+ADD_HARNESS_PLUGIN(http_auth_realm
+  SOURCES
+  http_auth_realm_plugin.cc
+  http_auth_realm_component.cc
+  REQUIRES
+  http_auth_backend;router_lib
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+  )
+GENERATE_EXPORT_HEADER(http_auth_realm
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/http_auth_realm_export.h)
+TARGET_INCLUDE_DIRECTORIES(http_auth_realm
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../include/)
+
 
 ADD_HARNESS_PLUGIN(http_server
   NO_INSTALL
