@@ -124,13 +124,6 @@ bool Properties::get(const String_type &key, Value_type *value) const {
   return false;
 }
 
-#ifndef DBUG_OFF
-void Properties::debug() const {
-  for (auto &it : *this)
-    fprintf(stderr, "'%s' = '%s'\n", it.first.c_str(), it.second.c_str());
-}
-#endif
-
 // Doxygen gets confused by this.
 
 /**

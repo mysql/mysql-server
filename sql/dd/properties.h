@@ -71,12 +71,6 @@ namespace dd {
  */
 
 class Properties {
- private:
-  /**
-    Hide the assignment operator by declaring it private and deleted.
-  */
-  Properties &operator=(const Properties &) = delete;
-
  public:
   /**
     Convert a string to a value of an integral type. Verify correct
@@ -307,16 +301,11 @@ class Properties {
     return set(key, to_str(value));
   }
 
-/**
-  Write all key = value pairs to stderr.
-*/
-#ifndef DBUG_OFF
-  void debug() const;
-#endif
-
   Properties() = default;
 
   Properties(const Properties &) = default;
+
+  Properties &operator=(const Properties &) = delete;
 
   virtual ~Properties() {}
 };
