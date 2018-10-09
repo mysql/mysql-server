@@ -5,6 +5,7 @@
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.explain_for_connection_rqg_json @linux # Bug#20697533 2015-03-13 anitha Fails several times each day on linux platforms
 main.explain_for_connection_rqg_trad @linux # Bug#20697533 2015-03-20 erlend Fails several times each day on linux platforms
+main.internal_tmp_disk_storage_engine       # Bug#19372763 2018-10-08 msundell Fails for 5.7
 
 innodb.log_file @windows                 # Bug#19363615 2014-08-22 erlend innodb.log_file fails sporadically on PB2
 innodb.log_file_name                     # Bug#19442959 2014-08-14 marko calling exit() trips ut_ad(!m_freed)
@@ -21,6 +22,8 @@ rpl.rpl_perfschema_applier_status        # Bug#2008336 2014-11-27 agopi Failure 
 perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails several times each day in PB2 
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
 rpl.rpl_gtid_stress_failover             # Bug#16409537 2014-09-18 Shiv Fails often on weekly and daily trunk branches
+
+sysschema.v_wait_classes_global_by_avg_latency # Bug#21550054 2018-10-08 msundell Fails for 5.7
 
 interactive_utilities.mysql_secure_installation     #Bug19077239 2014-09-18 Sneha Fails often on daily trunk branches
 interactive_utilities.mysql_secure_installation_ssl     #Bug19077239 2014-09-18 Sneha Fails often on daily trunk branches
