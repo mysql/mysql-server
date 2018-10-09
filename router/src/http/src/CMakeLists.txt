@@ -24,20 +24,33 @@ ADD_LIBRARY(http_common
   SHARED
   http_common.cc
   http_time.cc
+  tls_error.cc
   )
 TARGET_LINK_LIBRARIES(http_common
   ${LIBEVENT_LIBRARIES})
 
 SET_TARGET_PROPERTIES(http_common PROPERTIES
+  OUTPUT_NAME "mysqlrouter_http"
+  SOVERSION 1
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
+INSTALL(TARGETS http_common
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
+  COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
+  COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
+  COMPONENT Router)
+
 ADD_HARNESS_PLUGIN(http_server
   NO_INSTALL
-  SOURCES http_server_plugin.cc
-  static_files.cc
+  SOURCES
   http_server_component.cc
-  REQUIRES router_lib;http_common;${LIBRT})
+  http_server_plugin.cc
+  static_files.cc
+  tls_server_context.cc
+  REQUIRES router_lib;http_common;${LIBRT};${LIBEVENT_OPENSSL})
 
 ADD_LIBRARY(http_client
   SHARED
@@ -46,6 +59,7 @@ ADD_LIBRARY(http_client
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT_LIBRARIES}
+  ${LIBEVENT_OPENSSL}
   ${LIBRT}
   http_common)
 
@@ -62,8 +76,8 @@ IF(WIN32)
 
    ADD_CUSTOM_COMMAND(TARGET http_common POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/http_common.dll"
-    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/http_common.dll"
+    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/mysqlrouter_http.dll"
+    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/mysqlrouter_http.dll"
    )
 ENDIF()
 

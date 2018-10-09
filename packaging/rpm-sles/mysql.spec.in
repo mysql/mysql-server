@@ -741,6 +741,7 @@ rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 # remove some unwanted router files
 rm -rf %{buildroot}/%{_libdir}/libmysqlharness.{a,so}
 rm -rf %{buildroot}/%{_libdir}/libmysqlrouter.so
+rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -1404,6 +1405,7 @@ fi
 %endif
 %{_libdir}/libmysqlharness.so.*
 %{_libdir}/libmysqlrouter.so.*
+%{_libdir}/libmysqlrouter_http.so.*
 %dir %{_libdir}/mysqlrouter
 %{_libdir}/mysqlrouter/*.so
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter

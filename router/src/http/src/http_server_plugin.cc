@@ -35,6 +35,8 @@
 #include <sys/types.h>
 
 #include <event2/buffer.h>
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_ssl.h>
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/listener.h>
@@ -51,6 +53,7 @@
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
+#include "tls_server_context.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -160,25 +163,48 @@ void HttpRequestThread::wait_and_dispatch() {
 
 class HttpRequestMainThread : public HttpRequestThread {
  public:
-  HttpRequestMainThread(const char *address, uint16_t port)
-      : address_(address), port_(port) {
+  void bind(const std::string &address, uint16_t port) {
     auto *handle =
-        evhttp_bind_socket_with_handle(ev_http.get(), address_.c_str(), port_);
+        evhttp_bind_socket_with_handle(ev_http.get(), address.c_str(), port);
     if (nullptr == handle) {
       throw std::runtime_error("binding socket failed ...");
     }
     accept_fd_ = evhttp_bound_socket_get_fd(handle);
   }
+};
 
- private:
-  std::string address_;
-  uint16_t port_;
+class HttpsRequestMainThread : public HttpRequestMainThread {
+ public:
+  HttpsRequestMainThread(SSL_CTX *ssl_ctx) {
+    evhttp_set_bevcb(ev_http.get(),
+                     [](struct event_base *base, void *arg) {
+                       return bufferevent_openssl_socket_new(
+                           base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
+                           BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+                     },
+                     ssl_ctx);
+  }
 };
 
 class HttpRequestWorkerThread : public HttpRequestThread {
  public:
   explicit HttpRequestWorkerThread(harness_socket_t accept_fd) {
     accept_fd_ = accept_fd;
+  }
+};
+
+class HttpsRequestWorkerThread : public HttpRequestWorkerThread {
+ public:
+  explicit HttpsRequestWorkerThread(harness_socket_t accept_fd,
+                                    SSL_CTX *ssl_ctx)
+      : HttpRequestWorkerThread(accept_fd) {
+    evhttp_set_bevcb(ev_http.get(),
+                     [](struct event_base *base, void *arg) {
+                       return bufferevent_openssl_socket_new(
+                           base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
+                           BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+                     },
+                     ssl_ctx);
   }
 };
 
@@ -191,11 +217,54 @@ void HttpServer::join_all() {
 }
 
 void HttpServer::start(size_t max_threads) {
-  thread_contexts_.emplace_back(HttpRequestMainThread(address_.c_str(), port_));
+  {
+    auto main_thread = HttpRequestMainThread();
+    main_thread.bind(address_, port_);
+    thread_contexts_.emplace_back(std::move(main_thread));
+  }
 
   harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
   for (size_t ndx = 1; ndx < max_threads; ndx++) {
     thread_contexts_.emplace_back(HttpRequestWorkerThread(accept_fd));
+  }
+
+  for (size_t ndx = 0; ndx < max_threads; ndx++) {
+    auto &thr = thread_contexts_[ndx];
+
+    sys_threads_.emplace_back([&]() {
+      mysql_harness::rename_thread("HttpSrv Worker");
+
+      thr.set_request_router(request_router_);
+      thr.accept_socket();
+      thr.wait_and_dispatch();
+    });
+  }
+}
+
+class HttpsServer : public HttpServer {
+ public:
+  HttpsServer(const std::string &address, uint16_t port,
+              const std::string &cert_file, const std::string &key_file,
+              const std::string &ciphers, const std::string &dh_params)
+      : HttpServer(address.c_str(), port),
+        ssl_ctx_{cert_file, key_file, ciphers, dh_params} {}
+  void start(size_t max_threads) override;
+
+ private:
+  TlsServerContext ssl_ctx_;
+};
+
+void HttpsServer::start(size_t max_threads) {
+  {
+    auto main_thread = HttpsRequestMainThread(ssl_ctx_.get());
+    main_thread.bind(address_, port_);
+    thread_contexts_.emplace_back(std::move(main_thread));
+  }
+
+  harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
+  for (size_t ndx = 1; ndx < max_threads; ndx++) {
+    thread_contexts_.emplace_back(
+        HttpsRequestWorkerThread(accept_fd, ssl_ctx_.get()));
   }
 
   for (size_t ndx = 0; ndx < max_threads; ndx++) {
@@ -234,18 +303,41 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string static_basedir;
   std::string srv_address;
+  std::string ssl_cert;
+  std::string ssl_key;
+  std::string ssl_cipher;
+  std::string ssl_dh_params;
+  bool with_ssl;
   uint16_t srv_port;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
       : mysqlrouter::BasePluginConfig(section),
         static_basedir(get_option_string(section, "static_folder")),
         srv_address(get_option_string(section, "bind_address")),
+        ssl_cert(get_option_string(section, "ssl_cert")),
+        ssl_key(get_option_string(section, "ssl_key")),
+        ssl_cipher(get_option_string(section, "ssl_cipher")),
+        ssl_dh_params(get_option_string(section, "ssl_dh_param")),
+        with_ssl(get_uint_option<bool>(section, "ssl")),
         srv_port(get_uint_option<uint16_t>(section, "port")) {}
+
+  std::string get_default_ciphers() const {
+    std::string out;
+    for (const auto &s : Tls::get_default_ciphers()) {
+      if (!out.empty()) out += ":";
+
+      out += s;
+    }
+
+    return out;
+  }
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
         {"bind_address", "0.0.0.0"},
         {"port", "5555"},
+        {"ssl", "0"},
+        {"ssl_cipher", get_default_ciphers()},
     };
 
     auto it = defaults.find(option);
@@ -260,6 +352,20 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   }
 };
 static std::map<std::string, std::shared_ptr<HttpServer>> http_servers;
+
+class HttpServerFactory {
+ public:
+  static std::shared_ptr<HttpServer> create(const PluginConfig &config) {
+    if (config.with_ssl) {
+      return std::make_shared<HttpsServer>(
+          config.srv_address, config.srv_port, config.ssl_cert, config.ssl_key,
+          config.ssl_cipher, config.ssl_dh_params);
+    } else {
+      return std::make_shared<HttpServer>(config.srv_address.c_str(),
+                                          config.srv_port);
+    }
+  }
+};
 
 static void init(PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
@@ -290,9 +396,8 @@ static void init(PluginFuncEnv *env) {
       log_info("listening on %s:%u", config.srv_address.c_str(),
                config.srv_port);
 
-      http_servers.emplace(std::make_pair(
-          section->name, std::make_shared<HttpServer>(
-                             config.srv_address.c_str(), config.srv_port)));
+      http_servers.emplace(
+          std::make_pair(section->name, HttpServerFactory::create(config)));
 
       auto srv = http_servers.at(section->name);
       HttpServerComponent::get_instance().init(srv);

@@ -23,6 +23,8 @@
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
   SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
   SET(LIBEVENT_LIBRARIES  event)
+  ## openssl is in the 'libevent.a' static lib
+  SET(LIBEVENT_OPENSSL )
   SET(LIBEVENT_INCLUDE_DIRS
     "${CMAKE_SOURCE_DIR}/extra/libevent/include"
     "${CMAKE_BINARY_DIR}/extra/libevent/include")
@@ -69,6 +71,9 @@ MACRO (MYSQL_CHECK_LIBEVENT)
     ## libevent.so is historical, use libevent_core.so if found.
     FIND_LIBRARY(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
     FIND_LIBRARY(LIBEVENT_EXTRA event_extra PATHS ${LIBEVENT_LIB_PATHS})
+
+    ## libevent_openssl.so is split out on Linux distros
+    FIND_LIBRARY(LIBEVENT_OPENSSL event_openssl PATHS ${LIBEVENT_LIB_PATHS})
     FIND_LIBRARY(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
     if (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)

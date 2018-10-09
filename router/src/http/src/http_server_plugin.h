@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -117,14 +117,16 @@ class HttpServer {
 
   void join_all();
 
-  ~HttpServer() { join_all(); }
+  virtual ~HttpServer() { join_all(); }
 
-  void start(size_t max_threads);
+  virtual void start(size_t max_threads);
   void add_route(const std::string &url_regex,
                  std::unique_ptr<BaseRequestHandler> cb);
   void remove_route(const std::string &url_regex);
 
- private:
+  HttpRequestRouter &request_router() { return request_router_; }
+
+ protected:
   std::vector<HttpRequestThread> thread_contexts_;
   std::string address_;
   uint16_t port_;
