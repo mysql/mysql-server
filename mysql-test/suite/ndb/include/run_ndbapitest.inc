@@ -21,7 +21,8 @@ my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $F = IO::File->new("$vardir/tmp/run_ndbapitest_result.inc", "w") or die;
 unless($test_bin)
 {
-  print $F "skip Could not find $name;\n";
+  print $F "--let \$skip_test = 1\n";
+  print $F "--let \$skip_reason = skip Could not find $name\n";
   exit(0);
 }
 
@@ -33,14 +34,11 @@ if ($ENV{'MYSQL_TMP_DIR'})
 my $cmd = $test_bin;
 $cmd .= " $args" if $args;
 my $res = exec_print_on_error($cmd, $max_lines);
-if ($res)
+if (!$res)
 {
-  # Test program suceeded
-  print $F "exit;\n";
-  exit(0);
-}
-else
-{
+  # No need to remove run_ndbapitest_result.inc when test case dies. Because,
+  # when it dies MTR fails and returns without executing check-testcase.test.
+
   print $F "die Test program failed!;\n";
 }
 $F->close(); 
@@ -53,3 +51,14 @@ if ($NDBAPITEST_CLEANUP_QUERY != '')
 }
 
 --source $MYSQLTEST_VARDIR/tmp/run_ndbapitest_result.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/run_ndbapitest_result.inc
+
+# When we --source run_ndbapitest_result.inc, if test is skipped,
+# test case will return immediately and will not execute other commands
+# after --source. So, remove file will not get executed and check test
+# case will fail. Hence, moving --skip outside run_ndbapitest_result.inc.
+
+if ($skip_test)
+{
+  --skip $skip_reason
+}

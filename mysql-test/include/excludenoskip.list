@@ -65,8 +65,7 @@ have_ndb_error_insert.inc
 have_ndbapi_examples.inc
 have_ndb_debug.inc
 have_ndb_rqg.inc
-# Generated in var/tmp/ by run_ndbapitest.inc and then sourced
-run_ndbapitest_result.inc
+run_ndbapitest.inc
 
 # Java related var/tmp generated include files
 have_clusterj_result.inc
