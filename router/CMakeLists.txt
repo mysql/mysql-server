@@ -111,6 +111,7 @@ INCLUDE(${CMAKE_SOURCE_DIR}/cmake/install_layout.cmake)
 INCLUDE(cmake/configure.cmake)
 INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
+INCLUDE(cmake/fuzzer.cmake)
 
 # Set the proper paths for the mysqlclient library
 SET(MySQL_CLIENT_LIB mysqlclient)
