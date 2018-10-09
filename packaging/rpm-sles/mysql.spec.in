@@ -1396,6 +1396,7 @@ fi
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
 %if 0%{?systemd}
 %{_unitdir}/mysqlrouter.service

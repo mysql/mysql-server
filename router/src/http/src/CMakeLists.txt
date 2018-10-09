@@ -145,6 +145,19 @@ TARGET_LINK_LIBRARIES(rest_cli
   harness-library
   http_client ${CMAKE_THREAD_LIBS_INIT})
 
+MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
+  passwd_cli.cc
+  passwd.cc
+  COMPONENT Router
+  )
+ADD_DEPENDENCIES(mysqlrouter_all mysqlrouter_passwd)
+TARGET_LINK_LIBRARIES(mysqlrouter_passwd
+  harness-library
+  router_lib
+  http_auth_backend_lib mysys)
+SET_PROPERTY(TARGET mysqlrouter_passwd PROPERTY INSTALL_RPATH "${ROUTER_INSTALL_RPATH}")
+
+
 INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}/;${LIBEVENT_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)

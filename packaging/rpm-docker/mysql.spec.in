@@ -205,7 +205,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
          perror lz4_decompress \
-         zlib_decompress mysqlrouter mysqlrouter_plugin_info ; do
+         zlib_decompress mysqlrouter mysqlrouter_plugin_info mysqlrouter_passwd; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 

@@ -30,7 +30,7 @@ ENDMACRO()
 
 FUNCTION(add_test_file FILE)
   SET(one_value_args MODULE LABEL ENVIRONMENT)
-  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS DEPENDS)
+  SET(multi_value_args LIB_DEPENDS INCLUDE_DIRS SYSTEM_INCLUDE_DIRS DEPENDS EXTRA_SOURCES)
   cmake_parse_arguments(TEST "" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
   IF(NOT TEST_MODULE)
@@ -47,7 +47,7 @@ FUNCTION(add_test_file FILE)
     ROUTERTEST_GET_TARGET(test_target ${FILE} ${TEST_MODULE})
 
     SET(test_name "${test_target}")
-    MYSQL_ADD_EXECUTABLE(${test_target} ${FILE} ADD_TEST ${test_name})
+    MYSQL_ADD_EXECUTABLE(${test_target} ${FILE} ${TEST_EXTRA_SOURCES} ADD_TEST ${test_name})
 
     IF(MYSQL_ROUTER_BUILD_ALL_TARGET)
       ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} ${test_target})

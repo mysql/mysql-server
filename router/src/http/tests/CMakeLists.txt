@@ -57,3 +57,9 @@ add_test_file(test_kdf_pbkdf2.cc
   MODULE http
   LIB_DEPENDS http_auth_backend_lib
   )
+
+add_test_file(test_passwd.cc
+  MODULE http
+  LIB_DEPENDS http_auth_backend_lib
+  EXTRA_SOURCES ../src/passwd.cc
+  )

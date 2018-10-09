@@ -29,8 +29,14 @@
 
 #include <numeric>  // accumulate
 #include <string>
+#include <vector>
 
 namespace mysql_harness {
+namespace utility {
+std::vector<std::string> HARNESS_EXPORT wrap_string(const std::string &to_wrap,
+                                                    std::size_t width,
+                                                    std::size_t indent_size);
+}
 
 namespace detail {
 template <class Container, class T>
