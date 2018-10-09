@@ -29,6 +29,8 @@ using std::vector;
 
 namespace gcs_xcom_networking_unittest {
 
+void clean_sock_probe(sock_probe *s) { free(s); }
+
 class mock_gcs_sock_probe_interface : public Gcs_sock_probe_interface {
  public:
   MOCK_METHOD1(init_sock_probe, int(sock_probe *s));
@@ -40,12 +42,18 @@ class mock_gcs_sock_probe_interface : public Gcs_sock_probe_interface {
   MOCK_METHOD2(get_if_name, char *(sock_probe *s, int count));
   MOCK_METHOD2(is_if_running, bool_t(sock_probe *s, int count));
   MOCK_METHOD1(close_sock_probe, void(sock_probe *s));
+
+  void mock_gcs_sock_probe_interface_default() {
+    ON_CALL(*this, close_sock_probe(_)).WillByDefault(Invoke(clean_sock_probe));
+  }
 };
 
 class GcsXComNetworking : public GcsBaseTest {
  protected:
   GcsXComNetworking() : m_sock_probe_mock() {}
   ~GcsXComNetworking() {}
+
+  void SetUp() { m_sock_probe_mock.mock_gcs_sock_probe_interface_default(); }
 
   mock_gcs_sock_probe_interface m_sock_probe_mock;
 };

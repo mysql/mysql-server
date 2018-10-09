@@ -50,6 +50,7 @@ TEST_F(GcsXComXCom, XcomSendClientAppDataUpgradeScenario) {
   result = are_we_allowed_to_upgrade_to_v6(&a);
 
   ASSERT_EQ(result, 1);
+  delete_node_address(1, na);
 }
 
 TEST_F(GcsXComXCom, XcomSendClientAppDataUpgradeScenarioV6) {
@@ -67,6 +68,8 @@ TEST_F(GcsXComXCom, XcomSendClientAppDataUpgradeScenarioV6) {
   result = are_we_allowed_to_upgrade_to_v6(&a);
 
   ASSERT_EQ(result, 0);
+
+  delete_node_address(1, na);
 }
 
 TEST_F(GcsXComXCom, XcomSendClientAppDataUpgradeScenarioMalformed) {
@@ -84,6 +87,8 @@ TEST_F(GcsXComXCom, XcomSendClientAppDataUpgradeScenarioMalformed) {
   result = are_we_allowed_to_upgrade_to_v6(&a);
 
   ASSERT_EQ(result, 0);
+
+  delete_node_address(1, na);
 }
 
 TEST_F(GcsXComXCom, XcomNewClientEligibleDowngradeScenario) {
@@ -92,13 +97,16 @@ TEST_F(GcsXComXCom, XcomNewClientEligibleDowngradeScenario) {
   char *names[] = {const_cast<char *>(address.c_str())};
   node_address *na = new_node_address(1, names);
 
-  site_def sd;
-  init_site_def(1, na, &sd);
+  site_def *sd = new_site_def();
+  init_site_def(1, na, sd);
 
   xcom_proto incoming = x_1_4;
-  int result = is_new_node_eligible_for_ipv6(incoming, &sd);
+  int result = is_new_node_eligible_for_ipv6(incoming, sd);
 
   ASSERT_EQ(result, 0);
+
+  free_site_def(sd);
+  delete_node_address(1, na);
 }
 
 TEST_F(GcsXComXCom, XcomNewClientEligibleDowngradeScenarioFail) {
@@ -107,13 +115,16 @@ TEST_F(GcsXComXCom, XcomNewClientEligibleDowngradeScenarioFail) {
   char *names[] = {const_cast<char *>(address.c_str())};
   node_address *na = new_node_address(1, names);
 
-  site_def sd;
-  init_site_def(1, na, &sd);
+  site_def *sd = new_site_def();
+  init_site_def(1, na, sd);
 
   xcom_proto incoming = x_1_4;
-  int result = is_new_node_eligible_for_ipv6(incoming, &sd);
+  int result = is_new_node_eligible_for_ipv6(incoming, sd);
 
   ASSERT_EQ(result, 1);
+
+  free_site_def(sd);
+  delete_node_address(1, na);
 }
 
 TEST_F(GcsXComXCom, XcomNewClientEligibleDowngradeScenarioNullSiteDef) {
