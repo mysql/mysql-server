@@ -1968,11 +1968,14 @@ class PT_subquery : public Parse_tree_node {
     pc->select->n_child_sum_items += child->n_sum_items;
 
     /*
-      A subquery can add columns to an outer query block. Reserve space for
-      them.
+      A subquery (and all the subsequent query blocks in a UNION) can add
+      columns to an outer query block. Reserve space for them.
     */
-    pc->select->select_n_where_fields += child->select_n_where_fields;
-    pc->select->select_n_having_items += child->select_n_having_items;
+    for (SELECT_LEX *temp = child; temp != nullptr;
+         temp = temp->next_select()) {
+      pc->select->select_n_where_fields += temp->select_n_where_fields;
+      pc->select->select_n_having_items += temp->select_n_having_items;
+    }
 
     return false;
   }
