@@ -71,13 +71,9 @@ namespace dd {
  */
 
 class Properties {
- private:
-  /**
-    Hide the assignment operator by declaring it private and deleted.
-  */
+ public:
   Properties &operator=(const Properties &) = delete;
 
- public:
   /**
     Convert a string to a value of an integral type. Verify correct
     sign, check for overflow and conversion errors.
@@ -306,13 +302,6 @@ class Properties {
   bool set(const String_type &key, Value_type value) {
     return set(key, to_str(value));
   }
-
-/**
-  Write all key = value pairs to stderr.
-*/
-#ifndef DBUG_OFF
-  void debug() const;
-#endif
 
   virtual ~Properties() {}
 };
