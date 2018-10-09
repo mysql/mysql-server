@@ -712,3 +712,8 @@ ERROR HY000: Expression of functional index 'functional_index' contains a disall
 CREATE TABLE t2 (y INT, KEY (((SELECT 1 FROM t1))));
 ERROR HY000: Expression of functional index 'functional_index' contains a disallowed function.
 DROP TABLE t1;
+#
+# Bug#28643252	ASSERT FAILURE WHEN FUNCTIONAL INDEX EXPRESSION IS A LIST
+#
+CREATE TABLE t (j JSON, KEY k (((j,j))));
+ERROR HY000: Expression of functional index 'k' cannot refer to a row value.

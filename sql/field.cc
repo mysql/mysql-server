@@ -1111,6 +1111,14 @@ static enum_field_types field_types_merge_rules[FIELDTYPE_NUM][FIELDTYPE_NUM] =
 bool pre_validate_value_generator_expr(Item *expression,
                                        const char *column_name,
                                        bool is_gen_col) {
+  // ROW values are not allowed
+  if (expression->cols() != 1) {
+    const int err_code = is_gen_col ? ER_GENERATED_COLUMN_ROW_VALUE
+                                    : ER_DEFAULT_VAL_GENERATED_ROW_VALUE;
+    my_error(err_code, MYF(0), column_name);
+    return true;
+  }
+
   const int error_code =
       is_gen_col ? ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED
                  : ER_DEFAULT_VAL_GENERATED_NAMED_FUNCTION_IS_NOT_ALLOWED;

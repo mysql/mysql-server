@@ -8733,6 +8733,9 @@ ER_GRP_TRX_CONSISTENCY_AFTER_ON_TRX_BEGIN
 ER_GRP_TRX_CONSISTENCY_BEGIN_NOT_ALLOWED
   eng "The Group Replication plugin is stopping, therefore new transactions are not allowed to start."
 
+ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED
+  eng "Expression of functional index '%s' cannot refer to a row value."
+
 #
 #  End of 8.0 error messages.
 #

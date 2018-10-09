@@ -353,6 +353,11 @@ bool Functional_index_error_handler::handle_condition(
       }
       return false;
     }
+    case ER_GENERATED_COLUMN_ROW_VALUE: {
+      my_error(ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED, MYF(0),
+               m_functional_index_name.c_str());
+      return true;
+    }
     default: {
       // Do nothing
       return false;
