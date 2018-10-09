@@ -1100,8 +1100,8 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
                      __LINE__);
     RUN_HOOK(transaction, trans_begin, (thd, ret));
     THD_STAGE_INFO(thd, old_stage);
-    if (sql_command == SQLCOM_BEGIN ||
-        thd->in_active_multi_stmt_transaction()) {
+    if (!ret && (sql_command == SQLCOM_BEGIN ||
+                 thd->in_active_multi_stmt_transaction())) {
       thd->get_transaction()->set_trans_begin_hook_invoked();
     }
   }
