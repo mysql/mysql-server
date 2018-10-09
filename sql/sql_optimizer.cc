@@ -88,7 +88,6 @@
 #include "sql/sql_tmp_table.h"    // get_max_key_and_part_length
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "sql_string.h"
 
@@ -1054,7 +1053,7 @@ int JOIN::replace_index_subquery() {
     first_qep_tab->table()->set_keyread(true);
   }
 
-  engine = new (*THR_MALLOC) subselect_indexsubquery_engine(
+  engine = new (thd->mem_root) subselect_indexsubquery_engine(
       first_qep_tab, unit->item, first_qep_tab->condition(), having_cond);
 
   if (!unit->item->change_engine(engine))
@@ -3843,7 +3842,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     else if (cond_type == Item::FUNC_ITEM &&
              down_cast<Item_func *>(cond)->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
-      cond_equal = new (*THR_MALLOC) COND_EQUAL;
+      cond_equal = new (thd->mem_root) COND_EQUAL;
       if (cond_equal == NULL) return true;
       cond_equal->current_level.push_back(down_cast<Item_equal *>(cond));
     }

@@ -121,7 +121,7 @@
 #include "sql/system_variables.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
-#include "sql/thr_malloc.h"
+#include "sql/thd_raii.h"
 #include "sql/trigger.h"  // Trigger
 #include "sql/tztime.h"   // Time_zone
 #include "template_utils.h"
@@ -406,124 +406,78 @@ bool mysqld_show_privileges(THD *thd) {
   DBUG_RETURN(false);
 }
 
-/*
-  find_files() - find files in a given directory.
+/**
+  Find files in a given directory.
 
-  SYNOPSIS
-    find_files()
-    thd                 thread handler
-    files               put found files in this list
-    db                  database name to set in TABLE_LIST structure
-    path                path to database
-    wild                filter for found files
-    dir                 read databases in path if true, read .frm files in
-                        database otherwise
+  @param thd                 thread handler
+  @param files               put found files in this list
+  @param wild                filter for found files
+  @param tmp_mem_root        MEM_ROOT to use instead of thd->mem_root
 
-  RETURN
-    FIND_FILES_OK       success
-    FIND_FILES_OOM      out of memory error
-    FIND_FILES_DIR      no such directory, or directory can't be read
+  @return true if error, false otherwise
 */
 
-find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
-                             const char *path, const char *wild, bool dir,
-                             MEM_ROOT *tmp_mem_root) {
-  uint i;
-  MY_DIR *dirp;
-  MEM_ROOT **root_ptr = NULL, *old_root = NULL;
-  uint col_access = thd->col_access;
+static bool find_files(THD *thd, List<LEX_STRING> *files, const char *wild,
+                       MEM_ROOT *tmp_mem_root) {
+  DBUG_ASSERT(tmp_mem_root != nullptr);
   size_t wild_length = 0;
-  TABLE_LIST table_list;
-  DBUG_ENTER("find_files");
-
   if (wild) {
     if (!wild[0])
-      wild = 0;
+      wild = nullptr;
     else
       wild_length = strlen(wild);
   }
 
-  if (!(dirp = my_dir(path, MYF(dir ? MY_WANT_STAT : 0)))) {
+  MY_DIR *dirp = my_dir(mysql_data_home, MYF(MY_WANT_STAT));
+  if (dirp == nullptr) {
     if (my_errno() == ENOENT)
-      my_error(ER_BAD_DB_ERROR, MYF(0), db);
+      my_error(ER_BAD_DB_ERROR, MYF(0), nullptr);
     else {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(ER_CANT_READ_DIR, MYF(0), path, my_errno(),
+      my_error(ER_CANT_READ_DIR, MYF(0), mysql_data_home, my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_RETURN(FIND_FILES_DIR);
+    return true;
   }
 
-  if (tmp_mem_root) {
-    root_ptr = THR_MALLOC;
-    old_root = *root_ptr;
-    *root_ptr = tmp_mem_root;
-  }
+  Swap_mem_root_guard guard(thd, tmp_mem_root);
 
-  for (i = 0; i < dirp->number_off_files; i++) {
+  for (uint i = 0; i < dirp->number_off_files; i++) {
+    FILEINFO *file = dirp->dir_entry + i;
+    /*
+      Ignore all the directories having names that start with a  dot (.).
+      This covers '.' and '..' and other cases like e.g. '.mysqlgui'.
+      Note that since 5.1 database directory names can't start with a
+      dot (.) thanks to table name encoding.
+    */
+    if (file->name[0] == '.') continue;
+    if (!MY_S_ISDIR(file->mystat->st_mode)) continue;
+
     char uname[NAME_LEN + 1]; /* Unencoded name */
-    FILEINFO *file;
-    LEX_STRING *file_name = 0;
-    size_t file_name_len;
-    char *ext;
-
-    file = dirp->dir_entry + i;
-    if (dir) { /* Return databases */
-      /*
-        Ignore all the directories having names that start with a  dot (.).
-        This covers '.' and '..' and other cases like e.g. '.mysqlgui'.
-        Note that since 5.1 database directory names can't start with a
-        dot (.) thanks to table name encoding.
-      */
-      if (file->name[0] == '.') continue;
-      if (!MY_S_ISDIR(file->mystat->st_mode)) continue;
-    } else {
-      // Return only .frm files which aren't temp files.
-      if (my_strcasecmp(system_charset_info, ext = fn_rext(file->name),
-                        reg_ext) ||
-          is_prefix(file->name, tmp_file_prefix))
-        continue;
-      *ext = 0;
-    }
-
-    file_name_len = filename_to_tablename(file->name, uname, sizeof(uname));
+    size_t file_name_len =
+        filename_to_tablename(file->name, uname, sizeof(uname));
 
     if (wild) {
       if (lower_case_table_names) {
         if (my_wildcmp(files_charset_info, uname, uname + file_name_len, wild,
                        wild + wild_length, wild_prefix, wild_one, wild_many))
           continue;
-      } else if (wild_compare(uname, file_name_len, wild, wild_length, 0))
+      } else if (wild_compare(uname, file_name_len, wild, wild_length, false))
         continue;
     }
 
-    /* Don't show tables where we don't have any privileges */
-    if (db && !(col_access & TABLE_ACLS)) {
-      table_list.db = (char *)db;
-      table_list.db_length = strlen(db);
-      table_list.table_name = uname;
-      table_list.table_name_length = file_name_len;
-      table_list.grant.privilege = col_access;
-      if (check_grant(thd, TABLE_ACLS, &table_list, true, 1, true)) continue;
-    }
-
-    if (!(file_name = tmp_mem_root ? make_lex_string_root(tmp_mem_root, uname,
-                                                          file_name_len)
-                                   : make_lex_string_root(thd->mem_root, uname,
-                                                          file_name_len)) ||
-        files->push_back(file_name)) {
+    LEX_STRING *file_name =
+        make_lex_string_root(thd->mem_root, uname, file_name_len);
+    if ((file_name == nullptr) || files->push_back(file_name)) {
       my_dirend(dirp);
-      DBUG_RETURN(FIND_FILES_OOM);
+      return true;
     }
   }
-  DBUG_PRINT("info", ("found: %d files", files->elements));
   my_dirend(dirp);
 
-  (void)ha_find_files(thd, db, path, wild, dir, files);
+  (void)ha_find_files(thd, nullptr, mysql_data_home, wild, true, files);
 
-  if (tmp_mem_root) *root_ptr = old_root;
-
-  DBUG_RETURN(FIND_FILES_OK);
+  return false;
 }
 
 /**
@@ -1951,7 +1905,7 @@ class List_process_list : public Do_THD_Impl {
     }
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_protocol);
 
-    thread_info *thd_info = new (*THR_MALLOC) thread_info;
+    thread_info *thd_info = new (m_client_thd->mem_root) thread_info;
 
     /* ID */
     thd_info->thread_id = inspect_thd->thread_id();
@@ -2234,6 +2188,9 @@ static int fill_schema_processlist(THD *thd, TABLE_LIST *tables, Item *) {
 /*****************************************************************************
   Status functions
 *****************************************************************************/
+// TODO: allocator based on my_malloc.
+typedef std::vector<SHOW_VAR> Status_var_array;
+
 Status_var_array all_status_vars(0);
 bool status_vars_inited = 0;
 /* Version counter, protected by LOCK_STATUS. */
@@ -2769,8 +2726,7 @@ bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
 */
 int make_table_list(THD *thd, SELECT_LEX *sel, const LEX_CSTRING &db_name,
                     const LEX_CSTRING &table_name) {
-  Table_ident *table_ident;
-  table_ident = new (*THR_MALLOC)
+  Table_ident *table_ident = new (thd->mem_root)
       Table_ident(thd->get_protocol(), db_name, table_name, 1);
   if (!sel->add_table_to_list(thd, table_ident, 0, 0, TL_READ, MDL_SHARED_READ))
     return 1;
@@ -3049,31 +3005,28 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table) {
   return (enum enum_schema_tables)(schema_table - &schema_tables[0]);
 }
 
-/*
+/**
   Create db names list. Information schema name always is first in list
 
-  SYNOPSIS
-    make_db_list()
-    thd                   thread handler
-    files                 list of db names
-    wild                  wild string
-    idx_field_vals        idx_field_vals->db_name contains db name or
-                          wild string
-    with_i_schema         returns 1 if we added 'IS' name to list
-                          otherwise returns 0
+  @param thd                   thread handler
+  @param files                 list of db names
+  @param lookup_field_vals     lookup_field_vals->db_name contains db name or
+                               wild string
+  @param with_i_schema         returns true if we added 'IS' name to list
+                               otherwise returns false
+  @param tmp_mem_root          MEM_ROOT to use instead for thd->mem_root during
+  find_files()
 
-  RETURN
-    zero                  success
-    non-zero              error
+  @return true if error, false otherwise
 */
 
-static int make_db_list(THD *thd, List<LEX_STRING> *files,
-                        LOOKUP_FIELD_VALUES *lookup_field_vals,
-                        bool *with_i_schema, MEM_ROOT *tmp_mem_root) {
+static bool make_db_list(THD *thd, List<LEX_STRING> *files,
+                         LOOKUP_FIELD_VALUES *lookup_field_vals,
+                         bool *with_i_schema, MEM_ROOT *tmp_mem_root) {
   LEX_STRING *i_s_name_copy =
       make_lex_string_root(thd->mem_root, INFORMATION_SCHEMA_NAME.str,
                            INFORMATION_SCHEMA_NAME.length);
-  *with_i_schema = 0;
+  *with_i_schema = false;
   if (lookup_field_vals->wild_db_value) {
     /*
       This part of code is only for SHOW DATABASES command.
@@ -3083,12 +3036,11 @@ static int make_db_list(THD *thd, List<LEX_STRING> *files,
     if (!lookup_field_vals->db_value.str ||
         !wild_case_compare(system_charset_info, INFORMATION_SCHEMA_NAME.str,
                            lookup_field_vals->db_value.str)) {
-      *with_i_schema = 1;
-      if (files->push_back(i_s_name_copy)) return 1;
+      *with_i_schema = true;
+      if (files->push_back(i_s_name_copy)) return true;
     }
-    return (find_files(thd, files, NullS, mysql_data_home,
-                       lookup_field_vals->db_value.str, 1,
-                       tmp_mem_root) != FIND_FILES_OK);
+    return find_files(thd, files, lookup_field_vals->db_value.str,
+                      tmp_mem_root);
   }
 
   /*
@@ -3103,27 +3055,24 @@ static int make_db_list(THD *thd, List<LEX_STRING> *files,
         Impossible value for a database name,
         found in a WHERE DATABASE_NAME = 'xxx' clause.
       */
-      return 0;
+      return false;
     }
 
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length)) {
-      *with_i_schema = 1;
-      if (files->push_back(i_s_name_copy)) return 1;
-      return 0;
+      *with_i_schema = true;
+      return files->push_back(i_s_name_copy);
     }
-    if (files->push_back(&lookup_field_vals->db_value)) return 1;
-    return 0;
+    return files->push_back(&lookup_field_vals->db_value);
   }
 
   /*
     Create list of existing databases. It is used in case
     of select from information schema table
   */
-  if (files->push_back(i_s_name_copy)) return 1;
-  *with_i_schema = 1;
-  return (find_files(thd, files, NullS, mysql_data_home, NullS, 1,
-                     tmp_mem_root) != FIND_FILES_OK);
+  if (files->push_back(i_s_name_copy)) return true;
+  *with_i_schema = true;
+  return find_files(thd, files, nullptr, tmp_mem_root);
 }
 
 struct st_add_schema_table {
@@ -4600,11 +4549,11 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
                      strlen(schema_table->table_name));
 
   if (schema_table->old_format(thd, schema_table) || /* Handle old syntax */
-      !sel->add_table_to_list(
-          thd,
-          new (*THR_MALLOC) Table_ident(thd->get_protocol(), to_lex_cstring(db),
-                                        to_lex_cstring(table), 0),
-          0, 0, TL_READ, MDL_SHARED_READ)) {
+      !sel->add_table_to_list(thd,
+                              new (thd->mem_root) Table_ident(
+                                  thd->get_protocol(), to_lex_cstring(db),
+                                  to_lex_cstring(table), false),
+                              nullptr, 0, TL_READ, MDL_SHARED_READ)) {
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);

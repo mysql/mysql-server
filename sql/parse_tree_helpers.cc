@@ -133,7 +133,6 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp) {
 
 bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
                          enum enum_var_type var_type, Item *val) {
-  set_var *var;
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
@@ -160,9 +159,9 @@ bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
     return true;
   }
 
-  if (!(var = new (*THR_MALLOC) set_var(var_type, var_with_base->var,
-                                        &var_with_base->base_name, val)))
-    return true;
+  set_var *var = new (thd->mem_root)
+      set_var(var_type, var_with_base->var, &var_with_base->base_name, val);
+  if (var == nullptr) return true;
 
   return lex->var_list.push_back(var);
 }
@@ -457,7 +456,7 @@ bool apply_privileges(
           if (point)
             point->rights |= grant;
           else {
-            LEX_COLUMN *col = new (*THR_MALLOC) LEX_COLUMN(*new_str, grant);
+            LEX_COLUMN *col = new (thd->mem_root) LEX_COLUMN(*new_str, grant);
             if (col == NULL) return true;
             lex->columns.push_back(col);
           }

@@ -108,7 +108,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql_string.h"
 
 struct MEM_ROOT;
@@ -853,7 +852,7 @@ static bool init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex) {
     we're working with to the Name_resolution_context.
   */
   thd->lex = lex;
-  auto table_ident = new (*THR_MALLOC)
+  auto table_ident = new (thd->mem_root)
       Table_ident(thd->get_protocol(), to_lex_cstring(table->s->table_name),
                   to_lex_cstring(table->s->db), true);
   if (table_ident == nullptr) return true;

@@ -73,7 +73,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
-#include "sql/thr_malloc.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"  // Unique
@@ -910,7 +909,7 @@ bool Query_result_delete::optimize() {
     if (!(map & delete_table_map & ~delete_immediate)) continue;
 
     TABLE *const table = join->best_ref[i]->table();
-    if (!(*tempfile++ = new (*THR_MALLOC)
+    if (!(*tempfile++ = new (thd->mem_root)
               Unique(refpos_order_cmp, (void *)table->file,
                      table->file->ref_length, thd->variables.sortbuff_size)))
       DBUG_RETURN(true); /* purecov: inspected */

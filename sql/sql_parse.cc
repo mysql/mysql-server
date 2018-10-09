@@ -5230,7 +5230,6 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            Value_generator *default_val_expr,
                            const char *opt_after, Nullable<gis::srid_t> srid,
                            dd::Column::enum_hidden_type hidden) {
-  Create_field *new_field;
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
@@ -5245,10 +5244,10 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
   if (type_modifier & PRI_KEY_FLAG) {
     List<Key_part_spec> key_parts;
     auto key_part_spec =
-        new (*THR_MALLOC) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
+        new (thd->mem_root) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
-    Key_spec *key = new (*THR_MALLOC)
+    Key_spec *key = new (thd->mem_root)
         Key_spec(thd->mem_root, KEYTYPE_PRIMARY, NULL_CSTR,
                  &default_key_create_info, false, true, key_parts);
     if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
@@ -5256,10 +5255,10 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG)) {
     List<Key_part_spec> key_parts;
     auto key_part_spec =
-        new (*THR_MALLOC) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
+        new (thd->mem_root) Key_part_spec(field_name_cstr, 0, ORDER_ASC);
     if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
       DBUG_RETURN(true);
-    Key_spec *key = new (*THR_MALLOC)
+    Key_spec *key = new (thd->mem_root)
         Key_spec(thd->mem_root, KEYTYPE_UNIQUE, NULL_CSTR,
                  &default_key_create_info, false, true, key_parts);
     if (key == NULL || key_list.push_back(key)) DBUG_RETURN(true);
@@ -5311,7 +5310,8 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
     DBUG_RETURN(true);
   }
 
-  if (!(new_field = new (*THR_MALLOC) Create_field()) ||
+  Create_field *new_field = new (thd->mem_root) Create_field();
+  if ((new_field == nullptr) ||
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
                       change, interval_list, cs, has_explicit_collation,

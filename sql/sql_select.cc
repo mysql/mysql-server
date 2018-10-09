@@ -1874,7 +1874,7 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
                                 uchar *key_buff, uint maybe_null) {
   if (!((~used_tables) & keyuse->used_tables))  // if const item
   {
-    return new (*THR_MALLOC) store_key_const_item(
+    return new (thd->mem_root) store_key_const_item(
         thd, key_part->field, key_buff + maybe_null, maybe_null ? key_buff : 0,
         key_part->length, keyuse->val);
   }
@@ -1890,11 +1890,11 @@ static store_key *get_store_key(THD *thd, Key_use *keyuse,
     }
   }
   if (field_item)
-    return new (*THR_MALLOC) store_key_field(
+    return new (thd->mem_root) store_key_field(
         thd, key_part->field, key_buff + maybe_null, maybe_null ? key_buff : 0,
         key_part->length, field_item->field, keyuse->val->full_name());
 
-  return new (*THR_MALLOC)
+  return new (thd->mem_root)
       store_key_item(thd, key_part->field, key_buff + maybe_null,
                      maybe_null ? key_buff : 0, key_part->length, keyuse->val);
 }

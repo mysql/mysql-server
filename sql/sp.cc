@@ -233,7 +233,7 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
 
   /* Create the context. */
 
-  return new (*THR_MALLOC)
+  return new (thd->mem_root)
       Stored_routine_creation_ctx(client_cs, connection_cl, db_cl);
 }
 
@@ -1529,7 +1529,7 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
     lex_name.length = strlen(routine->table_name);
     lex_db.str = thd->strmake(routine->db, lex_db.length);
     lex_name.str = thd->strmake(routine->table_name, lex_name.length);
-    name = new (*THR_MALLOC) sp_name(lex_db, lex_name, true);
+    name = new (thd->mem_root) sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
     sp_object_found = is_proc
                           ? sp_find_routine(thd, enum_sp_type::PROCEDURE, name,

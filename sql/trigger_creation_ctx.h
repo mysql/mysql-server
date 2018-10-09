@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "sql/sp_head.h"  // Stored_program_creation_ctx
-#include "sql/thr_malloc.h"
 
 class Object_creation_ctx;
 class THD;
@@ -55,7 +54,7 @@ class Trigger_creation_ctx : public Stored_program_creation_ctx {
 
  protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
-    return new (*THR_MALLOC) Trigger_creation_ctx(thd);
+    return new (thd->mem_root) Trigger_creation_ctx(thd);
   }
 
   virtual void delete_backup_ctx() { destroy(this); }

@@ -48,50 +48,6 @@ struct System_status_var;
 template <class T>
 class List;
 
-// TODO: allocator based on my_malloc.
-typedef std::vector<SHOW_VAR> Status_var_array;
-enum find_files_result { FIND_FILES_OK, FIND_FILES_OOM, FIND_FILES_DIR };
-
-/* Used by handlers to store things in schema tables */
-#define IS_FILES_FILE_ID 0
-#define IS_FILES_FILE_NAME 1
-#define IS_FILES_FILE_TYPE 2
-#define IS_FILES_TABLESPACE_NAME 3
-#define IS_FILES_TABLE_CATALOG 4
-#define IS_FILES_TABLE_SCHEMA 5
-#define IS_FILES_TABLE_NAME 6
-#define IS_FILES_LOGFILE_GROUP_NAME 7
-#define IS_FILES_LOGFILE_GROUP_NUMBER 8
-#define IS_FILES_ENGINE 9
-#define IS_FILES_FULLTEXT_KEYS 10
-#define IS_FILES_DELETED_ROWS 11
-#define IS_FILES_UPDATE_COUNT 12
-#define IS_FILES_FREE_EXTENTS 13
-#define IS_FILES_TOTAL_EXTENTS 14
-#define IS_FILES_EXTENT_SIZE 15
-#define IS_FILES_INITIAL_SIZE 16
-#define IS_FILES_MAXIMUM_SIZE 17
-#define IS_FILES_AUTOEXTEND_SIZE 18
-#define IS_FILES_CREATION_TIME 19
-#define IS_FILES_LAST_UPDATE_TIME 20
-#define IS_FILES_LAST_ACCESS_TIME 21
-#define IS_FILES_RECOVER_TIME 22
-#define IS_FILES_TRANSACTION_COUNTER 23
-#define IS_FILES_VERSION 24
-#define IS_FILES_ROW_FORMAT 25
-#define IS_FILES_TABLE_ROWS 26
-#define IS_FILES_AVG_ROW_LENGTH 27
-#define IS_FILES_DATA_LENGTH 28
-#define IS_FILES_MAX_DATA_LENGTH 29
-#define IS_FILES_INDEX_LENGTH 30
-#define IS_FILES_DATA_FREE 31
-#define IS_FILES_CREATE_TIME 32
-#define IS_FILES_UPDATE_TIME 33
-#define IS_FILES_CHECK_TIME 34
-#define IS_FILES_CHECKSUM 35
-#define IS_FILES_STATUS 36
-#define IS_FILES_EXTRA 37
-
 /* Define fields' indexes for COLUMNS of temporary tables */
 #define TMP_TABLE_COLUMNS_COLUMN_NAME 0
 #define TMP_TABLE_COLUMNS_COLUMN_TYPE 1
@@ -121,10 +77,6 @@ enum find_files_result { FIND_FILES_OK, FIND_FILES_OOM, FIND_FILES_DIR };
 #define TMP_TABLE_KEYS_INDEX_COMMENT 13
 #define TMP_TABLE_KEYS_IS_VISIBLE 14
 #define TMP_TABLE_KEYS_EXPRESSION 15
-
-find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
-                             const char *path, const char *wild, bool dir,
-                             MEM_ROOT *tmp_mem_root);
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO *create_info_arg, bool show_database);
@@ -161,7 +113,6 @@ ulonglong get_status_vars_version(void);
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
 void view_store_options(const THD *thd, TABLE_LIST *table, String *buff);
 
-void init_fill_schema_files_row(TABLE *table);
 bool schema_table_store_record(THD *thd, TABLE *table);
 
 /**

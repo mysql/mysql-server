@@ -61,7 +61,6 @@
 #include "sql/sql_select.h"  // Sql_cmd_select...
 #include "sql/sql_update.h"  // Sql_cmd_update...
 #include "sql/system_variables.h"
-#include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 
@@ -80,7 +79,7 @@ bool PT_option_value_no_option_type_charset::contextualize(Parse_context *pc) {
   cs2 =
       opt_charset ? opt_charset : global_system_variables.character_set_client;
   set_var_collation_client *var;
-  var = new (*THR_MALLOC) set_var_collation_client(
+  var = new (thd->mem_root) set_var_collation_client(
       flags, cs2, thd->variables.collation_database, cs2);
   if (var == NULL) return true;
   lex->var_list.push_back(var);
@@ -130,7 +129,7 @@ bool PT_set_names::contextualize(Parse_context *pc) {
       cs3 = cs2;
   }
   set_var_collation_client *var;
-  var = new (*THR_MALLOC) set_var_collation_client(flags, cs3, cs3, cs3);
+  var = new (thd->mem_root) set_var_collation_client(flags, cs3, cs3, cs3);
   if (var == NULL) return true;
   lex->var_list.push_back(var);
   return false;
@@ -401,7 +400,7 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
       responsible for destruction of the LEX-object.
     */
 
-    sp_instr_set *i = new (*THR_MALLOC)
+    sp_instr_set *i = new (thd->mem_root)
         sp_instr_set(sp->instructions(), lex, spv->offset, opt_expr, expr_query,
                      true);  // The instruction owns its lex.
 
@@ -441,9 +440,9 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   // Current password is specified through the REPLACE clause hence set the flag
   if (current_password != nullptr) user->uses_replace_clause = true;
 
-  var = new (*THR_MALLOC) set_var_password(user, const_cast<char *>(password),
-                                           const_cast<char *>(current_password),
-                                           retain_current_password);
+  var = new (thd->mem_root) set_var_password(
+      user, const_cast<char *>(password), const_cast<char *>(current_password),
+      retain_current_password);
 
   if (var == NULL || lex->var_list.push_back(var)) {
     return true;  // Out of memory
@@ -477,7 +476,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
                                    (LEX_STRING *)&sctx_priv_host);
   if (!user) return true;
 
-  set_var_password *var = new (*THR_MALLOC) set_var_password(
+  set_var_password *var = new (thd->mem_root) set_var_password(
       user, const_cast<char *>(password), const_cast<char *>(current_password),
       retain_current_password);
   if (var == NULL || lex->var_list.push_back(var)) {
@@ -1052,7 +1051,7 @@ bool PT_derived_table::contextualize(Parse_context *pc) {
 
   SELECT_LEX_UNIT *unit = pc->select->first_inner_unit();
   pc->select = outer_select;
-  Table_ident *ti = new (*THR_MALLOC) Table_ident(unit);
+  Table_ident *ti = new (pc->thd->mem_root) Table_ident(unit);
   if (ti == NULL) return true;
 
   value = pc->select->add_table_to_list(pc->thd, ti, m_table_alias, 0, TL_READ,

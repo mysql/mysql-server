@@ -5571,10 +5571,12 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
            Alter_inplace_info::CHANGE_CREATE_OPTION &&
        !innobase_need_rebuild(ha_alter_info))) {
     if (heap) {
-      ha_alter_info->handler_ctx = new (*THR_MALLOC) ha_innobase_inplace_ctx(
-          m_prebuilt, drop_index, n_drop_index, rename_index, n_rename_index,
-          drop_fk, n_drop_fk, add_fk, n_add_fk, ha_alter_info->online, heap,
-          indexed_table, col_names, ULINT_UNDEFINED, 0, 0, 0);
+      ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
+          ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,
+                                  rename_index, n_rename_index, drop_fk,
+                                  n_drop_fk, add_fk, n_add_fk,
+                                  ha_alter_info->online, heap, indexed_table,
+                                  col_names, ULINT_UNDEFINED, 0, 0, 0);
     }
 
     DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
@@ -5693,12 +5695,13 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   DBUG_ASSERT(m_user_thd == m_prebuilt->trx->mysql_thd);
   DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
-  ha_alter_info->handler_ctx = new (*THR_MALLOC) ha_innobase_inplace_ctx(
-      m_prebuilt, drop_index, n_drop_index, rename_index, n_rename_index,
-      drop_fk, n_drop_fk, add_fk, n_add_fk, ha_alter_info->online, heap,
-      m_prebuilt->table, col_names, add_autoinc_col_no,
-      ha_alter_info->create_info->auto_increment_value, autoinc_col_max_value,
-      0);
+  ha_alter_info->handler_ctx = new (m_user_thd->mem_root)
+      ha_innobase_inplace_ctx(m_prebuilt, drop_index, n_drop_index,
+                              rename_index, n_rename_index, drop_fk, n_drop_fk,
+                              add_fk, n_add_fk, ha_alter_info->online, heap,
+                              m_prebuilt->table, col_names, add_autoinc_col_no,
+                              ha_alter_info->create_info->auto_increment_value,
+                              autoinc_col_max_value, 0);
 
   DBUG_RETURN(prepare_inplace_alter_table_dict(
       ha_alter_info, altered_table, table, old_dd_tab, new_dd_tab,
@@ -9810,7 +9813,7 @@ bool ha_innopart::prepare_inplace_alter_table(TABLE *altered_table,
   /*
   This object will be freed by server, so always use 'new'
   and there is no need to free on failure */
-  ctx_parts = new (*THR_MALLOC) ha_innopart_inplace_ctx(thd, m_tot_parts);
+  ctx_parts = new (thd->mem_root) ha_innopart_inplace_ctx(thd, m_tot_parts);
   if (ctx_parts == nullptr) {
     DBUG_RETURN(HA_ALTER_ERROR);
   }

@@ -1211,7 +1211,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                         1 - field is physically stored
         byte 5-...  = generated column expression (text data)
       */
-      gcol_info = new (*THR_MALLOC) Value_generator();
+      gcol_info = new (thd->mem_root) Value_generator();
       if ((uint)(*gcol_screen_pos)[0] != 1) return 4;
 
       gcol_info_length = uint2korr(*gcol_screen_pos + 1);
@@ -5172,12 +5172,13 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
     Item_field *tmp_item =
         new Item_field(thd, &thd->lex->current_select()->context, tmp_field);
     if (!tmp_item) return NULL;
-    nj_col = new (*THR_MALLOC) Natural_join_column(tmp_item, table_ref);
+    nj_col = new (thd->mem_root) Natural_join_column(tmp_item, table_ref);
     field_count = table_ref->table->s->fields;
   } else if (field_it == &view_field_it) {
     /* The field belongs to a merge view or information schema table. */
     Field_translator *translated_field = view_field_it.field_translator();
-    nj_col = new (*THR_MALLOC) Natural_join_column(translated_field, table_ref);
+    nj_col =
+        new (thd->mem_root) Natural_join_column(translated_field, table_ref);
     field_count =
         table_ref->field_translation_end - table_ref->field_translation;
   } else {
@@ -5205,7 +5206,7 @@ Natural_join_column *Field_iterator_table_ref::get_or_create_column_ref(
     if (!add_table_ref->join_columns) {
       /* Create a list of natural join columns on demand. */
       if (!(add_table_ref->join_columns =
-                new (*THR_MALLOC) List<Natural_join_column>))
+                new (thd->mem_root) List<Natural_join_column>))
         return NULL;
       add_table_ref->is_join_columns_complete = false;
     }

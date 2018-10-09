@@ -150,7 +150,6 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/trigger.h"
@@ -7883,7 +7882,7 @@ static bool create_table_impl(
       all tables as partitioned. The handler will set up the partition info
       object with the default settings.
     */
-    thd->work_part_info = part_info = new (*THR_MALLOC) partition_info();
+    thd->work_part_info = part_info = new (thd->mem_root) partition_info();
     if (!part_info) {
       mem_alloc_error(sizeof(partition_info));
       DBUG_RETURN(true);
@@ -13014,7 +13013,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         This field was not dropped and the definition is not changed, add
         it to the list for the new table.
       */
-      def = new (*THR_MALLOC) Create_field(field, field);
+      def = new (thd->mem_root) Create_field(field, field);
 
       // Mark if collation was specified explicitly by user for the column.
       const dd::Table *obj =
@@ -13238,10 +13237,10 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                                     ? ORDER_NOT_RELEVANT
                                     : ORDER_ASC);
       if (key_part->field->is_field_for_functional_index()) {
-        key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
+        key_parts.push_back(new (thd->mem_root) Key_part_spec(
             cfield->field_name, key_part->field->gcol_info->expr_item, order));
       } else {
-        key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
+        key_parts.push_back(new (thd->mem_root) Key_part_spec(
             to_lex_cstring(cfield->field_name), key_part_length, order));
       }
     }
@@ -13339,7 +13338,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         If we have dropped a column associated with an index,
         this warrants a check for duplicate indexes
       */
-      new_key_list.push_back(new (*THR_MALLOC) Key_spec(
+      new_key_list.push_back(new (thd->mem_root) Key_spec(
           thd->mem_root, key_type, to_lex_cstring(key_name), &key_create_info,
           (key_info->flags & HA_GENERATED_KEY), index_column_dropped,
           key_parts));
@@ -16338,7 +16337,7 @@ static int copy_data_between_tables(
       mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(-1);
 
-  if (!(copy = new (*THR_MALLOC) Copy_field[to->s->fields]))
+  if (!(copy = new (thd->mem_root) Copy_field[to->s->fields]))
     DBUG_RETURN(-1); /* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK)) {

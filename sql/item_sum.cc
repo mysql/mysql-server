@@ -1007,8 +1007,8 @@ bool Aggregator_distinct::setup(THD *thd) {
         }
       }
       DBUG_ASSERT(tree == 0);
-      tree = new (*THR_MALLOC) Unique(compare_key, cmp_arg, tree_key_length,
-                                      item_sum->ram_limitation(thd));
+      tree = new (thd->mem_root) Unique(compare_key, cmp_arg, tree_key_length,
+                                        item_sum->ram_limitation(thd));
       /*
         The only time tree_key_length could be 0 is if someone does
         count(distinct) on a char(0) field - stupid thing to do,
@@ -1069,7 +1069,7 @@ bool Aggregator_distinct::setup(THD *thd) {
       simple_raw_key_cmp because the table contains numbers only; decimals
       are converted to binary representation as well.
     */
-    tree = new (*THR_MALLOC)
+    tree = new (thd->mem_root)
         Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
                item_sum->ram_limitation(thd));
 
@@ -4337,7 +4337,7 @@ bool Item_func_group_concat::setup(THD *thd) {
     with ORDER BY | DISTINCT and BLOB field count > 0.
   */
   if (order_or_distinct && table->s->blob_fields)
-    table->blob_storage = new (*THR_MALLOC) Blob_mem_storage();
+    table->blob_storage = new (thd->mem_root) Blob_mem_storage();
 
   /*
      Need sorting or uniqueness: init tree and choose a function to sort.
@@ -4361,7 +4361,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   }
 
   if (distinct)
-    unique_filter = new (*THR_MALLOC)
+    unique_filter = new (thd->mem_root)
         Unique(group_concat_key_cmp_with_distinct, (void *)this,
                tree_key_length, ram_limitation(thd));
 

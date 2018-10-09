@@ -1733,8 +1733,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
       For the sake of uniformity, always use Field_varstring (altough we could
       use Field_string for shorter keys)
     */
-    field = new (*THR_MALLOC) Field_varstring(uniq_tuple_length_arg, false,
-                                              "rowids", share, &my_charset_bin);
+    field = new (thd->mem_root) Field_varstring(
+        uniq_tuple_length_arg, false, "rowids", share, &my_charset_bin);
     if (!field) DBUG_RETURN(0);
     field->table = table;
     field->auto_flags = Field::NONE;

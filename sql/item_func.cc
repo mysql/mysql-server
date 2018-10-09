@@ -5788,7 +5788,7 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     LEX *sav_lex = thd->lex, lex_tmp;
     thd->lex = &lex_tmp;
     lex_start(thd);
-    tmp_var_list.push_back(new (*THR_MALLOC) set_var_user(
+    tmp_var_list.push_back(new (thd->mem_root) set_var_user(
         new Item_func_set_user_var(name, new Item_null(), false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list, false)) {
@@ -6688,7 +6688,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
 
   if (!master) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    hints = new (*THR_MALLOC) Ft_hints(flags);
+    hints = new (thd->mem_root) Ft_hints(flags);
     if (!hints) {
       my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
       return true;

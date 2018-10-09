@@ -52,7 +52,6 @@
 #include "sql/sql_opt_exec_shared.h"  // join_type
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/thr_malloc.h"
 
 class Item_func;
 class JOIN_TAB;
@@ -905,7 +904,7 @@ class store_key {
         Key segments are always packed with a 2 byte length prefix.
         See mi_rkey for details.
       */
-      to_field = new (*THR_MALLOC) Field_varstring(
+      to_field = new (thd->mem_root) Field_varstring(
           ptr, length, 2, null, 1, Field::NONE, field_arg->field_name,
           field_arg->table->s, field_arg->charset());
       to_field->init(field_arg->table);

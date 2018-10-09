@@ -3175,7 +3175,7 @@ sp_name:
             {
               MYSQL_YYABORT;
             }
-            $$= new (*THR_MALLOC) sp_name(to_lex_cstring($1), $3, true);
+            $$= new (YYMEM_ROOT) sp_name(to_lex_cstring($1), $3, true);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(YYTHD);
@@ -3191,7 +3191,7 @@ sp_name:
             }
             if (lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
-            $$= new (*THR_MALLOC) sp_name(db, $1, false);
+            $$= new (YYMEM_ROOT) sp_name(db, $1, false);
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->init_qname(thd);
@@ -7505,10 +7505,10 @@ alter_user_stmt:
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM ALL
           {
-            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
+            List<LEX_USER> *users= new (YYMEM_ROOT) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
-            List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
+            List<LEX_USER> *role_list= new (YYMEM_ROOT) List<LEX_USER>;
             auto *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
                                                    users, role_list,
@@ -7517,10 +7517,10 @@ alter_user_stmt:
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM NONE_SYM
           {
-            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
+            List<LEX_USER> *users= new (YYMEM_ROOT) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
-            List<LEX_USER> *role_list= new (*THR_MALLOC) List<LEX_USER>;
+            List<LEX_USER> *role_list= new (YYMEM_ROOT) List<LEX_USER>;
             auto *tmp=
                 NEW_PTN PT_alter_user_default_role(Lex->drop_if_exists,
                                                    users, role_list,
@@ -7529,7 +7529,7 @@ alter_user_stmt:
           }
         | alter_user_command user DEFAULT_SYM ROLE_SYM role_list
           {
-            List<LEX_USER> *users= new (*THR_MALLOC) List<LEX_USER>;
+            List<LEX_USER> *users= new (YYMEM_ROOT) List<LEX_USER>;
             if (users == NULL || users->push_back($2))
               MYSQL_YYABORT;
             auto *tmp=
@@ -10629,7 +10629,7 @@ opt_else:
 when_list:
           WHEN_SYM expr THEN_SYM expr
           {
-            $$= new (*THR_MALLOC) List<Item>;
+            $$= new (YYMEM_ROOT) List<Item>;
             if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($2);
@@ -11670,7 +11670,7 @@ drop_function_stmt:
             }
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new (*THR_MALLOC) sp_name(to_lex_cstring($4), $6, true);
+            spname= new (YYMEM_ROOT) sp_name(to_lex_cstring($4), $6, true);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -11702,7 +11702,7 @@ drop_function_stmt:
                MYSQL_YYABORT;
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
-            spname= new (*THR_MALLOC) sp_name(to_lex_cstring(db), $4, false);
+            spname= new (YYMEM_ROOT) sp_name(to_lex_cstring(db), $4, false);
             if (spname == NULL)
               MYSQL_YYABORT;
             spname->init_qname(thd);
@@ -15183,7 +15183,7 @@ grant_ident:
 user_list:
           user
           {
-            $$= new (*THR_MALLOC) List<LEX_USER>;
+            $$= new (YYMEM_ROOT) List<LEX_USER>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -15198,7 +15198,7 @@ user_list:
 role_list:
           role
           {
-            $$= new (*THR_MALLOC) List<LEX_USER>;
+            $$= new (YYMEM_ROOT) List<LEX_USER>;
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -16216,13 +16216,13 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_install_plugin($3, $5);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin($3, $5);
           }
         | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_COMPONENT;
-            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_install_component($3);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_component($3);
           }
         ;
 
@@ -16231,13 +16231,13 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_uninstall_plugin($3);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_plugin($3);
           }
        | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_COMPONENT;
-            lex->m_sql_cmd= new (*THR_MALLOC) Sql_cmd_uninstall_component($3);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_component($3);
           }
         ;
 

@@ -207,7 +207,7 @@ class Explain {
     @retval     true    Error (OOM)
   */
   bool push_extra(Extra_tag tag) {
-    extra *e = new (*THR_MALLOC) extra(tag);
+    extra *e = new (explain_thd->mem_root) extra(tag);
     return e == NULL || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -223,7 +223,8 @@ class Explain {
   */
   bool push_extra(Extra_tag tag, const String &arg) {
     if (arg.is_empty()) return push_extra(tag);
-    extra *e = new (*THR_MALLOC) extra(tag, arg.dup(explain_thd->mem_root));
+    extra *e =
+        new (explain_thd->mem_root) extra(tag, arg.dup(explain_thd->mem_root));
     return !e || !e->data || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -240,7 +241,7 @@ class Explain {
     @retval     true    Error (OOM)
   */
   bool push_extra(Extra_tag tag, const char *arg) {
-    extra *e = new (*THR_MALLOC) extra(tag, arg);
+    extra *e = new (explain_thd->mem_root) extra(tag, arg);
     return !e || fmt->entry()->col_extra.push_back(e);
   }
 
@@ -976,8 +977,8 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff)) return true;
       } else {
         if (fmt->is_hierarchical() && can_print_clauses()) {
-          Lazy_condition *c =
-              new (*THR_MALLOC) Lazy_condition(tab->condition_optim());
+          Lazy_condition *c = new (explain_thd->mem_root)
+              Lazy_condition(tab->condition_optim());
           if (c == NULL) return true;
           fmt->entry()->col_attached_condition.set(c);
         } else if (push_extra(ET_USING_WHERE))
@@ -2067,7 +2068,7 @@ bool explain_query(THD *explain_thd, THD *query_thd, SELECT_LEX_UNIT *unit) {
   Query_result_explain explain_wrapper(unit, explain_result);
 
   if (other) {
-    if (!((explain_result = new (*THR_MALLOC) Query_result_send())))
+    if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
       DBUG_RETURN(true); /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(explain_thd, dummy, explain_thd->lex->unit))

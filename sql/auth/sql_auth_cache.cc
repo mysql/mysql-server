@@ -76,6 +76,7 @@
 #include "sql/sql_time.h"  // str_to_time_with_warn
 #include "sql/system_variables.h"
 #include "sql/table.h"  // TABLE
+#include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
 #include "sql/xa.h"
 #include "sql_string.h"
@@ -2233,12 +2234,10 @@ end_unlock:
 */
 
 static bool grant_load(THD *thd, TABLE_LIST *tables) {
-  MEM_ROOT *memex_ptr;
   bool return_val = 1;
   int error;
   TABLE *t_table = 0, *c_table = 0;
   bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr = THR_MALLOC;
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -2273,11 +2272,9 @@ static bool grant_load(THD *thd, TABLE_LIST *tables) {
     else
       acl_print_ha_error(error);
   } else {
-    memex_ptr = &memex;
-    THR_MALLOC = &memex_ptr;
+    Swap_mem_root_guard guard(thd, &memex);
     do {
-      GRANT_TABLE *mem_check;
-      mem_check = new (memex_ptr) GRANT_TABLE(t_table);
+      GRANT_TABLE *mem_check = new (thd->mem_root) GRANT_TABLE(t_table);
 
       if (!mem_check) {
         /* This could only happen if we are out memory */
@@ -2323,7 +2320,6 @@ static bool grant_load(THD *thd, TABLE_LIST *tables) {
 
 end_unlock:
   t_table->file->ha_index_end();
-  THR_MALLOC = save_mem_root_ptr;
 end_index_init:
   thd->variables.sql_mode = old_sql_mode;
   DBUG_RETURN(return_val);

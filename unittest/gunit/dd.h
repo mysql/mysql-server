@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,6 +53,7 @@
 #include "sql/dd/types/view_table.h"
 #include "sql/histograms/histogram.h"
 #include "sql/histograms/value_map.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/base_mock_handler.h"
 #include "unittest/gunit/fake_table.h"
@@ -173,16 +174,16 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
   Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
-  m_field_list.push_back(new (*THR_MALLOC) Mock_dd_field_longlong());  // id
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root) Mock_dd_field_longlong());  // id
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // catalog_id
   m_field_list.push_back(
-      new (*THR_MALLOC) Mock_dd_field_varstring(64, &dummy_share));  // name
-  m_field_list.push_back(new (*THR_MALLOC)
+      new (thd->mem_root) Mock_dd_field_varstring(64, &dummy_share));  // name
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // collation_id
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // created
-  m_field_list.push_back(new (*THR_MALLOC)
+  m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // last_altered
 
   // Create table object (and table share implicitly).
@@ -190,7 +191,7 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
 
   // Create a strict mock handler for the share.
   StrictMock<Mock_dd_HANDLER> *ha =
-      new (*THR_MALLOC) StrictMock<Mock_dd_HANDLER>(hton, table->s);
+      new (thd->mem_root) StrictMock<Mock_dd_HANDLER>(hton, table->s);
 
   // Set current open table.
   ha->change_table_ptr(table, table->s);

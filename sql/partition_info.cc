@@ -79,7 +79,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone = new (*THR_MALLOC) partition_info(*this);
+  partition_info *clone = new (thd->mem_root) partition_info(*this);
   if (!clone) {
     mem_alloc_error(sizeof(partition_info));
     DBUG_RETURN(NULL);
@@ -93,7 +93,8 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
   while ((part = (part_it++))) {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone = new (*THR_MALLOC) partition_element(*part);
+    partition_element *part_clone =
+        new (thd->mem_root) partition_element(*part);
     if (!part_clone) {
       mem_alloc_error(sizeof(partition_element));
       DBUG_RETURN(NULL);
@@ -124,7 +125,7 @@ partition_info *partition_info::get_clone(THD *thd, bool reset /* = false */) {
     part_clone->subpartitions.empty();
     while ((subpart = (subpart_it++))) {
       partition_element *subpart_clone =
-          new (*THR_MALLOC) partition_element(*subpart);
+          new (thd->mem_root) partition_element(*subpart);
       if (!subpart_clone) {
         mem_alloc_error(sizeof(partition_element));
         DBUG_RETURN(NULL);

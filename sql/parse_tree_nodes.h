@@ -1048,7 +1048,7 @@ class PT_option_value_no_option_type_user_var
     Item_func_set_user_var *item;
     item = new (pc->mem_root) Item_func_set_user_var(name, expr, false);
     if (item == NULL) return true;
-    set_var_user *var = new (*THR_MALLOC) set_var_user(item);
+    set_var_user *var = new (thd->mem_root) set_var_user(item);
     if (var == NULL) return true;
     thd->lex->var_list.push_back(var);
     return false;
@@ -1286,7 +1286,7 @@ class PT_transaction_characteristic : public Parse_tree_node {
     LEX *lex = thd->lex;
     Item *item = new (pc->mem_root) Item_int(value);
     if (item == NULL) return true;
-    set_var *var = new (*THR_MALLOC)
+    set_var *var = new (thd->mem_root)
         set_var(lex->option_type, find_sys_var(thd, name), &null_lex_str, item);
     if (var == NULL) return true;
     lex->var_list.push_back(var);
@@ -1501,7 +1501,8 @@ class PT_into_destination_outfile final : public PT_into_destination {
 
     LEX *lex = pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->result = new (*THR_MALLOC) Query_result_export(&m_exchange)))
+    if (!(lex->result =
+              new (pc->thd->mem_root) Query_result_export(&m_exchange)))
       return true;
 
     return false;
@@ -1524,7 +1525,8 @@ class PT_into_destination_dumpfile final : public PT_into_destination {
     LEX *lex = pc->thd->lex;
     if (!lex->is_explain()) {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->result = new (*THR_MALLOC) Query_result_dump(&m_exchange)))
+      if (!(lex->result =
+                new (pc->thd->mem_root) Query_result_dump(&m_exchange)))
         return true;
     }
     return false;

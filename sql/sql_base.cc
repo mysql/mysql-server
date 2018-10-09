@@ -136,7 +136,6 @@
 #include "sql/table_cache.h"               // table_cache_manager
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/thd_raii.h"
-#include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
@@ -8308,9 +8307,9 @@ static bool store_natural_using_join_columns(THD *thd,
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (!(non_join_columns = new (*THR_MALLOC) List<Natural_join_column>) ||
+  if (!(non_join_columns = new (thd->mem_root) List<Natural_join_column>) ||
       !(natural_using_join->join_columns =
-            new (*THR_MALLOC) List<Natural_join_column>))
+            new (thd->mem_root) List<Natural_join_column>))
     DBUG_RETURN(true);
 
   /* Append the columns of the first join operand. */
