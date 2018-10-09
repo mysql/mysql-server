@@ -25,6 +25,7 @@ usr/bin/mysqlrouter_plugin_info
 usr/lib/*/libmysqlharness.so.1
 usr/lib/*/libmysqlrouter.so.1
 usr/lib/*/libmysqlrouter_http.so.1
+usr/lib/mysqlrouter/plugin/http_auth_backend.so
 usr/lib/mysqlrouter/plugin/keepalive.so
 usr/lib/mysqlrouter/plugin/mysql_protocol.so
 usr/lib/mysqlrouter/plugin/routing.so

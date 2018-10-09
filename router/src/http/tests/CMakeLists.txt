@@ -42,3 +42,18 @@ add_test_file(test_base64.cc
   MODULE http
   LIB_DEPENDS http_common
   )
+
+add_test_file(test_auth_backend.cc
+  MODULE http
+  LIB_DEPENDS http_auth_backend_lib
+  )
+
+add_test_file(test_kdf_sha_crypt.cc
+  MODULE http
+  LIB_DEPENDS http_auth_backend_lib
+  )
+
+add_test_file(test_kdf_pbkdf2.cc
+  MODULE http
+  LIB_DEPENDS http_auth_backend_lib
+  )

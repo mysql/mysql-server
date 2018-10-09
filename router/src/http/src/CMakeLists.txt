@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+INCLUDE(GenerateExportHeader)
+
 ADD_LIBRARY(http_common
   SHARED
   base64.cc
@@ -53,6 +55,34 @@ INSTALL(TARGETS http_common
   COMPONENT Router
   ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
   COMPONENT Router)
+
+## split library code from the plugin to use them _passwd and tests
+ADD_LIBRARY(http_auth_backend_lib STATIC
+  http_auth_backend.cc
+  kdf_sha_crypt.cc
+  kdf_pbkdf2.cc
+  mcf_error.cc
+  http_auth_error.cc
+  )
+TARGET_LINK_LIBRARIES(http_auth_backend_lib http_common)
+
+## the plugin
+ADD_HARNESS_PLUGIN(http_auth_backend
+  SOURCES
+  http_auth_backend_plugin.cc
+  http_auth_backend_component.cc
+  REQUIRES
+  http_common;http_auth_backend_lib;router_lib
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+  )
+GENERATE_EXPORT_HEADER(http_auth_backend
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/http_auth_backend_export.h)
+
+TARGET_INCLUDE_DIRECTORIES(http_auth_backend
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/../include/)
+
 
 ADD_HARNESS_PLUGIN(http_server
   NO_INSTALL
@@ -120,3 +150,4 @@ INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/router/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/metadata_cache/include/)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/http/include/)
+INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/src/http/include/)
