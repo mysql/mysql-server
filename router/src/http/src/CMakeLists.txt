@@ -22,6 +22,7 @@
 
 ADD_LIBRARY(http_common
   SHARED
+  base64.cc
   http_common.cc
   http_time.cc
   tls_error.cc

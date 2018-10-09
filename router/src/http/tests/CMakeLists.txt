@@ -22,6 +22,7 @@
 
 INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(../include ../src)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 
 add_test_file(test_time.cc
   MODULE http
@@ -33,6 +34,11 @@ add_test_file(test_posix_re.cc
   )
 
 add_test_file(test_http_uri.cc
+  MODULE http
+  LIB_DEPENDS http_common
+  )
+
+add_test_file(test_base64.cc
   MODULE http
   LIB_DEPENDS http_common
   )
