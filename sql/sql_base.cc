@@ -6395,7 +6395,7 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
                                          uint flags) {
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_OFF) return false;
 
-  const LEX *const lex = thd->lex;
+  LEX *const lex = thd->lex;
   Sql_cmd *const sql_cmd = lex->m_sql_cmd;
 
   // Only attempt to use a secondary engine if all of these conditions
@@ -6458,6 +6458,7 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
   }
 
   lex->m_sql_cmd->use_secondary_storage_engine();
+  lex->add_statement_options(OPTION_NO_CONST_TABLES);
 
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);

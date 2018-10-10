@@ -327,7 +327,8 @@ int JOIN::optimize() {
      group_list). In this case, the result set shall only contain one
      row.
   */
-  if (tables_list && implicit_grouping) {
+  if (tables_list && implicit_grouping &&
+      !(select_lex->active_options() & OPTION_NO_CONST_TABLES)) {
     int res;
     /*
       opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
