@@ -486,13 +486,13 @@ bool Secondary_engine::offload_count(MYSQL *mysql, const char *mode) {
 ///
 /// @param filename File to store the count value
 void Secondary_engine::report_offload_count(const char *filename) {
-  m_offload_count = offload_count_after - offload_count_before;
-  DBUG_ASSERT(m_offload_count >= 0);
+  int count_val = offload_count_after - offload_count_before;
+  DBUG_ASSERT(count_val >= 0);
 
   std::ofstream report_file(filename, std::ios::out);
 
   if (report_file.is_open()) {
-    std::string count = std::to_string(m_offload_count);
+    std::string count = std::to_string(count_val);
     report_file << count << std::endl;
   }
 

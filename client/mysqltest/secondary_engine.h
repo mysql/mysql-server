@@ -131,7 +131,6 @@ class Secondary_engine {
 
   bool m_change_propagation;
   const char *m_engine_name;
-  int m_offload_count;
   std::string m_table_name;
   Statement_type m_stmt_type;
 
