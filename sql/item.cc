@@ -4828,6 +4828,9 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     // Place of OUTER_CONTEXT_OBJECT in 'outer_context' e.g. WHERE :
     place = cur_unit->place();
 
+    // A non-lateral derived table cannot see tables of its owning query
+    if (place == CTX_DERIVED && select->end_lateral_table == nullptr) continue;
+
     /*
       If field was already found by first call
       to find_field_in_tables(), we only need to find appropriate context.
@@ -7220,6 +7223,9 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         }
 
         place = cur_unit->place();
+
+        if (place == CTX_DERIVED && select->end_lateral_table == nullptr)
+          goto loop;
 
         /* Search in the SELECT and GROUP lists of the outer select. */
         if (select_alias_referencable(place) &&
