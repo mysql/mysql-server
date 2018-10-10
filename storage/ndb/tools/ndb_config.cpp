@@ -435,6 +435,7 @@ print_diff(const Iter& iter)
 
       if ((MANDATORY != ConfigInfo::m_ParamInfo[p]._default)
           && (ConfigInfo::m_ParamInfo[p]._default)
+          && strlen(ConfigInfo::m_ParamInfo[p]._default) > 0
           && !strcmp(node_type, ConfigInfo::m_ParamInfo[p]._section)
           && strcmp(str, ConfigInfo::m_ParamInfo[p]._default)          )
       {
