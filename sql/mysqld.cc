@@ -1037,9 +1037,6 @@ const char *binlog_error_action_list[] = {"IGNORE_ERROR", "ABORT_SERVER",
 uint32 gtid_executed_compression_period = 0;
 bool opt_log_unsafe_statements;
 
-#ifdef HAVE_INITGROUPS
-volatile sig_atomic_t calling_initgroups = 0; /**< Used in SIGSEGV handler. */
-#endif
 const char *timestamp_type_names[] = {"UTC", "SYSTEM", NullS};
 ulong opt_log_timestamps;
 uint mysqld_port, test_flags, select_errors, ha_open_options;
@@ -2343,15 +2340,7 @@ static void set_user(const char *user, struct passwd *user_info_arg) {
   /* purecov: begin tested */
   DBUG_ASSERT(user_info_arg != 0);
 #ifdef HAVE_INITGROUPS
-  /*
-    We can get a SIGSEGV when calling initgroups() on some systems when NSS
-    is configured to use LDAP and the server is statically linked.  We set
-    calling_initgroups as a flag to the SIGSEGV handler that is then used to
-    output a specific message to help the user resolve this problem.
-  */
-  calling_initgroups = 1;
   initgroups((char *)user, user_info_arg->pw_gid);
-  calling_initgroups = 0;
 #endif
   if (setgid(user_info_arg->pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETGID, strerror(errno));

@@ -33,17 +33,12 @@
 #include <unistd.h>
 #endif
 
-#include "keycache.h"
 #include "my_macros.h"
 #include "my_stacktrace.h"
 #include "my_sys.h"
-#include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
-#include "sql/current_thd.h"  // my_thread_get_THR_THD
 #include "sql/mysqld.h"
-#include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/system_variables.h"
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -59,7 +54,6 @@
   to guarantee that we read some consistent value.
  */
 static volatile sig_atomic_t segfaulted = 0;
-extern volatile sig_atomic_t calling_initgroups;
 
 /**
  * Handler for fatal signals
@@ -112,55 +106,10 @@ extern "C" void handle_fatal_signal(int sig) {
   my_safe_printf_stderr("%s:%s:%s UTC - mysqld got " SIGNAL_FMT " ;\n", hrs_buf,
                         mins_buf, secs_buf, sig);
 
-  my_safe_printf_stderr("%s",
-                        "This could be because you hit a bug. It is also "
-                        "possible that this binary\n"
-                        "or one of the libraries it was linked against is "
-                        "corrupt, improperly built,\n"
-                        "or misconfigured. This error can also be caused by "
-                        "malfunctioning hardware.\n");
-
   my_safe_printf_stderr(
       "%s",
-      "Attempting to collect some information that could help diagnose the "
-      "problem.\n"
-      "As this is a crash and something is definitely wrong, the information\n"
-      "collection process might fail.\n\n");
-
-  my_safe_printf_stderr("key_buffer_size=%lu\n",
-                        (ulong)dflt_key_cache->key_cache_mem_size);
-
-  my_safe_printf_stderr("read_buffer_size=%ld\n",
-                        (long)global_system_variables.read_buff_size);
-
-  my_safe_printf_stderr("max_used_connections=%lu\n",
-                        Connection_handler_manager::max_used_connections);
-
-  uint max_threads = 1;
-  max_threads = Connection_handler_manager::max_threads;
-  my_safe_printf_stderr("max_threads=%u\n", max_threads);
-
-  my_safe_printf_stderr("thread_count=%u\n",
-                        Global_THD_manager::get_thd_count());
-
-  my_safe_printf_stderr("connection_count=%u\n",
-                        Connection_handler_manager::connection_count);
-
-  my_safe_printf_stderr(
-      "It is possible that mysqld could use up to \n"
-      "key_buffer_size + "
-      "(read_buffer_size + sort_buffer_size)*max_threads = "
-      "%lu K  bytes of memory\n",
-      ((ulong)dflt_key_cache->key_cache_mem_size +
-       (global_system_variables.read_buff_size +
-        global_system_variables.sortbuff_size) *
-           max_threads +
-       max_connections * sizeof(THD)) /
-          1024);
-
-  my_safe_printf_stderr(
-      "%s",
-      "Hope that's ok; if not, decrease some variables in the equation.\n\n");
+      "Most likely, you have hit a bug, but this error can also "
+      "be caused by malfunctioning hardware.\n");
 
 #ifdef HAVE_STACKTRACE
   THD *thd = current_thd;
@@ -213,36 +162,6 @@ extern "C" void handle_fatal_signal(int sig) {
       "information that should help you find out what is causing the crash.\n");
 
 #endif /* HAVE_STACKTRACE */
-
-#ifdef HAVE_INITGROUPS
-  if (calling_initgroups) {
-    my_safe_printf_stderr(
-        "%s",
-        "\n"
-        "This crash occured while the server was calling initgroups(). This "
-        "is\n"
-        "often due to the use of a mysqld that is statically linked against \n"
-        "glibc and configured to use LDAP in /etc/nsswitch.conf.\n"
-        "You will need to either upgrade to a version of glibc that does not\n"
-        "have this problem (2.3.4 or later when used with nscd),\n"
-        "disable LDAP in your nsswitch.conf, or use a "
-        "mysqld that is not statically linked.\n");
-  }
-#endif
-
-  if (locked_in_memory) {
-    my_safe_printf_stderr(
-        "%s",
-        "\n"
-        "The \"--memlock\" argument, which was enabled, "
-        "uses system calls that are\n"
-        "unreliable and unstable on some operating systems and "
-        "operating-system versions (notably, some versions of Linux).\n"
-        "This crash could be due to use of those buggy OS calls.\n"
-        "You should consider whether you really need the "
-        "\"--memlock\" parameter and/or consult the OS distributer about "
-        "\"mlockall\" bugs.\n");
-  }
 
   if (test_flags & TEST_CORE_ON_SIGNAL) {
     my_safe_printf_stderr("%s", "Writing a core file\n");
