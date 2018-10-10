@@ -12,7 +12,7 @@ insert into t4 values (1,1), (2,2), (3,3), (4,4), (5,5);
 set @save_debug = @@session.debug;
 --echo # Error injection in Ndb::waitCompletedTransactions so that transaction times out quickly
 SET SESSION debug="+d,early_trans_timeout";
---error 1296
+--error ER_GET_ERRMSG
 delete from t4 where id > 0;
 SET SESSION debug=@save_debug;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -27,7 +27,7 @@ set @save_debug = @@session.debug;
 SET SESSION debug="+d,early_trans_timeout";
 # The statement fails although it's using IGNORE since the provoked error is
 # not in the list of errors to IGNORE, see Ignore_error_handler
---error 1296
+--error ER_GET_ERRMSG
 delete ignore from t4 where id > 0;
 SET SESSION debug=@save_debug;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -40,7 +40,7 @@ insert into t4 values (1,1), (2,2), (3,3), (4,4), (5,5);
 set @save_debug = @@session.debug;
 --echo # Error injection in Ndb::waitCompletedTransactions so that transaction times out quickly
 SET SESSION debug="+d,early_trans_timeout";
---error 1296
+--error ER_GET_ERRMSG
 update t4 set val = 0 where id > 0;
 SET SESSION debug=@save_debug;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -53,7 +53,7 @@ drop table t4;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1625
+--error ER_NDB_REPLICATION_SCHEMA_ERROR
 create table t1(id int primary key, val int)engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -76,7 +76,7 @@ create table t3(id int primary key, val int)engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 create unique index val_unq on t3(val);
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -88,7 +88,7 @@ create table t4(id int primary key, val int, unique key val_unq(val))engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 drop index val_unq on t4;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -99,7 +99,7 @@ drop table t4;
 create table t1(id int primary key, val int)engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 alter table t1 add partition partitions 2;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -111,7 +111,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) references t1(id))engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 alter table t2 algorithm=inplace, drop foreign key t2_fk;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -125,7 +125,7 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1533
+--error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts1 drop datafile 'data1.dat';
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -135,7 +135,7 @@ SET SESSION debug=@save_debug;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6216" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1533
+--error ER_ALTER_FILEGROUP_FAILED
 alter logfile group lg1 add undofile 'undo2.dat' engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -158,7 +158,7 @@ SET SESSION debug=@save_debug;
 create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6217" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 alter table t1 add partition partitions 2;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -181,7 +181,7 @@ create table t1(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 create unique index val_unq on t1(val);
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -193,7 +193,7 @@ create table t1(id int primary key, val int, unique key val_unq(val))engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 drop index val_unq on t1;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -204,7 +204,7 @@ drop table t1;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1528
+--error ER_CREATE_FILEGROUP_FAILED
 create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -215,7 +215,7 @@ create logfile group lg1 add undofile 'undo1.dat' engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1529
+--error ER_DROP_FILEGROUP_FAILED
 drop logfile group lg1 engine=ndb;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -227,7 +227,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, val int) engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296, 4008
+--error ER_GET_ERRMSG
 alter table t2 add constraint foreign key (id) references t1(id);
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -240,7 +240,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) references t1(id))engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1296
+--error ER_GET_ERRMSG
 alter table t2 algorithm=inplace, drop foreign key t2_fk;
 --replace_regex /fk '[0-9]+\/[0-9]+/fk 'X\/X/
 show warnings;
@@ -255,7 +255,7 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6218" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1533
+--error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts1 add datafile 'data2.dat';
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -270,7 +270,7 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 6219" >> $NDB_TOOLS_OUTPUT
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
---error 1533
+--error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts1 drop datafile 'data1.dat';
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
@@ -305,7 +305,7 @@ drop table t1;
 create table t1(id int primary key, val int unique) engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_simulate_nodefail";
---error 1297
+--error ER_GET_TEMPORARY_ERRMSG
 show create table t1;
 show warnings;
 SET SESSION debug=@save_debug;
@@ -316,7 +316,7 @@ create table t1(id int primary key, val int) engine=ndb;
 insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_start_transaction_fail";
---error 1296
+--error ER_GET_ERRMSG
 update t1 set val = 11111 where id > 0;
 show warnings;
 SET SESSION debug=@save_debug;

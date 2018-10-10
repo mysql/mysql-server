@@ -40,6 +40,11 @@ ADD UNDOFILE 'lg1_undofile.dat'
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
 ERROR HY000: Failed to create LOGFILE GROUP
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 721 'Schema object with given name already exists' from NDB
+Warning	1296	Failed to create logfile group 'lg1' in NDB
+Error	1528	Failed to create LOGFILE GROUP
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
@@ -84,17 +89,32 @@ ENGINE NDB;
 ERROR HY000: Tablespace 'ts1' exists.
 ALTER TABLESPACE ts2
 ADD DATAFILE 'ts2_datafile2.dat';
-ERROR HY000: Failed to alter:  CREATE DATAFILE
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create datafile 'ts2_datafile2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
 ALTER TABLESPACE ts3
 ADD DATAFILE 'ts3_datafile2.dat';
-ERROR HY000: Failed to alter:  CREATE DATAFILE
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create datafile 'ts3_datafile2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
 ALTER TABLESPACE ts3
 DROP DATAFILE 'ts3_datafile.dat';
 ERROR HY000: Tablespace 'ts3' does not have a file named 'ts3_datafile.dat'
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'lg1_undofile2.dat'
   ENGINE=NDB;
-ERROR HY000: Failed to alter: CREATE UNDOFILE
+ERROR HY000: Failed to alter: CREATE UNDOFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 760 'File already exists' from NDB
+Warning	1296	Failed to create undofile 'lg1_undofile2.dat' in NDB
+Error	1533	Failed to alter: CREATE UNDOFILE FAILED
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;
@@ -118,3 +138,8 @@ ERROR HY000: Tablespace ts3 doesn't exist.
 DROP LOGFILE GROUP lg1
 ENGINE=NDB;
 ERROR HY000: Failed to drop LOGFILE GROUP
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 723 'No such table existed' from NDB
+Warning	1296	Failed to get logfile group 'lg1' from NDB
+Error	1529	Failed to drop LOGFILE GROUP

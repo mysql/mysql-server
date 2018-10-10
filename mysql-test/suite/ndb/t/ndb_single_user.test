@@ -99,21 +99,21 @@ drop table t2;
 --connection server2
 --error ER_ENGINE_CANT_DROP_TABLE
 drop table t1;
---error 1296
+--error ER_GET_ERRMSG
 create index new_index_fail on t1 (c);
---error 1296
+--error ER_GET_ERRMSG
 insert into t1 values (21,21,0),(22,22,0),(23,23,0),(24,24,0),(25,25,0),(26,26,0),(27,27,0),(28,28,0),(29,29,0),(210,210,0);
---error 1296
+--error ER_GET_ERRMSG
 select * from t1 where a = 1;
---error 1296
+--error ER_GET_ERRMSG
 select * from t1 where b = 4;
---error 1296
+--error ER_GET_ERRMSG
 update t1 set b=102 where a = 2;
---error 1296
+--error ER_GET_ERRMSG
 update t1 set b=103 where b = 3;
---error 1296
+--error ER_GET_ERRMSG
 update t1 set b=b+100;
---error 1296
+--error ER_GET_ERRMSG
 update t1 set b=b+100 where a > 7;
 
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "exit single user mode" >> $NDB_TOOLS_OUTPUT
@@ -140,7 +140,7 @@ COMMIT;
 
 # while on other mysqld it should be aborted
 --connection server2
---error 1296
+--error ER_GET_ERRMSG
 update t1 set b=b+100 where a=4;
 ROLLBACK;
 

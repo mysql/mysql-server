@@ -24,6 +24,11 @@ INITIAL_SIZE 5K
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
 ERROR HY000: Failed to create UNDOFILE
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Failed to create undofile 'undofile.dat' in NDB
+Error	1528	Failed to create UNDOFILE
 set default_storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -234,7 +239,12 @@ engine = ndbcluster tablespace ts2 storage disk;
 insert into t1 values (1,1);
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
-ERROR HY000: Failed to alter:  DROP DATAFILE
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
+Warning	1296	Failed to drop datafile 'datafile2_1.dat' from NDB
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 drop table t1;
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
@@ -575,6 +585,7 @@ ERROR HY000: Failed to create DATAFILE
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1516 'File too small' from NDB
+Warning	1296	Failed to create datafile 'datafile.dat' in NDB
 Error	1528	Failed to create DATAFILE
 create tablespace ts1
 add datafile 'datafile.dat'
@@ -585,11 +596,12 @@ engine ndb;
 alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 1M;
-ERROR HY000: Failed to alter:  CREATE DATAFILE
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1516 'File too small' from NDB
-Error	1533	Failed to alter:  CREATE DATAFILE
+Warning	1296	Failed to create datafile 'datafile02.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
 alter tablespace ts1
 drop datafile 'datafile.dat';
 drop tablespace ts1;
@@ -628,14 +640,14 @@ initial_size 3276801
 undo_buffer_size 294913
 engine ndb;
 Warnings:
-Warning	1	Undo buffer size rounded up to kernel page size
-Warning	2	Undofile size rounded down to kernel page size
+Warning	1296	Undo buffer size rounded up to kernel page size
+Warning	1296	Undofile size rounded down to kernel page size
 alter logfile group lg1
 add undofile 'undofile02.dat'
 initial_size 3309567
 engine ndb;
 Warnings:
-Warning	2	Undofile size rounded down to kernel page size
+Warning	1296	Undofile size rounded down to kernel page size
 create tablespace ts1
 add datafile 'datafile.dat'
 use logfile group lg1
@@ -643,13 +655,13 @@ initial_size 3276801
 extent_size 294913
 engine ndb;
 Warnings:
-Warning	4	Extent size rounded up to kernel page size
-Warning	8	Datafile size rounded down to extent size
+Warning	1296	Extent size rounded up to kernel page size
+Warning	1296	Datafile size rounded down to extent size
 alter tablespace ts1
 add datafile 'datafile02.dat'
 initial_size 3342335;
 Warnings:
-Warning	24	Datafile size rounded up to extent size
+Warning	1296	Datafile size rounded up to extent size
 select file_name, initial_size
 from information_schema.files
 where file_type = 'UNDO LOG' and file_name like '%dat'
@@ -689,5 +701,6 @@ ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
+Warning	1296	Failed to create logfile group 'lg1' in NDB
 Error	1528	Failed to create LOGFILE GROUP
 SET SESSION information_schema_stats_expiry=default;

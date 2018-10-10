@@ -17952,61 +17952,6 @@ void ha_ndbcluster::notify_table_changed(Alter_inplace_info *alter_info)
   DBUG_VOID_RETURN;
 }
 
-static
-bool set_up_tablespace(st_alter_tablespace *alter_info,
-                       NdbDictionary::Tablespace *ndb_ts)
-{
-  if (alter_info->extent_size >= (Uint64(1) << 32))
-  {
-    // TODO set correct error
-    return true;
-  }
-  ndb_ts->setName(alter_info->tablespace_name);
-  ndb_ts->setExtentSize(Uint32(alter_info->extent_size));
-  ndb_ts->setDefaultLogfileGroup(alter_info->logfile_group_name);
-  return false;
-}
-
-static
-bool set_up_datafile(st_alter_tablespace *alter_info,
-                     NdbDictionary::Datafile *ndb_df)
-{
-  if (alter_info->max_size > 0)
-  {
-    my_error(ER_TABLESPACE_AUTO_EXTEND_ERROR, MYF(0));
-    return true;
-  }
-  ndb_df->setPath(alter_info->data_file_name);
-  ndb_df->setSize(alter_info->initial_size);
-  ndb_df->setTablespace(alter_info->tablespace_name);
-  return false;
-}
-
-static
-bool set_up_logfile_group(st_alter_tablespace *alter_info,
-                          NdbDictionary::LogfileGroup *ndb_lg)
-{
-  if (alter_info->undo_buffer_size >= (Uint64(1) << 32))
-  {
-    // TODO set correct error
-    return true;
-  }
-
-  ndb_lg->setName(alter_info->logfile_group_name);
-  ndb_lg->setUndoBufferSize(Uint32(alter_info->undo_buffer_size));
-  return false;
-}
-
-static
-bool set_up_undofile(st_alter_tablespace *alter_info,
-                     NdbDictionary::Undofile *ndb_uf)
-{
-  ndb_uf->setPath(alter_info->undo_file_name);
-  ndb_uf->setSize(alter_info->initial_size);
-  ndb_uf->setLogfileGroup(alter_info->logfile_group_name);
-  return false;
-}
-
 
 /**
   Get the tablespace name from the NDB dictionary for the given table in the
@@ -18071,12 +18016,246 @@ int ndbcluster_get_tablespace(THD* thd,
 }
 
 
-/**
-  Create/drop or alter tablespace or logfile group
+static
+bool create_tablespace_in_NDB(st_alter_tablespace *alter_info,
+                              NdbDictionary::Dictionary* dict,
+                              const Thd_ndb* thd_ndb,
+                              int& object_id, int& object_version)
+{
+  NdbDictionary::Tablespace ndb_ts;
+  ndb_ts.setName(alter_info->tablespace_name);
+  ndb_ts.setExtentSize(static_cast<Uint32>(alter_info->extent_size));
+  ndb_ts.setDefaultLogfileGroup(alter_info->logfile_group_name);
+  NdbDictionary::ObjectId objid;
+  if (dict->createTablespace(ndb_ts, &objid))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to create tablespace '%s' in NDB",
+                          alter_info->tablespace_name);
+    my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "TABLESPACE");
+    return false;
+  }
+  object_id = objid.getObjectId();
+  object_version = objid.getObjectVersion();
+  if (dict->getWarningFlags() & NdbDictionary::Dictionary::WarnExtentRoundUp)
+  {
+    thd_ndb->push_warning("Extent size rounded up to kernel page size");
+  }
+  return true;
+}
 
-  @param          hton        Hadlerton of the SE.
+
+static
+bool create_datafile_in_NDB(st_alter_tablespace* alter_info,
+                            NdbDictionary::Dictionary* dict,
+                            const Thd_ndb* thd_ndb)
+{
+  NdbDictionary::Datafile ndb_df;
+  ndb_df.setPath(alter_info->data_file_name);
+  ndb_df.setSize(alter_info->initial_size);
+  ndb_df.setTablespace(alter_info->tablespace_name);
+  if (dict->createDatafile(ndb_df))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to create datafile '%s' in NDB",
+                          alter_info->data_file_name);
+    if (alter_info->ts_cmd_type == CREATE_TABLESPACE)
+    {
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "DATAFILE");
+    }
+    else
+    {
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "CREATE DATAFILE FAILED");
+    }
+    return false;
+  }
+  if (dict->getWarningFlags() & NdbDictionary::Dictionary::WarnDatafileRoundUp)
+  {
+    thd_ndb->push_warning("Datafile size rounded up to extent size");
+  }
+  else if (dict->getWarningFlags() &
+           NdbDictionary::Dictionary::WarnDatafileRoundDown)
+  {
+    thd_ndb->push_warning("Datafile size rounded down to extent size");
+  }
+  return true;
+}
+
+
+static
+bool drop_datafile_from_NDB(const char* tablespace_name,
+                            const char* datafile_name,
+                            NdbDictionary::Dictionary* dict,
+                            const Thd_ndb* thd_ndb)
+{
+  NdbDictionary::Tablespace ts = dict->getTablespace(tablespace_name);
+  if(ndb_dict_check_NDB_error(dict))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to get tablespace '%s' from NDB",
+                          tablespace_name);
+    my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "DROP DATAFILE FAILED");
+    return false;
+  }
+  NdbDictionary::Datafile df = dict->getDatafile(0, datafile_name);
+  if(ndb_dict_check_NDB_error(dict))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to get datafile '%s' from NDB",
+                          datafile_name);
+    my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "DROP DATAFILE FAILED");
+    return false;
+  }
+
+  NdbDictionary::ObjectId objid;
+  df.getTablespaceId(&objid);
+  if (ts.getObjectId() == objid.getObjectId() &&
+      strcmp(df.getPath(), datafile_name) == 0)
+  {
+    if (dict->dropDatafile(df))
+    {
+      thd_ndb->push_ndb_error_warning(dict->getNdbError());
+      thd_ndb->push_warning("Failed to drop datafile '%s' from NDB",
+                            datafile_name);
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "DROP DATAFILE FAILED");
+      return false;
+    }
+  }
+  else
+  {
+    my_error(ER_WRONG_FILE_NAME, MYF(0), datafile_name);
+    return false;
+  }
+  return true;
+}
+
+
+static
+bool drop_tablespace_from_NDB(const char* tablespace_name,
+                              NdbDictionary::Dictionary* dict,
+                              const Thd_ndb* thd_ndb,
+                              int& object_id, int& object_version)
+{
+  NdbDictionary::Tablespace ts = dict->getTablespace(tablespace_name);
+  if (ndb_dict_check_NDB_error(dict))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to get tablespace '%s' from NDB",
+                          tablespace_name);
+    my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "TABLESPACE");
+    return false;
+  }
+  object_id = ts.getObjectId();
+  object_version = ts.getObjectVersion();
+  if (dict->dropTablespace(ts))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to drop tablespace '%s' from NDB",
+                          tablespace_name);
+    my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "TABLESPACE");
+    return false;
+  }
+  return true;
+}
+
+
+static
+bool create_logfile_group_in_NDB(st_alter_tablespace *alter_info,
+                                 NdbDictionary::Dictionary* dict,
+                                 const Thd_ndb* thd_ndb,
+                                 int& object_id, int& object_version)
+{
+  NdbDictionary::LogfileGroup ndb_lg;
+  ndb_lg.setName(alter_info->logfile_group_name);
+  ndb_lg.setUndoBufferSize(static_cast<Uint32>(alter_info->undo_buffer_size));
+  NdbDictionary::ObjectId objid;
+  if (dict->createLogfileGroup(ndb_lg, &objid))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to create logfile group '%s' in NDB",
+                          alter_info->logfile_group_name);
+    my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+    return false;
+  }
+  object_id = objid.getObjectId();
+  object_version = objid.getObjectVersion();
+  if (dict->getWarningFlags() &
+      NdbDictionary::Dictionary::WarnUndobufferRoundUp)
+  {
+    thd_ndb->push_warning("Undo buffer size rounded up to kernel page size");
+  }
+  return true;
+}
+
+
+static
+bool create_undofile_in_NDB(st_alter_tablespace* alter_info,
+                            NdbDictionary::Dictionary* dict,
+                            const Thd_ndb* thd_ndb)
+{
+  NdbDictionary::Undofile ndb_uf;
+  ndb_uf.setPath(alter_info->undo_file_name);
+  ndb_uf.setSize(alter_info->initial_size);
+  ndb_uf.setLogfileGroup(alter_info->logfile_group_name);
+  if (dict->createUndofile(ndb_uf))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to create undofile '%s' in NDB",
+                          alter_info->undo_file_name);
+    if (alter_info->ts_cmd_type == CREATE_LOGFILE_GROUP)
+    {
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "UNDOFILE");
+    }
+    else
+    {
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "CREATE UNDOFILE FAILED");
+    }
+    return false;
+  }
+  if (dict->getWarningFlags() &
+      NdbDictionary::Dictionary::WarnUndofileRoundDown)
+  {
+    thd_ndb->push_warning("Undofile size rounded down to kernel page size");
+  }
+  return true;
+}
+
+
+static
+bool drop_logfile_group_from_NDB(const char* logfile_group_name,
+                                 NdbDictionary::Dictionary* dict,
+                                 const Thd_ndb* thd_ndb,
+                                 int& object_id, int& object_version)
+{
+  NdbDictionary::LogfileGroup lg = dict->getLogfileGroup(logfile_group_name);
+  if (ndb_dict_check_NDB_error(dict))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to get logfile group '%s' from NDB",
+                          logfile_group_name);
+    my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+    return false;
+  }
+  object_id = lg.getObjectId();
+  object_version = lg.getObjectVersion();
+  if (dict->dropLogfileGroup(lg))
+  {
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
+    thd_ndb->push_warning("Failed to drop logfile group '%s' from NDB",
+                          logfile_group_name);
+    my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+    return false;
+  }
+  return true;
+}
+
+
+/**
+  Create, drop or alter tablespace or logfile group
+
+  @param          hton        Handlerton of the SE.
   @param          thd         Thread context.
-  @param          ts_info     Description of tablespace and specific
+  @param          alter_info  Description of tablespace and specific
                               operation on it.
   @param          old_ts_def  dd::Tablespace object describing old version
                               of tablespace.
@@ -18091,9 +18270,6 @@ int ndbcluster_get_tablespace(THD* thd,
                   that start with HA_) can be returned. Special case seems
                   to be 1 which is to be used when my_error() already has
                   been called to set the MySQL error code.
-
-  @note There are many places in this function which return 1 without
-        calling my_error() first.
 */
 
 static
@@ -18102,96 +18278,72 @@ int ndbcluster_alter_tablespace(handlerton*,
                                 const dd::Tablespace*,
                                 dd::Tablespace* new_ts_def)
 {
-  NdbError err;
-  int error;
-  const char *errmsg= NULL;
   DBUG_ENTER("ndbcluster_alter_tablespace");
 
-  Ndb* ndb= check_ndb_in_thd(thd);
-  if (ndb == NULL)
+  Ndb *ndb = check_ndb_in_thd(thd, true);
+  if (ndb == nullptr)
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
-  NdbDictionary::Dictionary* dict= ndb->getDictionary();
-
+  NdbDictionary::Dictionary* dict = ndb->getDictionary();
   Ndb_schema_dist_client schema_dist_client(thd);
-
-  int object_id= 0;
-  int object_version= 0;
-
   const Thd_ndb* thd_ndb = get_thd_ndb(thd);
 
-  switch (alter_info->ts_cmd_type){
-  case (CREATE_TABLESPACE):
+  switch (alter_info->ts_cmd_type) {
+  case CREATE_TABLESPACE:
   {
-    error= ER_CREATE_FILEGROUP_FAILED;
+    if (alter_info->extent_size >= (Uint64(1) << 32))
+    {
+      thd_ndb->push_warning("Value specified for EXTENT_SIZE was too large");
+      my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
+      DBUG_RETURN(1);
+    }
+
+    if (alter_info->max_size > 0)
+    {
+      thd_ndb->push_warning("MAX_SIZE cannot be set to a value greater than 0");
+      my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
+      DBUG_RETURN(1);
+    }
 
     if (!schema_dist_client.prepare("", alter_info->tablespace_name))
     {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
-    
-    NdbDictionary::Tablespace ndb_ts;
-    NdbDictionary::Datafile ndb_df;
-    NdbDictionary::ObjectId objid;
-    if (set_up_tablespace(alter_info, &ndb_ts))
-    {
-      DBUG_RETURN(1);
-    }
-    if (set_up_datafile(alter_info, &ndb_df))
-    {
-      DBUG_RETURN(1);
-    }
-    errmsg= "TABLESPACE";
-    if (dict->createTablespace(ndb_ts, &objid))
-    {
-      DBUG_PRINT("error", ("createTablespace returned %d", error));
-      goto ndberror;
-    }
-    object_id = objid.getObjectId();
-    object_version = objid.getObjectVersion();
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnExtentRoundUp)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Extent size rounded up to kernel page size");
-    }
-    DBUG_PRINT("alter_info", ("Successfully created Tablespace"));
-    errmsg= "DATAFILE";
-    if (dict->createDatafile(ndb_df))
-    {
-      err= dict->getNdbError();
-      NdbDictionary::Tablespace tmp= dict->getTablespace(ndb_ts.getName());
-      if (dict->getNdbError().code == 0 &&
-	  tmp.getObjectId() == objid.getObjectId() &&
-	  tmp.getObjectVersion() == objid.getObjectVersion())
-      {
-	dict->dropTablespace(tmp);
-      }
-      
-      DBUG_PRINT("error", ("createDatafile returned %d", error));
-      goto ndberror2;
-    }
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnDatafileRoundUp)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Datafile size rounded up to extent size");
-    }
-    else /* produce only 1 message */
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnDatafileRoundDown)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Datafile size rounded down to extent size");
-    }
 
-    /*
-     * Set se_private_id and se_private_data for the tablespace
-     */
+    int object_id, object_version;
+    if (!create_tablespace_in_NDB(alter_info, dict, thd_ndb,
+                                  object_id, object_version))
+    {
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created tablespace '%s' in NDB",
+                        alter_info->tablespace_name));
+
+    if (!create_datafile_in_NDB(alter_info, dict, thd_ndb))
+    {
+      // Clean up the tablespace created above
+      NdbDictionary::Tablespace ndb_ts =
+        dict->getTablespace(alter_info->tablespace_name);
+      if (ndb_dict_check_NDB_error(dict) == false &&
+          ndb_ts.getObjectId() == object_id &&
+          ndb_ts.getObjectVersion() == object_version)
+      {
+        if (dict->dropTablespace(ndb_ts))
+        {
+          thd_ndb->push_ndb_error_warning(dict->getNdbError());
+          thd_ndb->push_warning("Failed to drop tablespace '%s' after failed "
+                                "creation of datafile '%s'",
+                                alter_info->tablespace_name,
+                                alter_info->data_file_name);
+        }
+      }
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created datafile '%s' in NDB",
+                        alter_info->data_file_name));
+
+    // Set se_private_id and se_private_data for the tablespace
     ndb_dd_disk_data_set_object_id_and_version(new_ts_def, object_id,
                                                object_version);
     ndb_dd_disk_data_set_object_type(new_ts_def, object_type::TABLESPACE);
@@ -18205,81 +18357,50 @@ int ndbcluster_alter_tablespace(handlerton*,
     }
     break;
   }
-  case (ALTER_TABLESPACE):
+  case ALTER_TABLESPACE:
   {
-    error= ER_ALTER_FILEGROUP_FAILED;
-
     if (!schema_dist_client.prepare("", alter_info->tablespace_name))
     {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    if (alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_ADD_FILE)
+    switch (alter_info->ts_alter_tablespace_type) {
+    case ALTER_TABLESPACE_ADD_FILE:
     {
-      NdbDictionary::Datafile ndb_df;
-      if (set_up_datafile(alter_info, &ndb_df))
+      if (alter_info->max_size > 0)
       {
-	DBUG_RETURN(1);
-      }
-      errmsg= " CREATE DATAFILE";
-      NdbDictionary::ObjectId objid;
-      if (dict->createDatafile(ndb_df, false, &objid))
-      {
-	goto ndberror;
-      }
-      object_id = objid.getObjectId();
-      object_version = objid.getObjectVersion();
-      if (dict->getWarningFlags() &
-          NdbDictionary::Dictionary::WarnDatafileRoundUp)
-      {
-        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                            dict->getWarningFlags(),
-                            "Datafile size rounded up to extent size");
-      }
-      else /* produce only 1 message */
-      if (dict->getWarningFlags() &
-          NdbDictionary::Dictionary::WarnDatafileRoundDown)
-      {
-        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                            dict->getWarningFlags(),
-                            "Datafile size rounded down to extent size");
-      }
-    }
-    else if(alter_info->ts_alter_tablespace_type == ALTER_TABLESPACE_DROP_FILE)
-    {
-      NdbDictionary::Tablespace ts= dict->getTablespace(alter_info->tablespace_name);
-      NdbDictionary::Datafile df= dict->getDatafile(0, alter_info->data_file_name);
-      if(ndb_dict_check_NDB_error(dict))
-      {
-        errmsg = " NO SUCH FILE"; // mapping all errors to "NO SUCH FILE"
-        goto ndberror;
+        thd_ndb->push_warning("MAX_SIZE cannot be set to a value greater than "
+                              "0");
+        my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
+        DBUG_RETURN(1);
       }
 
-      NdbDictionary::ObjectId objid;
-      df.getTablespaceId(&objid);
-      object_id = df.getObjectId();
-      object_version = df.getObjectVersion();
-      if (ts.getObjectId() == objid.getObjectId() && 
-	  strcmp(df.getPath(), alter_info->data_file_name) == 0)
+      if (!create_datafile_in_NDB(alter_info, dict, thd_ndb))
       {
-	errmsg= " DROP DATAFILE";
-	if (dict->dropDatafile(df))
-	{
-	  goto ndberror;
-	}
+        DBUG_RETURN(1);
       }
-      else
-      {
-	DBUG_PRINT("error", ("No such datafile"));
-	my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), " NO SUCH FILE");
-	DBUG_RETURN(1);
-      }
+      DBUG_PRINT("info", ("Successfully created datafile '%s' in NDB",
+                          alter_info->data_file_name));
+      break;
     }
-    else
+    case ALTER_TABLESPACE_DROP_FILE:
     {
-      DBUG_PRINT("error", ("Unsupported alter tablespace: %d", 
-			   alter_info->ts_alter_tablespace_type));
+      if (!drop_datafile_from_NDB(alter_info->tablespace_name,
+                                  alter_info->data_file_name,
+                                  dict, thd_ndb))
+      {
+        DBUG_RETURN(1);
+      }
+      DBUG_PRINT("info", ("Successfully dropped datafile '%s' from NDB",
+                          alter_info->data_file_name));
+      break;
+    }
+    default:
+    {
+      DBUG_PRINT("error", ("Unsupported alter tablespace type: %d",
+                           alter_info->ts_alter_tablespace_type));
       DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    }
     }
 
     NdbDictionary::Tablespace ts =
@@ -18303,23 +18424,31 @@ int ndbcluster_alter_tablespace(handlerton*,
       thd_ndb->push_warning("Failed to distribute ALTER TABLESPACE '%s'",
                             alter_info->tablespace_name);
     }
-
     break;
   }
-  case (CREATE_LOGFILE_GROUP):
+  case CREATE_LOGFILE_GROUP:
   {
-    error= ER_CREATE_FILEGROUP_FAILED;
-    errmsg= "LOGFILE GROUP";
-
     // Acquire MDL locks on the logfile group
     Ndb_dd_client dd_client(thd);
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
-    if (!lock_logfile_group_result)
+    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
     {
       thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
                             "'%s'", alter_info->logfile_group_name);
-      my_error(error, MYF(0), errmsg);
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
+    }
+
+    if (alter_info->undo_file_name == nullptr)
+    {
+      thd_ndb->push_warning("REDO files in LOGFILE GROUP are not supported");
+      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    }
+
+    if (alter_info->undo_buffer_size >= (Uint64(1) << 32))
+    {
+      thd_ndb->push_warning("Size specified for UNDO_BUFFER_SIZE was too "
+                            "large");
+      my_error(ER_WRONG_SIZE_NUMBER, MYF(0));
       DBUG_RETURN(1);
     }
 
@@ -18328,108 +18457,76 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    NdbDictionary::LogfileGroup ndb_lg;
-    NdbDictionary::Undofile ndb_uf;
-    NdbDictionary::ObjectId objid;
-    if (alter_info->undo_file_name == NULL)
-    {
-      /*
-	REDO files in LOGFILE GROUP not supported yet
-      */
-      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-    }
-    if (set_up_logfile_group(alter_info, &ndb_lg))
+    int object_id, object_version;
+    if (!create_logfile_group_in_NDB(alter_info, dict, thd_ndb,
+                                     object_id, object_version))
     {
       DBUG_RETURN(1);
     }
-    if (dict->createLogfileGroup(ndb_lg, &objid))
-    {
-      goto ndberror;
-    }
-    object_id = objid.getObjectId();
-    object_version = objid.getObjectVersion();
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnUndobufferRoundUp)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Undo buffer size rounded up to kernel page size");
-    }
-    DBUG_PRINT("alter_info", ("Successfully created Logfile Group"));
-    if (set_up_undofile(alter_info, &ndb_uf))
-    {
-      DBUG_RETURN(1);
-    }
-    errmsg= "UNDOFILE";
-    if (dict->createUndofile(ndb_uf))
-    {
-      err= dict->getNdbError();
-      NdbDictionary::LogfileGroup tmp= dict->getLogfileGroup(ndb_lg.getName());
-      if (dict->getNdbError().code == 0 &&
-	  tmp.getObjectId() == objid.getObjectId() &&
-	  tmp.getObjectVersion() == objid.getObjectVersion())
-      {
-	dict->dropLogfileGroup(tmp);
-      }
-      goto ndberror2;
-    }
+    DBUG_PRINT("info", ("Successfully created logfile group '%s' in NDB",
+                        alter_info->logfile_group_name));
 
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnUndofileRoundDown)
+    if (!create_undofile_in_NDB(alter_info, dict, thd_ndb))
     {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Undofile size rounded down to kernel page size");
+      // Clean up the logfile group created above
+      NdbDictionary::LogfileGroup ndb_lg =
+        dict->getLogfileGroup(alter_info->logfile_group_name);
+      if (ndb_dict_check_NDB_error(dict) == false &&
+          ndb_lg.getObjectId() == object_id &&
+          ndb_lg.getObjectVersion() == object_version)
+      {
+        if (dict->dropLogfileGroup(ndb_lg))
+        {
+          thd_ndb->push_ndb_error_warning(dict->getNdbError());
+          thd_ndb->push_warning("Failed to drop logfile group '%s' after "
+                                "failed creation of undofile '%s'",
+                                alter_info->logfile_group_name,
+                                alter_info->undo_file_name);
+        }
+      }
+      DBUG_RETURN(1);
     }
+    DBUG_PRINT("info", ("Successfully created undofile '%s' in NDB",
+                        alter_info->undo_file_name));
 
     // Add Logfile Group entry to the DD as a tablespace
-    const char* logfile_group_name= alter_info->logfile_group_name;
-    std::vector<std::string> undo_file_names;
-    undo_file_names.push_back(alter_info->undo_file_name);
-
-    const bool install_logfile_group_result=
-        dd_client.install_logfile_group(logfile_group_name,
-                                        undo_file_names,
-                                        object_id,
-                                        object_version,
-                                        false /* force_overwrite */ );
-    if (!install_logfile_group_result)
+    std::vector<std::string> undofile_names = {alter_info->undo_file_name};
+    if (!dd_client.install_logfile_group(alter_info->logfile_group_name,
+                                         undofile_names, object_id,
+                                         object_version,
+                                         false /* force_overwrite */))
     {
-      thd_ndb->push_warning("Logfile Group '%s' could not be stored in DD",
-                            logfile_group_name);
-      DBUG_ASSERT(false);
+      thd_ndb->push_warning("Logfile group '%s' could not be stored in DD",
+                            alter_info->logfile_group_name);
       break;
     }
-
-    // All okay, commit to DD
     dd_client.commit();
 
-    if (!schema_dist_client.create_logfile_group(logfile_group_name,
-                                                 object_id,
-                                                 object_version))
+    if (!schema_dist_client.create_logfile_group(alter_info->logfile_group_name,
+                                                 object_id, object_version))
     {
       // Schema distibution failed, just push a warning and continue
       thd_ndb->push_warning("Failed to distribute CREATE LOGFILE GROUP '%s'",
-                            logfile_group_name);
+                            alter_info->logfile_group_name);
     }
-
     break;
   }
-  case (ALTER_LOGFILE_GROUP):
+  case ALTER_LOGFILE_GROUP:
   {
-    error= ER_ALTER_FILEGROUP_FAILED;
-    errmsg= "LOGFILE GROUP";
-
     // Acquire MDL locks on logfile group
     Ndb_dd_client dd_client(thd);
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
-    if (!lock_logfile_group_result)
+    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
     {
       thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
                             "'%s'", alter_info->logfile_group_name);
-      my_error(error, MYF(0), errmsg);
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
       DBUG_RETURN(1);
+    }
+
+    if (alter_info->undo_file_name == nullptr)
+    {
+      thd_ndb->push_warning("REDO files in LOGFILE GROUP are not supported");
+      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
     }
 
     if (!schema_dist_client.prepare("", alter_info->logfile_group_name))
@@ -18437,123 +18534,80 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    if (alter_info->undo_file_name == NULL)
-    {
-      /*
-	REDO files in LOGFILE GROUP not supported yet
-      */
-      DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-    }
-    NdbDictionary::Undofile ndb_uf;
-    if (set_up_undofile(alter_info, &ndb_uf))
+    if (!create_undofile_in_NDB(alter_info, dict, thd_ndb))
     {
       DBUG_RETURN(1);
     }
-    errmsg= "CREATE UNDOFILE";
-    NdbDictionary::ObjectId objid;
-    if (dict->createUndofile(ndb_uf, false, &objid))
-    {
-      goto ndberror;
-    }
-    object_id = objid.getObjectId();
-    object_version = objid.getObjectVersion();
-    if (dict->getWarningFlags() &
-        NdbDictionary::Dictionary::WarnUndofileRoundDown)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          dict->getWarningFlags(),
-                          "Undofile size rounded down to kernel page size");
-    }
+    DBUG_PRINT("info", ("Successfully created undofile '%s' in NDB",
+                        alter_info->undo_file_name));
 
     // Update Logfile Group entry in the DD
-    const char* logfile_group_name= alter_info->logfile_group_name;
-    const char* undo_file_name= alter_info->undo_file_name;
-
-    const bool install_undo_file_result=
-        dd_client.install_undo_file(logfile_group_name,
-                                    undo_file_name);
-    if (!install_undo_file_result)
+    if (!dd_client.install_undo_file(alter_info->logfile_group_name,
+                                     alter_info->undo_file_name))
     {
-      thd_ndb->push_warning("Undo file '%s' could not be added to logfile "
-                            "group '%s'", undo_file_name, logfile_group_name);
-      DBUG_ASSERT(false);
+      thd_ndb->push_warning("Undofile '%s' could not be added to logfile "
+                            "group '%s' in DD", alter_info->undo_file_name,
+                            alter_info->logfile_group_name);
       break;
     }
-
-    // All okay, commit to DD
     dd_client.commit();
 
-    NdbDictionary::LogfileGroup lfg= dict->getLogfileGroup(logfile_group_name);
+    NdbDictionary::LogfileGroup ndb_lg =
+      dict->getLogfileGroup(alter_info->logfile_group_name);
     if (ndb_dict_check_NDB_error(dict))
     {
       // Failed to get logfile group from NDB, push warnings and continue
       thd_ndb->push_ndb_error_warning(dict->getNdbError());
       thd_ndb->push_warning("Failed to get logfile group '%s' from NDB",
-                            logfile_group_name);
+                            alter_info->logfile_group_name);
       thd_ndb->push_warning("Failed to distribute ALTER LOGFILE GROUP '%s'",
-                            logfile_group_name);
+                            alter_info->logfile_group_name);
       break;
     }
-    if (!schema_dist_client.alter_logfile_group(logfile_group_name,
-                                                lfg.getObjectId(),
-                                                lfg.getObjectVersion()))
+    if (!schema_dist_client.alter_logfile_group(alter_info->logfile_group_name,
+                                                ndb_lg.getObjectId(),
+                                                ndb_lg.getObjectVersion()))
     {
       // Schema distibution failed, just push a warning and continue
       thd_ndb->push_warning("Failed to distribute ALTER LOGFILE GROUP '%s'",
-                            logfile_group_name);
+                            alter_info->logfile_group_name);
     }
     break;
   }
-  case (DROP_TABLESPACE):
+  case DROP_TABLESPACE:
   {
-    error= ER_DROP_FILEGROUP_FAILED;
-
     if (!schema_dist_client.prepare("", alter_info->tablespace_name))
     {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    errmsg= "TABLESPACE";
-    NdbDictionary::Tablespace ts=
-      dict->getTablespace(alter_info->tablespace_name);
-    if (ndb_dict_check_NDB_error(dict))
+    int object_id, object_version;
+    if (!drop_tablespace_from_NDB(alter_info->tablespace_name, dict, thd_ndb,
+                                  object_id, object_version))
     {
-      // Failed to get tablespace from NDB, return error
-      thd_ndb->push_ndb_error_warning(dict->getNdbError());
-      my_error(error, MYF(0), errmsg);
       DBUG_RETURN(1);
     }
-    object_id = ts.getObjectId();
-    object_version = ts.getObjectVersion();
-    if (dict->dropTablespace(ts))
-    {
-      goto ndberror;
-    }
+    DBUG_PRINT("info", ("Successfully dropped tablespace '%s' from NDB",
+                        alter_info->tablespace_name));
 
     if (!schema_dist_client.drop_tablespace(alter_info->tablespace_name,
                                             object_id, object_version))
     {
-      // Schema distibution failed, just push a warning and continue
+      // Schema distribution failed, just push a warning and continue
       thd_ndb->push_warning("Failed to distribute DROP TABLESPACE '%s'",
                             alter_info->tablespace_name);
     }
-
     break;
   }
-  case (DROP_LOGFILE_GROUP):
+  case DROP_LOGFILE_GROUP:
   {
-    error= ER_DROP_FILEGROUP_FAILED;
-    errmsg= "LOGFILE GROUP";
-
     // Acquire MDL locks on logfile group
     Ndb_dd_client dd_client(thd);
-    const bool lock_logfile_group_result=
-        dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name);
-    if (!lock_logfile_group_result)
+    if (!dd_client.mdl_lock_logfile_group(alter_info->logfile_group_name))
     {
       thd_ndb->push_warning("MDL lock could not be acquired for logfile group "
                             "'%s'", alter_info->logfile_group_name);
-      my_error(error, MYF(0), errmsg);
+      my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
       DBUG_RETURN(1);
     }
 
@@ -18562,72 +18616,47 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
-    NdbDictionary::LogfileGroup lg=
-      dict->getLogfileGroup(alter_info->logfile_group_name);
-    if (ndb_dict_check_NDB_error(dict))
+    int object_id, object_version;
+    if (!drop_logfile_group_from_NDB(alter_info->logfile_group_name,
+                                     dict, thd_ndb, object_id, object_version))
     {
-      // Failed to get logfile group from NDB, return error
-      thd_ndb->push_ndb_error_warning(dict->getNdbError());
-      my_error(error, MYF(0), errmsg);
       DBUG_RETURN(1);
     }
-    object_id = lg.getObjectId();
-    object_version = lg.getObjectVersion();
-    if (dict->dropLogfileGroup(lg))
-    {
-      goto ndberror;
-    }
+    DBUG_PRINT("info", ("Successfully dropped logfile group '%s' from NDB",
+                        alter_info->logfile_group_name));
 
     // Drop Logfile Group entry from the DD
-    const char* logfile_group_name = alter_info->logfile_group_name;
-
-    const bool drop_logfile_group_result=
-        dd_client.drop_logfile_group(logfile_group_name);
-
-    if (!drop_logfile_group_result)
+    if (!dd_client.drop_logfile_group(alter_info->logfile_group_name))
     {
       thd_ndb->push_warning("Logfile group '%s' could not be dropped from DD",
-                            logfile_group_name);
-      DBUG_ASSERT(false);
+                            alter_info->logfile_group_name);
       break;
     }
-
-    // All okay, commit to DD
     dd_client.commit();
 
-    if (!schema_dist_client.drop_logfile_group(logfile_group_name,
+    if (!schema_dist_client.drop_logfile_group(alter_info->logfile_group_name,
                                                object_id, object_version))
     {
       // Schema distibution failed, just push a warning and continue
       thd_ndb->push_warning("Failed to distribute DROP LOGFILE GROUP '%s'",
-                            logfile_group_name);
+                            alter_info->logfile_group_name);
     }
-
     break;
   }
-  case (CHANGE_FILE_TABLESPACE):
-  {
-    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
-  }
-  case (ALTER_ACCESS_MODE_TABLESPACE):
+  case CHANGE_FILE_TABLESPACE:
+  case ALTER_ACCESS_MODE_TABLESPACE:
   {
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   default:
   {
+    // Unexpected, crash in debug
+    DBUG_ASSERT(false);
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   }
 
   DBUG_RETURN(0);
-
-ndberror:
-  err= dict->getNdbError();
-ndberror2:
-  ndb_to_mysql_error(&err);
-  
-  my_error(error, MYF(0), errmsg);
-  DBUG_RETURN(1); // Error
 }
 
 /**

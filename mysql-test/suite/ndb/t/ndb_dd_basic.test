@@ -42,6 +42,8 @@ INITIAL_SIZE 5K
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
 
+SHOW WARNINGS;
+
 ##################################
 # Basic test of disk tables for NDB
 # Start by creating a logfile group
@@ -233,13 +235,13 @@ ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10MB
 ENGINE = NDB;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10 MB
 ENGINE = NDB;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10 M
@@ -284,6 +286,8 @@ insert into t1 values (1,1);
 --error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
+
+show warnings;
 
 drop table t1;
 

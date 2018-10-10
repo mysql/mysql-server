@@ -15,22 +15,21 @@ ALTER TABLE t5 ALGORITHM=inplace, STORAGE disk TABLESPACE ts1;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed due to change in table storage media. Try ALGORITHM=COPY.
 ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
-ERROR HY000: Failed to alter:  DROP DATAFILE
+DROP DATAFILE 'ts1_datafile.dat';
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
+Warning	1296	Failed to drop datafile 'ts1_datafile.dat' from NDB
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 ALTER TABLE t5 STORAGE memory;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
 SELECT * FROM t5;
 a	t5b	t5c
 1	1	1
 DROP TABLE t5;
-DROP TABLESPACE ts1 ENGINE ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE ts1;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
@@ -41,22 +40,21 @@ ENGINE ndb;
 INSERT INTO t5 VALUES (1, 1, 1);
 ALTER TABLE t5 CHANGE t5b t5b int STORAGE disk, TABLESPACE ts1;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE ndb;
-ERROR HY000: Failed to alter:  DROP DATAFILE
+DROP DATAFILE 'ts1_datafile.dat';
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
+Warning	1296	Failed to drop datafile 'ts1_datafile.dat' from NDB
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 ALTER TABLE t5 CHANGE t5b t5b int STORAGE memory;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
 SELECT * FROM t5;
 a	t5b	t5c
 1	1	1
 DROP TABLE t5;
-DROP TABLESPACE ts1 ENGINE ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP TABLESPACE ts1;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1
@@ -86,11 +84,6 @@ DROP INDEX 5d_i on t5;
 ALTER TABLE t5 ADD INDEX 5d_i(t5d);
 DROP TABLE t5;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
-DROP TABLESPACE ts1 ENGINE=ndb;
-Warnings:
-Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=ndb;

@@ -109,21 +109,23 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter tablespace ts1 drop datafile 'data1.dat';
-ERROR HY000: Failed to alter:  NO SUCH FILE
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1533	Failed to alter:  NO SUCH FILE
+Warning	1296	Failed to get tablespace 'ts1' from NDB
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 SET SESSION debug=@save_debug;
 # mysqld gets timeout error 4008 on GET_TABINFOREQ for filegroup
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter logfile group lg1 add undofile 'undo2.dat' engine=ndb;
-ERROR HY000: Failed to alter: CREATE UNDOFILE
+ERROR HY000: Failed to alter: CREATE UNDOFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1533	Failed to alter: CREATE UNDOFILE
+Warning	1296	Failed to create undofile 'undo2.dat' in NDB
+Error	1533	Failed to alter: CREATE UNDOFILE FAILED
 SET SESSION debug=@save_debug;
 alter tablespace ts1 drop datafile 'data1.dat';
 drop tablespace ts1;
@@ -193,6 +195,7 @@ ERROR HY000: Failed to create LOGFILE GROUP
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Failed to create logfile group 'lg1' in NDB
 Error	1528	Failed to create LOGFILE GROUP
 SET SESSION debug=@save_debug;
 # mysqld gets timeout error 4008 on DROP_FILEGROUP_REQ
@@ -204,6 +207,7 @@ ERROR HY000: Failed to drop LOGFILE GROUP
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Failed to drop logfile group 'lg1' from NDB
 Error	1529	Failed to drop LOGFILE GROUP
 SET SESSION debug=@save_debug;
 drop logfile group lg1 engine=ndb;
@@ -212,7 +216,7 @@ create table t1(id int primary key, val int) engine=ndb;
 create table t2(id int primary key, val int) engine=ndb;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter table t2 add constraint foreign key (id) references t1(id);
-Got one of the listed errors
+ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
@@ -241,11 +245,12 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter tablespace ts1 add datafile 'data2.dat';
-ERROR HY000: Failed to alter:  CREATE DATAFILE
+ERROR HY000: Failed to alter: CREATE DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1533	Failed to alter:  CREATE DATAFILE
+Warning	1296	Failed to create datafile 'data2.dat' in NDB
+Error	1533	Failed to alter: CREATE DATAFILE FAILED
 SET SESSION debug=@save_debug;
 alter tablespace ts1 drop datafile 'data1.dat';
 drop tablespace ts1;
@@ -256,11 +261,12 @@ create tablespace ts1 add datafile 'data1.dat' use logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 alter tablespace ts1 drop datafile 'data1.dat';
-ERROR HY000: Failed to alter:  DROP DATAFILE
+ERROR HY000: Failed to alter: DROP DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1533	Failed to alter:  DROP DATAFILE
+Warning	1296	Failed to drop datafile 'data1.dat' from NDB
+Error	1533	Failed to alter: DROP DATAFILE FAILED
 SET SESSION debug=@save_debug;
 alter tablespace ts1 drop datafile 'data1.dat';
 drop tablespace ts1;
