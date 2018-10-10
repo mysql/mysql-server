@@ -66,7 +66,11 @@ ADD_CUSTOM_COMMAND(
 # Make sure sql_yacc.h is generated before compiling gen_keyword_list
 MYSQL_ADD_EXECUTABLE(gen_keyword_list gen_keyword_list.cc SKIP_INSTALL)
 ADD_DEPENDENCIES(gen_keyword_list GenServerSource)
-TARGET_LINK_LIBRARIES(gen_keyword_list regex strings dbug)
+TARGET_LINK_LIBRARIES(gen_keyword_list ${ICU_LIBRARIES} ${CMAKE_DL_LIBS})
+# ICU headers for WIN32 need extra info about their libs state
+IF(WIN32)
+  ADD_COMPILE_FLAGS(gen_keyword_list.cc COMPILE_FLAGS -DU_STATIC_IMPLEMENTATION)
+ENDIF()
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
