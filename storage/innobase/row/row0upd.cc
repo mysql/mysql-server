@@ -824,13 +824,14 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @param[in]	heap		memory heap from which allocated
 @param[in]	mysql_table	NULL, or mysql table object when
                                 user thread invokes dml
+@param[out]	error		error number in case of failure
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t *row_upd_build_difference_binary(dict_index_t *index,
                                        const dtuple_t *entry, const rec_t *rec,
                                        const ulint *offsets, bool no_sys,
                                        trx_t *trx, mem_heap_t *heap,
-                                       TABLE *mysql_table) {
+                                       TABLE *mysql_table, dberr_t *error) {
   upd_field_t *upd_field;
   dfield_t *dfield;
   const byte *data;
@@ -928,6 +929,11 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
       dfield_t *vfield = innobase_get_computed_value(
           update->old_vrow, col, index, &v_heap, heap, NULL, thd, mysql_table,
           NULL, NULL, NULL);
+
+      if (vfield == nullptr) {
+        *error = DB_COMPUTE_VALUE_FAILED;
+        return nullptr;
+      }
 
       if (!dfield_data_is_binary_equal(dfield, vfield->len,
                                        static_cast<byte *>(vfield->data))) {

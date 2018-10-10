@@ -325,7 +325,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 {
   const rec_t *rec;
   upd_t *update;
-  dberr_t err;
+  dberr_t err = DB_SUCCESS;
   btr_cur_t *cursor = btr_pcur_get_btr_cur(pcur);
   TABLE *mysql_table = NULL;
   ut_ad(cursor->index->is_clustered());
@@ -342,9 +342,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     ut_ad(thr->prebuilt->trx == thr_get_trx(thr));
   }
 
-  update =
-      row_upd_build_difference_binary(cursor->index, entry, rec, NULL, true,
-                                      thr_get_trx(thr), heap, mysql_table);
+  update = row_upd_build_difference_binary(cursor->index, entry, rec, NULL,
+                                           true, thr_get_trx(thr), heap,
+                                           mysql_table, &err);
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
   if (mode != BTR_MODIFY_TREE) {
     ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
