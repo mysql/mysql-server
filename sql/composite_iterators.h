@@ -227,6 +227,13 @@ class AggregateIterator final : public RowIterator {
   std::vector<std::string> DebugString() const override;
 
  private:
+  enum {
+    READING_FIRST_ROW,
+    LAST_ROW_STARTED_NEW_GROUP,
+    READING_ROWS,
+    DONE_OUTPUTTING_ROWS
+  } m_state;
+
   unique_ptr_destroy_only<RowIterator> m_source;
 
   /**
@@ -243,11 +250,8 @@ class AggregateIterator final : public RowIterator {
   /// The slice of the fields we are outputting to. See the class comment.
   int m_output_slice;
 
-  /// Whether we are about to read the very first row.
-  bool m_first_row;
-
   /// Whether we have seen the last input row.
-  bool m_eof;
+  bool m_seen_eof;
 
   /**
     Used to save NULL information in the specific case where we have
