@@ -33,17 +33,17 @@
       "type": "string"
     },
     "metadata-cache": {
-      "description": "metadata-cache secion definition",
+      "description": "metadata-cache section definition",
       "type": "object",
       "additionalProperties": false,
       "required": ["group-replication-id", "cluster-metadata-servers"],
       "properties": {
         "group-replication-id": {
-          "description": "ID of the Grop Replication the the metadata cache module was bootstrap against",
+          "description": "The Group Replication ID the metadata cache module was bootstrapped against",
           "type": "string"
         },
         "cluster-metadata-servers": {
-          "description": "List of the metadata servers that metada cache module uses for fetching metadata",
+          "description": "List of the metadata servers that metadata cache module uses for fetching metadata",
           "type": "array",
           "uniqueItems": true,
           "items": {
