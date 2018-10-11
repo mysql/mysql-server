@@ -1323,7 +1323,7 @@ bool Item_singlerow_subselect::val_bool() {
     return value->val_bool();
   } else {
     reset();
-    return 0;
+    return false;
   }
 }
 
@@ -1466,23 +1466,9 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   return false;
 }
 
-double Item_exists_subselect::val_real() {
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  return (double)value;
-}
+double Item_exists_subselect::val_real() { return val_bool(); }
 
-longlong Item_exists_subselect::val_int() {
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  return value;
-}
+longlong Item_exists_subselect::val_int() { return val_bool(); }
 
 /**
   Return the result of EXISTS as a string value
@@ -1498,9 +1484,9 @@ longlong Item_exists_subselect::val_int() {
 */
 
 String *Item_exists_subselect::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) reset();
-  str->set((ulonglong)value, &my_charset_bin);
+  longlong val = val_bool();
+  if (null_value) return nullptr;
+  str->set(val, &my_charset_bin);
   return str;
 }
 
@@ -1518,94 +1504,57 @@ String *Item_exists_subselect::val_str(String *str) {
 */
 
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) reset();
-  int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
+  longlong val = val_bool();
+  if (null_value) return nullptr;
+  int2my_decimal(E_DEC_FATAL_ERROR, val, 0, decimal_value);
   return decimal_value;
 }
 
 bool Item_exists_subselect::val_bool() {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   if (exec(current_thd)) {
     reset();
-    return 0;
+    return false;
   }
-  return value != 0;
+  return value;
 }
 
 double Item_in_subselect::val_real() {
-  /*
-    As far as Item_in_subselect called only from Item_in_optimizer this
-    method should not be used
-  */
-  DBUG_ASSERT(0);
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  if (was_null && !value) null_value = true;
-  return (double)value;
+  // Substituted with Item_in_optimizer, so this function is never used
+  DBUG_ASSERT(false);
+  my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid function call");
+  return error_real();
 }
 
 longlong Item_in_subselect::val_int() {
-  /*
-    As far as Item_in_subselect called only from Item_in_optimizer this
-    method should not be used
-  */
-  DBUG_ASSERT(0);
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  if (was_null && !value) null_value = true;
-  return value;
+  // Substituted with Item_in_optimizer, so this function is never used
+  DBUG_ASSERT(false);
+  my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid function call");
+  return error_int();
 }
 
-String *Item_in_subselect::val_str(String *str) {
-  /*
-    As far as Item_in_subselect called only from Item_in_optimizer this
-    method should not be used
-  */
-  DBUG_ASSERT(0);
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  if (was_null && !value) {
-    null_value = true;
-    return 0;
-  }
-  str->set((ulonglong)value, &my_charset_bin);
-  return str;
+String *Item_in_subselect::val_str(String *) {
+  // Substituted with Item_in_optimizer, so this function is never used
+  DBUG_ASSERT(false);
+  my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid function call");
+  return error_str();
 }
 
 bool Item_in_subselect::val_bool() {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
   if (exec(current_thd)) {
     reset();
-    return 0;
+    return false;
   }
   if (was_null && !value) null_value = true;
   return value;
 }
 
-my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value) {
-  /*
-    As far as Item_in_subselect called only from Item_in_optimizer this
-    method should not be used
-  */
-  DBUG_ASSERT(0);
-  DBUG_ASSERT(fixed == 1);
-  if (exec(current_thd)) {
-    reset();
-    return 0;
-  }
-  if (was_null && !value) null_value = true;
-  int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
-  return decimal_value;
+my_decimal *Item_in_subselect::val_decimal(my_decimal *) {
+  // Substituted with Item_in_optimizer, so this function is never used
+  DBUG_ASSERT(false);
+  my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid function call");
+  return nullptr;
 }
 
 /**
@@ -3731,3 +3680,4 @@ void subselect_hash_sj_engine::print(const THD *thd, String *str,
     str->append(
         STRING_WITH_LEN("<the access method for lookups is not yet created>"));
 }
+    
