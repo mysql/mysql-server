@@ -161,7 +161,7 @@ class METADATA_API MetadataCache
    * @param instance        object representing the metadata server we are
    * currently connected to
    * @param [out] changed   true if the metadata read from the server has
-   * chnaged since the last update, false otherwise
+   * changed since the last update, false otherwise
    *
    * @return true if the operation succeeded, false otherwise
    */
