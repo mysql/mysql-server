@@ -93,7 +93,7 @@ class Opt_trace_context;
 
 typedef qep_row::extra extra;
 
-static bool mysql_explain_unit(THD *explain_thd, THD *query_thd,
+static bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                                SELECT_LEX_UNIT *unit);
 
 const char *join_type_str[] = {
@@ -118,8 +118,8 @@ static const char *plan_not_ready[] = {"Not optimized, outer query is empty",
 
 class Explain {
  protected:
-  THD *const explain_thd;  ///< cached THD which runs the EXPLAIN command
-  THD *query_thd;
+  THD *const explain_thd;        ///< cached THD which runs the EXPLAIN command
+  const THD *query_thd;          ///< THD which runs the query to be explained
   const CHARSET_INFO *const cs;  ///< cached pointer to system_charset_info
   /**
      Cached SELECT_LEX of the explained query. Used for all explained stmts,
@@ -149,7 +149,7 @@ class Explain {
   };
 
   explicit Explain(enum_parsing_context context_type_arg, THD *explain_thd_arg,
-                   THD *query_thd_arg, SELECT_LEX *select_lex_arg)
+                   const THD *query_thd_arg, SELECT_LEX *select_lex_arg)
       : explain_thd(explain_thd_arg),
         query_thd(query_thd_arg),
         cs(system_charset_info),
@@ -302,8 +302,8 @@ class Explain_no_table : public Explain {
   const ha_rows rows;   ///< HA_POS_ERROR or cached "rows" argument
 
  public:
-  Explain_no_table(THD *explain_thd, THD *query_thd, SELECT_LEX *select_lex_arg,
-                   const char *message_arg,
+  Explain_no_table(THD *explain_thd, const THD *query_thd,
+                   SELECT_LEX *select_lex_arg, const char *message_arg,
                    enum_parsing_context context_type_arg = CTX_JOIN,
                    ha_rows rows_arg = HA_POS_ERROR)
       : Explain(context_type_arg, explain_thd, query_thd, select_lex_arg),
@@ -330,7 +330,7 @@ class Explain_no_table : public Explain {
 
 class Explain_union_result : public Explain {
  public:
-  Explain_union_result(THD *explain_thd, THD *query_thd,
+  Explain_union_result(THD *explain_thd, const THD *query_thd,
                        SELECT_LEX *select_lex_arg)
       : Explain(CTX_UNION_RESULT, explain_thd, query_thd, select_lex_arg) {
     /* it's a UNION: */
@@ -373,7 +373,7 @@ class Explain_table_base : public Explain {
   Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
-                     THD *const explain_thd, THD *query_thd,
+                     THD *const explain_thd, const THD *query_thd,
                      SELECT_LEX *select_lex = NULL,
                      TABLE *const table_arg = NULL)
       : Explain(context_type_arg, explain_thd, query_thd, select_lex),
@@ -407,8 +407,9 @@ class Explain_join : public Explain_table_base {
   table_map used_tables;  ///< accumulate used tables bitmap
 
  public:
-  Explain_join(THD *explain_thd, THD *query_thd, SELECT_LEX *select_lex_arg,
-               bool need_tmp_table_arg, bool need_order_arg, bool distinct_arg)
+  Explain_join(THD *explain_thd, const THD *query_thd,
+               SELECT_LEX *select_lex_arg, bool need_tmp_table_arg,
+               bool need_order_arg, bool distinct_arg)
       : Explain_table_base(CTX_JOIN, explain_thd, query_thd, select_lex_arg),
         need_tmp_table(need_tmp_table_arg),
         need_order(need_order_arg),
@@ -467,7 +468,7 @@ class Explain_table : public Explain_table_base {
   const char *message;              ///< cached "message" argument
 
  public:
-  Explain_table(THD *const explain_thd, THD *query_thd,
+  Explain_table(THD *const explain_thd, const THD *query_thd,
                 SELECT_LEX *select_lex_arg, TABLE *const table_arg,
                 QEP_TAB *tab_arg, uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
@@ -1801,8 +1802,9 @@ bool Explain_table::explain_extra() {
   @return false if success, true if error
 */
 
-bool explain_no_table(THD *explain_thd, THD *query_thd, SELECT_LEX *select_lex,
-                      const char *message, enum_parsing_context ctx) {
+bool explain_no_table(THD *explain_thd, const THD *query_thd,
+                      SELECT_LEX *select_lex, const char *message,
+                      enum_parsing_context ctx) {
   DBUG_ENTER("explain_no_table");
   const bool ret = Explain_no_table(explain_thd, query_thd, select_lex, message,
                                     ctx, HA_POS_ERROR)
@@ -1855,7 +1857,7 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
   @return false if success, true if error
 */
 
-bool explain_single_table_modification(THD *explain_thd, THD *query_thd,
+bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select) {
   DBUG_ENTER("explain_single_table_modification");
@@ -1940,7 +1942,7 @@ bool explain_single_table_modification(THD *explain_thd, THD *query_thd,
   @param ctx         current explain context
 */
 
-bool explain_query_specification(THD *explain_thd, THD *query_thd,
+bool explain_query_specification(THD *explain_thd, const THD *query_thd,
                                  SELECT_LEX *select_lex,
                                  enum_parsing_context ctx) {
   Opt_trace_context *const trace = &explain_thd->opt_trace;
@@ -2055,7 +2057,8 @@ bool explain_query_specification(THD *explain_thd, THD *query_thd,
   @return false if success, true if error
 */
 
-bool explain_query(THD *explain_thd, THD *query_thd, SELECT_LEX_UNIT *unit) {
+bool explain_query(THD *explain_thd, const THD *query_thd,
+                   SELECT_LEX_UNIT *unit) {
   DBUG_ENTER("explain_query");
 
   const bool other = (explain_thd != query_thd);
@@ -2149,7 +2152,7 @@ bool explain_query(THD *explain_thd, THD *query_thd, SELECT_LEX_UNIT *unit) {
   @return false if success, true if error
 */
 
-bool mysql_explain_unit(THD *explain_thd, THD *query_thd,
+bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                         SELECT_LEX_UNIT *unit) {
   DBUG_ENTER("mysql_explain_unit");
   bool res = false;

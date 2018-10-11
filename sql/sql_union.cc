@@ -795,7 +795,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
   @return false if success, true if error
 */
 
-bool SELECT_LEX_UNIT::explain(THD *explain_thd, THD *query_thd) {
+bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
   DBUG_ENTER("SELECT_LEX_UNIT::explain");
 
 #ifndef DBUG_OFF

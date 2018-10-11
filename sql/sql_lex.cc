@@ -2367,7 +2367,7 @@ bool SELECT_LEX::test_limit() {
   return (0);
 }
 
-enum_parsing_context SELECT_LEX_UNIT::get_explain_marker(THD *thd) const {
+enum_parsing_context SELECT_LEX_UNIT::get_explain_marker(const THD *thd) const {
   thd->query_plan.assert_plan_is_locked_if_other();
   return explain_marker;
 }

@@ -797,7 +797,7 @@ class SELECT_LEX_UNIT {
                ulonglong removed_options);
   bool optimize(THD *thd);
   bool execute(THD *thd);
-  bool explain(THD *explain_thd, THD *query_thd);
+  bool explain(THD *explain_thd, const THD *query_thd);
   bool cleanup(THD *thd, bool full);
   inline void unclean() { cleaned = UC_DIRTY; }
   void reinit_exec_mechanism();
@@ -841,7 +841,7 @@ class SELECT_LEX_UNIT {
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
 
-  enum_parsing_context get_explain_marker(THD *thd) const;
+  enum_parsing_context get_explain_marker(const THD *thd) const;
   void set_explain_marker(THD *thd, enum_parsing_context m);
   void set_explain_marker_from(THD *thd, const SELECT_LEX_UNIT *u);
 

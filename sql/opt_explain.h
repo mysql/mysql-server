@@ -159,13 +159,15 @@ class Query_result_explain final : public Query_result_send {
   }
 };
 
-bool explain_no_table(THD *explain_thd, THD *query_thd, SELECT_LEX *select_lex,
-                      const char *message, enum_parsing_context ctx);
-bool explain_single_table_modification(THD *explain_thd, THD *query_thd,
+bool explain_no_table(THD *explain_thd, const THD *query_thd,
+                      SELECT_LEX *select_lex, const char *message,
+                      enum_parsing_context ctx);
+bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select);
-bool explain_query(THD *explain_thd, THD *query_thd, SELECT_LEX_UNIT *unit);
-bool explain_query_specification(THD *explain_thd, THD *query_thd,
+bool explain_query(THD *explain_thd, const THD *query_thd,
+                   SELECT_LEX_UNIT *unit);
+bool explain_query_specification(THD *explain_thd, const THD *query_thd,
                                  SELECT_LEX *select_lex,
                                  enum_parsing_context ctx);
 
