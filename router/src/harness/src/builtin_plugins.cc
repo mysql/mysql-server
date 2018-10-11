@@ -30,7 +30,7 @@
 #endif
 #include "logging/consolelog_plugin.h"
 #include "logging/filelog_plugin.h"
-#include "logging/logger_plugin.h"
+#include "mysql/harness/logging/logger_plugin.h"
 
 namespace mysql_harness {
 

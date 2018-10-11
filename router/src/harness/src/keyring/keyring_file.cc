@@ -29,7 +29,7 @@
 #include <stdexcept>
 #include <system_error>
 #include "common.h"
-#include "filesystem.h"
+#include "mysql/harness/filesystem.h"
 
 #ifdef _WIN32
 #include <aclapi.h>

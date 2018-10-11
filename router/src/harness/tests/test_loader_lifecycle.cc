@@ -56,9 +56,9 @@
 ////////////////////////////////////////
 // Harness include files
 #include "exception.h"
-#include "filesystem.h"
 #include "lifecycle.h"
-#include "loader.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/loader.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 #include "test/helpers.h"
