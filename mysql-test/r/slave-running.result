@@ -1,3 +1,0 @@
-show status like 'Slave_running';
-Variable_name	Value
-Slave_running	ON
