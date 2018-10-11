@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #ifndef _print_version_h_
 #define _print_version_h_
+
+#include <string>
 
 /**
   @file include/print_version.h
@@ -52,5 +54,17 @@ void print_version_debug();
 */
 
 void print_explicit_version(const char *version);
+
+/**
+  This function builds a version string, with the program name
+  supplied by the caller. Used by MEB and other utilities that want to
+  present themselves under their own name.
+
+  @param[in] progname  Program name C++ string.
+
+  @param[out] destination Output buffer.
+
+*/
+void build_version(const std::string &progname, std::string *destination);
 
 #endif /* _print_version_h_  */
