@@ -3680,4 +3680,3 @@ void subselect_hash_sj_engine::print(const THD *thd, String *str,
     str->append(
         STRING_WITH_LEN("<the access method for lookups is not yet created>"));
 }
-    
