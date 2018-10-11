@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,13 @@ Innodb_foreign::Innodb_foreign() {
       FIELD_REF_NAME, "REF_NAME",
       "CONCAT(fk.referenced_table_schema, '/', fk.referenced_table_name)");
   m_target_def.add_field(FIELD_N_COLS, "N_COLS", "COUNT(*)");
-  m_target_def.add_field(FIELD_TYPE, "TYPE", "0");
+  m_target_def.add_field(FIELD_TYPE, "TYPE",
+                         "IF(fk.delete_rule='CASCADE',1,0)|"
+                         "IF(fk.delete_rule='SET NULL',2,0)|"
+                         "IF(fk.update_rule='CASCADE',4,0)|"
+                         "IF(fk.update_rule='SET NULL',8,0)|"
+                         "IF(fk.delete_rule='NO ACTION',16,0)|"
+                         "IF(fk.update_rule='NO ACTION',32,0)");
 
   m_target_def.add_from("mysql.foreign_keys fk");
   m_target_def.add_from("JOIN mysql.tables tbl ON fk.table_id=tbl.id");
