@@ -1,0 +1,89 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--enable_query_log
+
+--connection master
+use test;
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  value varbinary(4000),  # VARBINARY
+PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+--sync_slave_with_master
+--connection slave
+
+stop slave;
+set global slave_type_conversions='ALL_LOSSY,ALL_NON_LOSSY';
+start slave;
+
+# Drop and recreate table with blob storage
+# Master will log varbinary changes discretely
+# Slave will have to do more work to apply
+#
+use test;
+drop table t1;
+
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  value blob,          # BLOB
+PRIMARY KEY (id)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+--connection master
+
+# Issue a number of discrete transactions affecting
+# the same blob value
+# These are likely to be applied in a single batch
+# on the slave, testing Blob batching
+#
+insert into t1(id,value) values(3,repeat(0x23,240));
+update t1 set value=repeat(0x24,240) where id=3;
+update t1 set value=repeat(0x25,250) where id=3;
+update t1 set value=repeat(0x30,400) where id=3;
+update t1 set value=repeat(0x32,320) where id=3;
+update t1 set value=repeat(0x33,330) where id=3;
+
+# Here we check that we can synchronise with
+# the slave - aka nothing stops the Slave
+#
+--sync_slave_with_master
+
+select id, length(value), value from test.t1 where id=3;
+
+--connection master
+delete from test.t1 where id=3;
+
+--sync_slave_with_master
+
+--connection master
+
+# This time we issue transactions designed to 
+# cause an identified batching issue
+# This is where an update truncates a blob
+# down to the inline size precisely
+#
+insert into t1(id,value) values(3,repeat('D',2000));
+update t1 set value=repeat('P',256);
+
+--sync_slave_with_master
+
+# Check state on the slave
+select id, length(value), value from test.t1 where id=3;
+
+# Check that we can modify it on the slave
+update t1 set value=repeat('S', 2000);
+
+# Done, cleanup
+--connection master
+drop table test.t1;
+
+--sync_slave_with_master
+
+--connection slave
+set global slave_type_conversions='';
+
+
+--source include/rpl_end.inc
