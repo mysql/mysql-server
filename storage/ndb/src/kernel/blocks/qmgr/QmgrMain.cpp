@@ -220,6 +220,8 @@ void Qmgr::execFAIL_REP(Signal* signal)
     failSource = refToNode(signal->getSendersBlockRef());
   }
 
+  CRASH_INSERTION(948);
+
   jamEntry();
   failReportLab(signal, failNodeId, failCause, failSource);
   return;

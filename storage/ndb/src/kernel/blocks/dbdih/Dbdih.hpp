@@ -1601,7 +1601,7 @@ private:
   
   void packFragIntoPagesLab(Signal *, RWFragment* wf);
   void startNextChkpt(Signal *);
-  void failedNodeLcpHandling(Signal*, NodeRecordPtr failedNodePtr);
+  void failedNodeLcpHandling(Signal*, NodeRecordPtr failedNodePtr, bool &);
   void failedNodeSynchHandling(Signal *, NodeRecordPtr failedNodePtr);
   void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
