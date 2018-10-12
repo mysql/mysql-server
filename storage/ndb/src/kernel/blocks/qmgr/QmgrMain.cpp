@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,6 +216,8 @@ void Qmgr::execFAIL_REP(Signal* signal)
     /* Failure source not included, use sender of signal as 'source' */
     failSource = refToNode(signal->getSendersBlockRef());
   }
+
+  CRASH_INSERTION(948);
 
   jamEntry();
   failReportLab(signal, failNodeId, failCause, failSource);
