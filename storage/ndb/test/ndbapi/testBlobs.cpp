@@ -796,6 +796,18 @@ struct Tup {
     m_bval1.alloc();
     m_bval2.alloc();
   }
+  void copyAllfrom(const Tup& tup)
+  {
+    m_exists = tup.m_exists;
+    m_pk1 = tup.m_pk1;
+    memcpy(m_pk2, tup.m_pk2, g_opt.m_pk2chr.m_totlen + 1);
+    memcpy(m_pk2eq, tup.m_pk2eq, g_opt.m_pk2chr.m_totlen + 1);
+    m_pk3 = tup.m_pk3;
+    memcpy(m_key_row, tup.m_key_row, g_rowsize);
+    memcpy(m_row, tup.m_row, g_rowsize);
+    m_frag = tup.m_frag;
+    copyfrom(tup);
+  }
   void copyfrom(const Tup& tup) {
     require(m_pk1 == tup.m_pk1);
     m_bval1.copyfrom(tup.m_bval1);
@@ -3991,6 +4003,163 @@ static int bugtest_62321()
   return 0;
 }
 
+static int bugtest_28746560()
+{
+  /**
+   * Testing of Blob behaviour when batching operations on the same
+   * key.
+   * This is generally done by the replication slave
+   */
+  ndbout_c("bugtest_28746560");
+
+  calcTups(true, false);
+
+  /* TODO :
+   * - Use IgnoreError sometimes
+   */
+
+  /* Some options to debug... */
+  const bool serial = false; // Batching
+  const bool serialInsert = false; // Batching after an insert
+  const Uint32 MaxBatchedModifies = 30;
+  Tup values[MaxBatchedModifies];
+
+  for (Uint32 pass=0; pass < 2; pass ++)
+  {
+    ndbout_c("pass %s", (pass == 0?"INSERT":"DELETE"));
+
+    for (Uint32 row=0; row < g_opt.m_rows; row++)
+    {
+      g_con = g_ndb->startTransaction();
+      CHK(g_con != NULL);
+
+      DBG("Row " << row);
+      if (pass == 0)
+      {
+        OpTypes insType = ((urandom(2) == 1)?
+                           PkInsert:
+                           PkWrite);
+        NdbOperation* op;
+        CHK(setupOperation(op, insType, g_tups[row]) == 0);
+        DBG("  " << (insType == PkInsert? "INS" : "WRI") <<
+            "    \t" << (void*) op);
+
+        if (serial || serialInsert)
+        {
+          CHK(g_con->execute(NoCommit) == 0);
+        }
+      }
+
+      const Uint32 numBatchedModifies = urandom(MaxBatchedModifies);
+      for (Uint32 mod = 0; mod < numBatchedModifies; mod++)
+      {
+        /* Calculate new value */
+        values[mod].copyAllfrom(g_tups[row]);
+        calcBval(values[mod], false);
+
+        int modifyStyle = urandom(4);
+
+        if (modifyStyle == 0 || modifyStyle == 1)
+        {
+          NdbOperation* op;
+          CHK(setupOperation(op,
+                             (modifyStyle == 0 ? PkUpdate : PkWrite),
+                             values[mod]) == 0);
+          DBG("  " << (modifyStyle == 0 ? "UPD":"WRI")
+              << "    \t"
+              << (void*) op);
+        }
+        else
+        {
+          OpTypes insOpType = PkInsert;
+          const char* name = "INS";
+          if (modifyStyle == 3)
+          {
+            insOpType = PkWrite;
+            name = "WRI";
+          }
+
+          NdbOperation* delOp;
+          CHK(setupOperation(delOp,
+                             PkDelete,
+                             values[mod]) == 0);
+
+          NdbOperation* insOp;
+          CHK(setupOperation(insOp,
+                             insOpType,
+                             values[mod]) == 0);
+
+          DBG("  DEL" << name << " \t"
+              << (void*) delOp
+              << (void*) insOp);
+        }
+
+        if (serial || serialInsert)
+        {
+          CHK(g_con->execute(NoCommit) == 0);
+        }
+      }
+
+      if (pass == 1)
+      {
+        // define deleteRow
+        NdbOperation* op;
+        CHK(setupOperation(op,
+                           PkDelete,
+                           g_tups[row]) == 0);
+
+        DBG("  DEL    \t" << (void*) op);
+
+        if (serial)
+        {
+          CHK(g_con->execute(NoCommit) == 0);
+        }
+      }
+
+      CHK(g_con->execute(Commit) == 0);
+
+      g_con->close();
+      g_con = NULL;
+
+      Tup& finalValue = (numBatchedModifies ?
+                         values[numBatchedModifies - 1] :
+                         g_tups[row]);
+
+      g_con=g_ndb->startTransaction();
+      CHK(g_con != NULL);
+
+      NdbOperation* readOp;
+      CHK(setupOperation(readOp, PkRead, finalValue) == 0);
+
+      DBG("  READ   \t" << (void*) readOp);
+
+      CHK(g_con->execute(Commit) == 0);
+
+      if (pass == 0)
+      {
+        CHK(verifyBlobValue(finalValue) == 0);
+        DBG("  READ OK");
+      }
+      else if (pass == 1)
+      {
+        if (readOp->getNdbError().code != 626)
+        {
+          ndbout_c("Error, expected 626 but found %u %s",
+                   readOp->getNdbError().code,
+                   readOp->getNdbError().message);
+          return -1;
+        }
+        DBG("  READ DEL OK");
+      }
+
+      g_con->close();
+      g_con = NULL;
+    } // row
+  } // pass
+
+  return 0;
+}
+
 // main
 
 // from here on print always
@@ -4980,7 +5149,8 @@ static struct {
   { 45768, bugtest_45768 },
   { 48040, bugtest_48040 },
   { 28116, bugtest_28116 },
-  { 62321, bugtest_62321 }
+  { 62321, bugtest_62321 },
+  { 28746560, bugtest_28746560 }
 };
 
 int main(int argc, char** argv)
