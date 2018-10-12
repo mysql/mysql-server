@@ -960,6 +960,8 @@ EXPLAIN SELECT key2, MIN(key2_1) FROM t2 GROUP BY key2	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t2`",
                 "index_provides_order": true,
@@ -1200,6 +1202,8 @@ EXPLAIN SELECT DISTINCT key2 FROM t2	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t2`",
                 "index_provides_order": true,
@@ -1533,6 +1537,8 @@ GROUP BY key2	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t2`",
                 "index_provides_order": true,
@@ -5153,80 +5159,84 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
-              "rows_estimation": {
-                "table": "`t1`",
-                "index": "k2",
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 2,
-                    "cost": 2.8016
-                  } /* table_scan */,
-                  "potential_range_indexes": [
-                    {
-                      "index": "k1",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    },
-                    {
-                      "index": "k2",
-                      "usable": true,
-                      "key_parts": [
-                        "i1",
-                        "i2"
-                      ] /* key_parts */
-                    }
-                  ] /* potential_range_indexes */,
-                  "setup_range_conditions": [
-                  ] /* setup_range_conditions */,
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "not_group_by_or_distinct"
-                  } /* group_index_range */,
-                  "skip_scan_range": {
-                    "potential_skip_scan_indexes": [
-                      {
-                        "index": "k2",
-                        "usable": false,
-                        "cause": "query_references_nonkey_column"
-                      }
-                    ] /* potential_skip_scan_indexes */
-                  } /* skip_scan_range */,
-                  "analyzing_range_alternatives": {
-                    "range_scan_alternatives": [
-                      {
-                        "index": "k2",
-                        "ranges": [
-                          "2 < i1"
-                        ] /* ranges */,
-                        "index_dives_for_eq_ranges": true,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
-                        "index_only": false,
+              "steps": [
+                {
+                  "rows_estimation": {
+                    "table": "`t1`",
+                    "index": "k2",
+                    "range_analysis": {
+                      "table_scan": {
                         "rows": 2,
-                        "cost": 0.96,
+                        "cost": 2.8016
+                      } /* table_scan */,
+                      "potential_range_indexes": [
+                        {
+                          "index": "k1",
+                          "usable": false,
+                          "cause": "not_applicable"
+                        },
+                        {
+                          "index": "k2",
+                          "usable": true,
+                          "key_parts": [
+                            "i1",
+                            "i2"
+                          ] /* key_parts */
+                        }
+                      ] /* potential_range_indexes */,
+                      "setup_range_conditions": [
+                      ] /* setup_range_conditions */,
+                      "group_index_range": {
+                        "chosen": false,
+                        "cause": "not_group_by_or_distinct"
+                      } /* group_index_range */,
+                      "skip_scan_range": {
+                        "potential_skip_scan_indexes": [
+                          {
+                            "index": "k2",
+                            "usable": false,
+                            "cause": "query_references_nonkey_column"
+                          }
+                        ] /* potential_skip_scan_indexes */
+                      } /* skip_scan_range */,
+                      "analyzing_range_alternatives": {
+                        "range_scan_alternatives": [
+                          {
+                            "index": "k2",
+                            "ranges": [
+                              "2 < i1"
+                            ] /* ranges */,
+                            "index_dives_for_eq_ranges": true,
+                            "rowid_ordered": false,
+                            "using_mrr": false,
+                            "index_only": false,
+                            "rows": 2,
+                            "cost": 0.96,
+                            "chosen": true
+                          }
+                        ] /* range_scan_alternatives */,
+                        "analyzing_roworder_intersect": {
+                          "usable": false,
+                          "cause": "too_few_roworder_scans"
+                        } /* analyzing_roworder_intersect */
+                      } /* analyzing_range_alternatives */,
+                      "chosen_range_access_summary": {
+                        "range_access_plan": {
+                          "type": "range_scan",
+                          "index": "k2",
+                          "rows": 2,
+                          "ranges": [
+                            "2 < i1"
+                          ] /* ranges */
+                        } /* range_access_plan */,
+                        "rows_for_plan": 2,
+                        "cost_for_plan": 0.96,
                         "chosen": true
-                      }
-                    ] /* range_scan_alternatives */,
-                    "analyzing_roworder_intersect": {
-                      "usable": false,
-                      "cause": "too_few_roworder_scans"
-                    } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */,
-                  "chosen_range_access_summary": {
-                    "range_access_plan": {
-                      "type": "range_scan",
-                      "index": "k2",
-                      "rows": 2,
-                      "ranges": [
-                        "2 < i1"
-                      ] /* ranges */
-                    } /* range_access_plan */,
-                    "rows_for_plan": 2,
-                    "cost_for_plan": 0.96,
-                    "chosen": true
-                  } /* chosen_range_access_summary */
-                } /* range_analysis */
-              } /* rows_estimation */,
+                      } /* chosen_range_access_summary */
+                    } /* range_analysis */
+                  } /* rows_estimation */
+                }
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,
@@ -5513,6 +5523,8 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
               "unknown_key_1": {
                 "reconsidering_access_paths_for_index_ordering": {
                   "clause": "ORDER BY",
+                  "steps": [
+                  ] /* steps */,
                   "index_order_summary": {
                     "table": "`t1`",
                     "index_provides_order": true,
@@ -5525,6 +5537,8 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
               "unknown_key_2": {
                 "reconsidering_access_paths_for_index_ordering": {
                   "clause": "GROUP BY",
+                  "steps": [
+                  ] /* steps */,
                   "index_order_summary": {
                     "table": "`t1`",
                     "index_provides_order": true,
@@ -5551,6 +5565,8 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,
@@ -6785,6 +6801,88 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
+              "steps": [
+                {
+                  "check_if_range_uses_more_keyparts_than_ref": {
+                    "rerunning_range_optimizer_for_single_index": {
+                      "range_analysis": {
+                        "table_scan": {
+                          "rows": 2,
+                          "cost": 2e308
+                        } /* table_scan */,
+                        "potential_range_indexes": [
+                          {
+                            "index": "k1",
+                            "usable": false,
+                            "cause": "not_applicable"
+                          },
+                          {
+                            "index": "k2",
+                            "usable": true,
+                            "key_parts": [
+                              "c1",
+                              "i1"
+                            ] /* key_parts */
+                          }
+                        ] /* potential_range_indexes */,
+                        "setup_range_conditions": [
+                        ] /* setup_range_conditions */,
+                        "group_index_range": {
+                          "chosen": false,
+                          "cause": "not_group_by_or_distinct"
+                        } /* group_index_range */,
+                        "skip_scan_range": {
+                          "potential_skip_scan_indexes": [
+                            {
+                              "index": "k2",
+                              "usable": false,
+                              "cause": "query_references_nonkey_column"
+                            }
+                          ] /* potential_skip_scan_indexes */
+                        } /* skip_scan_range */,
+                        "analyzing_range_alternatives": {
+                          "range_scan_alternatives": [
+                            {
+                              "index": "k2",
+                              "ranges": [
+                                "1 <= c1 <= 1"
+                              ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
+                              "index_only": false,
+                              "rows": 1,
+                              "cost": 0.61,
+                              "chosen": true
+                            }
+                          ] /* range_scan_alternatives */,
+                          "analyzing_roworder_intersect": {
+                            "usable": false,
+                            "cause": "too_few_roworder_scans"
+                          } /* analyzing_roworder_intersect */
+                        } /* analyzing_range_alternatives */,
+                        "chosen_range_access_summary": {
+                          "range_access_plan": {
+                            "type": "range_scan",
+                            "index": "k2",
+                            "rows": 1,
+                            "ranges": [
+                              "1 <= c1 <= 1"
+                            ] /* ranges */
+                          } /* range_access_plan */,
+                          "rows_for_plan": 1,
+                          "cost_for_plan": 0.61,
+                          "chosen": true
+                        } /* chosen_range_access_summary */
+                      } /* range_analysis */,
+                      "access_type_unchanged": {
+                        "ref_key_length": 10,
+                        "range_key_length": 10
+                      } /* access_type_unchanged */
+                    } /* rerunning_range_optimizer_for_single_index */
+                  } /* check_if_range_uses_more_keyparts_than_ref */
+                }
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,
