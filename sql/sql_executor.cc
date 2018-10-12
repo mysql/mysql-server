@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2407,7 +2407,8 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   HA_POS_ERROR,
                                   false,      // don't force quick range
                                   ORDER::ORDER_NOT_RELEVANT, tab,
-                                  tab->condition(), &needed_reg_dummy, &qck);
+                                  tab->condition(), &needed_reg_dummy, &qck,
+                                  tab->table()->force_index);
   DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);
 

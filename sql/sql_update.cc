@@ -493,7 +493,8 @@ bool mysql_update(THD *thd,
       QUICK_SELECT_I *qck;
       impossible= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                     ORDER::ORDER_NOT_RELEVANT, &qep_tab,
-                                    conds, &needed_reg_dummy, &qck) < 0;
+                                    conds, &needed_reg_dummy, &qck,
+                                    qep_tab.table()->force_index) < 0;
       qep_tab.set_quick(qck);
     }
     if (impossible)

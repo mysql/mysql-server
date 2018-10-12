@@ -292,7 +292,8 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       QUICK_SELECT_I *qck;
       zero_rows= test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                    ORDER::ORDER_NOT_RELEVANT, &qep_tab,
-                                   conds, &needed_reg_dummy, &qck) < 0;
+                                   conds, &needed_reg_dummy, &qck,
+                                   qep_tab.table()->force_index) < 0;
       qep_tab.set_quick(qck);
     }
     if (zero_rows)
