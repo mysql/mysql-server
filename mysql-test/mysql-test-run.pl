@@ -2901,7 +2901,11 @@ sub environment_setup {
   $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1,halt_on_error=1" if $opt_sanitize;
 
   # Make sure LeakSanitizer exits if leaks are found
-  $ENV{'LSAN_OPTIONS'} = "exitcode=42" if $opt_sanitize;
+  $ENV{'LSAN_OPTIONS'} = "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
+    if $opt_sanitize;
+
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
+    if $opt_sanitize;
 
   # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
   $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1" if $opt_sanitize;
@@ -3933,7 +3937,7 @@ sub mysql_install_db {
   }
 
   # Set blacklist option early so it works during bootstrap
-  $ENV{'TSAN_OPTIONS'} = "suppressions=$basedir/mysql-test/tsan.supp"
+  $ENV{'TSAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/tsan.supp"
     if $opt_sanitize;
 
   if ($opt_manual_boot_gdb) {
