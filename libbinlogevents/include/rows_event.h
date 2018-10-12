@@ -398,18 +398,21 @@ namespace binary_log {
   </tr>
   <tr>
     <td>SIGNEDNESS</td>
-    <td>signedness of numeric colums</td>
-    <td>For each numeric column, a bit indicates whether the numeric colunm has
-    unsigned flag. 1 means it is unsigned. The number of bytes needed for this
-  is int((column_count + 7) / 8). The order is same to the order of column_type
-    field.</td>
+    <td>signedness of numeric colums. This is included for all values of
+    binlog_row_metadata.</td>
+    <td>For each numeric column, a bit indicates whether the numeric
+    colunm has unsigned flag. 1 means it is unsigned. The number of
+    bytes needed for this is int((column_count + 7) / 8). The order is
+    the same as the order of column_type field.</td>
   </tr>
   <tr>
     <td>DEFAULT_CHARSET</td>
-    <td>Charsets of character columns. It has a default charset for the case
-    that most of character columns have same charset and the most used charset
-    is binlogged as default charset.Collation numbers are binlogged for
-    identifying charsets. They are stored in packed length format. </td>
+    <td>Charsets of character columns. It has a default charset for
+    the case that most of character columns have same charset and the
+    most used charset is binlogged as default charset.Collation
+    numbers are binlogged for identifying charsets. They are stored in
+    packed length format.  Either DEFAULT_CHARSET or COLUMN_CHARSET is
+    included for all values of binlog_row_metadata.</td>
     <td>Default charset's collation is logged first. The charsets which are not
     same to default charset are logged following default charset. They are
     logged as column index and charset collation number pair sequence. The
@@ -421,46 +424,79 @@ namespace binary_log {
     <td>COLUMN_CHARSET</td>
     <td>Charsets of character columns. For the case that most of columns have
     different charsets, this field is logged. It is never logged with
-    DEFAULT_CHARSET together.</td>
+    DEFAULT_CHARSET together.  Either DEFAULT_CHARSET or COLUMN_CHARSET is
+    included for all values of binlog_row_metadata.</td>
     <td>It is a collation number sequence for all character columns.</td>
   </tr>
   <tr>
     <td>COLUMN_NAME</td>
-    <td>Names of columns</td>
-    <td>A sequence of column names. For each column name, 1 byte string length
-    followed by a string without null terminator. </td>
+    <td>Names of columns. This is only included if
+    binlog_row_metadata=FULL.</td>
+    <td>A sequence of column names. For each column name, 1 byte for
+    the string length in bytes is followed by a string without null
+    terminator.</td>
   </tr>
   <tr>
     <td>SET_STR_VALUE</td>
-    <td>The string values of SET columns</td>
-    <td>For each SET column, a pack_length presents value count is followed by
-    a sequence of length and string pairs. length is pack_length and string
-    has no null terminator.</td>
+    <td>The string values of SET columns. This is only included if
+    binlog_row_metadata=FULL.</td>
+    <td>For each SET column, a pack_length representing the value
+    count is followed by a sequence of length and string pairs. length
+    is the byte count in pack_length format. The string has no null
+    terminator.</td>
   </tr>
   <tr>
     <td>ENUM_STR_VALUE</td>
-    <td>The string values is ENUM columns</td>
-    <td>Format is same to SET_STR_VALUE</td>
+    <td>The string values is ENUM columns. This is only included
+    if binlog_row_metadata=FULL.</td>
+    <td>The format is the same as SET_STR_VALUE.</td>
   </tr>
   <tr>
     <td>GEOMETRY_TYPE</td>
-    <td>The real type of geometry columns</td>
+    <td>The real type of geometry columns. This is only included
+    if binlog_row_metadata=FULL.</td>
     <td>A sequence of real type of geometry columns are stored in pack_length
     format. </td>
   </tr>
   <tr>
     <td>SIMPLE_PRIMARY_KEY</td>
-    <td>The primary key without any prefix</td>
+    <td>The primary key without any prefix. This is only included
+    if binlog_row_metadata=FULL and there is a primary key where every
+    key part covers an entire column.</td>
     <td>A sequence of column indexes. The indexes are stored in pack_length
     format.</td>
   </tr>
   <tr>
     <td>PRIMARY_KEY_WITH_PREFIX</td>
-    <td>The primary key with some prefix. It doesn't appear with
-    SIMPLE_PRIMARY_KEY together. </td>
+    <td>The primary key with some prefix. It doesn't appear together with
+    SIMPLE_PRIMARY_KEY. This is only included if
+    binlog_row_metadata=FULL and there is a primary key where some key
+    part covers a prefix of the column.</td>
     <td>A sequence of column index and prefix length pairs. Both
-    column index and prefix length are in pack_length format. It means
-    the whole value is used even if prefix length is 0.</td>
+    column index and prefix length are in pack_length format. Prefix length
+    0 means that the whole column value is used.</td>
+  </tr>
+  <tr>
+    <td>ENUM_AND_SET_DEFAULT_CHARSET</td>
+    <td>Charsets of ENUM and SET columns. It has the same layout as
+    DEFAULT_CHARSET.  If there are SET or ENUM columns and
+    binlog_row_metadata=FULL, exactly one of
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET
+    appears (the encoder chooses the representation that uses the
+    least amount of space).  Otherwise, none of them appears.</td>
+    <td>The same format as for DEFAULT_CHARSET, except it counts ENUM
+    and SET columns rather than character columns.</td>
+  </tr>
+  <tr>
+    <td>ENUM_AND_SET_COLUMN_CHARSET</td>
+    <td>Charsets of ENUM and SET columns. It has the same layout as
+    COLUMN_CHARSET.  If there are SET or ENUM columns and
+    binlog_row_metadata=FULL, exactly one of
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET
+    appears (the encoder chooses the representation that uses the
+    least amount of space).  Otherwise, none of them appears.</td>
+    <td>The same format as for COLUMN_CHARSET, except it counts ENUM
+    and SET columns rather than character columns.</td>
   </tr>
   </table>
 */
@@ -476,9 +512,11 @@ class Table_map_event : public Binary_log_event {
   typedef uint16_t flag_set;
 
   /**
-    DEFAULT_CHARSET and COLUMN_CHARSET don't appear together. They are just two
-    ways to pack character set information. When binlogging, it just log
-    character set in the way which occupy less storage.
+    DEFAULT_CHARSET and COLUMN_CHARSET don't appear together, and
+    ENUM_AND_SET_DEFAULT_CHARSET and ENUM_AND_SET_COLUMN_CHARSET don't
+    appear together. They are just alternative ways to pack character
+    set information. When binlogging, it logs character sets in the
+    way that occupies least storage.
 
     SIMPLE_PRIMARY_KEY and PRIMARY_KEY_WITH_PREFIX don't appear together.
     SIMPLE_PRIMARY_KEY is for the primary keys which only use whole values of
@@ -486,15 +524,27 @@ class Table_map_event : public Binary_log_event {
     for the primary keys which just use part value of pk columns.
    */
   enum Optional_metadata_field_type {
-    SIGNEDNESS = 1,   // UNSIGNED flag of numeric columns
-    DEFAULT_CHARSET,  // Default character set of string columns
-    COLUMN_CHARSET,   // Character set of string columns
+    SIGNEDNESS = 1,  // UNSIGNED flag of numeric columns
+    DEFAULT_CHARSET, /* Character set of string columns, optimized to
+                        minimize space when many columns have the
+                        same charset. */
+    COLUMN_CHARSET,  /* Character set of string columns, optimized to
+                        minimize space when columns have many
+                        different charsets. */
     COLUMN_NAME,
-    SET_STR_VALUE,           // String value of SET columns
-    ENUM_STR_VALUE,          // String value of ENUM columns
-    GEOMETRY_TYPE,           // Real type of geometry columns
-    SIMPLE_PRIMARY_KEY,      // Primary key without prefix
-    PRIMARY_KEY_WITH_PREFIX  // Primary key with prefix
+    SET_STR_VALUE,                // String value of SET columns
+    ENUM_STR_VALUE,               // String value of ENUM columns
+    GEOMETRY_TYPE,                // Real type of geometry columns
+    SIMPLE_PRIMARY_KEY,           // Primary key without prefix
+    PRIMARY_KEY_WITH_PREFIX,      // Primary key with prefix
+    ENUM_AND_SET_DEFAULT_CHARSET, /* Character set of enum and set
+                                     columns, optimized to minimize
+                                     space when many columns have the
+                                     same charset. */
+    ENUM_AND_SET_COLUMN_CHARSET,  /* Character set of enum and set
+                                     columns, optimized to minimize
+                                     space when many columns have the
+                                     same charset. */
   };
 
   /**
@@ -516,11 +566,16 @@ class Table_map_event : public Binary_log_event {
       std::vector<uint_pair> charset_pairs;
     };
 
-    // Content of DEFAULT_CHARSET field is converted into Default_charset.
+    // Contents of DEFAULT_CHARSET field are converted into Default_charset.
     Default_charset m_default_charset;
+    // Contents of ENUM_AND_SET_DEFAULT_CHARSET are converted into
+    // Default_charset.
+    Default_charset m_enum_and_set_default_charset;
     std::vector<bool> m_signedness;
-    // Character set number of every column
+    // Character set number of every string column
     std::vector<unsigned int> m_column_charset;
+    // Character set number of every ENUM or SET column.
+    std::vector<unsigned int> m_enum_and_set_column_charset;
     std::vector<std::string> m_column_name;
     // each str_vector stores values of one enum/set column
     std::vector<str_vector> m_enum_str_value;

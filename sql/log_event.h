@@ -36,6 +36,7 @@
 #define _log_event_h
 
 #include <atomic>
+#include <functional>
 #include <list>
 #include <map>
 #include <set>
@@ -2356,17 +2357,44 @@ class Table_map_log_event : public binary_log::Table_map_event,
   StringBuffer<1024> m_metadata_buf;
 
   /**
-    Initialize the optional metadata fields should be logged into
-    table_map_log_event and write them into m_metadata_buf.
+    Capture the optional metadata fields which should be logged into
+    table_map_log_event and serialize them into m_metadata_buf.
   */
   void init_metadata_fields();
   bool init_signedness_field();
-  bool init_charset_field();
+  /**
+    Capture and serialize character sets.  Character sets for
+    character columns (TEXT etc) and character sets for ENUM and SET
+    columns are stored in different metadata fields. The reason is
+    that TEXT character sets are included even when
+    binlog_row_metadata=MINIMAL, whereas ENUM and SET character sets
+    are included only when binlog_row_metadata=FULL.
+
+    @param include_type Predicate to determine if a given Field object
+    is to be included in the metadata field.
+
+    @param default_charset_type Type code when storing in "default
+    charset" format.  (See comment above Table_maps_log_event in
+    libbinlogevents/include/rows_event.h)
+
+    @param column_charset_type Type code when storing in "column
+    charset" format.  (See comment above Table_maps_log_event in
+    libbinlogevents/include/rows_event.h)
+  */
+  bool init_charset_field(std::function<bool(const Field *)> include_type,
+                          Optional_metadata_field_type default_charset_type,
+                          Optional_metadata_field_type column_charset_type);
   bool init_column_name_field();
   bool init_set_str_value_field();
   bool init_enum_str_value_field();
   bool init_geometry_type_field();
   bool init_primary_key_field();
+#endif
+
+#ifndef MYSQL_SERVER
+  class Charset_iterator;
+  class Default_charset_iterator;
+  class Column_charset_iterator;
 #endif
 };
 

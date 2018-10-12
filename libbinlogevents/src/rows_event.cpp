@@ -343,6 +343,12 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
       case PRIMARY_KEY_WITH_PREFIX:
         parse_pk_with_prefix(m_primary_key, field, len);
         break;
+      case ENUM_AND_SET_DEFAULT_CHARSET:
+        parse_default_charset(m_enum_and_set_default_charset, field, len);
+        break;
+      case ENUM_AND_SET_COLUMN_CHARSET:
+        parse_column_charset(m_enum_and_set_column_charset, field, len);
+        break;
       default:
         BAPI_ASSERT(0);
     }

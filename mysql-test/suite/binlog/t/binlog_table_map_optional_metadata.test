@@ -5,11 +5,11 @@
 # - signedness of numeric columns
 # - charsets of character columns
 # - column names
-# - set/enum string values
+# - set/enum character sets and string values
 # - primary key
 #
 # The first two are always logged. The others are controlled by system
-# variable --binlog_row_metadata
+# variable --binlog-row-metadata
 #
 # The test will verify if the metadata can be logged and printed by mysqlbinlog
 # correctly.
@@ -112,6 +112,19 @@ DROP TABLE t1;
 RESET MASTER;
 
 --echo #
+--echo # Column names with non-ascii characters and escape characters can be printed correctly
+--echo #
+CREATE TABLE t1(`åäö表\a'``"` INT);
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES(1);
+
+--source extra/binlog_tests/print_optional_metadata.inc
+DROP TABLE t1;
+RESET MASTER;
+
+--echo #
 --echo # Charsets can be printed correctly
 --echo #
 CREATE TABLE t1(c_char_utf8 CHAR(10) CHARSET utf8,
@@ -153,42 +166,50 @@ DROP TABLE t1;
 RESET MASTER;
 
 --echo #
---echo # Verify that SET string values can be printed correctly
+--echo # Verify that SET string values and character sets can be printed correctly
 --echo #
 
 CREATE TABLE t1(
-  c_set_1 SET("set1_v1", "set1_v2", "set1_v3"),
-  c_set_2 SET("set2_v1", "set2_v2", "set2_v3"),
-  c_set_3 SET("set3_v1", "set3_v2", "set3_v3"));
+  c_set_1 SET("set1_v1_å", "set1_v2_ä", "set1_v3_ö"),
+  c_set_2 SET("set2_v1_å", "set2_v2_ä", "set2_v3_ö") CHARACTER SET binary,
+  c_set_3 SET("set3_v1_å", "set3_v2_ä", "set3_v3_ö") CHARACTER SET latin1,
+  c_set_4 SET("set4_v1_å", "set4_v2_ä", "set4_v3_ö") CHARACTER SET swe7 COLLATE swe7_bin,
+  c_set_5 SET("set5_v1_å", "set5_v2_ä", "set5_v3_ö") CHARACTER SET ucs2,
+  c_set_6 SET("set6_v1_å", "set6_v2_ä", "set6_v3_ö") CHARACTER SET utf32
+  );
 
 SET GLOBAL binlog_row_metadata = MINIMAL;
-INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
+INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
-INSERT INTO t1 VALUES("set1_v1", "set2_v1", "set3_v1");
+INSERT INTO t1 VALUES("set1_v1_å", "set2_v2_ä", "set3_v3_ö", "set4_v1_å", "set5_v2_ä", "set6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
 RESET MASTER;
 
 --echo #
---echo # Verify that ENUM string values can be printed correctly
+--echo # Verify that ENUM string values and character sets can be printed correctly
 --echo #
 
 CREATE TABLE t1(
-  c_enum_1 ENUM("enum1_v1", "enum1_v2", "enum1_v3"),
-  c_enum_2 ENUM("enum2_v1", "enum2_v2", "enum2_v3"),
-  c_enum_3 ENUM("enum3_v1", "enum3_v2", "enum3_v3"));
+  c_enum_1 ENUM("enum1_v1_å", "enum1_v2_ä", "enum1_v3_ö"),
+  c_enum_2 ENUM("enum2_v1_å", "enum2_v2_ä", "enum2_v3_ö") CHARACTER SET binary,
+  c_enum_3 ENUM("enum3_v1_å", "enum3_v2_ä", "enum3_v3_ö") CHARACTER SET latin1,
+  c_enum_4 ENUM("enum4_v1_å", "enum4_v2_ä", "enum4_v3_ö") CHARACTER SET swe7 COLLATE swe7_bin,
+  c_enum_5 ENUM("enum5_v1_å", "enum5_v2_ä", "enum5_v3_ö") CHARACTER SET ucs2,
+  c_enum_6 ENUM("enum6_v1_å", "enum6_v2_ä", "enum6_v3_ö") CHARACTER SET utf32
+  );
 
 SET GLOBAL binlog_row_metadata = MINIMAL;
-INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
+INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
-INSERT INTO t1 VALUES("enum1_v1", "enum2_v1", "enum3_v1");
+INSERT INTO t1 VALUES("enum1_v1_å", "enum2_v2_ä", "enum3_v3_ö", "enum4_v1_å", "enum5_v2_ä", "enum6_v3_ö");
 --source extra/binlog_tests/print_optional_metadata.inc
 
 DROP TABLE t1;
