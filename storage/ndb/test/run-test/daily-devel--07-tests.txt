@@ -173,3 +173,7 @@ cmd: testNodeRestart
 args: -n NodeFailLcpStall T1
 max-time: 360
 
+cmd: testBlobs
+args: -bug 28746560 -skip p -loop 10
+max-time: 180
+
