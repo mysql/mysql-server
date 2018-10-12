@@ -2854,7 +2854,9 @@ sub environment_setup {
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
   # Make sure LeakSanitizer exits if leaks are found
-  $ENV{'LSAN_OPTIONS'}= "exitcode=42";
+  $ENV{'LSAN_OPTIONS'} = "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp";
+
+  $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp";
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
