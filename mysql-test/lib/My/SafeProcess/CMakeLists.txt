@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,13 @@ IF (INSTALL_MYSQLTESTDIR)
     )
 ENDIF()
 
+UNSET(HAVE_TIRPC)
+# rpcgen.cmake will store RPC_INCLUDE_DIR in the cache
+IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
+  ADD_DEFINITIONS(-DHAVE_TIRPC)
+  SET(HAVE_TIRPC 1)
+ENDIF()
+
 IF (WIN32)
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process_win.cc ${INSTALL_ARGS}
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -35,6 +42,39 @@ IF (WIN32)
 ELSE()
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS}
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+ENDIF()
+
+# Sun RPC, and XDR, is being removed from glibc, and into a separate libtirpc
+# library. This is not compatible with libasan. The interceptor functions
+# inserted into the code will segfault.
+# As a workaround, do LD_PRELOAD=/lib64/libtirpc.so
+# For dynamically linked libasan (default for gcc), we must preload that as well
+IF(HAVE_ASAN AND HAVE_TIRPC)
+  TARGET_INCLUDE_DIRECTORIES(my_safe_process
+    PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT asan_test.c
+    COMMAND ${CMAKE_COMMAND} -E echo "int main() { return 0; }" > asan_test.c
+    VERBATIM
+    )
+  SET_SOURCE_FILES_PROPERTIES(asan_test.c PROPERTIES GENERATED TRUE)
+
+  ADD_EXECUTABLE(asan_test asan_test.c)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ldd_asan_test_result
+    DEPENDS asan_test
+    COMMAND ldd asan_test > ldd_asan_test_result)
+
+  ADD_CUSTOM_TARGET(extract_asan_library_name
+    DEPENDS ldd_asan_test_result
+    COMMAND ${CMAKE_COMMAND}
+    -DINFILE=${CMAKE_CURRENT_BINARY_DIR}/ldd_asan_test_result
+    -DOUTFILE=${CMAKE_CURRENT_BINARY_DIR}/asan_library_name.h
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/read_ldd_output.cmake
+    )
+
+  ADD_DEPENDENCIES(my_safe_process extract_asan_library_name)
 ENDIF()
 
 IF (NOT INSTALL_MYSQLTESTDIR)
