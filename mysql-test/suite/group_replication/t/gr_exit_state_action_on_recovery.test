@@ -47,6 +47,7 @@ SET sql_log_bin = 1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 SET sql_log_bin = 0;
+call mtr.add_suppression("read failed");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1'*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped,*");
@@ -70,7 +71,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 # Add M1 to the group
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $group_replication_start_member_state= RECOVERING
+--let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
 --echo
@@ -104,11 +105,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
-# Delete the transaction that clashed, so the server doesn't error out right
-# at the beginning of recovery
-SET SESSION sql_log_bin= 0;
-DROP TABLE t1;
-SET SESSION sql_log_bin= 1;
+
 # Set the exit state action sysvar to ABORT_SERVER
 SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 
@@ -120,12 +117,9 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 # Inform MTR that we are expecting an abort and that it should wait before
 # restarting the aborting member
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-# Recreate the table
-SET SESSION sql_log_bin= 0;
-CREATE TABLE t1(a INT PRIMARY KEY);
-SET SESSION sql_log_bin= 1;
+
 # Join the group again
---let $group_replication_start_member_state= RECOVERING
+--let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
 --echo

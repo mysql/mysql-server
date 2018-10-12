@@ -28,6 +28,7 @@ include/start_and_bootstrap_group_replication.inc
 
 [connection server2]
 SET @super_read_only_saved = @@GLOBAL.super_read_only;
+SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 
@@ -83,5 +84,5 @@ include/rpl_gr_wait_for_number_of_members.inc
 #########################################################################
 
 [connection server2]
-SET @@GLOBAL.group_replication_exit_state_action = READ_ONLY;
+SET @@GLOBAL.group_replication_exit_state_action = @exit_state_action_saved;
 include/group_replication_end.inc
