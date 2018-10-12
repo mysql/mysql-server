@@ -131,6 +131,9 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
 static Item_func_match *test_if_ft_index_order(ORDER *order);
 
 static uint32 get_key_length_tmp_table(Item *item);
+static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
+                                         enum_order ordering,
+                                         bool recheck_range);
 
 bool JOIN::alloc_indirection_slices() {
   const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
@@ -1878,6 +1881,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       trace, "reconsidering_access_paths_for_index_ordering");
   trace_skip_sort_order.add_alnum(
       "clause", (order.src == ESC_ORDER_BY ? "ORDER BY" : "GROUP BY"));
+  Opt_trace_array trace_steps(trace, "steps");
 
   if (ref_key >= 0) {
     /*
@@ -1931,6 +1935,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           Key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key);  // only for new_ref_key.
 
+          Opt_trace_object trace_wrapper(trace);
           Opt_trace_object trace_recest(trace, "rows_estimation");
           trace_recest.add_utf8_table(tab->table_ref)
               .add_utf8("index", table->key_info[new_ref_key].name);
@@ -1944,7 +1949,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
                                 false,  // don't force quick range
                                 order->direction, tab,
                                 // we are after make_join_select():
-                                tab->condition(), &tab->needed_reg, &qck) <= 0;
+                                tab->condition(), &tab->needed_reg, &qck,
+                                tab->table()->force_index) <= 0;
           DBUG_ASSERT(tab->quick() == save_quick);
           tab->set_quick(qck);
           if (no_quick) {
@@ -2034,6 +2040,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     if (table->quick_keys.is_set(best_key) &&
         !tab->quick_order_tested.is_set(best_key) && best_key != ref_key) {
       tab->quick_order_tested.set_bit(best_key);
+      Opt_trace_object trace_wrapper(trace);
       Opt_trace_object trace_recest(trace, "rows_estimation");
       trace_recest.add_utf8_table(tab->table_ref)
           .add_utf8("index", table->key_info[best_key].name);
@@ -2046,7 +2053,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           0,  // empty table_map
           join->calc_found_rows ? HA_POS_ERROR : join->unit->select_limit_cnt,
           true,  // force quick range
-          order->direction, tab, tab->condition(), &tab->needed_reg, &qck);
+          order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
+          tab->table()->force_index);
       if (order_direction < 0 && tab->quick() != NULL &&
           tab->quick() != save_quick) {
         /*
@@ -2146,7 +2154,18 @@ check_reverse_order:
 
       // Changing the key makes filter_effect obsolete
       tab->position()->filter_effect = COND_FILTER_STALE;
-    } else if (best_key >= 0) {
+
+      /*
+        Check if it is possible to shift from ref to range. The index chosen
+        for 'ref' has changed since the last time this function was called.
+      */
+      if (can_switch_from_ref_to_range(thd, tab, order->direction, true)) {
+        // Allow the code to fall-through to the next if condition.
+        set_up_ref_access_to_key = false;
+        best_key = changed_key;
+      }
+    }
+    if (!set_up_ref_access_to_key && best_key >= 0) {
       // Cancel any ref-access previously set up
       tab->ref().key = -1;
       tab->ref().key_parts = 0;
@@ -2259,6 +2278,7 @@ fix_ICP:
     }
   }
 
+  trace_steps.end();
   Opt_trace_object trace_change_index(trace, "index_order_summary");
   trace_change_index.add_utf8_table(tab->table_ref)
       .add("index_provides_order", can_skip_sorting)
@@ -2326,8 +2346,7 @@ bool JOIN::prune_table_partitions() {
 
   1) Range access is possible
   2) 'ref' access and 'range' access uses the same index
-  3) Used parts of key shouldn't have nullable parts, i.e we're
-     going to use 'ref' access, not ref_or_null.
+  3) Used parts of key shouldn't have nullable parts & ref_or_null isn't used.
   4) 'ref' access depends on a constant, not a value read from a
      table earlier in the join sequence.
 
@@ -2350,8 +2369,16 @@ bool JOIN::prune_table_partitions() {
      best_access_path() instead of forcing a heuristic choice
      here.
   5) 'range' access uses more keyparts than 'ref' access
+  6) ORDER BY might make range better than table scan:
+     Check possibility of range scan even if it was previously deemed unviable
+     (for example when table scan was estimated to be cheaper). If yes,
+     range-access should be chosen only for larger key length.
 
-  @param tab JOIN_TAB to check
+  @param thd           To re-run range optimizer.
+  @param tab           JOIN_TAB to check
+  @param ordering      Used as a parameter to call test_quick_select.
+  @param recheck_range Check possibility of range scan even if it is currently
+                       unviable.
 
   @return true   Range is better than ref
   @return false  Ref is better or switch isn't possible
@@ -2359,10 +2386,12 @@ bool JOIN::prune_table_partitions() {
   @todo: This decision should rather be made in best_access_path()
 */
 
-static bool can_switch_from_ref_to_range(JOIN_TAB *tab) {
-  if (tab->quick() &&                                    // 1)
-      tab->position()->key->key == tab->quick()->index)  // 2)
-  {
+static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
+                                         enum_order ordering,
+                                         bool recheck_range) {
+  if ((tab->quick() &&                                       // 1)
+       tab->position()->key->key == tab->quick()->index) ||  // 2)
+      recheck_range) {
     uint keyparts = 0, length = 0;
     table_map dep_map = 0;
     bool maybe_null = false;
@@ -2370,10 +2399,41 @@ static bool can_switch_from_ref_to_range(JOIN_TAB *tab) {
     calc_length_and_keyparts(tab->position()->key, tab,
                              tab->position()->key->key, tab->prefix_tables(),
                              NULL, &length, &keyparts, &dep_map, &maybe_null);
-    if (!maybe_null &&                               // 3)
-        !dep_map &&                                  // 4)
-        length < tab->quick()->max_used_key_length)  // 5)
-      return true;
+    if (!maybe_null &&  // 3)
+        !dep_map)       // 4)
+    {
+      if (recheck_range)  // 6)
+      {
+        Key_map new_ref_key_map;
+        new_ref_key_map.set_bit(tab->ref().key);
+
+        Opt_trace_context *const trace = &thd->opt_trace;
+        Opt_trace_object trace_wrapper(trace);
+        Opt_trace_object can_switch(
+            trace, "check_if_range_uses_more_keyparts_than_ref");
+        Opt_trace_object trace_cond(
+            trace, "rerunning_range_optimizer_for_single_index");
+
+        QUICK_SELECT_I *qck;
+        if (test_quick_select(
+                thd, new_ref_key_map, 0,  // empty table_map
+                tab->join()->row_limit, false, ordering, tab,
+                tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
+                &tab->needed_reg, &qck, recheck_range) > 0) {
+          if (length < qck->max_used_key_length) {
+            delete tab->quick();
+            tab->set_quick(qck);
+            return true;
+          } else {
+            Opt_trace_object(trace, "access_type_unchanged")
+                .add("ref_key_length", length)
+                .add("range_key_length", qck->max_used_key_length);
+            delete qck;
+          }
+        }
+      } else
+        return length < tab->quick()->max_used_key_length;  // 5)
+    }
   }
   return false;
 }
@@ -2425,7 +2485,7 @@ void JOIN::adjust_access_methods() {
         // From table scan to index scan, thus filter effect needs no recalc.
       }
     } else if (tab->type() == JT_REF) {
-      if (can_switch_from_ref_to_range(tab)) {
+      if (can_switch_from_ref_to_range(thd, tab, ORDER_NOT_RELEVANT, false)) {
         tab->set_type(JT_RANGE);
 
         Opt_trace_context *const trace = &thd->opt_trace;
@@ -5537,7 +5597,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab,
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-        &tab->needed_reg, &qck);
+        &tab->needed_reg, &qck, tab->table()->force_index);
     tab->set_quick(qck);
 
     if (error == 1) DBUG_RETURN(qck->records);
@@ -8874,7 +8934,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       interesting_order, tab, tab->condition(),
-                      &tab->needed_reg, &qck) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
               tab->set_quick(qck);
             }
             tab->set_condition(orig_cond);
@@ -8898,7 +8958,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       ORDER_NOT_RELEVANT, tab, tab->condition(),
-                      &tab->needed_reg, &qck) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
               tab->set_quick(qck);
               if (impossible_where) DBUG_RETURN(1);  // Impossible WHERE
             }
