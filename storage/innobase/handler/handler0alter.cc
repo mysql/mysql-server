@@ -6519,6 +6519,77 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   DBUG_RETURN(err);
 }
 
+/** Discard the foreign key cache if anyone is affected by current
+column rename. This is only used for rebuild case.
+@param[in]	ha_alter_info	data used during in-place alter
+@param[in]	mysql_table	MySQL TABLE object
+@param[in,out]	old_table	InnoDB table object for old table */
+static void innobase_rename_col_discard_foreign(
+    Alter_inplace_info *ha_alter_info, const TABLE *mysql_table,
+    dict_table_t *old_table) {
+  List_iterator_fast<Create_field> cf_it(
+      ha_alter_info->alter_info->create_list);
+
+  ut_ad(ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_NAME);
+
+  for (Field **fp = mysql_table->field; *fp; fp++) {
+    if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+      continue;
+    }
+
+    cf_it.rewind();
+
+    ut_d(bool processed = false;)
+
+        while (Create_field *cf = cf_it++) {
+      if (cf->field != *fp) {
+        continue;
+      }
+
+      /* Now cf->field->field_name is the old name, check the foreign key
+      information to see any one gets affected by this rename, and discard
+      them from cache */
+
+      std::list<dict_foreign_t *> fk_evict;
+
+      for (auto fk : old_table->foreign_set) {
+        dict_foreign_t *foreign = fk;
+
+        for (unsigned i = 0; i < foreign->n_fields; i++) {
+          if (strcmp(foreign->foreign_col_names[i], cf->field->field_name) !=
+              0) {
+            continue;
+          }
+
+          fk_evict.push_back(foreign);
+          break;
+        }
+      }
+
+      for (auto fk : old_table->referenced_set) {
+        dict_foreign_t *foreign = fk;
+
+        for (unsigned i = 0; i < foreign->n_fields; i++) {
+          if (strcmp(foreign->referenced_col_names[i], cf->field->field_name) !=
+              0) {
+            continue;
+          }
+
+          fk_evict.push_back(foreign);
+          break;
+        }
+      }
+
+      std::for_each(fk_evict.begin(), fk_evict.end(),
+                    dict_foreign_remove_from_cache);
+
+      ut_d(processed = true;)
+    }
+
+    ut_ad(processed);
+  }
+}
+
 /** Commit the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the data dictionary tables,
 when rebuilding the table.
@@ -7350,6 +7421,12 @@ rollback_trx:
       ctx->old_table->to_be_dropped = true;
 
       DBUG_PRINT("to_be_dropped", ("table: %s", ctx->old_table->name.m_name));
+
+      if ((ha_alter_info->handler_flags &
+           Alter_inplace_info::ALTER_COLUMN_NAME)) {
+        innobase_rename_col_discard_foreign(ha_alter_info, table,
+                                            ctx->old_table);
+      }
 
       /* Rename the tablespace files. */
       commit_cache_rebuild(ctx);
