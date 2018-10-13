@@ -1404,7 +1404,9 @@ dberr_t Log_DDL::replay_by_thread_id(ulint thread_id) {
   delete_by_ids(records);
 
   for (auto record : records) {
-    delete record;
+    if (record->get_deletable()) {
+      delete record;
+    }
   }
 
   return (error);

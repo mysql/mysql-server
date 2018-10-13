@@ -744,6 +744,7 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
   if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); })) {
     return true;
   }
+
   return false;
 }
 

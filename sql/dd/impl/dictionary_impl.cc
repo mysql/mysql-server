@@ -648,6 +648,7 @@ bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
                                           bool release_mdl_on_commit_only) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   Disable_autocommit_guard autocommit_guard(thd);
+
   if (!error && space != nullptr) {
     error = thd->dd_client()->update(space);
   }
@@ -682,4 +683,5 @@ void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst) {
   }
   thd->locked_tables_list.add_rename_tablespace_mdls(src, dst);
 }
+
 }  // namespace dd

@@ -18,6 +18,8 @@
 --echo #########
 --echo
 let datadir=`SELECT @@datadir`;
+let search_pattern=samplerecord;
+let ts_name=encrypt_ts.ibd;
 
 --echo #########################################################################
 --echo # RESTART 1 : WITH KEYRING PLUGIN

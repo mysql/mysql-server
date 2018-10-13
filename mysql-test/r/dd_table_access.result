@@ -18,7 +18,7 @@ ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 CREATE TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
 ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 ALTER TABLESPACE mysql ADD DATAFILE 'new_file.ibd';
-ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ERROR HY000: Failed to alter: TABLESPACE mysql
 # Create a non- white listed table in the DD tablespace
 CREATE TABLE table_not_white_listed (pk INTEGER PRIMARY KEY) TABLESPACE mysql;
 ERROR HY000: The table 'table_not_white_listed' may not be created in the reserved tablespace 'mysql'.

@@ -54,8 +54,6 @@ SELECT @@innodb_file_per_table;
 1
 ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
-ALTER TABLESPACE mysql ENCRYPTION='Y';
-ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
 ---------------------------
 TEMPORARY TABLESPACE
 ---------------------------

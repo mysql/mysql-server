@@ -4686,11 +4686,9 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
     /* ADD SDI flag presence in predefined flags of mysql
     tablespace. */
 
-    /* The tablespace was already opened up by redo log apply. */
-    ut_ad(space->flags == predefined_flags);
-
     if (strstr(space->files.front().name, filename) != 0 &&
-        space->flags == predefined_flags) {
+        /* Ignore encryption flag as it might have changed */
+        !((space->flags ^ predefined_flags) & ~(FSP_FLAGS_MASK_ENCRYPTION))) {
       fil_space_open_if_needed(space);
 
     } else {
@@ -4699,7 +4697,7 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
 
     fil_space_release(space);
 
-  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, predefined_flags,
+  } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, 0,
                           dict_sys_t::s_dd_space_name,
                           dict_sys_t::s_dd_space_name, filename, true,
                           false) == DB_SUCCESS) {
@@ -10873,11 +10871,9 @@ static int validate_tablespace_name(ts_command_type ts_command,
         err = HA_WRONG_CREATE_OPTION;
       }
     }
-  }
-  /* TODO: Replace the string literal below by a proper string constant
-  representing the DD tablespace name. */
-  else if (0 == strcmp(name, "mysql")) {
-    if (ts_command != TS_CMD_NOT_DEFINED) {
+  } else if (0 == strcmp(name, dict_sys_t::s_dd_space_name)) {
+    /* mysql tablespace can't be created or dropped */
+    if (ts_command == CREATE_TABLESPACE || ts_command == DROP_TABLESPACE) {
       my_printf_error(ER_WRONG_TABLESPACE_NAME,
                       "InnoDB: `mysql` is a reserved"
                       " tablespace name.",
@@ -14233,6 +14229,16 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
   /* ALTER_TABLESPACE_RENAME */
   const char *from = old_dd_space->name().c_str();
   const char *to = new_dd_space->name().c_str();
+
+  /* mysql tablespace can't be renamed */
+  if (innobase_strcasecmp(from, dict_sys_t::s_dd_space_name) == 0) {
+    my_printf_error(ER_WRONG_TABLESPACE_NAME,
+                    "InnoDB: `mysql` is a reserved"
+                    " tablespace name.",
+                    MYF(0));
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
   ut_ad(ut_strcmp(from, to) != 0);
 
   dberr_t err = fil_rename_tablespace_by_id(space_id, from, to);

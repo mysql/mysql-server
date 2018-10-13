@@ -439,6 +439,7 @@ const Object_table &get_dd_table();
   @param dst ticket for new name
 */
 void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
+
 }  // namespace dd
 
 #endif  // DD__DICTIONARY_INCLUDED

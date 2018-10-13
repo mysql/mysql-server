@@ -263,7 +263,7 @@ tablespace dictionary.*/
    FSP_FLAGS_WIDTH_SDI)
 
 /** A mask of all the known/used bits in tablespace flags */
-#define FSP_FLAGS_MASK (~(~0 << FSP_FLAGS_WIDTH))
+#define FSP_FLAGS_MASK (~(~0U << FSP_FLAGS_WIDTH))
 
 /** Zero relative shift position of the POST_ANTELOPE field */
 #define FSP_FLAGS_POS_POST_ANTELOPE 0
@@ -350,6 +350,8 @@ tablespace dictionary.*/
   ((flags & FSP_FLAGS_MASK_SDI) >> FSP_FLAGS_POS_SDI)
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags) (flags >> FSP_FLAGS_POS_UNUSED)
+/** Return true if flags are not set */
+#define FSP_FLAGS_ARE_NOT_SET(flags) ((flags & FSP_FLAGS_MASK) == 0)
 
 /** Set ENCRYPTION bit in tablespace flags */
 #define FSP_FLAGS_SET_ENCRYPTION(flags) \

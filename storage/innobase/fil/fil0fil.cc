@@ -2265,11 +2265,6 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   ulint flags = fsp_header_get_flags(page);
   space_id_t space_id = fsp_header_get_space_id(page);
 
-#ifndef UNIV_HOTBACKUP
-  encryption_op_type encryption_op =
-      fsp_header_encryption_op_type_in_progress(page, page_size_t(flags));
-#endif /* UNIV_HOTBACKUP */
-
   /* To determine if tablespace is from 5.7 or not, we
   rely on SDI flag. For IBDs from 5.7, which are opened
   during import or during upgrade, their initial size
@@ -2331,14 +2326,12 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   space->flags |= flags & FSP_FLAGS_MASK_SDI;
 
 #ifndef UNIV_HOTBACKUP
-  /* It is possible for a space flag to be updated for encryption
-  in the ibd file, but the server crashed before DD flags are
-  updated. Update encryption flags for that scenario.
-
-  This is safe because m_encryption_op_in_progress will always be
-  set to NONE unless there is a crash before Encryption is
-  finished. */
-  if (encryption_op == ENCRYPTION) {
+  /* It is possible that
+  - For general tablespace, encryption flag is updated on disk but server
+  crashed before DD could be updated OR
+  - For DD tablespace, encryption flag is updated on disk.
+  */
+  if (FSP_FLAGS_GET_ENCRYPTION(flags)) {
     space->flags |= flags & FSP_FLAGS_MASK_ENCRYPTION;
   }
 #endif /* UNIV_HOTBACKUP */
@@ -5320,6 +5313,13 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   return success. */
   if (validate && is_encrypted && fil_space_get(space_id)) {
     return (DB_SUCCESS);
+  }
+
+  /* We pass UNINITIALIZED flags while we try to open DD tablesapce. In that
+  case, set the flags now based on what is read from disk.*/
+  if (FSP_FLAGS_ARE_NOT_SET(flags) && fsp_is_dd_tablespace(space_id)) {
+    flags = df.flags();
+    is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
   }
 
   space = fil_space_create(space_name, space_id, flags, purpose);

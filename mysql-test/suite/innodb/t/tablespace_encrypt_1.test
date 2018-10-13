@@ -114,9 +114,6 @@ SELECT @@innodb_file_per_table;
 --error ER_WRONG_TABLESPACE_NAME
 ALTER TABLESPACE innodb_system ENCRYPTION='Y';
 
---error ER_WRONG_TABLESPACE_NAME
-ALTER TABLESPACE mysql ENCRYPTION='Y';
-
 --echo ---------------------------
 --echo TEMPORARY TABLESPACE
 --echo ---------------------------

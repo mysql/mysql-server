@@ -713,6 +713,11 @@ bool fsp_is_file_per_table(space_id_t space_id, ulint fsp_flags) {
           fsp_is_ibd_tablespace(space_id));
 }
 
+/** Check if tablespace is dd tablespace.
+@param[in]	space_id	tablespace ID
+@return true if tablespace is dd tablespace. */
+bool fsp_is_dd_tablespace(space_id_t space_id);
+
 /** Determine if the tablespace is compressed from tablespace flags.
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */

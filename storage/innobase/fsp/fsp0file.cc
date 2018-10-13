@@ -283,6 +283,8 @@ void Datafile::set_name(const char *name) {
   } else if (fsp_is_undo_tablespace(m_space_id)) {
     m_name = undo::make_space_name(m_space_id);
 #endif /* !UNIV_HOTBACKUP */
+  } else if (fsp_is_dd_tablespace(m_space_id)) {
+    m_name = mem_strdup(dict_sys_t::s_dd_space_name);
   } else {
 #ifndef UNIV_HOTBACKUP
     /* Give this general tablespace a temporary name. */
@@ -398,6 +400,11 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, ulint flags,
   err = validate_first_page(space_id, 0, for_import);
   if (err != DB_SUCCESS) {
     return (err);
+  }
+
+  if (m_space_id == space_id && FSP_FLAGS_ARE_NOT_SET(flags) &&
+      fsp_is_dd_tablespace(space_id)) {
+    return (DB_SUCCESS);
   }
 
   /* Make sure the datafile we found matched the space ID.

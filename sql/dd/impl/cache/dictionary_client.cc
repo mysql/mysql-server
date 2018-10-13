@@ -2675,6 +2675,10 @@ void Dictionary_client::remove_uncommitted_objects(
           const_cast<typename T::Cache_partition *>(it->second->object());
       DBUG_ASSERT(uncommitted_object != nullptr);
 
+      // Update the DD object in the core registry if applicable.
+      // Currently only for the dd tablespace to allow it to be encrypted.
+      dd::cache::Storage_adapter::instance()->core_update(it->second->object());
+
       // Invalidate the entry in the shared cache (if present).
       invalidate(uncommitted_object);
 

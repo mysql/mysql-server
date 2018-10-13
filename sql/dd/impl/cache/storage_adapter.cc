@@ -124,6 +124,25 @@ void Storage_adapter::core_get(const K &key, const T **object) {
   }
 }
 
+// Update the dictionary object for a dd entity in the core registry.
+void Storage_adapter::core_update(const dd::Tablespace *new_tsp) {
+  if (new_tsp->id() != MYSQL_TABLESPACE_DD_ID) {
+    return;
+  }
+
+  Cache_element<typename dd::Tablespace::Cache_partition> *element = nullptr;
+  typename dd::Tablespace::Id_key key(new_tsp->id());
+  MUTEX_LOCK(lock, &m_lock);
+  m_core_registry.get(key, &element);
+  DBUG_ASSERT(element != nullptr);
+  m_core_registry.remove(element);
+  std::unique_ptr<const dd::Tablespace> old{element->object()};
+
+  element->set_object(new_tsp->clone());
+  element->recreate_keys();
+  m_core_registry.put(element);
+}
+
 // Get a dictionary object from persistent storage.
 template <typename K, typename T>
 bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,

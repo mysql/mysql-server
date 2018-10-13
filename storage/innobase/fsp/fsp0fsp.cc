@@ -231,6 +231,13 @@ ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact) {
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Check if tablespace is dd tablespace.
+@param[in]      space_id        tablespace ID
+@return true if tablespace is dd tablespace. */
+bool fsp_is_dd_tablespace(space_id_t space_id) {
+  return (space_id == dict_sys_t::s_space_id);
+}
+
 /** Check whether a space id is an undo tablespace ID
 Undo tablespaces have space_id's starting 1 less than the redo logs.
 They are numbered down from this.  Since rseg_id=0 always refers to the
