@@ -3048,6 +3048,7 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
   if (extract_date_time(&date_time_format, val->ptr(), val->length(), ltime,
                         cached_timestamp_type, 0, "datetime") ||
       ((fuzzy_date & TIME_NO_ZERO_DATE) &&
+       (data_type() == MYSQL_TYPE_DATETIME || data_type() == MYSQL_TYPE_DATE) &&
        (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
     goto null_date;
   ltime->time_type = cached_timestamp_type;
