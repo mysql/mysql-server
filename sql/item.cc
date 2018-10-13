@@ -8007,9 +8007,7 @@ void Item_trigger_field::cleanup() {
 }
 
 Item_result item_cmp_type(Item_result a, Item_result b) {
-  if (a == STRING_RESULT && b == STRING_RESULT) return STRING_RESULT;
-  if (a == INT_RESULT && b == INT_RESULT)
-    return INT_RESULT;
+  if (a == b) return a;
   else if (a == ROW_RESULT || b == ROW_RESULT)
     return ROW_RESULT;
   if ((a == INT_RESULT || a == DECIMAL_RESULT) &&
