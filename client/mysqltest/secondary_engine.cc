@@ -461,7 +461,7 @@ bool Secondary_engine::offload_count(MYSQL *mysql, const char *mode) {
 
   if (query_get_string(mysql, query, 1, &offload_count)) {
     int error = mysql_errno(mysql);
-    if (error == 0 || error == 1104 || error == 2006) return true;
+    if (error == 0 || error == 1104 || error == 2006) return false;
     std::cerr << "mysqltest: Query '" << query << "' failed, ERROR " << error
               << " (" << mysql_sqlstate(mysql) << "): " << mysql_error(mysql)
               << std::endl;

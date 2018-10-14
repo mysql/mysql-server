@@ -1220,6 +1220,18 @@ sub collect_one_test_case {
     return $tinfo;
   }
 
+  if ($::secondary_engine_support and
+      defined $::opt_change_propagation and
+      defined $tinfo->{'change_propagation'}) {
+    if ($tinfo->{'change_propagation'} and !$::opt_change_propagation) {
+      skip_test($tinfo, "Test requires change propagation to be ON");
+      return $tinfo;
+    } elsif (!$tinfo->{'change_propagation'} and $::opt_change_propagation) {
+      skip_test($tinfo, "Test requires change propagation to be OFF");
+      return $tinfo;
+    }
+  }
+
   # Find config file to use if not already selected in <testname>.opt file
   if (defined $defaults_file) {
     # Using same config file for all tests
@@ -1325,7 +1337,10 @@ my @tags = (
 
   # Tests with below .inc file needs either big-test or only-big-test
   # option along with valgrind option.
-  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],);
+  [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],
+
+  [ "include/have_change_propagation_off.inc", "change_propagation", 0 ],
+  [ "include/have_change_propagation_on.inc",  "change_propagation", 1 ],);
 
 sub tags_from_test_file {
   my $tinfo = shift;

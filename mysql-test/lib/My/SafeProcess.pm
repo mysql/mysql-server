@@ -529,6 +529,11 @@ sub check_any {
   for my $proc (values %running) {
     if ($proc->is_child($$)) {
       if (not $proc->wait_one(0)) {
+        # Secondary engine server is shutdown automatically when mysqld
+        # server is shutdown.
+        next
+          if ($proc->{'SAFE_NAME'} eq "secondary_engine" and
+              $proc->{EXIT_STATUS} == 0);
         _verbose("Found exited $proc");
         return $proc;
       }
