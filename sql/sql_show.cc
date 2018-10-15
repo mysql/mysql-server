@@ -2335,7 +2335,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
   */
   switch (show_type) {
     case SHOW_DOUBLE_STATUS:
-      value = ((char *)status_var + (ulong)value);
+      value = (char *)status_var + reinterpret_cast<size_t>(value);
       /* 6 is the default precision for '%f' in sprintf() */
       end = buff + my_fcvt(*(double *)value, 6, buff, NULL);
       value_charset = system_charset_info;
@@ -2348,7 +2348,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_LONG_STATUS:
-      value = ((char *)status_var + (ulong)value);
+      value = (char *)status_var + reinterpret_cast<size_t>(value);
       end = int10_to_str(*(long *)value, buff, 10);
       value_charset = system_charset_info;
       break;
@@ -2366,7 +2366,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
       break;
 
     case SHOW_LONGLONG_STATUS:
-      value = ((char *)status_var + (ulong)value);
+      value = (char *)status_var + reinterpret_cast<size_t>(value);
       end = longlong10_to_str(*(longlong *)value, buff, 10);
       value_charset = system_charset_info;
       break;
@@ -2441,13 +2441,13 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     }
 
     case SHOW_KEY_CACHE_LONG:
-      value = (char *)dflt_key_cache + (ulong)value;
+      value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
       end = int10_to_str(*(long *)value, buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
-      value = (char *)dflt_key_cache + (ulong)value;
+      value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
       end = longlong10_to_str(*(longlong *)value, buff, 10);
       value_charset = system_charset_info;
       break;
@@ -2479,7 +2479,7 @@ class Add_status : public Do_THD_Impl {
   Add_status(System_status_var *value) : m_stat_var(value) {}
   virtual void operator()(THD *thd) {
     if (!thd->status_var_aggregated)
-      add_to_status(m_stat_var, &thd->status_var, false);
+      add_to_status(m_stat_var, &thd->status_var);
   }
 
  private:

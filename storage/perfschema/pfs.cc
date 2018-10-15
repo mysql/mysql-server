@@ -3411,6 +3411,17 @@ void pfs_set_thread_v2(PSI_thread *thread) {
 
 /**
   Implementation of the thread instrumentation interface.
+  @sa PSI_v2::aggregate_thread_status.
+*/
+void pfs_aggregate_thread_status_v2(PSI_thread *thread) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (pfs != NULL) {
+    aggregate_thread_status(pfs, pfs->m_account, pfs->m_user, pfs->m_host);
+  }
+}
+
+/**
+  Implementation of the thread instrumentation interface.
   @sa PSI_v2::delete_current_thread.
 */
 void pfs_delete_current_thread_v2(void) {
@@ -7894,6 +7905,7 @@ PSI_thread_service_v2 pfs_thread_service_v2 = {
     pfs_set_thread_resource_group_v2,
     pfs_set_thread_resource_group_by_id_v2,
     pfs_set_thread_v2,
+    pfs_aggregate_thread_status_v2,
     pfs_delete_current_thread_v2,
     pfs_delete_thread_v2,
     pfs_set_thread_connect_attrs_v2,
@@ -7959,6 +7971,7 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v2) = {
     pfs_set_thread_start_time_v2,
     pfs_set_thread_info_v2,
     pfs_set_thread_v2,
+    pfs_aggregate_thread_status_v2,
     pfs_delete_current_thread_v2,
     pfs_delete_thread_v2,
     pfs_set_thread_connect_attrs_v2,

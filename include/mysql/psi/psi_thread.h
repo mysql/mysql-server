@@ -120,6 +120,8 @@ struct PSI_thread_service_v2 {
   set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
+  /** @sa aggregate_thread_status_v1_t. */
+  aggregate_thread_status_v2_t aggregate_thread_status;
   /** @sa delete_current_thread_v1_t. */
   delete_current_thread_v1_t delete_current_thread;
   /** @sa delete_thread_v1_t. */

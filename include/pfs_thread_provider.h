@@ -95,6 +95,8 @@ int pfs_set_thread_resource_group_by_id_v2(PSI_thread *thread,
 
 void pfs_set_thread_v2(PSI_thread *thread);
 
+void pfs_aggregate_thread_status_v2(PSI_thread *thread);
+
 void pfs_delete_current_thread_v2(void);
 
 void pfs_delete_thread_v2(PSI_thread *thread);

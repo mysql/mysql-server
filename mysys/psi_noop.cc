@@ -140,6 +140,8 @@ static int set_thread_resource_group_by_id_noop(PSI_thread *, ulonglong,
   return 0;
 }
 
+static void aggregate_thread_status_noop(PSI_thread *) { return; }
+
 static void delete_current_thread_noop(void) { return; }
 
 static void delete_thread_noop(PSI_thread *) { return; }
@@ -204,6 +206,7 @@ static PSI_thread_service_t psi_thread_noop = {
     set_thread_resource_group_noop,
     set_thread_resource_group_by_id_noop,
     set_thread_noop,
+    aggregate_thread_status_noop,
     delete_current_thread_noop,
     delete_thread_noop,
     set_thread_connect_attrs_noop,

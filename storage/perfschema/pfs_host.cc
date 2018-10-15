@@ -271,11 +271,7 @@ void PFS_host::aggregate_memory(bool alive) {
 }
 
 void PFS_host::aggregate_status() {
-  /*
-    Aggregate STATUS_BY_HOST to:
-    - GLOBAL_STATUS
-  */
-  m_status_stats.aggregate_to(&global_status_var);
+  /* No parent to aggregate to, clean the stats */
   m_status_stats.reset();
 }
 

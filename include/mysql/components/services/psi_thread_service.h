@@ -135,6 +135,8 @@ set_thread_start_time_v1_t set_thread_start_time;
 set_thread_info_v1_t set_thread_info;
 /** @sa set_thread_v1_t. */
 set_thread_v1_t set_thread;
+/** @sa aggregate_thread_status_v1_t. */
+aggregate_thread_status_v2_t aggregate_thread_status;
 /** @sa delete_current_thread_v1_t. */
 delete_current_thread_v1_t delete_current_thread;
 /** @sa delete_thread_v1_t. */

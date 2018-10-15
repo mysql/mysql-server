@@ -276,6 +276,9 @@ typedef int (*set_thread_resource_group_by_id_v1_t)(
 */
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 
+/** Aggregate the thread status variables. */
+typedef void (*aggregate_thread_status_v2_t)(struct PSI_thread *thread);
+
 /** Delete the current thread instrumentation. */
 typedef void (*delete_current_thread_v1_t)(void);
 

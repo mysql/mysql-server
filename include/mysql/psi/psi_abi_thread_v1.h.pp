@@ -83,6 +83,7 @@ typedef int (*set_thread_resource_group_by_id_v1_t)(
     PSI_thread *thread, unsigned long long thread_id, const char *group_name,
     int group_name_len, void *user_data);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
+typedef void (*aggregate_thread_status_v2_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
 typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
@@ -156,6 +157,7 @@ struct PSI_thread_service_v2 {
   set_thread_resource_group_v1_t set_thread_resource_group;
   set_thread_resource_group_by_id_v1_t set_thread_resource_group_by_id;
   set_thread_v1_t set_thread;
+  aggregate_thread_status_v2_t aggregate_thread_status;
   delete_current_thread_v1_t delete_current_thread;
   delete_thread_v1_t delete_thread;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
