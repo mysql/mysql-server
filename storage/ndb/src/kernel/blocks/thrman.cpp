@@ -2331,8 +2331,9 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         jam();
         c_measurementRecordPool.getPtr(measurePtr, pos_ptrI);
       }
+
       Ndbinfo::Row row(signal, req);
-      if (pos_thread_id == 0)
+      if (pos_thread_id == 0 && measurePtr.p->m_first_measure_done)
       {
         jam();
         /**
@@ -2364,8 +2365,9 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_uint32(Uint32(measurePtr.p->m_send_time_thread));
         row.write_uint32(Uint32(measurePtr.p->m_buffer_full_time_thread));
         row.write_uint32(Uint32(measurePtr.p->m_elapsed_time));
+        ndbinfo_send_row(signal, req, row, rl);
       }
-      else
+      else if (pos_thread_id != 0 && sendThreadMeasurementPtr.p->m_first_measure_done)
       {
         jam();
         row.write_uint32(getOwnNodeId());
@@ -2389,8 +2391,13 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
           sendThreadMeasurementPtr.p->m_exec_time +
           sendThreadMeasurementPtr.p->m_sleep_time;
         row.write_uint32(elapsed_time);
+        ndbinfo_send_row(signal, req, row, rl);
       }
-      ndbinfo_send_row(signal, req, row, rl);
+      else
+      {
+        // Procede to next thread at first undone measurement
+        pos_index = NUM_MEASUREMENTS - 1;
+      }
 
       if ((pos_index + 1) == NUM_MEASUREMENTS)
       {
