@@ -673,9 +673,9 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
     xcom_port port = 0;
     char *addr = NULL;
 
-    if (skip_own_peer_address(
-            local_node_info_str_ips, m_local_node_address->get_member_port(),
-            peer->get_member_address(), peer->get_member_port())) {
+    if (skip_own_peer_address(local_node_info_str_ips,
+                              m_local_node_address->get_member_port(),
+                              peer->get_member_ip(), peer->get_member_port())) {
       // Skip own address if configured in the peer list
       continue;
     }
