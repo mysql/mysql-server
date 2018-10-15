@@ -2571,22 +2571,24 @@ end:
   /* Deferred xa rollback to engines */
   if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK) {
     error = ha_rollback_low(thd, all);
-    /*
-      XA-rollback ignores the gtid_state, if the transaciton
-      is empty.
-    */
-    if (is_empty && !thd->slave_thread) gtid_state->update_on_rollback(thd);
-    /*
-      XA-rollback commits the new gtid_state, if transaction
-      is not empty.
-    */
-    else {
-      gtid_state->update_on_commit(thd);
+    if (!error && !thd->is_error()) {
       /*
-        Inform hook listeners that a XA ROLLBACK did commit, that
-        is, did log a transaction to the binary log.
+        XA-rollback ignores the gtid_state, if the transaciton
+        is empty.
       */
-      (void)RUN_HOOK(transaction, after_commit, (thd, all));
+      if (is_empty && !thd->slave_thread) gtid_state->update_on_rollback(thd);
+      /*
+        XA-rollback commits the new gtid_state, if transaction
+        is not empty.
+      */
+      else {
+        gtid_state->update_on_commit(thd);
+        /*
+          Inform hook listeners that a XA ROLLBACK did commit, that
+          is, did log a transaction to the binary log.
+        */
+        (void)RUN_HOOK(transaction, after_commit, (thd, all));
+      }
     }
   }
   /*
