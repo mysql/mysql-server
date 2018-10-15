@@ -486,6 +486,9 @@ bool Secondary_engine::offload_count(MYSQL *mysql, const char *mode) {
 ///
 /// @param filename File to store the count value
 void Secondary_engine::report_offload_count(const char *filename) {
+  if (!offload_count_after && offload_count_after < offload_count_before)
+    offload_count_after = offload_count_before;
+
   int count_val = offload_count_after - offload_count_before;
   DBUG_ASSERT(count_val >= 0);
 
