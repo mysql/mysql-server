@@ -740,14 +740,13 @@ int JOIN::optimize() {
   }
 
   /*
-    If we decided to not sort after all, update m_current_query_cost.
+    If we decided to not sort after all, update the cost of the JOIN.
     Windowing sorts are handled elsewhere
   */
   if (sort_cost > 0.0 &&
       !explain_flags.any(ESP_USING_FILESORT, ESC_WINDOWING)) {
     best_read -= sort_cost;
     sort_cost = 0.0;
-    if (thd->lex->is_single_level_stmt()) thd->m_current_query_cost = best_read;
   }
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
@@ -4793,14 +4792,6 @@ bool JOIN::make_join_plan() {
   }
 
   positions = NULL;  // But keep best_positions for get_best_combination
-
-  /*
-    Store the cost of this query into a user variable
-    Don't update m_current_query_cost for statements that are not "flat joins" :
-    i.e. they have subqueries, unions or call stored procedures.
-    TODO: calculate a correct cost for a query with subqueries and UNIONs.
-  */
-  if (thd->lex->is_single_level_stmt()) thd->m_current_query_cost = best_read;
 
   // Generate an execution plan from the found optimal join order.
   if (get_best_combination()) DBUG_RETURN(true);
@@ -10307,12 +10298,57 @@ bool JOIN::compare_costs_of_subquery_strategies(
     compute it.
   */
   Opt_trace_object trace_subq_mat_decision(trace, "subq_mat_decision");
+  const double subq_executions = calculate_subquery_executions(in_pred, trace);
+  const double cost_exists = subq_executions * saved_best_read;
+  const double cost_mat_table = sjm.materialization_cost.total_cost();
+  const double cost_mat =
+      cost_mat_table + subq_executions * sjm.lookup_cost.total_cost();
+  const bool mat_chosen =
+      (allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT)
+          ? (cost_mat < cost_exists)
+          : true;
+  trace_subq_mat_decision
+      .add("cost_to_create_and_fill_materialized_table", cost_mat_table)
+      .add("cost_of_one_EXISTS", saved_best_read)
+      .add("number_of_subquery_evaluations", subq_executions)
+      .add("cost_of_materialization", cost_mat)
+      .add("cost_of_EXISTS", cost_exists)
+      .add("chosen", mat_chosen);
+  if (mat_chosen) {
+    *method = Item_exists_subselect::EXEC_MATERIALIZATION;
+  } else {
+    best_read = saved_best_read;
+    best_rowcount = saved_best_rowcount;
+    best_positions = saved_best_pos;
+    /*
+      Don't restore JOIN::positions or best_ref, they're not used
+      afterwards. best_positions is (like: by get_sj_strategy()).
+    */
+  }
+  return false;
+}
+
+double calculate_subquery_executions(const Item_subselect *subquery,
+                                     Opt_trace_context *trace) {
   Opt_trace_array trace_parents(trace, "parent_fanouts");
-  const Item_subselect *subs = in_pred;
-  double subq_executions = 1.0;
+  double subquery_executions = 1.0;
   for (;;) {
+    const SELECT_LEX *const parent_select = subquery->unit->outer_select();
+    const JOIN *const parent_join = parent_select->join;
+    if (parent_join == nullptr) {
+      /*
+        May be single-table UPDATE/DELETE, has no join.
+        @todo  we should find how many rows it plans to UPDATE/DELETE, taking
+        inspiration in Explain_table::explain_rows_and_filtered().
+        This is not a priority as it applies only to
+        UPDATE - child(non-mat-subq) - grandchild(may-be-mat-subq).
+        And it will autosolve the day UPDATE gets a JOIN.
+      */
+      break;
+    }
+
     Opt_trace_object trace_parent(trace);
-    trace_parent.add_select_number(parent_join->select_lex->select_number);
+    trace_parent.add_select_number(parent_select->select_number);
     double parent_fanout;
     if (  // safety, not sure needed
         parent_join->plan_is_const() ||
@@ -10321,7 +10357,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
       parent_fanout = 1.0;
       trace_parent.add("subq_attached_to_const_table", true);
     } else {
-      if (subs->in_cond_of_tab != NO_PLAN_IDX) {
+      if (subquery->in_cond_of_tab != NO_PLAN_IDX) {
         /*
           Subquery is attached to a certain 'pos', pos[-1].prefix_rowcount
           is the number of times we'll start a loop accessing 'pos'; each such
@@ -10345,7 +10381,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
          */
-        const uint idx = subs->in_cond_of_tab;
+        const uint idx = subquery->in_cond_of_tab;
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);
         QEP_TAB *const parent_tab = &parent_join->qep_tab[idx];
@@ -10376,9 +10412,9 @@ bool JOIN::compare_costs_of_subquery_strategies(
         parent_fanout = static_cast<double>(parent_join->best_rowcount);
       }
     }
-    subq_executions *= parent_fanout;
+    subquery_executions *= parent_fanout;
     trace_parent.add("fanout", parent_fanout);
-    const bool cacheable = parent_join->select_lex->is_cacheable();
+    const bool cacheable = parent_select->is_cacheable();
     trace_parent.add("cacheable", cacheable);
     if (cacheable) {
       // Parent executed only once
@@ -10389,52 +10425,13 @@ bool JOIN::compare_costs_of_subquery_strategies(
       outer rows. Example:
       SELECT ... IN(subq-with-in2exists WHERE ... IN (subq-with-mat))
     */
-    if (!(subs = parent_join->unit->item)) {
+    subquery = parent_join->unit->item;
+    if (subquery == nullptr) {
       // derived table, materialized only once
       break;
     }
-    parent_join = parent_join->unit->outer_select()->join;
-    if (!parent_join) {
-      /*
-        May be single-table UPDATE/DELETE, has no join.
-        @todo  we should find how many rows it plans to UPDATE/DELETE, taking
-        inspiration in Explain_table::explain_rows_and_filtered().
-        This is not a priority as it applies only to
-        UPDATE - child(non-mat-subq) - grandchild(may-be-mat-subq).
-        And it will autosolve the day UPDATE gets a JOIN.
-      */
-      break;
-    }
   }  // for(;;)
-  trace_parents.end();
-
-  const double cost_exists = subq_executions * saved_best_read;
-  const double cost_mat_table = sjm.materialization_cost.total_cost();
-  const double cost_mat =
-      cost_mat_table + subq_executions * sjm.lookup_cost.total_cost();
-  const bool mat_chosen =
-      (allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT)
-          ? (cost_mat < cost_exists)
-          : true;
-  trace_subq_mat_decision
-      .add("cost_to_create_and_fill_materialized_table", cost_mat_table)
-      .add("cost_of_one_EXISTS", saved_best_read)
-      .add("number_of_subquery_evaluations", subq_executions)
-      .add("cost_of_materialization", cost_mat)
-      .add("cost_of_EXISTS", cost_exists)
-      .add("chosen", mat_chosen);
-  if (mat_chosen)
-    *method = Item_exists_subselect::EXEC_MATERIALIZATION;
-  else {
-    best_read = saved_best_read;
-    best_rowcount = saved_best_rowcount;
-    best_positions = saved_best_pos;
-    /*
-      Don't restore JOIN::positions or best_ref, they're not used
-      afterwards. best_positions is (like: by get_sj_strategy()).
-    */
-  }
-  return false;
+  return subquery_executions;
 }
 
 /**

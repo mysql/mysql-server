@@ -664,6 +664,37 @@ err:
 }
 
 /**
+  Calculates the cost of executing a statement, including all its
+  subqueries.
+
+  @param lex the statement
+  @return the estimated cost of executing the statement
+*/
+static double accumulate_statement_cost(const LEX *lex) {
+  Opt_trace_context *trace = &lex->thd->opt_trace;
+  Opt_trace_disable_I_S disable_trace(trace, true);
+
+  double total_cost = 0.0;
+  for (const SELECT_LEX *select_lex = lex->all_selects_list;
+       select_lex != nullptr; select_lex = select_lex->next_select_in_list()) {
+    if (select_lex->join == nullptr) continue;
+
+    // Get the cost of this query block.
+    double query_block_cost = select_lex->join->best_read;
+
+    // If it is a non-cacheable subquery, estimate how many times it
+    // needs to be executed, and adjust the cost accordingly.
+    const Item_subselect *item = select_lex->master_unit()->item;
+    if (item != nullptr && !select_lex->is_cacheable())
+      query_block_cost *= calculate_subquery_executions(item, trace);
+
+    total_cost += query_block_cost;
+  }
+
+  return total_cost;
+}
+
+/**
   Execute a DML statement.
   This is the default implementation for a DML statement and uses a
   nested-loop join processor per outer-most query block.
@@ -684,6 +715,10 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   } else {
     if (unit->optimize(thd)) return true;
   }
+
+  // Calculate the current statement cost. It will be made available in
+  // the Last_query_cost status variable.
+  thd->m_current_query_cost = accumulate_statement_cost(lex);
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */

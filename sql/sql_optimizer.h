@@ -64,6 +64,7 @@
 
 class COND_EQUAL;
 class Item_sum;
+class Opt_trace_context;
 class Window;
 struct MYSQL_LOCK;
 
@@ -1186,5 +1187,18 @@ class Deps_of_remaining_lateral_derived_tables {
     }
   }
 };
+
+/**
+  Estimates how many times a subquery will be executed as part of a
+  query execution. If it is a cacheable subquery, the estimate tells
+  how many times the subquery will be executed if it is not cached.
+
+  @param[in]     subquery  the Item that represents the subquery
+  @param[in,out] trace     optimizer trace context
+
+  @return the number of times the subquery is expected to be executed
+*/
+double calculate_subquery_executions(const Item_subselect *subquery,
+                                     Opt_trace_context *trace);
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

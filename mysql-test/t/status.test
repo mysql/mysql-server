@@ -482,3 +482,56 @@ SET GLOBAL log_output = @old_log_output;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # Bug#28786951 SET LAST_QUERY_COST FOR QUERIES WITH SUBQUERIES AND UNIONS
+--echo #
+
+CREATE TABLE t1(x INT, y INT);
+INSERT INTO t1 VALUES (1, 2), (3, 4), (5, 6);
+ANALYZE TABLE t1;
+
+EXPLAIN SELECT * FROM t1;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT (SELECT MAX(x) FROM t1) FROM t1;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT * FROM t1 WHERE x IN (SELECT MAX(x) FROM t1);
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT /*+ NO_MERGE(a) */ * FROM (SELECT * FROM t1) a, t1 b;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT * FROM t1 WHERE x > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT * FROM t1 WHERE y > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT * FROM t1 WHERE x > 0
+        UNION ALL
+        SELECT * FROM t1 WHERE y > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN SELECT * FROM t1 WHERE x > 0
+        UNION DISTINCT
+        SELECT * FROM t1 WHERE y > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN INSERT INTO t1 SELECT * FROM t1;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN INSERT INTO t1
+        SELECT * FROM t1 WHERE x > 0
+        UNION ALL
+        SELECT * FROM t1 WHERE y > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+EXPLAIN INSERT INTO t1
+        SELECT * FROM t1 WHERE x > 0
+        UNION DISTINCT
+        SELECT * FROM t1 WHERE y > 0;
+SHOW STATUS LIKE 'Last_query_cost';
+
+DROP TABLE t1;
