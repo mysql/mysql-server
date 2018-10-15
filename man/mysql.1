@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 10/15/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -124,7 +124,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -617,7 +617,7 @@ Section\ \&6.5.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 Execute the statement and quit\&. The default output format is like that produced with
 \fB\-\-batch\fR\&. See
-Section\ \&4.2.4, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
+Section\ \&4.2.5, \(lqUsing Options on the Command Line\(rq, for some examples\&. With this option,
 \fBmysql\fR
 does not use the history file\&.
 .RE
@@ -1205,14 +1205,20 @@ If the connection to the server is lost, automatically try to reconnect\&. A sin
 \fB\-\-i\-am\-a\-dummy\fR,
 \fB\-U\fR
 .sp
-Permit only those
+If this option is enabled,
 UPDATE
 and
 DELETE
-statements that specify which rows to modify by using key values\&. If you have set this option in an option file, you can override it by using
-\fB\-\-safe\-updates\fR
-on the command line\&. See
-the section called \(lqMYSQL TIPS\(rq, for more information about this option\&.
+statements that do not use a key in the
+WHERE
+clause or a
+LIMIT
+clause produce an error\&. In addition, restrictions are placed on
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&. If you have set this option in an option file, you can use
+\fB\-\-skip\-safe\-updates\fR
+on the command line to override it\&. For more information about this option, see
+the section called \(lqUsing Safe\-Updates Mode (\-\-safe\-updates)\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2263,9 +2269,9 @@ Quote characters are taken as part of the file name itself\&. For best results, 
 status,
 \es
 .sp
-Provide status information about the connection and the server you are using\&. If you are running in
+Provide status information about the connection and the server you are using\&. If you are running with
 \fB\-\-safe\-updates\fR
-mode,
+enabled,
 status
 also prints the values for the
 \fBmysql\fR
@@ -2790,7 +2796,7 @@ prompt=(\e\eu@\e\eh) [\e\ed]>\e\e_
 In this example, note that the backslashes are doubled\&. If you set the prompt using the
 prompt
 option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of permissible prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
 \es
 is interpreted as a space rather than as the current seconds value\&. The following example shows how to define a prompt within an option file to include the current time in
 HH:MM:SS>
@@ -2879,6 +2885,39 @@ file\&.
 .RE
 .PP
 The following discussion describes characteristics that apply to all logging types and provides information specific to each logging type\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+How Logging Occurs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Controlling the History File
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+syslog Logging Characteristics
+.RE
 How Logging Occurs.PP
 For each enabled logging destination, statement logging occurs as follows:
 .sp
@@ -3231,7 +3270,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.14, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3580,7 +3619,8 @@ with the
 (or
 utf8mb4) option\&. This option is necessary because
 utf16le
-is not supported as a connection character set\&.
+is one of the character sets that cannot be used as the client character set\&. See
+the section called \(lqImpermissible Client Character Sets\(rq\&.
 .RE
 .PP
 With those changes,
@@ -3642,23 +3682,33 @@ Monty
 .if n \{\
 .RE
 .\}
-.SS "Using the \-\-safe\-updates Option"
+.SS "Using Safe\-Updates Mode (\-\-safe\-updates)"
 .PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
-\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. It is helpful for cases when you might have issued a
-DELETE FROM \fItbl_name\fR
+\fB\-\-i\-am\-a\-dummy\fR, which has the same effect)\&. Safe\-updates mode is helpful for cases when you might have issued an
+UPDATE
+or
+DELETE
 statement but forgotten the
 WHERE
-clause\&. Normally, such a statement deletes all rows from the table\&. With
-\fB\-\-safe\-updates\fR, you can delete rows only by specifying the key values that identify them\&. This helps prevent accidents\&.
+clause indicating which rows to modify\&. Normally, such statements update or delete all rows in the table\&. With
+\fB\-\-safe\-updates\fR, you can modify rows only by specifying the key values that identify them, or a
+LIMIT
+clause, or both\&. This helps prevent accidents\&. Safe\-updates mode also restricts
+SELECT
+statements that produce (or are estimated to produce) very large result sets\&.
 .PP
-When you use the
+The
 \fB\-\-safe\-updates\fR
-option,
+option causes
 \fBmysql\fR
-issues the following statement when it connects to the MySQL server:
+to execute the following statement when it connects to the MySQL server, to set the session values of the
+sql_safe_updates,
+sql_select_limit, and
+max_join_size
+system variables:
 .sp
 .if n \{\
 .RS 4
@@ -3670,12 +3720,9 @@ SET sql_safe_updates=1, sql_select_limit=1000, max_join_size=1000000;
 .RE
 .\}
 .PP
-See
-Section\ \&5.1.7, \(lqServer System Variables\(rq\&.
-.PP
 The
 SET
-statement has the following effects:
+statement affects statement processing as follows:
 .sp
 .RS 4
 .ie n \{\
@@ -3685,15 +3732,17 @@ statement has the following effects:
 .sp -1
 .IP \(bu 2.3
 .\}
-You are not permitted to execute an
+Enabling
+sql_safe_updates
+causes
 UPDATE
-or
+and
 DELETE
-statement unless you specify a key constraint in the
+statements to produce an error if they do not specify a key constraint in the
 WHERE
-clause or provide a
+clause, or provide a
 LIMIT
-clause (or both)\&. For example:
+clause, or both\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -3715,9 +3764,11 @@ UPDATE \fItbl_name\fR SET \fInot_key_column\fR=\fIval\fR LIMIT 1;
 .sp -1
 .IP \(bu 2.3
 .\}
-The server limits all large
+Setting
+sql_select_limit
+to 1,000 causes the server to limit all
 SELECT
-results to 1,000 rows unless the statement includes a
+result sets to 1,000 rows unless the statement includes a
 LIMIT
 clause\&.
 .RE
@@ -3730,26 +3781,117 @@ clause\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-The server aborts multiple\-table
+Setting
+max_join_size
+to 1,000,000 causes multiple\-table
 SELECT
-statements that probably need to examine more than 1,000,000 row combinations\&.
+statements to produce an error if the server estimates it must examine more than 1,000,000 row combinations\&.
 .RE
 .PP
-To specify limits different from 1,000 and 1,000,000, you can override the defaults by using the
+To specify result set limits different from 1,000 and 1,000,000, you can override the defaults by using the
 \fB\-\-select_limit\fR
 and
 \fB\-\-max_join_size\fR
-options:
+options when you invoke
+\fBmysql\fR:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000\fR
+mysql \-\-safe\-updates \-\-select_limit=500 \-\-max_join_size=10000
 .fi
 .if n \{\
 .RE
 .\}
+.PP
+It is possible for
+UPDATE
+and
+DELETE
+statements to produce an error in safe\-updates mode even with a key specified in the
+WHERE
+clause, if the optimizer decides not to use the index on the key column:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Range access on the index cannot be used if memory usage exceeds that permitted by the
+range_optimizer_max_mem_size
+system variable\&. The optimizer then falls back to a table scan\&. See
+the section called \(lqLimiting Memory Use for Range Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If key comparisons require type conversion, the index may not be used (see
+Section\ \&8.3.1, \(lqHow MySQL Uses Indexes\(rq)\&. Suppose that an indexed string column
+c1
+is compared to a numeric value using
+WHERE c1 = 2222\&. For such comparisons, the string value is converted to a number and the operands are compared numerically (see
+Section\ \&12.2, \(lqType Conversion in Expression Evaluation\(rq), preventing use of the index\&. If safe\-updates mode is enabled, an error occurs\&.
+.RE
+.PP
+As of MySQL 8\&.0\&.13, safe\-updates mode also includes these behaviors:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+EXPLAIN
+with
+UPDATE
+and
+DELETE
+statements does not produce safe\-updates errors\&. This enables use of
+EXPLAIN
+plus
+SHOW WARNINGS
+to see why an index is not used, which can be helpful in cases such as when a
+range_optimizer_max_mem_size
+violation or type conversion occurs and the optimizer does not use an index even though a key column was specified in the
+WHERE
+clause\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+When a safe\-updates error occurs, the error message includes the first diagnostic that was produced, to provide information about the reason for failure\&. For example, the message may indicate that the
+range_optimizer_max_mem_size
+value was exceeded or type conversion occurred, either of which can preclude use of an index\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+For multiple\-table deletes and updates, an error is produced with safe updates enabled only if any target table uses a table scan\&.
+.RE
 .SS "Disabling mysql Auto\-Reconnect"
 .PP
 If the
