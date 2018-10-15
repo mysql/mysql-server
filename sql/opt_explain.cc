@@ -848,7 +848,7 @@ bool Explain_table_base::explain_key_parts(int key, uint key_parts) {
   KEY_PART_INFO *kp = table->key_info[key].key_part;
   for (uint i = 0; i < key_parts; i++, kp++)
     if (fmt->entry()->col_key_parts.push_back(
-            get_field_name_or_expression(table->in_use, kp->field)))
+            get_field_name_or_expression(explain_thd, kp->field)))
       return true;
   return false;
 }
@@ -1092,7 +1092,7 @@ bool Explain_table_base::explain_tmptable_and_filesort(bool need_tmp_table_arg,
 }
 
 bool Explain_join::explain_modify_flags() {
-  THD::Query_plan const *query_plan = &table->in_use->query_plan;
+  THD::Query_plan const *query_plan = &query_thd->query_plan;
   /*
     Because we are PLAN_READY, the following data structures are not changing
     and thus are safe to read.
@@ -1639,7 +1639,7 @@ bool Explain_join::explain_extra() {
         continue;
 
       const char *field_description =
-          get_field_name_or_expression(table->in_use, *fld);
+          get_field_name_or_expression(explain_thd, *fld);
       fmt->entry()->col_used_columns.push_back(field_description);
       if (table->is_binary_diff_enabled(*fld))
         fmt->entry()->col_partial_update_columns.push_back(field_description);
@@ -1751,7 +1751,7 @@ bool Explain_table::explain_rows_and_filtered() {
     return false;
 
   ha_rows examined_rows =
-      table->in_use->query_plan.get_modification_plan()->examined_rows;
+      query_thd->query_plan.get_modification_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
   fmt->entry()->col_filtered.set(100.0);
