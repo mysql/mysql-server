@@ -315,6 +315,12 @@ int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
     char tbl_buf[MAX_TABLE_NAME_LEN + 1];
 
     dd_parse_tbl_name(tbl_name, db_buf, tbl_buf, nullptr, nullptr, nullptr);
+    if (dd_table_is_partitioned(dd_table)) {
+      /* If partitioned table, only double check the prefix of table name.
+      No need to check the partition separator because the '#' would be
+      converted to '?' by dd_parse_tbl_name(). */
+      tbl_buf[strlen(dd_table.name().c_str())] = '\0';
+    }
     ut_ad(innobase_strcasecmp(dd_table.name().c_str(), tbl_buf) == 0);
   }
 #endif /* UNIV_DEBUG */
