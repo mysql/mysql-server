@@ -2576,7 +2576,8 @@ end:
   {
     error= ha_rollback_low(thd, all);
     /* Successful XA-rollback commits the new gtid_state */
-    gtid_state->update_on_commit(thd);
+    if (!error && !thd->is_error())
+      gtid_state->update_on_commit(thd);
   }
   /*
     When a statement errors out on auto-commit mode it is rollback
