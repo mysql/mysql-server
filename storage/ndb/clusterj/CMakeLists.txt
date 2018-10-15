@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,8 @@ SET(DEP ndbjtie.jar
         clusterj-core.jar
         clusterj-tie.jar)
 
-SET(JARS ${CMAKE_CURRENT_BINARY_DIR}/../src/ndbjtie/ndbjtie.jar
-         ${CMAKE_CURRENT_BINARY_DIR}/../src/ndbjtie/jtie/jtie.jar
+SET(JARS ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/ndbjtie.jar
+         ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/jtie.jar
          ${CMAKE_CURRENT_BINARY_DIR}/clusterj-api/clusterj-api.jar
          ${CMAKE_CURRENT_BINARY_DIR}/clusterj-core/clusterj-core.jar
          ${CMAKE_CURRENT_BINARY_DIR}/clusterj-tie/clusterj-tie.jar)
