@@ -453,7 +453,8 @@ void Item_sum::mark_as_sum_func(SELECT_LEX *cur_select) {
   set_aggregation();
 }
 
-void Item_sum::print(const THD *thd, String *str, enum_query_type query_type) {
+void Item_sum::print(const THD *thd, String *str,
+                     enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
   if (has_with_distinct()) str->append("distinct ");
@@ -3676,7 +3677,7 @@ void Item_udf_sum::cleanup() {
 }
 
 void Item_udf_sum::print(const THD *thd, String *str,
-                         enum_query_type query_type) {
+                         enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
   for (uint i = 0; i < arg_count; i++) {
@@ -4405,7 +4406,7 @@ String *Item_func_group_concat::val_str(String *) {
 }
 
 void Item_func_group_concat::print(const THD *thd, String *str,
-                                   enum_query_type query_type) {
+                                   enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct) str->append(STRING_WITH_LEN("distinct "));
   for (uint i = 0; i < arg_count_field; i++) {

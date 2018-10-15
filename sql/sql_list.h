@@ -618,7 +618,7 @@ class List_STL_Iterator {
     return !(*this == other);
   }
 
-  T *operator->() const { static_cast<T *>(m_current->info); }
+  T *operator->() const { return static_cast<T *>(m_current->info); }
 
   // DefaultConstructible (required for ForwardIterator).
   List_STL_Iterator() {}

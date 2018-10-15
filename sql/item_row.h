@@ -128,7 +128,8 @@ class Item_row : public Item {
   enum Item_result result_type() const override { return ROW_RESULT; }
   void update_used_tables() override;
   table_map not_null_tables() const override { return not_null_tables_cache; }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;

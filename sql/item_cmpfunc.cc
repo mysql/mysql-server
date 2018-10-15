@@ -369,7 +369,7 @@ longlong Item_func_not::val_int() {
 */
 
 void Item_func_not::print(const THD *thd, String *str,
-                          enum_query_type query_type) {
+                          enum_query_type query_type) const {
   str->append('(');
   Item_func::print(thd, str, query_type);
   str->append(')');
@@ -412,7 +412,7 @@ bool Item_func_not_all::empty_underlying_subquery() {
 }
 
 void Item_func_not_all::print(const THD *thd, String *str,
-                              enum_query_type query_type) {
+                              enum_query_type query_type) const {
   if (show)
     Item_func::print(thd, str, query_type);
   else
@@ -1738,7 +1738,7 @@ bool Item_func_truth::resolve_type(THD *) {
 }
 
 void Item_func_truth::print(const THD *thd, String *str,
-                            enum_query_type query_type) {
+                            enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" is "));
@@ -2355,7 +2355,7 @@ bool Item_func_interval::resolve_type(THD *) {
 */
 
 void Item_func_interval::print(const THD *thd, String *str,
-                               enum_query_type query_type) {
+                               enum_query_type query_type) const {
   str->append(func_name());
   print_args(thd, str, 0, query_type);
 }
@@ -2783,7 +2783,7 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
 }
 
 void Item_func_between::print(const THD *thd, String *str,
-                              enum_query_type query_type) {
+                              enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
   if (negated) str->append(STRING_WITH_LEN(" not"));
@@ -3472,7 +3472,7 @@ uint Item_func_case::decimal_precision() const {
 */
 
 void Item_func_case::print(const THD *thd, String *str,
-                           enum_query_type query_type) {
+                           enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("(case "));
   if (first_expr_num != -1) {
     args[first_expr_num]->print(thd, str, query_type);
@@ -4575,7 +4575,7 @@ bool Item_func_in::resolve_type(THD *thd) {
 }
 
 void Item_func_in::print(const THD *thd, String *str,
-                         enum_query_type query_type) {
+                         enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
   if (negated) str->append(STRING_WITH_LEN(" not"));
@@ -5071,16 +5071,18 @@ void Item_cond::update_used_tables() {
   }
 }
 
-void Item_cond::print(const THD *thd, String *str, enum_query_type query_type) {
+void Item_cond::print(const THD *thd, String *str,
+                      enum_query_type query_type) const {
   str->append('(');
-  List_iterator_fast<Item> li(list);
-  Item *item;
-  if ((item = li++)) item->print(thd, str, query_type);
-  while ((item = li++)) {
-    str->append(' ');
-    str->append(func_name());
-    str->append(' ');
-    item->print(thd, str, query_type);
+  bool first = true;
+  for (auto &item : list) {
+    if (!first) {
+      str->append(' ');
+      str->append(func_name());
+      str->append(' ');
+    }
+    item.print(thd, str, query_type);
+    first = false;
   }
   str->append(')');
 }
@@ -5311,7 +5313,7 @@ longlong Item_func_isnotnull::val_int() {
 }
 
 void Item_func_isnotnull::print(const THD *thd, String *str,
-                                enum_query_type query_type) {
+                                enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" is not null)"));
@@ -6090,21 +6092,17 @@ Item *Item_equal::transform(Item_transformer transformer, uchar *arg) {
 }
 
 void Item_equal::print(const THD *thd, String *str,
-                       enum_query_type query_type) {
+                       enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
-  List_iterator_fast<Item_field> it(fields);
-  Item *item;
-  if (const_item)
-    const_item->print(thd, str, query_type);
-  else {
-    item = it++;
-    item->print(thd, str, query_type);
-  }
-  while ((item = it++)) {
-    str->append(',');
-    str->append(' ');
-    item->print(thd, str, query_type);
+
+  if (const_item != nullptr) const_item->print(thd, str, query_type);
+
+  bool first = (const_item == nullptr);
+  for (auto &item_field : fields) {
+    if (!first) str->append(STRING_WITH_LEN(", "));
+    item_field.print(thd, str, query_type);
+    first = false;
   }
   str->append(')');
 }
@@ -6128,7 +6126,7 @@ longlong Item_func_trig_cond::val_int() {
 }
 
 void Item_func_trig_cond::get_table_range(TABLE_LIST **first_table,
-                                          TABLE_LIST **last_table) {
+                                          TABLE_LIST **last_table) const {
   *first_table = NULL;
   *last_table = NULL;
   if (m_join == NULL) return;
@@ -6169,7 +6167,7 @@ table_map Item_func_trig_cond::get_inner_tables() const {
 }
 
 void Item_func_trig_cond::print(const THD *thd, String *str,
-                                enum_query_type query_type) {
+                                enum_query_type query_type) const {
   /*
     Print:
     <if>(<property><(optional list of source tables)>, condition, TRUE)

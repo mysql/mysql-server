@@ -861,7 +861,7 @@ void Item_subselect::update_used_tables() {
 }
 
 void Item_subselect::print(const THD *thd, String *str,
-                           enum_query_type query_type) {
+                           enum_query_type query_type) const {
   if (engine) {
     str->append('(');
     engine->print(thd, str, query_type);
@@ -1112,7 +1112,7 @@ void Item_maxmin_subselect::cleanup() {
 }
 
 void Item_maxmin_subselect::print(const THD *thd, String *str,
-                                  enum_query_type query_type) {
+                                  enum_query_type query_type) const {
   str->append(max ? "<max>" : "<min>", 5);
   Item_singlerow_subselect::print(thd, str, query_type);
 }
@@ -1364,7 +1364,7 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
 }
 
 void Item_exists_subselect::print(const THD *thd, String *str,
-                                  enum_query_type query_type) {
+                                  enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("exists"));
   Item_subselect::print(thd, str, query_type);
 }
@@ -2423,7 +2423,7 @@ err:
 }
 
 void Item_in_subselect::print(const THD *thd, String *str,
-                              enum_query_type query_type) {
+                              enum_query_type query_type) const {
   if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {
@@ -2597,7 +2597,7 @@ Item_subselect::trans_res Item_allany_subselect::select_transformer(
 bool Item_subselect::is_evaluated() const { return unit->is_executed(); }
 
 void Item_allany_subselect::print(const THD *thd, String *str,
-                                  enum_query_type query_type) {
+                                  enum_query_type query_type) const {
   if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {

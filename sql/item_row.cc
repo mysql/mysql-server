@@ -171,7 +171,8 @@ bool Item_row::check_cols(uint c) {
   return 0;
 }
 
-void Item_row::print(const THD *thd, String *str, enum_query_type query_type) {
+void Item_row::print(const THD *thd, String *str,
+                     enum_query_type query_type) const {
   str->append('(');
   for (uint i = 0; i < arg_count; i++) {
     if (i) str->append(',');

@@ -193,7 +193,8 @@ class Item_subselect : public Item_result_field {
   table_map not_null_tables() const override { return 0; }
   Item *get_tmp_table_item(THD *thd) override;
   void update_used_tables() override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   virtual bool have_guarded_conds() { return false; }
   bool change_engine(subselect_engine *eng) {
     old_engine = engine;
@@ -319,7 +320,8 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
  public:
   Item_maxmin_subselect(Item_subselect *parent, SELECT_LEX *select_lex,
                         bool max, bool ignore_nulls);
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   void cleanup() override;
   bool any_value() { return was_values; }
   void register_value() { was_values = true; }
@@ -407,7 +409,8 @@ class Item_exists_subselect : public Item_subselect {
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   bool resolve_type(THD *thd) override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 
   friend class Query_result_exists_subquery;
   friend class subselect_indexsubquery_engine;
@@ -577,7 +580,8 @@ class Item_in_subselect : public Item_exists_subselect {
   bool is_top_level_item() const { return abort_on_null; }
 
   bool test_limit();
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   bool fix_fields(THD *thd, Item **ref) override;
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select) override;
@@ -614,7 +618,8 @@ class Item_allany_subselect final : public Item_in_subselect {
   // only ALL subquery has upper not
   subs_type substype() const override { return all ? ALL_SUBS : ANY_SUBS; }
   trans_res select_transformer(THD *thd, SELECT_LEX *select) override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class subselect_engine {

@@ -900,7 +900,8 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
   }
 
   const char *func_name() const override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override {
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
     Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
@@ -977,7 +978,8 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     maybe_null = true;
     return false;
   }
-  void print(const THD *thd, String *str, enum_query_type query_type) override {
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
     Item_func::print(thd, str, query_type);
   }
   longlong val_int() override;

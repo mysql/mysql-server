@@ -543,7 +543,8 @@ class Item_func_trim : public Item_str_func {
     }
     return NULL;
   }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_ltrim final : public Item_func_trim {
@@ -716,7 +717,8 @@ class Item_func_make_set final : public Item_str_func {
   }
 
   Item *transform(Item_transformer transformer, uchar *arg) override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_format final : public Item_str_ascii_func {
@@ -733,7 +735,8 @@ class Item_func_format final : public Item_str_ascii_func {
   String *val_str_ascii(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "format"; }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_char final : public Item_str_func {
@@ -926,7 +929,8 @@ class Item_char_typecast final : public Item_str_func {
   const char *func_name() const override { return "cast_as_char"; }
   String *val_str(String *a) override;
   bool resolve_type(THD *) override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_binary final : public Item_str_func {
@@ -944,7 +948,8 @@ class Item_func_binary final : public Item_str_func {
     set_data_type_string(args[0]->max_length, &my_charset_bin);
     return false;
   }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const char *func_name() const override { return "cast_as_binary"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
@@ -1050,7 +1055,8 @@ class Item_func_conv_charset final : public Item_str_func {
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
   const char *func_name() const override { return "convert"; }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_set_collation final : public Item_str_func {
@@ -1069,7 +1075,8 @@ class Item_func_set_collation final : public Item_str_func {
   bool eq(const Item *item, bool binary_cmp) const override;
   const char *func_name() const override { return "collate"; }
   enum Functype functype() const override { return COLLATE_FUNC; }
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   Item_field *field_for_view_update() override {
     /* this function is transparent for view updating */
     return args[0]->field_for_view_update();
@@ -1131,7 +1138,8 @@ class Item_func_weight_string final : public Item_str_func {
   bool eq(const Item *item, bool binary_cmp) const override;
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
-  void print(const THD *thd, String *str, enum_query_type query_type) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_crc32 final : public Item_int_func {

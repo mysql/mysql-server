@@ -463,7 +463,8 @@ void Item_func::update_used_tables() {
   }
 }
 
-void Item_func::print(const THD *thd, String *str, enum_query_type query_type) {
+void Item_func::print(const THD *thd, String *str,
+                      enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
   print_args(thd, str, 0, query_type);
@@ -471,7 +472,7 @@ void Item_func::print(const THD *thd, String *str, enum_query_type query_type) {
 }
 
 void Item_func::print_args(const THD *thd, String *str, uint from,
-                           enum_query_type query_type) {
+                           enum_query_type query_type) const {
   for (uint i = from; i < arg_count; i++) {
     if (i != from) str->append(',');
     args[i]->print(thd, str, query_type);
@@ -479,7 +480,7 @@ void Item_func::print_args(const THD *thd, String *str, uint from,
 }
 
 void Item_func::print_op(const THD *thd, String *str,
-                         enum_query_type query_type) {
+                         enum_query_type query_type) const {
   str->append('(');
   for (uint i = 0; i < arg_count - 1; i++) {
     args[i]->print(thd, str, query_type);
@@ -1322,7 +1323,7 @@ bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime) {
 }
 
 void Item_func_signed::print(const THD *thd, String *str,
-                             enum_query_type query_type) {
+                             enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
@@ -1387,7 +1388,7 @@ longlong Item_func_signed::val_int() {
 }
 
 void Item_func_unsigned::print(const THD *thd, String *str,
-                               enum_query_type query_type) {
+                               enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as unsigned)"));
@@ -1473,7 +1474,7 @@ err:
 }
 
 void Item_decimal_typecast::print(const THD *thd, String *str,
-                                  enum_query_type query_type) {
+                                  enum_query_type query_type) const {
   char len_buf[20 * 3 + 1];
   char *end;
 
@@ -3382,7 +3383,7 @@ longlong Item_func_locate::val_int() {
 }
 
 void Item_func_locate::print(const THD *thd, String *str,
-                             enum_query_type query_type) {
+                             enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("locate("));
   args[1]->print(thd, str, query_type);
   str->append(',');
@@ -3897,7 +3898,7 @@ void Item_udf_func::cleanup() {
 }
 
 void Item_udf_func::print(const THD *thd, String *str,
-                          enum_query_type query_type) {
+                          enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
   for (uint i = 0; i < arg_count; i++) {
@@ -4889,7 +4890,7 @@ longlong Item_func_benchmark::val_int() {
 }
 
 void Item_func_benchmark::print(const THD *thd, String *str,
-                                enum_query_type query_type) {
+                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("benchmark("));
   args[0]->print(thd, str, query_type);
   str->append(',');
@@ -5585,8 +5586,8 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val) {
 }
 
 // just the assignment, for use in "SET @a:=5" type self-prints
-void Item_func_set_user_var::print_assignment(const THD *thd, String *str,
-                                              enum_query_type query_type) {
+void Item_func_set_user_var::print_assignment(
+    const THD *thd, String *str, enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("@"));
   str->append(name);
   str->append(STRING_WITH_LEN(":="));
@@ -5595,7 +5596,7 @@ void Item_func_set_user_var::print_assignment(const THD *thd, String *str,
 
 // parenthesize assignment for use in "EXPLAIN EXTENDED SELECT (@e:=80)+5"
 void Item_func_set_user_var::print(const THD *thd, String *str,
-                                   enum_query_type query_type) {
+                                   enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("("));
   print_assignment(thd, str, query_type);
   str->append(STRING_WITH_LEN(")"));
@@ -5946,7 +5947,7 @@ enum Item_result Item_func_get_user_var::result_type() const {
 }
 
 void Item_func_get_user_var::print(const THD *thd, String *str,
-                                   enum_query_type) {
+                                   enum_query_type) const {
   str->append(STRING_WITH_LEN("(@"));
   append_identifier(thd, str, name);
   str->append(')');
@@ -6038,7 +6039,7 @@ my_decimal *Item_user_var_as_out_param::val_decimal(my_decimal *) {
 }
 
 void Item_user_var_as_out_param::print(const THD *thd, String *str,
-                                       enum_query_type) {
+                                       enum_query_type) const {
   str->append('@');
   append_identifier(thd, str, name);
 }
@@ -6142,7 +6143,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
 }
 
 void Item_func_get_system_var::print(const THD *, String *str,
-                                     enum_query_type) {
+                                     enum_query_type) const {
   str->append(item_name);
 }
 
@@ -6843,7 +6844,7 @@ double Item_func_match::val_real() {
 }
 
 void Item_func_match::print(const THD *thd, String *str,
-                            enum_query_type query_type) {
+                            enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("(match "));
   print_args(thd, str, 0, query_type);
   str->append(STRING_WITH_LEN(" against ("));

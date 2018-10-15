@@ -1700,7 +1700,7 @@ static const char *trim_func_name(Item_func_trim::TRIM_MODE mode) {
 }
 
 void Item_func_trim::print(const THD *thd, String *str,
-                           enum_query_type query_type) {
+                           enum_query_type query_type) const {
   str->append(trim_func_name(m_trim_mode));
   str->append('(');
   const char *mode_name;
@@ -2092,7 +2092,7 @@ String *Item_func_format::val_str_ascii(String *str) {
 }
 
 void Item_func_format::print(const THD *thd, String *str,
-                             enum_query_type query_type) {
+                             enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("format("));
   args[0]->print(thd, str, query_type);
   str->append(',');
@@ -2258,7 +2258,7 @@ Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg) {
 }
 
 void Item_func_make_set::print(const THD *thd, String *str,
-                               enum_query_type query_type) {
+                               enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("make_set("));
   item->print(thd, str, query_type);
   if (arg_count) {
@@ -2895,7 +2895,7 @@ bool Item_func_conv_charset::resolve_type(THD *) {
 }
 
 void Item_func_conv_charset::print(const THD *thd, String *str,
-                                   enum_query_type query_type) {
+                                   enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("convert("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" using "));
@@ -2961,7 +2961,7 @@ bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const {
 }
 
 void Item_func_set_collation::print(const THD *thd, String *str,
-                                    enum_query_type query_type) {
+                                    enum_query_type query_type) const {
   str->append('(');
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" collate "));
@@ -3006,7 +3006,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res) {
 }
 
 void Item_func_weight_string::print(const THD *thd, String *str,
-                                    enum_query_type query_type) {
+                                    enum_query_type query_type) const {
   str->append(func_name());
   str->append('(');
   args[0]->print(thd, str, query_type);
@@ -3260,7 +3260,7 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const {
 }
 
 void Item_char_typecast::print(const THD *thd, String *str,
-                               enum_query_type query_type) {
+                               enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as char"));
@@ -3383,7 +3383,7 @@ bool Item_char_typecast::resolve_type(THD *) {
 }
 
 void Item_func_binary::print(const THD *thd, String *str,
-                             enum_query_type query_type) {
+                             enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as binary)"));

@@ -645,7 +645,7 @@ uint Item::datetime_precision() {
 }
 
 void Item::print_item_w_name(const THD *thd, String *str,
-                             enum_query_type query_type) {
+                             enum_query_type query_type) const {
   print(thd, str, query_type);
 
   if (item_name.is_set() && query_type != QT_NORMALIZED_FORMAT) {
@@ -675,7 +675,7 @@ void Item::print_item_w_name(const THD *thd, String *str,
    merge-able view never has GROUP BY. @see mysql_register_view().
 */
 void Item::print_for_order(const THD *thd, String *str,
-                           enum_query_type query_type, bool used_alias) {
+                           enum_query_type query_type, bool used_alias) const {
   if ((query_type & QT_NORMALIZED_FORMAT) != 0)
     str->append("?");
   else if (used_alias) {
@@ -1572,7 +1572,7 @@ bool Item_splocal::val_json(Json_wrapper *result) {
   return ret;
 }
 
-void Item_splocal::print(const THD *, String *str, enum_query_type) {
+void Item_splocal::print(const THD *, String *str, enum_query_type) const {
   str->reserve(m_name.length() + 8);
   str->append(m_name);
   str->append('@');
@@ -1609,7 +1609,7 @@ Item **Item_case_expr::this_item_addr(THD *thd, Item **) {
   return thd->sp_runtime_ctx->get_case_expr_addr(m_case_expr_id);
 }
 
-void Item_case_expr::print(const THD *, String *str, enum_query_type) {
+void Item_case_expr::print(const THD *, String *str, enum_query_type) const {
   if (str->reserve(MAX_INT_WIDTH + sizeof("case_expr@")))
     return; /* purecov: inspected */
   (void)str->append(STRING_WITH_LEN("case_expr@"));
@@ -1773,7 +1773,7 @@ bool Item_name_const::fix_fields(THD *thd, Item **) {
 }
 
 void Item_name_const::print(const THD *thd, String *str,
-                            enum_query_type query_type) {
+                            enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("NAME_CONST("));
   name_item->print(thd, str, query_type);
   str->append(',');
@@ -1795,7 +1795,8 @@ class Item_aggregate_ref : public Item_ref {
     depended_from = depended_from_arg;
   }
 
-  void print(const THD *thd, String *str, enum_query_type query_type) override {
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
     if (ref)
       (*ref)->print(thd, str, query_type);
     else
@@ -2843,7 +2844,8 @@ String *Item_int::val_str(String *str) {
   return str;
 }
 
-void Item_int::print(const THD *, String *str, enum_query_type query_type) {
+void Item_int::print(const THD *, String *str,
+                     enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
@@ -2855,11 +2857,13 @@ void Item_int::print(const THD *, String *str, enum_query_type query_type) {
   const bool is_literal_false = name->is_set() && name->eq("FALSE");
   const bool is_literal_true = name->is_set() && name->eq("TRUE");
   if (is_literal_false || is_literal_true) {
-    str_value.set(name->ptr(), name->length(), str_value.charset());
+    str->append(item_name.ptr(), item_name.length(), str->charset());
   } else {
-    str_value.set_int(value, unsigned_flag, &my_charset_bin);
+    if (unsigned_flag)
+      str->append_ulonglong(value);
+    else
+      str->append_longlong(value);
   }
-  str->append(str_value);
 }
 
 String *Item_uint::val_str(String *str) {
@@ -2869,14 +2873,13 @@ String *Item_uint::val_str(String *str) {
   return str;
 }
 
-void Item_uint::print(const THD *, String *str, enum_query_type query_type) {
+void Item_uint::print(const THD *, String *str,
+                      enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
   }
-  // latin1 is good enough for numbers
-  str_value.set((ulonglong)value, default_charset());
-  str->append(str_value);
+  str->append_ulonglong(value);
 }
 
 Item_decimal::Item_decimal(const POS &pos, const char *str_arg, uint length,
@@ -2956,13 +2959,15 @@ String *Item_decimal::val_str(String *result) {
   return result;
 }
 
-void Item_decimal::print(const THD *, String *str, enum_query_type query_type) {
+void Item_decimal::print(const THD *, String *str,
+                         enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
   }
-  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &str_value);
-  str->append(str_value);
+  StringBuffer<MAX_DOUBLE_STR_LENGTH + 1> tmp;  // +1 for terminating null
+  my_decimal2string(E_DEC_FATAL_ERROR, &decimal_value, 0, 0, 0, &tmp);
+  str->append(tmp);
 }
 
 bool Item_decimal::eq(const Item *item, bool) const {
@@ -3013,7 +3018,8 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value) {
    a change of this length can influence results of CONCAT(), REPEAT(),
    ENCODE()...
 */
-void Item_string::print(const THD *, String *str, enum_query_type query_type) {
+void Item_string::print(const THD *, String *str,
+                        enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
@@ -3855,7 +3861,7 @@ bool Item_param::eq(const Item *arg, bool binary_cmp) const {
 /* End of Item_param related */
 
 void Item_param::print(const THD *thd, String *str,
-                       enum_query_type query_type) {
+                       enum_query_type query_type) const {
   if (state == NO_VALUE ||
       query_type & (QT_NORMALIZED_FORMAT | QT_NO_DATA_EXPANSION)) {
     str->append('?');
@@ -6154,7 +6160,8 @@ Item *Item_datetime_with_ref::clone_item() const {
                            ref->val_date_temporal(), ref->max_length);
 }
 
-void Item_temporal_with_ref::print(const THD *, String *str, enum_query_type) {
+void Item_temporal_with_ref::print(const THD *, String *str,
+                                   enum_query_type) const {
   char buff[MAX_DATE_STRING_REP_LENGTH];
   MYSQL_TIME ltime;
   TIME_from_longlong_packed(&ltime, data_type(), value);
@@ -6239,7 +6246,8 @@ type_conversion_status Item_float::save_in_field_inner(Field *field, bool) {
   return field->store(nr);
 }
 
-void Item_float::print(const THD *, String *str, enum_query_type query_type) {
+void Item_float::print(const THD *, String *str,
+                       enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
@@ -6396,7 +6404,7 @@ warn:
 }
 
 void Item_hex_string::print(const THD *, String *str,
-                            enum_query_type query_type) {
+                            enum_query_type query_type) const {
   if (query_type & QT_NORMALIZED_FORMAT) {
     str->append("?");
     return;
@@ -7020,7 +7028,7 @@ Item *Item_field::update_value_transformer(uchar *select_arg) {
 }
 
 void Item_field::print(const THD *thd, String *str,
-                       enum_query_type query_type) {
+                       enum_query_type query_type) const {
   if (field && field->is_field_for_functional_index()) {
     field->gcol_info->expr_item->print(thd, str, query_type);
     return;
@@ -7489,7 +7497,8 @@ Item *Item_ref::compile(Item_analyzer analyzer, uchar **arg_p,
   return (this->*transformer)(arg_t);
 }
 
-void Item_ref::print(const THD *thd, String *str, enum_query_type query_type) {
+void Item_ref::print(const THD *thd, String *str,
+                     enum_query_type query_type) const {
   if (ref) {
     if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
         ref_type() != VIEW_REF && !table_name && item_name.ptr())
@@ -7614,7 +7623,7 @@ Item *Item_ref::get_tmp_table_item(THD *thd) {
 }
 
 void Item_ref_null_helper::print(const THD *thd, String *str,
-                                 enum_query_type query_type) {
+                                 enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("<ref_null_helper>("));
   if (ref)
     (*ref)->print(thd, str, query_type);
@@ -7862,7 +7871,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
 }
 
 void Item_default_value::print(const THD *thd, String *str,
-                               enum_query_type query_type) {
+                               enum_query_type query_type) const {
   if (!arg) {
     str->append(STRING_WITH_LEN("default"));
     return;
@@ -8001,7 +8010,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
 }
 
 void Item_insert_value::print(const THD *thd, String *str,
-                              enum_query_type query_type) {
+                              enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("values("));
   arg->print(thd, str, query_type);
   str->append(')');
@@ -8115,7 +8124,8 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **) {
   return true;
 }
 
-void Item_trigger_field::print(const THD *, String *str, enum_query_type) {
+void Item_trigger_field::print(const THD *, String *str,
+                               enum_query_type) const {
   str->append((trigger_var_type == TRG_NEW_ROW) ? "NEW" : "OLD", 3);
   str->append('.');
   str->append(field_name);
@@ -8403,7 +8413,7 @@ void Item_cache::store(Item *item) {
 }
 
 void Item_cache::print(const THD *thd, String *str,
-                       enum_query_type query_type) {
+                       enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("<cache>("));
   if (example)
     example->print(thd, str, query_type);
@@ -9365,7 +9375,7 @@ void Item_result_field::cleanup() {
   @param to_str       Query string.
   @param to_cs        Character set to which the string is to be converted.
 */
-void convert_and_print(String *from_str, String *to_str,
+void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs) {
   if (my_charset_same(from_str->charset(), to_cs)) {
     from_str->print(to_str);  // already in to_cs, no need to convert
