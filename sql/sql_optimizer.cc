@@ -134,6 +134,8 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                                          enum_order ordering,
                                          bool recheck_range);
 
+static bool has_not_null_predicate(Item *cond, Item_field *not_null_item);
+
 bool JOIN::alloc_indirection_slices() {
   const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
 
@@ -5771,6 +5773,9 @@ static void add_not_null_conds(JOIN *join) {
             not_null_item is the t1.f1, but it's referred_tab is 0.
           */
           if (!referred_tab || referred_tab->join() != join) continue;
+          /* Skip if we already have a 'not null' predicate for 'item' */
+          if (has_not_null_predicate(referred_tab->condition(), not_null_item))
+            continue;
           if (!(notnull = new Item_func_isnotnull(not_null_item)))
             DBUG_VOID_RETURN;
           /*
@@ -5789,6 +5794,39 @@ static void add_not_null_conds(JOIN *join) {
     }
   }
   DBUG_VOID_RETURN;
+}
+
+/**
+  Check all existing AND'ed predicates in 'cond' for an existing
+  'is not null <not_null_item>'-predicate.
+
+  A condition consisting of multiple AND'ed terms is recursively
+  decomposed in the search for the specified not null predicate.
+
+  @param  cond           Condition to be checked.
+  @param  not_null_item  The item in: 'is not null <item>' to search for
+
+  @return true if 'is not null <not_null_item>' is a predicate
+          in the specified 'cond'.
+*/
+static bool has_not_null_predicate(Item *cond, Item_field *not_null_item) {
+  if (cond == nullptr) return false;
+  if (cond->type() == Item::FUNC_ITEM) {
+    Item_func *item_func = down_cast<Item_func *>(cond);
+    const Item_func::Functype func_type = item_func->functype();
+    return (func_type == Item_func::ISNOTNULL_FUNC &&
+            item_func->key_item() == not_null_item);
+  } else if (cond->type() == Item::COND_ITEM) {
+    Item_cond *item_cond = down_cast<Item_cond *>(cond);
+    if (item_cond->functype() == Item_func::COND_AND_FUNC) {
+      List_iterator<Item> li(*item_cond->argument_list());
+      Item *item;
+      while ((item = li++)) {
+        if (has_not_null_predicate(item, not_null_item)) return true;
+      }
+    }
+  }
+  return false;
 }
 
 /**

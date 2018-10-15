@@ -1180,7 +1180,7 @@ EXPLAIN
           "used_columns": [
             "a"
           ] /* used_columns */,
-          "attached_condition": "((`test`.`t1`.`a` is not null) and (`test`.`t1`.`a` is not null))"
+          "attached_condition": "(`test`.`t1`.`a` is not null)"
         } /* table */
       },
       {

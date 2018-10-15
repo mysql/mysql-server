@@ -1542,3 +1542,179 @@ WHERE alias1.col_int > 5 OR
 alias5.col_int > 5;
 field5
 DROP TABLE t1, t2, t3, t4;
+# Bug#28727717: Duplicated 'is not null' predicates
+create table parent(a int primary key, b int, c int, d int) engine=innodb;
+create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=innodb;
+insert into parent values (1,1,1,1);
+insert into eq_child select * from parent;
+explain format=json select straight_join count(*) from parent
+join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "1.75"
+    },
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "parent",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.35",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "b"
+          ],
+          "attached_condition": "(`test`.`parent`.`b` is not null)"
+        }
+      },
+      {
+        "table": {
+          "table_name": "c1",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
+          "key_length": "8",
+          "ref": [
+            "test.parent.b",
+            "test.parent.b"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "0.70",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "c2",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
+          "key_length": "8",
+          "ref": [
+            "test.parent.b",
+            "test.parent.b"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.05",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "c3",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
+          "key_length": "8",
+          "ref": [
+            "test.parent.b",
+            "test.parent.b"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.40",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      },
+      {
+        "table": {
+          "table_name": "c4",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
+          "key_length": "8",
+          "ref": [
+            "test.parent.b",
+            "test.parent.b"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": "100.00",
+          "using_index": true,
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.10",
+            "prefix_cost": "1.75",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "a",
+            "b"
+          ]
+        }
+      }
+    ]
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`parent` join `test`.`eq_child` `c1` join `test`.`eq_child` `c2` join `test`.`eq_child` `c3` join `test`.`eq_child` `c4` where ((`test`.`c1`.`a` = `test`.`parent`.`b`) and (`test`.`c1`.`b` = `test`.`parent`.`b`) and (`test`.`c2`.`a` = `test`.`parent`.`b`) and (`test`.`c2`.`b` = `test`.`parent`.`b`) and (`test`.`c3`.`a` = `test`.`parent`.`b`) and (`test`.`c3`.`b` = `test`.`parent`.`b`) and (`test`.`c4`.`a` = `test`.`parent`.`b`) and (`test`.`c4`.`b` = `test`.`parent`.`b`))
+drop table parent, eq_child;

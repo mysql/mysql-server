@@ -9209,7 +9209,7 @@ EXPLAIN
                   "col_int_nokey",
                   "col_int_key"
                 ],
-                "attached_condition": "(((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`)) and ((`test`.`grandparent1`.`col_int_nokey` is not null) and (`test`.`grandparent1`.`col_int_nokey` is not null)))"
+                "attached_condition": "(((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`)) and (`test`.`grandparent1`.`col_int_nokey` is not null))"
               }
             },
             {
@@ -11378,7 +11378,7 @@ EXPLAIN
             "col_int_nokey",
             "col_int_key"
           ],
-          "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` is not null) and (`test`.`grandparent1`.`col_int_nokey` is not null))"
+          "attached_condition": "(`test`.`grandparent1`.`col_int_nokey` is not null)"
         }
       },
       {
