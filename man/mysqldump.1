@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 10/15/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -277,7 +277,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+the section called \(lqImpermissible Client Character Sets\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -382,7 +382,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 Connection Options.PP
 The
 \fBmysqldump\fR
@@ -1014,7 +1014,7 @@ statement\&.
 Adds to a table dump all SQL statements needed to create any tablespaces used by an
 NDB
 table\&. This information is not otherwise included in the output from
-\fBmysqldump\fR\&. This option is currently relevant only to MySQL Cluster tables, which are not supported in MySQL 8\&.0\&.
+\fBmysqldump\fR\&. This option is currently relevant only to NDB Cluster tables, which are not supported in MySQL 8\&.0\&.
 .RE
 .sp
 .RS 4
@@ -2142,7 +2142,7 @@ USE
 statements are included in the output before each new database\&.
 .sp
 This option may be used to dump the
-performace_schema
+performance_schema
 database, which normally is not dumped even with the
 \fB\-\-all\-databases\fR
 option\&. (Also use the
@@ -2285,7 +2285,7 @@ Multiple triggers are permitted\&.
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-\m[blue]\fBChanges Affecting Downgrades from MySQL 5\&.7\fR\m[]\&\s-2\u[1]\d\s+2; you can convert triggers to be compatible with older servers\&.)
+\m[blue]\fBDowngrade Notes\fR\m[]\&\s-2\u[1]\d\s+2; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2542,7 +2542,7 @@ database for proper restoration\&.
 .br
 For upgrades to MySQL 5\&.7\&.2 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.10.1.2, \(lqChanges Affecting Upgrades to MySQL 8.0\(rq\&.
+Section\ \&2.11.1.3, \(lqChanges in MySQL 8.0\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2940,6 +2940,12 @@ INFORMATION_SCHEMA
 schema\&.
 .PP
 \fBmysqldump\fR
+does not dump
+InnoDB
+CREATE TABLESPACE
+statements\&.
+.PP
+\fBmysqldump\fR
 includes statements to recreate the
 general_log
 and
@@ -2964,7 +2970,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-Changes Affecting Downgrades from MySQL 5.7
+Downgrade Notes
 .RS 4
 \%http://dev.mysql.com/doc/refman/5.7/en/downgrading-to-previous-series.html
 .RE

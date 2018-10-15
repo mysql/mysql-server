@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 10/15/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,7 +42,7 @@ also upgrades the system tables so that you can take advantage of new privileges
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.10.3, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.3, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
 .PP
 You should execute
@@ -71,7 +71,7 @@ Section\ \&7.2, \(lqDatabase Backup Methods\(rq\&.
 .PP
 Some upgrade incompatibilities may require special handling before you upgrade your MySQL installation and run
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.10.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
@@ -110,6 +110,46 @@ shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\
 For local host connections on Unix, the
 \fB\-\-protocol=tcp\fR
 option forces a connection using TCP/IP rather than the Unix socket file\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you run the server with the
+disabled_storage_engines
+system variable set to disable certain storage engines (for example,
+MyISAM),
+\fBmysql_upgrade\fR
+might fail with an error like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql_upgrade: [ERROR] 3161: Storage engine MyISAM is disabled
+(Table creation is disallowed)\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To handle this, restart the server with
+disabled_storage_engines
+disabled\&. Then you should be able to run
+\fBmysql_upgrade\fR
+successfully\&. After that, restart the server with
+disabled_storage_engines
+set to its original value\&.
+.sp .5v
+.RE
 .PP
 \fBmysql_upgrade\fR
 processes all tables in all databases, which might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&.
@@ -143,7 +183,7 @@ if the credentials use a hash format compatible with that plugin\&. Rows with a 
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.13, \(lqServer-Side Help\(rq\&.
+Section\ \&5.1.14, \(lqServer-Side Help\(rq\&.
 .PP
 Unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -248,7 +288,7 @@ supports the following options, which can be specified on the command line or in
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 10/15/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -152,12 +152,17 @@ TMPDIR
 environment variable\&.
 .PP
 \fBmysqlbinlog\fR
+sets the value of
+pseudo_slave_mode
+to true before executing any SQL statements\&.
+.PP
+\fBmysqlbinlog\fR
 supports the following options, which can be specified on the command line or in the
 [mysqlbinlog]
 and
 [client]
 groups of an option file\&. For information about option files used by MySQL programs, see
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -316,7 +321,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -672,21 +677,14 @@ Disable binary logging\&. This is useful for avoiding an endless loop if you use
 \fB\-\-to\-last\-log\fR
 option and are sending the output to the same MySQL server\&. This option also is useful when restoring after a crash to avoid duplication of the statements you have logged\&.
 .sp
-This option requires that you have the
-SYSTEM_VARIABLES_ADMIN
-or
-SUPER
-privilege\&. It causes
+This option causes
 \fBmysqlbinlog\fR
 to include a
 SET sql_log_bin = 0
-statement in its output to disable binary logging of the remaining output\&. The
-SET
-statement is ineffective unless you have the
-SYSTEM_VARIABLES_ADMIN
-or
-SUPER
-privilege\&.
+statement in its output to disable binary logging of the remaining output\&. Manipulating the session value of the
+sql_log_bin
+system variable is a restricted operation, so this option requires that you have privileges sufficient to set restricted session variables\&. See
+Section\ \&5.1.8.1, \(lqSystem Variable Privileges\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2849,7 +2847,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 MySQL Internals: The Binary Log
 .RS 4
-\%http://dev.mysql.com/doc/internals/en/binary-log.html
+\%https://dev.mysql.com/doc/internals/en/binary-log.html
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 07/12/2018
+.\"      Date: 10/15/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "07/12/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -74,8 +74,8 @@ to specify which servers you want to start, stop, or obtain a status report for\
 [mysqld]
 group used for starting
 \fBmysqld\fR\&. (See, for example,
-Section\ \&2.9.5, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
-Section\ \&5.7, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
+Section\ \&2.10.5, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
+Section\ \&5.8, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
 .PP
 To invoke
 \fBmysqld_multi\fR, use the following syntax:
@@ -452,7 +452,7 @@ servers with the same data directory\&. Use separate data directories, unless yo
 what you are doing\&. Starting multiple servers with the same data directory does
 \fInot\fR
 give you extra performance in a threaded system\&. See
-Section\ \&5.7, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
+Section\ \&5.8, \(lqRunning Multiple MySQL Instances on One Machine\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -638,7 +638,7 @@ user       = unix_user4
 .\}
 .PP
 See
-Section\ \&4.2.6, \(lqUsing Option Files\(rq\&.
+Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
