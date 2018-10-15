@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -268,9 +268,9 @@ Thrman::execSTTOR(Signal *signal)
         Uint64 send_elapsed_time_os;
         getSendPerformanceTimers(send_instance,
                                  send_exec_time,
-                                 send_user_time_os,
                                  send_sleep_time,
                                  send_spin_time,
+                                 send_user_time_os,
                                  send_kernel_time_os,
                                  send_elapsed_time_os);
 
