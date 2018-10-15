@@ -448,12 +448,11 @@ TAPTEST(ndb_version)
                           NDB_MYSQL_VERSION_MINOR * 100 +
                           NDB_MYSQL_VERSION_BUILD));
 
-  /* Check that 8.0.13 API can connect to 8.0.14 data node and vice-versa */
+  /* Check that this node is compatible with 8.0.13 API and data nodes */
   printf("Testing compatibility\n");
-  Uint32 ndbVer8014 = ndbMakeVersion(8,0,14);
-  Uint32 apiVer8013 = ndbMakeVersion(8,0,13);
-  int c1 = ndbCompatible_ndb_api(ndbVer8014, apiVer8013);
-  int c2 = ndbCompatible_api_ndb(ndbVer8014, apiVer8013);
+  Uint32 ver8013 = ndbMakeVersion(8,0,13);
+  int c1 = ndbCompatible_ndb_api(NDB_VERSION, ver8013);
+  int c2 = ndbCompatible_api_ndb(NDB_VERSION, ver8013);
   OK(c1 == 1);
   OK(c2 == 1);
 
