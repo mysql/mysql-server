@@ -126,10 +126,13 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   {
     jam();
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_50ms_measure.addFirst(measurePtr);
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_1sec_measure.addFirst(measurePtr);
     c_measurementRecordPool.seize(measurePtr);
+    measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_20sec_measure.addFirst(measurePtr);
   }
   if (instance() == MAIN_THRMAN_INSTANCE)
@@ -142,6 +145,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       jam();
       SendThreadPtr sendThreadPtr;
       c_sendThreadRecordPool.seizeId(sendThreadPtr, send_instance);
+      sendThreadPtr.p = new (sendThreadPtr.p) SendThreadRecord();
       sendThreadPtr.p->m_send_thread_50ms_measurements.init();
       sendThreadPtr.p->m_send_thread_1sec_measurements.init();
       sendThreadPtr.p->m_send_thread_20sec_measurements.init();
@@ -152,6 +156,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         SendThreadMeasurementPtr sendThreadMeasurementPtr;
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           Local_SendThreadMeasurement_fifo list_50ms(
@@ -161,6 +167,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         }
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           Local_SendThreadMeasurement_fifo list_1sec(
@@ -170,6 +178,8 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
         }
 
         c_sendThreadMeasurementPool.seize(sendThreadMeasurementPtr);
+        sendThreadMeasurementPtr.p =
+            new (sendThreadMeasurementPtr.p) SendThreadMeasurement();
         {
           jam();
           Local_SendThreadMeasurement_fifo list_20sec(
