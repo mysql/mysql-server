@@ -5798,15 +5798,15 @@ static void add_not_null_conds(JOIN *join) {
 
 /**
   Check all existing AND'ed predicates in 'cond' for an existing
-  'is not null <not_null_item>'-predicate.
+  'is not null 'not_null_item''-predicate.
 
   A condition consisting of multiple AND'ed terms is recursively
   decomposed in the search for the specified not null predicate.
 
   @param  cond           Condition to be checked.
-  @param  not_null_item  The item in: 'is not null <item>' to search for
+  @param  not_null_item  The item in: 'is not null 'item'' to search for
 
-  @return true if 'is not null <not_null_item>' is a predicate
+  @return true if 'is not null 'not_null_item'' is a predicate
           in the specified 'cond'.
 */
 static bool has_not_null_predicate(Item *cond, Item_field *not_null_item) {
