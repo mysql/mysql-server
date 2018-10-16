@@ -962,7 +962,7 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   is the standard name.  The directory scan assured that there are
   no duplicates.  The filename found must match the standard name
   if this is an implicit undo tablespace. In other words, implicit
-  undo tablespaces must be found in srv_undo_directory. */
+  undo tablespaces must be found in srv_undo_dir. */
   std::string scanned_name = fil_system_open_fetch(space_id);
 
   if (scanned_name.length() != 0 &&
@@ -1002,7 +1002,7 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
 
   if (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES) {
     /* Implicit undo tablespaces must match the standard filename and
-    must be found in srv_undo_directory. */
+    must be found in srv_undo_dir. */
     if (!Fil_path::equal(undo_space.file_name(), scanned_name.c_str()) ||
         Fil_path::has_suffix(IBU, scanned_name)) {
       ib::info(ER_IB_MSG_1080, undo_space.file_name(), scanned_name.c_str(),

@@ -410,8 +410,11 @@ struct Tablespace {
   }
 
   /** Replace the standard undo file name if it exists with a copy
-  of the file name provided. If this name does not include a path,
-  make sure it is in srv_undo_dir.
+  of the file name provided. This name can come in three forms:
+  absolute path, relative path, and basename.  Undo ADD DATAFILE
+  does not accept a relative path.  So if that comes in here, it
+  was the scaneed name and is relative to the datadir.
+  If this is just a basename, add it to srv_undo_dir.
   @param[in]  file_name  explicit undo file name */
   void set_file_name(const char *file_name);
 
