@@ -2543,7 +2543,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     */
     if (qep_tab->condition()) {
       THD *thd = join->thd;
-      Item *cond = qep_tab->condition();
       /*
         Push condition to storage engine if this is enabled
         and the condition is not guarded.
@@ -2551,19 +2550,15 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
       if (thd->optimizer_switch_flag(
               OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
           !qep_tab->is_inner_table_of_outer_join()) {
-        Item *push_cond =
-            make_cond_for_table(thd, cond, qep_tab->table_ref->map(),
-                                qep_tab->table_ref->map(), false);
+        /* Push condition to handler, possibly returning a remainder */
+        const Item *cond = qep_tab->condition();
+        const Item *remainder = tab->table()->file->cond_push(cond);
+        tab->set_condition(const_cast<Item *>(remainder));
 
-        if (push_cond != NULL && !table->file->cond_push(push_cond)) {
+        if (table->file->pushed_cond != nullptr) {
           /* Condition pushed to handler */
           trace_refine_table.add("pushed_handler_condition",
                                  table->file->pushed_cond);
-
-          if ((push_cond->used_tables() == cond->used_tables())) {
-            /* No remaining unpushed part of the where condition */
-            qep_tab->set_condition(nullptr);
-          }
         }
       }
     }

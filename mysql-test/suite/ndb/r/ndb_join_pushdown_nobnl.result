@@ -4162,7 +4162,7 @@ straight_join t1 as t3 on t3.k = t2.b
 straight_join t1 as t4 on t4.k = t1.b
 where t2.k = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Parent of 2 pushed join@1; Using where; Using pushed condition (`test`.`t1`.`b` is not null)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Parent of 2 pushed join@2; Using pushed condition (`test`.`t2`.`b` is not null)
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
@@ -6285,7 +6285,7 @@ join (t as t3 join t as t4 on t4.k=t3.k join t as t5 on t5.i=t4.i and t5.j=t3.j)
 join t as t6 on t6.k = t1.k
 where t1.i < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	i,i_2,j,k	i	5	NULL	#	#	Parent of 6 pushed join@1; Using pushed condition ((`test`.`t1`.`i` < 2) and (`test`.`t1`.`i` is not null) and (`test`.`t1`.`j` is not null) and (`test`.`t1`.`k` is not null)); Using MRR
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	i,i_2,j,k	i	5	NULL	#	#	Parent of 6 pushed join@1; Using pushed condition ((`test`.`t1`.`i` < 2) and (((`test`.`t1`.`i` is not null) and (`test`.`t1`.`j` is not null)) and (`test`.`t1`.`k` is not null))); Using MRR
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	i,i_2	i	5	test.t1.i	#	#	Child of 't1' in pushed join@1
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,j,k	PRIMARY	4	test.t1.j	#	#	Child of 't1' in pushed join@1; Using pushed condition ((`test`.`t3`.`k` is not null) and (`test`.`t3`.`j` is not null))
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	ref	i,i_2,k	k	5	test.t3.k	#	#	Child of 't3' in pushed join@1; Using pushed condition (`test`.`t4`.`i` is not null)

@@ -357,6 +357,13 @@ public:
    Negated conditions are supported by NOT which generate NAND/NOR groups.
  */ 
   const Item *cond_push(const Item *cond) override;
+
+private:
+  void cond_push_boolean_term(const Item *pred,
+                              List<Item> &pushed,
+                              List<Item> &remainder);
+
+public:
  /*
    Pop the top condition from the condition stack of the handler instance.
    SYNOPSIS
