@@ -2,6 +2,8 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+# skip running in embedded server
+--source include/not_embedded.inc
 
 -- source include/have_ndb.inc
 
