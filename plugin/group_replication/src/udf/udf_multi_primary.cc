@@ -78,6 +78,18 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     DBUG_RETURN(4);
   }
 
+  bool is_a_member_in_recovery = group_contains_recovering_member();
+  if (is_a_member_in_recovery) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
+    DBUG_RETURN(5);
+  }
+
+  bool is_a_member_unreachable = group_contains_unreachable_member();
+  if (is_a_member_unreachable) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
+    DBUG_RETURN(6);
+  }
+
   initid->maybe_null = 0;
   DBUG_RETURN(0);
 }
