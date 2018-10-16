@@ -904,15 +904,12 @@ static constexpr uint32 strlen_const(const char *str) {
   return *str == '\0' ? 0 : 1 + strlen_const(str + 1);
 }
 
-/// std::max isn't constexpr until C++14, so we roll our own for now.
-static constexpr uint32 max_const(uint32 a, uint32 b) { return a > b ? a : b; }
-
 /// Find the length of the longest string in a range.
 static constexpr uint32 longest_string(const char *const *begin,
                                        const char *const *end) {
   return begin == end
              ? 0
-             : max_const(strlen_const(*begin), longest_string(begin + 1, end));
+             : std::max(strlen_const(*begin), longest_string(begin + 1, end));
 }
 
 /**

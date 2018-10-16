@@ -54,12 +54,6 @@ SET(MY_C_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wwrite-strings")
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS "${MY_WARNING_FLAGS} -Woverloaded-virtual")
 
-# GCC bug #36750 (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=36750)
-# Remove when we require GCC >= 5.1 everywhere.
-if(CMAKE_COMPILER_IS_GNUCXX)
-  MY_ADD_CXX_WARNING_FLAG("Wno-missing-field-initializers")
-ENDIF()
-
 # The default =3 given by -Wextra is a bit too strict for our code.
 IF(CMAKE_COMPILER_IS_GNUCXX)
   MY_ADD_CXX_WARNING_FLAG("Wimplicit-fallthrough=2")

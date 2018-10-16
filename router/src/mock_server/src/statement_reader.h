@@ -140,6 +140,10 @@ struct HandshakeResponse {
  * @brief Keeps single SQL statement data.
  **/
 struct StatementResponse {
+  // Must initialize exec_time here rather than using a member initializer
+  // due to a bug in Developer Studio.
+  StatementResponse() : exec_time(0) {}
+
   /** @enum ResponseType
    *
    * Response expected for given SQL statement.
@@ -152,7 +156,7 @@ struct StatementResponse {
   std::unique_ptr<Response> response;
 
   // execution time in microseconds
-  std::chrono::microseconds exec_time{0};
+  std::chrono::microseconds exec_time;
 };
 
 class StatementReaderBase {

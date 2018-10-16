@@ -2450,7 +2450,7 @@ struct TABLE_LIST {
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        m_lock_descriptor(lock_type_arg),
+        m_lock_descriptor{lock_type_arg},
         db_length(db_length_arg),
         table_name_length(table_name_length_arg) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,

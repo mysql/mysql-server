@@ -31,21 +31,7 @@
 
 struct MEM_ROOT;
 
-struct TYPELIB { /* Different types saved here */
-  /*
-    These constructors are no longer needed when we go to C++14, where
-    aggregate initialization is allowed on classes that have default
-    member initializers.
-  */
-  TYPELIB() {}
-
-  TYPELIB(size_t count_arg, const char *name_arg, const char **type_names_arg,
-          unsigned int *type_lengths_arg)
-      : count(count_arg),
-        name(name_arg),
-        type_names(type_names_arg),
-        type_lengths(type_lengths_arg) {}
-
+struct TYPELIB {             /* Different types saved here */
   size_t count{0};           /* How many types */
   const char *name{nullptr}; /* Name of typelib */
   const char **type_names{nullptr};

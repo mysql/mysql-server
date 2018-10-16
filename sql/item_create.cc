@@ -1326,7 +1326,6 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
   - Use uppercase (tokens are converted to uppercase before lookup.)
 
   This can't be constexpr because
-  - std::pair does not have a constexpr constructor in C++11, not until C++14.
   - Sun Studio does not allow the Create_func pointer to be constexpr.
 */
 static const std::pair<const char *, Create_func *> func_array[] = {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,21 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Component system variables as a service to mysql_server component
 */
 
-struct TYPE_LIB { /* Different types saved here */
-  /*
-    These constructors are no longer needed when we go to C++14, where
-    aggregate initialization is allowed on classes that have default
-    member initializers.
-  */
-  TYPE_LIB() {}
-
-  TYPE_LIB(size_t count_arg, const char *name_arg, const char **type_names_arg,
-           unsigned int *type_lengths_arg)
-      : count(count_arg),
-        name(name_arg),
-        type_names(type_names_arg),
-        type_lengths(type_lengths_arg) {}
-
+struct TYPE_LIB {            /* Different types saved here */
   size_t count{0};           /* How many types */
   const char *name{nullptr}; /* Name of typelib */
   const char **type_names{nullptr};

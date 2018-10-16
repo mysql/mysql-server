@@ -52,10 +52,10 @@
   memory expects it. Otherwise these functions will try to use the memory,
   leading to segfaults if memory allocation was not successful.
 
-  @note This allocator cannot be used for std::basic_string before GCC 5
-  because of this libstdc++ bug:
-  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437
-  "basic_string assumes that allocators are default-constructible"
+  @note This allocator cannot be used for std::basic_string with RHEL 6/7
+  because of this bug:
+  https://bugzilla.redhat.com/show_bug.cgi?id=1546704
+  "Define _GLIBCXX_USE_CXX11_ABI gets ignored by gcc in devtoolset-7"
 */
 
 template <class T = void *>

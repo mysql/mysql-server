@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,8 +346,8 @@ class STLAllocTestBasicStringTemplate : public ::testing::Test {};
 /*
   Cannot use the stateful allocators with basic_string. The following
   will not compile, due to
-  http://gcc.gnu.org/bugzilla/show_bug.cgi?id=56437 "basic_string
-  assumes that allocators are default-constructible":
+  https://bugzilla.redhat.com/show_bug.cgi?id=1546704
+  "Define _GLIBCXX_USE_CXX11_ABI gets ignored by gcc in devtoolset-7"
 
    typedef std::basic_string<char, std::char_traits<char>,
                              Malloc_allocator<char> > MA_string_type;
