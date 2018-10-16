@@ -10,6 +10,8 @@ VARIABLE_NAME	VARIABLE_VALUE
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
 VARIABLE_NAME
 call mtr.add_suppression("option 'thread_stack':");
+# Filtering out the warning as open_files_limit value is calculated at runtime
+CALL mtr.add_suppression("Could not increase number of max_open_files to more than *");
 # Allow SET PERSIST to set all the read only variables excluding plugin
 # variables.
 #
