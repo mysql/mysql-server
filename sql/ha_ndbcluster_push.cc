@@ -1422,32 +1422,34 @@ int ndb_pushed_builder_ctx::build_query() {
     /**
      * Generate the 'pushed condition' code:
      *
-     * Note that we simply ignore pushed conditions for lookup type (EQ_REF)
-     * operations. This is identical to what we do for non-pushed join.
-     * The rational seems to be:
+     * Note that for lookup_operations there is a hard limit on ~32K
+     * on the size of the unfragmented sendSignal() used to send the
+     * LQH_KEYREQ from SPJ -> LQH. (SCANFRAGREQ's are fragmented, and thus
+     * can be larger). As the generated code is embedded in the LQH_KEYREQ,
+     * we have to limit the 'code' size in a lookup_operation.
+     *
+     * Also see bug#27397802 ENTIRE CLUSTER CRASHES WITH "MESSAGE TOO
+     *    BIG IN SENDSIGNAL" WITH BIG IN CLAUSE.
+     *
+     * There is a limited gain of pushing a condition for a lookup:
      *
      * 1) A lookup operation returns at most a single row, so the gain
      *    of adding a filter is limited.
      * 2) The filter could be big (Large IN-lists...) and have to be
      *    included in the AttrInfo of every LQH_KEYREQ. So the overhead
      *    could exceed the gain.
-     * .. Possibly we should let 'small' filters be pushed for EQ_REF's?
      *
-     * Also note that the explain of such an EQ_REF will show the condition
-     * as being pushed, this is questionable at best. However, we have at
-     * least a consistent behaviour between pushed and non-pushed joins.
-     *
-     * Bug#27429615 QUERY EXPLAIN SHOWS PUSHED CONDITIONS WHICH ARE NOT PUSHED,
-     * was filed for the above issue.
+     * So we allow only 'small' filters (64 words) to be pushed for EQ_REF's.
      */
     NdbQueryOptions options;
     if (handler->pushed_cond) {
-      if (ndbcluster_is_lookup_operation(access_type)) {
-	// Not pushed, let ha_ndbcluster evaluate the condition
+      NdbInterpretedCode code(handler->m_table);
+      handler->generate_scan_filter(&code, NULL);
+      const uint codeSize = code.getWordsUsed();
+      if (ndbcluster_is_lookup_operation(access_type) && codeSize >= 64) {
+        // Not pushed, let ha_ndbcluster evaluate the condition
         handler->m_cond.set_condition(handler->pushed_cond);
       } else {
-        NdbInterpretedCode code(handler->m_table);
-        handler->generate_scan_filter(&code, NULL);
         options.setInterpretedCode(code);
       }
     }
