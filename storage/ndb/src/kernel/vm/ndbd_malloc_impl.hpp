@@ -77,6 +77,13 @@
 
 //#define BITMAP_WORDS GLOBAL_PAGE_SIZE_WORDS
 
+#ifdef VM_TRACE
+#ifndef NDBD_RANDOM_START_PAGE
+#define NDBD_RANDOM_START_PAGE
+#endif
+#endif
+
+
 struct Alloc_page 
 {
   Uint32 m_data[BITMAP_WORDS];
@@ -236,6 +243,10 @@ private:
   Uint32 m_buddy_lists[ZONE_COUNT][16];
   Resource_limits m_resource_limits;
   Alloc_page * m_base_page;
+#ifdef NDBD_RANDOM_START_PAGE
+  Uint32 m_random_start_page_id;
+#endif
+
   /**
    * m_mapped_page is used by get_valid_page() to determine what pages are
    * mapped into memory.
@@ -619,7 +630,7 @@ void*
 Ndbd_mem_manager::get_page(Uint32 page_num) const
 {
 #ifdef NDBD_RANDOM_START_PAGE
-  page_num -= g_random_start_page_id;
+  page_num -= m_random_start_page_id;
 #endif
   return (void*)(m_base_page + page_num);
 }
@@ -649,7 +660,7 @@ void*
 Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
 {
 #ifdef NDBD_RANDOM_START_PAGE
-  page_num -= g_random_start_page_id;
+  page_num -= m_random_start_page_id;
 #endif
   const Uint32 page_region_index = page_num & PAGE_REGION_MASK;
   if (unlikely(page_region_index == 0 ||
@@ -661,7 +672,7 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
      */
 #ifdef NDBD_RANDOM_START_PAGE
     ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u %u",
-             (page_num + g_random_start_page_id),
+             (page_num + m_random_start_page_id),
              page_num);
 #else
     ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: internal page %u",
@@ -703,7 +714,7 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
   {
 #ifdef NDBD_RANDOM_START_PAGE
     ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",
-             (page_num + g_random_start_page_id),
+             (page_num + m_random_start_page_id),
              page_num);
 #else
     ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u",

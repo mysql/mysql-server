@@ -47,16 +47,6 @@ static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
-#ifdef VM_TRACE
-#ifndef NDBD_RANDOM_START_PAGE
-#define NDBD_RANDOM_START_PAGE
-#endif
-#endif
-
-#ifdef NDBD_RANDOM_START_PAGE
-static Uint32 g_random_start_page_id = ~Uint32(0);
-#endif
-
 /*
  * For muti-threaded ndbd, these calls are used for locking around
  * memory allocation operations.
@@ -198,7 +188,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
       rmax = range;
     }
   }
-  g_random_start_page_id = rand() % range;
+  m_random_start_page_id = rand() % range;
 #endif
 
   Uint32 first_region[ZONE_COUNT];
@@ -209,7 +199,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                       : (first_region[0] + space_regions);
     first_region[i] -= ((page_count[i] +
 #ifdef NDBD_RANDOM_START_PAGE
-                         g_random_start_page_id +
+                         m_random_start_page_id +
 #endif
                          ((1 << PAGES_PER_REGION_LOG) - 1))
                         >> PAGES_PER_REGION_LOG);
@@ -239,7 +229,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
     const Uint32 first_page = first_region[i] << PAGES_PER_REGION_LOG;
 #else
     const Uint32 first_page = (first_region[i] << PAGES_PER_REGION_LOG) +
-                              g_random_start_page_id;
+                              m_random_start_page_id;
 #endif
     const Uint32 last_page = first_page + chunks[i].m_cnt - 1;
     require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
@@ -573,7 +563,7 @@ void*
 Ndbd_mem_manager::get_memroot() const
 {
 #ifdef NDBD_RANDOM_START_PAGE
-  return (void*)(m_base_page - g_random_start_page_id);
+  return (void*)(m_base_page - m_random_start_page_id);
 #else
   return (void*)m_base_page;
 #endif
@@ -705,15 +695,15 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
     {
       max_rand_start -= pages;
       if (max_rand_start > 0x10000)
-        g_random_start_page_id =
+        m_random_start_page_id =
           0x10000 + (rand() % (max_rand_start - 0x10000));
       else if (max_rand_start)
-        g_random_start_page_id = rand() % max_rand_start;
+        m_random_start_page_id = rand() % max_rand_start;
 
-      assert(Uint64(pages) + Uint64(g_random_start_page_id) <= 0xFFFFFFFF);
+      assert(Uint64(pages) + Uint64(m_random_start_page_id) <= 0xFFFFFFFF);
 
-      ndbout_c("using g_random_start_page_id: %u (%.8x)",
-               g_random_start_page_id, g_random_start_page_id);
+      ndbout_c("using m_random_start_page_id: %u (%.8x)",
+               m_random_start_page_id, m_random_start_page_id);
     }
   }
 #endif
@@ -1329,8 +1319,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
     if (!locked)
       mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-    *i += g_random_start_page_id;
-    return m_base_page + *i - g_random_start_page_id;
+    *i += m_random_start_page_id;
+    return m_base_page + *i - m_random_start_page_id;
 #else
     return m_base_page + *i;
 #endif
@@ -1359,8 +1349,8 @@ Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
       m_resource_limits.check();
       mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-      *i += g_random_start_page_id;
-      return m_base_page + *i - g_random_start_page_id;
+      *i += m_random_start_page_id;
+      return m_base_page + *i - m_random_start_page_id;
 #else
       return m_base_page + *i;
 #endif
@@ -1379,7 +1369,7 @@ Ndbd_mem_manager::release_page(Uint32 type, Uint32 i, bool locked)
     mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
-  i -= g_random_start_page_id;
+  i -= m_random_start_page_id;
 #endif
 
   release(i, 1);
@@ -1445,7 +1435,7 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
   if (!locked)
     mt_mem_manager_unlock();
 #ifdef NDBD_RANDOM_START_PAGE
-  *i += g_random_start_page_id;
+  *i += m_random_start_page_id;
 #endif
 }
 
@@ -1458,7 +1448,7 @@ Ndbd_mem_manager::release_pages(Uint32 type, Uint32 i, Uint32 cnt, bool locked)
     mt_mem_manager_lock();
 
 #ifdef NDBD_RANDOM_START_PAGE
-  i -= g_random_start_page_id;
+  i -= m_random_start_page_id;
 #endif
 
   release(i, cnt);
