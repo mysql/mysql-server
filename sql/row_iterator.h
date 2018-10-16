@@ -117,7 +117,6 @@ class TableRowIterator : public RowIterator {
  protected:
   int HandleError(int error);
   void PrintError(int error);
-  void PushDownCondition(Item *condition);
   TABLE *table() const { return m_table; }
 
  private:

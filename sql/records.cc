@@ -81,17 +81,15 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
   unique_ptr_destroy_only<RowIterator> iterator;
 
   if (reverse) {
-    iterator.reset(
-        new (&info->iterator_holder.index_scan_reverse) IndexScanIterator<true>(
-            thd, table, idx,
-            /*use_order=*/true, qep_tab,
-            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
+    iterator.reset(new (&info->iterator_holder.index_scan_reverse)
+                       IndexScanIterator<true>(thd, table, idx,
+                                               /*use_order=*/true, qep_tab,
+                                               examined_rows));
   } else {
-    iterator.reset(
-        new (&info->iterator_holder.index_scan) IndexScanIterator<false>(
-            thd, table, idx,
-            /*use_order=*/true, qep_tab,
-            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
+    iterator.reset(new (&info->iterator_holder.index_scan)
+                       IndexScanIterator<false>(thd, table, idx,
+                                                /*use_order=*/true, qep_tab,
+                                                examined_rows));
   }
   info->iterator = std::move(iterator);
 }
@@ -99,14 +97,12 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
 template <bool Reverse>
 IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
                                               bool use_order, QEP_TAB *qep_tab,
-                                              Item *pushed_condition,
                                               ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_idx(idx),
       m_use_order(use_order),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows) {}
 
 template <bool Reverse>
@@ -133,7 +129,6 @@ bool IndexScanIterator<Reverse>::Init() {
       return true;
     }
   }
-  PushDownCondition(m_pushed_condition);
   m_first = true;
   return false;
 }
@@ -225,16 +220,14 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
         new (&info->iterator_holder.sort_file_indirect)
             SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
                                      !disable_rr_cache, ignore_not_found_rows,
-                                     qep_tab ? qep_tab->condition() : nullptr,
                                      examined_rows));
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
   } else if (quick) {
     DBUG_PRINT("info", ("using IndexRangeScanIterator"));
     iterator.reset(
-        new (&info->iterator_holder.index_range_scan) IndexRangeScanIterator(
-            thd, table, quick, qep_tab,
-            qep_tab ? qep_tab->condition() : nullptr, examined_rows));
+        new (&info->iterator_holder.index_range_scan)
+            IndexRangeScanIterator(thd, table, quick, qep_tab, examined_rows));
   } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
@@ -244,14 +237,12 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator.reset(
         new (&info->iterator_holder.sort_buffer_indirect)
-            SortBufferIndirectIterator(
-                thd, table, &table->unique_result, ignore_not_found_rows,
-                qep_tab ? qep_tab->condition() : nullptr, examined_rows));
+            SortBufferIndirectIterator(thd, table, &table->unique_result,
+                                       ignore_not_found_rows, examined_rows));
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
-    iterator.reset(new (&info->iterator_holder.table_scan) TableScanIterator(
-        thd, table, qep_tab, qep_tab ? qep_tab->condition() : nullptr,
-        examined_rows));
+    iterator.reset(new (&info->iterator_holder.table_scan)
+                       TableScanIterator(thd, table, qep_tab, examined_rows));
   }
   info->iterator = std::move(iterator);
 }
@@ -293,37 +284,16 @@ void TableRowIterator::PrintError(int error) {
   m_table->file->print_error(error, MYF(0));
 }
 
-/*
-  Do condition pushdown for UPDATE/DELETE.
-  TODO: Remove this from here as it causes two condition pushdown calls
-  when we're running a SELECT and the condition cannot be pushed down.
-  Some temporary tables do not have a TABLE_LIST object, and it is never
-  needed to push down conditions (ECP) for such tables.
-*/
-void TableRowIterator::PushDownCondition(Item *condition) {
-  if (thd()->optimizer_switch_flag(
-          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-      condition && m_table->pos_in_table_list &&
-      (condition->used_tables() & m_table->pos_in_table_list->map()) &&
-      !m_table->file->pushed_cond) {
-    m_table->file->cond_push(condition);
-  }
-}
-
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
                                                QEP_TAB *qep_tab,
-                                               Item *pushed_condition,
                                                ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_quick(quick),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows) {}
 
 bool IndexRangeScanIterator::Init() {
-  PushDownCondition(m_pushed_condition);
-
   /*
     Only attempt to allocate a record buffer the first time the handler is
     initialized.
@@ -358,12 +328,10 @@ int IndexRangeScanIterator::Read() {
 }
 
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                                     Item *pushed_condition,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_qep_tab(qep_tab),
-      m_pushed_condition(pushed_condition),
       m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
@@ -385,8 +353,6 @@ bool TableScanIterator::Init() {
 
   if (first_init && set_record_buffer(m_qep_tab))
     return true; /* purecov: inspected */
-
-  PushDownCondition(m_pushed_condition);
 
   return false;
 }

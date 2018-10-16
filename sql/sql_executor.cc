@@ -2654,13 +2654,12 @@ bool DynamicRangeIterator::Init() {
   }
 
   if (qck) {
-    m_iterator.reset(
-        new (&m_iterator_holder.index_range_scan)
-            IndexRangeScanIterator(thd(), table(), qck, m_qep_tab,
-                                   m_qep_tab->condition(), m_examined_rows));
+    m_iterator.reset(new (&m_iterator_holder.index_range_scan)
+                         IndexRangeScanIterator(thd(), table(), qck, m_qep_tab,
+                                                m_examined_rows));
   } else {
     m_iterator.reset(new (&m_iterator_holder.table_scan) TableScanIterator(
-        thd(), table(), m_qep_tab, m_qep_tab->condition(), m_examined_rows));
+        thd(), table(), m_qep_tab, m_examined_rows));
   }
   return m_iterator->Init();
 }
@@ -2919,14 +2918,12 @@ int RefOrNullIterator::Read() {
 }
 
 AlternativeIterator::AlternativeIterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, Item *pushed_condition,
-    ha_rows *examined_rows, unique_ptr_destroy_only<RowIterator> source,
-    TABLE_REF *ref)
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, ha_rows *examined_rows,
+    unique_ptr_destroy_only<RowIterator> source, TABLE_REF *ref)
     : RowIterator(thd),
       m_ref(ref),
       m_source_iterator(std::move(source)),
-      m_table_scan_iterator(thd, table, qep_tab, pushed_condition,
-                            examined_rows) {
+      m_table_scan_iterator(thd, table, qep_tab, examined_rows) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
        ++key_part_idx) {
     bool *cond_guard = ref->cond_guards[key_part_idx];
@@ -3017,13 +3014,13 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
         read_record.iterator.reset(
             new (&read_record.iterator_holder.index_scan)
                 IndexScanIterator<true>(join()->thd, table(), index(),
-                                        use_order(), this, condition(),
+                                        use_order(), this,
                                         &join()->examined_rows));
       } else {
         read_record.iterator.reset(
             new (&read_record.iterator_holder.index_scan)
                 IndexScanIterator<false>(join()->thd, table(), index(),
-                                         use_order(), this, condition(),
+                                         use_order(), this,
                                          &join()->examined_rows));
       }
       break;
@@ -3087,7 +3084,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
         // the AlternativeIterator.
         unique_ptr_destroy_only<RowIterator> alternative(
             new (&read_record.alternative_holder) AlternativeIterator(
-                join()->thd, table(), this, condition(), &join()->examined_rows,
+                join()->thd, table(), this, &join()->examined_rows,
                 move(read_record.iterator), used_ref));
         read_record.iterator = move(alternative);
         break;

@@ -233,7 +233,7 @@ class AlternativeIterator final : public RowIterator {
   // Takes ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   AlternativeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
-                      Item *pushed_condition, ha_rows *examined_rows,
+                      ha_rows *examined_rows,
                       unique_ptr_destroy_only<RowIterator> source,
                       TABLE_REF *ref);
 

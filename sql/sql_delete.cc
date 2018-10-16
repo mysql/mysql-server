@@ -333,6 +333,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
 
+  if (conds &&
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    table->file->cond_push(conds);
+  }
+
   {  // Enter scope for optimizer trace wrapper
     Opt_trace_object wrapper(&thd->opt_trace);
     wrapper.add_utf8_table(delete_table_ref);
