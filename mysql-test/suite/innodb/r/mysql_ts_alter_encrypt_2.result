@@ -273,11 +273,11 @@ ALTER TABLESPACE mysql ENCRYPTION='Y';
 SET DEBUG_SYNC = 'now WAIT_FOR s1';
 # Wait for Encryption progress monitoring to appear in PFS table
 # Wait for some progress to appear in PFS table
-select WORK_ESTIMATED, WORK_COMPLETED
+select WORK_COMPLETED
 FROM performance_schema.events_stages_current
 WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
-WORK_ESTIMATED	WORK_COMPLETED
-1535	5
+WORK_COMPLETED
+5
 SET DEBUG_SYNC = 'now SIGNAL s2';
 # Default connection
 # Once done, select count from PFS tables

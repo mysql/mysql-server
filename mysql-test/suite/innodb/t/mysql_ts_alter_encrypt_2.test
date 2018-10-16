@@ -357,7 +357,7 @@ let $wait_condition = SELECT WORK_COMPLETED > 0
 --source include/wait_condition.inc
 
 # Verify the expected progress seen in PFS table
-select WORK_ESTIMATED, WORK_COMPLETED
+select WORK_COMPLETED
     FROM performance_schema.events_stages_current
     WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
 
