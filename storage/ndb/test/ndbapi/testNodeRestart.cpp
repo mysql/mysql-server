@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7348,8 +7348,6 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
-static const Uint32 numTables = 20;
-
 int CMT_createTableHook(Ndb* ndb,
                         NdbDictionary::Table& table,
                         int when,
@@ -7375,6 +7373,7 @@ int CMT_createTableHook(Ndb* ndb,
 int createManyTables(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
+  const Uint32 numTables=ctx->getProperty("NumTables", Uint32(20));
 
   for (Uint32 tn = 0; tn < numTables; tn++)
   {
@@ -7400,6 +7399,8 @@ int dropManyTables(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
 
   char buf[100];
+
+  const Uint32 numTables=ctx->getProperty("NumTables", Uint32(20));
 
   for (Uint32 tn = 0; tn < numTables; tn++)
   {
@@ -7976,6 +7977,57 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int runNodeFailLcpStall(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+  int other = restarter.getRandomNodeSameNodeGroup(master, rand());
+
+  ndbout_c("Master %u  Other %u",
+           master, other);
+
+  ndbout_c("Stalling scans in node %u", other);
+  restarter.insertErrorInNode(other, 10039);
+
+  int dump[] = { 7099 };
+  ndbout_c("Triggering LCP");
+  restarter.dumpStateOneNode(master, dump, 1);
+
+  ndbout_c("Giving time for things to stall");
+  NdbSleep_MilliSleep(10000);
+
+  ndbout_c("Getting Master to kill other when Master LCP complete %u", master);
+  restarter.insertErrorInNode(master, 7178);
+
+  ndbout_c("Releasing scans in node %u", other);
+  restarter.insertErrorInNode(other, 0);
+
+  ndbout_c("Expect other node failure");
+  Uint32 retries=100;
+  while (restarter.getNodeStatus(other) == NDB_MGM_NODE_STATUS_STARTED)
+  {
+    if ((--retries) == 0)
+    {
+      ndbout_c("Timeout waiting for other node to restart");
+      return NDBT_FAILED;
+    }
+    NdbSleep_MilliSleep(500);
+  }
+
+  ndbout_c("Other node failed, now wait for it to restart");
+  restarter.insertErrorInNode(master, 0);
+
+  if (restarter.waitNodesStarted(&other, 1) != 0)
+  {
+    ndbout_c("Timed out waiting for restart");
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("Restart succeeded");
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -8141,8 +8193,9 @@ TESTCASE("RestartMasterNodeError",
 TESTCASE("GetTabInfoOverload",
          "Test behaviour of GET_TABINFOREQ overload + LCP + restart")
 {
+  TC_PROPERTY("NumTables", 20);
   INITIALIZER(createManyTables);
-  STEPS(runGetTabInfo, (int) numTables);
+  STEPS(runGetTabInfo, 20);
   STEP(runLCPandRestart);
   FINALIZER(dropManyTables);
 };
@@ -8673,6 +8726,14 @@ TESTCASE("StartDuringNodeRestart",
          "not completed in time.");
 {
   STEP(runTestStartNode);
+}
+TESTCASE("NodeFailLcpStall",
+         "Check that node failure does not result in LCP stall")
+{
+  TC_PROPERTY("NumTables", Uint32(100));
+  INITIALIZER(createManyTables);
+  STEP(runNodeFailLcpStall);
+  FINALIZER(dropManyTables);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);
