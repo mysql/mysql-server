@@ -168,7 +168,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t1`.`c` > 6); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -209,7 +209,7 @@ on
 a.d = b.a
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -234,7 +234,7 @@ on
 a.d = b.b
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -259,7 +259,7 @@ on
 a.d = b.a
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -284,7 +284,7 @@ on
 a.d = b.b
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -308,7 +308,7 @@ test.t1 b
 on
 a.d = b.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
@@ -339,7 +339,7 @@ test.t1 b
 on
 a.d = b.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
@@ -372,7 +372,7 @@ b.c=a.d
 where
 a.a>10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
 1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
@@ -487,7 +487,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t2`.`c` > 6)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -692,7 +692,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t1`.`c` > 6); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -733,7 +733,7 @@ on
 a.d = b.a
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -758,7 +758,7 @@ on
 a.d = b.b
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -783,7 +783,7 @@ on
 a.d = b.a
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -808,7 +808,7 @@ on
 a.d = b.b
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -832,7 +832,7 @@ test.t1 b
 on
 a.d = b.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
@@ -863,7 +863,7 @@ test.t1 b
 on
 a.d = b.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
@@ -896,7 +896,7 @@ b.c=a.d
 where
 a.a>10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
 1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
@@ -1011,7 +1011,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t2`.`c` > 6)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -1209,7 +1209,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t1`.`c` > 6); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -1254,7 +1254,7 @@ on
 a.d = b.a
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -1281,7 +1281,7 @@ on
 a.d = b.b
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -1308,7 +1308,7 @@ on
 a.d = b.a
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -1335,7 +1335,7 @@ on
 a.d = b.b
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -1361,7 +1361,7 @@ test.t1 b
 on
 a.d = b.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
@@ -1394,7 +1394,7 @@ test.t1 b
 on
 a.d = b.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
@@ -1429,7 +1429,7 @@ b.c=a.d
 where
 a.a>10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
 1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
@@ -1562,7 +1562,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t2`.`c` > 6)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -1798,7 +1798,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t1 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t1`.`c` > 6); Using MRR
+1	SIMPLE	t1	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t1`.`c` > 6); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d` from `test`.`t1` where (`test`.`t1`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)
@@ -1855,7 +1855,7 @@ on
 a.d = b.a
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -1888,7 +1888,7 @@ on
 a.d = b.b
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -1921,7 +1921,7 @@ on
 a.d = b.a
 where a.b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ref	b	b	5	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`a` = `test`.`a`.`d`) and (`test`.`a`.`b` = 6))
@@ -1954,7 +1954,7 @@ on
 a.d = b.b
 where a.a = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	eq_ref	PRIMARY,a	PRIMARY	4	const	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`b` = `test`.`a`.`d`) and (`test`.`a`.`a` = 6))
@@ -1986,7 +1986,7 @@ test.t1 b
 on
 a.d = b.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	eq_ref	PRIMARY,a	PRIMARY	4	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`a` = `test`.`a`.`d`)
@@ -2025,7 +2025,7 @@ test.t1 b
 on
 a.d = b.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`a`.`d` is not null)
+1	SIMPLE	a	#	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`a`.`d` is not null)
 1	SIMPLE	b	#	ref	b	b	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`b`.`b` = `test`.`a`.`d`)
@@ -2066,7 +2066,7 @@ b.c=a.d
 where
 a.a>10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
+1	SIMPLE	a	#	range	PRIMARY,a	PRIMARY	4	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition ((`test`.`a`.`a` > 10) and (`test`.`a`.`d` is not null)); Using MRR
 1	SIMPLE	b	#	ref	c	c	5	test.a.d	#	#	Child of 'a' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`a` AS `a`,`test`.`a`.`d` AS `d`,`test`.`b`.`d` AS `d` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`b`.`c` = `test`.`a`.`d`) and (`test`.`a`.`a` > 10))
@@ -2209,7 +2209,7 @@ node_id	counter_name	sum(val)
 OI scan
 explain select * from test.t2 where c > 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using where with pushed condition (`test`.`t2`.`c` > 6)
+1	SIMPLE	t2	#	range	c	c	5	NULL	#	#	Using pushed condition (`test`.`t2`.`c` > 6)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`c` > 6)
 select parent_fq_name, fq_name, type, node_id, sum(tot_key_reads), sum(tot_frag_scans)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#ifndef SQL_HA_NDBCLUSTER_COND_INCLUDED
+#define SQL_HA_NDBCLUSTER_COND_INCLUDED
 
 /*
   This file defines the data structures used by engine condition pushdown in
@@ -45,14 +48,26 @@ public:
                         TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
-  int generate_scan_filter(NdbInterpretedCode* code, 
-                           NdbScanOperation::ScanOptions* options) const;
   int generate_scan_filter_from_cond(NdbScanFilter& filter) const;
-  int generate_scan_filter_from_key(NdbInterpretedCode* code,
-                                    NdbScanOperation::ScanOptions* options,
+
+  static
+  int generate_scan_filter_from_key(NdbScanFilter& filter,
                                     const class KEY* key_info,
                                     const key_range *start_key,
-                                    const key_range *end_key) const;
+                                    const key_range *end_key);
+
+  void set_condition(const Item *cond);
+  bool check_condition() const
+  {
+    return (m_unpushed_cond == nullptr || eval_condition());
+  }
+
+  static void add_read_set(TABLE *table, const Item *cond);
+  void add_read_set(TABLE *table)
+  {
+    add_read_set(table, m_unpushed_cond);
+  }
+
 private:
   bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
                       TABLE *table,
@@ -64,5 +79,15 @@ private:
                               NdbScanFilter* filter) const;
   int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter) const;
 
+  bool eval_condition() const;
+
   Ndb_cond_stack *m_cond_stack;
+
+  /**
+   * Stores condition which can't be pushed to NDB, need to be evaluated by
+   * ha_ndbcluster before returning rows.
+   */
+  const Item *m_unpushed_cond;
 };
+
+#endif

@@ -1410,8 +1410,8 @@ int ndb_pushed_builder_ctx::build_query() {
 
     const AQP::Table_access *const table = m_plan.get_table_access(tab_no);
     const AQP::enum_access_type access_type = table->get_access_type();
-    const ha_ndbcluster *handler =
-        static_cast<ha_ndbcluster *>(table->get_table()->file);
+    ha_ndbcluster *handler =
+        down_cast<ha_ndbcluster *>(table->get_table()->file);
 
     const NdbQueryOperand *op_key[ndb_pushed_join::MAX_KEY_PART + 1];
     if (table->get_index_no() >= 0) {
@@ -1441,12 +1441,15 @@ int ndb_pushed_builder_ctx::build_query() {
      * was filed for the above issue.
      */
     NdbQueryOptions options;
-    if (handler->m_cond && !ndbcluster_is_lookup_operation(access_type)) {
-      NdbInterpretedCode code(handler->m_table);
-      if (handler->m_cond->generate_scan_filter(&code, NULL) != 0) {
-        //      ERR_RETURN(code.getNdbError());  // FIXME
+    if (handler->pushed_cond) {
+      if (ndbcluster_is_lookup_operation(access_type)) {
+	// Not pushed, let ha_ndbcluster evaluate the condition
+        handler->m_cond.set_condition(handler->pushed_cond);
+      } else {
+        NdbInterpretedCode code(handler->m_table);
+        handler->generate_scan_filter(&code, NULL);
+        options.setInterpretedCode(code);
       }
-      options.setInterpretedCode(code);
     }
     if (table != m_join_root) {
       DBUG_ASSERT(m_tables[tab_no].m_parent != MAX_TABLES);

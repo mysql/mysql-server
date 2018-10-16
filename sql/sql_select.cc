@@ -2557,8 +2557,13 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
         if (push_cond != NULL && !table->file->cond_push(push_cond)) {
           /* Condition pushed to handler */
-          table->file->pushed_cond = push_cond;
-          trace_refine_table.add("pushed_handler_condition", push_cond);
+          trace_refine_table.add("pushed_handler_condition",
+                                 table->file->pushed_cond);
+
+          if ((push_cond->used_tables() == cond->used_tables())) {
+            /* No remaining unpushed part of the where condition */
+            qep_tab->set_condition(nullptr);
+          }
         }
       }
     }

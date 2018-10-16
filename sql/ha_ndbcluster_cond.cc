@@ -27,6 +27,7 @@
 */
 
 #include "sql/ha_ndbcluster_cond.h"
+#include "sql/ha_ndbcluster.h"
 
 #include "my_dbug.h"
 #include "sql/current_thd.h"
@@ -1827,7 +1828,7 @@ ndb_serialize_cond(const Item *item, void *arg)
 
 
 ha_ndbcluster_cond::ha_ndbcluster_cond()
-  : m_cond_stack(NULL)
+  : m_cond_stack(nullptr), m_unpushed_cond(nullptr)
 {
 }
 
@@ -1894,6 +1895,7 @@ ha_ndbcluster_cond::cond_clear()
   while (m_cond_stack)
     cond_pop();
 
+  m_unpushed_cond = nullptr;
   DBUG_VOID_RETURN;
 }
 
@@ -2331,44 +2333,6 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
   DBUG_RETURN(0);
 }
 
-int
-ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
-                                         NdbScanOperation::ScanOptions* options) const
-{
-  DBUG_ENTER("generate_scan_filter");
-
-  if (m_cond_stack)
-  {
-    NdbScanFilter filter(code);
-    
-    int ret= generate_scan_filter_from_cond(filter);
-    if (ret != 0)
-    {
-      const NdbError& err= filter.getNdbError();
-      if (err.code == NdbScanFilter::FilterTooLarge)
-      {
-        // err.message has static storage
-        DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, Sql_condition::SL_WARNING,
-                     err.code, err.message);
-      }
-      else
-        DBUG_RETURN(ret);
-    }
-    else if (options!=NULL)
-    {
-      options->interpretedCode= code;
-      options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
-    }
-  }
-  else
-  {  
-    DBUG_PRINT("info", ("Empty stack"));
-  }
-
-  DBUG_RETURN(0);
-}
-
 
 int
 ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
@@ -2392,6 +2356,14 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
     if (build_scan_filter(cond, &filter))
     {
       DBUG_PRINT("info", ("build_scan_filter failed"));
+
+      const NdbError& err= filter.getNdbError();
+      if (err.code == NdbScanFilter::FilterTooLarge)
+      {
+        DBUG_PRINT("info", ("%s", err.message));
+        push_warning(current_thd, Sql_condition::SL_WARNING,
+                     err.code, err.message);
+      }
       DBUG_RETURN(1);
     }
   }
@@ -2409,11 +2381,10 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
   to be filtered accordingly.  The scan is actually on the table and
   the index bounds are pushed down.
 */
-int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
-                                                      NdbScanOperation::ScanOptions* options,
-                                                      const KEY* key_info, 
+int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanFilter &filter,
+                                                      const KEY *key_info, 
                                                       const key_range *start_key,
-                                                      const key_range *end_key) const
+                                                      const key_range *end_key)
 {
   DBUG_ENTER("generate_scan_filter_from_key");
 
@@ -2460,9 +2431,6 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
   }
 #endif
 
-  NdbScanFilter filter(code);
-  int res;
-  filter.begin(NdbScanFilter::AND);
   do
   {
     /*
@@ -2552,20 +2520,134 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
     }
 
     DBUG_PRINT("info", ("Unknown hash index scan"));
-    // enable to catch new cases when optimizer changes
-    // DBUG_ASSERT(false);
+    // Catch new cases when optimizer changes
+    DBUG_ASSERT(false);
   }
   while (0);
 
-  // Add any pushed condition
-  if (m_cond_stack &&
-      (res= generate_scan_filter_from_cond(filter)))
-    DBUG_RETURN(res);
-    
+  DBUG_RETURN(0);
+}
+
+/**
+  In case we failed to 'generate' a scan filter accepted by 'cond_push',
+  or we later choose to ignore it, set_condition() will set the condition
+  to be evaluated by the handler.
+
+  @param cond     The condition to be evaluated by the handler
+*/
+void
+ha_ndbcluster_cond::set_condition(const Item *cond)
+{
+  m_unpushed_cond = cond;
+}
+
+/**
+  Return the boolean value of a condition previously set by 'set_condition',
+  evaluated on the current row.
+
+  @return    true if the condition is evaluated to true.
+*/
+bool
+ha_ndbcluster_cond::eval_condition() const
+{
+  return ((Item*)m_unpushed_cond)->val_int()==1;
+}
+
+
+/**
+  Add any columns referred by 'cond' to the read_set of the table.
+
+  @param table  The table to update the read_set for.
+  @param cond   The condition referring columns in 'table'
+*/
+void
+ha_ndbcluster_cond::add_read_set(TABLE *table, const Item *cond)
+{
+  if (cond != nullptr)
+  {
+    Mark_field mf(table, MARK_COLUMNS_READ);
+    ((Item*)cond)->walk(&Item::mark_field_in_map, Item::WALK_PREFIX,
+                            (uchar *)&mf);
+  }
+}
+
+/*
+  Interface layer between ha_ndbcluster and ha_ndbcluster_cond
+*/
+void
+ha_ndbcluster::generate_scan_filter(NdbInterpretedCode *code,
+                                    NdbScanOperation::ScanOptions *options)
+{
+  DBUG_ENTER("generate_scan_filter");
+
+  if (pushed_cond == nullptr)
+  {
+    DBUG_PRINT("info", ("Empty stack"));
+    DBUG_VOID_RETURN;
+  }
+
+  NdbScanFilter filter(code);
+  const int ret= m_cond.generate_scan_filter_from_cond(filter);
+  if (unlikely(ret != 0))
+  {
+    /**
+     * Failed to generate a scan filter, fallback to let
+     * ha_ndbcluster evaluate the condition.
+     */
+    m_cond.set_condition(pushed_cond);
+  }
+  else if (options != nullptr)
+  {
+    options->interpretedCode= code;
+    options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+  }
+  DBUG_VOID_RETURN;
+}
+
+int ha_ndbcluster::generate_scan_filter_with_key(NdbInterpretedCode *code,
+                                                 NdbScanOperation::ScanOptions *options,
+                                                 const KEY *key_info,
+                                                 const key_range *start_key,
+                                                 const key_range *end_key)
+{
+  DBUG_ENTER("generate_scan_filter_with_key");
+
+  NdbScanFilter filter(code);
+  if (filter.begin(NdbScanFilter::AND) == -1)
+     DBUG_RETURN(1);
+
+  // Generate a scanFilter from a prepared pushed conditions
+  if (pushed_cond != nullptr)
+  {
+    const int ret = m_cond.generate_scan_filter_from_cond(filter);
+    if (unlikely(ret != 0))
+    {
+      /**
+       * Failed to generate a scan filter, fallback to let
+       * ha_ndbcluster evaluate the condition.
+       */
+      m_cond.set_condition(pushed_cond);
+
+      // Discard the failed scanFilter and prepare for 'key'
+      filter.reset();
+      if (filter.begin(NdbScanFilter::AND) == -1)
+        DBUG_RETURN(1);
+    }
+  }
+
+  // Generate a scanFilter from the key definition
+  if (key_info != nullptr)
+  {
+    const int ret = ha_ndbcluster_cond::generate_scan_filter_from_key(
+     filter, key_info, start_key, end_key);
+    if (unlikely(ret != 0))
+      DBUG_RETURN(ret);
+  }
+
   if (filter.end() == -1)
     DBUG_RETURN(1);
-  
-  if (options!=NULL)
+
+  if (options != nullptr)
   {
     options->interpretedCode= code;
     options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;

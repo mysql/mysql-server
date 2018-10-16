@@ -3202,6 +3202,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id)
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
+      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3231,6 +3232,11 @@ int ha_ndbcluster::pk_read(const uchar *key, uchar *buf, uint32 *part_id)
         op->getNdbError().code) 
       DBUG_RETURN(ndb_err(trans));
 
+    if (unlikely(!m_cond.check_condition()))
+    {
+      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND); // False condition
+    }
+    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
 }
@@ -3562,6 +3568,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf)
     int result= fetch_next_pushed();
     if (result == NdbQuery::NextResult_gotRow)
     {
+      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
       DBUG_RETURN(0);
     }
     else if (result == NdbQuery::NextResult_scanComplete)
@@ -3588,11 +3595,14 @@ int ha_ndbcluster::unique_index_read(const uchar *key, uchar *buf)
     if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
         op->getNdbError().code) 
     {
-      int err= ndb_err(trans);
-
-      DBUG_RETURN(err);
+      DBUG_RETURN(ndb_err(trans));
     }
 
+    if (unlikely(!m_cond.check_condition()))
+    {
+      DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+    }
+    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
 }
@@ -3716,38 +3726,36 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
 int ha_ndbcluster::fetch_next_pushed()
 {
   DBUG_ENTER("fetch_next_pushed (from pushed operation)");
-
   DBUG_ASSERT(m_pushed_operation);
-  NdbQuery::NextResultOutcome result= m_pushed_operation->nextResult(true, m_thd_ndb->m_force_send);
 
   /**
    * Only prepare result & status from this operation in pushed join.
    * Consecutive rows are prepared through ::index_read_pushed() and
    * ::index_next_pushed() which unpack and set correct status for each row.
    */
-  if (result == NdbQuery::NextResult_gotRow)
+  NdbQuery::NextResultOutcome result;
+  while ((result= m_pushed_operation->nextResult(true, m_thd_ndb->m_force_send))
+	  == NdbQuery::NextResult_gotRow)
   {
     DBUG_ASSERT(m_next_row!=NULL);
     DBUG_PRINT("info", ("One more record found"));    
-    unpack_record_and_set_generated_fields(table, table->record[0],
+    const int ignore = unpack_record_and_set_generated_fields(table, table->record[0],
                                            m_next_row);
 //  m_thd_ndb->m_pushed_reads++;
-//  DBUG_RETURN(0)
+    if (likely(!ignore))
+    {
+      DBUG_RETURN(NdbQuery::NextResult_gotRow);
+    }
   }
-  else if (result == NdbQuery::NextResult_scanComplete)
+  if (likely(result == NdbQuery::NextResult_scanComplete))
   {
     DBUG_ASSERT(m_next_row==NULL);
     DBUG_PRINT("info", ("No more records"));
 //  m_thd_ndb->m_pushed_reads++;
-//  DBUG_RETURN(HA_ERR_END_OF_FILE);
+    DBUG_RETURN(result);
   }
-  else
-  {
-    DBUG_PRINT("info", ("Error from 'nextResult()'"));
-//  DBUG_ASSERT(false);
-    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
-  }
-  DBUG_RETURN(result);
+  DBUG_PRINT("info", ("Error from 'nextResult()'"));
+  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
 }
 
 
@@ -3772,6 +3780,9 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
     DBUG_RETURN(res);
   }
 
+  DBUG_ASSERT(m_pushed_join_operation>PUSHED_ROOT);  // Child of a pushed join
+  DBUG_ASSERT(m_active_query==nullptr);
+
   // Might need to re-establish first result row (wrt. its parents which may have been navigated)
   NdbQuery::NextResultOutcome result= m_pushed_operation->firstResult();
 
@@ -3779,16 +3790,17 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   if (result == NdbQuery::NextResult_gotRow)
   {
     DBUG_ASSERT(m_next_row!=NULL);
-    unpack_record_and_set_generated_fields(table, buf, m_next_row);
+    const int ignore = unpack_record_and_set_generated_fields(table, buf, m_next_row);
     m_thd_ndb->m_pushed_reads++;
+    if (unlikely(ignore))
+    {
+      DBUG_RETURN(index_next_pushed(buf));
+    }
     DBUG_RETURN(0);
   }
-  else
-  {
-    DBUG_ASSERT(result!=NdbQuery::NextResult_gotRow);
-    DBUG_PRINT("info", ("No record found"));
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
-  }
+  DBUG_ASSERT(result!=NdbQuery::NextResult_gotRow);
+  DBUG_PRINT("info", ("No record found"));
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 
@@ -3811,21 +3823,19 @@ int ha_ndbcluster::index_next_pushed(uchar *buf)
   }
 
   DBUG_ASSERT(m_pushed_join_operation>PUSHED_ROOT);  // Child of a pushed join
-  DBUG_ASSERT(m_active_query==NULL);
+  DBUG_ASSERT(m_active_query==nullptr);
 
   int res = fetch_next_pushed();
   if (res == NdbQuery::NextResult_gotRow)
   {
+    DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
     DBUG_RETURN(0);
   }
   else if (res == NdbQuery::NextResult_scanComplete)
   {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  else
-  {
-    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
-  }
+  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
 }
 
 
@@ -3846,42 +3856,41 @@ inline int ha_ndbcluster::next_result(uchar *buf)
     
   if (m_active_cursor)
   {
-    if ((res= fetch_next(m_active_cursor)) == 0)
+    while ((res= fetch_next(m_active_cursor)) == 0)
     {
       DBUG_PRINT("info", ("One more record found"));    
 
-      unpack_record(buf, m_next_row);
-      DBUG_RETURN(0);
+      const int ignore = unpack_record(buf, m_next_row);
+      if (likely(!ignore))
+      {
+        DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+        DBUG_RETURN(0); //Found a row
+      }
     }
-    else if (res == 1)
+    // No rows found, or error
+    if (res == 1)
     {
       // No more records
       DBUG_PRINT("info", ("No more records"));
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-    else
-    {
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
-    }
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
   else if (m_active_query)
   {
     res= fetch_next_pushed();
     if (res == NdbQuery::NextResult_gotRow)
     {
-      DBUG_RETURN(0);
+      DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+      DBUG_RETURN(0);  //Found a row
     }
     else if (res == NdbQuery::NextResult_scanComplete)
     {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
-    else
-    {
-      DBUG_RETURN(ndb_err(m_thd_ndb->trans));
-    }
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
-  else
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  DBUG_RETURN(HA_ERR_END_OF_FILE);
 }
 
 int
@@ -4013,7 +4022,6 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
     get_hidden_fields_keyop(&options, gets);
     poptions= &options;
   }
-  get_read_set(false, idx);
 
   if (ppartition_id != NULL)
   {
@@ -4023,6 +4031,14 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
     poptions= &options;
   }
 
+  /*
+    We prepared a ScanFilter. However it turns out that we will
+    do a primary/unique key readTuple which does not use ScanFilter (yet)
+    We set up the handler to evaluate the condition itself
+  */
+  m_cond.set_condition(pushed_cond);
+
+  get_read_set(false, idx);
   op= m_thd_ndb->trans->readTuple(key_rec, (const char *)key, m_ndb_record,
                                   (char *)buf, lm,
                                   m_table_map->get_column_mask(table->read_set),
@@ -4088,8 +4104,6 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx, const uchar *key)
     m_active_query->close(false);
     m_active_query= NULL;
   }
-
-  get_read_set(false, idx);
 
   KEY *key_def= &table->key_info[idx];
   KEY_PART_INFO *key_part;
@@ -4326,8 +4340,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (table_share->primary_key == MAX_KEY)
       get_hidden_fields_scan(&options, gets);
 
-    get_read_set(true, active_index);
-
     if (lm == NdbOperation::LM_Read)
       options.scan_flags|= NdbScanOperation::SF_KeyInfo;
     if (sorted)
@@ -4346,9 +4358,9 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     }
 
     NdbInterpretedCode code(m_table);
-    if (m_cond && m_cond->generate_scan_filter(&code, &options))
-      ERR_RETURN(code.getNdbError());
+    generate_scan_filter(&code, &options);
 
+    get_read_set(true, active_index);
     if (!(op= trans->scanIndex(key_rec, row_rec, lm,
                                m_table_map->get_column_mask(table->read_set),
                                pbound,
@@ -4479,8 +4491,6 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
-  get_read_set(true, MAX_KEY);
-
   if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
     const int error= create_pushed_join();
@@ -4503,24 +4513,18 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
     if (!key_info)
     {
-      if (m_cond && m_cond->generate_scan_filter(&code, &options))
-        ERR_RETURN(code.getNdbError());
+      generate_scan_filter(&code, &options);
     }
     else
     {
       /* Unique index scan in NDB (full table scan with scan filter) */
       DBUG_PRINT("info", ("Starting unique index scan"));
-      if (m_cond == nullptr)
-      {
-        m_cond = new (std::nothrow) ha_ndbcluster_cond;
-        if (m_cond == nullptr)
-          DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-      }
-
-      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
-                                                start_key, end_key))
+      if (generate_scan_filter_with_key(&code, &options, key_info,
+                                        start_key, end_key))
         ERR_RETURN(code.getNdbError());
     }
+
+    get_read_set(true, MAX_KEY);
     if (!(op= trans->scanTable(m_ndb_record, lm,
                                m_table_map->get_column_mask(table->read_set),
                                &options, sizeof(NdbScanOperation::ScanOptions))))
@@ -4593,14 +4597,32 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx MY_ATTRIBUTE((unused)))
     table->in_use->lex->sql_command == SQLCOM_UPDATE ||
     table->in_use->lex->sql_command == SQLCOM_UPDATE_MULTI;
 
-  DBUG_ASSERT(use_cursor ||
-              idx == table_share->primary_key ||
-              table->key_info[idx].flags & HA_NOSAME);
+  /**
+   * Any fields referred from an unpushed condition is not guaranteed to
+   * be included in the read_set requested by server. Thus, ha_ndbcluster
+   * has to make sure they are read.
+   */
+  m_cond.add_read_set(table);
+
+#ifndef NDEBUG
+  /**
+   * In DEBUG build we also need to include all fields referred
+   * from the assert:
+   *
+   *  DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int())
+   */
+  m_cond.add_read_set(table, pushed_cond);
+#endif
 
   if (!is_delete && !is_update)
   {
     return;
   }
+
+  DBUG_ASSERT(use_cursor ||
+              idx == MAX_KEY ||
+              idx == table_share->primary_key ||
+              table->key_info[idx].flags & HA_NOSAME);
 
   /**
    * It is questionable that we in some cases seems to
@@ -6987,7 +7009,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   Note that we do not unpack all returned rows; some primary/unique key
   operations can read directly into the destination row.
 */
-void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
+int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 {
   DBUG_ASSERT(src_row != nullptr);
 
@@ -7079,18 +7101,27 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
       }
     }  // if(bitmap_is_set...
   }  // for(...
+
+  if (unlikely(!m_cond.check_condition()))
+  {
+    return HA_ERR_KEY_NOT_FOUND;  // False condition
+  }
+  DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
+  return 0;
 }
 
-void ha_ndbcluster::unpack_record_and_set_generated_fields(
+int ha_ndbcluster::unpack_record_and_set_generated_fields(
   TABLE *table,
   uchar *dst_row,
   const uchar *src_row)
 {
-  unpack_record(dst_row, src_row);
-  if(Ndb_table_map::has_virtual_gcol(table))
+  const int res = unpack_record(dst_row, src_row);
+  if (res == 0 &&
+      Ndb_table_map::has_virtual_gcol(table))
   {
     update_generated_read_fields(dst_row, table);
   }
+  return res;
 }
 
 /**
@@ -7995,10 +8026,8 @@ ha_rows ha_ndbcluster::end_read_removal(void)
 int ha_ndbcluster::reset()
 {
   DBUG_ENTER("ha_ndbcluster::reset");
-  if (m_cond)
-  {
-    m_cond->cond_clear();
-  }
+  m_cond.cond_clear();
+
   DBUG_ASSERT(m_active_query == NULL);
   if (m_pushed_join_operation==PUSHED_ROOT)  // Root of pushed query
   {
@@ -12739,7 +12768,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_disable_pushed_join(false),
   m_active_query(NULL),
   m_pushed_operation(NULL),
-  m_cond(nullptr),
+  m_cond(),
   m_multi_cursor(NULL)
 {
   uint i;
@@ -12787,10 +12816,6 @@ ha_ndbcluster::~ha_ndbcluster()
 
   // Check for open cursor/transaction
   DBUG_ASSERT(m_thd_ndb == NULL);
-
-  // Discard any generated condition
-  delete m_cond;
-  m_cond = nullptr;
 
   DBUG_PRINT("info", ("Deleting pushed joins"));
   DBUG_ASSERT(m_active_query == NULL);
@@ -15072,7 +15097,7 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
   THD *thd= current_thd;
   NDB_INDEX_TYPE key_type= get_index_type(keyno);
 
-  get_read_set(true, keyno);
+  get_read_set(true, keyno); //read_set needed for uses_blob_value()
 
   /* Disable MRR on blob read and on NULL lookup in unique index. */
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
@@ -15396,8 +15421,8 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
         if (table_share->primary_key == MAX_KEY)
           get_hidden_fields_scan(&options, gets);
 
-        if (m_cond && m_cond->generate_scan_filter(&code, &options))
-          ERR_RETURN(code.getNdbError());
+        generate_scan_filter(&code, &options);
+        get_read_set(true, active_index);
 
         /* Define scan */
         NdbIndexScanOperation *scanOp= trans->scanIndex
@@ -15655,7 +15680,6 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
 
 int ha_ndbcluster::multi_range_read_next(char **range_info)
 {
-  int res;
   DBUG_ENTER("ha_ndbcluster::multi_range_read_next");
 
   if (m_disable_multi_read)
@@ -15700,10 +15724,16 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
                                               expected_range_no);
           memcpy(table->record[0], multi_range_row(row_buf),
                  table_share->stored_rec_length);
+
+          if (unlikely(!m_cond.check_condition()))
+          {
+            continue; // 'False', move to next range
+          }
           if(table->has_gcol())
           {
             update_generated_read_fields(table->record[0], table);
           }
+          DBUG_ASSERT(pushed_cond == nullptr || ((Item*)pushed_cond)->val_int());
           DBUG_RETURN(0);
 
         case enum_ordered_range:
@@ -15747,13 +15777,20 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
               *range_info= multi_range_get_custom(multi_range_buffer,
                                                   current_range_no);
               /* Copy out data from the new row. */
-              unpack_record_and_set_generated_fields(table, table->record[0],
-                                                     m_next_row);
+              const int ignore =
+                unpack_record_and_set_generated_fields(table, table->record[0],
+                                                       m_next_row);
               /*
                 Mark that we have used this row, so we need to fetch a new
                 one on the next call.
               */
               m_next_row= 0;
+
+              if (unlikely(ignore))
+              {
+                /* Not a valid row, continue with next row */
+                break;
+              }
               /*
                 Set m_active_cursor; it is used as a flag in update_row() /
                 delete_row() to know whether the current tuple is from a scan or
@@ -15761,6 +15798,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
               */
               m_active_cursor= m_multi_cursor;
 
+              DBUG_ASSERT(pushed_cond==nullptr || ((Item*)pushed_cond)->val_int());
               DBUG_RETURN(0);
             }
 
@@ -15793,6 +15831,7 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
     /*
       Read remaining ranges
     */
+    int res;
     if ((res= multi_range_start_retrievals(first_running_range)))
       DBUG_RETURN(res);
 
@@ -16061,6 +16100,7 @@ ha_ndbcluster::create_pushed_join(const NdbQueryParamValue* keyFieldParams, uint
     DBUG_ASSERT(handler->m_pushed_join_operation==(int)i);
     NdbQueryOperation* const op= query->getQueryOperation(i);
     handler->m_pushed_operation= op;
+    handler->get_read_set(false, handler->active_index);
 
     // Bind to result buffers
     int res= op->setResultRowRef(
@@ -16156,6 +16196,7 @@ Item*
 ha_ndbcluster::cond_push(const Item *cond) 
 { 
   DBUG_ENTER("ha_ndbcluster::cond_push");
+  DBUG_ASSERT(pushed_cond == NULL);
 
   if (cond->used_tables() & ~table->pos_in_table_list->map())
   {
@@ -16169,20 +16210,14 @@ ha_ndbcluster::cond_push(const Item *cond)
     DBUG_RETURN(cond);
   }
 
-  if (m_cond == nullptr)
-  {
-    m_cond= new (std::nothrow) ha_ndbcluster_cond;
-    if (m_cond == nullptr)
-    {
-      // Failed to allocate condition pushdown, return
-      // the full cond in order to indicate that it was not supported
-      // and caller has to evalute each row returned
-      DBUG_RETURN(cond);
-    }
-  }
-
   DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
-  DBUG_RETURN(m_cond->cond_push(cond, table, (NDBTAB *)m_table));
+  const Item* remainder = m_cond.cond_push(cond, table, (NDBTAB *)m_table);
+  if (remainder == nullptr)
+  {
+    // Condition entirely pushed to handler
+    pushed_cond = cond;
+  }
+  DBUG_RETURN(remainder);
 }
 
 /**
@@ -16191,8 +16226,7 @@ ha_ndbcluster::cond_push(const Item *cond)
 void 
 ha_ndbcluster::cond_pop() 
 { 
-  if (m_cond)
-    m_cond->cond_pop();
+  m_cond.cond_pop();
 }
 
 

@@ -968,25 +968,22 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
       str.append(tab->keys().print(buf));
       if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str)) return true;
     } else if (tab->condition_optim()) {
-      const Item *pushed_cond = table->file->pushed_cond;
+      if (fmt->is_hierarchical() && can_print_clauses()) {
+        Lazy_condition *c =
+            new (explain_thd->mem_root) Lazy_condition(tab->condition_optim());
+        if (c == nullptr) return true;
+        fmt->entry()->col_attached_condition.set(c);
+      } else if (push_extra(ET_USING_WHERE))
+        return true;
+    }
 
-      if (explain_thd->optimizer_switch_flag(
-              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-          pushed_cond) {
-        StringBuffer<64> buff(cs);
-        if (can_print_clauses())
-          const_cast<Item *>(pushed_cond)
-              ->print(explain_thd, &buff, cond_print_flags);
-        if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff)) return true;
-      } else {
-        if (fmt->is_hierarchical() && can_print_clauses()) {
-          Lazy_condition *c = new (explain_thd->mem_root)
-              Lazy_condition(tab->condition_optim());
-          if (c == NULL) return true;
-          fmt->entry()->col_attached_condition.set(c);
-        } else if (push_extra(ET_USING_WHERE))
-          return true;
-      }
+    const Item *pushed_cond = table->file->pushed_cond;
+    if (pushed_cond) {
+      StringBuffer<64> buff(cs);
+      if (can_print_clauses())
+        const_cast<Item *>(pushed_cond)
+            ->print(explain_thd, &buff, cond_print_flags);
+      if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
     if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||
          tab->reversed_access()) &&

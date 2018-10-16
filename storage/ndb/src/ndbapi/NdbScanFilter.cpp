@@ -54,7 +54,20 @@ public:
       m_error(),
       m_associated_op(NULL)
   {}
-  
+
+  void reset()
+  {
+    m_label = 0;
+    m_current = {(NdbScanFilter::Group)0, 0, 0, ~0U, ~0U};
+    m_negative = 0;
+    m_stack.clear();
+    m_stack2.clear();
+    m_error.code = 0;
+
+    // Discard any NdbInterpretedCode built so far
+    m_code->reset();
+  }
+
   struct State {
     NdbScanFilter::Group m_group;
     Uint32 m_popCount;
@@ -169,6 +182,12 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op) :
 NdbScanFilter::~NdbScanFilter()
 {
   delete &m_impl;
+}
+
+void
+NdbScanFilter::reset()
+{
+  m_impl.reset();
 }
 
 int

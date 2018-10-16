@@ -4523,7 +4523,7 @@ echo;
 # This will hit the actuall limit of 64K and will be
 # detected by API which will drop this pushed condition.
 #   'Warning 4294 Scan filter is too large, discarded'
-# (Evaluated by mysql instead)
+# (Pushed condition evaluated by ha_ndbcluster handler instead)
 #
 let $query = select * from t1 x, t1 y where y.k1=x.i and x.name in ('foo';
 let $values = 0;

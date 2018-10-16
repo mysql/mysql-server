@@ -46,10 +46,10 @@
 
 NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
                                        Uint32 *buffer, Uint32 buffer_word_size) :
-  m_table_impl(0),
+  m_table_impl(NULL),
   m_buffer(buffer),
   m_buffer_length(buffer_word_size),
-  m_internal_buffer(0),
+  m_internal_buffer(NULL),
   m_number_of_labels(0),
   m_number_of_subs(0),
   m_number_of_calls(0),
@@ -72,7 +72,29 @@ NdbInterpretedCode::~NdbInterpretedCode()
   }
 }
 
-
+void
+NdbInterpretedCode::reset()
+{
+  if (m_internal_buffer != NULL)
+  {
+    if (m_buffer == m_internal_buffer)
+    {
+      m_buffer = NULL;
+      m_buffer_length = 0;
+    }
+    delete [] m_internal_buffer;
+    m_internal_buffer = NULL;
+  }
+  m_number_of_labels = 0;
+  m_number_of_subs = 0;
+  m_number_of_calls = 0;
+  m_last_meta_pos = m_buffer_length;
+  m_instructions_length = 0;
+  m_first_sub_instruction_pos = 0;
+  m_available_length = m_buffer_length;
+  m_flags = 0;
+  m_error.code = 0;
+}
 
 int 
 NdbInterpretedCode::error(Uint32 code)

@@ -331,7 +331,7 @@ explain
 select i,vc from t1
 where i>=1 or vc > '0';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	#	#	Using sort_union(i1,i2); Using where with pushed condition ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	#	#	Using sort_union(i1,i2); Using pushed condition ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`vc` AS `vc` from `test`.`t1` where ((`test`.`t1`.`i` >= 1) or (`test`.`t1`.`vc` > '0'))
 select i,vc from t1
@@ -443,7 +443,7 @@ explain
 select i,vc from t2
 where i>=1 or vc > '0';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	i1,i2	i1,i2	5,67	NULL	#	#	Using sort_union(i1,i2); Using where with pushed condition ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	index_merge	i1,i2	i1,i2	5,67	NULL	#	#	Using sort_union(i1,i2); Using pushed condition ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`i` AS `i`,`test`.`t2`.`vc` AS `vc` from `test`.`t2` where ((`test`.`t2`.`i` >= 1) or (`test`.`t2`.`vc` > '0'))
 select i,vc from t2

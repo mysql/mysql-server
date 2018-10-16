@@ -100,6 +100,12 @@ public:
                      Uint32 buffer_word_size= 0);
 
   ~NdbInterpretedCode();
+
+  /**
+   * Discard any NdbInterpreter program constructed so far
+   * and allow construction to start over again.
+   */
+  void reset();
   
   /* Register constant loads
    * -----------------------

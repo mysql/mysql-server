@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,6 +120,12 @@ public:
    *  ®return  0 if successful, -1 otherwise
    */
   int end();
+
+  /**
+   *  Reset the ScanFilter object, discarding any previous
+   *  filter definition and error state.
+   */
+  void reset();
 
   /** @} *********************************************************************/
 

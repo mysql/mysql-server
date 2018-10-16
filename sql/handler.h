@@ -5012,7 +5012,11 @@ class handler {
     Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
     condition stack.
   */
-  virtual const Item *cond_push(const Item *cond) { return cond; }
+  virtual const Item *cond_push(const Item *cond) {
+    DBUG_ASSERT(pushed_cond == NULL);
+    return cond;
+  }
+
   /**
     Pop the top condition from the condition stack of the handler instance.
 

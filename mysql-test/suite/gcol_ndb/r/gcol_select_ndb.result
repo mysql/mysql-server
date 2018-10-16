@@ -58,7 +58,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c>=-1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`c` >= <cache>(-(1))); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using pushed condition (`test`.`t3`.`c` >= <cache>(-(1))); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(1)))
 # select_type=SIMPLE, type=ref
@@ -95,7 +95,7 @@ a	b	c
 2	-2	-2
 explain select * from t1 where c in (select c from t3 where c between -2 and -1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`t1`.`c` between <cache>(-(2)) and <cache>(-(1))) and (`test`.`t1`.`c` is not null)); Using MRR
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Parent of 2 pushed join@1; Using pushed condition ((`test`.`t1`.`c` between <cache>(-(2)) and <cache>(-(1))) and (`test`.`t1`.`c` is not null)); Using MRR
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	5	test.t1.c	1	100.00	Child of 't1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t3` join `test`.`t1` where ((`test`.`t3`.`c` = `test`.`t1`.`c`) and (`test`.`t1`.`c` between <cache>(-(2)) and <cache>(-(1))))
@@ -177,7 +177,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where c >= -2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`c` >= <cache>(-(2))); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using pushed condition (`test`.`t3`.`c` >= <cache>(-(2))); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` >= <cache>(-(2)))
 # SELECT * FROM tbl_name WHERE <non-gcol expr>
@@ -187,7 +187,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where a between 1 and 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2)
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr>
@@ -207,7 +207,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where c between -2 and -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
 # SELECT * FROM tbl_name WHERE <non-gcol expr> ORDER BY <non-indexed gcol>
@@ -217,7 +217,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`b`
 # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
@@ -228,7 +228,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`c`
 # bug#20022189: WL411:DEBUG ASSERT AT FIELD_LONG::VAL_INT IN SQL/FIELD.CC
@@ -260,7 +260,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where a between 1 and 2 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t3`.`a` between 1 and 2); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`a` between 1 and 2) order by `test`.`t3`.`c`
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <non-gcol>
@@ -280,7 +280,7 @@ a	b	c
 2	-2	-2
 explain select * from t3 where c between -2 and -1 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	index	c	PRIMARY	4	NULL	3	66.67	Using where with pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	index	c	PRIMARY	4	NULL	3	66.67	Using pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1)))
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`a`
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <non-indexed gcol>
@@ -300,7 +300,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c between -2 and -1 order by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR; Using filesort
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`b`
 # SELECT * FROM tbl_name WHERE <non-indexed gcol expr> ORDER BY <indexed gcol>
@@ -320,7 +320,7 @@ a	b	c
 1	-1	-1
 explain select * from t3 where c between -2 and -1 order by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using where with pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	range	c	c	5	NULL	2	100.00	Using pushed condition (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` where (`test`.`t3`.`c` between <cache>(-(2)) and <cache>(-(1))) order by `test`.`t3`.`c`
 # SELECT sum(<non-indexed gcol>) FROM tbl_name GROUP BY <non-indexed gcol>
@@ -638,7 +638,7 @@ FROM t0 AS a0, t0 AS a1, t0 AS a2;
 EXPLAIN SELECT * FROM t1
 WHERE i1 > 41 AND i1 <= 43;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	idx	idx	4	NULL	50	100.00	Using where with pushed condition ((`test`.`t1`.`i1` > 41) and (`test`.`t1`.`i1` <= 43)); Using MRR
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	idx	idx	4	NULL	50	100.00	Using pushed condition ((`test`.`t1`.`i1` > 41) and (`test`.`t1`.`i1` <= 43)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t1`.`v1` AS `v1`,`test`.`t1`.`v2` AS `v2` from `test`.`t1` where ((`test`.`t1`.`i1` > 41) and (`test`.`t1`.`i1` <= 43))
 SELECT * FROM t1
@@ -750,7 +750,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where with pushed condition (`test`.`t4`.`c1` < 'o')
+2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (`test`.`t4`.`c1` < 'o')
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
@@ -808,7 +808,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where with pushed condition (`test`.`t4`.`c1` < 'o')
+2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (`test`.`t4`.`c1` < 'o')
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
@@ -867,7 +867,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	9	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where with pushed condition (`test`.`t4`.`c1` < 'o')
+2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (`test`.`t4`.`c1` < 'o')
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
@@ -934,7 +934,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	29	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
-2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where with pushed condition (`test`.`t4`.`c1` < 'o')
+2	SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition (`test`.`t4`.`c1` < 'o')
 Warnings:
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
@@ -993,7 +993,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	29	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where with pushed condition (`test`.`t4`.`c1` < 'o')
+2	DEPENDENT SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using pushed condition (`test`.`t4`.`c1` < 'o')
 Warnings:
 Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access

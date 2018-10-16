@@ -169,7 +169,7 @@ FROM v AS table1
 WHERE table1.col_int_key IN (SELECT col_int_key AS field2 FROM i as table1s)
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using where with pushed condition (`test`.`table1`.`col_int_key` is not null)
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	col_int_key	NULL	NULL	NULL	15	100.00	Using pushed condition (`test`.`table1`.`col_int_key` is not null)
 1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	col_int_key	col_int_key	5	test.table1.col_int_key	1	100.00	Start temporary; End temporary
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`col_int_key` AS `col_int_key` from `test`.`v` `table1` semi join (`test`.`i` `table1s`) where (`test`.`table1s`.`col_int_key` = `test`.`table1`.`col_int_key`)
