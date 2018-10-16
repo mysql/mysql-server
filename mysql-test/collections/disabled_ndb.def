@@ -26,7 +26,6 @@ ndb_binlog.ndb_binlog_restore : Need WL#9185 MySQL Cluster support for new DD.
 ndb_ddl.alter_open_trans: Need WL#10164 Schema dist prepare phase
 
 # ndb_rpl suite tests
-ndb_rpl.ndb_rpl_basic                      : BUG#28249095 NDB_RPL_BASIC FAILS
 ndb_rpl.ndb_dist_priv_ndb                  : BUG#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
 ndb_rpl.ndb_rpl_conflict_load_epoch_trans  : Not designed for determinism
