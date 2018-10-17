@@ -1270,6 +1270,11 @@ row_ins_foreign_check_on_constraint(
 						 clust_index, tmp_heap);
 	}
 
+	if (cascade->is_delete && foreign->v_cols != NULL
+	    && foreign->v_cols->size() > 0
+	    && table->vc_templ == NULL) {
+		innobase_init_vc_templ(table);
+	}
 	if (node->is_delete
 	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
