@@ -172,8 +172,9 @@ static bool do_start_process(atrt_config& config, SqlResultSet& command,
     return false;
   }
   proc.m_atrt_stopped = false;
+
   g_logger.info("starting process - %s", proc.m_name.c_str());
-  bool status = start_process(proc) == true;
+  bool status = start_process(proc, false);
   return status;
 }
 
