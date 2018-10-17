@@ -101,10 +101,10 @@ CPCD::defineProcess(RequestStatus * rs, Process * arg){
   }
   
   m_processes.push_back(arg, false);
+  logger.debug("Process %s:%s:%d defined",
+                arg->m_group.c_str(), arg->m_name.c_str(), arg->m_id);
 
   notifyChanges();
-  logger.debug("Process %s with pid %d defined", arg->m_name.c_str(), arg->readPid());
-
   return true;
 }
 
@@ -134,6 +134,8 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   }
 
   proc->m_remove_on_stopped = true;
+  logger.debug("Process %s:%s:%d undefined",
+                proc->m_group.c_str(), proc->m_name.c_str(), proc->m_id);
 
   switch (proc->m_status)
   {
@@ -147,8 +149,6 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
-  logger.debug("Process %s with pid %d undefined", proc->m_name.c_str(), proc->readPid());
-
   return true;
 }
 
@@ -181,6 +181,9 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     switch(proc->m_status){
     case STOPPED:
       proc->m_status = STARTING;
+      logger.debug("Process %s:%s:%d with pid %d starting",
+                    proc->m_group.c_str(), proc->m_name.c_str(),
+                    proc->m_id, proc->getPid());
       if(proc->start() != 0){
 	rs->err(Error, "Failed to start");
 	return false;
@@ -198,7 +201,6 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
     }
     
     notifyChanges();
-    logger.debug("Process %s with pid %d started", proc->m_name.c_str(), proc->readPid());
   }
 
   return true;
@@ -225,6 +227,9 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   switch(proc->m_status){
   case STARTING:
   case RUNNING:
+    logger.debug("Process %s:%s:%d with pid %d STOPPING",
+                  proc->m_group.c_str(), proc->m_name.c_str(),
+                  proc->m_id, proc->getPid());
     proc->stop();
     break;
   case STOPPED:
@@ -237,7 +242,6 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   }
   
   notifyChanges();
-  logger.debug("Process %s with pid %d stopped", proc->m_name.c_str(), proc->readPid());
 
   return true;
 }
@@ -398,6 +402,9 @@ CPCD::loadProcessList(){
   for(i = 0; i<m_processes.size(); i++){
     Process * proc = m_processes[i];
     proc->readPid();
+    logger.debug("Loading Process %s:%s:%d with pid %d ",
+                  proc->m_group.c_str(), proc->m_name.c_str(),
+                  proc->m_id, proc->getPid());
     if(proc->m_processType == TEMPORARY){
       temporary.push_back(proc->m_id);
     }
