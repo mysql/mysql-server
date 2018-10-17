@@ -120,7 +120,6 @@ call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' du
 --enable_query_log
 --connection slave
 --let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
---let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --connection slave

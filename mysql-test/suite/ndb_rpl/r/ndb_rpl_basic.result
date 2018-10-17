@@ -86,7 +86,6 @@ nid	nom	prenom
 4	CCP	DDD
 5	EEE	FFF
 include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
-Last_SQL_Error = 'Could not execute Update_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.000001, end_log_pos 5192'
 select * from t1 order by nid;
 nid	nom	prenom
 1	XYZ1	ABC1
