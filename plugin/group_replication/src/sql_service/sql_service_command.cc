@@ -658,10 +658,11 @@ end:
   m_server_interface = NULL;
 
   mysql_mutex_lock(&m_run_lock);
+  auto ret = m_session_thread_error;
   m_session_thread_state.set_terminated();
   mysql_mutex_unlock(&m_run_lock);
 
-  DBUG_RETURN(m_session_thread_error);
+  DBUG_RETURN(ret);
 }
 
 Sql_service_interface *Session_plugin_thread::get_service_interface() {
