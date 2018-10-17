@@ -129,18 +129,6 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     DBUG_RETURN(4);
   }
 
-  bool is_a_member_in_recovery = group_contains_recovering_member();
-  if (is_a_member_in_recovery) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
-    DBUG_RETURN(5);
-  }
-
-  bool is_a_member_unreachable = group_contains_unreachable_member();
-  if (is_a_member_unreachable) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
-    DBUG_RETURN(6);
-  }
-
   const char *uuid = args->args[0];
   // We can do this test here for dynamic values (e.g.: SQL query values)
   if (uuid != nullptr) {
@@ -148,7 +136,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
     if (uuid) length = strlen(uuid);
     if (!binary_log::Uuid::is_valid(uuid, length)) {
       my_stpcpy(message, "Wrong arguments: The server uuid is not valid.");
-      DBUG_RETURN(7);
+      DBUG_RETURN(5);
     }
 
     if (group_member_mgr) {
@@ -158,7 +146,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
         const char *return_message =
             "The requested uuid is not a member of the group.";
         strcpy(message, return_message);
-        DBUG_RETURN(8);
+        DBUG_RETURN(6);
       } else {
         delete member_info;
       }
@@ -170,7 +158,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
         "In multi-primary mode."
         " Use group_replication_switch_to_single_primary_mode.";
     strcpy(message, return_message);
-    DBUG_RETURN(9);
+    DBUG_RETURN(7);
   }
 
   init_id->maybe_null = 0;
@@ -289,25 +277,13 @@ static bool group_replication_switch_to_single_primary_mode_init(
     DBUG_RETURN(4);
   }
 
-  bool is_a_member_in_recovery = group_contains_recovering_member();
-  if (is_a_member_in_recovery) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, recovering_member_on_group_str);
-    DBUG_RETURN(5);
-  }
-
-  bool is_a_member_unreachable = group_contains_unreachable_member();
-  if (is_a_member_unreachable) {
-    std::snprintf(message, MYSQL_ERRMSG_SIZE, unreachable_member_on_group_str);
-    DBUG_RETURN(6);
-  }
-
   // We can do this test here for dynamic values (e.g.: SQL query values)
   if (args->arg_count == 1 && args->args[0] != nullptr) {
     const char *uuid = args->args[0];
     size_t length = strlen(uuid);
     if (length == 0 || !binary_log::Uuid::is_valid(uuid, length)) {
       my_stpcpy(message, "Wrong arguments: The server uuid is not valid.");
-      DBUG_RETURN(7);
+      DBUG_RETURN(5);
     }
 
     if (group_member_mgr) {
@@ -317,7 +293,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
         const char *return_message =
             "The requested uuid is not a member of the group.";
         strcpy(message, return_message);
-        DBUG_RETURN(8);
+        DBUG_RETURN(6);
       } else {
         delete member_info;
       }

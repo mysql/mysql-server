@@ -28,10 +28,6 @@
 
 const char *const member_offline_or_minority_str =
     "Member must be ONLINE and in the majority partition.";
-const char *const unreachable_member_on_group_str =
-    "All members in the group must be reachable.";
-const char *const recovering_member_on_group_str =
-    "A member is joining the group, wait for it to be ONLINE.";
 
 /**
  * Result data type for user_has_gr_admin_privilege.
@@ -108,22 +104,6 @@ void log_privilege_status_result(privilege_result const &privilege,
  * @retval false otherwise
  */
 bool member_online_with_majority();
-
-/**
- * Checks if an unreachable member exists in the group
- *
- * @retval true if an unreachable member exists
- * @retval false otherwise
- */
-bool group_contains_unreachable_member();
-
-/**
- * Checks if a member in recovery exists in the group
- *
- * @retval true if a recovering member exists
- * @retval false otherwise
- */
-bool group_contains_recovering_member();
 
 /**
  * Logs the group action @c action_name result from @c result_area into
