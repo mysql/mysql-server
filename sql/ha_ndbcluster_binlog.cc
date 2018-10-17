@@ -3216,28 +3216,55 @@ class Ndb_schema_event_handler {
       return sql_strmake(varbinary_start, varbinary_length);
     }
 
+    /*
+       Unpack blob field and return pointer to zero terminated string allocated
+       in current MEM_ROOT.
+
+       This function assumes that the blob has already been fetched from NDB
+       and is ready to be extracted from buffers allocated inside NdbApi.
+
+       @param ndb_blob The blob column to unpack
+       @return pointer to string allocated in current MEM_ROOT
+    */
+    static char *unpack_blob(NdbBlob *ndb_blob) {
+      // Check if blob is NULL
+      int blob_is_null;
+      ndbcluster::ndbrequire(ndb_blob->getNull(blob_is_null) == 0);
+      if (blob_is_null != 0) {
+        // The blob column didn't contain anything, return empty string
+        return sql_strdup("");
+      }
+
+      // Read length of blob
+      Uint64 blob_len;
+      ndbcluster::ndbrequire(ndb_blob->getLength(blob_len) == 0);
+      if (blob_len == 0) {
+        // The blob column didn't contain anything, return empty string
+        return sql_strdup("");
+      }
+
+      // Allocate space for blob plus + zero terminator in current MEM_ROOT
+      char *str = static_cast<char *>(sql_alloc(blob_len + 1));
+      ndbcluster::ndbrequire(str);
+
+      // Read the blob content
+      Uint32 read_len = static_cast<Uint32>(blob_len);
+      ndbcluster::ndbrequire(ndb_blob->readData(str, read_len) == 0);
+      ndbcluster::ndbrequire(blob_len == read_len);  // Assume all read
+      str[blob_len] = 0; // Zero terminate
+
+      DBUG_PRINT("unpack_blob", ("str: '%s'", str));
+      return str;
+    }
+
+
     // Unpack Ndb_schema_op from event_data pointer
     void unpack_event(const Ndb_event_data *event_data)
     {
       TABLE *table= event_data->shadow_table;
       Field **field = table->field;
 
-      /* unpack blob values */
-      uchar* blobs_buffer= 0;
-      uint blobs_buffer_size= 0;
       my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-      {
-        ptrdiff_t ptrdiff= 0;
-        int ret= get_ndb_blobs_value(table, event_data->ndb_value[0],
-                                     blobs_buffer, blobs_buffer_size,
-                                     ptrdiff);
-        if (ret != 0)
-        {
-          my_free(blobs_buffer);
-          DBUG_PRINT("info", ("blob read error"));
-          DBUG_ASSERT(false);
-        }
-      }
 
       /* db, varbinary */
       db = unpack_varbinary(*field);
@@ -3251,19 +3278,13 @@ class Ndb_schema_event_handler {
       slock_length= (*field)->field_length;
       DBUG_ASSERT((*field)->field_length == sizeof(slock_buf));
       memcpy(slock_buf, (*field)->ptr, slock_length);
-      /* query blob */
       field++;
-      {
-        Field_blob *field_blob= (Field_blob*)(*field);
-        uint blob_len= field_blob->get_length((*field)->ptr);
-        uchar *blob_ptr= 0;
-        field_blob->get_ptr(&blob_ptr);
-        DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
-        query_length= blob_len;
-        query= sql_strmake((char*) blob_ptr, blob_len);
-      }
+
+      /* query, blob */
+      query = unpack_blob(event_data->ndb_value[0][SCHEMA_QUERY_I].blob);
+      field++;
+
       /* node_id */
-      field++;
       node_id= (Uint32)((Field_long *)*field)->val_int();
       /* epoch */
       field++;
@@ -3277,8 +3298,7 @@ class Ndb_schema_event_handler {
       /* type */
       field++;
       type= (Uint32)((Field_long *)*field)->val_int();
-      /* free blobs buffer */
-      my_free(blobs_buffer);
+
       dbug_tmp_restore_column_map(table->read_set, old_map);
     }
 
@@ -3292,8 +3312,11 @@ class Ndb_schema_event_handler {
     uchar slock_length;
     uint32 slock_buf[SCHEMA_SLOCK_SIZE/4];
     MY_BITMAP slock;
-    unsigned short query_length;
     char *query;
+    size_t query_length() const {
+      // Return length of "query" which is always zero terminated string
+      return strlen(query);
+    }
     Uint64 epoch;
     uint32 node_id;
     uint32 id;
@@ -3417,7 +3440,7 @@ class Ndb_schema_event_handler {
 
     int errcode = query_error_code(thd, thd->killed == THD::NOT_KILLED);
     thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      schema->query, schema->query_length,
+                      schema->query, schema->query_length(),
                       false, // is_trans
                       true, // direct
                       schema->name[0] == 0 || thd->db().str[0] == 0,
@@ -4512,7 +4535,7 @@ class Ndb_schema_event_handler {
     // already been removed from the DD
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
+              schema->query + schema->query_length(),
               no_print_error);
 
     DBUG_VOID_RETURN;
@@ -4623,7 +4646,7 @@ class Ndb_schema_event_handler {
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
+              schema->query + schema->query_length(),
               no_print_error);
 
     DBUG_VOID_RETURN;
@@ -4647,7 +4670,7 @@ class Ndb_schema_event_handler {
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
-              schema->query + schema->query_length,
+              schema->query + schema->query_length(),
               no_print_error);
 
     DBUG_VOID_RETURN;
