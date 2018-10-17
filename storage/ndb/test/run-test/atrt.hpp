@@ -177,7 +177,7 @@ bool setup_hosts(atrt_config&);
 
 bool do_command(atrt_config& config);
 
-bool start_process(atrt_process& proc);
+bool start_process(atrt_process& proc, bool run_setup = true);
 bool stop_process(atrt_process& proc);
 
 bool connect_mysqld(atrt_process& proc);
