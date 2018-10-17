@@ -684,34 +684,15 @@ class Group_member_info_manager_interface {
   */
   virtual Group_member_info *get_primary_member_info() = 0;
 
-  /**
-    Check if majority of the group is unreachable
+  /**¬
+  Check if majority of the group is unreachable
 
-    This approach is optimistic, right after return the majority can be
-    reestablish or go away.
+  This approach is optimistic, right after return the majority can be
+  reestablish or go away.
 
-    @return true if majority of the group is unreachable
+  @return true if majority of the group is unreachable
   */
   virtual bool is_majority_unreachable() = 0;
-
-  /**
-    Check if an unreachable member exists
-
-    This approach is optimistic, right after return a member can be marked as
-    rechable/unreachable
-
-    @return true if an unreachable member exists
-  */
-  virtual bool is_unreachable_member_present() = 0;
-
-  /**
-    Check if a member in recovery exists in the group
-
-    This approach is optimistic, right after return a member can enter the group
-
-    @return true if a member in recovery exists
-  */
-  virtual bool is_recovering_member_present() = 0;
 
   /**
     This method returns all ONLINE and RECOVERING members comma separated
@@ -787,10 +768,6 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Group_member_info *get_primary_member_info();
 
   bool is_majority_unreachable();
-
-  bool is_unreachable_member_present();
-
-  bool is_recovering_member_present();
 
   std::string get_string_current_view_active_hosts() const;
 

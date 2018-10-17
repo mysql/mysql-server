@@ -113,26 +113,6 @@ bool member_online_with_majority() {
   return true;
 }
 
-bool group_contains_unreachable_member() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
-  if (group_member_mgr) {
-    if (group_member_mgr->is_unreachable_member_present()) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool group_contains_recovering_member() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
-  if (group_member_mgr) {
-    if (group_member_mgr->is_recovering_member_present()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void log_group_action_result_message(Group_action_diagnostics *result_area,
                                      const char *action_name,
                                      char *result_message,
