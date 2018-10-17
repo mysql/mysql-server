@@ -10236,10 +10236,6 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   close_all_tables_for_name(thd, table_list->table->s, false, nullptr);
   table_list->table = nullptr;
 
-  // Write SECONDARY_LOAD/SECONDARY_UNLOAD statement to binlog.
-  if (write_bin_log(thd, false, thd->query().str, thd->query().length, true))
-    return true;
-
   // Commit transaction if no errors.
   if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) return true;
 
