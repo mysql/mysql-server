@@ -1127,6 +1127,10 @@ static NO_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (table->fts) {
     doc_id = fts_get_doc_id_from_rec(table, clust_rec, clust_index, tmp_heap);
   }
+  if (cascade->is_delete && foreign->v_cols != NULL &&
+      foreign->v_cols->size() > 0 && table->vc_templ == NULL) {
+    innobase_init_vc_templ(table);
+  }
 
   if (node->is_delete ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
                       : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
