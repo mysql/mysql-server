@@ -16168,7 +16168,7 @@ static bool innobase_get_tablespace_statistics(
 
       ib::info(ER_IB_MSG_570)
           << "Tablespace '" << tablespace_name << "'"
-          << " DD filename '" << name << "' doesn't "
+          << " DD filename '" << name << "' doesn't"
           << " match the InnoDB filename '" << f.name << "'";
     }
   }

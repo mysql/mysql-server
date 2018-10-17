@@ -778,16 +778,25 @@ void Tablespace::set_file_name(const char *file_name) {
   size_t size_sep =
       srv_undo_dir[size_undo_dir - 1] == OS_PATH_SEPARATOR ? 0 : 1;
 
-  bool is_absolute =
-      (file_name[0] == OS_PATH_SEPARATOR || strchr(file_name, ':') != nullptr);
+  /* Make a copy of the filename and normalize it. */
+  char fn[FN_REFLEN];
+  strncpy(fn, file_name, FN_REFLEN - 1);
+  Fil_path::normalize(fn);
 
-  if (is_absolute || 0 == strncmp(file_name, srv_undo_dir, size_undo_dir)) {
-    /* No need to attach this relative filename to srv_undo_dir. */
+  /** This name can come in three forms:
+  absolute path, relative path, and basename.
+  ADD DATAFILE for undo tablespaces does not accept a relative path.
+  If a relative path comes in here, it was the scanned name and is
+  relative to the datadir.
+  So only prepend the srv_undo_dir if this is just a basename. */
+  char *sep = strchr(fn, OS_PATH_SEPARATOR);
+  char *col = strchr(fn, ':');
+  if (sep != nullptr || col != nullptr) {
     size_undo_dir = size_sep = 0;
   }
 
-  size_t size_file_name = strlen(file_name);
-  size_t size = size_file_name + 1 + size_undo_dir + size_sep;
+  size_t file_name_size = strlen(fn);
+  size_t size = file_name_size + 1 + size_undo_dir + size_sep;
   m_file_name = static_cast<char *>(ut_malloc_nokey(size));
 
   char *ptr = m_file_name;
@@ -799,8 +808,8 @@ void Tablespace::set_file_name(const char *file_name) {
     ptr[0] = OS_PATH_SEPARATOR;
     ptr++;
   }
-  memcpy(ptr, file_name, size_file_name);
-  ptr += size_file_name;
+  memcpy(ptr, fn, file_name_size);
+  ptr += file_name_size;
   ptr[0] = '\0';
 }
 
