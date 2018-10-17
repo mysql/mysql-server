@@ -4562,7 +4562,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
 
   @note Currently, this function is only used in DBUG_ASSERT
   statements and therefore not included in optimized builds.
-*/
+ */
 #ifndef DBUG_OFF
 bool is_fixed_or_outer_ref(const Item *ref) {
   /*
@@ -8141,14 +8141,16 @@ void Item_trigger_field::cleanup() {
 }
 
 Item_result item_cmp_type(Item_result a, Item_result b) {
-  if (a == STRING_RESULT && b == STRING_RESULT) return STRING_RESULT;
-  if (a == INT_RESULT && b == INT_RESULT)
-    return INT_RESULT;
-  else if (a == ROW_RESULT || b == ROW_RESULT)
+  if (a == b) {
+    DBUG_ASSERT(a != INVALID_RESULT);
+    return a;
+  } else if (a == ROW_RESULT || b == ROW_RESULT) {
     return ROW_RESULT;
+  }
   if ((a == INT_RESULT || a == DECIMAL_RESULT) &&
-      (b == INT_RESULT || b == DECIMAL_RESULT))
+      (b == INT_RESULT || b == DECIMAL_RESULT)) {
     return DECIMAL_RESULT;
+  }
   return REAL_RESULT;
 }
 
