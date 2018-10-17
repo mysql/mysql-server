@@ -947,6 +947,40 @@ bool Group_member_info_manager::is_majority_unreachable() {
   return ret;
 }
 
+bool Group_member_info_manager::is_unreachable_member_present() {
+  bool ret = false;
+
+  mysql_mutex_lock(&update_lock);
+  map<string, Group_member_info *>::iterator it = members->begin();
+
+  for (it = members->begin(); it != members->end() && !ret; it++) {
+    Group_member_info *info = (*it).second;
+    if (info->is_unreachable()) {
+      ret = true;
+    }
+  }
+  mysql_mutex_unlock(&update_lock);
+
+  return ret;
+}
+
+bool Group_member_info_manager::is_recovering_member_present() {
+  bool ret = false;
+
+  mysql_mutex_lock(&update_lock);
+  map<string, Group_member_info *>::iterator it = members->begin();
+
+  for (it = members->begin(); it != members->end() && !ret; it++) {
+    Group_member_info *info = (*it).second;
+    if (info->get_recovery_status() == Group_member_info::MEMBER_IN_RECOVERY) {
+      ret = true;
+    }
+  }
+  mysql_mutex_unlock(&update_lock);
+
+  return ret;
+}
+
 std::string Group_member_info_manager::get_string_current_view_active_hosts()
     const {
   std::stringstream hosts_string;
