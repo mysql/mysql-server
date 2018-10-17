@@ -147,6 +147,10 @@ class CPCD {
      */
     int readPid();
 
+    /** @brief Returns operating system process identifier */
+
+    int getPid();
+
     /**
      *  @brief Writes the pid from stable storage
      *
@@ -254,6 +258,9 @@ class CPCD {
 
     /** @brief Status of the process */
     enum ProcessStatus m_status;
+
+    /** @brief Status of the process before it's status is logged */
+    enum ProcessStatus m_previous_monitored_status;
 
     /** @bried Indicator that process should be removed when STOPPED */
     bool m_remove_on_stopped;

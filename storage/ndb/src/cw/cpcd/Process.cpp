@@ -113,6 +113,25 @@ CPCD::Process::Process(const Properties &props, class CPCD *cpcd) {
   m_cpcd = cpcd;
 }
 
+const char *getProcessStatusName(ProcessStatus status)
+{
+  switch(status)
+  {
+    case STOPPED:
+      return "Stopped";
+
+    case STOPPING:
+      return "Stopping";
+
+    case STARTING:
+      return "Starting";
+
+    case RUNNING:
+      return "Running";
+  }
+  return nullptr;
+}
+
 bool CPCD::Process::should_be_erased() const
 {
   return (m_status == STOPPED) && m_remove_on_stopped;
@@ -120,50 +139,53 @@ bool CPCD::Process::should_be_erased() const
 
 void CPCD::Process::monitor()
 {
+  if (m_status != m_previous_monitored_status) {
+    logger.debug("Monitor: Process %s:%s:%d with pid %d is %s", m_group.c_str(),
+                  m_name.c_str(), m_id, m_pid, getProcessStatusName(m_status));
+    m_previous_monitored_status = m_status;
+  }
+
   switch (m_status)
   {
     case STOPPED:
-      logger.debug("Monitor : Process %s with pid %d is STOPPED", m_name.c_str(), m_pid);
-      break;
-
     case STARTING:
-      logger.debug("Monitor : Process %s with pid %d is STARTING", m_name.c_str(), m_pid);
       break;
 
     case RUNNING:
-      if (isRunning())
+      if (!isRunning())
       {
-        logger.debug("Monitor : Process %s with pid %d is RUNNING", m_name.c_str(), m_pid);
-        break;
-      }
+        logger.debug("Monitor : Process %s:%s:%d with pid %d no longer running",
+                      m_group.c_str(), m_name.c_str(), m_id, m_pid);
+        switch (m_processType)
+        {
+        case TEMPORARY:
+          logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
+                        m_group.c_str(), m_name.c_str(), m_id, m_pid);
+          m_status = STOPPED;
+          removePid();
+          m_pid = bad_pid;
+          break;
 
-      switch (m_processType)
-      {
-      case TEMPORARY:
-        m_pid = bad_pid;
-        m_status = STOPPED;
-        logger.debug("Monitor : Process %s with pid %d is STOPPED", m_name.c_str(), m_pid);
-        removePid();
-        break;
-
-      case PERMANENT:
-        start();
-        logger.debug("Monitor : Process %s with pid %d is STARTING", m_name.c_str(), m_pid);
-        break;
+        case PERMANENT:
+          logger.debug("Monitor : Process %s:%s:%d with previous pid %d is STARTING",
+                        m_group.c_str(), m_name.c_str(), m_id, m_pid);
+          start();
+          break;
+        }
       }
       break;
 
     case STOPPING:
       if (!isRunning())
       {
-        m_pid = bad_pid;
+        logger.debug("Monitor : Process %s:%s:%d with pid %d is STOPPED",
+                      m_group.c_str(), m_name.c_str(), m_id, m_pid);
         m_status = STOPPED;
-        logger.debug("Monitor : Process %s with pid %d is STOPPED", m_name.c_str(), m_pid);
         removePid();
+        m_pid = bad_pid;
       }
       else if (time(NULL) > m_stopping_time + m_stop_timeout)
       {
-        logger.debug("Monitor : Process %s with pid %d is KILLED through SIGKILL", m_name.c_str(), m_pid);
         do_shutdown(true /* force sigkill */);
       }
       break;
@@ -221,9 +243,12 @@ bool CPCD::Process::isRunning() {
   return true;
 }
 
+int CPCD::Process::getPid() {
+  return is_bad_pid(m_pid) ? bad_pid : m_pid;
+}
+
 int CPCD::Process::readPid() {
   if (!is_bad_pid(m_pid)) {
-    logger.warning("Reading pid while having valid process (%d)", m_pid);
     return m_pid;
   }
 
@@ -305,7 +330,8 @@ void CPCD::Process::removePid()
   char filename[PATH_MAX * 2 + 1];
   BaseString::snprintf(filename, sizeof(filename), "%d", m_id);
   unlink(filename);
-  logger.debug("Process %s with pid %d removed", m_name.c_str(), m_id);
+  logger.debug("Process %s:%s:%d with pid %d removed",
+                m_group.c_str(), m_name.c_str(), m_id, m_pid);
 }
 
 static void setup_environment(const char *env) {
@@ -628,8 +654,8 @@ int CPCD::Process::start() {
                   m_id,
                   m_pid);
       m_status = STOPPED;
-      m_pid = bad_pid;
       removePid();
+      m_pid = bad_pid;
     }
   }
 
@@ -772,7 +798,8 @@ int CPCD::Process::start() {
   if (isRunning())
   {
     m_status = RUNNING;
-    logger.debug("Process %s with pid %d STARTING", m_name.c_str(), pid);
+    logger.debug("Process %s:%s:%d with pid %d RUNNING",
+                  m_group.c_str(), m_name.c_str(), m_id, pid);
     return 0;
   }
   m_status = STOPPED;
@@ -792,7 +819,6 @@ void CPCD::Process::stop()
   {
     time(&m_stopping_time);
     do_shutdown();
-    logger.debug("Process %s with pid %d STOPPING", m_name.c_str(), m_pid);
   }
 }
 
