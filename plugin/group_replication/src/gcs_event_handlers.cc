@@ -159,11 +159,16 @@ bool Plugin_gcs_events_handler::pre_process_message(
 
 void Plugin_gcs_events_handler::handle_transactional_message(
     const Gcs_message &message) const {
-  if ((local_member_info->get_recovery_status() ==
-           Group_member_info::MEMBER_IN_RECOVERY ||
-       local_member_info->get_recovery_status() ==
-           Group_member_info::MEMBER_ONLINE) &&
+  const Group_member_info::Group_member_status member_status =
+      local_member_info->get_recovery_status();
+  if ((member_status == Group_member_info::MEMBER_IN_RECOVERY ||
+       member_status == Group_member_info::MEMBER_ONLINE) &&
       this->applier_module) {
+    if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_delivered_during_recovery();
+    }
+
     const unsigned char *payload_data = NULL;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(
@@ -180,11 +185,16 @@ void Plugin_gcs_events_handler::handle_transactional_message(
 
 void Plugin_gcs_events_handler::handle_transactional_with_guarantee_message(
     const Gcs_message &message) const {
-  if ((local_member_info->get_recovery_status() ==
-           Group_member_info::MEMBER_IN_RECOVERY ||
-       local_member_info->get_recovery_status() ==
-           Group_member_info::MEMBER_ONLINE) &&
+  const Group_member_info::Group_member_status member_status =
+      local_member_info->get_recovery_status();
+  if ((member_status == Group_member_info::MEMBER_IN_RECOVERY ||
+       member_status == Group_member_info::MEMBER_ONLINE) &&
       this->applier_module) {
+    if (member_status == Group_member_info::MEMBER_IN_RECOVERY) {
+      applier_module->get_pipeline_stats_member_collector()
+          ->increment_transactions_delivered_during_recovery();
+    }
+
     const unsigned char *payload_data = NULL;
     size_t payload_size = 0;
     Plugin_gcs_message::get_first_payload_item_raw_data(

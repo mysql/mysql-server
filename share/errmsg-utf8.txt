@@ -18734,6 +18734,9 @@ ER_WARN_PROPERTY_STRING_PARSE_FAILED
 ER_INVALID_PROPERTY_KEY
   eng "Property key '%s' is invalid."
 
+ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY
+  eng "Error when extracting the group_replication_applier channel received transactions set. Unable to ensure the execution of group transactions received during recovery."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
