@@ -46,15 +46,11 @@ let $query =
 
 set ndb_join_pushdown = false;
 --replace_column 10 # 11 #
-#Use replace_regex as a hack for Bug#26484136, until it gets fixed
---replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 eval $query;
 
 set ndb_join_pushdown = true;
 --replace_column 10 # 11 #
-#Use replace_regex as a hack for Bug#26484136, until it gets fixed
---replace_regex /(\(`test`.`parent`.`b` is not null\))( and \(`test`.`parent`.`b` is not null\))+/\1/
 eval explain $query;
 eval $query;
 
