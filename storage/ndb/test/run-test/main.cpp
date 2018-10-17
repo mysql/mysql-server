@@ -1029,22 +1029,24 @@ bool wait_ndb(atrt_config &config, int goal) {
   return cnt == config.m_clusters.size();
 }
 
-bool start_process(atrt_process &proc) {
+bool start_process(atrt_process &proc, bool run_setup) {
   if (proc.m_proc.m_id != -1) {
     g_logger.critical("starting already started process: %u",
                       (unsigned)proc.m_index);
     return false;
   }
 
-  BaseString tmp = g_setup_progname;
-  tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
-             proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
+  if (run_setup) {
+    BaseString tmp = g_setup_progname;
+    tmp.appfmt(" %s %s/ %s", proc.m_host->m_hostname.c_str(),
+               proc.m_proc.m_cwd.c_str(), proc.m_proc.m_cwd.c_str());
 
-  g_logger.debug("system(%s)", tmp.c_str());
-  const int r1 = sh(tmp.c_str());
-  if (r1 != 0) {
-    g_logger.critical("Failed to setup process");
-    return false;
+    g_logger.debug("system(%s)", tmp.c_str());
+    const int r1 = sh(tmp.c_str());
+    if (r1 != 0) {
+      g_logger.critical("Failed to setup process");
+      return false;
+    }
   }
 
   /**
