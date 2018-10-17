@@ -511,7 +511,7 @@ int Primary_election_action::after_view_change(
 
     Note 1: We pass election params instead of invoking them because of the hook
     mechanism that is invoking this method and is also used in the invoked
-    methods.
+    election methods.
   */
   if (current_action_phase == PRIMARY_ELECTION_PHASE) {
     Group_member_info *member_info =
@@ -548,13 +548,11 @@ int Primary_election_action::after_view_change(
           There was a failure when moving from multi master
           Question is: what is the state of the other members, are the members
           already on read mode, or are they still executing transactions?
-          For that reason, we skip the election invoked on the view change and
-          request a new election here with the original parameters.
+          For that reason, we request a new election here with the original
+          parameters.
 
           Note: since several primary members can fail in sequence, the same
-          logic applies over and over. For that reason we don't check
-          is_appointed_primary_leaving but instead we see if the group contains
-          a primary member, if not we request a new election.
+          logic applies over and over.
         */
         execution_message_area.set_warning_message(
             "The appointed primary being elected exited the group. "
