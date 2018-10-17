@@ -1,5 +1,4 @@
-# Copyright (C) 2003, 2005 MySQL AB
-# Use is subject to license terms
+# Copyright (C) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -358,8 +357,6 @@ EXCLUDE                = test \
                          config \
                          bin \
                          include/ndbapi \
-                         include/newtonapi \
-                         src/newtonapi \
                          include/mgmapi \
                          src/mgmapi \
                          src/client
