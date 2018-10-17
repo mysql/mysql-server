@@ -16289,6 +16289,7 @@ ha_ndbcluster::cond_push_boolean_term(const Item *term,
     remainder.push_back((Item*)term);
   else
     pushed.push_back((Item*)term);
+  DBUG_VOID_RETURN;
 }
 
 
