@@ -4317,7 +4317,7 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt) {
 }
 
 // Function identifies any old data type present in table.
-int check_table_for_old_types(const TABLE *table) {
+int check_table_for_old_types(const TABLE *table, bool check_temporal_upgrade) {
   Field **field;
 
   for (field = table->field; (*field); field++) {
@@ -4345,11 +4345,6 @@ int check_table_for_old_types(const TABLE *table) {
 
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER;  // obsolete YEAR(2) type
-
-    // Check for old temporal format if avoid_temporal_upgrade is disabled.
-    mysql_mutex_lock(&LOCK_global_system_variables);
-    bool check_temporal_upgrade = !avoid_temporal_upgrade;
-    mysql_mutex_unlock(&LOCK_global_system_variables);
 
     if (check_temporal_upgrade) {
       if (((*field)->real_type() == MYSQL_TYPE_TIME) ||
@@ -4474,7 +4469,13 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt) {
     return 0;
 
   if (table->s->mysql_version < MYSQL_VERSION_ID) {
-    if ((error = check_table_for_old_types(table))) return error;
+    // Check for old temporal format if avoid_temporal_upgrade is disabled.
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    const bool check_temporal_upgrade = !avoid_temporal_upgrade;
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+
+    if ((error = check_table_for_old_types(table, check_temporal_upgrade)))
+      return error;
     error = ha_check_for_upgrade(check_opt);
     if (error && (error != HA_ADMIN_NEEDS_CHECK)) return error;
     if (!error && (check_opt->sql_flags & TT_FOR_UPGRADE)) return 0;

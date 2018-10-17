@@ -876,7 +876,13 @@ static bool mysql_admin_table(
 
     if (operator_func == &handler::ha_repair &&
         !(check_opt->sql_flags & TT_USEFRM)) {
-      if ((check_table_for_old_types(table->table) == HA_ADMIN_NEEDS_ALTER) ||
+      // Check for old temporal format if avoid_temporal_upgrade is disabled.
+      mysql_mutex_lock(&LOCK_global_system_variables);
+      const bool check_temporal_upgrade = !avoid_temporal_upgrade;
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+
+      if ((check_table_for_old_types(table->table, check_temporal_upgrade) ==
+           HA_ADMIN_NEEDS_ALTER) ||
           (table->table->file->ha_check_for_upgrade(check_opt) ==
            HA_ADMIN_NEEDS_ALTER)) {
         DBUG_PRINT("admin", ("recreating table"));

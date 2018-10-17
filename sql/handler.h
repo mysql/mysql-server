@@ -6037,12 +6037,13 @@ class handler {
   auxiliary standalone function.
 
   @param[in]  table    TABLE object
+  @param[in]  check_temporal_upgrade  Check if temporal upgrade is needed
 
   @retval 0            ON SUCCESS
   @retval error code   ON FAILURE
 */
 
-int check_table_for_old_types(const TABLE *table);
+int check_table_for_old_types(const TABLE *table, bool check_temporal_upgrade);
 
 /*
   A Disk-Sweep MRR interface implementation
@@ -6327,7 +6328,6 @@ bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
 
 int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 int commit_owned_gtid_by_partial_command(THD *thd);
-int check_table_for_old_types(const TABLE *table);
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot);
 
 /** Generate a string representation of an `ha_rkey_function` enum value.

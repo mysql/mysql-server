@@ -766,12 +766,10 @@ bool migrate_table_to_dd(THD *thd,
     field->table_name= &alias;
   }
 
-  // Check presence of old data types
-  bool avoid_temporal_upgrade_saved= avoid_temporal_upgrade;
-  avoid_temporal_upgrade= false;
-  int error= check_table_for_old_types(&table);
-  avoid_temporal_upgrade= avoid_temporal_upgrade_saved;
-
+  // Check presence of old data types, always check for "temporal upgrade"
+  // since it's not possible to upgrade such tables
+  const bool check_temporal_upgrade = true;
+  const int error= check_table_for_old_types(&table, check_temporal_upgrade);
   if (error)
   {
     if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
