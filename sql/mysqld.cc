@@ -5643,6 +5643,11 @@ static void create_shutdown_and_restart_thread() {
   my_security_attr_create(&shutdown_sec_attr, &errmsg, GENERIC_ALL,
                           SYNCHRONIZE | EVENT_MODIFY_STATE);
 
+  if (!opt_no_monitor) {
+    snprintf(shutdown_event_name, sizeof(shutdown_event_name),
+             "mysqld%s_shutdown", get_monitor_pid());
+  }
+
   hEventShutdown =
       CreateEvent(shutdown_sec_attr, FALSE, FALSE, shutdown_event_name);
   hEventRestart = CreateEvent(0, FALSE, FALSE, restart_event_name);
