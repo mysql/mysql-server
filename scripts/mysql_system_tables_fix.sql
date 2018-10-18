@@ -51,68 +51,6 @@ VALUES ('localhost','mysql.infoschema','Y','caching_sha2_password','$A$005$THISI
 
 FLUSH PRIVILEGES;
 
-# Move distributed grant tables to default engine during upgrade, remember
-# which tables was moved so they can be moved back after upgrade
-SET @had_distributed_user =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'user' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.user ENGINE=InnoDB";
-SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_db =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'db' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.db ENGINE=InnoDB";
-SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_tables_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'tables_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_columns_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'columns_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_procs_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'procs_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER');
-SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @had_distributed_proxies_priv =
-  (SELECT COUNT(table_name) FROM information_schema.tables
-     WHERE table_schema = 'mysql' AND table_name = 'proxies_priv' AND
-           table_type = 'BASE TABLE' AND engine = 'NDBCLUSTER' );
-SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=InnoDB";
-SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
 # Detect whether or not we had the Grant_priv column
@@ -847,43 +785,6 @@ ALTER TABLE columns_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE procs_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 ALTER TABLE proxies_priv ENGINE=InnoDB STATS_PERSISTENT=0;
 
-# Move any distributed grant tables back to NDB after upgrade
-SET @cmd="ALTER TABLE mysql.user ENGINE=NDB";
-SET @str = IF(@had_distributed_user > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.db ENGINE=NDB";
-SET @str = IF(@had_distributed_db > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.tables_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_tables_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.columns_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_columns_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.procs_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_procs_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-SET @cmd="ALTER TABLE mysql.proxies_priv ENGINE=NDB";
-SET @str = IF(@had_distributed_proxies_priv > 0, @cmd, "SET @dummy = 0");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 --
 -- CREATE_ROLE_ACL and DROP_ROLE_ACL
 --
@@ -1066,41 +967,34 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SE
 FLUSH PRIVILEGES;
 
 # Move all system tables with InnoDB storage engine to mysql tablespace.
-# Move privilege tables to InnoDB only if they were not in NDB.
 SET @cmd="ALTER TABLE mysql.db TABLESPACE = mysql";
-SET @str = IF(@had_distributed_db > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.user TABLESPACE = mysql";
-SET @str = IF(@had_distributed_user > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.tables_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_tables_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 
 SET @cmd="ALTER TABLE mysql.columns_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_columns_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.procs_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_procs_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd="ALTER TABLE mysql.proxies_priv TABLESPACE = mysql";
-SET @str = IF(@had_distributed_proxies_priv > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
+PREPARE stmt FROM @cmd;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
