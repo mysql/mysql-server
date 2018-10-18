@@ -797,6 +797,29 @@ class MDL_lock {
 
   inline MDL_context *get_lock_owner() const;
 
+  /**
+    Get MDL lock strategy corresponding to MDL key.
+
+    @param key Reference to MDL_key object
+
+    @return the type of strategy scoped or object corresponding to MDL key.
+  */
+
+  inline static const MDL_lock_strategy *get_strategy(const MDL_key &key) {
+    switch (key.mdl_namespace()) {
+      case MDL_key::GLOBAL:
+      case MDL_key::TABLESPACE:
+      case MDL_key::SCHEMA:
+      case MDL_key::COMMIT:
+      case MDL_key::BACKUP_LOCK:
+      case MDL_key::RESOURCE_GROUPS:
+      case MDL_key::FOREIGN_KEY:
+        return &m_scoped_lock_strategy;
+      default:
+        return &m_object_lock_strategy;
+    }
+  }
+
  public:
   /**
     Number of granted or waiting lock requests of "obtrusive" type.
@@ -1566,20 +1589,7 @@ void MDL_lock::destroy(MDL_lock *lock) { delete lock; }
 
 inline void MDL_lock::reinit(const MDL_key *mdl_key) {
   key.mdl_key_init(mdl_key);
-  switch (mdl_key->mdl_namespace()) {
-    case MDL_key::GLOBAL:
-    case MDL_key::TABLESPACE:
-    case MDL_key::SCHEMA:
-    case MDL_key::COMMIT:
-    case MDL_key::BACKUP_LOCK:
-    case MDL_key::RESOURCE_GROUPS:
-    case MDL_key::FOREIGN_KEY:
-      m_strategy = &m_scoped_lock_strategy;
-      break;
-    default:
-      m_strategy = &m_object_lock_strategy;
-      break;
-  }
+  m_strategy = MDL_lock::get_strategy(*mdl_key);
   m_hog_lock_count = 0;
   m_piglet_lock_count = 0;
   m_current_waiting_incompatible_idx = 0;
@@ -1603,17 +1613,8 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key) {
 
 MDL_lock::fast_path_state_t MDL_lock::get_unobtrusive_lock_increment(
     const MDL_request *request) {
-  switch (request->key.mdl_namespace()) {
-    case MDL_key::GLOBAL:
-    case MDL_key::TABLESPACE:
-    case MDL_key::SCHEMA:
-    case MDL_key::COMMIT:
-    case MDL_key::BACKUP_LOCK:
-    case MDL_key::FOREIGN_KEY:
-      return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
-    default:
-      return m_object_lock_strategy.m_unobtrusive_lock_increment[request->type];
-  }
+  return MDL_lock::get_strategy(request->key)
+      ->m_unobtrusive_lock_increment[request->type];
 }
 
 /**
