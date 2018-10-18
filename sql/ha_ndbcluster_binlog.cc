@@ -6279,8 +6279,6 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
                   event_name.c_str(),
                   dict->getNdbError().code, dict->getNdbError().message);
       DBUG_RETURN(-1);
-
-      /* Managed to drop event, continue... */
     }
 
     // Try to add the event again
@@ -6391,20 +6389,21 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     }
     if (!op)
     {
-      if (ndb->getNdbError().code == 4710)
+      const NdbError& ndb_err = ndb->getNdbError();
+      if (ndb_err.code == 4710)
       {
+        // Error code 4710 is returned when table or event is not found. The
+        // generic error message for 4710 says "Event not found" but should
+        // be reported as "table not found"
         log_warning(ER_GET_ERRMSG,
-                    "Failed to create NdbEventOperation on '%s' "
-                    "table %s not found",
+                    "Failed to create event operation on '%s', "
+                    "table '%s' not found",
                     event_name.c_str(), table->s->table_name.str);
+        DBUG_RETURN(-1);
       }
-      else
-      {
-        log_warning(ER_GET_ERRMSG,
-                    "Failed to create NdbEventOperation on '%s', error: %d - %s",
-                    event_name.c_str(),
-                    ndb->getNdbError().code, ndb->getNdbError().message);
-      }
+      log_warning(ER_GET_ERRMSG,
+                  "Failed to create event operation on '%s', error: %d - %s",
+                  event_name.c_str(), ndb_err.code, ndb_err.message);
       DBUG_RETURN(-1);
     }
 
@@ -6426,7 +6425,8 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
                         val_length,
                         NULL) == 0)
     {
-      DBUG_PRINT("info", ("Failed to allocate records for event operation"));
+      log_warning(ER_GET_ERRMSG,
+                  "Failed to allocate records for event operation");
       DBUG_RETURN(-1);
     }
 
@@ -6497,17 +6497,19 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     if (op->execute())
     {
       // Failed to create the NdbEventOperation
+      const NdbError& ndb_err = op->getNdbError();
       share->op= NULL;
       retries--;
-      if (op->getNdbError().status != NdbError::TemporaryError &&
-          op->getNdbError().code != 1407)
-        retries= 0;
+      if (ndb_err.status != NdbError::TemporaryError && ndb_err.code != 1407) {
+        // Don't retry after these errors
+        retries = 0;
+      }
       if (retries == 0)
       {
-        ndb_log_warning("Failed to activate NdbEventOperation for '%s', "
-                        "error: %d - %s",
-                        event_name.c_str(),
-                        op->getNdbError().code, op->getNdbError().message);
+        log_warning(ER_GET_ERRMSG,
+                    "Failed to activate NdbEventOperation for '%s', "
+                    "error: %d - %s",
+                    event_name.c_str(), ndb_err.code, ndb_err.message);
       }
       op->setCustomData(NULL);
       ndb->dropEventOperation(op);
@@ -6570,16 +6572,11 @@ Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   if (DBUG_EVALUATE_IF("ndb_skip_drop_event", true, false))
   {
     ndb_log_verbose(1,
-                    "NDB Binlog : skipping drop event on %s.%s",
+                    "NDB Binlog: skipping drop event on '%s.%s'",
                     db, table_name);
     DBUG_VOID_RETURN;
   }
 
-  /*
-    There might be 2 types of events setup for the table, we cannot know
-    which ones are supposed to be there as they may have been created
-    differently for different mysqld's.  So we drop both
-  */
   for (uint i= 0; i < 2; i++)
   {
     std::string event_name =
