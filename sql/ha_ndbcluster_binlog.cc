@@ -6261,6 +6261,8 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
                   event_name.c_str(),
                   dict->getNdbError().code, dict->getNdbError().message);
       DBUG_RETURN(-1);
+
+      /* Managed to drop event, continue... */
     }
 
     // Try to add the event again
@@ -6371,10 +6373,20 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     }
     if (!op)
     {
-      log_warning(ER_GET_ERRMSG,
-                  "Failed to create NdbEventOperation on '%s', error: %d - %s",
-                  event_name.c_str(),
-                  ndb->getNdbError().code, ndb->getNdbError().message);
+      if (ndb->getNdbError().code == 4710)
+      {
+        log_warning(ER_GET_ERRMSG,
+                    "Failed to create NdbEventOperation on '%s' "
+                    "table %s not found",
+                    event_name.c_str(), table->s->table_name.str);
+      }
+      else
+      {
+        log_warning(ER_GET_ERRMSG,
+                    "Failed to create NdbEventOperation on '%s', error: %d - %s",
+                    event_name.c_str(),
+                    ndb->getNdbError().code, ndb->getNdbError().message);
+      }
       DBUG_RETURN(-1);
     }
 
@@ -6537,6 +6549,19 @@ Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   DBUG_ENTER("Ndb_binlog_client::drop_events_for_table");
   DBUG_PRINT("enter", ("db: %s, tabname: %s", db, table_name));
 
+  if (DBUG_EVALUATE_IF("ndb_skip_drop_event", true, false))
+  {
+    ndb_log_verbose(1,
+                    "NDB Binlog : skipping drop event on %s.%s",
+                    db, table_name);
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    There might be 2 types of events setup for the table, we cannot know
+    which ones are supposed to be there as they may have been created
+    differently for different mysqld's.  So we drop both
+  */
   for (uint i= 0; i < 2; i++)
   {
     std::string event_name =

@@ -18032,7 +18032,7 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
 
     CreateEvntRef * ret = (CreateEvntRef *)signal->getDataPtrSend();
     ret->senderRef = reference();
-    ret->setErrorCode(747);
+    ret->setErrorCode(CreateEvntRef::AllocationFailure);
     ret->setErrorLine(__LINE__);
     ret->setErrorNode(reference());
     sendSignal(signal->senderBlockRef(), GSN_CREATE_EVNT_REF, signal,
@@ -18691,7 +18691,7 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       DictObject* obj_ptr_p = get_object(evntRecPtr.p->m_eventRec.TABLE_NAME);
       if(!obj_ptr_p){
 	jam();
-	evntRecPtr.p->m_errorCode = 723;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::EventTableNotFound;
 	evntRecPtr.p->m_errorLine = __LINE__;
 	evntRecPtr.p->m_errorNode = reference();
 	
@@ -18733,11 +18733,11 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       switch (ref->getTCErrorCode()) {
       case ZNOT_FOUND:
 	jam();
-	evntRecPtr.p->m_errorCode = 4710;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::TableNotFound;
 	break;
       case ZALREADYEXIST:
 	jam();
-	evntRecPtr.p->m_errorCode = 746;
+	evntRecPtr.p->m_errorCode = CreateEvntRef::AlreadyExist;
 	break;
       default:
 	jam();
@@ -19832,7 +19832,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
     releaseSections(handle);
 
     DropEvntRef * ret = (DropEvntRef *)signal->getDataPtrSend();
-    ret->setErrorCode(747);
+    ret->setErrorCode(DropEvntRef::AllocationFailure);
     ret->setErrorLine(__LINE__);
     ret->setErrorNode(reference());
     sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
@@ -20246,7 +20246,7 @@ Dbdict::dropEventUtilExecuteRef(Signal* signal,
     switch (ref->getTCErrorCode()) {
     case ZNOT_FOUND:
       jam();
-      evntRecPtr.p->m_errorCode = 4710;
+      evntRecPtr.p->m_errorCode = DropEvntRef::TableNotFound;
       break;
     default:
       jam();

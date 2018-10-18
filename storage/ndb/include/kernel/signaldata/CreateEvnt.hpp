@@ -113,7 +113,9 @@ public:
     Undefined = 1,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702
+    NotMaster = 702,
+    AllocationFailure = 747,
+    TableNotFound = 4710
   };
   STATIC_CONST( SignalLength = 7 );
   STATIC_CONST( SignalLength2 = SignalLength+1 );
@@ -424,7 +426,11 @@ struct CreateEvntRef {
     Undefined = 1,
     NF_FakeErrorREF = 11,
     Busy = 701,
-    NotMaster = 702
+    NotMaster = 702,
+    EventTableNotFound = 723,
+    AlreadyExist = 746,
+    AllocationFailure = 747,
+    TableNotFound = 4710
   };
   union {
     Uint32 m_userRef;             // user block reference
