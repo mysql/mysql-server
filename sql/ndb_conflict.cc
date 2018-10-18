@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1140,11 +1140,14 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch)
     {
       sql_print_warning("NDB Slave : At SQL thread start "
-                        "applying epoch %llu/%llu "
-                        "(%llu) from Master ServerId %u which is lower than previously "
-                        "applied epoch %llu/%llu (%llu).  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.  "
-                        "Check slave positioning.",
+                        "applying epoch %llu/%llu (%llu) from "
+                        "Master ServerId %u which is lower than "
+                        "previously applied epoch %llu/%llu (%llu).  "
+                        "Group Master Log : %s  "
+                        "Group Master Log Pos : %llu.  "
+                        "Slave run id from slave's master info %u, "
+                        "Slave run id %u.  "
+                        "Check slave positioning.  ",
                         next_epoch >> 32,
                         next_epoch & 0xffffffff,
                         next_epoch,
@@ -1153,7 +1156,9 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         current_master_server_epoch & 0xffffffff,
                         current_master_server_epoch,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+                        ndb_mi_get_group_master_log_pos(),
+                        ndb_mi_get_slave_run_id(),
+                        sql_run_id);
       /* Slave not stopped */
     }
     else if (next_epoch == current_master_server_epoch)
@@ -1184,10 +1189,13 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     {
       /* Should never happen */
       sql_print_error("NDB Slave : SQL thread stopped as "
-                      "applying epoch %llu/%llu "
-                      "(%llu) from Master ServerId %u which is lower than previously "
-                      "applied epoch %llu/%llu (%llu).  "
-                      "Group Master Log : %s  Group Master Log Pos : %llu",
+                      "applying epoch %llu/%llu (%llu) from "
+                      "Master ServerId %u which is lower than "
+                      "previously applied epoch %llu/%llu (%llu).  "
+                      "Group Master Log : %s  "
+                      "Group Master Log Pos : %llu.  "
+                      "Slave run id from slave's master info %u, "
+                      "Slave run id %u.  ",
                       next_epoch >> 32,
                       next_epoch & 0xffffffff,
                       next_epoch,
@@ -1196,7 +1204,9 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                       current_master_server_epoch & 0xffffffff,
                       current_master_server_epoch,
                       ndb_mi_get_group_master_log_name(),
-                      ndb_mi_get_group_master_log_pos());
+                      ndb_mi_get_group_master_log_pos(),
+                      ndb_mi_get_slave_run_id(),
+                      sql_run_id);
       /* Stop the slave */
       DBUG_RETURN(false);
     }
@@ -1209,16 +1219,21 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed)
       {
         /* This epoch is committed already, why are we replaying it? */
-        sql_print_error("NDB Slave : SQL thread stopped as attempted "
-                        "to reapply already committed epoch %llu/%llu (%llu) "
+        sql_print_error("NDB Slave : SQL thread stopped as attempted to "
+                        "reapply already committed epoch %llu/%llu (%llu) "
                         "from server id %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
+                        "Group Master Log : %s  "
+                        "Group Master Log Pos : %llu.  "
+                        "Slave run id from slave's master info %u, "
+                        "Slave run id %u.  ",
                         current_master_server_epoch >> 32,
                         current_master_server_epoch & 0xffffffff,
                         current_master_server_epoch,
                         master_server_id,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+                        ndb_mi_get_group_master_log_pos(),
+                        ndb_mi_get_slave_run_id(),
+                        sql_run_id);
         /* Stop the slave */
         DBUG_RETURN(false);
       }
@@ -1246,7 +1261,10 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         "apply new epoch %llu/%llu (%llu) while lower "
                         "received epoch %llu/%llu (%llu) has not been "
                         "committed.  Master server id : %u.  "
-                        "Group Master Log : %s  Group Master Log Pos : %llu.",
+                        "Group Master Log : %s  "
+                        "Group Master Log Pos : %llu.  "
+                        "Slave run id from slave's master info %u, "
+                        "Slave run id %u.  ",
                         next_epoch >> 32,
                         next_epoch & 0xffffffff,
                         next_epoch,
@@ -1255,7 +1273,9 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
                         current_master_server_epoch,
                         master_server_id,
                         ndb_mi_get_group_master_log_name(),
-                        ndb_mi_get_group_master_log_pos());
+                        ndb_mi_get_group_master_log_pos(),
+                        ndb_mi_get_slave_run_id(),
+                        sql_run_id);
         /* Stop the slave */
         DBUG_RETURN(false);
       }
