@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4930,21 +4930,29 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     /*
       trailing event from before; an error, but try to correct it
     */
-    if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT &&
-        dict->dropEvent(my_event.getName(), 1))
+    const NdbError getError = dict->getNdbError();
+    if (getError.code == NDB_INVALID_SCHEMA_OBJECT)
     {
-      if (push_warning > 1)
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
-                            ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
-                            dict->getNdbError().code,
-                            dict->getNdbError().message, "NDB");
-      sql_print_error("NDB Binlog: Unable to create event in database. "
-                      " Attempt to correct with drop failed. "
-                      "Event: %s Error Code: %d Message: %s",
-                      event_name,
-                      dict->getNdbError().code,
-                      dict->getNdbError().message);
-      DBUG_RETURN(-1);
+      if (dict->dropEvent(my_event.getName(), 1))
+      {
+        if (push_warning > 1)
+          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                              ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
+                              dict->getNdbError().code,
+                              dict->getNdbError().message, "NDB");
+        sql_print_error("NDB Binlog: Unable to create event in database. "
+                        " Attempt to correct with drop failed. "
+                        "Event: %s Error Code: %d Message: %s"
+                        "Drop error Code: %d Message: %s",
+                        event_name,
+                        getError.code,
+                        getError.message,
+                        dict->getNdbError().code,
+                        dict->getNdbError().message);
+        DBUG_RETURN(-1);
+      }
+
+      /* Managed to drop event, continue... */
     }
 
     /*
@@ -4952,17 +4960,18 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
     */
     if (dict->createEvent(my_event))
     {
+      /* Unexpected error */
       if (push_warning > 1)
         push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                             ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                             dict->getNdbError().code,
                             dict->getNdbError().message, "NDB");
       sql_print_error("NDB Binlog: Unable to create event in database. "
-                      " Attempt to correct with drop ok, but create failed. "
-                      "Event: %s Error Code: %d Message: %s",
-                      event_name,
-                      dict->getNdbError().code,
-                      dict->getNdbError().message);
+                      " Event already exists, but error attempting to use. "
+                      "Event: %s Code: %d Message: %s",
+                       event_name,
+                      getError.code,
+                      getError.message);
       DBUG_RETURN(-1);
     }
 #ifdef NDB_BINLOG_EXTRA_WARNINGS
@@ -5088,8 +5097,17 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     }
     if (!op)
     {
-      sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
-                      " %s",event_name);
+      if (ndb->getNdbError().code == 4710)
+      {
+        sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
+                        " %s" " table %s not found", event_name, table->s->table_name.str);
+      }
+      else
+      {
+        sql_print_error("NDB Binlog: Creating NdbEventOperation failed for"
+                        " %s" " error %i: %s",
+                        event_name, ndb->getNdbError().code, ndb->getNdbError().message);
+      }
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_GET_ERRMSG, ER(ER_GET_ERRMSG),
                           ndb->getNdbError().code,
@@ -5260,6 +5278,14 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                       const char *tabname)
 {
   DBUG_ENTER("ndbcluster_drop_event");
+
+  if (DBUG_EVALUATE_IF("ndb_skip_drop_event", true, false))
+  {
+    sql_print_information("NDB Binlog : skipping drop event on %s.%s)",
+                          dbname, tabname);
+    DBUG_RETURN(0);
+  }
+
   /*
     There might be 2 types of events setup for the table, we cannot know
     which ones are supposed to be there as they may have been created
