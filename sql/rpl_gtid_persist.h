@@ -97,6 +97,7 @@ class Gtid_table_access_context : public System_table_access {
       @retval THD* Pointer to thread structure
   */
   THD *create_thd();
+  void drop_thd(THD *thd);
 
  private:
   /* Pointer to new created THD. */
