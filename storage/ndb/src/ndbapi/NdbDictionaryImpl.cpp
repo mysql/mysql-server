@@ -5708,7 +5708,7 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     ERR_RETURN(getNdbError(), -1);
 
   // Create blob events
-  if (evnt.m_mergeEvents && createBlobEvents(evnt) != 0) {
+  if (table.m_noOfBlobs > 0 && createBlobEvents(evnt) != 0) {
     int save_code = m_error.code;
     (void)dropEvent(evnt.m_name.c_str(), 0);
     m_error.code = save_code;
@@ -6067,6 +6067,85 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     *new_col = *col;
     ev->m_columns.push_back(new_col);
   }
+
+  /**
+   * Check for related Blob part table events
+   * NdbApi may create events on Blob part tables when an event on
+   * a table with blobs is created with the merge_events flag set.
+   * Here we check that if the table has Blob columns, then it
+   * should have events for either none or all blob columns, which
+   * we can retrieve without errors.
+   * We check this now as the user would probably expect to discover
+   * problems with hidden subtended blob events when retrieving the
+   * main table event, which is the only one visible to them.
+   * Note that we check all blob columns in the table, not just
+   * those mentioned in the event bitmask.
+   */
+  int blob_count = 0;
+  int blob_event_count = 0;
+  for(unsigned id= 0; id < (unsigned) table.getNoOfColumns(); id++)
+  {
+    const NdbColumnImpl* col = table.getColumn(id);
+
+    if (col->getBlobType() && col->getPartSize() > 0)
+    {
+      blob_count++;
+
+      /* Try to read the blob event */
+      NdbEventImpl* blob_event = getBlobEvent(*ev, col->getColumnNo());
+      const bool blob_event_ok = (blob_event != NULL);
+      delete blob_event;
+
+      if (blob_event_ok)
+      {
+        blob_event_count++;
+      }
+      else
+      {
+        if (getNdbError().code != CreateEvntRef::TableNotFound) /* Event not found */
+        {
+          DBUG_PRINT("error", ("Failed to get blob event for column %u",
+                               col->getColumnNo()));
+          delete ev;
+
+          /**
+           * DICT will return error code 723 if the event exists but
+           * refers to a non existent table name.  This can happen
+           * when events have not been dropped with a table.
+           */
+          if (m_error.code == 723)
+          {
+            /*
+             * Remap to less confusing error code
+             */
+            DBUG_PRINT("info", ("Remapping error 723 on Blob sub event fetch to 241"));
+            m_error.code = 241; /* Invalid schema object version */
+          }
+
+          DBUG_RETURN(NULL);
+        }
+        /* Blob event does not exist, ok */
+      }
+    }
+  }
+
+  if (blob_event_count != blob_count)
+  {
+    /**
+     * Event on table with blobs should have either all
+     * Blobs present, or none.
+     * Anything else, suggests failed create or drop
+     * which we map as a schema object version problem.
+     */
+    DBUG_PRINT("error", ("Unexpected number of blob events "
+                         "present Expect : %d Actual : %d",
+                         blob_count,
+                         blob_event_count));
+    m_error.code = 241; /* Invalid schema object version */
+    delete ev;
+    DBUG_RETURN(NULL);
+  }
+
   DBUG_RETURN(ev);
 }
 
