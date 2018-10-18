@@ -261,6 +261,22 @@ compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
  * file group and there can only be one such group. It is using overallocating
  * if this happens through an SQL command.
  *
+ * RG_QUERY_MEMORY:
+ * Like transaction memory, query memory may be overallocated. Unlike
+ * transaction memory, query memory may not use the last free 10% of shared
+ * global memory.  This is controlled by setting the reserved memory to zero.
+ * This indicates to memory manager that the resource is low priority and
+ * should not be allowed to starve out other higher priority resource.
+ *
+ * Dbspj is the user of query memory serving join queries and "only" read data.
+ * A bad join query could easily consume a lot of memory.
+ *
+ * Dbtc, which uses transaction memory, on the other hand also serves writes,
+ * and typically memory consumption per request are more limited.
+ *
+ * In situations there there are small amount of free memory left one want to
+ * Dbtc to be prioritized over Dbspj.
+ *
  * Overallocating and total memory
  * -------------------------------
  * The total memory allocated by the global memory manager is the sum of the
@@ -537,6 +553,21 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         ed.m_mem_manager->set_resource_limit(rl);
       }
     }
+  }
+
+  {
+    Resource_limit rl;
+    /*
+     * Setting m_min = 0 makes QUERY_MEMORY a low priority resource group
+     * which can not use the last 10% of shared global page memory.
+     *
+     * For example TRANSACTION_MEMORY will have access to those last
+     * percent of global shared global page memory.
+     */
+    rl.m_min = 0;
+    rl.m_max = 0;
+    rl.m_resource_id = RG_QUERY_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
   }
 
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +

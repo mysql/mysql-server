@@ -66,15 +66,58 @@ struct Record_info
 };
 
 /**
- * Resource_limit
+  Contains both restrictions and current state of a resource groups page memory
+  usage.
  */
+
 struct Resource_limit
 {
+  /**
+    Minimal number of pages dedicated for the resource group from shared global
+    page memory.
+
+    If set to zero it also indicates that the resource group have lower
+    priority than resource group with some dedicated pages.
+
+    The lower priority denies the resource group to use the last percentage of
+    shared global page memory.
+
+    See documentation for Resource_limits.
+  */
   Uint32 m_min;
+
+  /**
+    Maximal number of pages that the resource group may allocate from shared
+    global page memory.
+
+    If set to zero there is no restrictions caused by this member.
+  */
   Uint32 m_max;
+
+  /**
+    Number of pages currently in use by resource group.
+  */
   Uint32 m_curr;
+
+  /**
+    Number of pages currently reserved as spare.
+
+    These spare pages may be used in exceptional cases, and to use them one
+    need to call special allocations functions, see alloc_spare_page in
+    Ndbd_mem_manager.
+
+    See also m_spare_pct below.
+  */
   Uint32 m_spare;
+
+  /**
+    A positive number identifying the resource group.
+  */
   Uint32 m_resource_id;
+
+  /**
+    Control how many spare pages there should be for each page in use.
+  */
   Uint32 m_spare_pct;
 };
 

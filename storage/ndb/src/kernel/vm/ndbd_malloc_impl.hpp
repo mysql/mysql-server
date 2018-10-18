@@ -108,14 +108,65 @@ struct Free_page_data
 
 #define MM_RG_COUNT 9
 
+/**
+  Information of restriction and current usage of shared global page memory.
+*/
 class Resource_limits
 {
+  /**
+    Number of pages dedicated for different resource group but currently not
+    in use.
+  */
   Uint32 m_free_reserved;
+
+  /**
+    Number of pages currently in use.
+  */
   Uint32 m_in_use;
+
+  /**
+    Total number of pages allocated.
+  */
   Uint32 m_allocated;
+
+  /**
+    Total number of spare pages currently allocated by resource groups.
+  */
   Uint32 m_spare;
+
+  /**
+    One more than highest page number allocated.
+
+    Used internally by Ndbd_mem_manager for consistency checks.
+  */
   Uint32 m_max_page;
+
+  /**
+    Number of pages reserved for high priority resource groups.
+
+    Page allocations for low priority resource groups will be denied if number
+    of free pages are less than this number.
+
+    Note that not have any dedicated pages is the criteria for a resource group
+    to have low priority, and there will never be any dedicted free pages for
+    that resource.
+  */
+  Uint32 m_prio_free_limit;
+
+  /**
+    Per resource group statistics.
+    See documentation for Resource_limit.
+  */
   Resource_limit m_limit[MM_RG_COUNT];
+
+  /**
+    Keep 10% of unreserved shared memory only for high priority resource
+    groups.
+
+    High priority of a resource group is indicated by setting the minimal
+    reserved to zero (Resource_limit::m_min == 0).
+  */
+  static const Uint32 HIGH_PRIO_FREE_PCT = 10;
 
   Uint32 alloc_resource_spare(Uint32 id, Uint32 cnt);
   void release_resource_spare(Uint32 id, Uint32 cnt);
@@ -145,6 +196,7 @@ public:
   Uint32 get_max_page() const;
   Uint32 get_resource_free(Uint32 id) const;
   Uint32 get_resource_free_reserved(Uint32 id) const;
+  Uint32 get_resource_free_shared(Uint32 id) const;
   Uint32 get_resource_reserved(Uint32 id) const;
   Uint32 get_resource_spare(Uint32 resource) const;
   void set_max_page(Uint32 page);
@@ -473,6 +525,25 @@ Uint32 Resource_limits::get_resource_free_reserved(Uint32 id) const
 }
 
 inline
+Uint32 Resource_limits::get_resource_free_shared(Uint32 id) const
+{
+  const Uint32 free_shared = get_free_shared();
+
+  require(id <= MM_RG_COUNT);
+  const Resource_limit& rl = m_limit[id - 1];
+
+  if (rl.m_min > 0) /* high prio */
+  {
+    return free_shared;
+  }
+  if (free_shared >= m_prio_free_limit) /* low prio */
+  {
+    return free_shared - m_prio_free_limit;
+  }
+  return 0;
+}
+
+inline
 Uint32 Resource_limits::get_resource_in_use(Uint32 id) const
 {
   require(id <= MM_RG_COUNT);
@@ -597,12 +668,16 @@ inline
 void Resource_limits::set_allocated(Uint32 cnt)
 {
   m_allocated = cnt;
+  // Leave the last percentage of shared memory for high prio resource groups.
+  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
 }
 
 inline
 void Resource_limits::set_free_reserved(Uint32 cnt)
 {
   m_free_reserved = cnt;
+  // Leave the last percentage of shared memory for high prio resource groups.
+  m_prio_free_limit = (m_allocated - m_free_reserved) * HIGH_PRIO_FREE_PCT / 100;
 }
 
 inline

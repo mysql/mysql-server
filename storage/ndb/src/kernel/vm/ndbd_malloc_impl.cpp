@@ -420,6 +420,7 @@ Resource_limits::Resource_limits()
   m_in_use = 0;
   m_spare = 0;
   m_max_page = 0;
+  m_prio_free_limit = 0;
   memset(m_limit, 0, sizeof(m_limit));
 }
 
@@ -1323,7 +1324,7 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   const Uint32 free_res = m_resource_limits.get_resource_free_reserved(idx);
   if (free_res < cnt)
   {
-    const Uint32 free_shr = m_resource_limits.get_free_shared();
+    const Uint32 free_shr = m_resource_limits.get_resource_free_shared(idx);
     const Uint32 free = m_resource_limits.get_resource_free(idx);
     if (free < min || (free_shr + free_res < min))
     {
