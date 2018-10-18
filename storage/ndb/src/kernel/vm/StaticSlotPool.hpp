@@ -272,7 +272,8 @@ inline Uint32 StaticSlotPool::getUncheckedPtrs(Uint32* from,
   Page* page = m_page_base + page_number;
   if (unlikely(index >= slot_count))
   {
-    return RNIL;
+    *from = RNIL;
+    return 0;
   }
 
   Uint32 ptrs_cnt = 0;
