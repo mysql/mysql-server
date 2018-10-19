@@ -52,8 +52,11 @@ class XError {
   XError() : m_error(0), m_is_fatal(false) {}
 
   explicit XError(const int err, const std::string &message = "",
-                  bool is_fatal = false)
-      : m_message(message), m_error(err), m_is_fatal(is_fatal) {}
+                  bool is_fatal = false, const std::string &sql_state = "")
+      : m_message(message),
+        m_error(err),
+        m_is_fatal(is_fatal),
+        m_sql_state(sql_state) {}
 
   /** Check if an error occurred */
   operator bool() const { return 0 != m_error; }
@@ -67,10 +70,14 @@ class XError {
   /** Check if error is marked as fatal. */
   bool is_fatal() const { return m_is_fatal; }
 
+  /** Get sql state description. */
+  const char *sql_state() const { return m_sql_state.c_str(); }
+
  private:
   std::string m_message;
   int m_error;
   bool m_is_fatal;
+  std::string m_sql_state;
 };
 
 }  // namespace xcl
