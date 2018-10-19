@@ -194,6 +194,14 @@ class RouterComponentTest {
       }
     }
 
+    /** @brief Initiate Router shutdown
+     *
+     * @returns shutdown event delivery success/failure
+     */
+    std::error_code send_clean_shutdown_event() const {
+      return launcher_.send_shutdown_event();
+    }
+
    private:
     CommandHandle(const std::string &app_cmd, const char **args,
                   bool include_stderr)
