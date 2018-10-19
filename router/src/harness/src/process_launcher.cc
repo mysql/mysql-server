@@ -28,7 +28,6 @@
 #include <cerrno>
 #include <chrono>
 #include <string>
-#include <system_error>
 #include <thread>
 
 #ifdef _WIN32
@@ -64,6 +63,37 @@ ProcessLauncher::~ProcessLauncher() {
               e.what());
     }
   }
+}
+
+std::error_code ProcessLauncher::send_shutdown_event(
+    ShutdownEvent event /* = ShutdownEvent::TERM */) const noexcept {
+#ifdef _WIN32
+  bool ok = false;  // need to initialize to avoid -Werror=maybe-uninitialized
+  switch (event) {
+    case ShutdownEvent::TERM:
+      ok = GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
+      break;
+    case ShutdownEvent::KILL:
+      ok = TerminateProcess(pi.hProcess, 0);
+      break;
+  }
+
+  return ok ? std::error_code{}
+            : std::error_code(GetLastError(), std::system_category());
+#else
+  bool ok = false;  // need to initialize to avoid -Werror=maybe-uninitialized
+  switch (event) {
+    case ShutdownEvent::TERM:
+      ok = ::kill(childpid, SIGTERM) == 0;
+      break;
+    case ShutdownEvent::KILL:
+      ok = ::kill(childpid, SIGKILL) == 0;
+      break;
+  }
+
+  return ok ? std::error_code{}
+            : std::error_code(errno, std::system_category());
+#endif
 }
 
 #ifdef _WIN32
@@ -166,10 +196,12 @@ int ProcessLauncher::wait(unsigned int timeout_ms) {
 }
 
 int ProcessLauncher::close() {
+  // note: report_error() throws std::system_error
+
   DWORD dwExit;
   if (GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
-      GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, pi.dwProcessId);
+      send_shutdown_event(ShutdownEvent::TERM);
 
       DWORD wait_timeout =
           std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -177,7 +209,8 @@ int ProcessLauncher::close() {
               .count();
       if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
         // use the big hammer if that did not work
-        if (!TerminateProcess(pi.hProcess, 0)) report_error(NULL);
+        if (send_shutdown_event(ShutdownEvent::KILL)) report_error(NULL);
+
         // wait again, if that fails not much we can do
         if (WaitForSingleObject(pi.hProcess, wait_timeout) != WAIT_OBJECT_0) {
           report_error(NULL);
@@ -375,9 +408,9 @@ int ProcessLauncher::close() {
   if (is_alive) {
     // only try to kill the pid, if we started it. Not that we hurt someone
     // else.
-    if (::kill(childpid, SIGTERM) < 0) {
-      if (errno != ESRCH) {
-        throw std::system_error(errno, std::system_category(), strerror(errno));
+    if (std::error_code ec1 = send_shutdown_event(ShutdownEvent::TERM)) {
+      if (ec1 != std::errc::no_such_process) {
+        throw std::system_error(ec1);
       }
     } else {
       try {
@@ -387,12 +420,10 @@ int ProcessLauncher::close() {
                 kTerminateWaitInterval)
                 .count()));
       } catch (const std::system_error &e) {
-        if (e.code() != std::error_code(ESRCH, std::system_category())) {
-          if (::kill(childpid, SIGKILL) < 0) {
-            if (errno != ESRCH) {
-              throw std::system_error(errno, std::system_category(),
-                                      strerror(errno));
-            }
+        if (e.code() != std::errc::no_such_process) {
+          std::error_code ec2 = send_shutdown_event(ShutdownEvent::KILL);
+          if (ec2 != std::errc::no_such_process) {
+            throw std::system_error(ec2);
           }
         }
         result = wait();
