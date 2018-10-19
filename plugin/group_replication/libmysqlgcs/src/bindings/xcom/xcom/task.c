@@ -1215,6 +1215,8 @@ static void print_sockaddr(struct sockaddr *a) {
 #endif
 
 int connect_tcp(char *server, xcom_port port, int *ret) {
+  int v4_reachable = 0;
+
   DECL_ENV
   int fd;
   struct sockaddr_storage sock_addr;
@@ -1223,6 +1225,7 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
   result sock;
   END_ENV;
   TASK_BEGIN;
+
   DBGOUT(FN; STREXP(server); NDBG(port, d));
 
   ep->addr = 0;
@@ -1233,6 +1236,8 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
   if (ep->addr == NULL) {
     TASK_FAIL;
   }
+
+  ep->addr = does_node_have_v4_address(ep->addr);
 
   /* Create socket */
   if ((ep->fd =

@@ -251,7 +251,6 @@
 #ifndef _WIN32
 #include <arpa/inet.h>
 #include <net/if.h>
-#include <netdb.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #ifndef __linux__
@@ -5503,6 +5502,45 @@ static inline result xcom_shut_close_socket(int *sock) {
   ret_fd = -1;       \
   goto end
 
+/*
+
+*/
+
+/**
+  @brief Retreives a node IPv4 address, if it exists.
+
+  If a node is v4 reachable, means one of two:
+  - The raw address is V4
+  - a name was resolved to a V4/V6 address
+
+  If the later is the case, we are going to prefer the first v4
+  address in the list, since it is the common language between
+  old and new version. If you want exclusive V6, please configure your
+  DNS server to serve V6 names
+
+  @param retrieved a previously retrieved struct addrinfo
+  @return struct addrinfo* An addrinfo of the first IPv4 address. Else it will
+                           return the entry parameter.
+ */
+struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved) {
+  struct addrinfo *cycle = NULL;
+
+  int v4_reachable = is_node_v4_reachable_with_info(retrieved);
+
+  if (v4_reachable) {
+    cycle = retrieved;
+    while (cycle) {
+      if (cycle->ai_family == AF_INET) {
+        return cycle;
+      }
+      cycle = cycle->ai_next;
+    }
+  }
+
+  // If something goes really wrong... we fallback to avoid crashes
+  return retrieved;
+}
+
 static int timed_connect(int fd, struct sockaddr *sock_addr,
                          socklen_t sock_size) {
   int timeout = 10000;
@@ -5618,6 +5656,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   int error = 0;
   socklen_t sock_size;
   char buf[SYS_STRERROR_SIZE];
+  int v4_reachable = 0;
 
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_DEBUG("connecting to %s %d", server, port);
@@ -5633,6 +5672,8 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
     G_ERROR("Error retrieving server information.");
     goto end;
   }
+
+  addr = does_node_have_v4_address(addr);
 
   /* Create socket after knowing the family that we are dealing with
      getaddrinfo returns a list of possible addresses. We will alays default
@@ -5853,20 +5894,37 @@ static char *get_add_node_address(app_data_ptr a, unsigned int *member) {
   return retval;
 }
 
-int is_node_v4_reachable(char *node_address) {
+int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info) {
+  int v4_reachable = 0;
+
   // Verify if we are reachable either by V4 and by V6 with the provided
   // address.
-  struct addrinfo *my_own_information = NULL, *my_own_information_loop = NULL;
-  checked_getaddrinfo(node_address, NULL, NULL, &my_own_information);
+  struct addrinfo *my_own_information_loop = NULL;
 
-  my_own_information_loop = my_own_information;
-  int v4_reachable = 0;
+  my_own_information_loop = retrieved_addr_info;
   while (!v4_reachable && my_own_information_loop) {
     if (my_own_information_loop->ai_family == AF_INET) {
       v4_reachable = 1;
     }
     my_own_information_loop = my_own_information_loop->ai_next;
   }
+
+  return v4_reachable;
+}
+
+int is_node_v4_reachable(char *node_address) {
+  int v4_reachable = 0;
+
+  // Verify if we are reachable either by V4 and by V6 with the provided
+  // address.
+  struct addrinfo *my_own_information = NULL;
+
+  checked_getaddrinfo(node_address, NULL, NULL, &my_own_information);
+  if (my_own_information == NULL) {
+    return v4_reachable;
+  }
+
+  v4_reachable = is_node_v4_reachable_with_info(my_own_information);
 
   if (my_own_information) freeaddrinfo(my_own_information);
 
