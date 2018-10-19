@@ -2218,6 +2218,32 @@ void JOIN::create_iterators() {
       iterator = PossiblyAttachFilterIterator(move(iterator),
                                               vector<Item *>{where_cond}, thd);
     }
+
+    // Surprisingly enough, we can specify that the const tables are
+    // to be dumped immediately to a temporary table. If we don't do this,
+    // we risk that there are fields that are not copied correctly
+    // (tmp_table_param contains copy_funcs we'd otherwise miss).
+    if (const_tables > 0) {
+      QEP_TAB *qep_tab = &this->qep_tab[const_tables];
+      if (qep_tab[-1].next_select == sub_select_op) {
+        // We don't support join buffering, but we do support temporary tables.
+        QEP_operation *op = qep_tab->op;
+        if (op->type() != QEP_operation::OT_TMP_TABLE) {
+          return;
+        }
+        DBUG_ASSERT(down_cast<QEP_tmp_table *>(op)->get_write_func() ==
+                    end_write);
+        qep_tab->read_record.iterator.reset();
+        join_setup_read_record(qep_tab);
+        qep_tab->table()->alias = "<temporary>";
+        iterator.reset(new (thd->mem_root) MaterializeIterator(
+            thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
+            move(qep_tab->read_record.iterator), /*cte=*/nullptr, select_lex,
+            this, qep_tab->ref_item_slice, /*copy_fields_and_items=*/true,
+            /*rematerialize=*/true,
+            qep_tab->tmp_table_param->end_write_records));
+      }
+    }
   } else {
     vector<QEP_TAB *> unhandled_duplicates;
     iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd,
