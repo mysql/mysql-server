@@ -1625,7 +1625,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
 SET @g:='1';
 DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
-Warnings:
-Warning	1292	Incorrect date value: '1' for column 'b' at row 1
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
 DROP TABLE t1;
 # End of test for Bug#25899921

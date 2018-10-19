@@ -912,7 +912,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
     aren't locked.
   */
   if (!thd->lex->is_ps_or_view_context_analysis() &&
-      str_arg->may_evaluate_const(thd) && str_arg->type() != Item::FUNC_ITEM) {
+      str_arg->may_evaluate_const(thd)) {
     ulonglong value;
     if (str_arg->data_type() == MYSQL_TYPE_TIME) {
       // Convert from TIME to DATETIME numeric packed value
@@ -1034,8 +1034,7 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
     value = TIME_to_longlong_datetime_packed(l_time);
   }
 
-  if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM &&
-      item->type() != Item::FUNC_ITEM) {
+  if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM) {
     Item_cache_datetime *cache = new Item_cache_datetime(item->data_type());
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
@@ -1312,9 +1311,12 @@ longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     */
   }
 
-  if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM &&
-      item->type() != Item::FUNC_ITEM) {
-    Item_cache_datetime *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
+  if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM) {
+    enum_field_types cache_type = item->data_type() == MYSQL_TYPE_DATE
+                                      ? MYSQL_TYPE_DATE
+                                      : MYSQL_TYPE_DATETIME;
+    Item_cache_datetime *cache = new Item_cache_datetime(cache_type);
+
     /* Mark the cache as non-const to prevent re-caching. */
     cache->set_used_tables(1);
     cache->store_value(item, value);

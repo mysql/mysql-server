@@ -2380,10 +2380,7 @@ Warning	1292	Incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00
 SELECT ST_GeomFromText('POINT(0 0)') > (SELECT b FROM t) AS result;
 ERROR HY000: Incorrect arguments to >
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t) AS result;
-result
-0
-Warnings:
-Warning	1292	Truncated incorrect date value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+ERROR HY000: Incorrect DATE value: ''
 DROP TABLE t;
 CREATE TABLE t1(a BLOB NOT NULL, b INT NOT NULL) ENGINE=Innodb;
 SELECT NOT EXISTS
