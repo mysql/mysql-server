@@ -1,5 +1,6 @@
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
+--source include/have_case_sensitive_file_system.inc
 --echo # We are using some debug-only features in this test
 --source include/have_debug.inc
 
@@ -99,6 +100,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop table, and show tables and events gone
@@ -113,6 +116,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l  
 
 --echo Recreate the table
@@ -186,6 +191,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop the event(s)
@@ -206,6 +213,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Redo the drop command to clear MySQLD metadata
@@ -225,6 +234,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -301,6 +312,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop the event(s)
@@ -325,6 +338,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -402,6 +417,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop the event(s)
@@ -426,6 +443,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -503,6 +522,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop the event(s)
@@ -527,6 +548,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -603,6 +626,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop the event(s)
@@ -693,6 +718,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Create table with 3 blob columns
@@ -766,6 +793,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo And drop without dropping events...
@@ -790,6 +819,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -870,6 +901,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop table and recreate to get normal setup
@@ -946,6 +979,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo And drop without dropping events...
@@ -970,6 +1005,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -1048,6 +1085,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo And drop without dropping events...
@@ -1072,6 +1111,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -1149,6 +1190,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo Drop the table, but fail to drop any event(s)
@@ -1173,6 +1216,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 --echo ----------------------------------------------------------------------
@@ -1250,6 +1295,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 
@@ -1277,6 +1324,8 @@ if ($SHOW_DETAIL)
 }
 --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
+# Remove whitespace
+--replace_regex /^\s*\s*$/''/
 --exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
 
 drop table test.synch;
