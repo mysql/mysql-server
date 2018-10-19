@@ -56,7 +56,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -84,7 +84,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -143,7 +143,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -171,7 +171,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -258,7 +258,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -286,7 +286,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -359,7 +359,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -387,7 +387,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -460,7 +460,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -488,7 +488,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -560,7 +560,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -588,7 +588,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -648,7 +648,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -676,7 +676,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -723,7 +723,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -751,7 +751,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -827,7 +827,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -855,7 +855,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -903,7 +903,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -931,7 +931,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1005,7 +1005,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1033,7 +1033,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1106,7 +1106,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1134,7 +1134,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1207,7 +1207,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld1:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
@@ -1235,7 +1235,7 @@ create table raw_binlog_rows (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
 --echo "Check that the binlog contains the inserted row"
-select "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
+select distinct "mysqld2:",txt from raw_binlog_rows where txt like "### % `test`.`t1`" or txt like "### %='b'" or txt like "### %='c'" or txt like "### %='d'" or txt like "### %='e'";
 drop table raw_binlog_rows;
 --enable_query_log
 reset master;
