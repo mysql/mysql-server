@@ -22,46 +22,85 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef ROUTER_TLS_SERVER_CONTEXT_INCLUDED
-#define ROUTER_TLS_SERVER_CONTEXT_INCLUDED
+#ifndef MYSQLROUTER_TLS_SERVER_CONTEXT_INCLUDED
+#define MYSQLROUTER_TLS_SERVER_CONTEXT_INCLUDED
 
 #include <array>
-#include <memory>
+#include <bitset>
 #include <string>
 #include <vector>
 
-#include <openssl/ssl.h>  // SSL_CTX, SSL_CTX_free
+#include "mysqlrouter/tls_context.h"
 
-#include "openssl_version.h"
+namespace TlsVerifyOpts {
+constexpr size_t kFailIfNoPeerCert = 1 << 0;
+constexpr size_t kClientOnce = 1 << 1;
+}  // namespace TlsVerifyOpts
 
-class TlsServerContext {
+/**
+ * TLS Context for the server side.
+ */
+class TlsServerContext : public TlsContext {
  public:
+  /**
+   * unacceptable ciphers.
+   *
+   * they are filtered out if set through cipher_list()
+   */
   static constexpr std::array<const char *, 9> unacceptable_cipher_spec{
       "!aNULL", "!eNULL", "!EXPORT", "!MD5",  "!DES",
       "!RC2",   "!RC4",   "!PSK",    "!SSLv3"};
-  TlsServerContext(const std::string &cert_chain_file,
-                   const std::string &private_key_file,
-                   const std::string &ciphers, const std::string &dh_params);
 
-  void set_min_version();
+  /**
+   * construct a TLS Context for server-side.
+   */
+  TlsServerContext(TlsVersion min_version = TlsVersion::TLS_1_2,
+                   TlsVersion max_version = TlsVersion::AUTO);
+
+  /**
+   * load key and cert.
+   *
+   * cerifiticate is verified against the key
+   *
+   * @param cert_chain_file filename of a PEM file containing a certificate
+   * @param private_key_file filename of a PEM file containing a key
+   * @throws TlsError on error
+   */
   void load_key_and_cert(const std::string &cert_chain_file,
                          const std::string &private_key_file);
-  void init_tmp_ecdh();
+
+  /**
+   * init temporary DH parameters.
+   *
+   * @param dh_params filename of a PEM file with DH parameters
+   * @throws TlsError
+   */
   void init_tmp_dh(const std::string &dh_params);
-  void set_cipher_list(const std::string &ciphers);
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-  std::vector<std::string> cipher_list() const;
-#endif
 
-  SSL_CTX *get() const { return ssl_ctx_.get(); }
+  /**
+   * set cipher-list.
+   *
+   * list is filtered for unacceptable_cipher_spec
+   *
+   * @param ciphers colon separated list of ciphers
+   *
+   * @see openssl ciphers
+   */
+  void cipher_list(const std::string &ciphers);
 
- protected:
-  std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> ssl_ctx_;
-};
+  /**
+   * set how cerifiticates should be verified.
+   *
+   * @param verify NONE or PEER
+   * @param tls_opts extra options for PEER
+   * @throws std::illegal_argument if verify is NONE and tls_opts is != 0
+   */
+  void verify(TlsVerify verify, std::bitset<2> tls_opts = 0);
 
-class Tls {
- public:
-  static std::vector<std::string> get_default_ciphers();
+  /**
+   * default ciphers.
+   */
+  static std::vector<std::string> default_ciphers();
 };
 
 #endif

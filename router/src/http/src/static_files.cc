@@ -35,19 +35,48 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "http_auth.h"
 #include "http_server_plugin.h"
 #include "mysql/harness/utility/string.h"
+#include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_server_component.h"
 
 void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   HttpUri parsed_uri{HttpUri::parse(req.get_uri())};
+
+  // failed to parse the URI
+  if (!parsed_uri) {
+    req.send_error(HttpStatusCode::BadRequest);
+    return;
+  }
+
+  if (req.get_method() != HttpMethod::Get &&
+      req.get_method() != HttpMethod::Head) {
+    req.send_error(HttpStatusCode::MethodNotAllowed);
+
+    return;
+  }
+
+  if (!require_realm_.empty()) {
+    if (auto realm =
+            HttpAuthRealmComponent::get_instance().get(require_realm_)) {
+      if (HttpAuth::require_auth(req, realm)) {
+        // request is already handled, nothing to do
+        return;
+      }
+
+      // access granted, fall through
+    }
+  }
 
   // guess mime-type
 
   std::string file_path{static_basedir_};
 
   file_path += "/";
-  file_path += http_uri_path_canonicalize(parsed_uri.get_path());
+  std::unique_ptr<char, decltype(&free)> unescaped{
+      evhttp_uridecode(parsed_uri.get_path().c_str(), 1, nullptr), &free};
+  file_path += http_uri_path_canonicalize(unescaped.get());
 
   auto out_hdrs = req.get_output_headers();
 

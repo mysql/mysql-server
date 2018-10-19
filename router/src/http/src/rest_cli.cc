@@ -22,10 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 #include "dim.h"
 #include "mysql/harness/arg_handler.h"
@@ -34,29 +37,42 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/rest_client.h"
+#include "mysqlrouter/tls_client_context.h"
+#include "tls_error.h"
+
+/**
+ * exception thrown by the frontend.
+ *
+ * Should be presented to the user.
+ */
+class FrontendError : public std::runtime_error {
+ public:
+  FrontendError(const std::string &what) : std::runtime_error(what) {}
+};
 
 struct RestClientConfig {
-  std::string uri{"/"};
-  std::string hostname;
   std::string content_type{"application/json"};
-  uint16_t port{80};
   bool verbose{false};
   bool request_data_stdin{false};
   HttpMethod::type method{HttpMethod::Get};
   std::string request_data;
+  std::string ssl_ca_file;
+  std::string ssl_ca_dir;
+  std::string ssl_cipher;
 };
 
 class RestClientFrontend {
  public:
-  RestClientConfig init_from_arguments(
-      const std::vector<std::string> &arguments) {
+  RestClientFrontend(const std::vector<std::string> &arguments) {
     program_name_ = arguments[0];
 
     prepare_command_options();
-    arg_handler_.process(
-        std::vector<std::string>{arguments.begin() + 1, arguments.end()});
-
-    return config_;
+    try {
+      arg_handler_.process(
+          std::vector<std::string>{arguments.begin() + 1, arguments.end()});
+    } catch (const std::invalid_argument &e) {
+      throw FrontendError(e.what());
+    }
   }
 
   bool is_print_and_exit() const noexcept { return do_print_and_exit_; }
@@ -73,6 +89,16 @@ class RestClientFrontend {
 
     return os.str();
   }
+
+  /**
+   * run app according to commandline optiions.
+   *
+   * @returns exit-code
+   * @retval EXIT_SUCESS success
+   * @retval EXIT_FAILURE on error
+   * @throws FrontendError
+   */
+  int run();
 
  private:
   RestClientConfig config_;
@@ -94,19 +120,6 @@ class RestClientFrontend {
           this->do_print_and_exit_ = true;
         });
 
-    arg_handler_.add_option(
-        CmdOption::OptionNames({"--uri"}), "URI", CmdOptionValueReq::required,
-        "uri", [this](const std::string &uri) { config_.uri = uri; });
-    arg_handler_.add_option(
-        CmdOption::OptionNames({"-P", "--port"}),
-        "TCP port to listen on for classic protocol connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.port = static_cast<unsigned>(std::stoul(port));
-        });
-    arg_handler_.add_option(
-        CmdOption::OptionNames({"-h", "--host"}), "hostname of HTTP server.",
-        CmdOptionValueReq::required, "hostname",
-        [this](const std::string &hostname) { config_.hostname = hostname; });
     arg_handler_.add_option(CmdOption::OptionNames({"--content-type"}),
                             "Content-Type of the request-body.",
                             CmdOptionValueReq::required, "string",
@@ -121,6 +134,18 @@ class RestClientFrontend {
         CmdOption::OptionNames({"--data-stdin"}),
         "read request-body from stdin.", CmdOptionValueReq::none, "",
         [this](const std::string &) { config_.request_data_stdin = true; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-ca"}), "trusted CAs.",
+        CmdOptionValueReq::required, "filename",
+        [this](const std::string &val) { config_.ssl_ca_file = val; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-ca-dir"}), "trusted CAs.",
+        CmdOptionValueReq::required, "filename",
+        [this](const std::string &val) { config_.ssl_ca_dir = val; });
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"--ssl-cipher"}), "trusted CAs.",
+        CmdOptionValueReq::required, "ciphers",
+        [this](const std::string &val) { config_.ssl_cipher = val; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--verbose"}), "verbose",
         CmdOptionValueReq::none, "",
@@ -145,88 +170,137 @@ class RestClientFrontend {
         });
   }
 
-  CmdArgHandler arg_handler_;
+  CmdArgHandler arg_handler_{true};
   bool do_print_and_exit_{false};
 };
 
-int main(int argc, char **argv) {
+int RestClientFrontend::run() {
+  if (is_print_and_exit()) {
+    return 0;
+  }
+
+  if (!config_.request_data.empty() && config_.request_data_stdin) {
+    throw FrontendError("--data-stdin and --data are mutual exclusive options");
+  }
+
+  auto &rest_args = arg_handler_.get_rest_arguments();
+  auto rest_args_count = rest_args.size();
+
+  if (rest_args_count != 1) {
+    throw FrontendError("URI is required");
+  }
+
+  HttpUri u{HttpUri::parse(rest_args.at(0))};
+
+  if (u.get_scheme().empty()) {
+    throw FrontendError("scheme required in URI");
+  }
+  if (u.get_host().empty()) {
+    throw FrontendError("host required in URI");
+  }
+
+  if (u.get_port() == 65535u) {
+    if (u.get_scheme() == "http") {
+      u.set_port(80);
+    } else if (u.get_scheme() == "https") {
+      u.set_port(443);
+    } else {
+      throw FrontendError("unknown scheme");
+    }
+  }
+
+  std::string request_data;
+  if (config_.request_data_stdin) {
+    while (true) {
+      char buf[128];
+      auto bytes_read = ::fread(buf, 1, sizeof(buf), stdin);
+
+      if (bytes_read == 0) {
+        if (feof(stdin)) {
+          break;
+        } else if (ferror(stdin)) {
+          throw FrontendError("reading from stdin failed");
+        } else {
+          throw FrontendError("fread() returned 0, but no EOF nor error?");
+        }
+      }
+      request_data.append(buf, buf + bytes_read);
+    }
+  } else {
+    request_data = config_.request_data;
+  }
+
   IOContext io_ctx;
+  TlsClientContext tls_ctx;
+  std::unique_ptr<HttpClient> http_client;
+  if (u.get_scheme() == "https") {
+    if (!config_.ssl_ca_file.empty() || !config_.ssl_ca_dir.empty()) {
+      if (!tls_ctx.ssl_ca(config_.ssl_ca_file, config_.ssl_ca_dir)) {
+        TlsError e("setting CA's failed");
 
-  try {
-    RestClientFrontend frontend;
-    auto frontend_config = frontend.init_from_arguments(
-        std::vector<std::string>{argv, argv + argc});
+        throw FrontendError(e.what());
+      }
+    }
+    if (!config_.ssl_cipher.empty()) {
+      tls_ctx.cipher_list(config_.ssl_cipher);
+    }
+    http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
+                                                u.get_host(), u.get_port());
+  } else {
+    http_client =
+        std::make_unique<HttpClient>(io_ctx, u.get_host(), u.get_port());
+  }
 
-    if (frontend.is_print_and_exit()) {
+  RestClient client(std::move(http_client));
+
+  auto req = client.request_sync(config_.method, u.get_path(), request_data,
+                                 config_.content_type);
+  if (req) {
+    if (req.get_response_code() > 0) {
+      if (config_.verbose) {
+        std::cerr << "> " << req.get_response_code() << " "
+                  << req.get_response_code_line() << std::endl;
+        for (auto const &hdr : req.get_input_headers()) {
+          std::cerr << "> " << hdr.first << ": " << hdr.second << std::endl;
+        }
+      }
+      auto resp_body = req.get_input_buffer();
+      auto resp_body_content = resp_body.pop_front(resp_body.length());
+
+      std::cout << std::string(resp_body_content.begin(),
+                               resp_body_content.end())
+                << std::endl;
       return 0;
-    }
-
-    if (!frontend_config.request_data.empty() &&
-        frontend_config.request_data_stdin) {
-      throw std::logic_error(
-          "--data-stdin and --data are mutual exclusive options");
-    }
-
-    if (frontend_config.hostname.empty()) {
-      throw std::logic_error("--host must be set");
-    }
-
-    std::string request_data;
-    if (frontend_config.request_data_stdin) {
-      while (true) {
-        char buf[128];
-        auto bytes_read = ::fread(buf, 1, sizeof(buf), stdin);
-
-        if (bytes_read == 0) {
-          if (feof(stdin)) {
-            break;
-          } else if (ferror(stdin)) {
-            throw std::runtime_error("reading from stdin failed");
-          } else {
-            throw std::runtime_error(
-                "fread() returned 0, but no EOF nor error?");
-          }
-        }
-        request_data.append(buf, buf + bytes_read);
-      }
     } else {
-      request_data = frontend_config.request_data;
-    }
-
-    auto req =
-        RestClient(io_ctx, frontend_config.hostname, frontend_config.port)
-            .request_sync(frontend_config.method, frontend_config.uri,
-                          request_data, frontend_config.content_type);
-    if (req) {
-      if (req.get_response_code() > 0) {
-        if (frontend_config.verbose) {
-          std::cerr << "> " << req.get_response_code() << " "
-                    << req.get_response_code_line() << std::endl;
-          for (auto const &hdr : req.get_input_headers()) {
-            std::cerr << "> " << hdr.first << ": " << hdr.second << std::endl;
-          }
-        }
-        auto resp_body = req.get_input_buffer();
-        auto resp_body_content = resp_body.pop_front(resp_body.length());
-
-        std::cout << std::string(resp_body_content.begin(),
-                                 resp_body_content.end())
-                  << std::endl;
-        return 0;
-      } else {
-        std::cerr << "HTTP Request to " << frontend_config.hostname << ":"
-                  << std::to_string(frontend_config.port)
-                  << " failed: " << req.error_msg() << std::endl;
-        return -1;
-      }
-    } else {
-      // we don't really know why it failed.
-      std::cerr << "HTTP Request to " << frontend_config.hostname << ":"
-                << std::to_string(frontend_config.port)
-                << " failed (early): " << req.error_msg() << std::endl;
+      // "timeout" is returned for ECONNREFUSED
+      //
+      // the evhttp_request_closecb() may help capture
+      std::cerr << u.get_scheme() << " request to " << u.get_host() << ":"
+                << std::to_string(u.get_port())
+                << " failed: " << req.error_msg() << std::endl;
       return -1;
     }
-  } catch (const std::exception &e) {
+  } else {
+    std::cerr << u.get_scheme() << " request to " << u.get_host() << ":"
+              << std::to_string(u.get_port())
+              << " failed (early): " << req.error_msg()
+              << (req.socket_error_code()
+                      ? (", system-error: " + req.socket_error_code().message())
+                      : "")
+              << ", client-error: " << client.error_msg() << std::endl;
+    return -1;
+  }
+
+  return 0;
+}
+
+int main(int argc, char **argv) {
+  TlsLibraryContext tls_lib_ctx;
+  try {
+    RestClientFrontend frontend(std::vector<std::string>{argv, argv + argc});
+
+    return frontend.run();
+  } catch (const FrontendError &e) {
     std::cerr << e.what() << std::endl;
     return -1;
   }

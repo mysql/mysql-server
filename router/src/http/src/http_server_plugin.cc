@@ -23,6 +23,7 @@
 */
 
 /**
+ * HTTP server plugin.
  */
 
 #include <atomic>
@@ -48,6 +49,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/utility/string.h"
 
 #include "http_server_plugin.h"
 #include "mysqlrouter/http_server_component.h"
@@ -223,7 +225,7 @@ void HttpServer::start(size_t max_threads) {
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
-  harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
+  const harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
   for (size_t ndx = 1; ndx < max_threads; ndx++) {
     thread_contexts_.emplace_back(HttpRequestWorkerThread(accept_fd));
   }
@@ -243,11 +245,9 @@ void HttpServer::start(size_t max_threads) {
 
 class HttpsServer : public HttpServer {
  public:
-  HttpsServer(const std::string &address, uint16_t port,
-              const std::string &cert_file, const std::string &key_file,
-              const std::string &ciphers, const std::string &dh_params)
-      : HttpServer(address.c_str(), port),
-        ssl_ctx_{cert_file, key_file, ciphers, dh_params} {}
+  HttpsServer(TlsServerContext &&tls_ctx, const std::string &address,
+              uint16_t port)
+      : HttpServer(address.c_str(), port), ssl_ctx_{std::move(tls_ctx)} {}
   void start(size_t max_threads) override;
 
  private:
@@ -261,7 +261,7 @@ void HttpsServer::start(size_t max_threads) {
     thread_contexts_.emplace_back(std::move(main_thread));
   }
 
-  harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
+  const harness_socket_t accept_fd = thread_contexts_[0].get_socket_fd();
   for (size_t ndx = 1; ndx < max_threads; ndx++) {
     thread_contexts_.emplace_back(
         HttpsRequestWorkerThread(accept_fd, ssl_ctx_.get()));
@@ -307,6 +307,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   std::string ssl_key;
   std::string ssl_cipher;
   std::string ssl_dh_params;
+  std::string ssl_curves;
   bool with_ssl;
   uint16_t srv_port;
 
@@ -318,24 +319,18 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
         ssl_key(get_option_string(section, "ssl_key")),
         ssl_cipher(get_option_string(section, "ssl_cipher")),
         ssl_dh_params(get_option_string(section, "ssl_dh_param")),
+        ssl_curves(get_option_string(section, "ssl_curves")),
         with_ssl(get_uint_option<bool>(section, "ssl")),
         srv_port(get_uint_option<uint16_t>(section, "port")) {}
 
   std::string get_default_ciphers() const {
-    std::string out;
-    for (const auto &s : Tls::get_default_ciphers()) {
-      if (!out.empty()) out += ":";
-
-      out += s;
-    }
-
-    return out;
+    return mysql_harness::join(TlsServerContext::default_ciphers(), ":");
   }
 
   std::string get_default(const std::string &option) const override {
     const std::map<std::string, std::string> defaults{
         {"bind_address", "0.0.0.0"},
-        {"port", "5555"},
+        {"port", "8081"},
         {"ssl", "0"},
         {"ssl_cipher", get_default_ciphers()},
     };
@@ -357,9 +352,27 @@ class HttpServerFactory {
  public:
   static std::shared_ptr<HttpServer> create(const PluginConfig &config) {
     if (config.with_ssl) {
-      return std::make_shared<HttpsServer>(
-          config.srv_address, config.srv_port, config.ssl_cert, config.ssl_key,
-          config.ssl_cipher, config.ssl_dh_params);
+      // init the TLS Server context according to our config-values
+      TlsServerContext tls_ctx;
+      tls_ctx.load_key_and_cert(config.ssl_cert, config.ssl_key);
+
+      if (!config.ssl_curves.empty()) {
+        if (tls_ctx.has_set_curves_list()) {
+          tls_ctx.curves_list(config.ssl_curves);
+        } else {
+          throw std::invalid_argument(
+              "setting ssl-curves is not supported by the ssl library, it "
+              "should stay unset");
+        }
+      }
+
+      tls_ctx.init_tmp_dh(config.ssl_dh_params);
+
+      if (!config.ssl_cipher.empty()) tls_ctx.cipher_list(config.ssl_cipher);
+
+      // tls-context is owned by the HttpsServer
+      return std::make_shared<HttpsServer>(std::move(tls_ctx),
+                                           config.srv_address, config.srv_port);
     } else {
       return std::make_shared<HttpServer>(config.srv_address.c_str(),
                                           config.srv_port);
@@ -375,8 +388,10 @@ static void init(PluginFuncEnv *env) {
     return;
   }
 
+  // calls the openssl library initialize code
+  TlsLibraryContext tls_lib_ctx;
+
   // assume there is only one section for us
-  //
   try {
     for (const mysql_harness::ConfigSection *section :
          info->config->sections()) {
@@ -393,6 +408,12 @@ static void init(PluginFuncEnv *env) {
 
       PluginConfig config{section};
 
+      if (config.with_ssl &&
+          (config.ssl_cert.empty() || config.ssl_key.empty())) {
+        throw std::invalid_argument(
+            "if ssl=1 is set, ssl_cert and ssl_key must be set too.");
+      }
+
       log_info("listening on %s:%u", config.srv_address.c_str(),
                config.srv_port);
 
@@ -403,9 +424,8 @@ static void init(PluginFuncEnv *env) {
       HttpServerComponent::get_instance().init(srv);
 
       if (!config.static_basedir.empty()) {
-        srv->add_route("",
-                       std::unique_ptr<HttpStaticFolderHandler>(
-                           new HttpStaticFolderHandler(config.static_basedir)));
+        srv->add_route("", std::make_unique<HttpStaticFolderHandler>(
+                               config.static_basedir, config.require_realm));
       }
     }
   } catch (const std::invalid_argument &exc) {

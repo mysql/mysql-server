@@ -33,6 +33,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <vector>
 
 struct evhttp_uri;
@@ -273,6 +274,7 @@ HTTP_COMMON_EXPORT std::string http_uri_path_canonicalize(
  */
 class HTTP_COMMON_EXPORT HttpUri {
  public:
+  HttpUri();
   HttpUri(std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri);
   HttpUri(HttpUri &&);
   ~HttpUri();
@@ -283,9 +285,38 @@ class HTTP_COMMON_EXPORT HttpUri {
   static HttpUri parse(const std::string &uri_str);
 
   /**
+   * convert URI to string.
+   */
+  std::string join() const;
+
+  std::string get_scheme() const;
+  void set_scheme(const std::string &scheme);
+
+  std::string get_userinfo() const;
+  void set_userinfo(const std::string &userinfo);
+
+  std::string get_host() const;
+  void set_host(const std::string &host);
+
+  uint16_t get_port() const;
+  void set_port(uint16_t port) const;
+
+  /**
    * get path part of the URI.
    */
   std::string get_path() const;
+  void set_path(const std::string &path);
+
+  std::string get_fragment() const;
+  void set_fragment(const std::string &fragment);
+
+  std::string get_query() const;
+  void set_query(const std::string &query);
+
+  /**
+   * check if URI is valid.
+   */
+  operator bool() const;
 
  private:
   struct impl;
@@ -406,33 +437,6 @@ constexpr type Patch{1 << Pos::Patch};
 }  // namespace HttpMethod
 
 /**
- * IO Context for network operations.
- *
- * wraps libevent's base
- */
-class HTTP_COMMON_EXPORT IOContext {
- public:
-  IOContext();
-  ~IOContext();
-
-  /**
-   * wait for events to fire and calls handlers.
-   *
-   * exits if no more pending events
-   *
-   * @returns false if no events were pending nor active, true otherwise
-   * @throws  std::runtime_error on internal, unexpected error
-   */
-  bool dispatch();
-
- private:
-  class impl;
-
-  std::unique_ptr<impl> pImpl_;
-  friend class HttpClient;
-};
-
-/**
  * a HTTP request and response.
  *
  * wraps evhttp_request
@@ -481,6 +485,9 @@ class HTTP_COMMON_EXPORT HttpRequest {
   void error_code(int);
   std::string error_msg();
 
+  std::error_code socket_error_code() const;
+  void socket_error_code(std::error_code ec);
+
   /**
    * is request modified since 'last_modified'.
    *
@@ -499,7 +506,7 @@ class HTTP_COMMON_EXPORT HttpRequest {
 
   std::unique_ptr<impl> pImpl_;
 
-  friend class HttpClient;
+  friend class HttpClientConnectionBase;
 };
 
 // http_time.cc

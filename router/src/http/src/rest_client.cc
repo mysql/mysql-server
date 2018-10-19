@@ -42,8 +42,8 @@ HttpRequest RestClient::request_sync(
 
   // ask the server to close the connection after this request
   req.get_output_headers().add("Connection", "close");
-  req.get_output_headers().add("Host", hostname_.c_str());
-  http_client_.make_request_sync(&req, method, uri);
+  req.get_output_headers().add("Host", http_client_->hostname().c_str());
+  http_client_->make_request_sync(&req, method, uri);
 
   return req;
 }

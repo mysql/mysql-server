@@ -24,57 +24,45 @@
 
 #include "tls_server_context.h"
 
-#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/safestack.h>
 #include <openssl/ssl.h>
 
+#include "mysql/harness/utility/string.h"
+
+#include "openssl_version.h"
 #include "tls_error.h"
+
+#if OPENSSL_VERSION_NUMBER < ROUTER_OPENSSL_VERSION(1, 1, 0)
+#define RSA_bits(rsa) BN_num_bits(rsa->n)
+#define DH_bits(dh) BN_num_bits(dh->p)
+#endif
+
+// type == decltype(BN_num_bits())
+constexpr int kMinRsaKeySize{2048};
+constexpr int kMinDhKeySize{1024};
 
 constexpr std::array<const char *, 9>
     TlsServerContext::unacceptable_cipher_spec;
 
-TlsServerContext::TlsServerContext(const std::string &cert_chain_file,
-                                   const std::string &private_key_file,
-                                   const std::string &ciphers,
-                                   const std::string &dh_params)
-    : ssl_ctx_(SSL_CTX_new(
+static const SSL_METHOD *server_method =
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-                   TLS_server_method()
+    TLS_server_method()
 #else
-                   SSLv23_server_method()
+    SSLv23_server_method()
 #endif
-                       ),
-               &SSL_CTX_free) {
-  set_min_version();
-  load_key_and_cert(cert_chain_file, private_key_file);
-  init_tmp_ecdh();
-  init_tmp_dh(dh_params);
-  // ensure DH keys are only used once
-  SSL_CTX_set_options(ssl_ctx_.get(),
-                      SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE);
+    ;
 
-  set_cipher_list(ciphers);
-}
-
-void TlsServerContext::set_min_version() {
-// set min TLS version
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-  if (1 != SSL_CTX_set_min_proto_version(ssl_ctx_.get(), TLS1_2_VERSION)) {
-    throw TlsError("set min-TLS-version failed");
-  }
-#else
-  if (1 != SSL_CTX_set_options(ssl_ctx_.get(),
-                               SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-                                   SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1)) {
-    throw TlsError("set min-TLS-version failed");
-  }
-
-#endif
+TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
+    : TlsContext(server_method) {
+  version_range(min_ver, max_ver);
+  SSL_CTX_set_options(ssl_ctx_.get(), SSL_OP_NO_COMPRESSION);
+  cipher_list("ALL");  // ALL - unacceptable ciphers
 }
 
 void TlsServerContext::load_key_and_cert(const std::string &cert_chain_file,
@@ -83,27 +71,53 @@ void TlsServerContext::load_key_and_cert(const std::string &cert_chain_file,
   if (!cert_chain_file.empty()) {
     if (1 != SSL_CTX_use_certificate_chain_file(ssl_ctx_.get(),
                                                 cert_chain_file.c_str())) {
-      throw TlsError("use certificate " + cert_chain_file + " failed");
+      throw TlsError("using SSL certificate file '" + cert_chain_file +
+                     "' failed");
     }
   }
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+  // openssl 1.0.1 has no SSL_CTX_get0_certificate() and doesn't allow
+  // to access ctx->cert->key->x509 as cert_st is opaque to us.
+
+  // internal pointer, don't free
+  if (X509 *x509 = SSL_CTX_get0_certificate(ssl_ctx_.get())) {
+    std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> public_key(
+        X509_get_pubkey(x509), &EVP_PKEY_free);
+    if (public_key) {
+      switch (EVP_PKEY_base_id(public_key.get())) {
+        case EVP_PKEY_RSA: {
+          std::unique_ptr<RSA, decltype(&RSA_free)> rsa_key(
+              EVP_PKEY_get1_RSA(public_key.get()), &RSA_free);
+          auto key_size = RSA_bits(rsa_key.get());
+
+          if (key_size < kMinRsaKeySize) {
+            throw std::runtime_error(
+                "keylength of RSA public-key of certificate " +
+                cert_chain_file + " is too small. Expected at least " +
+                std::to_string(kMinRsaKeySize) + ", got " +
+                std::to_string(key_size));
+          }
+          break;
+        }
+        default:
+          throw std::runtime_error("not an RSA certificate?");
+      }
+    } else {
+      throw std::runtime_error(
+          "expected to find a publickey in the certificate");
+    }
+  } else {
+    throw std::runtime_error("expected to find a certificate in SSL_CTx");
+  }
+#endif
   if (1 != SSL_CTX_use_PrivateKey_file(ssl_ctx_.get(), private_key_file.c_str(),
                                        SSL_FILETYPE_PEM)) {
-    throw TlsError("using private key-file " + private_key_file + " failed");
+    throw TlsError("using SSL key file '" + private_key_file + "' failed");
   }
   if (1 != SSL_CTX_check_private_key(ssl_ctx_.get())) {
-    throw TlsError("check-private-key");
-  }
-}
-
-// setup ellyptic curve for EDH
-void TlsServerContext::init_tmp_ecdh() {
-  std::unique_ptr<EC_KEY, decltype(&EC_KEY_free)> ecdh(
-      EC_KEY_new_by_curve_name(NID_secp384r1), &EC_KEY_free);
-  if (nullptr == ecdh) {
-    throw TlsError("ec-key-new-by-curve-name");
-  }
-  if (1 != SSL_CTX_set_tmp_ecdh(ssl_ctx_.get(), ecdh.get())) {
-    throw TlsError("ssl: set-tmp-ecdh");
+    throw TlsError("checking SSL key file '" + private_key_file +
+                   "' against SSL certificate file '" + cert_chain_file +
+                   "' failed");
   }
 }
 
@@ -118,50 +132,94 @@ void TlsServerContext::init_tmp_dh(const std::string &dh_params) {
     }
     dh2048.reset(PEM_read_DHparams(f.get(), NULL, NULL, NULL));
     if (nullptr == dh2048.get()) {
-      throw std::runtime_error("failed to open dh-param file");
+      throw TlsError("failed to parse dh-param file");
     }
+
+    int codes = 0;
+    if (1 != DH_check(dh2048.get(), &codes)) {
+      throw TlsError("DH_check() failed");
+    }
+
+    if (codes != 0) {
+      throw std::runtime_error("check of DH params failed: ");
+    }
+
+    if (DH_bits(dh2048.get()) < kMinDhKeySize) {
+      throw std::runtime_error("key size of DH param " + dh_params +
+                               " too small. Expected " +
+                               std::to_string(kMinDhKeySize) + ", got " +
+                               std::to_string(DH_bits(dh2048.get())));
+    }
+
   } else {
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
     dh2048.reset(DH_get_2048_256());
+#else
+    /*
+       Diffie-Hellman key.
+       Generated using: >openssl dhparam -5 -C 2048
+    */
+    const char dh_2048[]{
+        "-----BEGIN DH PARAMETERS-----\n"
+        "MIIBCAKCAQEAil36wGZ2TmH6ysA3V1xtP4MKofXx5n88xq/aiybmGnReZMviCPEJ\n"
+        "46+7VCktl/RZ5iaDH1XNG1dVQmznt9pu2G3usU+k1/VB4bQL4ZgW4u0Wzxh9PyXD\n"
+        "glm99I9Xyj4Z5PVE4MyAsxCRGA1kWQpD9/zKAegUBPLNqSo886Uqg9hmn8ksyU9E\n"
+        "BV5eAEciCuawh6V0O+Sj/C3cSfLhgA0GcXp3OqlmcDu6jS5gWjn3LdP1U0duVxMB\n"
+        "h/neTSCSvtce4CAMYMjKNVh9P1nu+2d9ZH2Od2xhRIqMTfAS1KTqF3VmSWzPFCjG\n"
+        "mjxx/bg6bOOjpgZapvB6ABWlWmRmAAWFtwIBBQ==\n"
+        "-----END DH PARAMETERS-----"};
+
+    std::unique_ptr<BIO, decltype(&BIO_free)> bio{
+        BIO_new_mem_buf(const_cast<char *>(dh_2048), sizeof(dh_2048) - 1),
+        &BIO_free};
+
+    dh2048.reset(PEM_read_bio_DHparams(bio.get(), NULL, NULL, NULL));
+#endif
   }
 
   if (1 != SSL_CTX_set_tmp_dh(ssl_ctx_.get(), dh2048.get())) {
-    throw TlsError("ssl: set-tmp-dh");
+    throw TlsError("set-tmp-dh failed");
   }
+  // ensure DH keys are only used once
+  SSL_CTX_set_options(ssl_ctx_.get(),
+                      SSL_OP_SINGLE_DH_USE | SSL_OP_SINGLE_ECDH_USE);
 }
 
-void TlsServerContext::set_cipher_list(const std::string &ciphers) {
-  // NEVER allow weak ciphers
+void TlsServerContext::verify(TlsVerify verify, std::bitset<2> tls_opts) {
+  int mode = 0;
+  switch (verify) {
+    case TlsVerify::NONE:
+      mode = SSL_VERIFY_NONE;
+
+      if (tls_opts.to_ulong() != 0) {
+        throw std::invalid_argument("tls_opts MUST be zero if verify is NONE");
+      }
+      break;
+    case TlsVerify::PEER:
+      mode = SSL_VERIFY_PEER;
+      break;
+  }
+  if (tls_opts.test(TlsVerifyOpts::kFailIfNoPeerCert)) {
+    mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+  }
+  SSL_CTX_set_verify(ssl_ctx_.get(), mode, NULL);
+}
+
+void TlsServerContext::cipher_list(const std::string &ciphers) {
+  // append the "unacceptable_cipher_spec" to ensure to NEVER allow weak ciphers
 
   std::string ci(ciphers);
-  for (const auto &s : unacceptable_cipher_spec) {
-    if (!ciphers.empty()) ci += ":";
+  if (!ci.empty()) ci += ":";
 
-    ci += s;
-  }
+  ci += mysql_harness::join(unacceptable_cipher_spec, ":");
 
   // load the cipher-list
   if (1 != SSL_CTX_set_cipher_list(ssl_ctx_.get(), ci.c_str())) {
-    throw TlsError("ssl: set-cipher-list");
+    throw TlsError("set-cipher-list failed");
   }
 }
 
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-std::vector<std::string> TlsServerContext::cipher_list() const {
-  // dump the cipher-list we actually have
-  STACK_OF(SSL_CIPHER) *st = SSL_CTX_get_ciphers(ssl_ctx_.get());
-  size_t num_ciphers = sk_SSL_CIPHER_num(st);
-
-  std::vector<std::string> out(num_ciphers);
-  for (size_t ndx = 0; ndx < num_ciphers; ++ndx) {
-    auto *cipher = sk_SSL_CIPHER_value(st, ndx);
-    out.emplace_back(SSL_CIPHER_get_name(cipher));
-  }
-
-  return out;
-}
-#endif
-
-std::vector<std::string> Tls::get_default_ciphers() {
+std::vector<std::string> TlsServerContext::default_ciphers() {
   // as TLSv1.2 is the minimum version, only TLSv1.2+ ciphers are set by
   // default
 
@@ -236,7 +294,9 @@ std::vector<std::string> Tls::get_default_ciphers() {
 
   std::vector<std::string> out(mandatory_p1.size() + optional_p1.size() +
                                optional_p2.size() + optional_p3.size());
-  for (const auto &a : {mandatory_p1, optional_p1, optional_p2, optional_p3}) {
+  for (const std::vector<std::string> &a :
+       std::vector<std::vector<std::string>>{mandatory_p1, optional_p1,
+                                             optional_p2, optional_p3}) {
     out.insert(out.end(), a.begin(), a.end());
   }
 

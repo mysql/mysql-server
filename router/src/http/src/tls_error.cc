@@ -30,11 +30,19 @@
 
 static std::string ossl_to_str(const std::string &prefix) {
   std::deque<std::string> sections;
+
   while (auto err = ERR_get_error()) {
     std::string section;
-    section.append(ERR_func_error_string(err));
-    section.append("::");
-    section.append(ERR_reason_error_string(err));
+    const char *func_err_str = ERR_func_error_string(err);
+    const char *reason_err_str = ERR_reason_error_string(err);
+
+    if (func_err_str || reason_err_str) {
+      section.append(func_err_str ? func_err_str : "");
+      section.append("::");
+      section.append(reason_err_str ? reason_err_str : "");
+    } else {
+      section.append("errcode=" + std::to_string(err));
+    }
     sections.push_front(section);
   }
 

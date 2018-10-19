@@ -137,13 +137,16 @@ class HttpServer {
 
 class HttpStaticFolderHandler : public BaseRequestHandler {
  public:
-  explicit HttpStaticFolderHandler(std::string static_basedir)
-      : static_basedir_(std::move(static_basedir)) {}
+  explicit HttpStaticFolderHandler(std::string static_basedir,
+                                   std::string require_realm)
+      : static_basedir_(std::move(static_basedir)),
+        require_realm_{std::move(require_realm)} {}
 
   void handle_request(HttpRequest &req) override;
 
  private:
   std::string static_basedir_;
+  std::string require_realm_;
 };
 
 #endif

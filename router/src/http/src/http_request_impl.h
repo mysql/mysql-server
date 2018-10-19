@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <system_error>
+
 #include <event2/http.h>
 #include "mysqlrouter/http_common.h"
 
@@ -31,6 +33,7 @@ class HttpRequest::impl {
       std::unique_ptr<evhttp_request, std::function<void(evhttp_request *)>>;
 
   int error_code{0};
+  std::error_code socket_error_code_;
 
   evhttp_req_type req;
 

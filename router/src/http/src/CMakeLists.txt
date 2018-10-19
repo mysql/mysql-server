@@ -25,15 +25,25 @@ ADD_LIBRARY(http_common
   http_common.cc
   http_time.cc
   tls_error.cc
+  tls_context.cc
   )
 TARGET_LINK_LIBRARIES(http_common
-  ${LIBEVENT_LIBRARIES})
+  ${LIBEVENT_LIBRARIES}
+  ${SSL_LIBRARIES}
+  )
+TARGET_INCLUDE_DIRECTORIES(http_common
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
+
 
 SET_TARGET_PROPERTIES(http_common PROPERTIES
   OUTPUT_NAME "mysqlrouter_http"
   SOVERSION 1
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+
+## the rpath for the bundled openssl
+SET_PATH_TO_SSL(http_common ${CMAKE_BINARY_DIR}/library_output_directory)
 
 INSTALL(TARGETS http_common
   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
@@ -56,6 +66,7 @@ ADD_LIBRARY(http_client
   SHARED
   http_client.cc
   rest_client.cc
+  tls_client_context.cc
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT_LIBRARIES}
@@ -66,6 +77,21 @@ TARGET_LINK_LIBRARIES(http_client
 SET_TARGET_PROPERTIES(http_client PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+TARGET_INCLUDE_DIRECTORIES(http_client
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
+
+## the rpath for the bundled openssl
+SET_PATH_TO_SSL(http_client ${CMAKE_BINARY_DIR}/library_output_directory)
+
+# INSTALL(TARGETS http_client
+#   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR}
+#   COMPONENT Router
+#   LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
+#   COMPONENT Router
+#   ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
+#   COMPONENT Router)
+
 
 IF(WIN32)
   ADD_CUSTOM_COMMAND(TARGET http_client POST_BUILD
@@ -83,6 +109,7 @@ ENDIF()
 
 ADD_EXECUTABLE(rest_cli
   rest_cli.cc)
+ADD_DEPENDENCIES(mysqlrouter_all rest_cli)
 TARGET_LINK_LIBRARIES(rest_cli
   harness-library
   http_client ${CMAKE_THREAD_LIBS_INIT})

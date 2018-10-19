@@ -24,6 +24,7 @@ ADD_EXECUTABLE(master_key_test_writer ../helpers/master_key_test_writer.cc)
 SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
+ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
 add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   MODULE "component"
   INCLUDE_DIRS

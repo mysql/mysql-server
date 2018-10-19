@@ -27,6 +27,7 @@
  */
 #include "mysqlrouter/http_common.h"
 
+#include <cstring>
 #include <iostream>
 #include <sstream>
 #include <stack>
@@ -48,6 +49,8 @@ struct HttpUri::impl {
   std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri;
 };
 
+HttpUri::HttpUri() : pImpl_(new impl{{evhttp_uri_new(), &evhttp_uri_free}}) {}
+
 HttpUri::HttpUri(
     std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>> uri) {
   pImpl_.reset(new impl{std::move(uri)});
@@ -56,14 +59,76 @@ HttpUri::HttpUri(
 HttpUri::HttpUri(HttpUri &&) = default;
 HttpUri::~HttpUri() {}
 
+HttpUri::operator bool() const { return pImpl_->uri.operator bool(); }
+
 HttpUri HttpUri::parse(const std::string &uri_str) {
   // wrap a owned pointer
   return HttpUri{std::unique_ptr<evhttp_uri, decltype(&evhttp_uri_free)>{
       evhttp_uri_parse(uri_str.c_str()), &evhttp_uri_free}};
 }
 
+std::string HttpUri::get_scheme() const {
+  return evhttp_uri_get_scheme(pImpl_->uri.get());
+}
+
+void HttpUri::set_scheme(const std::string &scheme) {
+  evhttp_uri_set_scheme(pImpl_->uri.get(), scheme.c_str());
+}
+
+std::string HttpUri::get_userinfo() const {
+  return evhttp_uri_get_userinfo(pImpl_->uri.get());
+}
+void HttpUri::set_userinfo(const std::string &userinfo) {
+  evhttp_uri_set_userinfo(pImpl_->uri.get(), userinfo.c_str());
+}
+
+std::string HttpUri::get_host() const {
+  return evhttp_uri_get_host(pImpl_->uri.get());
+}
+
+void HttpUri::set_host(const std::string &host) {
+  evhttp_uri_set_host(pImpl_->uri.get(), host.c_str());
+}
+
+uint16_t HttpUri::get_port() const {
+  return evhttp_uri_get_port(pImpl_->uri.get());
+}
+
+void HttpUri::set_port(uint16_t port) const {
+  evhttp_uri_set_port(pImpl_->uri.get(), port);
+}
+
 std::string HttpUri::get_path() const {
   return evhttp_uri_get_path(pImpl_->uri.get());
+}
+
+void HttpUri::set_path(const std::string &path) {
+  if (0 != evhttp_uri_set_path(pImpl_->uri.get(), path.c_str())) {
+    throw std::invalid_argument("URL path isn't valid: " + path);
+  }
+}
+
+std::string HttpUri::get_fragment() const {
+  return evhttp_uri_get_fragment(pImpl_->uri.get());
+}
+void HttpUri::set_fragment(const std::string &fragment) {
+  evhttp_uri_set_fragment(pImpl_->uri.get(), fragment.c_str());
+}
+
+std::string HttpUri::get_query() const {
+  return evhttp_uri_get_query(pImpl_->uri.get());
+}
+void HttpUri::set_query(const std::string &query) {
+  evhttp_uri_set_query(pImpl_->uri.get(), query.c_str());
+}
+
+std::string HttpUri::join() const {
+  char buf[16 * 1024];
+  if (evhttp_uri_join(pImpl_->uri.get(), buf, sizeof(buf))) {
+    return buf;
+  }
+
+  throw std::invalid_argument("join failed");
 }
 
 std::string http_uri_path_canonicalize(const std::string &uri_path) {
@@ -244,6 +309,12 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
       [](evhttp_request *req, void *ev_cb_arg) {
         auto *ctx = static_cast<RequestHandlerCtx *>(ev_cb_arg);
 
+        if ((req == NULL) && (errno != 0)) {
+          // request failed. Try to capture the last errno and hope
+          // it is related to the failure
+          ctx->req->socket_error_code({errno, std::system_category()});
+        }
+
         ctx->req->pImpl_->req.release();   // the old request object may already
                                            // be free()ed in case of error
         ctx->req->pImpl_->req.reset(req);  // just update with what we have
@@ -270,6 +341,14 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
 HttpRequest::HttpRequest(HttpRequest &&rhs) : pImpl_{std::move(rhs.pImpl_)} {}
 
 HttpRequest::~HttpRequest() {}
+
+void HttpRequest::socket_error_code(std::error_code error_code) {
+  pImpl_->socket_error_code_ = error_code;
+}
+
+std::error_code HttpRequest::socket_error_code() const {
+  return pImpl_->socket_error_code_;
+}
 
 void HttpRequest::send_error(int status_code, std::string status_text) {
   evhttp_send_error(pImpl_->req.get(), status_code, status_text.c_str());
