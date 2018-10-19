@@ -95,6 +95,10 @@ XA START 'xa1';
 XA END 'xa1';
 XA PREPARE 'xa1';
 --disconnect other_conn
+# Wait for the `other_conn` to be cleared from the server
+--connection default
+--let $wait_condition = SELECT COUNT(*) = 0 FROM information_schema.processlist WHERE id = '$connection_id'
+--source include/wait_condition.inc
 
 --connection default
 # TC3. Manual GTID and apply `XA ROLLBACK` to an existent XA transaction
@@ -133,11 +137,14 @@ SET @@AUTOCOMMIT=1;
 --let $assert_cond= "[SELECT COUNT(1) FROM t2]" = "4"
 --source include/assert.inc
 
+# CLEAN UP
 SET SESSION GTID_NEXT='AUTOMATIC';
-
+XA ROLLBACK 'xa1';
+--let $pending = query_get_value(XA RECOVER, data, 1)
+--let $assert_text= All XA transactions were cleared
+--let $assert_cond= "$pending" = "No such row"
+--source include/assert.inc
 DROP TABLE t2;
-
 --replace_result $current_autocommit DEFAULT_AUTOCOMMIT
 --eval SET @@AUTOCOMMIT=$current_autocommit
-
 RESET MASTER;
