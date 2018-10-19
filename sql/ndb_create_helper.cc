@@ -26,7 +26,7 @@
 #include "sql/ndb_create_helper.h"
 
 // Using
-#include "my_base.h"       // HA_ERR_GENERIC
+#include "my_base.h"  // HA_ERR_GENERIC
 #include "my_dbug.h"
 #include "mysqld_error.h"
 
@@ -36,23 +36,7 @@
 #include "sql/sql_error.h"
 
 Ndb_create_helper::Ndb_create_helper(THD *thd, const char *table_name)
-    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_table_name(table_name) {
-
-  // Workaround for BUG#28556264 which causes ha_ndbcluster::create() to
-  // be called with errors already in the condition list, this prevents
-  // pushing another error(at least it will not be visible). Fix be clearing
-  // condition stack.
-  DBUG_ASSERT(!thd->is_error());
-  const Diagnostics_area *da = m_thd->get_stmt_da();
-  Diagnostics_area::Sql_condition_iterator it(da->sql_conditions());
-  const Sql_condition *cond;
-  while ((cond = it++)) {
-    if (cond->severity() == Sql_condition::SL_ERROR) {
-      // NOTE! This cleans out everything including prior warnings
-      m_thd->get_stmt_da()->reset_condition_info(m_thd);
-    }
-  }
-}
+    : m_thd(thd), m_thd_ndb(get_thd_ndb(thd)), m_table_name(table_name) {}
 
 void Ndb_create_helper::check_warnings_and_error() const {
   bool have_error = false;
@@ -114,8 +98,7 @@ bool Ndb_create_helper::have_warning() const {
   Diagnostics_area::Sql_condition_iterator it(da->sql_conditions());
   const Sql_condition *cond;
   while ((cond = it++)) {
-    if (cond->severity() == Sql_condition::SL_WARNING)
-      return true;
+    if (cond->severity() == Sql_condition::SL_WARNING) return true;
   }
   return false;
 }
@@ -141,10 +124,8 @@ int Ndb_create_helper::set_create_table_error() const {
 }
 
 int Ndb_create_helper::failed_warning_already_pushed() const {
-
   // Check that warning describing the problem has already been pushed
-  if (!have_warning())
-  {
+  if (!have_warning()) {
     // Crash in debug compile
     DBUG_ASSERT(false);
   }
@@ -152,12 +133,12 @@ int Ndb_create_helper::failed_warning_already_pushed() const {
   return set_create_table_error();
 }
 
-int Ndb_create_helper::failed(uint code, const char* message) const {
+int Ndb_create_helper::failed(uint code, const char *message) const {
   m_thd_ndb->push_warning(code, "%s", message);
   return set_create_table_error();
 }
 
-int Ndb_create_helper::failed_in_NDB(const NdbError& ndb_err) const {
+int Ndb_create_helper::failed_in_NDB(const NdbError &ndb_err) const {
   m_thd_ndb->push_ndb_error_warning(ndb_err);
   return set_create_table_error();
 }
@@ -170,7 +151,8 @@ int Ndb_create_helper::failed_internal_error(const char *message) const {
   return failed(ER_INTERNAL_ERROR, message);
 }
 
-int Ndb_create_helper::failed_missing_create_option(const char *description) const {
+int Ndb_create_helper::failed_missing_create_option(
+    const char *description) const {
   return failed(ER_MISSING_HA_CREATE_OPTION, description);
 }
 
@@ -184,6 +166,4 @@ int Ndb_create_helper::failed_illegal_create_option(const char *reason) const {
   return HA_ERR_GENERIC;
 }
 
-int Ndb_create_helper::succeeded() {
-  return 0;
-}
+int Ndb_create_helper::succeeded() { return 0; }
