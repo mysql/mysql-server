@@ -3,17 +3,16 @@
 
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
+
+create schema xtest default charset='utf8mb4';
+
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/insert_doc_bad_proj.tmp
 ## Test data
--->sql
-drop schema if exists xtest;
-create schema xtest default charset='utf8mb4';
-use xtest;
-create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
-create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json);
-create table ` .'"````\\` (` .'"````\\` int);
--->endsql
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
+-->recvresult
+
 Mysqlx.Crud.Insert {
   collection {
     name: "mycoll"
@@ -38,15 +37,11 @@ Mysqlx.Crud.Insert {
 
 ## expect Mysqlx.Error
 -->recv
-
-## Cleanup
--->sql
-drop schema if exists xtest;
--->endsql
 EOF
 
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_doc_bad_proj.tmp 2>&1
 
 ## Cleanup
+drop schema if exists xtest;
 --remove_file $MYSQL_TMP_DIR/insert_doc_bad_proj.tmp
 --source include/xplugin_drop_user.inc

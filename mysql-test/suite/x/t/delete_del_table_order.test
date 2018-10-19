@@ -4,18 +4,23 @@
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
+
+create schema xtest;
+
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
 ## Test data
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
+-->recvresult
+
 -->sql
-drop schema if exists xtest;
-create schema xtest;
 use xtest;
-create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
-insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Robb"}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Bran"}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Arya"}', json_unquote(json_extract(doc, '$._id')));
-insert into mycoll (doc, _id) values ('{"_id": "4", "name": "Sansa"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc) values ('{"_id": "1", "name": "Robb"}');
+insert into mycoll (doc) values ('{"_id": "2", "name": "Bran"}');
+insert into mycoll (doc) values ('{"_id": "3", "name": "Arya"}');
+insert into mycoll (doc) values ('{"_id": "4", "name": "Sansa"}');
+
 create table mytable (id int primary key, name varchar(40), price decimal(5,2), info json);
 insert into mytable values (1, 'banana', 1.20, '{"color": "yellow"}');
 insert into mytable values (2, 'apple', 0.25, '{"color":"red"}');
@@ -81,15 +86,11 @@ Mysqlx.Crud.Delete {
 -->sql
 SELECT * FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
 -->endsql
-
-## Cleanup
--->sql
-drop schema if exists xtest;
--->endsql
 EOF
 
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table_order.tmp 2>&1
 
 ## Cleanup
+drop schema if exists xtest;
 --remove_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
 --source include/xplugin_drop_user.inc
