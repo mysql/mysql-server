@@ -2624,16 +2624,16 @@ int ha_federated::info(uint flag) {
       delete_length = ?
     */
     if (row[4] != NULL)
-      stats.records = (ha_rows)my_strtoll10(row[4], (char **)0, &error);
+      stats.records = (ha_rows)my_strtoll10(row[4], nullptr, &error);
     if (row[5] != NULL)
-      stats.mean_rec_length = (ulong)my_strtoll10(row[5], (char **)0, &error);
+      stats.mean_rec_length = (ulong)my_strtoll10(row[5], nullptr, &error);
 
     stats.data_file_length = stats.records * stats.mean_rec_length;
 
     if (row[12] != NULL)
-      stats.update_time = (ulong)my_strtoll10(row[12], (char **)0, &error);
+      stats.update_time = (ulong)my_strtoll10(row[12], nullptr, &error);
     if (row[13] != NULL)
-      stats.check_time = (ulong)my_strtoll10(row[13], (char **)0, &error);
+      stats.check_time = (ulong)my_strtoll10(row[13], nullptr, &error);
 
     /*
       size of IO operations (This is based on a good guess, no high science

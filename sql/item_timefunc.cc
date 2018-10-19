@@ -216,7 +216,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
 
     if (*ptr == '%' && ptr + 1 != end) {
       int val_len;
-      char *tmp;
+      const char *tmp;
 
       error = 0;
 
@@ -224,14 +224,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
       switch (*++ptr) {
           /* Year */
         case 'Y':
-          tmp = (char *)val + MY_MIN(4, val_len);
+          tmp = val + MY_MIN(4, val_len);
           l_time->year = (int)my_strtoll10(val, &tmp, &error);
           if ((int)(tmp - val) <= 2)
             l_time->year = year_2000_handling(l_time->year);
           val = tmp;
           break;
         case 'y':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->year = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           l_time->year = year_2000_handling(l_time->year);
@@ -240,7 +240,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Month */
         case 'm':
         case 'c':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->month = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -257,12 +257,12 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Day */
         case 'd':
         case 'e':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->day = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
         case 'D':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->day = (int)my_strtoll10(val, &tmp, &error);
           /* Skip 'st, 'nd, 'th .. */
           val = tmp + MY_MIN((int)(val_end - tmp), 2);
@@ -276,14 +276,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* fall through */
         case 'k':
         case 'H':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->hour = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
 
           /* Minute */
         case 'i':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->minute = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -291,14 +291,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Second */
         case 's':
         case 'S':
-          tmp = (char *)val + MY_MIN(2, val_len);
+          tmp = val + MY_MIN(2, val_len);
           l_time->second = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
 
           /* Second part */
         case 'f':
-          tmp = (char *)val_end;
+          tmp = val_end;
           if (tmp - val > 6) tmp = (char *)val + 6;
           l_time->second_part = (int)my_strtoll10(val, &tmp, &error);
           frac_part = 6 - (int)(tmp - val);

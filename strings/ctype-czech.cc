@@ -33,13 +33,13 @@
         solution was needed than the one-to-one conversion table. To
         note a few, here is an example of a Czech sorting sequence:
 
-                co < hlaska < hláska < hlava < chlapec < krtek
+                co < hlaska < hlÃ¡ska < hlava < chlapec < krtek
 
         It because some of the rules are: double char 'ch' is sorted
-        between 'h' and 'i'. Accented character 'á' (a with acute) is
+        between 'h' and 'i'. Accented character 'Ã¡' (a with acute) is
         sorted after 'a' and before 'b', but only if the word is
         otherwise the same. However, because 's' is sorted before 'v'
-        in hlava, the accentness of 'á' is overridden. There are many
+        in hlava, the accentness of 'Ã¡' is overridden. There are many
         more rules.
 
         This file defines functions my_strxfrm and my_strcoll for
@@ -77,6 +77,7 @@
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 /*
         These are four tables for four passes of the algorithm. Please see
@@ -161,15 +162,17 @@ namespace {
 
 struct wordvalue {
   const char *word;
-  uchar *outvalue;
+  const uchar *outvalue;
 };
 
 }  // namespace
 
 static struct wordvalue doubles[] = {
-    {"ch", (uchar *)"\014\031\057\057"}, {"Ch", (uchar *)"\014\031\060\060"},
-    {"CH", (uchar *)"\014\031\061\061"}, {"c", (uchar *)"\005\012\021\021"},
-    {"C", (uchar *)"\005\012\022\022"},
+    {"ch", pointer_cast<const uchar *>("\014\031\057\057")},
+    {"Ch", pointer_cast<const uchar *>("\014\031\060\060")},
+    {"CH", pointer_cast<const uchar *>("\014\031\061\061")},
+    {"c", pointer_cast<const uchar *>("\005\012\021\021")},
+    {"C", pointer_cast<const uchar *>("\005\012\022\022")},
 };
 
 /*
@@ -201,30 +204,30 @@ static struct wordvalue doubles[] = {
 
         We append 0 to the end.
 ---
-        Neformální popis algoritmu:
+        NeformÃ¡lnÃ­ popis algoritmu:
 
-        Procházíme øetìzec zleva doprava.
+        ProchÃ¡zÃ­me Ã¸etÃ¬zec zleva doprava.
 
-        Konec øetìzce je pøedán buï jako parametr, nebo je to *p == 0.
-        Toto je o¹etøeno makrem IS_END.
+        Konec Ã¸etÃ¬zce je pÃ¸edÃ¡n buÃ¯ jako parametr, nebo je to *p == 0.
+        Toto je oÂ¹etÃ¸eno makrem IS_END.
 
-        Pokud jsme do¹li na konec øetìzce pøi prùchodu 0, nejdeme na
-        zaèátek, ale na ulo¾enou pozici, proto¾e první a druhı prùchod
-        bì¾í souèasnì.
+        Pokud jsme doÂ¹li na konec Ã¸etÃ¬zce pÃ¸i prÃ¹chodu 0, nejdeme na
+        zaÃ¨Ã¡tek, ale na uloÅ¸enou pozici, protoÅ¸e prvnÃ­ a druhÃ½ prÃ¹chod
+        bÃ¬Å¸Ã­ souÃ¨asnÃ¬.
 
-        Konec vstupu (prùchodu) oznaèíme na vıstupu hodnotou 1.
+        Konec vstupu (prÃ¹chodu) oznaÃ¨Ã­me na vÃ½stupu hodnotou 1.
 
-        Pro ka¾dı znak øetìzce naèteme hodnotu z tøídící tabulky.
+        Pro kaÅ¸dÃ½ znak Ã¸etÃ¬zce naÃ¨teme hodnotu z tÃ¸Ã­dÃ­cÃ­ tabulky.
 
-        Jde-li o hodnotu ignorovat (0), skoèíme ihned na dal¹í znak..
+        Jde-li o hodnotu ignorovat (0), skoÃ¨Ã­me ihned na dalÂ¹Ã­ znak..
 
-        Jde-li o hodnotu konec slova (2) a je to prùchod 0 nebo 1,
-        pøeskoèíme v¹echny dal¹í 0 -- 2 a prohodíme prùchody.
+        Jde-li o hodnotu konec slova (2) a je to prÃ¹chod 0 nebo 1,
+        pÃ¸eskoÃ¨Ã­me vÂ¹echny dalÂ¹Ã­ 0 -- 2 a prohodÃ­me prÃ¹chody.
 
-        Jde-li o kompozitní znak (255), otestujeme, zda následuje
-        správnı do dvojice, dohledáme správnou hodnotu.
+        Jde-li o kompozitnÃ­ znak (255), otestujeme, zda nÃ¡sleduje
+        sprÃ¡vnÃ½ do dvojice, dohledÃ¡me sprÃ¡vnou hodnotu.
 
-        Na konci pøipojíme znak 0
+        Na konci pÃ¸ipojÃ­me znak 0
  */
 
 #define ADD_TO_RESULT(dest, len, totlen, value) \
@@ -233,7 +236,8 @@ static struct wordvalue doubles[] = {
       dest[totlen++] = value;                   \
     }                                           \
   }
-#define IS_END(p, src, len) (((char *)p - (char *)src) >= (len))
+#define IS_END(p, src, len) \
+  ((pointer_cast<const char *>(p) - pointer_cast<const char *>(src)) >= (len))
 
 #define NEXT_CMP_VALUE(src, p, store, pass, value, len)           \
   while (1) {                                                     \
@@ -379,24 +383,24 @@ static size_t my_strnxfrm_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 #undef IS_END
 
 /*
-        Neformální popis algoritmu:
+        NeformÃ¡lnÃ­ popis algoritmu:
 
-        procházíme øetìzec zleva doprava
-        konec øetìzce poznáme podle *p == 0
-        pokud jsme do¹li na konec øetìzce pøi prùchodu 0, nejdeme na
-                zaèátek, ale na ulo¾enou pozici, proto¾e první a druhı
-                prùchod bì¾í souèasnì
-        konec vstupu (prùchodu) oznaèíme na vıstupu hodnotou 1
+        prochÃ¡zÃ­me Ã¸etÃ¬zec zleva doprava
+        konec Ã¸etÃ¬zce poznÃ¡me podle *p == 0
+        pokud jsme doÂ¹li na konec Ã¸etÃ¬zce pÃ¸i prÃ¹chodu 0, nejdeme na
+                zaÃ¨Ã¡tek, ale na uloÅ¸enou pozici, protoÅ¸e prvnÃ­ a druhÃ½
+                prÃ¹chod bÃ¬Å¸Ã­ souÃ¨asnÃ¬
+        konec vstupu (prÃ¹chodu) oznaÃ¨Ã­me na vÃ½stupu hodnotou 1
 
-        naèteme hodnotu z tøídící tabulky
-        jde-li o hodnotu ignorovat (0), skoèíme na dal¹í prùchod
-        jde-li o hodnotu konec slova (2) a je to prùchod 0 nebo 1,
-                pøeskoèíme v¹echny dal¹í 0 -- 2 a prohodíme
-                prùchody
-        jde-li o kompozitní znak (255), otestujeme, zda následuje
-                správnı do dvojice, dohledáme správnou hodnotu
+        naÃ¨teme hodnotu z tÃ¸Ã­dÃ­cÃ­ tabulky
+        jde-li o hodnotu ignorovat (0), skoÃ¨Ã­me na dalÂ¹Ã­ prÃ¹chod
+        jde-li o hodnotu konec slova (2) a je to prÃ¹chod 0 nebo 1,
+                pÃ¸eskoÃ¨Ã­me vÂ¹echny dalÂ¹Ã­ 0 -- 2 a prohodÃ­me
+                prÃ¹chody
+        jde-li o kompozitnÃ­ znak (255), otestujeme, zda nÃ¡sleduje
+                sprÃ¡vnÃ½ do dvojice, dohledÃ¡me sprÃ¡vnou hodnotu
 
-        na konci pøipojíme znak 0
+        na konci pÃ¸ipojÃ­me znak 0
  */
 
 /*

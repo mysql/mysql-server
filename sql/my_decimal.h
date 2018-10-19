@@ -328,7 +328,7 @@ inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to) {
 }
 
 inline int str2my_decimal(uint mask, const char *str, my_decimal *d,
-                          char **end) {
+                          const char **end) {
   return check_result_and_overflow(mask, string2decimal(str, d, end), d);
 }
 

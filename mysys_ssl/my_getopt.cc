@@ -62,7 +62,8 @@ my_error_reporter my_getopt_error_reporter = &my_message_local;
 static bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
 static ulonglong getopt_ull(char *, const struct my_option *, int *);
-static double getopt_double(char *arg, const struct my_option *optp, int *err);
+static double getopt_double(const char *arg, const struct my_option *optp,
+                            int *err);
 static void init_variables(const struct my_option *, init_func_p);
 static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
@@ -1236,10 +1237,11 @@ double getopt_double_limit_value(double num, const struct my_option *optp,
     EXIT_ARGUMENT_INVALID.  Otherwise err is not touched
 */
 
-static double getopt_double(char *arg, const struct my_option *optp, int *err) {
+static double getopt_double(const char *arg, const struct my_option *optp,
+                            int *err) {
   double num;
   int error;
-  char *end = arg + 1000; /* Big enough as *arg is \0 terminated */
+  const char *end = arg + 1000; /* Big enough as *arg is \0 terminated */
   num = my_strtod(arg, &end, &error);
   if (end[0] != 0 || error) {
     my_getopt_error_reporter(ERROR_LEVEL, EE_INVALID_DECIMAL_VALUE_FOR_OPTION,

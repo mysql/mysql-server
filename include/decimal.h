@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ struct decimal_t {
 };
 
 #ifndef MYSQL_ABI_CHECK
-int string2decimal(const char *from, decimal_t *to, char **end);
+int string2decimal(const char *from, decimal_t *to, const char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
                    int fixed_precision, int fixed_decimals, char filler);
 int decimal2ulonglong(decimal_t *from, ulonglong *to);

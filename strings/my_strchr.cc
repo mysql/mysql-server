@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,33 +29,6 @@
 #include <sys/types.h>
 
 #include "m_ctype.h"
-
-/*
-  Return pointer to first occurrence of character in a multi-byte string
-  or NULL if the character doesn't appear in the multi-byte string or
-  invalid character in charset of multi-byte string is found.
-
-  @param   cs    Pointer to charset info.
-  @param   str   Pointer to start of multi-byte string.
-  @param   end   Pointer to end of multi-byte string.
-  @param   c     Character to find first occurrence of.
-
-  @return  Pointer to first occurence of c in str or NULL.
-*/
-
-char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                char c) {
-  while (str < end) {
-    uint mbl = my_mbcharlen_ptr(cs, str, end);
-    if (mbl == 0) return NULL;
-    if (mbl == 1) {
-      if (*str == c) return ((char *)str);
-      str++;
-    } else
-      str += mbl;
-  }
-  return (0);
-}
 
 /**
   Calculate the length of the initial segment of 'str' which consists

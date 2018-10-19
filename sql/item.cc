@@ -2824,7 +2824,7 @@ longlong Item_field::val_int_endpoint(bool, bool *) {
   This is always 'signed'. Unsigned values are created with Item_uint()
 */
 void Item_int::init(const char *str_arg, uint length) {
-  char *end_ptr = (char *)str_arg + length;
+  const char *end_ptr = str_arg + length;
   int error;
   value = my_strtoll10(str_arg, &end_ptr, &error);
   max_length = (uint)(end_ptr - str_arg);
@@ -3082,7 +3082,7 @@ double double_from_string_with_check(const CHARSET_INFO *cs, const char *cptr,
   int error;
   double tmp;
 
-  char *endptr = const_cast<char *>(end);
+  const char *endptr = end;
   tmp = my_strntod(cs, const_cast<char *>(cptr), end - cptr, &endptr, &error);
   if (error || (end != endptr && !check_if_only_end_space(cs, endptr, end))) {
     ErrConvString err(cptr, end - cptr, cs);
@@ -3104,7 +3104,7 @@ longlong longlong_from_string_with_check(const CHARSET_INFO *cs,
                                          const char *cptr, const char *end) {
   int err;
   longlong tmp;
-  char *endptr = const_cast<char *>(end);
+  const char *endptr = end;
 
   tmp = (*(cs->cset->strtoll10))(cs, cptr, &endptr, &err);
   /*
@@ -3316,10 +3316,9 @@ void Item_param::set_double(double d) {
 */
 
 void Item_param::set_decimal(const char *str, ulong length) {
-  char *end;
   DBUG_ENTER("Item_param::set_decimal");
 
-  end = (char *)str + length;
+  const char *end = str + length;
   str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
   state = DECIMAL_VALUE;
   decimals = decimal_value.frac;
@@ -3601,7 +3600,7 @@ double Item_param::val_real() {
     case STRING_VALUE:
     case LONG_DATA_VALUE: {
       int dummy_err;
-      char *end_not_used;
+      const char *end_not_used;
       return my_strntod(str_value.charset(), (char *)str_value.ptr(),
                         str_value.length(), &end_not_used, &dummy_err);
     }
@@ -3634,7 +3633,7 @@ longlong Item_param::val_int() {
     case LONG_DATA_VALUE: {
       int dummy_err;
       return my_strntoll(str_value.charset(), str_value.ptr(),
-                         str_value.length(), 10, (char **)0, &dummy_err);
+                         str_value.length(), 10, nullptr, &dummy_err);
     }
     case TIME_VALUE:
       return (longlong)TIME_to_ulonglong_round(&value.time);
@@ -4077,7 +4076,7 @@ Item_copy *Item_copy::create(Item *item) {
 
 double Item_copy_string::val_real() {
   int err_not_used;
-  char *end_not_used;
+  const char *end_not_used;
   return (null_value
               ? 0.0
               : my_strntod(str_value.charset(), (char *)str_value.ptr(),
@@ -4088,7 +4087,7 @@ longlong Item_copy_string::val_int() {
   int err;
   return null_value ? 0LL
                     : my_strntoll(str_value.charset(), str_value.ptr(),
-                                  str_value.length(), 10, (char **)0, &err);
+                                  str_value.length(), 10, nullptr, &err);
 }
 
 type_conversion_status Item_copy_string::save_in_field_inner(Field *field,
@@ -6222,7 +6221,7 @@ static uint nr_of_decimals(const char *str, const char *end) {
 
 void Item_float::init(const char *str_arg, uint length) {
   int error;
-  char *end_not_used;
+  const char *end_not_used;
   value = my_strntod(&my_charset_bin, (char *)str_arg, length, &end_not_used,
                      &error);
   if (error) {
@@ -8897,7 +8896,7 @@ void Item_cache_str::store_value(Item *expr, String &s) {
 double Item_cache_str::val_real() {
   DBUG_ASSERT(fixed == 1);
   int err_not_used;
-  char *end_not_used;
+  const char *end_not_used;
   if (!has_value()) return 0.0;
   if (value)
     return my_strntod(value->charset(), (char *)value->ptr(), value->length(),
@@ -8911,7 +8910,7 @@ longlong Item_cache_str::val_int() {
   if (!has_value()) return 0;
   if (value)
     return my_strntoll(value->charset(), value->ptr(), value->length(), 10,
-                       (char **)0, &err);
+                       nullptr, &err);
   else
     return (longlong)0;
 }

@@ -1996,7 +1996,7 @@ class Item_func_udf_str : public Item_udf_func {
   String *val_str(String *) override;
   double val_real() override {
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     String *res;
     res = val_str(&str_value);
     return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
@@ -2008,7 +2008,7 @@ class Item_func_udf_str : public Item_udf_func {
     String *res;
     res = val_str(&str_value);
     return res ? my_strntoll(res->charset(), res->ptr(), res->length(), 10,
-                             (char **)0, &err_not_used)
+                             nullptr, &err_not_used)
                : (longlong)0;
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {

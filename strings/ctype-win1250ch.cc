@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 static uint16 tab_cp1250_uni[256] = {
     0,      0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008,
@@ -355,9 +356,11 @@ struct wordvalue {
 }  // namespace
 
 static struct wordvalue doubles[] = {
-    {(uchar *)"ch", 0xad, 0x03}, {(uchar *)"c", 0xa6, 0x02},
-    {(uchar *)"Ch", 0xad, 0x02}, {(uchar *)"CH", 0xad, 0x01},
-    {(uchar *)"C", 0xa6, 0x01},
+    {pointer_cast<const uchar *>("ch"), 0xad, 0x03},
+    {pointer_cast<const uchar *>("c"), 0xa6, 0x02},
+    {pointer_cast<const uchar *>("Ch"), 0xad, 0x02},
+    {pointer_cast<const uchar *>("CH"), 0xad, 0x01},
+    {pointer_cast<const uchar *>("C"), 0xa6, 0x01},
 };
 
 #define NEXT_CMP_VALUE(src, p, pass, value, len)                            \
@@ -393,7 +396,8 @@ static struct wordvalue doubles[] = {
     break;                                                                  \
   }
 
-#define IS_END(p, src, len) (((char *)p - (char *)src) >= (len))
+#define IS_END(p, src, len) \
+  ((pointer_cast<const char *>(p) - pointer_cast<const char *>(src)) >= (len))
 
 extern "C" {
 static int my_strnncoll_win1250ch(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),

@@ -1191,7 +1191,7 @@ double Item_func_numhybrid::val_real() {
         default:
           break;
       }
-      char *end_not_used;
+      const char *end_not_used;
       int err_not_used;
       String *res = str_op(&str_value);
       return (res ? my_strntod(res->charset(), (char *)res->ptr(),
@@ -1240,7 +1240,7 @@ longlong Item_func_numhybrid::val_int() {
       String *res;
       if (!(res = str_op(&str_value))) return 0;
 
-      char *end = (char *)res->ptr() + res->length();
+      const char *end = res->ptr() + res->length();
       const CHARSET_INFO *cs = res->charset();
       return (*(cs->cset->strtoll10))(cs, res->ptr(), &end, &err_not_used);
     }
@@ -1336,7 +1336,7 @@ bool Item_func_signed::resolve_type(THD *) {
 }
 
 longlong Item_func_signed::val_int_from_str(int *error) {
-  char buff[MAX_FIELD_WIDTH], *end, *start;
+  char buff[MAX_FIELD_WIDTH], *start;
   size_t length;
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   longlong value;
@@ -1357,7 +1357,7 @@ longlong Item_func_signed::val_int_from_str(int *error) {
   length = res->length();
   cs = res->charset();
 
-  end = start + length;
+  const char *end = start + length;
   value = cs->cset->strtoll10(cs, start, &end, error);
   if (*error > 0 || end != start + length) {
     ErrConvString err(res);
@@ -2316,9 +2316,9 @@ longlong Item_func_bit::val_int() {
     if (!(res = str_op(&str_value))) return 0;
 
     int ovf_error;
-    char *from = const_cast<char *>(res->ptr());
+    const char *from = res->ptr();
     size_t len = res->length();
-    char *end = from + len;
+    const char *end = from + len;
     return my_strtoll10(from, &end, &ovf_error);
   }
 }
@@ -2332,9 +2332,9 @@ double Item_func_bit::val_real() {
     if (!(res = str_op(&str_value))) return 0.0;
 
     int ovf_error;
-    char *from = const_cast<char *>(res->ptr());
+    const char *from = res->ptr();
     size_t len = res->length();
-    char *end = from + len;
+    const char *end = from + len;
     return my_strtod(from, &end, &ovf_error);
   }
 }
@@ -3865,7 +3865,7 @@ String *udf_handler::val_str(String *str, String *save_str) {
 */
 
 my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
-  char buf[DECIMAL_MAX_STR_LENGTH + 1], *end;
+  char buf[DECIMAL_MAX_STR_LENGTH + 1];
   ulong res_length = DECIMAL_MAX_STR_LENGTH;
 
   if (get_arguments()) {
@@ -3879,7 +3879,7 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
     *null_value = 1;
     return 0;
   }
-  end = res + res_length;
+  const char *end = res + res_length;
   str2my_decimal(E_DEC_FATAL_ERROR, res, dec_buf, &end);
   return dec_buf;
 }
@@ -5338,7 +5338,7 @@ longlong user_var_entry::val_int(bool *null_value) const {
     }
     case STRING_RESULT: {
       int error;
-      return my_strtoll10(m_ptr, (char **)0,
+      return my_strtoll10(m_ptr, nullptr,
                           &error);  // String is null terminated
     }
     case ROW_RESULT:

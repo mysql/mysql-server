@@ -1524,7 +1524,7 @@ type_conversion_status Field_num::get_int(const CHARSET_INFO *cs,
                                           longlong *rnd, ulonglong unsigned_max,
                                           longlong signed_min,
                                           longlong signed_max) {
-  char *end;
+  const char *end;
   int error;
 
   *rnd = (longlong)cs->cset->strntoull10rnd(cs, from, len, unsigned_flag, &end,
@@ -2648,7 +2648,7 @@ type_conversion_status Field_decimal::store(longlong nr, bool unsigned_val) {
 double Field_decimal::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
-  char *end_not_used;
+  const char *end_not_used;
   return my_strntod(&my_charset_bin, (char *)ptr, field_length, &end_not_used,
                     &not_used);
 }
@@ -3904,7 +3904,7 @@ type_conversion_status Field_longlong::store(const char *from, size_t len,
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int conv_err = 0;
   type_conversion_status error = TYPE_OK;
-  char *end;
+  const char *end;
   ulonglong tmp;
 
   tmp = cs->cset->strntoull10rnd(cs, from, len, unsigned_flag, &end, &conv_err);
@@ -4130,7 +4130,7 @@ type_conversion_status Field_float::store(const char *from, size_t len,
                                           const CHARSET_INFO *cs) {
   int conv_error;
   type_conversion_status err = TYPE_OK;
-  char *end;
+  const char *end;
   double nr = my_strntod(cs, (char *)from, len, &end, &conv_error);
   if (conv_error || (!len || ((uint)(end - from) != len &&
                               table->in_use->check_for_truncated_fields))) {
@@ -4309,7 +4309,7 @@ type_conversion_status Field_double::store(const char *from, size_t len,
                                            const CHARSET_INFO *cs) {
   int conv_error;
   type_conversion_status error = TYPE_OK;
-  char *end;
+  const char *end;
   double nr = my_strntod(cs, (char *)from, len, &end, &conv_error);
   if (conv_error != 0 || len == 0 ||
       (((uint)(end - from) != len &&
@@ -5582,7 +5582,7 @@ bool Field_timef::get_time(MYSQL_TIME *ltime) {
 type_conversion_status Field_year::store(const char *from, size_t len,
                                          const CHARSET_INFO *cs) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  char *end;
+  const char *end;
   int conv_error;
   type_conversion_status ret = TYPE_OK;
   longlong nr = cs->cset->strntoull10rnd(cs, from, len, 0, &end, &conv_error);
@@ -6269,7 +6269,7 @@ uint32 Field_longstr::max_data_length() const {
 double Field_string::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
-  char *end;
+  const char *end;
   const CHARSET_INFO *cs = charset();
   double result;
 
@@ -6290,7 +6290,7 @@ double Field_string::val_real() {
 longlong Field_string::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
-  char *end;
+  const char *end;
   const CHARSET_INFO *cs = charset();
   longlong result;
 
@@ -6675,7 +6675,7 @@ type_conversion_status Field_varstring::store(longlong nr, bool unsigned_val) {
 double Field_varstring::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
-  char *end;
+  const char *end;
   double result;
   const CHARSET_INFO *cs = charset();
 
@@ -6695,7 +6695,7 @@ double Field_varstring::val_real() {
 longlong Field_varstring::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int error;
-  char *end;
+  const char *end;
   const CHARSET_INFO *cs = charset();
 
   uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
@@ -7184,7 +7184,8 @@ type_conversion_status Field_blob::store(longlong nr, bool unsigned_val) {
 double Field_blob::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int not_used;
-  char *end_not_used, *blob;
+  const char *end_not_used;
+  char *blob;
   uint32 length;
   const CHARSET_INFO *cs;
 
@@ -8186,7 +8187,7 @@ type_conversion_status Field_enum::store(const char *from, size_t length,
     if (length < 6)  // Can't be more than 99999 enums
     {
       /* This is for reading numbers with LOAD DATA INFILE */
-      char *end;
+      const char *end;
       tmp = (uint)my_strntoul(cs, from, length, 10, &end, &err);
       if (err || end != from + length || tmp > typelib->count) {
         tmp = 0;
@@ -8397,7 +8398,7 @@ type_conversion_status Field_set::store(const char *from, size_t length,
                            &not_used2, &got_warning);
   if (!tmp && length && length < 22) {
     /* This is for reading numbers with LOAD DATA INFILE */
-    char *end;
+    const char *end;
     tmp = my_strntoull(cs, from, length, 10, &end, &err);
     if (err || end != from + length ||
         (typelib->count < 64 && tmp >= (1ULL << typelib->count))) {

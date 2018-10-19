@@ -89,7 +89,8 @@ static int my_strcasecmp_mb2_or_mb4(const CHARSET_INFO *cs
 }
 
 static long my_strntol_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
-                                  size_t l, int base, char **endptr, int *err) {
+                                  size_t l, int base, const char **endptr,
+                                  int *err) {
   int negative = 0;
   int overflow;
   int cnv;
@@ -119,7 +120,7 @@ static long my_strntol_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -153,7 +154,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -162,7 +163,7 @@ bs:
     }
   } while (1);
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -183,7 +184,7 @@ bs:
 }
 
 static ulong my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
-                                    size_t l, int base, char **endptr,
+                                    size_t l, int base, const char **endptr,
                                     int *err) {
   int negative = 0;
   int overflow;
@@ -214,7 +215,7 @@ static ulong my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -248,7 +249,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -257,7 +258,7 @@ bs:
     }
   } while (1);
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -273,7 +274,7 @@ bs:
 }
 
 static longlong my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
-                                       size_t l, int base, char **endptr,
+                                       size_t l, int base, const char **endptr,
                                        int *err) {
   int negative = 0;
   int overflow;
@@ -304,7 +305,7 @@ static longlong my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -338,7 +339,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -347,7 +348,7 @@ bs:
     }
   } while (1);
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -369,7 +370,7 @@ bs:
 
 static ulonglong my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
                                          const char *nptr, size_t l, int base,
-                                         char **endptr, int *err) {
+                                         const char **endptr, int *err) {
   int negative = 0;
   int overflow;
   int cnv;
@@ -399,7 +400,7 @@ static ulonglong my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
       }
     } else /* No more characters or bad multibyte sequence */
     {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = (cnv == MY_CS_ILSEQ) ? EILSEQ : EDOM;
       return 0;
     }
@@ -433,7 +434,7 @@ bs:
         res += wc;
       }
     } else if (cnv == MY_CS_ILSEQ) {
-      if (endptr != NULL) *endptr = (char *)s;
+      if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
       err[0] = EILSEQ;
       return 0;
     } else {
@@ -442,7 +443,7 @@ bs:
     }
   } while (1);
 
-  if (endptr != NULL) *endptr = (char *)s;
+  if (endptr != NULL) *endptr = pointer_cast<const char *>(s);
 
   if (s == save) {
     err[0] = EDOM;
@@ -458,7 +459,8 @@ bs:
 }
 
 static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, char *nptr,
-                                    size_t length, char **endptr, int *err) {
+                                    size_t length, const char **endptr,
+                                    int *err) {
   char buf[256];
   double res;
   char *b = buf;
@@ -486,8 +488,8 @@ static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, char *nptr,
 
 static ulonglong my_strntoull10rnd_mb2_or_mb4(const CHARSET_INFO *cs,
                                               const char *nptr, size_t length,
-                                              int unsign_fl, char **endptr,
-                                              int *err) {
+                                              int unsign_fl,
+                                              const char **endptr, int *err) {
   char buf[256], *b = buf;
   ulonglong res;
   const uchar *end, *s = (const uchar *)nptr;
@@ -505,7 +507,7 @@ static ulonglong my_strntoull10rnd_mb2_or_mb4(const CHARSET_INFO *cs,
   }
 
   res = my_strntoull10rnd_8bit(cs, buf, b - buf, unsign_fl, endptr, err);
-  *endptr = (char *)nptr + cs->mbminlen * (size_t)(*endptr - buf);
+  *endptr = nptr + cs->mbminlen * (size_t)(*endptr - buf);
   return res;
 }
 }  // extern "C"
@@ -614,7 +616,7 @@ cnv:
 
 extern "C" {
 static longlong my_strtoll10_mb2(const CHARSET_INFO *cs, const char *nptr,
-                                 char **endptr, int *error) {
+                                 const char **endptr, int *error) {
   const char *s, *end, *start, *n_end, *true_end;
   uchar c;
   unsigned long i, j, k;
@@ -729,7 +731,7 @@ static longlong my_strtoll10_mb2(const CHARSET_INFO *cs, const char *nptr,
   if ((c = (wc - '0')) > 9) goto end4;
   s += res;
   k = k * 10 + c;
-  *endptr = (char *)s;
+  *endptr = s;
 
   /* number string should have ended here */
   if (s != end && (c = (wc - '0')) <= 9) goto overflow;
@@ -746,22 +748,22 @@ overflow: /* *endptr is set here */
   return negative ? LLONG_MIN : (longlong)ULONGLONG_MAX;
 
 end_i:
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? ((longlong) - (long)i) : (longlong)i);
 
 end_i_and_j:
   li = (ulonglong)i * lfactor[(size_t)(s - start) / 2] + j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end3:
   li = (ulonglong)i * LFACTOR + (ulonglong)j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end4:
   li = (ulonglong)i * LFACTOR1 + (ulonglong)j * 10 + k;
-  *endptr = (char *)s;
+  *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
     return -((longlong)li);
@@ -771,7 +773,7 @@ end4:
 no_conv:
   /* There was no number to convert.  */
   *error = MY_ERRNO_EDOM;
-  *endptr = (char *)nptr;
+  *endptr = nptr;
   return 0;
 }
 
@@ -846,10 +848,10 @@ static size_t my_vsnprintf_mb2(char *dst, size_t n, const char *fmt,
 
     if (*fmt == 's') /* String parameter */
     {
-      char *par = va_arg(ap, char *);
+      const char *par = va_arg(ap, char *);
       size_t plen;
       size_t left_len = (size_t)(end - dst);
-      if (!par) par = (char *)"(null)";
+      if (!par) par = "(null)";
       plen = strlen(par);
       if (left_len <= plen * 2) plen = left_len / 2 - 1;
 
@@ -1971,7 +1973,7 @@ static size_t my_snprintf_utf32(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static longlong my_strtoll10_utf32(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *nptr,
-    char **endptr, int *error) {
+    const char **endptr, int *error) {
   const char *s, *end, *start, *n_end, *true_end;
   uchar c;
   unsigned long i, j, k;
@@ -2059,7 +2061,7 @@ static longlong my_strtoll10_utf32(
   if (s == end || s[0] || s[1] || s[2] || (c = (s[3] - '0')) > 9) goto end4;
   k = k * 10 + c;
   s += 2;
-  *endptr = (char *)s;
+  *endptr = s;
 
   /* number string should have ended here */
   if (s != end && !s[0] && !s[1] && !s[2] && (c = (s[3] - '0')) <= 9)
@@ -2077,22 +2079,22 @@ overflow: /* *endptr is set here */
   return negative ? LLONG_MIN : (longlong)ULONGLONG_MAX;
 
 end_i:
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? ((longlong) - (long)i) : (longlong)i);
 
 end_i_and_j:
   li = (ulonglong)i * lfactor[(size_t)(s - start) / 4] + j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end3:
   li = (ulonglong)i * LFACTOR + (ulonglong)j;
-  *endptr = (char *)s;
+  *endptr = s;
   return (negative ? -((longlong)li) : (longlong)li);
 
 end4:
   li = (ulonglong)i * LFACTOR1 + (ulonglong)j * 10 + k;
-  *endptr = (char *)s;
+  *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
     return -((longlong)li);

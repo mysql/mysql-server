@@ -5432,9 +5432,9 @@ size_number:
             ulonglong number;
             uint text_shift_number= 0;
             longlong prefix_number;
-            char *start_ptr= $1.str;
+            const char *start_ptr= $1.str;
             size_t str_len= $1.length;
-            char *end_ptr= start_ptr + str_len;
+            const char *end_ptr= start_ptr + str_len;
             int error;
             prefix_number= my_strtoll10(start_ptr, &end_ptr, &error);
             if ((start_ptr + str_len - 1) == end_ptr)
@@ -11504,34 +11504,34 @@ opt_simple_limit:
         ;
 
 ulong_num:
-          NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+          NUM           { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
         | HEX_NUM       { $$= (ulong) my_strtoll($1.str, (char**) 0, 16); }
-        | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | FLOAT_NUM     { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
+        | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
+        | DECIMAL_NUM   { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
+        | FLOAT_NUM     { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
         ;
 
 real_ulong_num:
-          NUM           { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+          NUM           { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
         | HEX_NUM       { $$= (ulong) my_strtoll($1.str, (char**) 0, 16); }
-        | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
-        | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, (char**) 0, &error); }
+        | LONG_NUM      { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
+        | ULONGLONG_NUM { int error; $$= (ulong) my_strtoll10($1.str, nullptr, &error); }
         | dec_num_error { MYSQL_YYABORT; }
         ;
 
 ulonglong_num:
-          NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | DECIMAL_NUM   { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | FLOAT_NUM     { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+          NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | DECIMAL_NUM   { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | FLOAT_NUM     { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
         ;
 
 real_ulonglong_num:
-          NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
-        | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+          NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
         | dec_num_error { MYSQL_YYABORT; }
         ;
 

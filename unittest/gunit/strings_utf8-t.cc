@@ -52,49 +52,6 @@ class StringsUTF8Test : public ::testing::Test {
   CHARSET_INFO *m_charset;
 };
 
-TEST_F(StringsUTF8Test, MyStrchr) {
-  const char *null_pos = NULL;
-  char *pos;
-  char valid_utf8_string[] = "str1";
-
-  /*
-    All valid utf8 characters in str arg passed to  my_strchr and  char to be
-    found not in str.
-  */
-
-  pos = my_strchr(system_charset_info, valid_utf8_string, valid_utf8_string + 3,
-                  't');
-
-  EXPECT_EQ(valid_utf8_string + 1, pos);
-
-  /*
-    All valid utf8 characters in str arg passed to  my_strchr and  char to be
-    found not in str.
-  */
-  pos = my_strchr(system_charset_info, valid_utf8_string, valid_utf8_string + 3,
-                  'd');
-
-  ASSERT_EQ(null_pos, pos);
-
-  // Assign an invalid utf8 char to valid_utf8_str
-  valid_utf8_string[0] = '\xff';
-
-  // Invalid utf8 character in str arg passed to my_strchr.
-  pos = my_strchr(system_charset_info, valid_utf8_string, valid_utf8_string + 3,
-                  'y');
-  ASSERT_EQ(null_pos, pos);
-
-  // Assign an invalid utf8 char to valid_utf8_str
-  valid_utf8_string[0] = '\xED';
-  valid_utf8_string[1] = '\xA0';
-  valid_utf8_string[2] = '\xBF';
-
-  // Invalid utf8 character in str arg passed to my_strchr.
-  pos = my_strchr(system_charset_info, valid_utf8_string, valid_utf8_string + 3,
-                  'y');
-  ASSERT_EQ(null_pos, pos);
-}
-
 TEST_F(StringsUTF8Test, MyStrcasecmpMb) {
   std::string utf8_src = "str";
   std::string utf8_dst = "str";

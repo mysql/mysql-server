@@ -38,7 +38,7 @@ int decimal_str2bin(const char *str, int str_len,
     int retval;                               /* return value from str2dec() */
     decimal_t dec;                            /* intermediate representation */
     decimal_digit_t digits[9];                /* for dec->buf */
-    char *end = (char *) str + str_len;       
+    const char *end = str + str_len;
     
     assert(str != 0);   
     assert(bin != 0);

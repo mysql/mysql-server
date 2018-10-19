@@ -720,8 +720,8 @@ TEST_F(ItemTest, MysqlTimeCache) {
 
 extern "C" {
 // Verifies that Item_func_conv::val_str does not call my_strntoll()
-longlong fail_strntoll(const CHARSET_INFO *, const char *, size_t, int, char **,
-                       int *) {
+longlong fail_strntoll(const CHARSET_INFO *, const char *, size_t, int,
+                       const char **, int *) {
   ADD_FAILURE() << "Unexpected call";
   return 0;
 }

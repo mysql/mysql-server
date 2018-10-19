@@ -333,20 +333,20 @@ typedef struct MY_CHARSET_HANDLER {
 
   /* String-to-number conversion routines */
   long (*strntol)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                  char **e, int *err);
+                  const char **e, int *err);
   ulong (*strntoul)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                    char **e, int *err);
+                    const char **e, int *err);
   longlong (*strntoll)(const CHARSET_INFO *, const char *s, size_t l, int base,
-                       char **e, int *err);
+                       const char **e, int *err);
   ulonglong (*strntoull)(const CHARSET_INFO *, const char *s, size_t l,
-                         int base, char **e, int *err);
-  double (*strntod)(const CHARSET_INFO *, char *s, size_t l, char **e,
+                         int base, const char **e, int *err);
+  double (*strntod)(const CHARSET_INFO *, char *s, size_t l, const char **e,
                     int *err);
-  longlong (*strtoll10)(const CHARSET_INFO *cs, const char *nptr, char **endptr,
-                        int *error);
+  longlong (*strtoll10)(const CHARSET_INFO *cs, const char *nptr,
+                        const char **endptr, int *error);
   ulonglong (*strntoull10rnd)(const CHARSET_INFO *cs, const char *str,
-                              size_t length, int unsigned_fl, char **endptr,
-                              int *error);
+                              size_t length, int unsigned_fl,
+                              const char **endptr, int *error);
   size_t (*scan)(const CHARSET_INFO *, const char *b, const char *e, int sq);
 } MY_CHARSET_HANDLER;
 
@@ -474,14 +474,14 @@ size_t my_snprintf_8bit(const CHARSET_INFO *, char *to, size_t n,
     MY_ATTRIBUTE((format(printf, 4, 5)));
 
 long my_strntol_8bit(const CHARSET_INFO *, const char *s, size_t l, int base,
-                     char **e, int *err);
+                     const char **e, int *err);
 ulong my_strntoul_8bit(const CHARSET_INFO *, const char *s, size_t l, int base,
-                       char **e, int *err);
+                       const char **e, int *err);
 longlong my_strntoll_8bit(const CHARSET_INFO *, const char *s, size_t l,
-                          int base, char **e, int *err);
+                          int base, const char **e, int *err);
 ulonglong my_strntoull_8bit(const CHARSET_INFO *, const char *s, size_t l,
-                            int base, char **e, int *err);
-double my_strntod_8bit(const CHARSET_INFO *, char *s, size_t l, char **e,
+                            int base, const char **e, int *err);
+double my_strntod_8bit(const CHARSET_INFO *, char *s, size_t l, const char **e,
                        int *err);
 size_t my_long10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,
                              int radix, long int val);
@@ -489,13 +489,13 @@ size_t my_longlong10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,
                                  int radix, longlong val);
 
 longlong my_strtoll10_8bit(const CHARSET_INFO *cs, const char *nptr,
-                           char **endptr, int *error);
+                           const char **endptr, int *error);
 longlong my_strtoll10_ucs2(const CHARSET_INFO *cs, const char *nptr,
                            char **endptr, int *error);
 
 ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs, const char *str,
-                                 size_t length, int unsigned_fl, char **endptr,
-                                 int *error);
+                                 size_t length, int unsigned_fl,
+                                 const char **endptr, int *error);
 ulonglong my_strntoull10rnd_ucs2(const CHARSET_INFO *cs, const char *str,
                                  size_t length, int unsigned_fl, char **endptr,
                                  int *error);
@@ -605,8 +605,6 @@ int my_wildcmp_unicode(const CHARSET_INFO *cs, const char *str,
 
 extern bool my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf,
                                  size_t buflen);
-extern char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
-                       char c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
                          size_t reject_length);

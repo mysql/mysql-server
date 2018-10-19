@@ -464,7 +464,7 @@ class Item_func_xpath_sum : public Item_real_func {
         const MY_XML_NODE *node = &pxml->at(j);
         if (node->level <= self->level) break;
         if ((node->parent == flt.num) && (node->type == MY_XML_NODE_TEXT)) {
-          char *end;
+          const char *end;
           int err;
           double add =
               my_strntod(collation.collation, const_cast<char *>(node->beg),

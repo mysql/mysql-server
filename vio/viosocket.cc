@@ -50,6 +50,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "template_utils.h"
 #include "vio/vio_priv.h"
 
 #ifdef FIONREAD_IN_SYS_FILIO
@@ -516,7 +517,8 @@ static void vio_get_normalized_ip(const struct sockaddr *src, size_t src_length,
     case AF_INET6: {
       const struct sockaddr_in6 *src_addr6 = (const struct sockaddr_in6 *)src;
       const struct in6_addr *src_ip6 = &(src_addr6->sin6_addr);
-      const uint32 *src_ip6_int32 = (uint32 *)src_ip6->s6_addr;
+      const uint32 *src_ip6_int32 =
+          pointer_cast<const uint32 *>(src_ip6->s6_addr);
 
       if (IN6_IS_ADDR_V4MAPPED(src_ip6) || IN6_IS_ADDR_V4COMPAT(src_ip6)) {
         struct sockaddr_in *dst_ip4 = (struct sockaddr_in *)dst;

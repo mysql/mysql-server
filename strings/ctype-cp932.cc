@@ -34,6 +34,7 @@
 #include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
+#include "template_utils.h"
 
 /*
  * This comment is parsed by configure to create ctype.c,
@@ -2140,8 +2141,10 @@ static int my_strnncoll_cp932_internal(const CHARSET_INFO *cs,
   const uchar *a_end = a + a_length;
   const uchar *b_end = b + b_length;
   while (a < a_end && b < b_end) {
-    if (ismbchar_cp932(cs, (char *)a, (char *)a_end) &&
-        ismbchar_cp932(cs, (char *)b, (char *)b_end)) {
+    if (ismbchar_cp932(cs, pointer_cast<const char *>(a),
+                       pointer_cast<const char *>(a_end)) &&
+        ismbchar_cp932(cs, pointer_cast<const char *>(b),
+                       pointer_cast<const char *>(b_end))) {
       uint a_char = cp932code(*a, *(a + 1));
       uint b_char = cp932code(*b, *(b + 1));
       if (a_char != b_char) return a_char - b_char;

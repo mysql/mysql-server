@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,7 +294,7 @@ bool get_file_options_ulllist(const char *&ptr, const char *end,
   // list parsing
   while (ptr < end) {
     int not_used;
-    char *num_end = const_cast<char *>(end);
+    const char *num_end = end;
     if (!(num = (ulonglong *)alloc_root(mem_root, sizeof(ulonglong))) ||
         nlist->push_back(num, mem_root))
       goto nlist_err;

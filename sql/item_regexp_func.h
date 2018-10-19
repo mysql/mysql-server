@@ -179,7 +179,7 @@ class Item_func_regexp : public Item_func {
   double convert_str_to_real() {
     DBUG_ASSERT(fixed == 1);
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0.0;
     return my_strntod(res->charset(), const_cast<char *>(res->ptr()),

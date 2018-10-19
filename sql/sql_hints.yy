@@ -39,7 +39,7 @@
 static bool parse_int(longlong *to, const char *from, size_t from_length)
 {
   int error;
-  char *end= const_cast<char *>(from + from_length);
+  const char *end= from + from_length;
   *to= my_strtoll10(from, &end, &error);
   return error != 0 || end != from + from_length;
 }

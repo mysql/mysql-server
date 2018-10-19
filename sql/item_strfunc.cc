@@ -160,7 +160,8 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
 double Item_str_func::val_real() {
   DBUG_ASSERT(fixed == 1);
   int err_not_used;
-  char *end_not_used, buff[64];
+  const char *end_not_used;
+  char buff[64];
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
   return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
@@ -2808,7 +2809,8 @@ bool Item_func_conv::resolve_type(THD *) {
 String *Item_func_conv::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
-  char *endptr, ans[65], *ptr;
+  const char *endptr;
+  char ans[65], *ptr;
   longlong dec;
   int from_base = (int)args[1]->val_int();
   int to_base = (int)args[2]->val_int();

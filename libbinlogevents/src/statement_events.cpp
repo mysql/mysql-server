@@ -282,9 +282,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
           */
           if (binary_log_debug::debug_query_mts_corrupt_db_names) {
             if (mts_accessed_dbs == 2) {
-              const char *pos = READER_CALL(ptr);
+              char *pos = const_cast<char *>(READER_CALL(ptr));
               BAPI_ASSERT(pos[sizeof("d?") - 1] == 0);
-              ((char *)pos)[sizeof("d?") - 1] = 'a';
+              pos[sizeof("d?") - 1] = 'a';
               is_corruption_injected = true;
             }
           }

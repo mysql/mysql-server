@@ -2995,9 +2995,9 @@ double Item_sum_bit::val_real() {
   if (!(res = val_str(&str_value))) return 0.0;
 
   int ovf_error;
-  char *from = const_cast<char *>(res->ptr());
+  const char *from = res->ptr();
   size_t len = res->length();
-  char *end = from + len;
+  const char *end = from + len;
   return my_strtod(from, &end, &ovf_error);
 }
 /* bit_or and bit_and */
@@ -3019,9 +3019,9 @@ longlong Item_sum_bit::val_int() {
   if (!(res = val_str(&str_value))) return 0;
 
   int ovf_error;
-  char *from = const_cast<char *>(res->ptr());
+  const char *from = res->ptr();
   size_t len = res->length();
-  char *end = from + len;
+  const char *end = from + len;
   return my_strtoll10(from, &end, &ovf_error);
 }
 
@@ -3518,9 +3518,9 @@ longlong Item_sum_bit_field::val_int() {
     if (!(res = val_str(&str_value))) return 0;
 
     int ovf_error;
-    char *from = const_cast<char *>(res->ptr());
+    const char *from = res->ptr();
     size_t len = res->length();
-    char *end = from + len;
+    const char *end = from + len;
     return my_strtoll10(from, &end, &ovf_error);
   }
 }
@@ -3534,9 +3534,9 @@ double Item_sum_bit_field::val_real() {
     if (!(res = val_str(&str_value))) return 0.0;
 
     int ovf_error;
-    char *from = const_cast<char *>(res->ptr());
+    const char *from = res->ptr();
     size_t len = res->length();
-    char *end = from + len;
+    const char *end = from + len;
 
     return my_strtod(from, &end, &ovf_error);
   }

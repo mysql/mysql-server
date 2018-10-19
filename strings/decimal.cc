@@ -40,7 +40,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that Â­-R^P <= n <= R^P.
 
   [...]
 
@@ -869,7 +869,7 @@ int decimal_shift(decimal_t *dec, int shift) {
     (to make error handling easier)
 */
 
-int string2decimal(const char *from, decimal_t *to, char **end) {
+int string2decimal(const char *from, decimal_t *to, const char **end) {
   const char *s = from, *s1, *endp, *end_of_string = *end;
   int i, intg, frac, error, intg1, frac1;
   dec1 x, *buf;
@@ -897,7 +897,7 @@ int string2decimal(const char *from, decimal_t *to, char **end) {
     endp = s;
   }
 
-  *end = (char *)endp;
+  *end = endp;
 
   if (frac + intg == 0) goto fatal_error;
 
@@ -944,12 +944,11 @@ int string2decimal(const char *from, decimal_t *to, char **end) {
   /* Handle exponent */
   if (endp + 1 < end_of_string && (*endp == 'e' || *endp == 'E')) {
     int str_error;
-    longlong exponent =
-        my_strtoll10(endp + 1, (char **)&end_of_string, &str_error);
+    longlong exponent = my_strtoll10(endp + 1, &end_of_string, &str_error);
 
     if (end_of_string != endp + 1) /* If at least one digit */
     {
-      *end = (char *)end_of_string;
+      *end = end_of_string;
       if (str_error > 0) {
         error = E_DEC_BAD_NUM;
         goto fatal_error;
@@ -987,12 +986,12 @@ fatal_error:
 */
 
 int decimal2double(const decimal_t *from, double *to) {
-  char strbuf[FLOATING_POINT_BUFFER], *end;
+  char strbuf[FLOATING_POINT_BUFFER];
   int len = sizeof(strbuf);
   int rc, error;
 
   rc = decimal2string(from, strbuf, &len, 0, 0, 0);
-  end = strbuf + len;
+  const char *end = strbuf + len;
 
   DBUG_PRINT("info", ("interm.: %s", strbuf));
 
@@ -1016,11 +1015,11 @@ int decimal2double(const decimal_t *from, double *to) {
 */
 
 int double2decimal(double from, decimal_t *to) {
-  char buff[FLOATING_POINT_BUFFER], *end;
+  char buff[FLOATING_POINT_BUFFER];
   int res;
   DBUG_ENTER("double2decimal");
-  end = buff +
-        my_gcvt(from, MY_GCVT_ARG_DOUBLE, (int)sizeof(buff) - 1, buff, NULL);
+  const char *end = buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE,
+                                   (int)sizeof(buff) - 1, buff, NULL);
   res = string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
   DBUG_RETURN(res);

@@ -1947,7 +1947,7 @@ class Item_sum_udf_str final : public Item_udf_sum {
   String *val_str(String *) override;
   double val_real() override {
     int err_not_used;
-    char *end_not_used;
+    const char *end_not_used;
     String *res;
     res = val_str(&str_value);
     return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
@@ -1956,13 +1956,12 @@ class Item_sum_udf_str final : public Item_udf_sum {
   }
   longlong val_int() override {
     int err_not_used;
-    char *end;
     String *res;
     const CHARSET_INFO *cs;
 
     if (!(res = val_str(&str_value))) return 0; /* Null value */
     cs = res->charset();
-    end = (char *)res->ptr() + res->length();
+    const char *end = res->ptr() + res->length();
     return cs->cset->strtoll10(cs, res->ptr(), &end, &err_not_used);
   }
   my_decimal *val_decimal(my_decimal *dec) override;
@@ -2089,10 +2088,9 @@ class Item_func_group_concat final : public Item_sum {
   }
   longlong val_int() override {
     String *res;
-    char *end_ptr;
     int error;
     if (!(res = val_str(&str_value))) return (longlong)0;
-    end_ptr = (char *)res->ptr() + res->length();
+    const char *end_ptr = res->ptr() + res->length();
     return my_strtoll10(res->ptr(), &end_ptr, &error);
   }
   my_decimal *val_decimal(my_decimal *decimal_value) override {

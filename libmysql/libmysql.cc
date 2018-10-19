@@ -2949,7 +2949,7 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos) {
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
                                          size_t length) {
   uchar *buffer = pointer_cast<uchar *>(param->buffer);
-  char *endptr = value + length;
+  const char *endptr = value + length;
 
   /*
     This function should support all target buffer types: the rest

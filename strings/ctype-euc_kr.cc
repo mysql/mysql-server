@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -267,11 +267,12 @@ static const uchar sort_order_euc_kr[] = {
 extern "C" {
 static uint ismbchar_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             const char *p, const char *e) {
-  return ((*(uchar *)(p) < 0x80) ? 0
-                                 : iseuc_kr_head(*(p)) && (e) - (p) > 1 &&
-                                           iseuc_kr_tail(*((p) + 1))
-                                       ? 2
-                                       : 0);
+  return ((static_cast<uchar>(*p) < 0x80)
+              ? 0
+              : iseuc_kr_head(*(p)) && (e) - (p) > 1 &&
+                        iseuc_kr_tail(*((p) + 1))
+                    ? 2
+                    : 0);
 }
 
 static uint mbcharlen_euc_kr(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),

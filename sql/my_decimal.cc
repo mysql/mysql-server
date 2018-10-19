@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -246,7 +246,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 
 int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value) {
-  char *end, *from_end;
+  const char *end, *from_end;
   int err;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp(buff, sizeof(buff), &my_charset_bin);
@@ -257,8 +257,8 @@ int str2my_decimal(uint mask, const char *from, size_t length,
     length = tmp.length();
     charset = &my_charset_bin;
   }
-  from_end = end = (char *)from + length;
-  err = string2decimal((char *)from, (decimal_t *)decimal_value, &end);
+  from_end = end = from + length;
+  err = string2decimal(from, (decimal_t *)decimal_value, &end);
   if (end != from_end && !err) {
     /* Give warning if there is something other than end space */
     for (; end < from_end; end++) {

@@ -5046,7 +5046,6 @@ static void do_let(struct st_command *command) {
 
 static int do_sleep(struct st_command *command, bool real_sleep) {
   int error = 0;
-  char *sleep_start, *sleep_end;
   double sleep_val;
   char *p;
   static DYNAMIC_STRING ds_sleep;
@@ -5057,12 +5056,12 @@ static int do_sleep(struct st_command *command, bool real_sleep) {
                      sizeof(sleep_args) / sizeof(struct command_arg), ' ');
 
   p = ds_sleep.str;
-  sleep_end = ds_sleep.str + ds_sleep.length;
+  const char *sleep_end = ds_sleep.str + ds_sleep.length;
   while (my_isspace(charset_info, *p)) p++;
   if (!*p)
     die("Missing argument to %.*s", static_cast<int>(command->first_word_len),
         command->query);
-  sleep_start = p;
+  const char *sleep_start = p;
   /* Check that arg starts with a digit, not handled by my_strtod */
   if (!my_isdigit(charset_info, *sleep_start))
     die("Invalid argument to %.*s \"%s\"",

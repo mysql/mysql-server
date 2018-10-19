@@ -2753,7 +2753,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam, bool *err,
       */
       const char *start = get_data();
       size_t length = get_data_length();
-      char *end = const_cast<char *>(start + length);
+      const char *end = start + length;
       const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
 
       int error;
@@ -2828,7 +2828,7 @@ double Json_wrapper::coerce_real(const char *msgnam, bool *err,
       */
       const char *start = get_data();
       size_t length = get_data_length();
-      char *end = const_cast<char *>(start) + length;
+      const char *end = start + length;
       const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
 
       int error;

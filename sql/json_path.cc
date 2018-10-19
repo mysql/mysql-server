@@ -374,7 +374,7 @@ static const char *parse_array_index(const char *charptr, const char *endptr,
     return charptr;
   }
 
-  char *endp;
+  const char *endp;
   int err;
   ulonglong idx = my_strntoull(&my_charset_utf8mb4_bin, charptr,
                                endptr - charptr, 10, &endp, &err);
