@@ -10076,7 +10076,7 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 
 /** Create a table definition to an InnoDB database.
 @param[in]	dd_table	dd::Table or nullptr for intrinsic table
-@return ER_* level error */
+@return HA_* level error */
 inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
     create_table_def(const dd::Table *dd_table) {
   dict_table_t *table;
@@ -10108,17 +10108,27 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   on the name length here */
   const size_t table_name_len = strlen(m_table_name);
   if (table_name_len > MAX_FULL_NAME_LEN) {
-    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_TABLE_NAME,
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
                         "InnoDB: Table Name or Database Name is too long");
 
-    DBUG_RETURN(ER_TABLE_NAME);
+    DBUG_RETURN(HA_ERR_WRONG_TABLE_NAME);
   }
 
+  /* Make sure that the table name is acceptable. */
   if (m_table_name[table_name_len - 1] == '/') {
-    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_TABLE_NAME,
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
                         "InnoDB: Table name is empty");
 
-    DBUG_RETURN(ER_WRONG_TABLE_NAME);
+    DBUG_RETURN(HA_ERR_WRONG_TABLE_NAME);
+  }
+
+  fts_aux_table_t aux_table;
+  if (fts_is_aux_table_name(&aux_table, m_table_name, strlen(m_table_name))) {
+    push_warning_printf(
+        m_thd, Sql_condition::SL_WARNING, ER_WRONG_TABLE_NAME,
+        "Invalid table name. `%s` has the form of an FTS auxiliary table name",
+        m_table_name);
+    DBUG_RETURN(HA_ERR_WRONG_TABLE_NAME);
   }
 
   n_cols = m_form->s->fields;
@@ -10845,7 +10855,7 @@ static int validate_tablespace_name(ts_command_type ts_command,
   stage.  Re-assert that the length is valid. */
   if (validate_tablespace_name_length(name)) {
     my_printf_error(ER_WRONG_TABLESPACE_NAME,
-                    "InnoDB: `Tablespace name %s` is too long.", MYF(0), name);
+                    "InnoDB: Tablespace name `%s` is too long.", MYF(0), name);
     return (HA_WRONG_CREATE_OPTION);
   }
 

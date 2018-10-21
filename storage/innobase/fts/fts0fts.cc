@@ -5788,7 +5788,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
     /* Could be obsolete common tables. */
     if (native_strncasecmp(ptr, "ADDED", len) == 0 ||
         native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
-      table->type = FTS_OBSELETED_TABLE;
+      table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
 
@@ -5820,7 +5820,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Other FT index specific table(s). */
     if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
-      table->type = FTS_OBSELETED_TABLE;
+      table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
   }
