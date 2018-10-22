@@ -161,10 +161,6 @@
 #include <sys/mman.h>
 #endif
 
-#ifndef HAVE_STRDUP
-extern char * strdup(const char *s);
-#endif
-
 static const char table_name_separator =  '/';
 
 #if defined(_AIX) || defined(WIN32) || defined(NDB_VC98)
