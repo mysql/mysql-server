@@ -5182,7 +5182,7 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
 
-  my $timeout = start_timer(check_timeout($tinfo));
+  my $timeout = start_timer(testcase_timeout($tinfo));
 
   while (1) {
     my $result = 0;
