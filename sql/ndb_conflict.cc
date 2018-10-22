@@ -1144,7 +1144,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     */
     if (next_epoch < current_master_server_epoch)
     {
-      ndb_log_warning("NDB Slave : At SQL thread start "
+      ndb_log_warning("NDB Slave: At SQL thread start "
                         "applying epoch %llu/%llu (%llu) from "
                         "Master ServerId %u which is lower than "
                         "previously applied epoch %llu/%llu (%llu).  "
@@ -1193,7 +1193,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch)
     {
       /* Should never happen */
-      ndb_log_error("NDB Slave : SQL thread stopped as "
+      ndb_log_error("NDB Slave: SQL thread stopped as "
                       "applying epoch %llu/%llu (%llu) from "
                       "Master ServerId %u which is lower than "
                       "previously applied epoch %llu/%llu (%llu).  "
@@ -1224,7 +1224,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed)
       {
         /* This epoch is committed already, why are we replaying it? */
-        ndb_log_error("NDB Slave : SQL thread stopped as attempted to "
+        ndb_log_error("NDB Slave: SQL thread stopped as attempted to "
                         "reapply already committed epoch %llu/%llu (%llu) "
                         "from server id %u.  "
                         "Group Master Log : %s  "
@@ -1262,7 +1262,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
            We've moved onto a new epoch without committing
            the last - probably a bug in transaction retry
         */
-        ndb_log_error("NDB Slave : SQL thread stopped as attempting to "
+        ndb_log_error("NDB Slave: SQL thread stopped as attempting to "
                         "apply new epoch %llu/%llu (%llu) while lower "
                         "received epoch %llu/%llu (%llu) has not been "
                         "committed.  Master server id : %u.  "
