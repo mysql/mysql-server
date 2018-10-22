@@ -609,11 +609,11 @@ PFS_thread *create_thread(PFS_thread_class *klass,
 }
 
 /**
-  Find a PFS thread given an internal thread id or a processlist id.
+  Find a PFS thread given an internal thread id.
   @param thread_id internal thread id
   @return pfs pointer if found, else NULL
 */
-PFS_thread *find_thread(ulonglong thread_id) {
+PFS_thread *find_thread_by_internal_id(ulonglong thread_id) {
   PFS_thread *pfs = NULL;
   uint index = 0;
 
@@ -623,6 +623,29 @@ PFS_thread *find_thread(ulonglong thread_id) {
     pfs = it.scan_next(&index);
     if (pfs != NULL) {
       if (pfs->m_thread_internal_id == thread_id) {
+        return pfs;
+      }
+    }
+  } while (pfs != NULL);
+
+  return NULL;
+}
+
+/**
+  Find a PFS thread given a processlist id.
+  @param processlist_id PROCESSLIST_ID
+  @return pfs pointer if found, else NULL
+*/
+PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id) {
+  PFS_thread *pfs = NULL;
+  uint index = 0;
+
+  PFS_thread_iterator it = global_thread_container.iterate(index);
+
+  do {
+    pfs = it.scan_next(&index);
+    if (pfs != NULL) {
+      if (pfs->m_processlist_id == processlist_id) {
         return pfs;
       }
     }

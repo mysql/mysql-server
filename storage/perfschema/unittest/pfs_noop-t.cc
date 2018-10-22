@@ -108,7 +108,6 @@ static void test_noop() {
   psi_thread_service->set_thread_db(NULL, 0);
   psi_thread_service->set_thread_command(1);
   psi_thread_service->set_thread_start_time(1);
-  psi_thread_service->set_thread_state(NULL);
   psi_thread_service->set_thread_info(NULL, 0);
   psi_thread_service->set_thread(NULL);
   psi_thread_service->delete_current_thread();

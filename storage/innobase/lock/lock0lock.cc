@@ -1443,7 +1443,7 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
   /* The performance schema THREAD_ID and EVENT_ID are used only
   when DATA_LOCKS are exposed.  */
-  PSI_THREAD_CALL(get_thread_event_id)
+  PSI_THREAD_CALL(get_current_thread_event_id)
   (&lock->m_psi_internal_thread_id, &lock->m_psi_event_id);
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
@@ -3726,7 +3726,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
   /* The performance schema THREAD_ID and EVENT_ID
   are used only when DATA_LOCKS are exposed.  */
-  PSI_THREAD_CALL(get_thread_event_id)
+  PSI_THREAD_CALL(get_current_thread_event_id)
   (&lock->m_psi_internal_thread_id, &lock->m_psi_event_id);
 #endif /* HAVE_PSI_DATA_LOCK_INTERFACE */
 #endif /* HAVE_PSI_THREAD_INTERFACE */

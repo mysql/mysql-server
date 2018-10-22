@@ -124,6 +124,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key, my_thread_handle *thread,
   Create instrumentation for a thread.
   @param key the registered key
   @param identity an address typical of the thread
+  @param thread_id PROCESSLIST_ID of the thread
   @return an instrumented thread
 */
 typedef struct PSI_thread *(*new_thread_v1_t)(PSI_thread_key key,
@@ -140,10 +141,31 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
 /**
   Assign an id to an instrumented thread.
   @param thread the instrumented thread
-  @param id the id to assign
+  @param id the PROCESSLIST_ID to assign
 */
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    unsigned long long id);
+/**
+  Read the THREAD_ID of the current thread.
+  @return the id of the instrumented thread
+*/
+typedef unsigned long long (*get_current_thread_internal_id_v2_t)();
+
+/**
+  Read the THREAD_ID of an instrumented thread.
+  @param thread the instrumented thread
+  @return the id of the instrumented thread
+*/
+typedef unsigned long long (*get_thread_internal_id_v2_t)(
+    struct PSI_thread *thread);
+
+/**
+  Get the instrumentation for the thread of given PROCESSLIST_ID.
+  @param processlist_id the thread id
+  @return the instrumented thread
+*/
+typedef struct PSI_thread *(*get_thread_by_id_v2_t)(
+    unsigned long long processlist_id);
 
 /**
   Assign the current operating system thread id to an instrumented thread.
@@ -275,11 +297,30 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
                                              const void *from_cs);
 
 /**
-  Get the current event.
+  Get the current thread current event.
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_current_thread_event_id_v2_t)(
+    unsigned long long *thread_internal_id, unsigned long long *event_id);
+
+/**
+  Get the thread current event.
+  @deprecated
   @param [out] thread_internal_id The thread internal id
   @param [out] event_id The per thread event id.
 */
 typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
+                                         unsigned long long *event_id);
+
+/**
+  Get the thread current event.
+  @param thread the instrumented thread
+  @param [out] thread_internal_id The thread internal id
+  @param [out] event_id The per thread event id.
+*/
+typedef void (*get_thread_event_id_v2_t)(struct PSI_thread *psi,
+                                         unsigned long long *thread_internal_id,
                                          unsigned long long *event_id);
 
 /* Duplicate definitions to avoid dependency on mysql_com.h */

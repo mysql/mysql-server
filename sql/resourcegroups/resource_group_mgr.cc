@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -430,9 +430,7 @@ bool Resource_group_mgr::move_resource_group(Resource_group *from_res_grp,
   ulonglong pfs_thread_id = 0;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  ulonglong unused_event_id MY_ATTRIBUTE((unused));
-
-  PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+  pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif
 
   m_resource_group_svc->set_thread_resource_group_by_id(

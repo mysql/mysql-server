@@ -650,8 +650,7 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
   if (m_thread_id_list == nullptr || m_thread_id_list->empty()) {
     ulonglong pfs_thread_id = 0;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    ulonglong unused_event_id MY_ATTRIBUTE((unused));
-    PSI_THREAD_CALL(get_thread_event_id)(&pfs_thread_id, &unused_event_id);
+    pfs_thread_id = PSI_THREAD_CALL(get_current_thread_internal_id)();
 #endif
 
     if (resource_group->type() != Type::USER_RESOURCE_GROUP) {

@@ -714,7 +714,8 @@ void destroy_cond(PFS_cond *pfs);
 PFS_thread *create_thread(PFS_thread_class *klass, const void *identity,
                           ulonglong processlist_id);
 
-PFS_thread *find_thread(ulonglong thread_id);
+PFS_thread *find_thread_by_processlist_id(ulonglong processlist_id);
+PFS_thread *find_thread_by_internal_id(ulonglong thread_id);
 
 void destroy_thread(PFS_thread *pfs);
 

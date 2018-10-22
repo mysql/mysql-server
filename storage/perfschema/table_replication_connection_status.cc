@@ -160,9 +160,8 @@ bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
       PSI_thread *psi = thd_get_psi(mi->info_thd);
-      PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-      if (pfs) {
-        row.thread_id = pfs->m_thread_internal_id;
+      if (psi != nullptr) {
+        row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       }
     }
 
@@ -330,9 +329,8 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
     PSI_thread *psi = thd_get_psi(mi->info_thd);
-    PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
-    if (pfs) {
-      m_row.thread_id = pfs->m_thread_internal_id;
+    if (psi != nullptr) {
+      m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
   }

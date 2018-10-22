@@ -2348,7 +2348,7 @@ void pfs_register_cond_v1(const char *category, PSI_cond_info_v1 *info,
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::register_thread.
 */
-void pfs_register_thread_v1(const char *category, PSI_thread_info_v1 *info,
+void pfs_register_thread_v2(const char *category, PSI_thread_info *info,
                             int count) {
   REGISTER_BODY_V1(PSI_thread_key, thread_instrument_prefix,
                    register_thread_class);
@@ -2841,9 +2841,9 @@ static void *pfs_spawn_thread(void *arg) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::spawn_thread.
+  @sa PSI_v2::spawn_thread.
 */
-int pfs_spawn_thread_v1(PSI_thread_key key, my_thread_handle *thread,
+int pfs_spawn_thread_v2(PSI_thread_key key, my_thread_handle *thread,
                         const my_thread_attr_t *attr,
                         void *(*start_routine)(void *), void *arg) {
   PFS_spawn_thread_arg *psi_arg;
@@ -2892,9 +2892,9 @@ int pfs_spawn_thread_v1(PSI_thread_key key, my_thread_handle *thread,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::new_thread.
+  @sa PSI_v2::new_thread.
 */
-PSI_thread *pfs_new_thread_v1(PSI_thread_key key, const void *identity,
+PSI_thread *pfs_new_thread_v2(PSI_thread_key key, const void *identity,
                               ulonglong processlist_id) {
   PFS_thread *pfs;
 
@@ -2914,9 +2914,9 @@ PSI_thread *pfs_new_thread_v1(PSI_thread_key key, const void *identity,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_id.
+  @sa PSI_v2::set_thread_id.
 */
-void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id) {
+void pfs_set_thread_id_v2(PSI_thread *thread, ulonglong processlist_id) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2926,9 +2926,43 @@ void pfs_set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_THD.
+  @sa PSI_v2::get_current_thread_internal_id.
 */
-void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd) {
+ulonglong pfs_get_current_thread_internal_id_v2() {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  if (unlikely(pfs == nullptr)) {
+    return 0;
+  }
+  return pfs->m_thread_internal_id;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::get_thread_internal_id.
+*/
+ulonglong pfs_get_thread_internal_id_v2(PSI_thread *thread) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
+  if (unlikely(pfs == nullptr)) {
+    return 0;
+  }
+  return pfs->m_thread_internal_id;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::get_thread_by_id.
+*/
+PSI_thread *pfs_get_thread_by_id_v2(ulonglong processlist_id) {
+  PFS_thread *pfs = find_thread_by_processlist_id(processlist_id);
+  PSI_thread *psi = reinterpret_cast<PSI_thread *>(pfs);
+  return psi;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_thread_THD.
+*/
+void pfs_set_thread_THD_v2(PSI_thread *thread, THD *thd) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2938,9 +2972,9 @@ void pfs_set_thread_THD_v1(PSI_thread *thread, THD *thd) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_os_thread_id.
+  @sa PSI_v2::set_thread_os_thread_id.
 */
-void pfs_set_thread_os_id_v1(PSI_thread *thread) {
+void pfs_set_thread_os_id_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (unlikely(pfs == NULL)) {
     return;
@@ -2950,18 +2984,18 @@ void pfs_set_thread_os_id_v1(PSI_thread *thread) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_id.
+  @sa PSI_v2::get_thread.
 */
-PSI_thread *pfs_get_thread_v1(void) {
+PSI_thread *pfs_get_thread_v2(void) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return reinterpret_cast<PSI_thread *>(pfs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_user.
+  @sa PSI_v2::set_thread_user.
 */
-void pfs_set_thread_user_v1(const char *user, int user_len) {
+void pfs_set_thread_user_v2(const char *user, int user_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
@@ -3010,9 +3044,9 @@ void pfs_set_thread_user_v1(const char *user, int user_len) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_account.
+  @sa PSI_v2::set_thread_account.
 */
-void pfs_set_thread_account_v1(const char *user, int user_len, const char *host,
+void pfs_set_thread_account_v2(const char *user, int user_len, const char *host,
                                int host_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
@@ -3069,9 +3103,9 @@ void pfs_set_thread_account_v1(const char *user, int user_len, const char *host,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_db.
+  @sa PSI_v2::set_thread_db.
 */
-void pfs_set_thread_db_v1(const char *db, int db_len) {
+void pfs_set_thread_db_v2(const char *db, int db_len) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT((db != NULL) || (db_len == 0));
@@ -3091,9 +3125,9 @@ void pfs_set_thread_db_v1(const char *db, int db_len) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_command.
+  @sa PSI_v2::set_thread_command.
 */
-void pfs_set_thread_command_v1(int command) {
+void pfs_set_thread_command_v2(int command) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT(command >= 0);
@@ -3105,10 +3139,10 @@ void pfs_set_thread_command_v1(int command) {
 }
 
 /**
-Implementation of the thread instrumentation interface.
-@sa PSI_v1::set_thread_connection_type.
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_thread_connection_type.
 */
-void pfs_set_connection_type_v1(opaque_vio_type conn_type) {
+void pfs_set_connection_type_v2(opaque_vio_type conn_type) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   DBUG_ASSERT(conn_type >= FIRST_VIO_TYPE);
@@ -3121,9 +3155,9 @@ void pfs_set_connection_type_v1(opaque_vio_type conn_type) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_start_time.
+  @sa PSI_v2::set_thread_start_time.
 */
-void pfs_set_thread_start_time_v1(time_t start_time) {
+void pfs_set_thread_start_time_v2(time_t start_time) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
   if (likely(pfs != NULL)) {
@@ -3140,9 +3174,9 @@ void pfs_set_thread_state_v1(const char *) { /* DEPRECATED. */
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_info.
+  @sa PSI_v2::set_thread_info.
 */
-void pfs_set_thread_info_v1(const char *info, uint info_len) {
+void pfs_set_thread_info_v2(const char *info, uint info_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
@@ -3200,9 +3234,9 @@ int set_thread_resource_group(PFS_thread *pfs, const char *group_name,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_resource_group
+  @sa PSI_v2::set_thread_resource_group
 */
-int pfs_set_thread_resource_group_v1(const char *group_name, int group_name_len,
+int pfs_set_thread_resource_group_v2(const char *group_name, int group_name_len,
                                      void *user_data) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
@@ -3210,16 +3244,16 @@ int pfs_set_thread_resource_group_v1(const char *group_name, int group_name_len,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread_resource_group_by_id
+  @sa PSI_v2::set_thread_resource_group_by_id
 */
-int pfs_set_thread_resource_group_by_id_v1(PSI_thread *thread,
+int pfs_set_thread_resource_group_by_id_v2(PSI_thread *thread,
                                            ulonglong thread_id,
                                            const char *group_name,
                                            int group_name_len,
                                            void *user_data) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (pfs == NULL) {
-    pfs = find_thread(thread_id);
+    pfs = find_thread_by_internal_id(thread_id);
   }
   return set_thread_resource_group(pfs, group_name, group_name_len, user_data);
 }
@@ -3302,84 +3336,84 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_system_attrs.
+  @sa PSI_v2::get_thread_system_attrs.
 */
-int pfs_get_thread_system_attrs_v1(PSI_thread_attrs *thread_attrs) {
+int pfs_get_thread_system_attrs_v2(PSI_thread_attrs *thread_attrs) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
   return get_thread_attributes(pfs, true, thread_attrs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::get_thread_system_attrs_by_id.
+  @sa PSI_v2::get_thread_system_attrs_by_id.
 */
-int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
+int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
                                          ulonglong thread_id,
                                          PSI_thread_attrs *thread_attrs) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   if (pfs == NULL) {
-    pfs = find_thread(thread_id);
+    pfs = find_thread_by_internal_id(thread_id);
   }
   return get_thread_attributes(pfs, false, thread_attrs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::register_notification.
+  @sa PSI_v2::register_notification.
 */
-int pfs_register_notification_v1(const PSI_notification *callbacks,
+int pfs_register_notification_v2(const PSI_notification *callbacks,
                                  bool with_ref_count) {
   return pfs_register_notification(callbacks, with_ref_count);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::unregister_notification.
+  @sa PSI_v2::unregister_notification.
 */
-int pfs_unregister_notification_v1(int handle) {
+int pfs_unregister_notification_v2(int handle) {
   return pfs_unregister_notification(handle);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_connect.
+  @sa PSI_v2::notify_session_connect.
 */
-void pfs_notify_session_connect_v1(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_connect_v2(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_connect(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_disconnect.
+  @sa PSI_v2::notify_session_disconnect.
 */
-void pfs_notify_session_disconnect_v1(
+void pfs_notify_session_disconnect_v2(
     PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_disconnect(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::notify_session_change_user.
+  @sa PSI_v2::notify_session_change_user.
 */
-void pfs_notify_session_change_user_v1(
+void pfs_notify_session_change_user_v2(
     PSI_thread *thread MY_ATTRIBUTE((unused))) {
   pfs_notify_session_change_user(thread);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::set_thread.
+  @sa PSI_v2::set_thread.
 */
-void pfs_set_thread_v1(PSI_thread *thread) {
+void pfs_set_thread_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
   my_thread_set_THR_PFS(pfs);
 }
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::delete_current_thread.
+  @sa PSI_v2::delete_current_thread.
 */
-void pfs_delete_current_thread_v1(void) {
+void pfs_delete_current_thread_v2(void) {
   PFS_thread *thread = my_thread_get_THR_PFS();
   if (thread != NULL) {
     aggregate_thread(thread, thread->m_account, thread->m_user, thread->m_host);
@@ -3391,9 +3425,9 @@ void pfs_delete_current_thread_v1(void) {
 
 /**
   Implementation of the thread instrumentation interface.
-  @sa PSI_v1::delete_thread.
+  @sa PSI_v2::delete_thread.
 */
-void pfs_delete_thread_v1(PSI_thread *thread) {
+void pfs_delete_thread_v2(PSI_thread *thread) {
   PFS_thread *pfs = reinterpret_cast<PFS_thread *>(thread);
 
   if (pfs != NULL) {
@@ -7158,9 +7192,9 @@ void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
 
 /**
   Implementation of the thread attribute connection interface
-  @sa PSI_v1::set_thread_connect_attr.
+  @sa PSI_v2::set_thread_connect_attr.
 */
-int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
+int pfs_set_thread_connect_attrs_v2(const char *buffer, uint length,
                                     const void *from_cs) {
   PFS_thread *thd = my_thread_get_THR_PFS();
 
@@ -7227,11 +7261,38 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
 
 /**
   Implementation of the get event id interface
+  @sa PSI_v2::get_thread_event_id.
+*/
+void pfs_get_current_thread_event_id_v2(ulonglong *internal_thread_id,
+                                        ulonglong *event_id) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+
+  if (pfs != NULL) {
+    *internal_thread_id = pfs->m_thread_internal_id;
+    *event_id = pfs->m_event_id;
+  } else {
+    *internal_thread_id = 0;
+    *event_id = 0;
+  }
+}
+
+/**
+  Implementation of the get event id interface
   @sa PSI_v1::get_thread_event_id.
 */
 void pfs_get_thread_event_id_v1(ulonglong *internal_thread_id,
                                 ulonglong *event_id) {
-  PFS_thread *pfs = my_thread_get_THR_PFS();
+  /* Renamed in V2. */
+  return pfs_get_current_thread_event_id_v2(internal_thread_id, event_id);
+}
+
+/**
+  Implementation of the get event id interface
+  @sa PSI_v1::get_thread_event_id.
+*/
+void pfs_get_thread_event_id_v2(PSI_thread *psi, ulonglong *internal_thread_id,
+                                ulonglong *event_id) {
+  PFS_thread *pfs = reinterpret_cast<PFS_thread *>(psi);
 
   if (pfs != NULL) {
     *internal_thread_id = pfs->m_thread_internal_id;
@@ -7809,70 +7870,107 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1) = {
 
 /**
   Implementation of the instrumentation interface.
-  @sa PSI_thread_service_v1
+  @sa PSI_thread_service_v2
 */
-PSI_thread_service_v1 pfs_thread_service_v1 = {
+PSI_thread_service_v2 pfs_thread_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_thread_v1,
-    pfs_spawn_thread_v1,
-    pfs_new_thread_v1,
-    pfs_set_thread_id_v1,
-    pfs_set_thread_THD_v1,
-    pfs_set_thread_os_id_v1,
-    pfs_get_thread_v1,
-    pfs_set_thread_user_v1,
-    pfs_set_thread_account_v1,
-    pfs_set_thread_db_v1,
-    pfs_set_thread_command_v1,
-    pfs_set_connection_type_v1,
-    pfs_set_thread_start_time_v1,
-    pfs_set_thread_state_v1,
-    pfs_set_thread_info_v1,
-    pfs_set_thread_resource_group_v1,
-    pfs_set_thread_resource_group_by_id_v1,
-    pfs_set_thread_v1,
-    pfs_delete_current_thread_v1,
-    pfs_delete_thread_v1,
-    pfs_set_thread_connect_attrs_v1,
-    pfs_get_thread_event_id_v1,
-    pfs_get_thread_system_attrs_v1,
-    pfs_get_thread_system_attrs_by_id_v1,
-    pfs_register_notification_v1,
-    pfs_unregister_notification_v1,
-    pfs_notify_session_connect_v1,
-    pfs_notify_session_disconnect_v1,
-    pfs_notify_session_change_user_v1};
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_get_current_thread_internal_id_v2,
+    pfs_get_thread_internal_id_v2,
+    pfs_get_thread_by_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_info_v2,
+    pfs_set_thread_resource_group_v2,
+    pfs_set_thread_resource_group_by_id_v2,
+    pfs_set_thread_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_current_thread_event_id_v2,
+    pfs_get_thread_event_id_v2,
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
 
 SERVICE_TYPE(psi_thread_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v1) = {
     /* New interface, for components. */
-    pfs_register_thread_v1,
-    pfs_spawn_thread_v1,
-    pfs_new_thread_v1,
-    pfs_set_thread_id_v1,
-    pfs_set_thread_THD_v1,
-    pfs_set_thread_os_id_v1,
-    pfs_get_thread_v1,
-    pfs_set_thread_user_v1,
-    pfs_set_thread_account_v1,
-    pfs_set_thread_db_v1,
-    pfs_set_thread_command_v1,
-    pfs_set_connection_type_v1,
-    pfs_set_thread_start_time_v1,
-    pfs_set_thread_state_v1,
-    pfs_set_thread_info_v1,
-    pfs_set_thread_v1,
-    pfs_delete_current_thread_v1,
-    pfs_delete_thread_v1,
-    pfs_set_thread_connect_attrs_v1,
-    pfs_get_thread_event_id_v1,
-    pfs_get_thread_system_attrs_v1,
-    pfs_get_thread_system_attrs_by_id_v1,
-    pfs_register_notification_v1,
-    pfs_unregister_notification_v1,
-    pfs_notify_session_connect_v1,
-    pfs_notify_session_disconnect_v1,
-    pfs_notify_session_change_user_v1};
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_state_v1, /* V1 only, removed in V2 */
+    pfs_set_thread_info_v2,
+    pfs_set_thread_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_thread_event_id_v1, /* V1, modified in V2 */
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
+
+SERVICE_TYPE(psi_thread_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v2) = {
+    /* New interface, for components. */
+    pfs_register_thread_v2,
+    pfs_spawn_thread_v2,
+    pfs_new_thread_v2,
+    pfs_set_thread_id_v2,
+    pfs_get_current_thread_internal_id_v2,
+    pfs_get_thread_internal_id_v2,
+    pfs_get_thread_by_id_v2,
+    pfs_set_thread_THD_v2,
+    pfs_set_thread_os_id_v2,
+    pfs_get_thread_v2,
+    pfs_set_thread_user_v2,
+    pfs_set_thread_account_v2,
+    pfs_set_thread_db_v2,
+    pfs_set_thread_command_v2,
+    pfs_set_connection_type_v2,
+    pfs_set_thread_start_time_v2,
+    pfs_set_thread_info_v2,
+    pfs_set_thread_v2,
+    pfs_delete_current_thread_v2,
+    pfs_delete_thread_v2,
+    pfs_set_thread_connect_attrs_v2,
+    pfs_get_current_thread_event_id_v2,
+    pfs_get_thread_event_id_v2,
+    pfs_get_thread_system_attrs_v2,
+    pfs_get_thread_system_attrs_by_id_v2,
+    pfs_register_notification_v2,
+    pfs_unregister_notification_v2,
+    pfs_notify_session_connect_v2,
+    pfs_notify_session_disconnect_v2,
+    pfs_notify_session_change_user_v2};
 
 PSI_mutex_service_v1 pfs_mutex_service_v1 = {
     /* Old interface, for plugins. */
@@ -8193,7 +8291,9 @@ static void *get_system_interface(int version) {
 static void *get_thread_interface(int version) {
   switch (version) {
     case PSI_THREAD_VERSION_1:
-      return &pfs_thread_service_v1;
+      return NULL;
+    case PSI_THREAD_VERSION_2:
+      return &pfs_thread_service_v2;
     default:
       return NULL;
   }
@@ -8418,7 +8518,9 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_statement_v2),
     PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
+    /* Deprecated, use psi_thread_v2. */
     PROVIDES_SERVICE(performance_schema, psi_thread_v1),
+    PROVIDES_SERVICE(performance_schema, psi_thread_v2),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),
     /* Deprecated, use pfs_plugin_table_v1. */
     PROVIDES_SERVICE(performance_schema, pfs_plugin_table),
