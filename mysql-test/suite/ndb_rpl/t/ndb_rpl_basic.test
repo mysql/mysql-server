@@ -4,7 +4,7 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 -- disable_query_log
-call mtr.add_suppression("Slave: Got error 146 during COMMIT Error_code: 1180");
+call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' during COMMIT");
 -- enable_query_log
 
 #
@@ -102,29 +102,17 @@ select * from t1 order by nid;
 
 --connection master
 UPDATE t1 set nid=nid+1;
-UPDATE t1 set nom="CCP" where nid = 4;
+# Due to Bug#16029263, the below update would have failed when
+# sync_slave_with_master is called. So as a temporary workaround,
+# comment this update. When the bug gets fixed, this needs to be
+# reverted and re record the subsequent select *.
+#UPDATE t1 set nom="CCP" where nid = 4;
 select * from t1 order by nid;
 
 # make sure all rows are on the slave.
-#--sync_slave_with_master
-
-# Due to Bug#16029263, the above sync_slave_with_master would have failed.
-# So as to ensure continued running of the other testcases, this sync is
-# commented out and we allow the slave to fail with an error. This is
-# *NOT* the right behaviour. And when the bug gets fixed, this testcase
-# will fail and it has to be restored back by uncommenting the above
-# sync and removing the following workaround that accepts the error.
---disable_query_log
-call mtr.add_suppression("Can't find record in 't1'");
-call mtr.add_suppression("Got error 146 - 'Lock timed out; Retry transaction' during COMMIT");
---enable_query_log
---connection slave
---let $slave_sql_errno= convert_error(ER_KEY_NOT_FOUND)
---source include/wait_for_slave_sql_error_and_skip.inc
+--sync_slave_with_master
 
 --connection slave
-# Currently would print the wrong rows due to Bug#16029263.
-# Need to be re-recorded when that is fixed
 select * from t1 order by nid;
 
 --connection master

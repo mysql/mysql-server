@@ -79,18 +79,16 @@ nid	nom	prenom
 3	CCC	DDD
 4	EEE	FFF
 UPDATE t1 set nid=nid+1;
-UPDATE t1 set nom="CCP" where nid = 4;
 select * from t1 order by nid;
 nid	nom	prenom
 2	XYZ1	ABC1
-4	CCP	DDD
+4	CCC	DDD
 5	EEE	FFF
-include/wait_for_slave_sql_error_and_skip.inc [errno=1032]
 select * from t1 order by nid;
 nid	nom	prenom
-1	XYZ1	ABC1
-3	CCC	DDD
-4	EEE	FFF
+2	XYZ1	ABC1
+4	CCC	DDD
+5	EEE	FFF
 DROP table t1;
 CREATE TABLE `t1` (
 `prid` int(10) unsigned NOT NULL,
