@@ -2022,6 +2022,18 @@ typedef bool (*is_reserved_db_name_t)(handlerton *hton, const char *name);
 */
 using optimize_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
 
+// FIXME: Temporary workaround to enable storage engine plugins to use the
+// before_commit hook. Remove after WL#11320 has been completed.
+typedef void (*se_before_commit_t)(void *arg);
+
+// FIXME: Temporary workaround to enable storage engine plugins to use the
+// after_commit hook. Remove after WL#11320 has been completed.
+typedef void (*se_after_commit_t)(void *arg);
+
+// FIXME: Temporary workaround to enable storage engine plugins to use the
+// before_rollback hook. Remove after WL#11320 has been completed.
+typedef void (*se_before_rollback_t)(void *arg);
+
 /**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -2198,6 +2210,10 @@ struct handlerton {
     handlerton.
   */
   optimize_secondary_engine_t optimize_secondary_engine;
+
+  se_before_commit_t se_before_commit;
+  se_after_commit_t se_after_commit;
+  se_before_rollback_t se_before_rollback;
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */

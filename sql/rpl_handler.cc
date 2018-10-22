@@ -37,6 +37,7 @@
 #include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
@@ -309,6 +310,12 @@ void delegates_destroy() {
   */                                                                   \
   if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
+static bool se_before_commit(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_before_commit) hton->se_before_commit(arg);
+  return false;
+}
+
 int Trans_delegate::before_commit(THD *thd, bool all,
                                   Binlog_cache_storage *trx_cache_log,
                                   Binlog_cache_storage *stmt_cache_log,
@@ -340,6 +347,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_commit, (&param));
+  plugin_foreach(thd, se_before_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
 }
 
@@ -492,6 +500,12 @@ int Trans_delegate::before_dml(THD *thd, int &result) {
   DBUG_RETURN(ret);
 }
 
+static bool se_before_rollback(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_before_rollback) hton->se_before_rollback(arg);
+  return false;
+}
+
 int Trans_delegate::before_rollback(THD *thd, bool all) {
   DBUG_ENTER("Trans_delegate::before_rollback");
   Trans_param param;
@@ -507,7 +521,14 @@ int Trans_delegate::before_rollback(THD *thd, bool all) {
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_rollback, (&param));
+  plugin_foreach(thd, se_before_rollback, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
+}
+
+static bool se_after_commit(THD *, plugin_ref plugin, void *arg) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->se_after_commit) hton->se_after_commit(arg);
+  return false;
 }
 
 int Trans_delegate::after_commit(THD *thd, bool all) {
@@ -536,6 +557,7 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_commit, (&param));
+  plugin_foreach(thd, se_after_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
   DBUG_RETURN(ret);
 }
 
