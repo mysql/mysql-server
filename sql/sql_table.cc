@@ -9859,7 +9859,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
           */
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
 
-          int result MY_ATTRIBUTE((unused)) = store_create_info(
+          bool result MY_ATTRIBUTE((unused)) = store_create_info(
               thd, table, &query, create_info, true /* show_database */);
 
           DBUG_ASSERT(result == 0);  // store_create_info() always return 0

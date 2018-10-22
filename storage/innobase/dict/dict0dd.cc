@@ -354,7 +354,7 @@ int dd_table_open_on_dd_obj(dd::cache::Dictionary_client *client,
     TABLE td;
 
     error = open_table_from_share(thd, &ts, dd_table.name().c_str(), 0,
-                                  OPEN_FRM_FILE_ONLY, 0, &td, false, &dd_table);
+                                  SKIP_NEW_HANDLER, 0, &td, false, &dd_table);
     if (error == 0) {
       char tmp_name[MAX_FULL_NAME_LEN + 1];
       const char *tab_namep;
@@ -4203,7 +4203,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
     TABLE td;
 
     error = open_table_from_share(thd, &ts, dd_table->name().c_str(), 0,
-                                  OPEN_FRM_FILE_ONLY, 0, &td, false, dd_table);
+                                  SKIP_NEW_HANDLER, 0, &td, false, dd_table);
 
     if (error != 0) {
       free_table_share(&ts);

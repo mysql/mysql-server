@@ -834,7 +834,7 @@ class st_alter_tablespace {
 /*
   Make sure that the order of schema_tables and enum_schema_tables are the same.
 */
-enum enum_schema_tables {
+enum enum_schema_tables : int {
   SCH_FIRST = 0,
   SCH_COLUMN_PRIVILEGES = SCH_FIRST,
   SCH_ENGINES,

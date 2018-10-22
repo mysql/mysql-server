@@ -2798,7 +2798,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
 
   /* Allocate handler */
   outparam->file = 0;
-  if (!(prgflag & OPEN_FRM_FILE_ONLY)) {
+  if (!(prgflag & SKIP_NEW_HANDLER)) {
     if (!(outparam->file = get_new_handler(share, share->m_part_info != NULL,
                                            root, share->db_type())))
       goto err;
@@ -3041,7 +3041,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     const dd::Table *table_def = table_def_param;
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-    if (!table_def && !(prgflag & OPEN_NO_DD_TABLE)) {
+    if (!table_def) {
       if (thd->dd_client()->acquire(share->db.str, share->table_name.str,
                                     &table_def)) {
         error_reported = true;
@@ -3771,7 +3771,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     over the same loop twice and shortcut the search.
     Do it after taking the lock to weed out unnecessary races.
   */
-  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY) {
+  if (src_ctx->m_wait.get_status() != MDL_wait::WS_EMPTY) {
     result = false;
     goto end;
   }

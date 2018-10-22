@@ -77,8 +77,6 @@ WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 
 connect (con1, localhost, root,,);
 SET DEBUG_SYNC = 'now WAIT_FOR parked';
---echo # When waiting for the name lock in get_all_tables in sql_show.cc
---echo # this will not be concurrent any more, thus the TIMEOUT
 SET DEBUG_SYNC = 'alter_table_inplace_before_commit SIGNAL open WAIT_FOR alter';
 --error 0,ER_TABLE_EXISTS_ERROR
 send

@@ -631,7 +631,7 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] =
     0,
     MY_I_S_UNSIGNED,
     "",
-    SKIP_OPEN_TABLE
+    0
   },
 
   {
@@ -641,7 +641,7 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] =
     0,
     MY_I_S_UNSIGNED,
     "",
-    SKIP_OPEN_TABLE
+    0
   },
   {
     "ndb_transid",
@@ -650,10 +650,10 @@ static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] =
     0,
     MY_I_S_UNSIGNED,
     "",
-    SKIP_OPEN_TABLE
+    0
   },
 
-  { 0, 0, MYSQL_TYPE_NULL, 0, 0, "", SKIP_OPEN_TABLE }
+  { 0, 0, MYSQL_TYPE_NULL, 0, 0, "", 0 }
 };
 
 static

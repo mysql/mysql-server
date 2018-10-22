@@ -54,10 +54,6 @@ static const char *traditional_extra_tags[ET_total] = {
     "Using MRR",                        // ET_USING_MRR
     "Using index",                      // ET_USING_INDEX
     "Full scan on NULL key",            // ET_FULL_SCAN_ON_NULL_KEY
-    "Skip_open_table",                  // ET_SKIP_OPEN_TABLE
-    "Open_frm_only",                    // ET_OPEN_FRM_ONLY
-    "Open_full_table",                  // ET_OPEN_FULL_TABLE
-    "Scanned",                          // ET_SCANNED_DATABASES
     "Using index for group-by",         // ET_USING_INDEX_FOR_GROUP_BY
     "Using index for skip scan",        // ET_USING_INDEX_FOR_SKIP_SCAN,
     "Distinct",                         // ET_DISTINCT
@@ -220,9 +216,6 @@ bool Explain_format_traditional::flush_entry() {
           return true;
         if (brackets && buff.append("(")) return true;
         if (buff.append(e->data)) return true;
-        if (e->tag == ET_SCANNED_DATABASES &&
-            buff.append(e->data[0] == '1' ? " database" : " databases"))
-          return true;
         if (brackets && buff.append(")")) return true;
       }
       if (buff.append("; ")) return true;

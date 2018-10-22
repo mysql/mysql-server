@@ -1725,7 +1725,7 @@ uint MDL_ticket::get_deadlock_weight() const {
 
 /** Construct an empty wait slot. */
 
-MDL_wait::MDL_wait() : m_wait_status(EMPTY) {
+MDL_wait::MDL_wait() : m_wait_status(WS_EMPTY) {
   mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, NULL);
   mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status);
 }
@@ -1745,7 +1745,7 @@ MDL_wait::~MDL_wait() {
 bool MDL_wait::set_status(enum_wait_status status_arg) {
   bool was_occupied = true;
   mysql_mutex_lock(&m_LOCK_wait_status);
-  if (m_wait_status == EMPTY) {
+  if (m_wait_status == WS_EMPTY) {
     was_occupied = false;
     m_wait_status = status_arg;
     mysql_cond_signal(&m_COND_wait_status);
@@ -1768,7 +1768,7 @@ MDL_wait::enum_wait_status MDL_wait::get_status() {
 
 void MDL_wait::reset_status() {
   mysql_mutex_lock(&m_LOCK_wait_status);
-  m_wait_status = EMPTY;
+  m_wait_status = WS_EMPTY;
   mysql_mutex_unlock(&m_LOCK_wait_status);
 }
 
@@ -1804,7 +1804,7 @@ MDL_wait::enum_wait_status MDL_wait::timed_wait(
   }
   thd_wait_end(NULL);
 
-  if (m_wait_status == EMPTY) {
+  if (m_wait_status == WS_EMPTY) {
     /*
       Wait has ended not due to a status being set from another
       thread but due to this connection/statement being killed or a
@@ -3423,14 +3423,14 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   if (lock->needs_notification(ticket) || lock->needs_connection_check()) {
     struct timespec abs_shortwait;
     set_timespec(&abs_shortwait, 1);
-    wait_status = MDL_wait::EMPTY;
+    wait_status = MDL_wait::WS_EMPTY;
 
     while (cmp_timespec(&abs_shortwait, &abs_timeout) <= 0) {
       /* abs_timeout is far away. Wait a short while and notify locks. */
       wait_status = m_wait.timed_wait(m_owner, &abs_shortwait, false,
                                       mdl_request->key.get_wait_state_name());
 
-      if (wait_status != MDL_wait::EMPTY) break;
+      if (wait_status != MDL_wait::WS_EMPTY) break;
 
       if (lock->needs_connection_check() && !m_owner->is_connected()) {
         /*
@@ -3456,7 +3456,7 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
 
       set_timespec(&abs_shortwait, 1);
     }
-    if (wait_status == MDL_wait::EMPTY)
+    if (wait_status == MDL_wait::WS_EMPTY)
       wait_status = m_wait.timed_wait(m_owner, &abs_timeout, true,
                                       mdl_request->key.get_wait_state_name());
   } else {
@@ -3848,7 +3848,7 @@ bool MDL_lock::visit_subgraph(MDL_ticket *waiting_ticket,
     for it. To avoid races this has to be done under protection of
     MDL_lock::m_rwlock lock.
   */
-  if (src_ctx->m_wait.get_status() != MDL_wait::EMPTY) {
+  if (src_ctx->m_wait.get_status() != MDL_wait::WS_EMPTY) {
     result = false;
     goto end;
   }

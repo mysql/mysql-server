@@ -538,12 +538,11 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *) {
 
 ST_FIELD_INFO optimizer_trace_info[] = {
     /* name, length, type, value, maybe_null, old_name, open_method */
-    {"QUERY", 65535, MYSQL_TYPE_STRING, 0, false, NULL, SKIP_OPEN_TABLE},
-    {"TRACE", 65535, MYSQL_TYPE_STRING, 0, false, NULL, SKIP_OPEN_TABLE},
+    {"QUERY", 65535, MYSQL_TYPE_STRING, 0, false, NULL, 0},
+    {"TRACE", 65535, MYSQL_TYPE_STRING, 0, false, NULL, 0},
     {"MISSING_BYTES_BEYOND_MAX_MEM_SIZE", 20, MYSQL_TYPE_LONG, 0, false, NULL,
-     SKIP_OPEN_TABLE},
-    {"INSUFFICIENT_PRIVILEGES", 1, MYSQL_TYPE_TINY, 0, false, NULL,
-     SKIP_OPEN_TABLE},
+     0},
+    {"INSUFFICIENT_PRIVILEGES", 1, MYSQL_TYPE_TINY, 0, false, NULL, 0},
     {NULL, 0, MYSQL_TYPE_STRING, 0, true, NULL, 0}};
 
 /*

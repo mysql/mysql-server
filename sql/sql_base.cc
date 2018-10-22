@@ -3198,9 +3198,6 @@ retry_share : {
     */
     else if (check_and_update_table_version(thd, table_list, share))
       ;
-    else if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
-      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
-               table_list->table_name);
     else if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
       /*
         Skip reading the view definition if the open is for a table to be

@@ -2120,7 +2120,7 @@ static inline void empty_record(TABLE *table) {
     memset(table->null_flags, 255, table->s->null_bytes);
 }
 
-enum enum_schema_table_state {
+enum enum_schema_table_state : int {
   NOT_PROCESSED = 0,
   PROCESSED_BY_CREATE_SORT_INDEX,
   PROCESSED_BY_JOIN_EXEC
@@ -2141,10 +2141,6 @@ struct FOREIGN_KEY_INFO {
 
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
-
-#define SKIP_OPEN_TABLE 0  // do not open table
-#define OPEN_FRM_ONLY 1    // open FRM file only
-#define OPEN_FULL_TABLE 2  // open FRM,MYD, MYI files
 
 struct ST_FIELD_INFO {
   /**
@@ -2175,11 +2171,7 @@ struct ST_FIELD_INFO {
    */
   uint field_flags;  // Field atributes(maybe_null, signed, unsigned etc.)
   const char *old_name;
-  /**
-     This should be one of @c SKIP_OPEN_TABLE,
-     @c OPEN_FRM_ONLY or @c OPEN_FULL_TABLE.
-  */
-  uint open_method;
+  uint open_method;  // Not used
 };
 
 struct ST_SCHEMA_TABLE {
@@ -2195,7 +2187,7 @@ struct ST_SCHEMA_TABLE {
                        LEX_STRING *db_name, LEX_STRING *table_name);
   int idx_field1, idx_field2;
   bool hidden;
-  uint i_s_requested_object; /* the object we need to open(TABLE | VIEW) */
+  uint i_s_requested_object;  // Not used
 };
 
 #define JOIN_TYPE_LEFT 1
@@ -3917,7 +3909,8 @@ class FRM_context {
     NO,
     REL,
     CHECK,
-    EMPTY,
+    EMPTY_VAL,  // EMPTY_VAL rather than EMPTY since EMPTY can conflict with
+                // system headers.
     UNKNOWN_FIELD,
     CASEDN,
     NEXT_NUMBER,

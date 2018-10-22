@@ -1421,27 +1421,6 @@ bool Explain_join::explain_key_and_len() {
            ((tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) &&
             tab->quick_optim()))
     return explain_key_and_len_quick(tab->quick_optim());
-  else {
-    const TABLE_LIST *table_list = table->pos_in_table_list;
-    if (table_list->schema_table &&
-        table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE) {
-      StringBuffer<512> str_key(cs);
-      const char *f_name;
-      int f_idx;
-      if (table_list->has_db_lookup_value) {
-        f_idx = table_list->schema_table->idx_field1;
-        f_name = table_list->schema_table->fields_info[f_idx].field_name;
-        str_key.append(f_name, strlen(f_name), cs);
-      }
-      if (table_list->has_table_lookup_value) {
-        if (table_list->has_db_lookup_value) str_key.append(',');
-        f_idx = table_list->schema_table->idx_field2;
-        f_name = table_list->schema_table->fields_info[f_idx].field_name;
-        str_key.append(f_name, strlen(f_name), cs);
-      }
-      if (str_key.length()) return fmt->entry()->col_key.set(str_key);
-    }
-  }
   return false;
 }
 
@@ -1512,28 +1491,6 @@ bool Explain_join::explain_extra() {
 
     if (explain_extra_common(quick_type, keyno)) return true;
 
-    const TABLE_LIST *table_list = table->pos_in_table_list;
-    if (table_list->schema_table &&
-        table_list->schema_table->i_s_requested_object & OPTIMIZE_I_S_TABLE) {
-      if (!table_list->table_open_method) {
-        if (push_extra(ET_SKIP_OPEN_TABLE)) return true;
-      } else if (table_list->table_open_method == OPEN_FRM_ONLY) {
-        if (push_extra(ET_OPEN_FRM_ONLY)) return true;
-      } else {
-        if (push_extra(ET_OPEN_FULL_TABLE)) return true;
-      }
-
-      StringBuffer<32> buff(cs);
-      if (table_list->has_db_lookup_value &&
-          table_list->has_table_lookup_value) {
-        if (push_extra(ET_SCANNED_DATABASES, "0")) return true;
-      } else if (table_list->has_db_lookup_value ||
-                 table_list->has_table_lookup_value) {
-        if (push_extra(ET_SCANNED_DATABASES, "1")) return true;
-      } else {
-        if (push_extra(ET_SCANNED_DATABASES, "all")) return true;
-      }
-    }
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&

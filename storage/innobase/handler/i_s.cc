@@ -207,7 +207,7 @@ HPUX aCC: HP ANSI C++ B3910B A.03.65) can't handle it. */
     STRUCT_FLD(field_name, NULL), STRUCT_FLD(field_length, 0),         \
         STRUCT_FLD(field_type, MYSQL_TYPE_NULL), STRUCT_FLD(value, 0), \
         STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),          \
-        STRUCT_FLD(open_method, SKIP_OPEN_TABLE)                       \
+        STRUCT_FLD(open_method, 0)                                     \
   }
 
 /*
@@ -341,161 +341,161 @@ static ST_FIELD_INFO innodb_trx_fields_info[] = {
      STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_STATE 1
     {STRUCT_FLD(field_name, "trx_state"),
      STRUCT_FLD(field_length, TRX_QUE_STATE_STR_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_STARTED 2
     {STRUCT_FLD(field_name, "trx_started"), STRUCT_FLD(field_length, 0),
      STRUCT_FLD(field_type, MYSQL_TYPE_DATETIME), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_REQUESTED_LOCK_ID 3
     {STRUCT_FLD(field_name, "trx_requested_lock_id"),
      STRUCT_FLD(field_length, TRX_I_S_LOCK_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_WAIT_STARTED 4
     {STRUCT_FLD(field_name, "trx_wait_started"), STRUCT_FLD(field_length, 0),
      STRUCT_FLD(field_type, MYSQL_TYPE_DATETIME), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_WEIGHT 5
     {STRUCT_FLD(field_name, "trx_weight"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_MYSQL_THREAD_ID 6
     {STRUCT_FLD(field_name, "trx_mysql_thread_id"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_QUERY 7
     {STRUCT_FLD(field_name, "trx_query"),
      STRUCT_FLD(field_length, TRX_I_S_TRX_QUERY_MAX_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_OPERATION_STATE 8
     {STRUCT_FLD(field_name, "trx_operation_state"),
      STRUCT_FLD(field_length, TRX_I_S_TRX_OP_STATE_MAX_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_TABLES_IN_USE 9
     {STRUCT_FLD(field_name, "trx_tables_in_use"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_TABLES_LOCKED 10
     {STRUCT_FLD(field_name, "trx_tables_locked"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_LOCK_STRUCTS 11
     {STRUCT_FLD(field_name, "trx_lock_structs"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_LOCK_MEMORY_BYTES 12
     {STRUCT_FLD(field_name, "trx_lock_memory_bytes"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_ROWS_LOCKED 13
     {STRUCT_FLD(field_name, "trx_rows_locked"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_ROWS_MODIFIED 14
     {STRUCT_FLD(field_name, "trx_rows_modified"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_CONNCURRENCY_TICKETS 15
     {STRUCT_FLD(field_name, "trx_concurrency_tickets"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_ISOLATION_LEVEL 16
     {STRUCT_FLD(field_name, "trx_isolation_level"),
      STRUCT_FLD(field_length, TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_UNIQUE_CHECKS 17
     {STRUCT_FLD(field_name, "trx_unique_checks"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 1),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_FOREIGN_KEY_CHECKS 18
     {STRUCT_FLD(field_name, "trx_foreign_key_checks"),
      STRUCT_FLD(field_length, 1), STRUCT_FLD(field_type, MYSQL_TYPE_LONG),
      STRUCT_FLD(value, 1), STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_LAST_FOREIGN_KEY_ERROR 19
     {STRUCT_FLD(field_name, "trx_last_foreign_key_error"),
      STRUCT_FLD(field_length, TRX_I_S_TRX_FK_ERROR_MAX_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_ADAPTIVE_HASH_LATCHED 20
     {STRUCT_FLD(field_name, "trx_adaptive_hash_latched"),
      STRUCT_FLD(field_length, 1), STRUCT_FLD(field_type, MYSQL_TYPE_LONG),
      STRUCT_FLD(value, 0), STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_ADAPTIVE_HASH_TIMEOUT 21
     {STRUCT_FLD(field_name, "trx_adaptive_hash_timeout"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_READ_ONLY 22
     {STRUCT_FLD(field_name, "trx_is_read_only"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_AUTOCOMMIT_NON_LOCKING 23
     {STRUCT_FLD(field_name, "trx_autocommit_non_locking"),
      STRUCT_FLD(field_length, 1), STRUCT_FLD(field_type, MYSQL_TYPE_LONG),
      STRUCT_FLD(value, 0), STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -785,14 +785,14 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
     {STRUCT_FLD(field_name, "page_size"), STRUCT_FLD(field_length, 5),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, "Compressed Page Size"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "compress_ops"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0),
      STRUCT_FLD(old_name, "Total Number of Compressions"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "compress_ops_ok"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
@@ -801,7 +801,7 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
      STRUCT_FLD(old_name,
                 "Total Number of"
                 " Successful Compressions"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "compress_time"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
@@ -810,14 +810,14 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
      STRUCT_FLD(old_name,
                 "Total Duration of Compressions,"
                 " in Seconds"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "uncompress_ops"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0),
      STRUCT_FLD(old_name, "Total Number of Decompressions"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "uncompress_time"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
@@ -826,7 +826,7 @@ static ST_FIELD_INFO i_s_cmp_fields_info[] = {
      STRUCT_FLD(old_name,
                 "Total Duration of Decompressions,"
                 " in Seconds"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -1047,54 +1047,54 @@ static ST_FIELD_INFO i_s_cmp_per_index_fields_info[] = {
     {STRUCT_FLD(field_name, "database_name"), STRUCT_FLD(field_length, 192),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TABLE_NAME 1
     {STRUCT_FLD(field_name, "table_name"), STRUCT_FLD(field_length, 192),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_INDEX_NAME 2
     {STRUCT_FLD(field_name, "index_name"), STRUCT_FLD(field_length, 192),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_COMPRESS_OPS 3
     {STRUCT_FLD(field_name, "compress_ops"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_COMPRESS_OPS_OK 4
     {STRUCT_FLD(field_name, "compress_ops_ok"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_COMPRESS_TIME 5
     {STRUCT_FLD(field_name, "compress_time"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_UNCOMPRESS_OPS 6
     {STRUCT_FLD(field_name, "uncompress_ops"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_UNCOMPRESS_TIME 7
     {STRUCT_FLD(field_name, "uncompress_time"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -1367,32 +1367,32 @@ static ST_FIELD_INFO i_s_cmpmem_fields_info[] = {
     {STRUCT_FLD(field_name, "page_size"), STRUCT_FLD(field_length, 5),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, "Buddy Block Size"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "buffer_pool_instance"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, "Buffer Pool Id"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "pages_used"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, "Currently in Use"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "pages_free"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, "Currently Available"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "relocation_ops"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0),
      STRUCT_FLD(old_name, "Total Number of Relocations"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     {STRUCT_FLD(field_name, "relocation_time"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
@@ -1401,7 +1401,7 @@ static ST_FIELD_INFO i_s_cmpmem_fields_info[] = {
      STRUCT_FLD(old_name,
                 "Total Duration of Relocations,"
                 " in Seconds"),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -1646,113 +1646,113 @@ static ST_FIELD_INFO innodb_metrics_fields_info[] = {
     {STRUCT_FLD(field_name, "NAME"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_SUBSYS 1
     {STRUCT_FLD(field_name, "SUBSYSTEM"),
      STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_VALUE_START 2
     {STRUCT_FLD(field_name, "COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_MAX_VALUE_START 3
     {STRUCT_FLD(field_name, "MAX_COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_MIN_VALUE_START 4
     {STRUCT_FLD(field_name, "MIN_COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_AVG_VALUE_START 5
     {STRUCT_FLD(field_name, "AVG_COUNT"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_VALUE_RESET 6
     {STRUCT_FLD(field_name, "COUNT_RESET"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_MAX_VALUE_RESET 7
     {STRUCT_FLD(field_name, "MAX_COUNT_RESET"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_MIN_VALUE_RESET 8
     {STRUCT_FLD(field_name, "MIN_COUNT_RESET"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_AVG_VALUE_RESET 9
     {STRUCT_FLD(field_name, "AVG_COUNT_RESET"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_START_TIME 10
     {STRUCT_FLD(field_name, "TIME_ENABLED"), STRUCT_FLD(field_length, 0),
      STRUCT_FLD(field_type, MYSQL_TYPE_DATETIME), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_STOP_TIME 11
     {STRUCT_FLD(field_name, "TIME_DISABLED"), STRUCT_FLD(field_length, 0),
      STRUCT_FLD(field_type, MYSQL_TYPE_DATETIME), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_TIME_ELAPSED 12
     {STRUCT_FLD(field_name, "TIME_ELAPSED"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_RESET_TIME 13
     {STRUCT_FLD(field_name, "TIME_RESET"), STRUCT_FLD(field_length, 0),
      STRUCT_FLD(field_type, MYSQL_TYPE_DATETIME), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_STATUS 14
     {STRUCT_FLD(field_name, "STATUS"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_TYPE 15
     {STRUCT_FLD(field_name, "TYPE"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define METRIC_DESC 16
     {STRUCT_FLD(field_name, "COMMENT"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -2099,7 +2099,7 @@ static ST_FIELD_INFO i_s_stopword_fields_info[] = {
      STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -2209,7 +2209,7 @@ static ST_FIELD_INFO i_s_fts_doc_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -2471,42 +2471,42 @@ static ST_FIELD_INFO i_s_fts_index_fields_info[] = {
      STRUCT_FLD(field_length, FTS_MAX_WORD_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define I_S_FTS_FIRST_DOC_ID 1
     {STRUCT_FLD(field_name, "FIRST_DOC_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define I_S_FTS_LAST_DOC_ID 2
     {STRUCT_FLD(field_name, "LAST_DOC_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define I_S_FTS_DOC_COUNT 3
     {STRUCT_FLD(field_name, "DOC_COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define I_S_FTS_ILIST_DOC_ID 4
     {STRUCT_FLD(field_name, "DOC_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define I_S_FTS_ILIST_DOC_POS 5
     {STRUCT_FLD(field_name, "POSITION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -3144,13 +3144,13 @@ static ST_FIELD_INFO i_s_fts_config_fields_info[] = {
     {STRUCT_FLD(field_name, "KEY"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define FTS_CONFIG_VALUE 1
     {STRUCT_FLD(field_name, "VALUE"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -3347,27 +3347,27 @@ static ST_FIELD_INFO i_s_innodb_temp_table_info_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TEMP_TABLE_NAME 1
     {STRUCT_FLD(field_name, "NAME"), STRUCT_FLD(field_length, NAME_CHAR_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TEMP_TABLE_N_COLS 2
     {STRUCT_FLD(field_name, "N_COLS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_TEMP_TABLE_SPACE_ID 3
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
     END_OF_ST_FIELD_INFO};
 
 struct temp_table_info_t {
@@ -3566,224 +3566,224 @@ static ST_FIELD_INFO i_s_innodb_buffer_stats_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_POOL_SIZE 1
     {STRUCT_FLD(field_name, "POOL_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_FREE_BUFFERS 2
     {STRUCT_FLD(field_name, "FREE_BUFFERS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_LRU_LEN 3
     {STRUCT_FLD(field_name, "DATABASE_PAGES"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_OLD_LRU_LEN 4
     {STRUCT_FLD(field_name, "OLD_DATABASE_PAGES"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_FLUSH_LIST_LEN 5
     {STRUCT_FLD(field_name, "MODIFIED_DATABASE_PAGES"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PENDING_ZIP 6
     {STRUCT_FLD(field_name, "PENDING_DECOMPRESS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PENDING_READ 7
     {STRUCT_FLD(field_name, "PENDING_READS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_FLUSH_LRU 8
     {STRUCT_FLD(field_name, "PENDING_FLUSH_LRU"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_FLUSH_LIST 9
     {STRUCT_FLD(field_name, "PENDING_FLUSH_LIST"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_YOUNG 10
     {STRUCT_FLD(field_name, "PAGES_MADE_YOUNG"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_NOT_YOUNG 11
     {STRUCT_FLD(field_name, "PAGES_NOT_MADE_YOUNG"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_YOUNG_RATE 12
     {STRUCT_FLD(field_name, "PAGES_MADE_YOUNG_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_NOT_YOUNG_RATE 13
     {STRUCT_FLD(field_name, "PAGES_MADE_NOT_YOUNG_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_READ 14
     {STRUCT_FLD(field_name, "NUMBER_PAGES_READ"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_CREATED 15
     {STRUCT_FLD(field_name, "NUMBER_PAGES_CREATED"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_WRITTEN 16
     {STRUCT_FLD(field_name, "NUMBER_PAGES_WRITTEN"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_READ_RATE 17
     {STRUCT_FLD(field_name, "PAGES_READ_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_CREATE_RATE 18
     {STRUCT_FLD(field_name, "PAGES_CREATE_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_PAGE_WRITTEN_RATE 19
     {STRUCT_FLD(field_name, "PAGES_WRITTEN_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_GET 20
     {STRUCT_FLD(field_name, "NUMBER_PAGES_GET"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_HIT_RATE 21
     {STRUCT_FLD(field_name, "HIT_RATE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_MADE_YOUNG_PCT 22
     {STRUCT_FLD(field_name, "YOUNG_MAKE_PER_THOUSAND_GETS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_NOT_MADE_YOUNG_PCT 23
     {STRUCT_FLD(field_name, "NOT_YOUNG_MAKE_PER_THOUSAND_GETS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_READ_AHREAD 24
     {STRUCT_FLD(field_name, "NUMBER_PAGES_READ_AHEAD"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_READ_AHEAD_EVICTED 25
     {STRUCT_FLD(field_name, "NUMBER_READ_AHEAD_EVICTED"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_READ_AHEAD_RATE 26
     {STRUCT_FLD(field_name, "READ_AHEAD_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_READ_AHEAD_EVICT_RATE 27
     {STRUCT_FLD(field_name, "READ_AHEAD_EVICTED_RATE"),
      STRUCT_FLD(field_length, MAX_FLOAT_STR_LENGTH),
      STRUCT_FLD(field_type, MYSQL_TYPE_FLOAT), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_LRU_IO_SUM 28
     {STRUCT_FLD(field_name, "LRU_IO_TOTAL"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_LRU_IO_CUR 29
     {STRUCT_FLD(field_name, "LRU_IO_CURRENT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_UNZIP_SUM 30
     {STRUCT_FLD(field_name, "UNCOMPRESS_TOTAL"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_STATS_UNZIP_CUR 31
     {STRUCT_FLD(field_name, "UNCOMPRESS_CURRENT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -4011,133 +4011,133 @@ static ST_FIELD_INFO i_s_innodb_buffer_page_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_BLOCK_ID 1
     {STRUCT_FLD(field_name, "BLOCK_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_SPACE 2
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_NUM 3
     {STRUCT_FLD(field_name, "PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_TYPE 4
     {STRUCT_FLD(field_name, "PAGE_TYPE"), STRUCT_FLD(field_length, 64),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_FLUSH_TYPE 5
     {STRUCT_FLD(field_name, "FLUSH_TYPE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_FIX_COUNT 6
     {STRUCT_FLD(field_name, "FIX_COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_HASHED 7
     {STRUCT_FLD(field_name, "IS_HASHED"), STRUCT_FLD(field_length, 3),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_NEWEST_MOD 8
     {STRUCT_FLD(field_name, "NEWEST_MODIFICATION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_OLDEST_MOD 9
     {STRUCT_FLD(field_name, "OLDEST_MODIFICATION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_ACCESS_TIME 10
     {STRUCT_FLD(field_name, "ACCESS_TIME"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_TABLE_NAME 11
     {STRUCT_FLD(field_name, "TABLE_NAME"), STRUCT_FLD(field_length, 1024),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_INDEX_NAME 12
     {STRUCT_FLD(field_name, "INDEX_NAME"), STRUCT_FLD(field_length, 1024),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_NUM_RECS 13
     {STRUCT_FLD(field_name, "NUMBER_RECORDS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_DATA_SIZE 14
     {STRUCT_FLD(field_name, "DATA_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_ZIP_SIZE 15
     {STRUCT_FLD(field_name, "COMPRESSED_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_STATE 16
     {STRUCT_FLD(field_name, "PAGE_STATE"), STRUCT_FLD(field_length, 64),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_IO_FIX 17
     {STRUCT_FLD(field_name, "IO_FIX"), STRUCT_FLD(field_length, 64),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_IS_OLD 18
     {STRUCT_FLD(field_name, "IS_OLD"), STRUCT_FLD(field_length, 3),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUFFER_PAGE_FREE_CLOCK 19
     {STRUCT_FLD(field_name, "FREE_PAGE_CLOCK"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -4650,133 +4650,133 @@ static ST_FIELD_INFO i_s_innodb_buf_page_lru_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_POS 1
     {STRUCT_FLD(field_name, "LRU_POSITION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_SPACE 2
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_NUM 3
     {STRUCT_FLD(field_name, "PAGE_NUMBER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_TYPE 4
     {STRUCT_FLD(field_name, "PAGE_TYPE"), STRUCT_FLD(field_length, 64),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_FLUSH_TYPE 5
     {STRUCT_FLD(field_name, "FLUSH_TYPE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_FIX_COUNT 6
     {STRUCT_FLD(field_name, "FIX_COUNT"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_HASHED 7
     {STRUCT_FLD(field_name, "IS_HASHED"), STRUCT_FLD(field_length, 3),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_NEWEST_MOD 8
     {STRUCT_FLD(field_name, "NEWEST_MODIFICATION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_OLDEST_MOD 9
     {STRUCT_FLD(field_name, "OLDEST_MODIFICATION"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_ACCESS_TIME 10
     {STRUCT_FLD(field_name, "ACCESS_TIME"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_TABLE_NAME 11
     {STRUCT_FLD(field_name, "TABLE_NAME"), STRUCT_FLD(field_length, 1024),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_INDEX_NAME 12
     {STRUCT_FLD(field_name, "INDEX_NAME"), STRUCT_FLD(field_length, 1024),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_NUM_RECS 13
     {STRUCT_FLD(field_name, "NUMBER_RECORDS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_DATA_SIZE 14
     {STRUCT_FLD(field_name, "DATA_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_ZIP_SIZE 15
     {STRUCT_FLD(field_name, "COMPRESSED_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_STATE 16
     {STRUCT_FLD(field_name, "COMPRESSED"), STRUCT_FLD(field_length, 3),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_IO_FIX 17
     {STRUCT_FLD(field_name, "IO_FIX"), STRUCT_FLD(field_length, 64),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_IS_OLD 18
     {STRUCT_FLD(field_name, "IS_OLD"), STRUCT_FLD(field_length, 3),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define IDX_BUF_LRU_PAGE_FREE_CLOCK 19
     {STRUCT_FLD(field_name, "FREE_PAGE_CLOCK"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -5131,61 +5131,61 @@ static ST_FIELD_INFO innodb_tables_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_NAME 1
     {STRUCT_FLD(field_name, "NAME"),
      STRUCT_FLD(field_length, MAX_FULL_NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_FLAG 2
     {STRUCT_FLD(field_name, "FLAG"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_NUM_COLUMN 3
     {STRUCT_FLD(field_name, "N_COLS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_SPACE 4
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_ROW_FORMAT 5
     {STRUCT_FLD(field_name, "ROW_FORMAT"), STRUCT_FLD(field_length, 12),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_ZIP_PAGE_SIZE 6
     {STRUCT_FLD(field_name, "ZIP_PAGE_SIZE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_SPACE_TYPE 7
     {STRUCT_FLD(field_name, "SPACE_TYPE"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLES_INSTANT_COLS 8
     {STRUCT_FLD(field_name, "INSTANT_COLS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -5434,62 +5434,62 @@ static ST_FIELD_INFO innodb_tablestats_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_NAME 1
     {STRUCT_FLD(field_name, "NAME"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_INIT 2
     {STRUCT_FLD(field_name, "STATS_INITIALIZED"),
      STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_NROW 3
     {STRUCT_FLD(field_name, "NUM_ROWS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_CLUST_SIZE 4
     {STRUCT_FLD(field_name, "CLUST_INDEX_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_INDEX_SIZE 5
     {STRUCT_FLD(field_name, "OTHER_INDEX_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_MODIFIED 6
     {STRUCT_FLD(field_name, "MODIFIED_COUNTER"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_AUTONINC 7
     {STRUCT_FLD(field_name, "AUTOINC"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESTATS_TABLE_REF_COUNT 8
     {STRUCT_FLD(field_name, "REF_COUNT"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -5713,55 +5713,55 @@ static ST_FIELD_INFO innodb_sysindex_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_NAME 1
     {STRUCT_FLD(field_name, "NAME"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_TABLE_ID 2
     {STRUCT_FLD(field_name, "TABLE_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_TYPE 3
     {STRUCT_FLD(field_name, "TYPE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_NUM_FIELDS 4
     {STRUCT_FLD(field_name, "N_FIELDS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_PAGE_NO 5
     {STRUCT_FLD(field_name, "PAGE_NO"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_SPACE 6
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_INDEX_MERGE_THRESHOLD 7
     {STRUCT_FLD(field_name, "MERGE_THRESHOLD"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -5961,47 +5961,47 @@ static ST_FIELD_INFO innodb_columns_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_NAME 1
     {STRUCT_FLD(field_name, "NAME"), STRUCT_FLD(field_length, NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_POSITION 2
     {STRUCT_FLD(field_name, "POS"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_MTYPE 3
     {STRUCT_FLD(field_name, "MTYPE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN__PRTYPE 4
     {STRUCT_FLD(field_name, "PRTYPE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_COLUMN_LEN 5
     {STRUCT_FLD(field_name, "LEN"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_HAS_DEFAULT 6
     {STRUCT_FLD(field_name, "HAS_DEFAULT"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define SYS_COLUMN_DEFAULT_VALUE 7
     {STRUCT_FLD(field_name, "DEFAULT_VALUE"),
@@ -6009,7 +6009,7 @@ static ST_FIELD_INFO innodb_columns_fields_info[] = {
      STRUCT_FLD(field_length, 65536 * 4),
      STRUCT_FLD(field_type, MYSQL_TYPE_BLOB), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -6230,21 +6230,21 @@ static ST_FIELD_INFO innodb_virtual_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_VIRTUAL_POS 1
     {STRUCT_FLD(field_name, "POS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_VIRTUAL_BASE_POS 2
     {STRUCT_FLD(field_name, "BASE_POS"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -6425,93 +6425,93 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_NAME 1
     {STRUCT_FLD(field_name, "NAME"),
      STRUCT_FLD(field_length, MAX_FULL_NAME_LEN + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_FLAGS 2
     {STRUCT_FLD(field_name, "FLAG"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_ROW_FORMAT 3
     {STRUCT_FLD(field_name, "ROW_FORMAT"), STRUCT_FLD(field_length, 22),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_PAGE_SIZE 4
     {STRUCT_FLD(field_name, "PAGE_SIZE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_ZIP_PAGE_SIZE 5
     {STRUCT_FLD(field_name, "ZIP_PAGE_SIZE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_SPACE_TYPE 6
     {STRUCT_FLD(field_name, "SPACE_TYPE"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_FS_BLOCK_SIZE 7
     {STRUCT_FLD(field_name, "FS_BLOCK_SIZE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_FILE_SIZE 8
     {STRUCT_FLD(field_name, "FILE_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_ALLOC_SIZE 9
     {STRUCT_FLD(field_name, "ALLOCATED_SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_SERVER_VESION 10
     {STRUCT_FLD(field_name, "SERVER_VERSION"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_SPACE_VESION 11
     {STRUCT_FLD(field_name, "SPACE_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_ENCRYPTION 12
     {STRUCT_FLD(field_name, "ENCRYPTION"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_TABLESPACES_STATE 13
     {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO
 
@@ -6817,21 +6817,21 @@ static ST_FIELD_INFO innodb_cached_indexes_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define CACHED_INDEXES_INDEX_ID 1
     {STRUCT_FLD(field_name, "INDEX_ID"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define CACHED_INDEXES_N_CACHED_PAGES 2
     {STRUCT_FLD(field_name, "N_CACHED_PAGES"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO};
 
@@ -7016,40 +7016,40 @@ static ST_FIELD_INFO innodb_session_temp_tablespaces_fields_info[] = {
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_SESSION_TEMP_TABLESPACES_SPACE 1
     {STRUCT_FLD(field_name, "SPACE"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_SESSION_TEMP_TABLESPACES_PATH 2
     {STRUCT_FLD(field_name, "PATH"),
      STRUCT_FLD(field_length, OS_FILE_MAX_PATH + 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_SESSION_TEMP_TABLESPACES_SIZE 3
     {STRUCT_FLD(field_name, "SIZE"),
      STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_SESSION_TEMP_TABLESPACES_STATE 4
     {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, NAME_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
 #define INNODB_SESSION_TEMP_TABLESPACES_PURPOSE 5
     {STRUCT_FLD(field_name, "PURPOSE"), STRUCT_FLD(field_length, NAME_LEN),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
-     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+     STRUCT_FLD(open_method, 0)},
 
     END_OF_ST_FIELD_INFO
 

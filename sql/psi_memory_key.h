@@ -136,7 +136,6 @@ extern PSI_memory_key key_memory_errmsgs;
 extern PSI_memory_key key_memory_fill_schema_schemata;
 extern PSI_memory_key key_memory_native_functions;
 extern PSI_memory_key key_memory_gdl;
-extern PSI_memory_key key_memory_get_all_tables;
 extern PSI_memory_key key_memory_global_system_variables;
 extern PSI_memory_key key_memory_handler_errmsgs;
 extern PSI_memory_key key_memory_handlerton;

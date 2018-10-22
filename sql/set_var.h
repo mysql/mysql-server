@@ -82,7 +82,7 @@ struct sys_var_chain {
 int mysql_add_sys_var_chain(sys_var *chain);
 int mysql_del_sys_var_chain(sys_var *chain);
 
-enum enum_var_type {
+enum enum_var_type : int {
   OPT_DEFAULT = 0,
   OPT_SESSION,
   OPT_GLOBAL,

@@ -650,7 +650,7 @@ void Item::print_item_w_name(const THD *thd, String *str,
 
   if (item_name.is_set() && query_type != QT_NORMALIZED_FORMAT) {
     str->append(STRING_WITH_LEN(" AS "));
-    append_identifier(thd, str, item_name);
+    append_identifier(thd, str, item_name.ptr(), item_name.length());
   }
 }
 
@@ -681,7 +681,7 @@ void Item::print_for_order(const THD *thd, String *str,
   else if (used_alias) {
     DBUG_ASSERT(item_name.is_set());
     // In the clause, user has referenced expression using an alias; we use it
-    append_identifier(thd, str, item_name);
+    append_identifier(thd, str, item_name.ptr(), item_name.length());
   } else {
     if (type() == Item::INT_ITEM && basic_const_item()) {
       /*
@@ -7500,9 +7500,10 @@ void Item_ref::print(const THD *thd, String *str,
                      enum_query_type query_type) const {
   if (ref) {
     if (m_alias_of_expr && (*ref)->type() != Item::CACHE_ITEM &&
-        ref_type() != VIEW_REF && !table_name && item_name.ptr())
-      append_identifier(thd, str, (*ref)->real_item()->item_name);
-    else
+        ref_type() != VIEW_REF && !table_name && item_name.ptr()) {
+      Simple_cstring str1 = (*ref)->real_item()->item_name;
+      append_identifier(thd, str, str1.ptr(), str1.length());
+    } else
       (*ref)->print(thd, str, query_type);
   } else
     Item_ident::print(thd, str, query_type);

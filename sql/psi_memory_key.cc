@@ -114,7 +114,6 @@ PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_fill_schema_schemata;
 PSI_memory_key key_memory_native_functions;
 PSI_memory_key key_memory_gdl;
-PSI_memory_key key_memory_get_all_tables;
 PSI_memory_key key_memory_global_system_variables;
 PSI_memory_key key_memory_handler_errmsgs;
 PSI_memory_key key_memory_handlerton;
@@ -391,7 +390,6 @@ static PSI_memory_info all_server_memory[] = {
      0, 0, PSI_DOCUMENT_ME},
     {&key_memory_write_set_extraction, "write_set_extraction", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_get_all_tables, "get_all_tables", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_fill_schema_schemata, "fill_schema_schemata", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_native_functions, "native_functions",

@@ -70,10 +70,6 @@ static const char *json_extra_tags[ET_total] = {
     "using_MRR",                           // ET_USING_MRR
     "using_index",                         // ET_USING_INDEX
     "full_scan_on_NULL_key",               // ET_FULL_SCAN_ON_NULL_KEY
-    "skip_open_table",                     // ET_SKIP_OPEN_TABLE
-    "open_frm_only",                       // ET_OPEN_FRM_ONLY
-    "open_full_table",                     // ET_OPEN_FULL_TABLE
-    "scanned_databases",                   // ET_SCANNED_DATABASES
     "using_index_for_group_by",            // ET_USING_INDEX_FOR_GROUP_BY
     "using_index_for_skip_scan",           // ET_USING_INDEX_FOR_SKIP_SCAN
     "distinct",                            // ET_DISTINCT

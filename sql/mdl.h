@@ -1211,7 +1211,9 @@ class MDL_wait {
   MDL_wait();
   ~MDL_wait();
 
-  enum enum_wait_status { EMPTY = 0, GRANTED, VICTIM, TIMEOUT, KILLED };
+  // WS_EMPTY since EMPTY conflicts with #define in system headers on some
+  // platforms.
+  enum enum_wait_status { WS_EMPTY = 0, GRANTED, VICTIM, TIMEOUT, KILLED };
 
   bool set_status(enum_wait_status result_arg);
   enum_wait_status get_status();
