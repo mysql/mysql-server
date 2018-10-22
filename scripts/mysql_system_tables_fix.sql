@@ -696,9 +696,19 @@ ALTER TABLE slave_master_info
   AFTER Public_key_path;
 
 #
+# Drop legacy NDB distributed privileges function & procedures
+#
+DROP function  IF EXISTS mysql.mysql_cluster_privileges_are_distributed;
+DROP procedure IF EXISTS mysql.mysql_cluster_backup_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_move_grant_tables;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_local_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_privileges;
+DROP procedure IF EXISTS mysql.mysql_cluster_restore_privileges_from_local;
+DROP procedure IF EXISTS mysql.mysql_cluster_move_privileges;
+
+#
 # Alter mysql.ndb_binlog_index only if it exists already.
 #
-
 SET @cmd="ALTER TABLE ndb_binlog_index
   ADD COLUMN next_position BIGINT UNSIGNED NOT NULL";
 
