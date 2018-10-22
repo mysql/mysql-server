@@ -6364,8 +6364,54 @@
   --disable_warnings
   --enable_warnings
       @endverbatim
+
+      <b>disable_warnings</b> and <b>enable_warnings</b> commands can
+      take an optional argument specifying one or more comma-separated
+      list of warnings to be disabled or enabled. Each warning
+      specified should be in symbolic error name format.
+
+      @verbatim
+  --disable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR,ER_YES
+      @endverbatim
+
+      Or
+
+      @verbatim
+  --disable_warnings
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  DROP TABLE IF EXISTS t1;
+  --disable_warnings ER_BAD_TABLE_ERROR,ER_YES
+  --enable_warnings
+      @endverbatim
+
+      <b>disable_warnings</b> and <b>enable_warnings</b> commands can
+      also take a second optional argument, <b>"ONCE"</b>, which when
+      specified will disable or enable the warnings for next
+      statement only.
+
+      @verbatim
+  --disable_warnings ER_BAD_TABLE_ERROR ONCE
+  DROP TABLE IF EXISTS t1;
+      @endverbatim
+
+      Or
+
+      @verbatim
+  --disable_warnings
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings ER_BAD_TABLE_ERROR ONCE
+  DROP TABLE IF EXISTS t1;
+  --enable_warnings
+      @endverbatim
     </li>
 
+      @note
+      At the end of a test, all the disabled warnings must be enabled,
+      else @ref PAGE_MYSQLTEST "mysqltest" will throw an error and
+      abort the test run.
     <li>
       <tt>disconnect <b>connection_name</b></tt>
 
