@@ -1356,11 +1356,12 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-insert_collection_CRUD.tmp
 -->sql
-DROP SCHEMA if EXISTS mysqlxplugin_coll;
 CREATE SCHEMA mysqlxplugin_coll;
 USE mysqlxplugin_coll;
-CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY);
 -->endsql
+
+-->stmtadmin create_collection	{"schema":"mysqlxplugin_coll","name":"main_collection"}
+-->recvresult
 
 -->echo Insert a row into a Document column
 Mysqlx.Crud.Insert {

@@ -24,23 +24,26 @@
 
 create user updateitemmerge@localhost identified by 'updateitemmerge';
 grant all on *.* to updateitemmerge@localhost;
+CREATE SCHEMA mysqlxcoll;
+
 ## TEST STARTS HERE
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
 
 --write_file $MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp
+
+-->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
+-->recvresult
+
 -->sql
  SET SQL_SAFE_UPDATES = 0;
-DROP SCHEMA if EXISTS mysqlxcoll;
-CREATE SCHEMA mysqlxcoll;
 USE mysqlxcoll;
-CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
-INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": ["Victor"], "last_name": ["Otero"],"amount": [4.99]}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": ["Gonzalo"], "last_name": ["Chrystens"],"amount": [120.57]}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": ["Abraham"], "last_name": ["Vega"],"amount": [74.56]}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": ["Jennifer"], "last_name": ["Leon"],"amount": [387.14]}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": ["Jhonny"], "last_name": ["Test"],"amount": [125.45]}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc) values ('{"_id": "1", "name": ["Victor"], "last_name": ["Otero"],"amount": [4.99]}');
+INSERT INTO maincoll (doc) values ('{"_id": "2", "name": ["Gonzalo"], "last_name": ["Chrystens"],"amount": [120.57]}');
+INSERT INTO maincoll (doc) values ('{"_id": "3", "name": ["Abraham"], "last_name": ["Vega"],"amount": [74.56]}');
+INSERT INTO maincoll (doc) values ('{"_id": "4", "name": ["Jennifer"], "last_name": ["Leon"],"amount": [387.14]}');
+INSERT INTO maincoll (doc) values ('{"_id": "5", "name": ["Jhonny"], "last_name": ["Test"],"amount": [125.45]}');
 -->endsql
 
 -->echo Update merge String value into Array using == Operator for criteria
@@ -878,7 +881,6 @@ Mysqlx.Crud.Update {
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
-DROP SCHEMA if EXISTS mysqlxcoll;
 DROP USER updateitemmerge@localhost;
 SET SQL_SAFE_UPDATES = 1;
 -->endsql
@@ -887,5 +889,6 @@ EOF
 --exec $MYSQLXTEST -u updateitemmerge --password='updateitemmerge' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp 2>&1
 
 ## Cleanup
+DROP SCHEMA if EXISTS mysqlxcoll;
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp
 

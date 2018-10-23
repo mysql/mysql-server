@@ -13,7 +13,7 @@
 ###  - update with multiple condition                                  #
 ###  - Update immutable document member _id (Error expected )          #
 ###  - Update _id virtual column(possible using data_model:TABLE)      #
-###  - status variable Mysqlx_crud_update for number of Update         # 
+###  - status variable Mysqlx_crud_update for number of Update         #
 ###    requests received                                               #
 ###                                                                    #
 ########################################################################
@@ -22,7 +22,7 @@
 --echo ==============================================
 --echo     CRUD UPDATE SCENARIOS
 --echo ==============================================
---echo 
+--echo
 
 ## Preamble
 --echo ================================================================================
@@ -46,7 +46,7 @@ grant all on *.* to updatecruduser@localhost;
  CategoryID int NOT NULL AUTO_INCREMENT,
  CategoryName varchar(100),
  CategoryDescription varchar(200),
- CategoryIMEI tinyint,	  
+ CategoryIMEI tinyint,
  CategoryDecimal decimal(5,2),
  CategoryBool bit(1),
  PRIMARY key (CategoryID)
@@ -61,14 +61,14 @@ grant all on *.* to updatecruduser@localhost;
  (5, 'Garden','Garden related category',5,535.15,true),
  (6, 'Toys','Toys related category',6,635.15,false);
 
- 
+
 ## SQL safe updates as 1 will allow to update only when you use a key column in the wehere clause
  SET SQL_SAFE_UPDATES = 1;
- 
+
  SHOW STATUS like 'Mysqlx_crud_update';
 -->endsql
 
--->echo Update varchar with where based in key column 
+-->echo Update varchar with where based in key column
 Mysqlx.Crud.Update {
   collection {
     name: "categories"
@@ -536,7 +536,7 @@ EOF
 --write_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.tmp
 -->sql
  USE mysqlxplugin;
-## SQL safe updates as 0 will allow to update without the need to use a key column 
+## SQL safe updates as 0 will allow to update without the need to use a key column
  SET SQL_SAFE_UPDATES = 0;
 -->endsql
 
@@ -732,8 +732,8 @@ Mysqlx.Crud.Update {
   }
 }
 #-- Mysqlx.Error
--->expecterror 1264
--->recvresult 
+-->expecterror ER_WARN_DATA_OUT_OF_RANGE
+-->recvresult
 
 -->echo Update tiny int value with a corner value plus 1
 Mysqlx.Crud.Update {
@@ -778,8 +778,8 @@ Mysqlx.Crud.Update {
 
 }
 #-- Mysqlx.Error
--->expecterror 1264
--->recvresult 
+-->expecterror ER_WARN_DATA_OUT_OF_RANGE
+-->recvresult
 
 
 -->echo Update multiple column
@@ -855,17 +855,18 @@ EOF
 ## ***************************************
 
 --write_file $MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp
+
+-->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
+-->recvresult
+
 -->sql
  SET SQL_SAFE_UPDATES = 0;
-DROP SCHEMA if EXISTS mysqlxcoll;
-CREATE SCHEMA mysqlxcoll;
 USE mysqlxcoll;
-CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
-INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')));
-INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')));
+INSERT INTO maincoll (doc) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}');
+INSERT INTO maincoll (doc) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}');
+INSERT INTO maincoll (doc) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}');
+INSERT INTO maincoll (doc) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}');
+INSERT INTO maincoll (doc) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}');
 -->endsql
 
 -->echo Update a valid collection with string value and > operator for multiple docs
@@ -1174,7 +1175,7 @@ Mysqlx.Crud.Update {
   }
   limit {
     row_count: 1
-  }  
+  }
   order {
     expr {
       type: IDENT
@@ -1241,7 +1242,7 @@ Mysqlx.Crud.Update {
   }
   limit {
     row_count: 2
-  }  
+  }
   order {
     expr {
       type: IDENT
@@ -1326,7 +1327,7 @@ Mysqlx.Crud.Update {
   }
 }
 #-- Mysqlx.Sql.StmtExecuteOk
--->expecterror 5051
+-->expecterror ER_X_BAD_TYPE_OF_UPDATE
 -->recvresult
 
 
@@ -1527,14 +1528,14 @@ Mysqlx.Crud.Update {
   }
 }
 # Error
--->expecterror 5053
+-->expecterror ER_X_BAD_MEMBER_TO_UPDATE
 -->recvresult
 -->sql
 SELECT * FROM mysqlxcoll.maincoll;
 -->endsql
 
 
--->echo document member _id is immutable but _id column can be updated
+-->echo document member _id is immutable but _id column can't be updated also
 Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -1579,10 +1580,8 @@ Mysqlx.Crud.Update {
     }
   }
 }
+-->expecterror ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 -->recvresult
--->sql
-SELECT * FROM mysqlxcoll.maincoll;
--->endsql
 #
 -->echo Update using multiple condition
 Mysqlx.Crud.Update {
@@ -1607,7 +1606,7 @@ Mysqlx.Crud.Update {
                    value: "_id"
                 }
              }
-           } 
+           }
           param {
             type: LITERAL
               literal {
@@ -1667,15 +1666,17 @@ SELECT * FROM mysqlxcoll.maincoll;
 -->echo CLEAN UP
 -->echo ================================================================================
 -->sql
- DROP SCHEMA if EXISTS mysqlxplugin;
- DROP SCHEMA if EXISTS mysqlxcoll;
  DROP USER updatecruduser@localhost;
  SET SQL_SAFE_UPDATES = 1;
 -->endsql
 EOF
 
+CREATE SCHEMA mysqlxcoll;
+
 --exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp 2>&1
 
 ## Cleanup
+ DROP SCHEMA if EXISTS mysqlxplugin;
+ DROP SCHEMA if EXISTS mysqlxcoll;
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp
 

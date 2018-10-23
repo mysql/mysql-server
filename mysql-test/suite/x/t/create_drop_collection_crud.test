@@ -718,9 +718,8 @@ END_MESSAGE
  for ($i=1;$i<=30;$i++) {
     if ($i%5 == 0) {
        print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
-       print OUTPUT "-->sql\n";
-       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
-       print OUTPUT "-->endsql\n";
+       print OUTPUT "-->stmtadmin create_collection	{\"schema\":\"xplugintest\",\"name\":\"tab_".$i."\"}\n";
+       print OUTPUT "-->recvresult\n";
     }else {
        $str = $message;
        $replace = "tab_".$i;
@@ -783,9 +782,8 @@ END_MESSAGE
  for ($i=1;$i<=30;$i++) {
     if ($i%5 == 0) {
        print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
-       print OUTPUT "-->sql\n";
-       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
-       print OUTPUT "-->endsql\n";
+       print OUTPUT "-->stmtadmin create_collection	{\"schema\":\"xplugintest\",\"name\":\"tab_".$i."\"}\n";
+       print OUTPUT "-->recvresult\n";
     }else {
        $str = $message;
        $replace = "tab_".$i;

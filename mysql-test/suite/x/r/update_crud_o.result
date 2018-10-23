@@ -23,7 +23,7 @@ RUN CREATE TABLE categories (
  CategoryID int NOT NULL AUTO_INCREMENT,
  CategoryName varchar(100),
  CategoryDescription varchar(200),
- CategoryIMEI tinyint,	  
+ CategoryIMEI tinyint,
  CategoryDecimal decimal(5,2),
  CategoryBool bit(1),
  PRIMARY key (CategoryID)
@@ -49,7 +49,7 @@ RUN SHOW STATUS like 'Mysqlx_crud_update'
 Variable_name	Value
 Mysqlx_crud_update	0
 0 rows affected
-Update varchar with where based in key column 
+Update varchar with where based in key column
 send Mysqlx.Crud.Update {
   collection {
     name: "categories"
@@ -877,34 +877,28 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+CREATE SCHEMA mysqlxcoll;
+
+command ok
 RUN SET SQL_SAFE_UPDATES = 0
 
 0 rows affected
-RUN DROP SCHEMA if EXISTS mysqlxcoll
-
-0 rows affected
-RUN CREATE SCHEMA mysqlxcoll
-
-1 rows affected
 RUN USE mysqlxcoll
 
 0 rows affected
-RUN CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
-
-0 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}')
 
 1 rows affected
 Update a valid collection with string value and > operator for multiple docs
@@ -1647,7 +1641,7 @@ doc	_id
 {"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
 {"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
 0 rows affected
-document member _id is immutable but _id column can be updated
+document member _id is immutable but _id column can't be updated also
 send Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -1695,17 +1689,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-
-0 rows affected
-Rows matched: 0  Changed: 0  Warnings: 0
-RUN SELECT * FROM mysqlxcoll.maincoll
-doc	_id
-{"_id": "1", "name": "\"xtest_<=\"", "amount": 4.99, "last_name": "\"Limit2OrderAsc\""}	1
-{"_id": "2", "name": "\"xtest_<=\"", "amount": 120.57, "last_name": "\"Limit2OrderAsc\""}	2
-{"_id": "3", "name": "\"xtest_<=\"", "amount": 74.56, "last_name": "\"xtest_!=\""}	3
-{"_id": "4", "name": "name_mul_update_save_a", "amount": 387.14, "last_name": "last_name_mul_update_save_a"}	4
-{"_id": "5", "name": "name_mul_update_save_a", "amount": 125.45, "last_name": "last_name_mul_update_save_a"}	5
-0 rows affected
+Got expected error: The value specified for generated column '_id' in table 'maincoll' is not allowed. (code 3105)
 Update using multiple condition
 send Mysqlx.Crud.Update {
   collection {
@@ -1794,12 +1778,6 @@ doc	_id
 ================================================================================
 CLEAN UP
 ================================================================================
-RUN DROP SCHEMA if EXISTS mysqlxplugin
-
-1 rows affected
-RUN DROP SCHEMA if EXISTS mysqlxcoll
-
-1 rows affected
 RUN DROP USER updatecruduser@localhost
 
 0 rows affected
@@ -1810,3 +1788,5 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP SCHEMA if EXISTS mysqlxplugin;
+DROP SCHEMA if EXISTS mysqlxcoll;

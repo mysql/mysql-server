@@ -7,43 +7,37 @@ PREAMBLE
 ================================================================================
 create user upditemreplace@localhost identified by 'upditemreplace';
 grant all on *.* to upditemreplace@localhost;
+CREATE SCHEMA mysqlxcoll;
 ================================================================================
 TEST START
 ================================================================================
+
+command ok
 RUN SET SQL_SAFE_UPDATES = 0
 
 0 rows affected
-RUN DROP SCHEMA if EXISTS mysqlxcoll
-
-0 rows affected
-RUN CREATE SCHEMA mysqlxcoll
-
-1 rows affected
 RUN USE mysqlxcoll
 
 0 rows affected
-RUN CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
-
-0 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}')
 
 1 rows affected
-RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "0"}',json_unquote(json_extract(doc, '$._id')))
+RUN INSERT INTO maincoll (doc) values ('{"_id": "0"}')
 
 1 rows affected
-Update a valid collection with == operator 
+Update a valid collection with == operator
 send Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -934,7 +928,7 @@ doc	_id
 RUN START TRANSACTION
 
 0 rows affected
-Update Transaction Rollback 
+Update Transaction Rollback
 send Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
@@ -1012,7 +1006,7 @@ doc	_id
 RUN START TRANSACTION
 
 0 rows affected
-Update Transaction and Commit 
+Update Transaction and Commit
 send Mysqlx.Crud.Update {
   collection {
     name: "maincoll"
