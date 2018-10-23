@@ -86,6 +86,7 @@ class Properties;
 }  // namespace dd
 struct FOREIGN_KEY_INFO;
 struct KEY_CACHE;
+struct LEX;
 struct MY_BITMAP;
 struct SAVEPOINT;
 struct TABLE;
@@ -2001,6 +2002,15 @@ typedef bool (*check_fk_column_compat_t)(
     const Ha_fk_column_type *parent_column_type, bool check_charsets);
 
 /**
+  Optimize a statement for execution on a secondary storage engine.
+
+  @param thd  thread context
+  @param lex  the statement being optimized
+  @return true on error, false on success
+*/
+using optimize_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
+
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
   "global" level (unlike handler class that works on a per-table basis).
@@ -2168,6 +2178,13 @@ struct handlerton {
   uint32 foreign_keys_flags;
 
   check_fk_column_compat_t check_fk_column_compat;
+
+  /**
+    Pointer to a function that optimizes the current statement for
+    execution on the secondary storage engine represented by this
+    handlerton.
+  */
+  optimize_secondary_engine_t optimize_secondary_engine;
 };
 
 /* Possible flags of a handlerton (there can be 32 of them) */

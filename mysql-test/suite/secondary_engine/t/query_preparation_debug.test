@@ -38,6 +38,36 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 DROP TABLE t;
 
+--echo #
+--echo # WL#12389: Add interface for optimizing queries in secondary engines
+--echo #
+
+CREATE TABLE t1(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2(y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t2 VALUES (3), (4), (5);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2;
+
+# Verify that the secondary engine optimization was invoked by
+# injecting an error in the secondary engine optimization. The error
+# prevents the queries from being offloaded to the MOCK engine.
+SET DEBUG = "+d,secondary_engine_mock_optimize_error";
+EXPLAIN SELECT * FROM t1;
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+SET DEBUG = "-d,secondary_engine_mock_optimize_error";
+
+# The same queries should use the MOCK engine if no error is injected.
+EXPLAIN SELECT * FROM t1;
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

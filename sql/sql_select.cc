@@ -695,6 +695,21 @@ static double accumulate_statement_cost(const LEX *lex) {
 }
 
 /**
+  Perform query optimizations that are specific to a secondary storage
+  engine.
+
+  @param thd  the current session
+  @param lex  the statement to optimize
+  @return true on error, false on success
+*/
+static bool optimize_secondary_engine(THD *thd, LEX *lex) {
+  const handlerton *secondary_engine = lex->m_sql_cmd->secondary_engine();
+  return secondary_engine != nullptr &&
+         secondary_engine->optimize_secondary_engine != nullptr &&
+         secondary_engine->optimize_secondary_engine(thd, lex);
+}
+
+/**
   Execute a DML statement.
   This is the default implementation for a DML statement and uses a
   nested-loop join processor per outer-most query block.
@@ -719,6 +734,8 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   // Calculate the current statement cost. It will be made available in
   // the Last_query_cost status variable.
   thd->m_current_query_cost = accumulate_statement_cost(lex);
+
+  if (optimize_secondary_engine(thd, lex)) return true;
 
   if (lex->is_explain()) {
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */

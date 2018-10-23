@@ -40,6 +40,7 @@
 #include "sql/table.h"
 #include "thr_lock.h"
 
+struct LEX;
 class THD;
 
 namespace dd {
@@ -135,6 +136,14 @@ int ha_mock::unload_table(const char *db_name, const char *table_name) {
 
 }  // namespace mock
 
+static bool OptimizeSecondaryEngine(THD *, LEX *) {
+  DBUG_EXECUTE_IF("secondary_engine_mock_optimize_error", {
+    my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
+    return true;
+  });
+  return false;
+}
+
 static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
                        MEM_ROOT *mem_root) {
   return new (mem_root) mock::ha_mock(hton, table_share);
@@ -148,6 +157,7 @@ static int Init(MYSQL_PLUGIN p) {
   hton->state = SHOW_OPTION_YES;
   hton->flags = HTON_IS_SECONDARY_ENGINE;
   hton->db_type = DB_TYPE_UNKNOWN;
+  hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   return 0;
 }
 

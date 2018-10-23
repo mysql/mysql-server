@@ -6459,14 +6459,19 @@ static bool open_secondary_engine_tables(THD *thd, TABLE_LIST *tables,
     secondary_engine = &tl->table->s->secondary_engine;
   }
 
-  if (secondary_engine == nullptr ||
-      ha_resolve_by_name(thd, secondary_engine, false) == nullptr) {
+  const plugin_ref secondary_engine_plugin =
+      secondary_engine == nullptr
+          ? nullptr
+          : ha_resolve_by_name(thd, secondary_engine, false);
+
+  if (secondary_engine_plugin == nullptr) {
     // Didn't find a secondary storage engine to use for the query.
     sql_cmd->disable_secondary_storage_engine();
     return false;
   }
 
-  lex->m_sql_cmd->use_secondary_storage_engine();
+  auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
+  lex->m_sql_cmd->use_secondary_storage_engine(hton);
   lex->add_statement_options(OPTION_NO_CONST_TABLES);
 
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.

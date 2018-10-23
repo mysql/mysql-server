@@ -34,6 +34,7 @@
 
 class THD;
 class Prepared_statement;
+struct handlerton;
 
 /**
   Representation of an SQL command.
@@ -104,7 +105,7 @@ class Sql_cmd {
     @param thd  Current THD.
   */
   virtual void cleanup(THD *thd MY_ATTRIBUTE((unused))) {
-    m_using_secondary_engine = false;
+    m_secondary_engine = nullptr;
   }
 
   /// Set the owning prepared statement
@@ -145,7 +146,7 @@ class Sql_cmd {
     secondary storage engine until it is reprepared.
   */
   void disable_secondary_storage_engine() {
-    DBUG_ASSERT(!m_using_secondary_engine);
+    DBUG_ASSERT(m_secondary_engine == nullptr);
     m_secondary_engine_enabled = false;
   }
 
@@ -161,17 +162,24 @@ class Sql_cmd {
     This function must be called before the statement starts opening
     tables in a secondary engine.
   */
-  void use_secondary_storage_engine() {
+  void use_secondary_storage_engine(const handlerton *hton) {
     DBUG_ASSERT(m_secondary_engine_enabled);
-    m_using_secondary_engine = true;
+    m_secondary_engine = hton;
   }
 
   /**
     Is this statement using a secondary storage engine?
   */
   bool using_secondary_storage_engine() const {
-    return m_using_secondary_engine;
+    return m_secondary_engine != nullptr;
   }
+
+  /**
+    Get the handlerton of the secondary engine that is used for
+    executing this statement, or nullptr if a secondary engine is not
+    used.
+  */
+  const handlerton *secondary_engine() const { return m_secondary_engine; }
 
  protected:
   Sql_cmd() : m_owner(nullptr), m_prepared(false), prepare_only(true) {}
@@ -211,10 +219,11 @@ class Sql_cmd {
   bool m_secondary_engine_enabled{true};
 
   /**
-    Set to true if the statement is using a secondary storage engine.
+    The secondary storage engine to use for execution of this
+    statement, if any, or nullptr if the primary engine is used.
     This property is reset at the start of each execution.
   */
-  bool m_using_secondary_engine{false};
+  const handlerton *m_secondary_engine{nullptr};
 
  protected:
   bool prepare_only;  /// @see needs_explicit_preparation

@@ -25,3 +25,67 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
 DROP TABLE t;
+#
+# WL#12389: Add interface for optimizing queries in secondary engines
+#
+CREATE TABLE t1(x INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2(y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t2 VALUES (3), (4), (5);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET DEBUG = "+d,secondary_engine_mock_optimize_error";
+EXPLAIN SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1`
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`y` from `test`.`t2` where (`test`.`t2`.`y` = 1)) AS `(SELECT y FROM t2 WHERE y = 1)` from `test`.`t1`
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` union all /* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2`
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2`
+SET DEBUG = "-d,secondary_engine_mock_optimize_error";
+EXPLAIN SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1`
+EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t2`.`y` from `test`.`t2` where (`test`.`t2`.`y` = 1)) AS `(SELECT y FROM t2 WHERE y = 1)` from `test`.`t1`
+EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` union all /* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2`
+EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`y` AS `y` from `test`.`t2`
+DROP TABLE t1, t2;
