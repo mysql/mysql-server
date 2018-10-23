@@ -5744,8 +5744,18 @@ static void do_enable_warnings(struct st_command *command) {
 static void do_error(struct st_command *command) {
   if (!*command->first_argument) die("Missing argument(s) to 'error' command.");
 
+  // Check if error command ends with a comment
+  char *end = command->first_argument + std::strlen(command->first_argument);
+  while (std::strlen(command->first_argument) > std::strlen(end)) {
+    end--;
+    if (*end == '#') break;
+  }
+
+  if (std::strlen(command->first_argument) == std::strlen(end))
+    end = command->first_argument + std::strlen(command->first_argument);
+
   std::string error;
-  std::stringstream errors(command->first_argument);
+  std::stringstream errors(std::string(command->first_argument, end));
 
   // Get error codes
   while (std::getline(errors, error, ',')) {
