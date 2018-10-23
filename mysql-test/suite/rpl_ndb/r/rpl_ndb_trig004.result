@@ -3,9 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-DROP TRIGGER test.t1_bi_t2;
-DROP TABLE IF EXISTS test.t1;
-DROP TABLE IF EXISTS test.t2;
 CREATE TABLE test.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d FLOAT, PRIMARY KEY(n))ENGINE=NDB;
 CREATE TABLE test.t2 (n MEDIUMINT NOT NULL, f FLOAT, PRIMARY KEY(n))ENGINE=NDB;
 CREATE TRIGGER test.t1_bi_t2 BEFORE INSERT ON test.t2 FOR EACH ROW INSERT INTO test.t1 VALUES (NULL, 1.234)//
