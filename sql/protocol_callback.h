@@ -85,7 +85,7 @@ class Protocol_callback : public Protocol {
       false  success
       true   failure
   */
-  virtual enum enum_protocol_type type() { return PROTOCOL_PLUGIN; }
+  virtual enum enum_protocol_type type() const { return PROTOCOL_PLUGIN; }
 
   /**
     Returns the type of the connection
@@ -93,7 +93,7 @@ class Protocol_callback : public Protocol {
     @return
       enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type();
+  virtual enum enum_vio_type connection_type() const;
 
   /**
     Sends null value
@@ -300,7 +300,7 @@ class Protocol_callback : public Protocol {
     @return
       true   alive
   */
-  virtual bool connection_alive();
+  virtual bool connection_alive() const;
 
   /**
     Should return protocol's reading/writing status. Returns 0 (idle) as it

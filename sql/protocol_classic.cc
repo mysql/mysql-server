@@ -1356,6 +1356,8 @@ NET *Protocol_classic::get_net() { return &m_thd->net; }
 
 Vio *Protocol_classic::get_vio() { return m_thd->net.vio; }
 
+const Vio *Protocol_classic::get_vio() const { return m_thd->net.vio; }
+
 void Protocol_classic::set_vio(Vio *vio) { m_thd->net.vio = vio; }
 
 void Protocol_classic::set_output_pkt_nr(uint pkt_nr) {
@@ -3156,7 +3158,9 @@ bool store(Protocol *prot, I_List<i_string> *str_list) {
   All data are sent as 'packed-string-length' followed by 'string-data'
 ****************************************************************************/
 
-bool Protocol_classic::connection_alive() { return m_thd->net.vio != NULL; }
+bool Protocol_classic::connection_alive() const {
+  return m_thd->net.vio != nullptr;
+}
 
 void Protocol_text::start_row() {
 #ifndef DBUG_OFF

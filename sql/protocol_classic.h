@@ -130,7 +130,7 @@ class Protocol_classic : public Protocol {
   virtual bool send_field_metadata(Send_field *field,
                                    const CHARSET_INFO *item_charset);
   virtual void abort_row() {}
-  virtual enum enum_protocol_type type() = 0;
+  virtual enum enum_protocol_type type() const = 0;
 
   /**
     Returns the type of the connection
@@ -138,8 +138,8 @@ class Protocol_classic : public Protocol {
     @return
       enum enum_vio_type
   */
-  virtual enum enum_vio_type connection_type() {
-    Vio *v = get_vio();
+  virtual enum enum_vio_type connection_type() const {
+    const Vio *v = get_vio();
     return v ? vio_type(v) : NO_VIO_TYPE;
   }
 
@@ -161,7 +161,7 @@ class Protocol_classic : public Protocol {
   /* Wipe NET with zeros */
   void wipe_net();
   /* Check whether VIO is healhty */
-  virtual bool connection_alive();
+  virtual bool connection_alive() const;
   /* Returns the client capabilities */
   virtual ulong get_client_capabilities() { return m_client_capabilities; }
   /* Sets the client capabilities */
@@ -186,6 +186,7 @@ class Protocol_classic : public Protocol {
   NET *get_net();
   /* return VIO */
   Vio *get_vio();
+  const Vio *get_vio() const;
   /* Set VIO */
   void set_vio(Vio *vio);
   /* Set packet number */
@@ -228,7 +229,7 @@ class Protocol_text : public Protocol_classic {
   virtual void start_row();
   virtual bool send_parameters(List<Item_param> *parameters, bool);
 
-  virtual enum enum_protocol_type type() { return PROTOCOL_TEXT; }
+  virtual enum enum_protocol_type type() const { return PROTOCOL_TEXT; }
 
  protected:
   virtual bool store(const char *from, size_t length,
@@ -264,7 +265,7 @@ class Protocol_binary : public Protocol_text {
   virtual bool send_parameters(List<Item_param> *parameters,
                                bool is_sql_prepare);
 
-  virtual enum enum_protocol_type type() { return PROTOCOL_BINARY; }
+  virtual enum enum_protocol_type type() const { return PROTOCOL_BINARY; }
 
  protected:
   virtual bool store(const char *from, size_t length,

@@ -78,7 +78,7 @@ class MDL_context_backup_manager::MDL_context_backup
 
   void notify_hton_post_release_exclusive(const MDL_key *) override { return; }
 
-  uint get_rand_seed() override { return (uint)1; }
+  uint get_rand_seed() const override { return 1; }
 
   bool is_connected() override { return true; }
   // End implementation of MDL_context_owner interface.

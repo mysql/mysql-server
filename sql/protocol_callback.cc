@@ -78,7 +78,7 @@ int Protocol_callback::get_command(COM_DATA *, enum_server_command *) {
   @return
     VIO_TYPE_PLUGIN
 */
-enum enum_vio_type Protocol_callback::connection_type() {
+enum enum_vio_type Protocol_callback::connection_type() const {
   return VIO_TYPE_PLUGIN;
 }
 
@@ -266,7 +266,7 @@ int Protocol_callback::shutdown(bool server_shutdown) {
   @return
     true  alive
 */
-bool Protocol_callback::connection_alive() { return true; }
+bool Protocol_callback::connection_alive() const { return true; }
 
 /**
   Should return protocol's reading/writing status. Returns 0 (idle) as it this

@@ -169,7 +169,7 @@ bool vio_was_timeout(MYSQL_VIO vio);
 #define VIO_DESCRIPTION_SIZE 30 /* size of description */
 void vio_description(MYSQL_VIO vio, char *buf);
 /* Return the type of the connection */
-enum enum_vio_type vio_type(MYSQL_VIO vio);
+enum enum_vio_type vio_type(const MYSQL_VIO vio);
 /* Return last error number */
 int vio_errno(MYSQL_VIO vio);
 /* Get socket number */

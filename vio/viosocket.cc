@@ -479,7 +479,7 @@ void vio_description(Vio *vio, char *buf) {
   }
 }
 
-enum enum_vio_type vio_type(Vio *vio) { return vio->type; }
+enum enum_vio_type vio_type(const Vio *vio) { return vio->type; }
 
 my_socket vio_fd(Vio *vio) { return mysql_socket_getfd(vio->mysql_socket); }
 

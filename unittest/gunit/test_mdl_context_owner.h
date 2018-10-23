@@ -52,7 +52,7 @@ class Test_MDL_context_owner : public MDL_context_owner {
   }
   virtual void notify_hton_post_release_exclusive(const MDL_key *) {}
 
-  virtual uint get_rand_seed() { return 0; }
+  virtual uint get_rand_seed() const { return 0; }
 };
 
 #endif  // TEST_MDL_CONTEXT_OWNER_INCLUDED

@@ -874,7 +874,9 @@ class THD : public MDL_context_owner,
 
     @return true  when the thread is a binlog applier
   */
-  bool is_binlog_applier() { return rli_fake && variables.pseudo_slave_mode; }
+  bool is_binlog_applier() const {
+    return rli_fake && variables.pseudo_slave_mode;
+  }
 
   /**
     When the thread is a binlog or slave applier it detaches the engine
@@ -895,7 +897,7 @@ class THD : public MDL_context_owner,
     @note The detached transaction applier resets a memo
           mark at once with this check.
   */
-  bool rpl_unflag_detached_engine_ha_data();
+  bool rpl_unflag_detached_engine_ha_data() const;
 
   void reset_for_next_command();
   /*
@@ -1061,6 +1063,8 @@ class THD : public MDL_context_owner,
   Protocol_text protocol_text;      // Normal protocol
   Protocol_binary protocol_binary;  // Binary protocol
 
+  const Protocol *get_protocol() const { return m_protocol; }
+
   Protocol *get_protocol() { return m_protocol; }
 
   SSL_handle get_ssl() const {
@@ -1082,11 +1086,14 @@ class THD : public MDL_context_owner,
     returns the m_protocol casted to Protocol_classic. This method
     is needed to prevent misuse of pluggable protocols by legacy code
   */
-  Protocol_classic *get_protocol_classic() const {
-    DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
-                m_protocol->type() == Protocol::PROTOCOL_BINARY);
+  const Protocol_classic *get_protocol_classic() const {
+    DBUG_ASSERT(is_classic_protocol());
+    return down_cast<const Protocol_classic *>(m_protocol);
+  }
 
-    return (Protocol_classic *)m_protocol;
+  Protocol_classic *get_protocol_classic() {
+    DBUG_ASSERT(is_classic_protocol());
+    return down_cast<Protocol_classic *>(m_protocol);
   }
 
  private:
@@ -1337,7 +1344,6 @@ class THD : public MDL_context_owner,
 
    */
   uchar *binlog_row_event_extra_data;
-  static bool binlog_row_event_extra_data_eq(const uchar *a, const uchar *b);
 
   int binlog_setup_trx_data();
 
@@ -1353,7 +1359,6 @@ class THD : public MDL_context_owner,
   int binlog_update_row(TABLE *table, bool is_transactional,
                         const uchar *old_data, const uchar *new_data,
                         const uchar *extra_row_info);
-  void binlog_prepare_row_images(TABLE *table);
 
   void set_server_id(uint32 sid) { server_id = sid; }
 
@@ -1420,7 +1425,7 @@ class THD : public MDL_context_owner,
     m_binlog_filter_state = BINLOG_FILTER_SET;
   }
 
-  inline binlog_filter_state get_binlog_local_stmt_filter() {
+  binlog_filter_state get_binlog_local_stmt_filter() const {
     return m_binlog_filter_state;
   }
 
@@ -1502,7 +1507,7 @@ class THD : public MDL_context_owner,
  public:
   void set_skip_readonly_check() { skip_readonly_check = true; }
 
-  bool is_cmd_skip_readonly() { return skip_readonly_check; }
+  bool is_cmd_skip_readonly() const { return skip_readonly_check; }
 
   void reset_skip_readonly_check() {
     if (skip_readonly_check) skip_readonly_check = false;
@@ -1516,7 +1521,7 @@ class THD : public MDL_context_owner,
   /*
     MTS: accessor to binlog_accessed_db_names list
   */
-  List<char> *get_binlog_accessed_db_names() {
+  List<char> *get_binlog_accessed_db_names() const {
     return binlog_accessed_db_names;
   }
 
@@ -1951,7 +1956,7 @@ class THD : public MDL_context_owner,
 
  public:
   void set_user_connect(USER_CONN *uc);
-  const USER_CONN *get_user_connect() { return m_user_connect; }
+  const USER_CONN *get_user_connect() const { return m_user_connect; }
 
   void increment_user_connections_counter();
   void decrement_user_connections_counter();
@@ -2202,7 +2207,6 @@ class THD : public MDL_context_owner,
     DBUG_VOID_RETURN;
   }
 
-  my_off_t get_trans_pos() { return m_trans_end_pos; }
   /**@}*/
 
   /*
@@ -2473,7 +2477,7 @@ class THD : public MDL_context_owner,
   /** Shutdown clone vio, if active. */
   void shutdown_clone_vio();
 
-  enum_vio_type get_vio_type();
+  enum_vio_type get_vio_type() const;
 
   void shutdown_active_vio();
   void awake(THD::killed_state state_to_set);
@@ -2570,7 +2574,7 @@ class THD : public MDL_context_owner,
     gives more randomness and thus better coverage in tests as opposed to
     using thread_id for the same purpose.
   */
-  virtual uint get_rand_seed() { return (uint)start_utime; }
+  virtual uint get_rand_seed() const { return (uint)start_utime; }
 
   // End implementation of MDL_context_owner interface.
 
@@ -2620,7 +2624,7 @@ class THD : public MDL_context_owner,
     if (my_micro_time() > utime_after_lock + variables.long_query_time)
       server_status |= SERVER_QUERY_WAS_SLOW;
   }
-  inline ulonglong found_rows(void) { return previous_found_rows; }
+  ulonglong found_rows() const { return previous_found_rows; }
 
   /*
     Call when it is clear that the query is ended and we have collected the
@@ -2696,7 +2700,7 @@ class THD : public MDL_context_owner,
   inline bool in_active_multi_stmt_transaction() const {
     return server_status & SERVER_STATUS_IN_TRANS;
   }
-  inline bool fill_information_schema_tables() {
+  bool fill_information_schema_tables() const {
     return !stmt_arena->is_stmt_prepare();
   }
 
@@ -2720,17 +2724,9 @@ class THD : public MDL_context_owner,
     DBUG_VOID_RETURN;
   }
 
-  inline bool is_classic_protocol() {
-    DBUG_ENTER("THD::is_classic_protocol");
-    DBUG_PRINT("info", ("type=%d", get_protocol()->type()));
-    switch (get_protocol()->type()) {
-      case Protocol::PROTOCOL_BINARY:
-      case Protocol::PROTOCOL_TEXT:
-        DBUG_RETURN(true);
-      default:
-        break;
-    }
-    DBUG_RETURN(false);
+  bool is_classic_protocol() const {
+    return get_protocol()->type() == Protocol::PROTOCOL_BINARY ||
+           get_protocol()->type() == Protocol::PROTOCOL_TEXT;
   }
 
   /** Return false if connection to client is broken. */
@@ -3029,7 +3025,7 @@ class THD : public MDL_context_owner,
     @param is_transactional if true, check the transaction cache.
     If false, check the statement cache.
   */
-  bool is_binlog_cache_empty(bool is_transactional);
+  bool is_binlog_cache_empty(bool is_transactional) const;
 
   /**
     The GTID of the currently owned transaction.
@@ -3423,7 +3419,7 @@ class THD : public MDL_context_owner,
     associated with this user session.
     This method is safe to use from a different thread.
   */
-  PSI_thread *get_psi() { return m_psi; }
+  PSI_thread *get_psi() const { return m_psi; }
 
  private:
   /**
@@ -3436,7 +3432,7 @@ class THD : public MDL_context_owner,
   std::atomic<PSI_thread *> m_psi;
 
  public:
-  inline Internal_error_handler *get_internal_handler() {
+  const Internal_error_handler *get_internal_handler() const {
     return m_internal_handler;
   }
 
@@ -3701,7 +3697,7 @@ class THD : public MDL_context_owner,
                               bool non_transactional_tables_are_tmp);
   bool is_ddl_gtid_compatible();
   void binlog_invoker() { m_binlog_invoker = true; }
-  bool need_binlog_invoker() { return m_binlog_invoker; }
+  bool need_binlog_invoker() const { return m_binlog_invoker; }
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host) {
     m_invoker_user.str = user->str;
@@ -3711,7 +3707,7 @@ class THD : public MDL_context_owner,
   }
   LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
   LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
-  bool has_invoker() { return m_invoker_user.str != NULL; }
+  bool has_invoker() const { return m_invoker_user.str != nullptr; }
 
   void mark_transaction_to_rollback(bool all);
 
@@ -4113,7 +4109,7 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
   @retval            false otherwise
 */
 
-static inline bool is_engine_substitution_allowed(THD *thd) {
+static inline bool is_engine_substitution_allowed(const THD *thd) {
   return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
 }
 

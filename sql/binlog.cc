@@ -177,6 +177,8 @@ static xa_status_code binlog_xa_rollback(handlerton *hton, XID *xid);
 static void exec_binlog_error_action_abort(const char *err_string);
 static int binlog_recover(Binlog_file_reader *binlog_file_reader,
                           my_off_t *valid_pos);
+static bool binlog_row_event_extra_data_eq(const uchar *a, const uchar *b);
+static void binlog_prepare_row_images(const THD *thd, TABLE *table);
 
 static inline bool has_commit_order_manager(THD *thd) {
   return is_mts_worker(thd) &&
@@ -3043,7 +3045,7 @@ bool purge_master_logs_before_date(THD *thd, time_t purge_time) {
 /*
   Helper function to get the error code of the query to be binlogged.
  */
-int query_error_code(THD *thd, bool not_killed) {
+int query_error_code(const THD *thd, bool not_killed) {
   int error;
 
   if (not_killed) {
@@ -5137,7 +5139,7 @@ int MYSQL_BIN_LOG::raw_get_current_log(LOG_INFO *linfo) {
   return 0;
 }
 
-bool MYSQL_BIN_LOG::check_write_error(THD *thd) {
+bool MYSQL_BIN_LOG::check_write_error(const THD *thd) {
   DBUG_ENTER("MYSQL_BIN_LOG::check_write_error");
 
   bool checked = false;
@@ -8933,7 +8935,7 @@ inline void MYSQL_BIN_LOG::update_binlog_end_pos(const char *file,
   unlock_binlog_end_pos();
 }
 
-bool THD::is_binlog_cache_empty(bool is_transactional) {
+bool THD::is_binlog_cache_empty(bool is_transactional) const {
   DBUG_ENTER("THD::is_binlog_cache_empty(bool)");
 
   // If opt_bin_log==0, it is not safe to call thd_get_cache_mngr
@@ -10651,7 +10653,7 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
      not needed for binlogging. This is done according to the:
      binlog-row-image option.
    */
-  binlog_prepare_row_images(table);
+  binlog_prepare_row_images(this, table);
 
   Row_data_memory row_data(table, before_record, after_record,
                            variables.binlog_row_value_options);
@@ -10706,7 +10708,7 @@ int THD::binlog_delete_row(TABLE *table, bool is_trans, uchar const *record,
      not needed for binlogging. This is done according to the:
      binlog-row-image option.
    */
-  binlog_prepare_row_images(table);
+  binlog_prepare_row_images(this, table);
 
   /*
      Pack records into format for transfer. We are allocating more
@@ -10737,7 +10739,7 @@ int THD::binlog_delete_row(TABLE *table, bool is_trans, uchar const *record,
   return error;
 }
 
-void THD::binlog_prepare_row_images(TABLE *table) {
+void binlog_prepare_row_images(const THD *thd, TABLE *table) {
   DBUG_ENTER("THD::binlog_prepare_row_images");
   /**
     Remove from read_set spurious columns. The write_set has been
@@ -10746,7 +10748,6 @@ void THD::binlog_prepare_row_images(TABLE *table) {
 
   DBUG_PRINT_BITSET("debug", "table->read_set (before preparing): %s",
                     table->read_set);
-  THD *thd = table->in_use;
 
   /**
     if there is a primary key in the table (ie, user declared PK or a
@@ -10844,7 +10845,7 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional) {
    @return
      true if the referenced structures are equal
 */
-bool THD::binlog_row_event_extra_data_eq(const uchar *a, const uchar *b) {
+static bool binlog_row_event_extra_data_eq(const uchar *a, const uchar *b) {
   return ((a == b) ||
           ((a != NULL) && (b != NULL) &&
            (a[EXTRA_ROW_INFO_LEN_OFFSET] == b[EXTRA_ROW_INFO_LEN_OFFSET]) &&

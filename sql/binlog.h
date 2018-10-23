@@ -755,7 +755,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   bool write_dml_directly(THD *thd, const char *stmt, size_t stmt_len);
 
   void report_cache_write_error(THD *thd, bool is_transactional);
-  bool check_write_error(THD *thd);
+  bool check_write_error(const THD *thd);
   bool write_incident(THD *thd, bool need_lock_log, const char *err_msg,
                       bool do_flush_and_sync = true);
   bool write_incident(Incident_log_event *ev, THD *thd, bool need_lock_log,
@@ -930,7 +930,7 @@ void check_binlog_cache_size(THD *thd);
 void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
-int query_error_code(THD *thd, bool not_killed);
+int query_error_code(const THD *thd, bool not_killed);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;

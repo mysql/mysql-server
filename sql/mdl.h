@@ -164,7 +164,7 @@ class MDL_context_owner {
     Get random seed specific to this THD to be used for initialization
     of PRNG for the MDL_context.
   */
-  virtual uint get_rand_seed() = 0;
+  virtual uint get_rand_seed() const = 0;
 };
 
 /**

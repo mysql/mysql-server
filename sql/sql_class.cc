@@ -1540,7 +1540,7 @@ int THD::send_explain_fields(Query_result *result) {
       this, field_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
-enum_vio_type THD::get_vio_type() {
+enum_vio_type THD::get_vio_type() const {
   DBUG_ENTER("THD::get_vio_type");
   DBUG_RETURN(get_protocol()->connection_type());
 }
@@ -2606,7 +2606,7 @@ void THD::rpl_reattach_engine_ha_data() {
   if (rli) rli->reattach_engine_ha_data(this);
 }
 
-bool THD::rpl_unflag_detached_engine_ha_data() {
+bool THD::rpl_unflag_detached_engine_ha_data() const {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
   return rli ? rli->unflag_detached_engine_ha_data() : false;

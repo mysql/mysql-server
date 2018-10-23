@@ -122,9 +122,9 @@ class Protocol {
   */
   enum { SEND_NUM_ROWS = 1, SEND_DEFAULTS = 2, SEND_EOF = 4 };
 
-  virtual enum enum_protocol_type type() = 0;
+  virtual enum enum_protocol_type type() const = 0;
 
-  virtual enum enum_vio_type connection_type() = 0;
+  virtual enum enum_vio_type connection_type() const = 0;
 
   /* Data sending functions */
   virtual bool store_null() = 0;
@@ -194,7 +194,7 @@ class Protocol {
       true    if the connection is still alive
       false   otherwise
    */
-  virtual bool connection_alive() = 0;
+  virtual bool connection_alive() const = 0;
 
   /**
     Result set sending functions
