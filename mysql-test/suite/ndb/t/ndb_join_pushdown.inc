@@ -8,14 +8,8 @@ connect (ddl,localhost,root,,test);
 
 select @@session.optimizer_switch;
 
---disable_warnings
-connection ddl;
-drop table if exists t1,t2,t3,t4;
---enable_warnings
-
 connection spj;
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts_at_startup
        select * from performance_schema.global_status 
        where variable_name in 
@@ -2952,7 +2946,6 @@ select * from t1 t1, t1 t2
 
 # Save old counter values.
 # Save old mysqld counter values.
---disable_warnings ONCE
 create temporary table server_counts
        select * from performance_schema.global_status 
        where variable_name in 
@@ -2981,7 +2974,6 @@ select count(*) from t1 t1, t1 t2
        	     t2.a = t1.c and t2.b = t1.c; 
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts as old,
          performance_schema.global_status as new
@@ -4715,7 +4707,6 @@ insert into t1 values (1,NULL,1,1);
 explain select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 
 # Record value before query.
---disable_warnings ONCE
 create temporary table scan_count
        select * from performance_schema.global_status 
        where variable_name = 'Ndb_scan_count';
@@ -4725,7 +4716,6 @@ create temporary table scan_count
 select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
 
 # Bug causes value to increase by 3 rather than 2.
---disable_warnings ONCE
 select scan_count.VARIABLE_NAME,
        old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
        from scan_count, performance_schema.global_status as old 
@@ -5251,7 +5241,6 @@ DROP TABLE ndb_order_test, ndb_user_test;
 connection spj;
 
 # Calculate the change in mysqld counters.
---disable_warnings ONCE
 select new.variable_name, new.variable_value - old.variable_value
        from server_counts_at_startup as old,
          performance_schema.global_status as new

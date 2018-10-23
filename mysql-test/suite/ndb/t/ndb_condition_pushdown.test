@@ -2570,7 +2570,6 @@ drop table t1;
 --echo # Bug#28643463 NULL VALUES NOT FILTERED OUT BY PUSHED CONDITIONS
 --echo #
 
---disable_warnings
 --disable_query_log
 
 create table t1
@@ -2685,3 +2684,4 @@ select @count:=count(*) from t1 where not b not like 'five';
 eval $verify_row_count;
 
 drop table t1;
+--enable_query_log

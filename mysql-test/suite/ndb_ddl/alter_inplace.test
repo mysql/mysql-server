@@ -48,7 +48,7 @@ while ($counter <= $num_tables)
   {
     # Disable warnings for t6 where column 'a' is a VARCHAR and reads from the
     # table causes "Truncated incorrect DOUBLE value: 'value1'" for each row
-    --disable_warnings ONCE
+    --disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
   }
 
   # Run query presumably using the new index
@@ -80,7 +80,7 @@ while ($counter <= $num_tables)
   {
     # Disable warnings for t6 where column 'a' is a VARCHAR and reads from the
     # table causes "Truncated incorrect DOUBLE value: 'value1'" for each row
-    --disable_warnings ONCE
+    --disable_warnings ER_TRUNCATED_WRONG_VALUE ONCE
   }
 
   # Run query

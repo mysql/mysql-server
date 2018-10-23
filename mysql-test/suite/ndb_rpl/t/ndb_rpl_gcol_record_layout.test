@@ -7,6 +7,7 @@
 --source suite/gcol_ndb/inc/mtr_conditionals.inc
 --disable_warnings
 --source suite/ndb_rpl/ndb_master-slave.inc
+--enable_warnings
 
 --echo ####### TEST gcol after blob
 

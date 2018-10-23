@@ -53,6 +53,6 @@ insert into t3 values (1,1),(2,2),(3,3),(4,4);
 --exec $NDB_WAITER --wait-nodes=3 >> $NDB_TOOLS_OUTPUT
 
 -- disable_warnings
-drop table t1;
+drop table t1, t2, t3;
 -- enable_warnings
 --remove_file $NDB_TOOLS_OUTPUT

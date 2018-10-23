@@ -9,14 +9,6 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
---echo --- Doing pre test cleanup --- 
-
-connection master;
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_query_log
-
-
 # Start by creating a logfile group
 ##################################
 
