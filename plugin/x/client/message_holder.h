@@ -67,7 +67,9 @@ class Message_holder {
       if (Mysqlx::ServerMessages::ERROR == m_message_id) {
         auto error_msg = reinterpret_cast<Mysqlx::Error *>(m_message.get());
 
-        return XError{static_cast<int>(error_msg->code()), error_msg->msg()};
+        return XError{static_cast<int>(error_msg->code()), error_msg->msg(),
+                      error_msg->severity() == Mysqlx::Error::FATAL,
+                      error_msg->sql_state()};
       }
 
       if (std::any_of(
@@ -94,7 +96,9 @@ class Message_holder {
       if (Mysqlx::ServerMessages::ERROR == m_message_id) {
         auto error_msg = reinterpret_cast<Mysqlx::Error *>(m_message.get());
 
-        return XError{static_cast<int>(error_msg->code()), error_msg->msg()};
+        return XError{static_cast<int>(error_msg->code()), error_msg->msg(),
+                      error_msg->severity() == Mysqlx::Error::FATAL,
+                      error_msg->sql_state()};
       }
 
       if (std::any_of(

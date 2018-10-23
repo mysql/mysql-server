@@ -67,7 +67,8 @@ namespace details {
 
 XError make_xerror(const Mysqlx::Error &error) {
   bool is_fatal = error.severity() == Mysqlx::Error::FATAL;
-  return XError{static_cast<int>(error.code()), error.msg(), is_fatal};
+  return XError{static_cast<int>(error.code()), error.msg(), is_fatal,
+                error.sql_state()};
 }
 
 class Query_sequencer : public Query_instances {
