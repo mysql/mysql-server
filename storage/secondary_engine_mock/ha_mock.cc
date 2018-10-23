@@ -97,8 +97,7 @@ int ha_mock::open(const char *, int, unsigned int, const dd::Table *) {
       loaded_tables->get(table_share->db.str, table_share->table_name.str);
   if (share == nullptr) {
     // The table has not been loaded into the secondary storage engine yet.
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
-             table_share->table_name.str);
+    my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "Table has not been loaded");
     return HA_ERR_GENERIC;
   }
   thr_lock_data_init(&share->lock, &m_lock, nullptr);
