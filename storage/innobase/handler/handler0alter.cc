@@ -7602,6 +7602,10 @@ rollback_trx:
       ut_ad(m_prebuilt != ctx->prebuilt || ctx == ctx0);
       bool update_own_prebuilt = (m_prebuilt == ctx->prebuilt);
       trx_t *const user_trx = m_prebuilt->trx;
+      mem_heap_t *const temp_blob_heap = ctx->prebuilt->blob_heap;
+      if (dict_table_is_partition(ctx->new_table)) {
+        ctx->prebuilt->blob_heap = NULL;
+      }
 
       row_prebuilt_free(ctx->prebuilt, TRUE);
 
@@ -7620,6 +7624,7 @@ rollback_trx:
       }
       user_trx->will_lock++;
       m_prebuilt->trx = user_trx;
+      m_prebuilt->blob_heap = temp_blob_heap;
     }
     DBUG_INJECT_CRASH("ib_commit_inplace_crash", crash_inject_count++);
   }
