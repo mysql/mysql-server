@@ -2115,7 +2115,7 @@ class Item : public Parse_tree_node {
     if (table != NULL && table != field->table) return false;
 
     table = field->table;
-    table->mark_column_used(table->in_use, field, mark_field->mark);
+    table->mark_column_used(field, mark_field->mark);
 
     return false;
   }

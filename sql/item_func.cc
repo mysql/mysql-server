@@ -804,7 +804,7 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
   if (type == fld->result_type() && (*func)->eq(expr, false)) {
     Item_field *field = new Item_field(fld);
     // Mark field for read
-    fld->table->mark_column_used(fld->table->in_use, fld, MARK_COLUMNS_READ);
+    fld->table->mark_column_used(fld, MARK_COLUMNS_READ);
     return field;
   }
   return NULL;

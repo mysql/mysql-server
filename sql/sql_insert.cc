@@ -152,7 +152,6 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
   @param thd          The current thread.
   @param table_list   The table for insert.
   @param fields       The insert fields.
-  @param check_unique If true, report error if duplicate column names specified.
 
   @return false if success, true if error
 
@@ -160,7 +159,7 @@ static bool check_single_table_insert(List<Item> &fields, TABLE_LIST *view,
 */
 
 static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
-                                List<Item> &fields, bool check_unique) {
+                                List<Item> &fields) {
   LEX *const lex = thd->lex;
 
 #ifndef DBUG_OFF
@@ -189,8 +188,6 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     Name_resolution_context *context = &select_lex->context;
     Name_resolution_context_state ctx_state;
 
-    thd->dup_field = 0;
-
     /* Save the state of the current name resolution context. */
     ctx_state.save_state(context, table_list);
 
@@ -217,8 +214,22 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
       lex->insert_table_leaf = table_list;
     }
 
-    if (check_unique && thd->dup_field) {
-      my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), thd->dup_field->field_name);
+    // We currently don't check for unique columns when inserting via a view.
+    const bool check_unique = !table_list->is_view();
+
+    if (check_unique && bitmap_bits_set(table->write_set) < fields.elements) {
+      for (auto i = fields.cbegin(); i != fields.cend(); ++i) {
+        // Skipping views means that we only have FIELD_ITEM.
+        const Item &item1 = *i;
+        for (auto j = std::next(i); j != fields.cend(); ++j) {
+          const Item &item2 = *j;
+          if (item1.eq(&item2, true)) {
+            my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1.item_name.ptr());
+            break;
+          }
+        }
+      }
+      DBUG_ASSERT(thd->is_error());
       return true;
     }
   }
@@ -1096,8 +1107,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
   // Prepare the lists of columns and values in the statement.
 
-  if (check_insert_fields(thd, table_list, insert_field_list,
-                          !insert_into_view))
+  if (check_insert_fields(thd, table_list, insert_field_list))
     DBUG_RETURN(true);
 
   TABLE *const insert_table = lex->insert_table_leaf->table;

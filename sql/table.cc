@@ -5311,7 +5311,6 @@ void TABLE::prepare_for_position() {
   @note If TABLE::get_fields_in_item_tree is set, set the flag bit
         GET_FIXED_FIELDS_FLAG for the field.
 
-  @param thd      Thread handler (only used for duplicate handling)
   @param field    The column to be marked as used
   @param mark      =MARK_COLUMNS_NONE: Only update flag field, if applicable
                    =MARK_COLUMNS_READ: Mark column as read
@@ -5320,8 +5319,7 @@ void TABLE::prepare_for_position() {
                                        and processing of generated columns
 */
 
-void TABLE::mark_column_used(THD *thd, Field *field,
-                             enum enum_mark_columns mark) {
+void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
   DBUG_ENTER("TABLE::mark_column_used");
 
   switch (mark) {
@@ -5342,14 +5340,7 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       break;
     }
     case MARK_COLUMNS_WRITE:
-      if (bitmap_fast_test_and_set(write_set, field->field_index)) {
-        /*
-          This is relevant for INSERT only, but duplicate indication is set
-          for all fields that are updated.
-        */
-        DBUG_PRINT("warning", ("Found duplicated field"));
-        thd->dup_field = field;
-      }
+      bitmap_set_bit(write_set, field->field_index);
       DBUG_ASSERT(!get_fields_in_item_tree);
 
       if (field->is_gcol()) mark_gcol_in_maps(field);
@@ -6038,11 +6029,9 @@ void TABLE::mark_generated_columns(bool is_update) {
           bitmap_is_overlapping(write_set,
                                 &tmp_vfield->gcol_info->base_columns_map)) {
         // The GC needs to be updated
-        tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
-                                            MARK_COLUMNS_WRITE);
+        tmp_vfield->table->mark_column_used(tmp_vfield, MARK_COLUMNS_WRITE);
         // In order to update the new value, we have to read the old value
-        tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
-                                            MARK_COLUMNS_READ);
+        tmp_vfield->table->mark_column_used(tmp_vfield, MARK_COLUMNS_READ);
         bitmap_updated = true;
       }
     }
@@ -6051,8 +6040,7 @@ void TABLE::mark_generated_columns(bool is_update) {
     for (vfield_ptr = vfield; *vfield_ptr; vfield_ptr++) {
       tmp_vfield = *vfield_ptr;
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
-      tmp_vfield->table->mark_column_used(in_use, tmp_vfield,
-                                          MARK_COLUMNS_WRITE);
+      tmp_vfield->table->mark_column_used(tmp_vfield, MARK_COLUMNS_WRITE);
       bitmap_updated = true;
     }
   }

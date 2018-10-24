@@ -1610,7 +1610,7 @@ struct TABLE {
   void clear_column_bitmaps(void);
   void prepare_for_position(void);
 
-  void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
+  void mark_column_used(Field *field, enum enum_mark_columns mark);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
                                            uint key_parts = 0);
   void mark_columns_used_by_index(uint index);

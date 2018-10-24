@@ -779,9 +779,7 @@ class THD : public MDL_context_owner,
                         and merge_keys too.
     MARK_COLUMNS_WRITE: Means a bit is set in write set to inform handler
                         that it needs to update this field in write_row
-                        and update_row. If field list contains duplicates,
-                        then thd->dup_field is set to point to the last
-                        found duplicate.
+                        and update_row.
     MARK_COLUMNS_TEMP:  Mark bit in read set, but ignore key sets.
                         Used by filesort().
   */
@@ -1675,7 +1673,6 @@ class THD : public MDL_context_owner,
   void set_transaction(Transaction_ctx *transaction_ctx);
 
   Global_read_lock global_read_lock;
-  Field *dup_field;
 
   Vio *active_vio = {nullptr};
 

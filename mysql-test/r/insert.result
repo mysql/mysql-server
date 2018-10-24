@@ -1013,3 +1013,34 @@ DROP VIEW  view_target2;
 DROP VIEW  view_target3;
 DROP USER  user20989@localhost;
 DROP DATABASE meow;
+#
+# Bug#28836669: Only first set of duplicate columns are reported for INSERT
+#
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1(a, a) VALUES (1, 1);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(a, a, b, b) VALUES (1, 1, 2, 2);
+ERROR 42000: Column 'a' specified twice
+SHOW ERRORS;
+Level	Code	Message
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'b' specified twice
+INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
+ERROR 42000: Column 'a' specified twice
+SHOW ERRORS;
+Level	Code	Message
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'a' specified twice
+Error	1110	Column 'a' specified twice
+DROP TABLE t1;
+CREATE TABLE t1(a INT,
+b INT GENERATED ALWAYS AS (-a) VIRTUAL,
+c INT GENERATED ALWAYS AS (-a) STORED);
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t1(a,a) VALUES (1,1);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
+ERROR 42000: Column 'a' specified twice
+INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
+ERROR 42000: Column 'b' specified twice
+DROP TABLE t1;

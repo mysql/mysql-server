@@ -7514,7 +7514,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
                    (uchar *)&mf);
     } else  // surely fld != NULL (see outer if())
-      fld->table->mark_column_used(thd, fld, thd->mark_used_columns);
+      fld->table->mark_column_used(fld, thd->mark_used_columns);
   }
   DBUG_RETURN(fld);
 }
@@ -7637,7 +7637,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
                                           want_privilege))
         found = WRONG_GRANT;
       if (found && found != WRONG_GRANT)
-        table_ref->table->mark_column_used(thd, found, thd->mark_used_columns);
+        table_ref->table->mark_column_used(found, thd->mark_used_columns);
     } else
       found = find_field_in_table_ref(
           thd, table_ref, name, length, item->item_name.ptr(), NULL, NULL, ref,
@@ -8224,7 +8224,7 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
 
       // Mark fields in the read set
       if (field_1) {
-        nj_col_1->table_ref->table->mark_column_used(thd, field_1,
+        nj_col_1->table_ref->table->mark_column_used(field_1,
                                                      MARK_COLUMNS_READ);
       } else {
         Mark_field mf(MARK_COLUMNS_READ);
@@ -8234,7 +8234,7 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
       }
 
       if (field_2) {
-        nj_col_2->table_ref->table->mark_column_used(thd, field_2,
+        nj_col_2->table_ref->table->mark_column_used(field_2,
                                                      MARK_COLUMNS_READ);
       } else {
         Mark_field mf(MARK_COLUMNS_READ);
@@ -8957,7 +8957,7 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
       Field *const field = field_iterator.field();
       if (field) {
         // Register underlying fields in read map if wanted.
-        field->table->mark_column_used(thd, field, thd->mark_used_columns);
+        field->table->mark_column_used(field, thd->mark_used_columns);
       } else {
         if (thd->want_privilege && tables->is_view_or_derived()) {
           if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,

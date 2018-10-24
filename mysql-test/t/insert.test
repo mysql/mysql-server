@@ -910,3 +910,36 @@ if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
   SET SESSION binlog_format= @saved_binlog_format;
   --enable_query_log
 }
+
+--echo #
+--echo # Bug#28836669: Only first set of duplicate columns are reported for INSERT
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(a, a) VALUES (1, 1);
+
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(a, a, b, b) VALUES (1, 1, 2, 2);
+SHOW ERRORS;
+
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
+SHOW ERRORS;
+
+DROP TABLE t1;
+
+# Check that it also works with generated columns.
+CREATE TABLE t1(a INT,
+                b INT GENERATED ALWAYS AS (-a) VIRTUAL,
+		        c INT GENERATED ALWAYS AS (-a) STORED);
+
+INSERT INTO t1(a) VALUES (1);
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(a,a) VALUES (1,1);
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
+--error ER_FIELD_SPECIFIED_TWICE
+INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
+
+DROP TABLE t1;
