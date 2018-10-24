@@ -22,7 +22,7 @@
 
 /**
   @file include/my_base.h
-  This file includes constants used with all databases.
+  This file includes constants used by all storage engines.
 */
 
 #ifndef _my_base_h

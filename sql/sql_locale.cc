@@ -20,12 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  The beginnings of locale(7) support.
-  Sponsored for subset of LC_TIME support,  WorkLog entry 2928, -- Josh Chamas
-
-  !! This file is built from my_locale.pl !!
-*/
+// Partial locale(7) support.
 
 #include "sql/sql_locale.h"
 

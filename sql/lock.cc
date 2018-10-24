@@ -23,7 +23,7 @@
 /**
   @file
 
-  Locking functions for mysql.
+  Locking functions.
 
   Because of the new concurrent inserts, we must first get external locks
   before getting internal locks.  If we do it in the other order, the status
@@ -73,10 +73,6 @@
   table_handler->external_lock(thd, F_UNLCK) for each table that was locked,
   excluding one that caused failure. That means handler must cleanup itself
   in case external_lock() fails.
-
-  @todo
-  Change to use my_malloc() ONLY when using LOCK TABLES command or when
-  we are forced to use mysql_lock_merge.
 */
 
 #include "sql/lock.h"

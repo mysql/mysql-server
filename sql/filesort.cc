@@ -23,8 +23,16 @@
 
 /**
   @file sql/filesort.cc
-  Sorts a database.
-*/
+
+  Standard external sort. We read rows into a buffer until there's no more room.
+  At that point, we use it (using the sorting algorithms from STL), and write it
+  to disk (thus the name “filesort”). When there are no more rows, we merge
+  chunks recursively, seven and seven (although we can go all the way up to 15
+  in the final pass if it helps us do one pass less).
+
+  If all the rows fit in a single chunk, the data never hits disk, but remains
+  in RAM.
+ */
 
 #include "sql/filesort.h"
 

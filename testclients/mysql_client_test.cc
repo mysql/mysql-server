@@ -6626,8 +6626,7 @@ static void test_field_misc() {
 }
 
 /*
-  Test SET feature with prepare stmts
-  bug #85 (reported by mark@mysql.com)
+  Test SET feature with prepare stmts, bug #85
 */
 
 static void test_set_option() {
@@ -6696,8 +6695,7 @@ static void test_set_option() {
 }
 
 /*
-  Test a misc GRANT option
-  bug #89 (reported by mark@mysql.com)
+  Test a misc GRANT option, bug #89
 */
 
 static void test_prepare_grant() {
@@ -6895,7 +6893,7 @@ static void test_decimal_bug() {
   mysql_stmt_close(stmt);
 }
 
-/* Test EXPLAIN bug (#115, reported by mark@mysql.com & georg@php.net). */
+/* Test EXPLAIN bug, bug #115 */
 
 static void test_explain_bug() {
   MYSQL_STMT *stmt;
@@ -7036,135 +7034,6 @@ static void test_explain_bug() {
   mysql_free_result(result);
   mysql_stmt_close(stmt);
 }
-
-#ifdef NOT_YET_WORKING
-
-  /*
-    Test math functions.
-    Bug #148 (reported by salle@mysql.com).
-  */
-
-#define myerrno(n) check_errcode(n)
-
-static void check_errcode(const unsigned int err) {
-  if (!opt_silent || mysql_errno(mysql) != err) {
-    if (mysql->server_version)
-      fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
-    else
-      fprintf(stdout, "\n [MySQL]");
-    fprintf(stdout, "[%d] %s\n", mysql_errno(mysql), mysql_error(mysql));
-  }
-  DIE_UNLESS(mysql_errno(mysql) == err);
-}
-
-static void test_drop_temp() {
-  int rc;
-
-  myheader("test_drop_temp");
-
-  rc = mysql_query(mysql, "DROP DATABASE IF EXISTS test_drop_temp_db");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "CREATE DATABASE test_drop_temp_db");
-  myquery(rc);
-
-  rc = mysql_query(mysql,
-                   "CREATE TABLE test_drop_temp_db.t1(c1 int, c2 char(1))");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "delete from mysql.db where Db='test_drop_temp_db'");
-  myquery(rc);
-
-  rc = mysql_query(mysql, "delete from mysql.db where Db='test_drop_temp_db'");
-  myquery(rc);
-
-  strxmov(query, "CREATE USER test_temp@", opt_host ? opt_host : "localhost");
-  rc = mysql_query(mysql, query);
-  myquery(rc);
-
-  strxmov(query,
-          "GRANT SELECT, USAGE, DROP ON test_drop_temp_db.* TO test_temp@",
-          opt_host ? opt_host : "localhost", NullS);
-
-  if (mysql_query(mysql, query)) {
-    myerror("GRANT failed");
-
-    /*
-       If server started with --skip-grant-tables, skip this test, else
-       exit to indicate an error
-
-       ER_UNKNOWN_COM_ERROR= 1047
-     */
-    if (mysql_errno(mysql) != 1047) exit(1);
-  } else {
-    MYSQL *org_mysql = mysql, *lmysql;
-
-    if (!opt_silent) fprintf(stdout, "\n Establishing a test connection ...");
-    if (!(lmysql = mysql_client_init(NULL))) {
-      myerror("mysql_client_init() failed");
-      exit(1);
-    }
-
-    rc = mysql_query(mysql, "flush privileges");
-    myquery(rc);
-
-    if (!(mysql_real_connect(lmysql, opt_host ? opt_host : "localhost",
-                             "test_temp", "", "test_drop_temp_db", opt_port,
-                             opt_unix_socket, 0))) {
-      mysql = lmysql;
-      myerror("connection failed");
-      mysql_close(lmysql);
-      exit(1);
-    }
-    lmysql->reconnect = 1;
-    if (!opt_silent) fprintf(stdout, "OK");
-
-    mysql = lmysql;
-    rc = mysql_query(mysql, "INSERT INTO t1 VALUES(10, 'C')");
-    myerrno((uint)1142);
-
-    rc = mysql_query(mysql, "DROP TABLE t1");
-    myerrno((uint)1142);
-
-    mysql = org_mysql;
-    rc = mysql_query(mysql,
-                     "CREATE TEMPORARY TABLE test_drop_temp_db.t1(c1 int)");
-    myquery(rc);
-
-    rc = mysql_query(mysql,
-                     "CREATE TEMPORARY TABLE test_drop_temp_db.t2 LIKE "
-                     "test_drop_temp_db.t1");
-    myquery(rc);
-
-    mysql = lmysql;
-
-    rc = mysql_query(mysql, "DROP TABLE t1, t2");
-    myquery_r(rc);
-
-    rc = mysql_query(mysql, "DROP TEMPORARY TABLE t1");
-    myquery_r(rc);
-
-    rc = mysql_query(mysql, "DROP TEMPORARY TABLE t2");
-    myquery_r(rc);
-
-    mysql_close(lmysql);
-    mysql = org_mysql;
-
-    rc = mysql_query(mysql, "drop database test_drop_temp_db");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-
-    rc = mysql_query(mysql, "delete from mysql.user where User='test_temp'");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-
-    rc = mysql_query(mysql,
-                     "delete from mysql.tables_priv where User='test_temp'");
-    myquery(rc);
-    DIE_UNLESS(1 == mysql_affected_rows(mysql));
-  }
-}
-#endif
 
 /* Test warnings for truncated rows */
 
@@ -20279,9 +20148,6 @@ static struct my_tests_st my_tests[] = {
     {"test_view_sp_list_fields", test_view_sp_list_fields},
     {"client_query", client_query},
     {"test_prepare_insert_update", test_prepare_insert_update},
-#ifdef NOT_YET_WORKING
-    {"test_drop_temp", test_drop_temp},
-#endif
     {"test_fetch_seek", test_fetch_seek},
     {"test_fetch_nobuffs", test_fetch_nobuffs},
     {"test_open_direct", test_open_direct},

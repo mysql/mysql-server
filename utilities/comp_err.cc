@@ -28,10 +28,6 @@
 */
 
 /*
-  Written by Anjuta Widenius
-*/
-
-/*
   Creates one include file and multiple language-error message files from one
   multi-language text file.
 */

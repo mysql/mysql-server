@@ -22,20 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* mysql command tool
- * Commands compatible with mSQL by David J. Hughes
- *
- * Written by:
- *   Michael 'Monty' Widenius
- *   Andi Gutmans  <andi@zend.com>
- *   Zeev Suraski  <zeev@zend.com>
- *   Jani Tolonen  <jani@mysql.com>
- *   Matt Wagner   <matt@mysql.com>
- *   Jeremy Cole   <jcole@mysql.com>
- *   Tonu Samuel   <tonu@mysql.com>
- *   Harrison Fisk <harrison@mysql.com>
- *
- **/
+// mysql command tool
 
 #include "my_config.h"
 

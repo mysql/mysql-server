@@ -22,9 +22,9 @@
 
 /**
   @file
-
-  @brief
-  Functions for easy reading of records, possible through a cache
+  Implementations of basic iterators, ie. those that have no children
+  and don't take any refs (they typically read directly from a table
+  in some way). See row_iterator.h.
 */
 
 #include "sql/records.h"

@@ -24,8 +24,8 @@
   @file
 
   @brief
-  subselect Item
-
+  Implements the subselect Item, used when there is a subselect in a
+  SELECT list, WHERE, etc.
 */
 
 #include "sql/item_subselect.h"

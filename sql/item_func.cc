@@ -24,7 +24,7 @@
   @file
 
   @brief
-  This file defines all numerical functions
+  This file defines all numerical Items
 */
 
 #include "sql/item_func.h"
@@ -3592,8 +3592,6 @@ longlong Item_func_bit_count::val_int() {
 
 /****************************************************************************
 ** Functions to handle dynamic loadable functions
-** Original source by: Alexis Mikhailov <root@medinf.chuvashia.su>
-** Rewritten by monty.
 ****************************************************************************/
 
 void udf_handler::cleanup() {

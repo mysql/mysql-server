@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* variable declarations are in sys_vars.cc now !!! */
-
 #include "sql/set_var.h"
 
 #include <string.h>

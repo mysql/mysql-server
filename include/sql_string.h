@@ -23,10 +23,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* This file is originally from the mysql distribution. Coded by monty */
-
 /**
   @file include/sql_string.h
+  Our own string classes, used pervasively throughout the executor.
+  See in particular the comment on String before you use anything from here.
 */
 
 #include <string.h>

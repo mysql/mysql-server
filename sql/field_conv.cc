@@ -22,12 +22,7 @@
 
 /**
   @file
-
-  @brief
-  Functions to copy data to or from fields
-
-    This could be done with a single short function but opencoding this
-    gives much more speed.
+  Functions to copy data to or from fields.
 */
 
 #include <string.h>

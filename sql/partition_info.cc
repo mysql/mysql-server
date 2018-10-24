@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Some general useful functions */
-
 #include "sql/partition_info.h"  // LIST_PART_ENTRY
 
 #include <limits.h>

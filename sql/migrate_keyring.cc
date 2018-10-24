@@ -30,10 +30,6 @@
 
 using std::string;
 
-/**
-  Standard constructor
-*/
-
 Migrate_keyring::Migrate_keyring() {
   m_source_plugin_handle = nullptr;
   m_destination_plugin_handle = nullptr;

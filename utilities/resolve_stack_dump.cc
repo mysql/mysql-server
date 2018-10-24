@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Resolve numeric stack dump produced by mysqld 3.23.30 and later
-   versions into symbolic names. By Sasha Pachev <sasha@mysql.com>
+/**
+  Resolve numeric stack dump into symbolic names.
+  FIXME: This should just be removed, as MySQL symbolizes itself these days.
  */
 
 #include "my_config.h"
@@ -30,7 +31,7 @@
 #include <fcntl.h>
 #include <mysql_version.h>
 #include <stdarg.h>
-#include <stdio.h>  // Needed on SunOS 5.10
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <string>

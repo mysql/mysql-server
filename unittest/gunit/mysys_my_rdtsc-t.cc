@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,6 @@
 
 /*
   rdtsc3 -- multi-platform timer code
-  pgulutzan@mysql.com, 2005-08-29
-  modified 2008-11-02
 
   When you run rdtsc3, it will print the contents of
   "my_timer_info". The display indicates

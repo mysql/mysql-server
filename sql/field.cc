@@ -22,11 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/**
-  @file sql/field.cc
-  This file implements classes defined in field.h.
-*/
-
 #include "sql/field.h"
 
 #include "my_config.h"

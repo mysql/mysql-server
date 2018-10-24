@@ -3641,9 +3641,6 @@ double Item_variance_field::val_real() {
 
 /****************************************************************************
 ** Functions to handle dynamic loadable aggregates
-** Original source by: Alexis Mikhailov <root@medinf.chuvashia.su>
-** Adapted for UDAs by: Andreas F. Bobak <bobak@relog.ch>.
-** Rewritten by: Monty.
 ****************************************************************************/
 
 bool Item_udf_sum::itemize(Parse_context *pc, Item **res) {

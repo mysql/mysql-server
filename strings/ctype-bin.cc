@@ -27,7 +27,16 @@
    Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA 02110-1301  USA */
 
-/* This file is for binary pseudo charset, created by bar@mysql.com */
+/**
+  @file ctype-bin.cc
+  The “binary” pseudo-charset. binary is special in that it's not really
+  a character set; conversions from another charset _to_ binary means
+  “erase the charset information” and conversions _from_ binary to another
+  charset means “interpret these bytes as the destination charset”.
+  In other words, in no event are the bytes changed; you can think of
+  binary as the charset equivalent of void * that you can cast through.
+  Needless to say, this also means that using it can be rather dangerous.
+ */
 
 #include <string.h>
 #include <sys/types.h>

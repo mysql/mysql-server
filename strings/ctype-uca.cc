@@ -28,12 +28,6 @@
 
 /*
    UCA (Unicode Collation Algorithm) support.
-   Written by Alexander Barkov <bar@mysql.com>
-
-   Currently supports only subset of the full UCA:
-   - Only Primary level key comparison
-   - Basic Latin letters contraction is implemented
-   - Variable weighting is done for Non-ignorable option
 
    Features that are not implemented yet:
    - No Normalization From D is done

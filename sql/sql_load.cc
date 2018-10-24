@@ -21,8 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Copy data from a textfile to table */
-/* 2006-12 Erik Wetterberg : LOAD XML added */
+/* Copy data from a text file to table */
 
 #include "sql/sql_load.h"
 

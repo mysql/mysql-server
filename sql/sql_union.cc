@@ -30,8 +30,6 @@
   An example of 2) is:
 
     (SELECT * FROM t1 ORDER BY a LIMIT 10) ORDER BY b LIMIT 5
-
-  UNION's  were introduced by Monty and Sinisa <sinisa@mysql.com>
 */
 
 #include "sql/sql_union.h"
