@@ -191,7 +191,7 @@ static void test_bootstrap() {
 
   psi = thread_boot->get_interface(0);
   ok(psi == NULL, "no thread version 0");
-  psi = thread_boot->get_interface(PSI_THREAD_VERSION_1);
+  psi = thread_boot->get_interface(PSI_THREAD_VERSION_2);
   ok(psi != NULL, "thread version 1");
 
   psi = mutex_boot->get_interface(0);
@@ -359,7 +359,7 @@ static void load_perfschema(
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
       &data_lock_boot, &system_boot);
   *thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
+      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
   *mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   *rwlock_service =
@@ -1871,7 +1871,7 @@ static void test_event_name_index() {
   ok(data_lock_boot != NULL, "data_lock_bootstrap");
 
   thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
+      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
   ok(thread_service != NULL, "thread_service");
   mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
