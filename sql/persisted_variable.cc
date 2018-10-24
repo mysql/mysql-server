@@ -344,6 +344,15 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
                      [str](st_persist_var const &s) { return s.key == str; });
     if (it != m_persist_variables.end()) m_persist_variables.erase(it);
     m_persist_variables.push_back(tmp_var);
+    /* for plugin variables update m_persist_plugin_variables */
+    if (setvar->var->cast_pluginvar()) {
+      auto it = std::find_if(
+          m_persist_plugin_variables.begin(), m_persist_plugin_variables.end(),
+          [str](st_persist_var const &s) { return s.key == str; });
+      if (it != m_persist_plugin_variables.end())
+        m_persist_plugin_variables.erase(it);
+      m_persist_plugin_variables.push_back(tmp_var);
+    }
   }
   unlock();
 }
