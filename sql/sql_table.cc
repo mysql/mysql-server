@@ -11700,21 +11700,19 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
 }
 
 /**
- * Removes secondary engine definition of a table if SECONDARY_ENGINE = NULL.
- *
- * Will also attempt to unload the table from its existing secondary engine.
+ * Unloads table from secondary engine if SECONDARY_ENGINE = NULL.
  *
  * @param thd               Thread handler.
  * @param table             Table opened in primary storage engine.
  * @param create_info       Information from the parsing phase about new
  *                          table properties.
- * @param altered_table_def Table definition of the table.
+ * @param old_table_def     Definition of table before the alter statement.
  *
  * @return True if error, false otherwise.
  */
 static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
                                     const HA_CREATE_INFO &create_info,
-                                    dd::Table *altered_table_def) {
+                                    const dd::Table &old_table_def) {
   // Nothing to do if no secondary engine defined for the table.
   if (table.table->s->secondary_engine.str == nullptr) return false;
 
@@ -11730,12 +11728,8 @@ static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
                                            thd->variables.lock_wait_timeout))
     return true;
 
-  if (secondary_engine_unload_table(thd, table.db, table.table_name,
-                                    *altered_table_def))
-    return true;
-
-  altered_table_def->options().remove("secondary_engine");
-  return false;
+  return secondary_engine_unload_table(thd, table.db, table.table_name,
+                                       old_table_def);
 }
 
 /**
@@ -15188,7 +15182,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(table_def);
   }
 
-  if (remove_secondary_engine(thd, *table_list, *create_info, table_def))
+  if (remove_secondary_engine(thd, *table_list, *create_info, *old_table_def))
     goto err_new_table_cleanup;
 
   if (  // Tablespace specified in ALTER
