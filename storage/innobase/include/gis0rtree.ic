@@ -168,6 +168,11 @@ void rtr_read_mbr(const byte *data, /*!< in: data */
     (reinterpret_cast<double *>(mbr))[i] =
         mach_double_read(data + i * sizeof(double));
   }
+
+  ut_ad(mbr->xmin == DBL_MAX || mbr->xmax == -DBL_MAX ||
+        mbr->xmin <= mbr->xmax);
+  ut_ad(mbr->ymin == DBL_MAX || mbr->ymax == -DBL_MAX ||
+        mbr->ymin <= mbr->ymax);
 }
 
 /** Returns the R-Tree node stored in the parent search path

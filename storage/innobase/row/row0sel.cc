@@ -5932,10 +5932,8 @@ dberr_t row_count_rtree_recs(
 
   ret = row_search_mvcc(buf, PAGE_CUR_WITHIN, prebuilt, 0, 0);
 
-  /* TODO: This is for a temporary fix, will be removed later */
-  if (prebuilt->rtr_info != nullptr) {
-    prebuilt->rtr_info->is_dup = &is_dup;
-  }
+  prebuilt->rtr_info->is_dup = &is_dup;
+
 loop:
   /* Check thd->killed every 1,000 scanned rows */
   if (--cnt == 0) {
@@ -5959,6 +5957,9 @@ loop:
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:
+      /* This may be pointing to a local variable. */
+      prebuilt->rtr_info->is_dup = nullptr;
+
       prebuilt->search_tuple = search_entry;
       ut_free(buf);
       mem_heap_free(heap);
