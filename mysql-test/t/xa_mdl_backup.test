@@ -14,6 +14,7 @@ CREATE TABLE t1 (a INT);
 --echo # Query the table t1 in order to load its definition into the data dictionary cache.
 --echo # It is required in order to get consistent result for quering from performance_schema.metadata_locks
 --echo # when the test case is run both with and without the option --ps-protocol
+--sorted_result
 SELECT * FROM t1;
 XA START 'test';
 INSERT INTO t1 VALUES (10);
@@ -25,7 +26,9 @@ XA PREPARE 'test';
 disconnect con1;
 --source include/wait_until_disconnected.inc
 connection default;
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -34,9 +37,11 @@ XA RECOVER;
 --echo
 --echo # Commit XA and check lock status.
 XA COMMIT 'test';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -47,6 +52,7 @@ CREATE TABLE t1 (a INT);
 --echo # Query the table t1 in order to load its definition into the data dictionary cache.
 --echo # It is required in order to get consistent result for quering from performance_schema.metadata_locks
 --echo # when the test case is run both with and without the option --ps-protocol
+--sorted_result
 SELECT * FROM t1;
 XA START 'test';
 INSERT INTO t1 VALUES (10);
@@ -58,7 +64,9 @@ XA PREPARE 'test';
 disconnect con1;
 --source include/wait_until_disconnected.inc
 connection default;
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -67,9 +75,11 @@ XA RECOVER;
 --echo
 --echo # Rollback XA and check lock status.
 XA ROLLBACK 'test';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -80,6 +90,7 @@ CREATE TABLE t1 (a INT);
 --echo # Query the table t1 in order to load its definition into the data dictionary cache.
 --echo # It is required in order to get consistent result for quering from performance_schema.metadata_locks
 --echo # when the test case is run both with and without the option --ps-protocol
+--sorted_result
 SELECT * FROM t1;
 XA START 'test';
 INSERT INTO t1 VALUES (10);
@@ -87,6 +98,7 @@ XA END 'test';
 XA PREPARE 'test';
 
 connect (con2, localhost, root, ,test);
+--sorted_result
 SELECT * FROM t1;
 --send DROP TABLE t1
 connection default;
@@ -98,6 +110,7 @@ connection con1;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 connection default;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -108,6 +121,7 @@ XA RECOVER;
 XA COMMIT 'test';
 let $wait_condition=SELECT count(*) = 0 from performance_schema.metadata_locks where object_name='t1';
 --source include/wait_condition.inc
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
@@ -133,7 +147,9 @@ disconnect con1;
 connection default;
 --let $restart_parameters=restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -142,9 +158,11 @@ XA RECOVER;
 --echo
 --echo # Commit XA and check lock status.
 XA COMMIT 'test';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -165,7 +183,9 @@ disconnect con1;
 connection default;
 --let $restart_parameters=restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -174,9 +194,11 @@ XA RECOVER;
 --echo
 --echo # Rollback XA and check lock status.
 XA ROLLBACK 'test';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
+--sorted_result
 SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -190,8 +212,11 @@ CREATE TABLE t3 (a INT);
 --echo # Query the tables t1, t2, t3 in order to load their definitions into the data dictionary cache.
 --echo # It is required in order to get consistent result for quering from performance_schema.metadata_locks
 --echo # when the test case is run both with and without the option --ps-protocol
+--sorted_result
 SELECT * FROM t1;
+--sorted_result
 SELECT * FROM t2;
+--sorted_result
 SELECT * FROM t3;
 connect (con1, localhost, root, ,test);
 XA START 'test1';
@@ -218,6 +243,7 @@ disconnect con1;
 --source include/wait_until_disconnected.inc
 
 connection default;
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -226,6 +252,7 @@ XA RECOVER;
 --echo
 --echo # Commit second XA and check lock status.
 XA COMMIT 'test2';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
@@ -233,6 +260,7 @@ DROP TABLE t2;
 
 --echo # Commit First XA
 XA COMMIT 'test1';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
@@ -240,6 +268,7 @@ DROP TABLE t1;
 
 --echo # Commit Last XA
 XA COMMIT 'test3';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
@@ -271,6 +300,7 @@ disconnect con1;
 connection default;
 --let $restart_parameters=restart:--log_error_verbosity=1 --performance-schema-instrument='wait/lock/metadata/sql/mdl=1'
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 SHOW TABLES;
 --sorted_result
@@ -279,6 +309,7 @@ XA RECOVER;
 --echo
 --echo # Commit First XA
 XA COMMIT 'test1';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
@@ -287,6 +318,7 @@ DROP TABLE t1;
 --echo
 --echo # Commit second XA
 XA COMMIT 'test2';
+--sorted_result
 SELECT object_type, object_schema, object_name, lock_type, lock_duration, lock_status FROM performance_schema.metadata_locks WHERE object_schema = 'test';
 --sorted_result
 XA RECOVER;
