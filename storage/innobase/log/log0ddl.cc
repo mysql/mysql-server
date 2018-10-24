@@ -1544,11 +1544,6 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     undo::spaces->x_unlock();
   }
 
-  /* Require the mutex to block key rotation. Please note that
-  here we don't know if this tablespace is encrypted or not,
-  so just acquire the mutex unconditionally. */
-  mutex_enter(&master_key_id_mutex);
-
   if (thd != nullptr) {
     /* For general tablespace, MDL on SDI tables is already
     acquired at innobase_drop_tablespace() and for file_per_table
@@ -1557,6 +1552,11 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     dict_sdi_remove_from_cache(space_id, NULL, true);
     mutex_exit(&dict_sys->mutex);
   }
+
+  /* Require the mutex to block key rotation. Please note that
+  here we don't know if this tablespace is encrypted or not,
+  so just acquire the mutex unconditionally. */
+  mutex_enter(&master_key_id_mutex);
 
   DBUG_EXECUTE_IF("ddl_log_replay_delete_space_crash_before_drop",
                   DBUG_SUICIDE(););
