@@ -5248,7 +5248,7 @@ sub check_warnings ($) {
       }
     } elsif ($proc->{timeout}) {
       $tinfo->{comment} .= "Timeout for 'check warnings' expired after " .
-        check_timeout($tinfo) . " seconds";
+        testcase_timeout($tinfo) . " seconds\n";
       $result = 4;
     } else {
       # Unknown process returned, most likley a crash, abort everything

@@ -8,7 +8,8 @@
 #
 # BUG#24643036 BINLOG_SENDER DOES NOT REDUCE SIZE OF SEND BUFFER AS EXPECTED
 #
-
+# Check-warnings times out on Sparc
+--source include/not_sparc_debug.inc
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
