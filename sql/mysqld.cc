@@ -5567,6 +5567,8 @@ static int init_server_components() {
     if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
       time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
                           expire_logs_days * 24 * 60 * 60;
+      DBUG_EXECUTE_IF("expire_logs_always_at_start",
+                      { purge_time = my_time(0); });
       mysql_bin_log.purge_logs_before_date(purge_time, true);
     }
   } else {

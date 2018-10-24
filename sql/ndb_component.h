@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,11 @@ public:
   */
   void set_server_started();
 
+  /*
+    Check if the server has started. This checks if the Ndb_component
+    has been informed that the server has started.
+   */
+  bool is_server_started();
 protected:
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own

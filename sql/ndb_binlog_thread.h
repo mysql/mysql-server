@@ -25,6 +25,9 @@
 #ifndef NDB_BINLOG_THREAD_H
 #define NDB_BINLOG_THREAD_H
 
+#include <string>
+#include <vector>
+#include <mutex>
 #include "sql/ndb_component.h"
 #include "sql/ndb_binlog_hooks.h"
 
@@ -35,6 +38,7 @@ class Ndb_binlog_thread : public Ndb_component
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
+  bool remember_pending_purge(const char *file);
 private:
   virtual int do_init();
   virtual void do_run();
@@ -59,7 +63,9 @@ private:
   };
   bool check_reconnect_incident(THD* thd, class injector* inj,
                                 Reconnect_type incident_id) const;
-
+  void recall_pending_purges(THD* thd);
+  std::mutex m_purge_mutex;
+  std::vector<std::string> m_pending_purges;
 };
 
 #endif
