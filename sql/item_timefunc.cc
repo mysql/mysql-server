@@ -26,9 +26,6 @@
 
   @brief
   This file defines all time functions
-
-  @todo
-    Move month and days to language files
 */
 
 #include "sql/item_timefunc.h"

@@ -24,7 +24,7 @@
   @file sql/item_cmpfunc.cc
 
   @brief
-  This file defines all compare functions
+  This file defines all Items that compare values (e.g. >=, ==, LIKE, etc.)
 */
 
 #include "sql/item_cmpfunc.h"

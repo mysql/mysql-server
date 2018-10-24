@@ -2,25 +2,11 @@
 #
 # Concurrent tests for transactional storage engines, mainly in UPDATE's
 # Bug#3300
-# Designed and tested by Sinisa Milivojevic, sinisa@mysql.com
 #
 # These variables have to be set before sourcing this script:
 #   TRANSACTION ISOLATION LEVEL      REPEATABLE READ or READ COMMITTED
 #   $engine_type                     storage engine to be tested
 #
-# Last update:
-# 2009-02-13 HH "Release_lock("hello")" is now also successful when delivering NULL,
-#               replaced two sleeps by wait_condition. The last two "sleep 1" have not been
-#               replaced as all tried wait conditions leaded to nondeterministic results, especially
-#               to succeeding concurrent updates. To replace the sleeps there should be some time
-#               planned (or internal knowledge of the server may help).
-# 2006-08-02 ML test refactored
-#               old name was t/innodb_concurrent.test
-#               main code went into include/concurrent.inc
-# 2008-06-03 KP test refactored; removed name locks, added comments.
-#               renamed wrapper t/concurrent_innodb.test ->
-#                           t/concurrent_innodb_unsafelog.test
-#               new wrapper t/concurrent_innodb_safelog.test
 #
 
 connection default;

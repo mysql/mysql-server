@@ -23,7 +23,8 @@
 /**
   @file
   @brief
-  This file defines ST_Buffer function.
+  This file contains the implementation for the Item that implements
+  ST_Buffer().
 */
 
 #include <ctype.h>

@@ -26,7 +26,7 @@
    Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA 02110-1301  USA */
 
-/* UCS2 support. Written by Alexander Barkov <bar@mysql.com> */
+// UCS-2 support.
 
 #include <errno.h>
 #include <limits.h>

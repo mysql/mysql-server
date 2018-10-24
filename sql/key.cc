@@ -20,7 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* Functions to handle keys and fields in forms */
+// Functions to handle KEY objects, ie., our internal representation of
+// keys as used in SQL indexes.
 
 #include "sql/key.h"  // key_rec_cmp
 

@@ -25,9 +25,6 @@
 
   @brief
   logging of commands
-
-  @todo
-    Abort logging when we get an error in reading or writing log files
 */
 
 #include "sql/log.h"

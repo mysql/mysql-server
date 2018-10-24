@@ -23,7 +23,8 @@
 /** @file sql/handler.cc
 
     @brief
-  Handler-calling-functions
+    Implements functions in the handler interface that are shared between all
+    storage engines.
 */
 
 #include "sql/handler.h"

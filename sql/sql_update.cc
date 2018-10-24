@@ -20,10 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Single table and multi table updates of tables.
-  Multi-table updates were introduced by Sinisa & Monty
-*/
+// Handle UPDATE queries (both single- and multi-table).
 
 #include "sql/sql_update.h"
 

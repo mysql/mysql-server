@@ -20,10 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Derived tables
-  These were introduced by Sinisa <sinisa@mysql.com>
-*/
+// Support for derived tables.
 
 #include "sql/sql_derived.h"
 

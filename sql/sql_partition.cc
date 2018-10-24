@@ -22,18 +22,10 @@
 
 /*
   This file is a container for general functionality related
-  to partitioning introduced in MySQL version 5.1. It contains functionality
-  used by all handlers that support partitioning, such as
-  the partitioning handler itself and the NDB handler.
-  (Much of the code in this file has been split into partition_info.cc and
-   the header files partition_info.h + partition_element.h + sql_partition.h)
-
-  The first version was written by Mikael Ronstrom 2004-2006.
-  Various parts of the optimizer code was written by Sergey Petrunia.
-  Code have been maintained by Mattias Jonsson.
-  The second version was written by Mikael Ronstrom 2006-2007 with some
-  final fixes for partition pruning in 2008-2009 with assistance from Sergey
-  Petrunia and Mattias Jonsson.
+  to partitioning. It contains functionality used by all handlers that
+  support partitioning, such as the partitioning handler itself and the NDB
+  handler. (Much of the code in this file has been split into partition_info.cc
+  and the header files partition_info.h + partition_element.h + sql_partition.h)
 
   The first version supports RANGE partitioning, LIST partitioning, HASH
   partitioning and composite partitioning (hereafter called subpartitioning)
@@ -49,8 +41,6 @@
   as the partition value. By comparing the concatenation of these values
   the proper partition can be choosen.
 */
-
-/* Some general useful functions */
 
 #include "sql/sql_partition.h"
 

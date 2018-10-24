@@ -26,11 +26,7 @@
   @file sql/item_strfunc.cc
 
   @brief
-  This file defines all string functions
-
-  @warning
-    Some string functions don't always put and end-null on a String.
-    (This shouldn't be needed)
+  This file defines all string Items (e.g. CONCAT).
 */
 
 #include "sql/item_strfunc.h"

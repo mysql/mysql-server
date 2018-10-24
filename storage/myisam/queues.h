@@ -25,9 +25,8 @@
 
 /**
   @file storage/myisam/queues.h
-  Code for handling of priority Queues.
+  Code for handling of priority queues.
   Implementation of queues from "Algoritms in C" by Robert Sedgewick.
-  By monty.
 */
 
 #include <stddef.h>

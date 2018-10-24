@@ -20,11 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  Delete of records tables.
-
-  Multi-table deletes were introduced by Monty and Sinisa
-*/
+// Handle DELETE queries (both single- and multi-table).
 
 #include "sql/sql_delete.h"
 

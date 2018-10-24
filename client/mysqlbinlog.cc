@@ -23,9 +23,6 @@
 */
 
 /*
-
-   TODO: print the catalog (some USE catalog.db ????).
-
    Standalone program to read a MySQL binary log (or relay log).
 
    Should be able to read any file of these categories, even with

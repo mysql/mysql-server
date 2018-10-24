@@ -26,9 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/* This file is for Chinese character sets GB18030-2005, created by Bin Su
-   (bin.x.su@oracle.com)
-*/
+// This file is for Chinese character sets GB18030-2005.
 
 #include <string.h>
 #include <sys/types.h>
