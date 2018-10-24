@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #ifndef NDB_BINLOG_THREAD_H
 #define NDB_BINLOG_THREAD_H
 
+#include <string>
+#include <vector>
 #include "ndb_component.h"
 
 class Ndb_binlog_thread : public Ndb_component
@@ -25,12 +27,16 @@ class Ndb_binlog_thread : public Ndb_component
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
+  bool remember_pending_purge(const char *file);
 private:
-  virtual int do_init() { return 0;}
+  virtual int do_init();
   virtual void do_run();
-  virtual int do_deinit() { return 0;}
+  virtual int do_deinit();
   // Wake up for stop
   virtual void do_wakeup();
+  void recall_pending_purges(THD* thd);
+  mysql_mutex_t m_purge_mutex;
+  std::vector<std::string> m_pending_purges;
 };
 
 #endif
