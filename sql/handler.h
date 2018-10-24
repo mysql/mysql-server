@@ -6403,8 +6403,8 @@ class ha_tablespace_statistics {
 
   ulonglong m_id;
   dd::String_type m_type;
-  dd::String_type m_logfile_group_name;  // Cluster
-  ulonglong m_logfile_group_number;      // Cluster
+  dd::String_type m_logfile_group_name;  // NDB only
+  ulonglong m_logfile_group_number;      // NDB only
   ulonglong m_free_extents;
   ulonglong m_total_extents;
   ulonglong m_extent_size;
@@ -6415,6 +6415,7 @@ class ha_tablespace_statistics {
   dd::String_type m_row_format;  // NDB only
   ulonglong m_data_free;         // InnoDB
   dd::String_type m_status;
+  dd::String_type m_extra;  // NDB only
 };
 
 #endif /* HANDLER_INCLUDED */

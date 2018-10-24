@@ -119,7 +119,7 @@ def	information_schema	FILES	UPDATE_TIME	34	NULL	YES	binary	0	0	NULL	NULL	NULL	N
 def	information_schema	FILES	CHECK_TIME	35	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	CHECKSUM	36	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	STATUS	37	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	FILES	EXTRA	38	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
+def	information_schema	FILES	EXTRA	38	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
 def	information_schema	KEYWORDS	WORD	1	NULL	YES	varchar	29	87	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(29)			select			NULL
 def	information_schema	KEYWORDS	RESERVED	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select			NULL
 def	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
@@ -571,7 +571,7 @@ NULL	information_schema	FILES	UPDATE_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECK_TIME	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	CHECKSUM	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	FILES	STATUS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-NULL	information_schema	FILES	EXTRA	binary	0	0	NULL	NULL	binary(0)
+3.0000	information_schema	FILES	EXTRA	varchar	256	768	utf8	utf8_general_ci	varchar(256)
 3.0000	information_schema	KEYWORDS	WORD	varchar	29	87	utf8	utf8_general_ci	varchar(29)
 NULL	information_schema	KEYWORDS	RESERVED	int	NULL	NULL	NULL	NULL	int(11)
 3.0000	information_schema	KEY_COLUMN_USAGE	CONSTRAINT_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)

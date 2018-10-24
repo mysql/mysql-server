@@ -113,12 +113,6 @@ ndb.ndb_alter_table_error : Need WL#9185 MySQL Cluster support for new DD
 # Problem with different metadata in NDB dictionary and DD
 ndb.ndb_dist_priv_bug_13340854 : BUG#26434578 NDB_DIST_PRIV_BUG_13340854 TEST FAILS WITH MYSQLD CRASHING
 
-# mysqldump fails to dump logfilegroups and partitions, thus the dump
-# is incomplete and tables in tablespaces cant be restored by running
-# the dumped sql file. This problem probably need both bug#26794727 as
-# well as WL#9185
-ndb.ndb_dd_dump : Needs WL#9185 MySQL Cluster support for new DD
-
 # Problem with table present in DD and not in SE
 ndb.ndb_restore_schema_rewrites : Need WL#9185 MySQL Cluster support for new DD
 

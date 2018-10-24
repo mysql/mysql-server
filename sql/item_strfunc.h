@@ -1527,6 +1527,28 @@ class Item_func_internal_tablespace_row_format : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_internal_tablespace_extra : public Item_str_func {
+ public:
+  Item_func_internal_tablespace_extra(const POS &pos, Item *a, Item *b, Item *c,
+                                      Item *d)
+      : Item_str_func(pos, a, b, c, d) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null = 1;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "internal_tablespace_extra"; }
+
+  String *val_str(String *) override;
+};
+
 class Item_func_convert_cpu_id_mask final : public Item_str_func {
  public:
   Item_func_convert_cpu_id_mask(const POS &pos, Item *list)

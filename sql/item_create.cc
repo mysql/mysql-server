@@ -1705,7 +1705,9 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"INTERNAL_TABLESPACE_DATA_FREE",
      SQL_FN_INTERNAL(Item_func_internal_tablespace_data_free, 4)},
     {"INTERNAL_TABLESPACE_STATUS",
-     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)}};
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)},
+    {"INTERNAL_TABLESPACE_EXTRA",
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_extra, 4)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;

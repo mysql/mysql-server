@@ -117,7 +117,9 @@ Files::Files() {
   m_target_def.add_field(FIELD_STATUS, "STATUS",
                          "INTERNAL_TABLESPACE_STATUS(ts.name, tsf.file_name, "
                          "ts.engine, ts.se_private_data)");
-  m_target_def.add_field(FIELD_EXTRA, "EXTRA", "NULL");
+  m_target_def.add_field(FIELD_EXTRA, "EXTRA",
+                         "INTERNAL_TABLESPACE_EXTRA(ts.name, tsf.file_name, "
+                         "ts.engine, ts.se_private_data)");
 
   m_target_def.add_from("mysql.tablespaces ts");
   m_target_def.add_from(

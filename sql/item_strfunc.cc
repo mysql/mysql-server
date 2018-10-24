@@ -4502,6 +4502,28 @@ String *Item_func_internal_tablespace_row_format::val_str(String *str) {
   DBUG_RETURN(nullptr);
 }
 
+String *Item_func_internal_tablespace_extra::val_str(String *str) {
+  DBUG_ENTER("Item_func_internal_tablespace_extra::val_str");
+  dd::String_type result;
+
+  THD *thd = current_thd;
+  retrieve_tablespace_statistics(thd, args, &null_value);
+  if (null_value == false) {
+    thd->lex->m_IS_tablespace_stats.get_stat(
+        dd::info_schema::enum_tablespace_stats_type::TS_EXTRA, &result);
+    if (result.length())
+      str->copy(result.c_str(), result.length(), system_charset_info);
+    else {
+      null_value = true;
+      DBUG_RETURN(nullptr);
+    }
+
+    DBUG_RETURN(str);
+  }
+
+  DBUG_RETURN(nullptr);
+}
+
 /**
   @brief
     This function prepares string representing se_private_data for tablespace.

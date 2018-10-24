@@ -31,6 +31,7 @@
 #include "sql/ha_ndbcluster.h"
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 
@@ -18853,7 +18854,8 @@ int ndbcluster_alter_tablespace(handlerton*,
 static
 bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
                                           const char *file_name,
-                                          const dd::Properties &ts_se_private_data,
+                                          const dd::Properties
+                                            &ts_se_private_data,
                                           ha_tablespace_statistics *stats)
 {
   DBUG_ENTER("ndbcluster_get_tablespace_statistics");
@@ -18926,6 +18928,9 @@ bool ndbcluster_get_tablespace_statistics(const char *tablespace_name,
     stats->m_initial_size= uf.getSize();
     stats->m_maximum_size= uf.getSize();
     stats->m_version= uf.getObjectVersion();
+    std::stringstream extra;
+    extra << "UNDO_BUFFER_SIZE=" << lfg.getUndoBufferSize();
+    stats->m_extra= extra.str().c_str();
 
     DBUG_RETURN(false);
   }

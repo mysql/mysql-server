@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,6 +79,7 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
     case enum_tablespace_stats_type::TS_LOGFILE_GROUP_NAME:
     case enum_tablespace_stats_type::TS_ROW_FORMAT:
     case enum_tablespace_stats_type::TS_STATUS:
+    case enum_tablespace_stats_type::TS_EXTRA:
       DBUG_ASSERT(!"Should not hit here");
       return;
   }
@@ -105,6 +106,10 @@ void Tablespace_statistics::get_stat(enum_tablespace_stats_type stype,
 
     case enum_tablespace_stats_type::TS_STATUS:
       *result = m_stats.m_status;
+      return;
+
+    case enum_tablespace_stats_type::TS_EXTRA:
+      *result = m_stats.m_extra;
       return;
 
     case enum_tablespace_stats_type::TS_ID:
