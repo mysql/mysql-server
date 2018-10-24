@@ -23,12 +23,13 @@ ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 5K
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
-ERROR HY000: Failed to create UNDOFILE
+ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1296	Undofile size rounded down to kernel page size
 Warning	1296	Got error 1516 'File too small' from NDB
-Warning	1296	Failed to create undofile 'undofile.dat' in NDB
-Error	1528	Failed to create UNDOFILE
+Warning	1296	Failed to commit NDB schema transaction
+Error	1528	Failed to create LOGFILE GROUP
 set default_storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -243,7 +244,7 @@ ERROR HY000: Failed to alter: DROP DATAFILE FAILED
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
-Warning	1296	Failed to drop datafile 'datafile2_1.dat' from NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1533	Failed to alter: DROP DATAFILE FAILED
 drop table t1;
 alter tablespace ts2
@@ -701,6 +702,6 @@ ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
-Warning	1296	Failed to create logfile group 'lg1' in NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1528	Failed to create LOGFILE GROUP
 SET SESSION information_schema_stats_expiry=default;

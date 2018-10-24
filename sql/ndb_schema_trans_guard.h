@@ -39,7 +39,8 @@ class Ndb_schema_trans_guard {
   bool m_comitted{false};
 
  public:
-  Ndb_schema_trans_guard(Thd_ndb *thd_ndb, NdbDictionary::Dictionary *dict)
+  Ndb_schema_trans_guard(const Thd_ndb *thd_ndb,
+                         NdbDictionary::Dictionary *dict)
       : m_thd_ndb(thd_ndb), m_dict(dict) {}
 
   ~Ndb_schema_trans_guard() {

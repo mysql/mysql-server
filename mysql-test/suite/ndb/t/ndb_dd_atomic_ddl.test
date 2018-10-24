@@ -1,0 +1,139 @@
+--source include/have_ndb.inc
+--source include/have_debug.inc
+
+# Test to check the atomicity of disk data DDL statements.
+#
+# There are two types of failures tested for LOGFILE GROUP by setting the following debug options:
+# 1. ndb_dd_client_*_fail - Causes the storage of the logfile group object in DD to fail
+# 2. ndb_schema_trans_commit_fail - Causes the storage of the logfile group object in NDB to fail
+#
+# TABLESPACE failures in NDB alone are tested below using the ndb_schema_trans_commit_fail
+# debug option
+
+SET @save_debug = @@global.debug;
+
+SET GLOBAL debug = '+d,ndb_dd_client_install_logfile_group_fail,ndb_schema_trans_commit_fail';
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE 1M
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_dd_client_install_logfile_group_fail';
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE 1M
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE 1M
+  ENGINE NDB;
+
+SET GLOBAL debug = '+d,ndb_dd_client_install_undo_file_fail,ndb_schema_trans_commit_fail';
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_dd_client_install_undo_file_fail';
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+ALTER LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile2.dat'
+  ENGINE NDB;
+
+SET GLOBAL debug = '+d,ndb_schema_trans_commit_fail';
+
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+SET GLOBAL debug = '+d,ndb_schema_trans_commit_fail';
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+
+SET GLOBAL debug = '+d,ndb_schema_trans_commit_fail';
+
+--error ER_ALTER_FILEGROUP_FAILED
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+
+SET GLOBAL debug = '+d,ndb_schema_trans_commit_fail';
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE ts1;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+DROP TABLESPACE ts1;
+
+SET GLOBAL debug = '+d,ndb_dd_client_drop_logfile_group_fail,ndb_schema_trans_commit_fail';
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_dd_client_drop_logfile_group_fail';
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+SHOW WARNINGS;
+
+SET GLOBAL debug = '-d,ndb_schema_trans_commit_fail';
+
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+SET @@global.debug = @save_debug;

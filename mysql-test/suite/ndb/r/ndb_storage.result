@@ -20,7 +20,7 @@ ERROR HY000: Failed to alter: DROP DATAFILE FAILED
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
-Warning	1296	Failed to drop datafile 'ts1_datafile.dat' from NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1533	Failed to alter: DROP DATAFILE FAILED
 ALTER TABLE t5 STORAGE memory;
 ALTER TABLESPACE ts1
@@ -45,7 +45,7 @@ ERROR HY000: Failed to alter: DROP DATAFILE FAILED
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 770 'Cant drop file, file is used' from NDB
-Warning	1296	Failed to drop datafile 'ts1_datafile.dat' from NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1533	Failed to alter: DROP DATAFILE FAILED
 ALTER TABLE t5 CHANGE t5b t5b int STORAGE memory;
 ALTER TABLESPACE ts1

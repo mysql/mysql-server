@@ -18371,6 +18371,11 @@ bool drop_logfile_group_from_NDB(const char* logfile_group_name,
                               can adjust this object. The updated information
                               will be saved to the data-dictionary.
 
+  @note  The new_ts_def object is only altered for tablespace DDL. This
+         object is then saved to the DD by the caller. In case of logfile
+         groups, a new DD object is created and saved to the DD all within
+         the scope of this function
+
   @return Operation status.
     @retval == 0  Success.
     @retval != 0  Error, only a subset of handler error codes (i.e those
@@ -18418,36 +18423,31 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
+    Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+    if (!schema_trans.begin_trans())
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     int object_id, object_version;
     if (!create_tablespace_in_NDB(alter_info, dict, thd_ndb,
                                   object_id, object_version))
     {
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("info", ("Successfully created tablespace '%s' in NDB",
-                        alter_info->tablespace_name));
 
     if (!create_datafile_in_NDB(alter_info, dict, thd_ndb))
     {
-      // Clean up the tablespace created above
-      NdbDictionary::Tablespace ndb_ts =
-        dict->getTablespace(alter_info->tablespace_name);
-      if (ndb_dict_check_NDB_error(dict) == false &&
-          ndb_ts.getObjectId() == object_id &&
-          ndb_ts.getObjectVersion() == object_version)
-      {
-        if (dict->dropTablespace(ndb_ts))
-        {
-          thd_ndb->push_ndb_error_warning(dict->getNdbError());
-          thd_ndb->push_warning("Failed to drop tablespace '%s' after failed "
-                                "creation of datafile '%s'",
-                                alter_info->tablespace_name,
-                                alter_info->data_file_name);
-        }
-      }
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("info", ("Successfully created datafile '%s' in NDB",
+
+    if (!schema_trans.commit_trans())
+    {
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "TABLESPACE");
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created tablespace '%s' and datafile "
+                        "'%s' in NDB", alter_info->tablespace_name,
                         alter_info->data_file_name));
 
     // Set se_private_id and se_private_data for the tablespace
@@ -18482,8 +18482,20 @@ int ndbcluster_alter_tablespace(handlerton*,
         DBUG_RETURN(1);
       }
 
+      Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+      if (!schema_trans.begin_trans())
+      {
+        DBUG_RETURN(HA_ERR_NO_CONNECTION);
+      }
+
       if (!create_datafile_in_NDB(alter_info, dict, thd_ndb))
       {
+        DBUG_RETURN(1);
+      }
+
+      if (!schema_trans.commit_trans())
+      {
+        my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "CREATE DATAFILE FAILED");
         DBUG_RETURN(1);
       }
       DBUG_PRINT("info", ("Successfully created datafile '%s' in NDB",
@@ -18492,10 +18504,22 @@ int ndbcluster_alter_tablespace(handlerton*,
     }
     case ALTER_TABLESPACE_DROP_FILE:
     {
+      Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+      if (!schema_trans.begin_trans())
+      {
+        DBUG_RETURN(HA_ERR_NO_CONNECTION);
+      }
+
       if (!drop_datafile_from_NDB(alter_info->tablespace_name,
                                   alter_info->data_file_name,
                                   dict, thd_ndb))
       {
+        DBUG_RETURN(1);
+      }
+
+      if (!schema_trans.commit_trans())
+      {
+        my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "DROP DATAFILE FAILED");
         DBUG_RETURN(1);
       }
       DBUG_PRINT("info", ("Successfully dropped datafile '%s' from NDB",
@@ -18564,49 +18588,50 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
+    Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+    if (!schema_trans.begin_trans())
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     int object_id, object_version;
     if (!create_logfile_group_in_NDB(alter_info, dict, thd_ndb,
                                      object_id, object_version))
     {
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("info", ("Successfully created logfile group '%s' in NDB",
-                        alter_info->logfile_group_name));
 
     if (!create_undofile_in_NDB(alter_info, dict, thd_ndb))
     {
-      // Clean up the logfile group created above
-      NdbDictionary::LogfileGroup ndb_lg =
-        dict->getLogfileGroup(alter_info->logfile_group_name);
-      if (ndb_dict_check_NDB_error(dict) == false &&
-          ndb_lg.getObjectId() == object_id &&
-          ndb_lg.getObjectVersion() == object_version)
-      {
-        if (dict->dropLogfileGroup(ndb_lg))
-        {
-          thd_ndb->push_ndb_error_warning(dict->getNdbError());
-          thd_ndb->push_warning("Failed to drop logfile group '%s' after "
-                                "failed creation of undofile '%s'",
-                                alter_info->logfile_group_name,
-                                alter_info->undo_file_name);
-        }
-      }
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("info", ("Successfully created undofile '%s' in NDB",
-                        alter_info->undo_file_name));
 
     // Add Logfile Group entry to the DD as a tablespace
     std::vector<std::string> undofile_names = {alter_info->undo_file_name};
     if (!dd_client.install_logfile_group(alter_info->logfile_group_name,
                                          undofile_names, object_id,
                                          object_version,
-                                         false /* force_overwrite */))
+                                         false /* force_overwrite */) ||
+        DBUG_EVALUATE_IF("ndb_dd_client_install_logfile_group_fail",
+                         true, false))
     {
       thd_ndb->push_warning("Logfile group '%s' could not be stored in DD",
                             alter_info->logfile_group_name);
-      break;
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
     }
+
+    // Objects created in NDB and DD. Time to commit NDB schema transaction
+    if (!schema_trans.commit_trans())
+    {
+      my_error(ER_CREATE_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully created logfile group '%s' and undofile "
+                        "'%s' in NDB", alter_info->logfile_group_name,
+                        alter_info->undo_file_name));
+
+    // NDB schema transaction committed successfully, safe to commit in DD
     dd_client.commit();
 
     if (!schema_dist_client.create_logfile_group(alter_info->logfile_group_name,
@@ -18641,22 +18666,40 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
+    Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+    if (!schema_trans.begin_trans())
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     if (!create_undofile_in_NDB(alter_info, dict, thd_ndb))
     {
+      DBUG_RETURN(1);
+    }
+
+    // Update Logfile Group entry in the DD
+    if (!dd_client.install_undo_file(alter_info->logfile_group_name,
+                                     alter_info->undo_file_name) ||
+        DBUG_EVALUATE_IF("ndb_dd_client_install_undo_file_fail",
+                         true, false))
+    {
+      thd_ndb->push_warning("Undofile '%s' could not be added to logfile "
+                            "group '%s' in DD", alter_info->undo_file_name,
+                            alter_info->logfile_group_name);
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "CREATE UNDOFILE FAILED");
+      DBUG_RETURN(1);
+    }
+
+    // Objects created in NDB and DD. Time to commit NDB schema transaction
+    if (!schema_trans.commit_trans())
+    {
+      my_error(ER_ALTER_FILEGROUP_FAILED, MYF(0), "CREATE UNDOFILE FAILED");
       DBUG_RETURN(1);
     }
     DBUG_PRINT("info", ("Successfully created undofile '%s' in NDB",
                         alter_info->undo_file_name));
 
-    // Update Logfile Group entry in the DD
-    if (!dd_client.install_undo_file(alter_info->logfile_group_name,
-                                     alter_info->undo_file_name))
-    {
-      thd_ndb->push_warning("Undofile '%s' could not be added to logfile "
-                            "group '%s' in DD", alter_info->undo_file_name,
-                            alter_info->logfile_group_name);
-      break;
-    }
+    // NDB schema transaction committed successfully, safe to commit in DD
     dd_client.commit();
 
     NdbDictionary::LogfileGroup ndb_lg =
@@ -18688,10 +18731,21 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
+    Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+    if (!schema_trans.begin_trans())
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     int object_id, object_version;
     if (!drop_tablespace_from_NDB(alter_info->tablespace_name, dict, thd_ndb,
                                   object_id, object_version))
     {
+      DBUG_RETURN(1);
+    }
+    if (!schema_trans.commit_trans())
+    {
+      my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "TABLESPACE");
       DBUG_RETURN(1);
     }
     DBUG_PRINT("info", ("Successfully dropped tablespace '%s' from NDB",
@@ -18723,22 +18777,40 @@ int ndbcluster_alter_tablespace(handlerton*,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
 
+    Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+    if (!schema_trans.begin_trans())
+    {
+      DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
     int object_id, object_version;
     if (!drop_logfile_group_from_NDB(alter_info->logfile_group_name,
                                      dict, thd_ndb, object_id, object_version))
     {
       DBUG_RETURN(1);
     }
-    DBUG_PRINT("info", ("Successfully dropped logfile group '%s' from NDB",
-                        alter_info->logfile_group_name));
 
     // Drop Logfile Group entry from the DD
-    if (!dd_client.drop_logfile_group(alter_info->logfile_group_name))
+    if (!dd_client.drop_logfile_group(alter_info->logfile_group_name) ||
+        DBUG_EVALUATE_IF("ndb_dd_client_drop_logfile_group_fail",
+                         true, false))
     {
       thd_ndb->push_warning("Logfile group '%s' could not be dropped from DD",
                             alter_info->logfile_group_name);
-      break;
+      my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
     }
+
+    // Objects dropped from NDB and DD. Time to commit NDB schema transaction
+    if (!schema_trans.commit_trans())
+    {
+      my_error(ER_DROP_FILEGROUP_FAILED, MYF(0), "LOGFILE GROUP");
+      DBUG_RETURN(1);
+    }
+    DBUG_PRINT("info", ("Successfully dropped logfile group '%s' from NDB",
+                        alter_info->logfile_group_name));
+
+    // NDB schema transaction committed successfully, safe to commit in DD
     dd_client.commit();
 
     if (!schema_dist_client.drop_logfile_group(alter_info->logfile_group_name,

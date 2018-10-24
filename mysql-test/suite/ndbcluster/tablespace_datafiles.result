@@ -29,7 +29,12 @@ DROP DATAFILE 'ts1_datafile2.dat';
 ERROR HY000: Tablespace 'ts1' does not have a file named 'ts1_datafile2.dat'
 DROP TABLESPACE ts1;
 CREATE TABLESPACE ts1 ADD DATAFILE 'MYSQLTEST_VARDIR/tmp/t1.dat' USE LOGFILE GROUP lg1 INITIAL_SIZE 1M ENGINE NDB;
-ERROR HY000: Failed to create DATAFILE
+ERROR HY000: Failed to create TABLESPACE
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 1509 'File system error, check if path,permissions etc' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1528	Failed to create TABLESPACE
 CREATE TABLESPACE ts1
 ADD DATAFILE 'ts1_datafile.dat'
   USE LOGFILE GROUP lg1

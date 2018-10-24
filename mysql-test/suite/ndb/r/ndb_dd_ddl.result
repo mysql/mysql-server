@@ -14,7 +14,7 @@ ERROR HY000: Failed to create LOGFILE GROUP
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 1514 'Currently there is a limit of one logfile group' from NDB
-Warning	1296	Failed to create logfile group 'lg2' in NDB
+Warning	1296	Failed to commit NDB schema transaction
 Error	1528	Failed to create LOGFILE GROUP
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -231,14 +231,14 @@ DROP LOGFILE GROUP lg1
 ENGINE NDB;
 **** End = And No =  ****
 create logfile group lg1 add undofile 'MYSQLTEST_VARDIR/tmp/t1.dat' initial_size 1M undo_buffer_size = 1M engine=ndb;;
-ERROR HY000: Failed to create UNDOFILE
+ERROR HY000: Failed to create LOGFILE GROUP
 create logfile group lg1
 add undofile 'undofile.dat'
 initial_size 1M
 undo_buffer_size = 1M
 engine=ndb;
 create tablespace ts1 add datafile 'MYSQLTEST_VARDIR/tmp/t1.dat' use logfile group lg1 initial_size 1M engine ndb;;
-ERROR HY000: Failed to create DATAFILE
+ERROR HY000: Failed to create TABLESPACE
 drop tablespace ts1
 engine ndb;
 ERROR HY000: Tablespace ts1 doesn't exist.
