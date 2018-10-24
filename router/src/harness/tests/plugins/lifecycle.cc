@@ -64,7 +64,8 @@ using mysql_harness::PluginFuncEnv;
 using mysql_harness::kRuntimeError;
 
 const int kExitCheckInterval = 1;
-const int kPersistDuration = 100;
+const int kExitOnStopShortTimeout = 100;
+const int kExitOnStopLongTimeout = 60 * 1000;
 
 ////////////////////////////////////////////////////////////////////////////////
 // ITC STUFF (InterThread Communication)
@@ -148,7 +149,8 @@ namespace {
 // (uninitialized memory often contains 0)
 enum ExitType {
   ET_EXIT = 123,
-  ET_EXIT_SLOW,
+  ET_EXIT_ON_STOP_SHORT_TIMEOUT,
+  ET_EXIT_ON_STOP_LONG_TIMEOUT,
   ET_EXIT_ON_STOP,
   ET_EXIT_ON_STOP_SYNC,
   ET_THROW,
@@ -178,6 +180,8 @@ void init_exit_strategies(const ConfigSection *section) {
     g_strategies[section->key].strategy_set = true;
   }
 
+  // clang-format off
+  //
   // Each function's behavior (exit strategy) is defined inside the
   // configuration file, one line per function. General definition form:
   //
@@ -185,14 +189,14 @@ void init_exit_strategies(const ConfigSection *section) {
   //
   // where <option> is one of:
   //   exit         - exit right away
-  //   exit_slow    - exit after a significant delay
+  //   exitonstop_shorttimeout - exit after stop() or short timeout
+  //   exitonstop_longtimeout  - exit after stop() or long timeout
   //   exitonstop   - exit after stop(), async polling (valid for start() only)
   //   exitonstop_s - exit after stop(), blocking      (valid for start() only)
   //   throw        - throw a typical exception (derived from std::exception)
-  //   throw_weird  - throw an unusual exception (not derived from
-  //   std::exception) error        - exit with error (like 'exit', but call
-  //   set_error() before exiting) error_empty  - like above, but set_error(...,
-  //   NULL)
+  //   throw_weird  - throw an unusual exception (not derived from std::exception)
+  //   error        - exit with error (like 'exit', but call set_error() before exiting)
+  //   error_empty  - like above, but set_error(..., NULL)
   //
   // Example configuration section:
   //
@@ -200,7 +204,9 @@ void init_exit_strategies(const ConfigSection *section) {
   //   init   = exit        # init() will exit
   //   start  = exitonstop  # start() will exit after it gets notified to do so
   //   stop   = throw       # stop() will throw
-  //   deinit = exit_slow   # deinit() will never exit
+  //   deinit = exitonstop_shorttimeout   # deinit() will never exit
+  //
+  // clang-format on
 
   // process configuration
   for (const std::string &func : {"init", "start", "stop", "deinit"}) {
@@ -208,8 +214,12 @@ void init_exit_strategies(const ConfigSection *section) {
       const std::string &line = section->get(func);
 
       // assign exit strategy
-      if (line.find("exit_slow") != std::string::npos) {
-        g_strategies[section->key].exit_type[func] = ET_EXIT_SLOW;
+      if (line.find("exitonstop_shorttimeout") != std::string::npos) {
+        g_strategies[section->key].exit_type[func] =
+            ET_EXIT_ON_STOP_SHORT_TIMEOUT;
+      } else if (line.find("exitonstop_longtimeout") != std::string::npos) {
+        g_strategies[section->key].exit_type[func] =
+            ET_EXIT_ON_STOP_LONG_TIMEOUT;
       } else if (line.find("throw_weird") != std::string::npos) {
         g_strategies[section->key].exit_type[func] = ET_THROW_WEIRD;
       } else if (line.find("throw") != std::string::npos) {
@@ -283,17 +293,36 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
       set_error(env, kRuntimeError, nullptr);
       return;
 
-    case ET_EXIT_SLOW:
-      log_info(notify, key_for_log, "  lifecycle:%s %s():EXIT_SLOW:sleeping",
+    case ET_EXIT_ON_STOP_SHORT_TIMEOUT:
+      log_info(notify, key_for_log,
+               "  lifecycle:%s %s():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping",
                key_for_log, func.c_str());
-      if (wait_for_stop(env, kPersistDuration))
+      if (wait_for_stop(env, kExitOnStopShortTimeout))
         log_info(notify, key_for_log,
-                 "  lifecycle:%s %s():EXIT_SLOW:done, stop request received",
+                 "  lifecycle:%s %s():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = "
+                 "true (stop request received)",
                  key_for_log, func.c_str());
       else
         log_info(notify, key_for_log,
-                 "  lifecycle:%s %s():EXIT_SLOW:done, timed out", key_for_log,
-                 func.c_str());
+                 "  lifecycle:%s %s():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = "
+                 "false (timed out)",
+                 key_for_log, func.c_str());
+      return;
+
+    case ET_EXIT_ON_STOP_LONG_TIMEOUT:
+      log_info(notify, key_for_log,
+               "  lifecycle:%s %s():EXIT_ON_STOP_LONG_TIMEOUT:sleeping",
+               key_for_log, func.c_str());
+      if (wait_for_stop(env, kExitOnStopLongTimeout))
+        log_info(notify, key_for_log,
+                 "  lifecycle:%s %s():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = "
+                 "true (stop request received)",
+                 key_for_log, func.c_str());
+      else
+        log_info(notify, key_for_log,
+                 "  lifecycle:%s %s():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = "
+                 "false (timed out)",
+                 key_for_log, func.c_str());
       return;
 
     case ET_EXIT_ON_STOP:
