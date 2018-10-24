@@ -13380,16 +13380,8 @@ int ndbcluster_discover(handlerton*, THD* thd,
       // table. It's likely the same error will occur if we attempt
       // to upgrade again so return an error instead
       my_printf_error(ER_NO,
-                      "Table '%s' with extra metadata version: %d "
-                      "was not upgraded properly during startup",
-                      MYF(0), name, version);
-
-      // The error returned from here is effectively ignored in
-      // Open_table_context::recover_from_failed_open(), abort to
-      // avoid infinite hang
-      ndb_log_error("INTERNAL ERROR: return code is ignored by caller, "
-                    "aborting to avoid infinite hang");
-      abort();
+                      "Failed to install table '%s' with extra metadata version"
+                      " %d", MYF(0), name, version);
 
       DBUG_RETURN(1); // Could not discover table
     }

@@ -138,7 +138,12 @@
 #   ST_GeometryFromWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9))))
 # );
 
-
+# Suppress expected warnings in the log due to table with old temporal types
+--disable_query_log
+call mtr.add_suppression("NDB: Table upgrade required");
+call mtr.add_suppression("NDB: Failed to create entry in DD for table");
+call mtr.add_suppression("NDB: Failed to install table");
+--enable_query_log
 
 #
 # Restore backup files (from little endian)
@@ -151,13 +156,16 @@
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
---disable_warnings
 SHOW CREATE TABLE t_num;
+# The `t_datetime` table is not expected to be usable. It contains old
+# temporal types which have been removed in 8.0. The upgrade of the
+# table metadata is not supported
+--error ER_NO
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---enable_warnings
+--error ER_NO
 SELECT * FROM t_datetime;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
@@ -166,11 +174,14 @@ SELECT ST_AsText(t_point), ST_AsText(t_linestring),ST_AsText(t_polygon) FROM t_g
 SELECT ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
 SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 
+# Clean up tables
+DROP TABLE t_num,t_string_1,t_string_2,t_gis;
+--exec $NDB_DROP_TABLE --no-defaults -d test t_datetime >> $NDB_TOOLS_OUTPUT
+
 #
 # Restore backup files (from big endian)
 #
 
-DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 
@@ -178,13 +189,13 @@ DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
---disable_warnings
 SHOW CREATE TABLE t_num;
+--error ER_NO
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---enable_warnings
+--error ER_NO
 SELECT * FROM t_datetime;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
@@ -193,6 +204,6 @@ SELECT ST_AsText(t_point), ST_AsText(t_linestring),ST_AsText(t_polygon) FROM t_g
 SELECT ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipolygon) FROM t_gis ORDER by t_pk;
 SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 
-DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
---source suite/ndb/include/backup_restore_cleanup.inc
+DROP TABLE t_num,t_string_1,t_string_2,t_gis;
+--exec $NDB_DROP_TABLE --no-defaults -d test t_datetime >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT
