@@ -607,6 +607,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   // Do partial cleanup (preserve plans for EXPLAIN).
   res = unit->cleanup(thd, false);
   lex->clear_values_map();
+  lex->set_secondary_engine_execution_context(nullptr);
 
   // Perform statement-specific cleanup for Query_result
   if (result != NULL) result->cleanup(thd);
@@ -640,6 +641,7 @@ err:
 
   (void)unit->cleanup(thd, false);
   lex->clear_values_map();
+  lex->set_secondary_engine_execution_context(nullptr);
 
   // Abort and cleanup the result set (if it has been prepared).
   if (result != NULL) {
@@ -703,6 +705,7 @@ static double accumulate_statement_cost(const LEX *lex) {
   @return true on error, false on success
 */
 static bool optimize_secondary_engine(THD *thd, LEX *lex) {
+  DBUG_ASSERT(lex->secondary_engine_execution_context() == nullptr);
   const handlerton *secondary_engine = lex->m_sql_cmd->secondary_engine();
   return secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine != nullptr &&
@@ -735,6 +738,7 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   // the Last_query_cost status variable.
   thd->m_current_query_cost = accumulate_statement_cost(lex);
 
+  // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd, lex)) return true;
 
   if (lex->is_explain()) {

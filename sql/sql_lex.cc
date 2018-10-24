@@ -30,6 +30,7 @@
 #include <algorithm>  // find_if, iter_swap, reverse
 
 #include "m_ctype.h"
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "mysql/mysql_lex_string.h"
@@ -4795,4 +4796,11 @@ void binlog_unsafe_map_init() {
   /* Case 13. */
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
          BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
+}
+
+void LEX::set_secondary_engine_execution_context(
+    Secondary_engine_execution_context *context) {
+  DBUG_ASSERT(m_secondary_engine_context == nullptr || context == nullptr);
+  destroy(m_secondary_engine_context);
+  m_secondary_engine_context = context;
 }

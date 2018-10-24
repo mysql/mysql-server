@@ -23,6 +23,7 @@
 #include "storage/secondary_engine_mock/ha_mock.h"
 
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <tuple>
@@ -36,12 +37,11 @@
 #include "mysql/plugin.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"
 #include "sql/table.h"
 #include "thr_lock.h"
-
-struct LEX;
-class THD;
 
 namespace dd {
 class Table;
@@ -85,6 +85,21 @@ class LoadedTables {
 };
 
 LoadedTables *loaded_tables{nullptr};
+
+/**
+  Execution context class for the MOCK engine. It allocates some data
+  on the heap when it is constructed, and frees it when it is
+  destructed, so that LeakSanitizer and Valgrind can detect if the
+  server doesn't destroy the object when the query execution has
+  completed.
+*/
+class Mock_execution_context : public Secondary_engine_execution_context {
+ public:
+  Mock_execution_context() : m_data(std::make_unique<char[]>(10)) {}
+
+ private:
+  std::unique_ptr<char[]> m_data;
+};
 
 }  // namespace
 
@@ -136,11 +151,18 @@ int ha_mock::unload_table(const char *db_name, const char *table_name) {
 
 }  // namespace mock
 
-static bool OptimizeSecondaryEngine(THD *, LEX *) {
+static bool OptimizeSecondaryEngine(THD *thd, LEX *lex) {
   DBUG_EXECUTE_IF("secondary_engine_mock_optimize_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
     return true;
   });
+
+  // Set an execution context for this statement. It is not used for
+  // anything, but allocating one makes it possible for LeakSanitizer
+  // and Valgrind to detect if the memory allocated in its constructor
+  // is not freed.
+  lex->set_secondary_engine_execution_context(new (thd->mem_root)
+                                                  Mock_execution_context);
   return false;
 }
 

@@ -2438,6 +2438,24 @@ class Disable_semijoin_flattening {
   bool saved_value;
 };
 
+/**
+  Base class for secondary engine execution context objects. Secondary
+  storage engines may create classes derived from this one which
+  contain state they need to preserve between optimization and
+  execution of statements. The context objects should be allocated on
+  the execution MEM_ROOT.
+*/
+class Secondary_engine_execution_context {
+ public:
+  /**
+    Destructs the secondary engine execution context object. It is
+    called after the query execution has completed. Secondary engines
+    may override the destructor in subclasses and add code that
+    performs cleanup tasks that are needed after query execution.
+  */
+  virtual ~Secondary_engine_execution_context() = default;
+};
+
 typedef struct struct_slave_connection {
   char *user;
   char *password;
@@ -4128,6 +4146,35 @@ struct LEX : public Query_tables_list {
   void clear_privileges();
 
   bool make_sql_cmd(Parse_tree_root *parse_tree);
+
+ private:
+  /**
+    Context object used by secondary storage engines to store query
+    state during optimization and execution.
+  */
+  Secondary_engine_execution_context *m_secondary_engine_context{nullptr};
+
+ public:
+  /**
+    Gets the secondary engine execution context for this statement.
+  */
+  Secondary_engine_execution_context *secondary_engine_execution_context()
+      const {
+    return m_secondary_engine_context;
+  }
+
+  /**
+    Sets the secondary engine execution context for this statement.
+    The old context object is destroyed, if there is one. Can be set
+    to nullptr to destroy the old context object and clear the
+    pointer.
+
+    The supplied context object should be allocated on the execution
+    MEM_ROOT, so that its memory doesn't have to be manually freed
+    after query execution.
+  */
+  void set_secondary_engine_execution_context(
+      Secondary_engine_execution_context *context);
 };
 
 /**
