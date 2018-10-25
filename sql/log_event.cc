@@ -10962,6 +10962,7 @@ class Table_map_log_event::Charset_iterator {
   typedef Table_map_event::Optional_metadata_fields::Default_charset
       Default_charset;
   virtual const CHARSET_INFO *next() = 0;
+  virtual ~Charset_iterator() = default;
 
   /**
     Factory method to create an instance of the appropriate subclass.
