@@ -5110,14 +5110,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   ut_d(dict_table_check_for_dup_indexes(m_prebuilt->table, CHECK_ABORTED_OK));
   ut_d(mutex_exit(&dict_sys->mutex));
 
-  if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
-      is_instant(ha_alter_info)) {
-    /* Nothing to do. Since there is no MDL protected, don't
-    try to drop aborted indexes here. */
-    DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
-    DBUG_RETURN(false);
-  }
-
   indexed_table = m_prebuilt->table;
 
   if (indexed_table->is_corrupted()) {
@@ -5126,10 +5118,24 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     DBUG_RETURN(true);
   }
 
-  if (dict_table_is_discarded(indexed_table) &&
-      innobase_need_rebuild(ha_alter_info)) {
-    my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
-    DBUG_RETURN(true);
+  if (dict_table_is_discarded(indexed_table)) {
+    Instant_Type type = innobase_support_instant(
+        ha_alter_info, m_prebuilt->table, this->table, altered_table);
+    /* Even if some operations can be done instantly without rebuilding, they
+    are still disallowed to behave like before. */
+    if (innobase_need_rebuild(ha_alter_info) ||
+        (type == Instant_Type::INSTANT_VIRTUAL_ONLY ||
+         type == Instant_Type::INSTANT_ADD_COLUMN)) {
+      my_error(ER_TABLESPACE_DISCARDED, MYF(0), indexed_table->name.m_name);
+      DBUG_RETURN(true);
+    }
+  }
+  if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) ||
+      is_instant(ha_alter_info)) {
+    /* Nothing to do. Since there is no MDL protected, don't
+    try to drop aborted indexes here. */
+    DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
+    DBUG_RETURN(false);
   }
 
   /* ALTER TABLE will not implicitly move a table from a single-table
