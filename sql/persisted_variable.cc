@@ -709,7 +709,9 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         res = new (thd->mem_root)
             Item_uint(iter->value.c_str(), (uint)iter->value.length());
         break;
+      case SHOW_SIGNED_INT:
       case SHOW_SIGNED_LONG:
+      case SHOW_SIGNED_LONGLONG:
         res = new (thd->mem_root)
             Item_int(iter->value.c_str(), (uint)iter->value.length());
         break;

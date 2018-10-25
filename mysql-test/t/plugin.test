@@ -407,3 +407,173 @@ if (`SELECT @@global.log_bin AND @@global.binlog_format = 'ROW'`)
   SET SESSION binlog_format= @saved_binlog_format;
   --enable_query_log
 }
+
+--echo #
+--echo # Bug #28534414: NEGATIVE NUMBERS IN PLUGIN VARIABLES
+--echo #                NOT DISPLAYED CORRECTLY
+--echo #
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
+
+SELECT * FROM performance_schema.global_status WHERE variable_name LIKE 'example_func_example' ORDER BY variable_name;
+
+#Test for signed int plugin global variable
+SHOW VARIABLES LIKE 'example_signed_int_var';
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = -2147483648;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = -100;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = 0;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = 100;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = 2147483647;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = -2147483649;
+SELECT @@GLOBAL.example_signed_int_var;
+
+SET GLOBAL example_signed_int_var = 2147483648;
+SELECT @@GLOBAL.example_signed_int_var;
+
+#Test for signed int plugin session variable
+SHOW SESSION VARIABLES LIKE 'example_signed_int_thdvar';
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = -2147483648;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = -100;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = 0;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = 100;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = 2147483647;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = -2147483649;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+SET SESSION example_signed_int_thdvar = 2147483648;
+SELECT @@SESSION.example_signed_int_thdvar;
+
+#Test for signed long plugin global variable
+SHOW VARIABLES LIKE 'example_signed_long_var';
+SELECT @@GLOBAL.example_signed_long_var;
+
+--disable_warnings
+
+SET GLOBAL example_signed_long_var = -9223372036854775808;
+SELECT @@GLOBAL.example_signed_long_var IN (-2147483648, -9223372036854775808);
+
+SET GLOBAL example_signed_long_var = -100;
+SELECT @@GLOBAL.example_signed_long_var;
+
+SET GLOBAL example_signed_long_var = 0;
+SELECT @@GLOBAL.example_signed_long_var;
+
+SET GLOBAL example_signed_long_var = 100;
+SELECT @@GLOBAL.example_signed_long_var;
+
+SET GLOBAL example_signed_long_var = 9223372036854775807;
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL example_signed_long_var = -9223372036854775809;
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+
+SET GLOBAL example_signed_long_var = 9223372036854775808;
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+
+#Test for signed long plugin session variable
+SHOW SESSION VARIABLES LIKE 'example_signed_long_thdvar';
+SELECT @@SESSION.example_signed_long_thdvar;
+
+SET SESSION example_signed_long_thdvar = -9223372036854775808;
+SELECT @@SESSION.example_signed_long_thdvar IN (-2147483648, -9223372036854775808);
+
+SET SESSION example_signed_long_thdvar = -100;
+SELECT @@SESSION.example_signed_long_thdvar;
+
+SET SESSION example_signed_long_thdvar = 0;
+SELECT @@SESSION.example_signed_long_thdvar;
+
+SET SESSION example_signed_long_thdvar = 100;
+SELECT @@SESSION.example_signed_long_thdvar;
+
+SET SESSION example_signed_long_thdvar = 9223372036854775807;
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION example_signed_long_thdvar = -9223372036854775809;
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+
+SET SESSION example_signed_long_thdvar = 9223372036854775808;
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+
+--enable_warnings
+
+#Test for signed longlong plugin global variable
+SHOW VARIABLES LIKE 'example_signed_longlong_var';
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = -9223372036854775808;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = -100;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = 0;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = 100;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = 9223372036854775807;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL example_signed_longlong_var = -9223372036854775809;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+SET GLOBAL example_signed_longlong_var = 9223372036854775808;
+SELECT @@GLOBAL.example_signed_longlong_var;
+
+#Test for signed longlong plugin session variable
+SHOW SESSION VARIABLES LIKE 'example_signed_longlong_thdvar';
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = -9223372036854775808;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = -100;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = 0;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = 100;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = 9223372036854775807;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET SESSION example_signed_longlong_thdvar = -9223372036854775809;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+SET SESSION example_signed_longlong_thdvar = 9223372036854775808;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+
+UNINSTALL PLUGIN example;

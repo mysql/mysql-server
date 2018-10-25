@@ -2539,6 +2539,11 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
       value_charset = system_charset_info;
       break;
 
+    case SHOW_SIGNED_LONGLONG:
+      end = longlong10_to_str(*(longlong *)value, buff, -10);
+      value_charset = system_charset_info;
+      break;
+
     case SHOW_HA_ROWS:
       end = longlong10_to_str((longlong) * (ha_rows *)value, buff, 10);
       value_charset = system_charset_info;
@@ -2556,6 +2561,11 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_INT:
       end = int10_to_str((long)*(uint32 *)value, buff, 10);
+      value_charset = system_charset_info;
+      break;
+
+    case SHOW_SIGNED_INT:
+      end = int10_to_str((long)*(int32 *)value, buff, -10);
       value_charset = system_charset_info;
       break;
 

@@ -73,6 +73,7 @@ struct st_plugin_int;
 #undef MYSQL_SYSVAR_NAME
 #define MYSQL_SYSVAR_NAME(name) name
 #define PLUGIN_VAR_TYPEMASK 0x007f
+#define PLUGIN_VAR_WITH_SIGN_TYPEMASK 0x00ff
 
 #define EXTRA_OPTIONS 3 /* options for: 'foo', 'plugin-foo' and NULL */
 
