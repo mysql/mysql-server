@@ -5317,6 +5317,9 @@ sub check_expected_crash_and_restart($$) {
         # Start server with same settings as last time
         mysqld_start($mysqld, $mysqld->{'started_opts'});
 
+        # Start secondary engine server.
+        start_secondary_engine_server() if $secondary_engine_support;
+
         load_table_contents(\&run_query, $mysqld, $tinfo)
           if $secondary_engine_support;
 
@@ -5673,9 +5676,6 @@ sub mysqld_arguments ($$$) {
 sub mysqld_start ($$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
-
-  # Start secondary engine server.
-  start_secondary_engine_server() if $secondary_engine_support;
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
@@ -6194,6 +6194,18 @@ sub start_servers($) {
     my $extra_opts = get_extra_opts($mysqld, $tinfo);
     mysqld_start($mysqld, $extra_opts);
 
+    if ($secondary_engine_support) {
+      check_plugin_dir($tinfo);
+
+      # Skip tests starting more than one server.
+      check_number_of_servers(\&mysqlds, $tinfo) if !$tinfo->{'skip'};
+
+      return 0 if $tinfo->{'skip'};
+
+      # Start secondary engine server.
+      start_secondary_engine_server();
+    }
+
     # Save this test case information, so next can examine it
     $mysqld->{'started_tinfo'} = $tinfo;
   }
@@ -6248,13 +6260,6 @@ sub start_servers($) {
   }
 
   if ($secondary_engine_support) {
-    check_plugin_dir($tinfo);
-
-    # Skip tests starting more than one server.
-    check_number_of_servers(\&mysqlds, $tinfo) if !$tinfo->{'skip'};
-
-    return 0 if $tinfo->{'skip'};
-
     # Install secondary engine plugin on all running mysqld servers.
     install_secondary_engine_plugin(\&mysqlds, \&run_query, $tinfo);
   }
