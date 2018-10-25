@@ -39,6 +39,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql_session.h"
+#include "print_version.h"
 #include "welcome_copyright_notice.h"
 
 #include <algorithm>
@@ -768,19 +769,10 @@ string MySQLRouter::get_version() noexcept {
 }
 
 string MySQLRouter::get_version_line() noexcept {
-  std::ostringstream os;
-  string edition{MYSQL_ROUTER_VERSION_EDITION};
+  std::string version_string;
+  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
 
-  os << MYSQL_ROUTER_PACKAGE_NAME << " v" << get_version();
-
-  os << " on " << MYSQL_ROUTER_PACKAGE_PLATFORM << " ("
-     << (MYSQL_ROUTER_PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") << ")";
-
-  if (!edition.empty()) {
-    os << " (" << edition << ")";
-  }
-
-  return os.str();
+  return version_string;
 }
 
 vector<string> MySQLRouter::check_config_files() {
