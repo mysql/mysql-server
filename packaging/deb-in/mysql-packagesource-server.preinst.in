@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-get_pcount () {
-	PSCOUNT=$(ps -ef | grep "/usr/sbin/mysqld" | wc -l)
-	echo "${PSCOUNT}"
-}
-
-server_stop () {
-	PSCOUNT=$(get_pcount)
-	COUNT=0
-	while :; do
-		COUNT=$(( COUNT+1 ))
-		echo -n .
-		if [ "${PSCOUNT}" -eq 1 ];
-		then
-			echo
-			break
-		fi
-		if [ "${COUNT}" -gt 15 ];
-		then
-			echo
-			return 1
-		fi
-		PSCOUNT=$(get_pcount)
-		sleep 1
-	done
-	return 0
-}
-
 case "$1" in
 	install)
 
@@ -57,11 +30,6 @@ case "$1" in
 
 		set -e
 
-		if [ -x "/etc/init.d/mysql" ];
-		then
-			invoke-rc.d mysql stop || exit $?
-			server_stop
-		fi
 		# Native 5.5 packages create a /var/run/mysqld owned by root. This can cause
 		# errors in the systemd service, so we reset ownership if it exists.
 		MYSQLRUN=/var/run/mysqld
@@ -76,13 +44,6 @@ case "$1" in
 	;;
 
 	upgrade)
-
-	set -e
-
-	#DEBHELPER#
-	server_stop
-
-	set +e
 
 	;;
 
