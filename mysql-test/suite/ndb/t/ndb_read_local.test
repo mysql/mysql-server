@@ -72,6 +72,7 @@ source suite/ndb/include/ndb_desc_print.inc;
 --source ndb_read_local.inc
 
 --exec $NDB_MGM --no-defaults --verbose=0 -e "all restart"
+--source include/ndb_not_readonly.inc
 let $ndb_desc_opts= -b -i -d test t2;
 source suite/ndb/include/ndb_desc_print.inc;
 --source ndb_read_local.inc
