@@ -151,14 +151,20 @@ bool plugin_var_memalloc_session_update(THD *thd, SYS_VAR *var, char **dest,
 }
 
 SHOW_TYPE pluginvar_show_type(SYS_VAR *plugin_var) {
-  switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+  switch (plugin_var->flags & PLUGIN_VAR_WITH_SIGN_TYPEMASK) {
     case PLUGIN_VAR_BOOL:
       return SHOW_MY_BOOL;
     case PLUGIN_VAR_INT:
+      return SHOW_SIGNED_INT;
+    case PLUGIN_VAR_INT | PLUGIN_VAR_UNSIGNED:
       return SHOW_INT;
     case PLUGIN_VAR_LONG:
+      return SHOW_SIGNED_LONG;
+    case PLUGIN_VAR_LONG | PLUGIN_VAR_UNSIGNED:
       return SHOW_LONG;
     case PLUGIN_VAR_LONGLONG:
+      return SHOW_SIGNED_LONGLONG;
+    case PLUGIN_VAR_LONGLONG | PLUGIN_VAR_UNSIGNED:
       return SHOW_LONGLONG;
     case PLUGIN_VAR_STR:
       return SHOW_CHAR_PTR;

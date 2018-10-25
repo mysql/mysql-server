@@ -22,7 +22,9 @@ enum enum_mysql_show_type {
   SHOW_LONG_NOFLUSH,
   SHOW_LONGLONG_STATUS,
   SHOW_LEX_STRING,
-  SHOW_SIGNED_LONG
+  SHOW_SIGNED_INT,
+  SHOW_SIGNED_LONG,
+  SHOW_SIGNED_LONGLONG
 };
 enum enum_mysql_show_scope {
   SHOW_SCOPE_UNDEF,

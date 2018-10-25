@@ -42,7 +42,7 @@ set global example_ulong_var=500;
 set global example_enum_var= e1;
 select * from performance_schema.global_status where variable_name like 'example%' order by variable_name;
 VARIABLE_NAME	VARIABLE_VALUE
-example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000
+example_func_example	enum_var is 0, ulong_var is 500, double_var is 8.500000, signed_int_var is -10, signed_long_var is -10, signed_longlong_var is -10
 example_status_array_var1	100
 example_status_array_var2	20.010000
 example_status_var3	three hundred
@@ -56,6 +56,12 @@ example_double_thdvar	8.500000
 example_double_var	8.500000
 example_enum_var	e1
 example_last_create_thdvar	Last creation 't1'
+example_signed_int_thdvar	-10
+example_signed_int_var	-10
+example_signed_long_thdvar	-10
+example_signed_long_var	-10
+example_signed_longlong_thdvar	-10
+example_signed_longlong_var	-10
 example_ulong_var	500
 UNINSTALL PLUGIN example;
 UNINSTALL PLUGIN EXAMPLE;
@@ -302,3 +308,232 @@ UNINSTALL PLUGIN example;
 DROP USER bug51770@localhost;
 INSTALL PLUGIN example SONAME '../ha_example.so';
 ERROR HY000: No paths allowed for shared library
+#
+# Bug #28534414: NEGATIVE NUMBERS IN PLUGIN VARIABLES
+#                NOT DISPLAYED CORRECTLY
+#
+INSTALL PLUGIN example SONAME 'ha_example.so';
+SELECT * FROM performance_schema.global_status WHERE variable_name LIKE 'example_func_example' ORDER BY variable_name;
+VARIABLE_NAME	VARIABLE_VALUE
+example_func_example	enum_var is 0, ulong_var is 8, double_var is 8.500000, signed_int_var is -10, signed_long_var is -10, signed_longlong_var is -10
+SHOW VARIABLES LIKE 'example_signed_int_var';
+Variable_name	Value
+example_signed_int_var	-10
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+-10
+SET GLOBAL example_signed_int_var = -2147483648;
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+-2147483648
+SET GLOBAL example_signed_int_var = -100;
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+-100
+SET GLOBAL example_signed_int_var = 0;
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+0
+SET GLOBAL example_signed_int_var = 100;
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+100
+SET GLOBAL example_signed_int_var = 2147483647;
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+2147483647
+SET GLOBAL example_signed_int_var = -2147483649;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_int_var value: '-2147483649'
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+-2147483648
+SET GLOBAL example_signed_int_var = 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_int_var value: '2147483648'
+SELECT @@GLOBAL.example_signed_int_var;
+@@GLOBAL.example_signed_int_var
+2147483647
+SHOW SESSION VARIABLES LIKE 'example_signed_int_thdvar';
+Variable_name	Value
+example_signed_int_thdvar	-10
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+-10
+SET SESSION example_signed_int_thdvar = -2147483648;
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+-2147483648
+SET SESSION example_signed_int_thdvar = -100;
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+-100
+SET SESSION example_signed_int_thdvar = 0;
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+0
+SET SESSION example_signed_int_thdvar = 100;
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+100
+SET SESSION example_signed_int_thdvar = 2147483647;
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+2147483647
+SET SESSION example_signed_int_thdvar = -2147483649;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_int_thdvar value: '-2147483649'
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+-2147483648
+SET SESSION example_signed_int_thdvar = 2147483648;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_int_thdvar value: '2147483648'
+SELECT @@SESSION.example_signed_int_thdvar;
+@@SESSION.example_signed_int_thdvar
+2147483647
+SHOW VARIABLES LIKE 'example_signed_long_var';
+Variable_name	Value
+example_signed_long_var	-10
+SELECT @@GLOBAL.example_signed_long_var;
+@@GLOBAL.example_signed_long_var
+-10
+SET GLOBAL example_signed_long_var = -9223372036854775808;
+SELECT @@GLOBAL.example_signed_long_var IN (-2147483648, -9223372036854775808);
+@@GLOBAL.example_signed_long_var IN (-2147483648, -9223372036854775808)
+1
+SET GLOBAL example_signed_long_var = -100;
+SELECT @@GLOBAL.example_signed_long_var;
+@@GLOBAL.example_signed_long_var
+-100
+SET GLOBAL example_signed_long_var = 0;
+SELECT @@GLOBAL.example_signed_long_var;
+@@GLOBAL.example_signed_long_var
+0
+SET GLOBAL example_signed_long_var = 100;
+SELECT @@GLOBAL.example_signed_long_var;
+@@GLOBAL.example_signed_long_var
+100
+SET GLOBAL example_signed_long_var = 9223372036854775807;
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+@@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807)
+1
+SET GLOBAL example_signed_long_var = -9223372036854775809;
+ERROR 42000: Incorrect argument type to variable 'example_signed_long_var'
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+@@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807)
+1
+SET GLOBAL example_signed_long_var = 9223372036854775808;
+SELECT @@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807);
+@@GLOBAL.example_signed_long_var IN (2147483647, 9223372036854775807)
+1
+SHOW SESSION VARIABLES LIKE 'example_signed_long_thdvar';
+Variable_name	Value
+example_signed_long_thdvar	-10
+SELECT @@SESSION.example_signed_long_thdvar;
+@@SESSION.example_signed_long_thdvar
+-10
+SET SESSION example_signed_long_thdvar = -9223372036854775808;
+SELECT @@SESSION.example_signed_long_thdvar IN (-2147483648, -9223372036854775808);
+@@SESSION.example_signed_long_thdvar IN (-2147483648, -9223372036854775808)
+1
+SET SESSION example_signed_long_thdvar = -100;
+SELECT @@SESSION.example_signed_long_thdvar;
+@@SESSION.example_signed_long_thdvar
+-100
+SET SESSION example_signed_long_thdvar = 0;
+SELECT @@SESSION.example_signed_long_thdvar;
+@@SESSION.example_signed_long_thdvar
+0
+SET SESSION example_signed_long_thdvar = 100;
+SELECT @@SESSION.example_signed_long_thdvar;
+@@SESSION.example_signed_long_thdvar
+100
+SET SESSION example_signed_long_thdvar = 9223372036854775807;
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+@@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807)
+1
+SET SESSION example_signed_long_thdvar = -9223372036854775809;
+ERROR 42000: Incorrect argument type to variable 'example_signed_long_thdvar'
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+@@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807)
+1
+SET SESSION example_signed_long_thdvar = 9223372036854775808;
+SELECT @@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807);
+@@SESSION.example_signed_long_thdvar IN (2147483647, 9223372036854775807)
+1
+SHOW VARIABLES LIKE 'example_signed_longlong_var';
+Variable_name	Value
+example_signed_longlong_var	-10
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+-10
+SET GLOBAL example_signed_longlong_var = -9223372036854775808;
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+-9223372036854775808
+SET GLOBAL example_signed_longlong_var = -100;
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+-100
+SET GLOBAL example_signed_longlong_var = 0;
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+0
+SET GLOBAL example_signed_longlong_var = 100;
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+100
+SET GLOBAL example_signed_longlong_var = 9223372036854775807;
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+9223372036854775807
+SET GLOBAL example_signed_longlong_var = -9223372036854775809;
+ERROR 42000: Incorrect argument type to variable 'example_signed_longlong_var'
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+9223372036854775807
+SET GLOBAL example_signed_longlong_var = 9223372036854775808;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_longlong_var value: '9223372036854775808'
+SELECT @@GLOBAL.example_signed_longlong_var;
+@@GLOBAL.example_signed_longlong_var
+9223372036854775807
+SHOW SESSION VARIABLES LIKE 'example_signed_longlong_thdvar';
+Variable_name	Value
+example_signed_longlong_thdvar	-10
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+-10
+SET SESSION example_signed_longlong_thdvar = -9223372036854775808;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+-9223372036854775808
+SET SESSION example_signed_longlong_thdvar = -100;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+-100
+SET SESSION example_signed_longlong_thdvar = 0;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+0
+SET SESSION example_signed_longlong_thdvar = 100;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+100
+SET SESSION example_signed_longlong_thdvar = 9223372036854775807;
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+9223372036854775807
+SET SESSION example_signed_longlong_thdvar = -9223372036854775809;
+ERROR 42000: Incorrect argument type to variable 'example_signed_longlong_thdvar'
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+9223372036854775807
+SET SESSION example_signed_longlong_thdvar = 9223372036854775808;
+Warnings:
+Warning	1292	Truncated incorrect example_signed_longlong_thdvar value: '9223372036854775808'
+SELECT @@SESSION.example_signed_longlong_thdvar;
+@@SESSION.example_signed_longlong_thdvar
+9223372036854775807
+UNINSTALL PLUGIN example;
