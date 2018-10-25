@@ -12292,12 +12292,13 @@ delete_stmt:
           opt_delete_options
           FROM
           table_ident
+          opt_table_alias
           opt_use_partition
           opt_where_clause
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6, $7, $8, $9);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6, $7, $8, $9, $10);
           }
         | opt_with_clause
           DELETE_SYM

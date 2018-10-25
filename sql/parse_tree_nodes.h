@@ -2115,6 +2115,7 @@ class PT_delete final : public Parse_tree_root {
   PT_hint_list *opt_hints;
   const int opt_delete_options;
   Table_ident *table_ident;
+  const char *const opt_table_alias;
   Mem_root_array_YY<Table_ident *> table_list;
   List<String> *opt_use_partition;
   Mem_root_array_YY<PT_table_reference *> join_table_list;
@@ -2127,12 +2128,14 @@ class PT_delete final : public Parse_tree_root {
   // single-table DELETE node constructor:
   PT_delete(PT_with_clause *with_clause_arg, PT_hint_list *opt_hints_arg,
             int opt_delete_options_arg, Table_ident *table_ident_arg,
+            const LEX_CSTRING &opt_table_alias_arg,
             List<String> *opt_use_partition_arg, Item *opt_where_clause_arg,
             PT_order *opt_order_clause_arg, Item *opt_delete_limit_clause_arg)
       : m_with_clause(with_clause_arg),
         opt_hints(opt_hints_arg),
         opt_delete_options(opt_delete_options_arg),
         table_ident(table_ident_arg),
+        opt_table_alias(opt_table_alias_arg.str),
         opt_use_partition(opt_use_partition_arg),
         opt_where_clause(opt_where_clause_arg),
         opt_order_clause(opt_order_clause_arg),
@@ -2151,6 +2154,7 @@ class PT_delete final : public Parse_tree_root {
         opt_hints(opt_hints_arg),
         opt_delete_options(opt_delete_options_arg),
         table_ident(NULL),
+        opt_table_alias(nullptr),
         table_list(table_list_arg),
         opt_use_partition(NULL),
         join_table_list(join_table_list_arg),
