@@ -11712,7 +11712,7 @@ static bool table_is_empty(TABLE *table, bool *is_empty) {
  */
 static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
                                     const HA_CREATE_INFO &create_info,
-                                    const dd::Table &old_table_def) {
+                                    const dd::Table *old_table_def) {
   // Nothing to do if no secondary engine defined for the table.
   if (table.table->s->secondary_engine.str == nullptr) return false;
 
@@ -11729,7 +11729,7 @@ static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
     return true;
 
   return secondary_engine_unload_table(thd, table.db, table.table_name,
-                                       old_table_def);
+                                       *old_table_def);
 }
 
 /**
@@ -15182,7 +15182,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(table_def);
   }
 
-  if (remove_secondary_engine(thd, *table_list, *create_info, *old_table_def))
+  if (remove_secondary_engine(thd, *table_list, *create_info, old_table_def))
     goto err_new_table_cleanup;
 
   if (  // Tablespace specified in ALTER
