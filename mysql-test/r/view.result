@@ -1485,7 +1485,6 @@ test.t1	check	status	OK
 drop table t1;
 check table v1;
 Table	Op	Msg_type	Msg_text
-test.v1	check	Error	Table 'test.t1' doesn't exist
 test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v1	check	error	Corrupt
 drop view v1;
@@ -2074,15 +2073,12 @@ CREATE VIEW v6 AS SELECT CONVERT_TZ(col1,'GMT','MET') FROM t2;
 DROP TABLE t1;
 CHECK TABLE v1, v2, v3, v4, v5, v6;
 Table	Op	Msg_type	Msg_text
-test.v1	check	Error	Table 'test.t1' doesn't exist
 test.v1	check	Error	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v1	check	error	Corrupt
 test.v2	check	status	OK
-test.v3	check	Error	Table 'test.t1' doesn't exist
 test.v3	check	Error	View 'test.v3' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v3	check	error	Corrupt
 test.v4	check	status	OK
-test.v5	check	Error	Table 'test.t1' doesn't exist
 test.v5	check	Error	View 'test.v5' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v5	check	error	Corrupt
 test.v6	check	status	OK

@@ -221,7 +221,6 @@ DROP TABLE t2;
 # Check that the view is now invalid.
 CHECK TABLE v2;
 Table	Op	Msg_type	Msg_text
-test.v2	check	Error	Table 'test.t2' doesn't exist
 test.v2	check	Error	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 test.v2	check	error	Corrupt
 # Copy files back into datadir

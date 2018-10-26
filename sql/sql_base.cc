@@ -894,6 +894,7 @@ static TABLE_SHARE *get_table_share_with_discover(
   if (ha_check_if_table_exists(thd, table_list->db, table_list->table_name,
                                &exists)) {
     thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
     /* Conventionally, the storage engine API does not report errors. */
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
   } else if (!exists) {
@@ -907,17 +908,20 @@ static TABLE_SHARE *get_table_share_with_discover(
     if (thd->is_error()) {
       if (table_list->parent_l) {
         thd->clear_error();
+        thd->get_stmt_da()->reset_condition_info(thd);
         my_error(ER_WRONG_MRG_TABLE, MYF(0));
       } else if (table_list->belong_to_view) {
         // Mention the top view in message, to not reveal underlying views.
         TABLE_LIST *view = table_list->belong_to_view;
         thd->clear_error();
+        thd->get_stmt_da()->reset_condition_info(thd);
         my_error(ER_VIEW_INVALID, MYF(0), view->view_db.str,
                  view->view_name.str);
       }
     }
   } else {
     thd->clear_error();
+    thd->get_stmt_da()->reset_condition_info(thd);
     *error = 7; /* Run auto-discover. */
   }
   DBUG_RETURN(NULL);

@@ -2686,7 +2686,6 @@ CREATE TEMPORARY TABLE t2 (c1 INT);
 ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists, t2);
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
 test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	optimize	error	Corrupt
 DROP TABLE t1, t2;
@@ -3596,7 +3595,6 @@ CREATE TABLE t1(a INT);
 ALTER TABLE t1 engine= MERGE UNION (t_not_exists);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	Error	Table 'test.t_not_exists' doesn't exist
 test.t1	analyze	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	analyze	error	Corrupt
 CHECK TABLE t1;
@@ -3608,11 +3606,9 @@ CHECKSUM TABLE t1;
 Table	Checksum
 test.t1	NULL
 Warnings:
-Error	1146	Table 'test.t_not_exists' doesn't exist
 Error	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	Error	Table 'test.t_not_exists' doesn't exist
 test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
 test.t1	optimize	error	Corrupt
 REPAIR TABLE t1;
