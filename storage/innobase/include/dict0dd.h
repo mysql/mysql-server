@@ -968,7 +968,7 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
 @param[in]	space_id	InnoDB tablespace ID
-@param[in]	tablespace_name	tablespace name to be set for the
+@param[in]	space_name	tablespace name to be set for the
                                 newly created tablespace
 @param[in]	filename	tablespace filename
 @param[in]	discarded	true if this tablespace was discarded
@@ -977,9 +977,8 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 @retval	true	on failure */
 bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
                                    THD *thd, space_id_t space_id,
-                                   const char *tablespace_name,
-                                   const char *filename, bool discarded,
-                                   dd::Object_id &dd_space_id);
+                                   const char *space_name, const char *filename,
+                                   bool discarded, dd::Object_id &dd_space_id);
 
 /** Drop a tablespace
 @param[in,out]	dd_client	data dictionary client
