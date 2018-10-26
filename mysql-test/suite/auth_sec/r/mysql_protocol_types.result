@@ -52,7 +52,7 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/general_connection_protocols.log'
 INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log where command_type='connect';
+SELECT argument FROM mysql.general_log where command_type='connect' and user_host not like '%mysql.session%';
 argument
 root@localhost on test using Socket
 root@localhost on test using Socket
