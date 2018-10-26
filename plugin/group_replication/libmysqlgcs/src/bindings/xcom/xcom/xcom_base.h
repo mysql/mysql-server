@@ -30,6 +30,10 @@
 extern "C" {
 #endif
 
+#ifndef _WIN32
+#include <netdb.h>
+#endif
+
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_input_request.h"
@@ -107,7 +111,9 @@ synode_no get_current_message();
 void start_run_tasks();
 
 int is_node_v4_reachable(char *node_address);
+int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info);
 int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
+struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved);
 
 #define RESET_CLIENT_MSG              \
   if (ep->client_msg) {               \
