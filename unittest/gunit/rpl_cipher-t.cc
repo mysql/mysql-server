@@ -54,7 +54,7 @@ struct Test_data_set {
       : source_ref(source_ref_arg),
         stream_size(stream_size_arg),
         encrypted_ref(encrypted_ref_arg),
-        key(key_arg){};
+        key(key_arg) {}
 };
 
 struct Random_test_data_set : public Test_data_set {
@@ -69,7 +69,7 @@ struct Random_test_data_set : public Test_data_set {
   Random_test_data_set(unsigned char *source_ref_arg, const int stream_size_arg)
       : Test_data_set(source_ref_arg, stream_size_arg) {
     my_rand_buffer(source_ref_arg, stream_size_arg);
-  };
+  }
 };
 
 /* Binlog issue */

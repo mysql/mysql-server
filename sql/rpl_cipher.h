@@ -69,7 +69,7 @@ typedef std::basic_string<unsigned char> Key_string;
 */
 class Rpl_cipher {
  public:
-  virtual ~Rpl_cipher(){};
+  virtual ~Rpl_cipher() {}
 
   /**
     Open the cipher with given password.
@@ -150,13 +150,13 @@ class Aes_ctr {
 
     @return SHA-512 message digest.
   */
-  static const EVP_MD *get_evp_md() { return EVP_sha512(); };
+  static const EVP_MD *get_evp_md() { return EVP_sha512(); }
   /**
     Returns the cipher to be uses when using the cipher.
 
     @return AES-256-CTR.
   */
-  static const EVP_CIPHER *get_evp_cipher() { return EVP_aes_256_ctr(); };
+  static const EVP_CIPHER *get_evp_cipher() { return EVP_aes_256_ctr(); }
   /**
     Returns a new unique Rpl_cipher encryptor.
 
@@ -186,7 +186,7 @@ class Aes_ctr_cipher : public Rpl_cipher {
   static const int AES_BLOCK_SIZE = Aes_ctr::AES_BLOCK_SIZE;
   static const int FILE_KEY_LENGTH = Aes_ctr::FILE_KEY_LENGTH;
 
-  virtual ~Aes_ctr_cipher();
+  virtual ~Aes_ctr_cipher() override;
 
   bool open(const Key_string &password, int header_size) override;
   void close() override;
