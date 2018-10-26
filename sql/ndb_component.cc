@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 */
 
 #include "ndb_component.h"
+
+extern bool mysqld_server_started;
+extern mysql_mutex_t LOCK_server_started;
 
 Ndb_component::Ndb_component(const char *name)
   : m_thread_state(TS_UNINIT),
@@ -178,6 +181,14 @@ void Ndb_component::log_error(const char *fmt, ...)
   va_end(args);
 }
 
+bool Ndb_component::is_server_started()
+{
+  bool server_started;
+  mysql_mutex_lock(&LOCK_server_started);
+  server_started = mysqld_server_started;
+  mysql_mutex_unlock(&LOCK_server_started);
+  return server_started;
+}
 
 void Ndb_component::log_warning(const char *fmt, ...)
 {
