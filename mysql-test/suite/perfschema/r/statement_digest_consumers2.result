@@ -186,11 +186,10 @@ SELECT 2, cte.*, cte2.* FROM cte, cte AS cte2;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest WHERE schema_name IS NOT NULL;
 schema_name	digest	digest_text	count_star
-SELECT digest, digest_text FROM performance_schema.events_statements_current;
+SELECT digest, digest_text FROM performance_schema.events_statements_current WHERE source NOT LIKE 'srv_session.cc%';
 digest	digest_text
-NULL	NULL
 NULL	NULL
 ####################################
 # CLEANUP
