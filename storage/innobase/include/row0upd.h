@@ -551,12 +551,7 @@ struct upd_t {
   /** Determine if the given field_no is modified.
   @return true if modified, false otherwise.  */
   bool is_modified(const ulint field_no) const {
-    for (ulint i = 0; i < n_fields; ++i) {
-      if (field_no == fields[i].field_no) {
-        return (true);
-      }
-    }
-    return (false);
+    return (get_field_by_field_no(field_no, table->first_index()) != nullptr);
   }
 
   /** Reset the update fields. */
@@ -565,11 +560,6 @@ struct upd_t {
       fields[i].reset();
     }
   }
-
-  /** Get field by field number.
-  @param[in]	field_no	the field number.
-  @return the updated field information. */
-  upd_field_t *get_upd_field(ulint field_no) const;
 
 #ifdef UNIV_DEBUG
   bool validate() const {
