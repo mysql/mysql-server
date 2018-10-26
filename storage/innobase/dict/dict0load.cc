@@ -440,7 +440,7 @@ static const char *dict_load_index_low(
         case FTS_COMMON_TABLE:
           name_buf = FTS_COMMON_TABLE_IND_NAME;
           break;
-        case FTS_OBSELETED_TABLE:
+        case FTS_OBSOLETED_TABLE:
           break;
           /* do nothing */
       }

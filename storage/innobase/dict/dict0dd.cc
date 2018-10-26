@@ -4882,11 +4882,15 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
       return (false);
     }
 
-    /* For fts aux table, we need to acuqire mdl lock on parent. */
+    /* For fts aux table, we need to acquire mdl lock on parent. */
     if (table->is_fts_aux()) {
       fts_aux_table_t fts_table;
-      fts_is_aux_table_name(&fts_table, table->name.m_name,
-                            strlen(table->name.m_name));
+
+      /* Find the parent ID. */
+      ut_d(bool is_fts =) fts_is_aux_table_name(&fts_table, table->name.m_name,
+                                                strlen(table->name.m_name));
+      ut_ad(is_fts);
+
       table_id_t parent_id = fts_table.parent_id;
 
       dd_table_close(table, thd, mdl, true);
