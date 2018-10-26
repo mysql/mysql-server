@@ -21,13 +21,13 @@ $mc->flush();
 
 ## Test expiry times
 $mc->set_expires(0);    $mc->set("t:1", "Groen");  ## Will not expire
-$mc->set_expires(3);    $mc->set("t:2", "Yello");  ## Expire in 3 seconds
+$mc->set_expires(2);    $mc->set("t:2", "Yello");  ## Expire in 2 seconds
 
 sleep(1);
 ($mc->get("t:1") == "Groen")  || $mc->fail("Expected Groen");
 ($mc->get("t:2") == "Yello")  || $mc->fail("Expected Yello");
 
-sleep(3); 
+sleep(4);
 ($mc->get("t:1") == "Groen")  || $mc->fail("Expected result Groen");
 $mc->get("t:2")               && $mc->fail("Item should have expired");
 ($mc->{error} == "NOT_FOUND") || $mc->fail("Expected NOT_FOUND");
