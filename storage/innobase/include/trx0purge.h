@@ -308,6 +308,7 @@ struct Tablespace {
   explicit Tablespace(space_id_t id)
       : m_id(id),
         m_num(undo::id2num(id)),
+        m_implicit(true),
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
@@ -318,6 +319,7 @@ struct Tablespace {
   Tablespace(Tablespace &other)
       : m_id(other.id()),
         m_num(undo::id2num(other.id())),
+        m_implicit(other.is_implicit()),
         m_space_name(),
         m_file_name(),
         m_log_file_name(),
@@ -471,12 +473,12 @@ struct Tablespace {
   /** Report whether this undo tablespace was explicitly created
   by an SQL statement.
   @return true if the tablespace was created explicitly. */
-  bool is_explicit() { return (m_num > FSP_IMPLICIT_UNDO_TABLESPACES); }
+  bool is_explicit() { return (!m_implicit); }
 
   /** Report whether this undo tablespace was implicitly created
   at startup.
   @return true if the tablespace was created implicitly. */
-  bool is_implicit() { return (m_num <= FSP_IMPLICIT_UNDO_TABLESPACES); }
+  bool is_implicit() { return (m_implicit); }
 
   /** Return whether the undo tablespace is active.
   @return true if active */
@@ -616,6 +618,9 @@ struct Tablespace {
   7-bit number that is used in a rollback pointer.
   Use id2num() to get this number from a space_id. */
   space_id_t m_num;
+
+  /* True if this is an implicit undo tablespace */
+  bool m_implicit;
 
   /** The tablespace name, auto-generated when needed from
   the space number. */

@@ -6708,7 +6708,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     row */
     ret = dd_process_dd_tablespaces_rec(heap, rec, &space, &name, &flags,
                                         &server_version, &space_version,
-                                        &is_encrypted, state, dd_spaces);
+                                        &is_encrypted, &state, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);

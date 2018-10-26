@@ -1068,15 +1068,7 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
     dd_file->set_filename(new_path);
 
   } else {
-#ifdef UNIV_DEBUG
-    const dd::Properties &p = dd_space->se_private_data();
-    ut_ad(p.exists(dd_space_key_strings[DD_SPACE_STATE]));
-
-    dd::String_type dd_state;
-    p.get(dd_space_key_strings[DD_SPACE_STATE], &dd_state);
-
-    ut_ad(dd_space_state_values[DD_SPACE_STATE_DISCARDED] == dd_state);
-#endif /* UNIV_DEBUG */
+    ut_ad(dd_tablespace_get_state_enum(dd_space) == DD_SPACE_STATE_DISCARDED);
   }
 
   bool fail = client->update(new_space);
@@ -3089,29 +3081,28 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 }
 
 /** Create metadata for implicit tablespace
-@param[in,out]	dd_client	data dictionary client
-@param[in,out]	thd		THD
-@param[in]	space_id	InnoDB tablespace ID
-@param[in]	tablespace_name	tablespace name to be set for the
-                                newly created tablespace
-@param[in]	filename	tablespace filename
-@param[in]	discarded	true if this tablespace was discarded
-@param[in,out]	dd_space_id	dd tablespace id
-@retval false	on success
-@retval true	on failure */
+@param[in,out]  dd_client    data dictionary client
+@param[in,out]  thd          THD
+@param[in]      space_id     InnoDB tablespace ID
+@param[in]      space_name   tablespace name to be set for the
+                             newly created tablespace
+@param[in]      filename     tablespace filename
+@param[in]      discarded    true if this tablespace was discarded
+@param[in,out]  dd_space_id  dd tablespace id
+@retval false on success
+@retval true on failure */
 bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
                                    THD *thd, space_id_t space_id,
-                                   const char *tablespace_name,
-                                   const char *filename, bool discarded,
-                                   dd::Object_id &dd_space_id) {
-  std::string space_name;
+                                   const char *space_name, const char *filename,
+                                   bool discarded, dd::Object_id &dd_space_id) {
+  std::string tsn;
   fil_space_t *space = fil_space_get(space_id);
   ulint flags = space->flags;
 
-  dd_filename_to_spacename(tablespace_name, &space_name);
+  dd_filename_to_spacename(space_name, &tsn);
 
-  bool fail = dd_create_tablespace(dd_client, thd, space_name.c_str(), space_id,
-                                   flags, filename, discarded, dd_space_id);
+  bool fail = dd_create_tablespace(dd_client, thd, tsn.c_str(), space_id, flags,
+                                   filename, discarded, dd_space_id);
 
   return (fail);
 }
@@ -5028,7 +5019,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
-                                   dd::String_type &state,
+                                   dd::String_type *state,
                                    dict_table_t *dd_spaces) {
   ulint len;
   const byte *field;
@@ -5070,7 +5061,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   prop_str = static_cast<char *>(mem_heap_zalloc(heap, len + 1));
   memcpy(prop_str, field, len);
   dd::String_type prop(prop_str);
-  dd::Properties *p = dd::Properties::parse_properties(prop);
+  const dd::Properties *p = dd::Properties::parse_properties(prop);
 
   if (!p || !p->exists(dd_space_key_strings[DD_SPACE_ID]) ||
       !p->exists(dd_index_key_strings[DD_SPACE_FLAGS])) {
@@ -5104,11 +5095,8 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
     return (false);
   }
 
-  /* Get space state. */
-  if (p->get(dd_space_key_strings[DD_SPACE_STATE], &state)) {
-    delete p;
-    return (false);
-  }
+  /* Get tablespace state. */
+  dd_tablespace_get_state(p, state, *space_id);
 
   /* Get Encryption. */
   if (FSP_FLAGS_GET_ENCRYPTION(*flags)) {
@@ -5675,69 +5663,29 @@ bool dd_tablespace_get_space_id(const dd::Tablespace *dd_space,
   return (DD_FAILURE);
 }
 
-/** Set state attribute in se_private_data of tablespace
-@param[in,out]	dd_space	dd::Tablespace object
-@param[in]	state		value to set for key 'state' */
+/** Get state attribute value in dd::Tablespace::se_private_data
+@param[in,out] dd_space  dd::Tablespace object
+@param[in]     state     value to set for key 'state' */
 void dd_tablespace_set_state(dd::Tablespace *dd_space, dd_space_states state) {
   dd::Properties &p = dd_space->se_private_data();
 
   p.set(dd_space_key_strings[DD_SPACE_STATE], dd_space_state_values[state]);
 }
 
-/** Get state attribute value to se_private_data of tablespace
-@param[in]     dd_space   dd::Tablespace object
-@param[in,out] dd_state   tablespace state attribute
-@retval	true on error (DD_FAILURE)
-@retval	false on success  (DD_SUCCESS) */
-bool dd_tablespace_get_state(const dd::Tablespace *dd_space,
-                             dd::String_type &dd_state) {
-  const dd::Properties &p = dd_space->se_private_data();
-  if (p.exists(dd_space_key_strings[DD_SPACE_STATE])) {
-    p.get(dd_space_key_strings[DD_SPACE_STATE], &dd_state);
-
-    return (DD_SUCCESS);
-  }
-  return (DD_FAILURE);
-}
-
-/** Get the state attribute from se_private_data of mysql.tablespaces
-for the named tablespace.
-@param[in]  dd_space    dd::Tablespace object
-@return value associated with the key 'state' */
-dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space) {
-  dd::String_type dd_state;
-
-  bool result = dd_tablespace_get_state(dd_space, dd_state);
-  if (result == DD_FAILURE) {
-    return (DD_SPACE_STATE__LAST);
-  }
-
-  dd_space_states state = DD_SPACE_STATE__LAST;
-  for (int s = DD_SPACE_STATE_NORMAL; s < state; s++) {
-    if (dd_state == dd_space_state_values[s]) {
-      state = (dd_space_states)s;
-      break;
-    }
-  }
-
-  return (state);
-}
-
 /** Set Space ID and state attribute in se_private_data of mysql.tablespaces
 for the named tablespace.
-@param[in]  tablespace_name  tablespace name
-@param[in]  space_id         tablespace id
-@param[in]  state            value to set for key 'state'
+@param[in]  space_name  tablespace name
+@param[in]  space_id    tablespace id
+@param[in]  state       value to set for key 'state'
 @return DB_SUCCESS or DD_FAILURE. */
-bool dd_tablespace_set_id_and_state(const char *tablespace_name,
-                                    space_id_t space_id,
+bool dd_tablespace_set_id_and_state(const char *space_name, space_id_t space_id,
                                     dd_space_states state) {
   THD *thd = current_thd;
   dd::Tablespace *dd_space;
 
   dd::cache::Dictionary_client *dc = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser{dc};
-  dd::String_type tsn{tablespace_name};
+  dd::String_type tsn{space_name};
 
   bool dd_result = dc->acquire_for_modification(tsn, &dd_space);
   if (dd_space == nullptr) {
@@ -5751,14 +5699,98 @@ bool dd_tablespace_set_id_and_state(const char *tablespace_name,
   return (dd::commit_or_rollback_tablespace_change(thd, dd_space, dd_result));
 }
 
+void dd_tablespace_get_state(const dd::Tablespace *dd_space,
+                             dd::String_type *state, space_id_t space_id) {
+  const dd::Properties &p = dd_space->se_private_data();
+
+  dd_tablespace_get_state(&p, state, space_id);
+}
+
+void dd_tablespace_get_state(const dd::Properties *p, dd::String_type *state,
+                             space_id_t space_id) {
+  if (p->exists(dd_space_key_strings[DD_SPACE_STATE])) {
+    p->get(dd_space_key_strings[DD_SPACE_STATE], state);
+  } else {
+    /* If this k/v pair is missing then the database may have been created
+    by an earlier version. So calculate the state. */
+    dd_space_states state_enum = dd_tablespace_get_state_enum(p, space_id);
+    *state = dd_space_state_values[state_enum];
+  }
+}
+
+dd_space_states dd_tablespace_get_state_enum(const dd::Tablespace *dd_space,
+                                             space_id_t space_id) {
+  dd_space_states state_enum = DD_SPACE_STATE__LAST;
+
+  const dd::Properties &p = dd_space->se_private_data();
+
+  if (p.exists(dd_space_key_strings[DD_SPACE_STATE])) {
+    dd::String_type state;
+    p.get(dd_space_key_strings[DD_SPACE_STATE], &state);
+
+    /* Convert this string to a number. */
+    for (int s = DD_SPACE_STATE_NORMAL; s < DD_SPACE_STATE__LAST; s++) {
+      if (state == dd_space_state_values[s]) {
+        state_enum = (dd_space_states)s;
+        break;
+      }
+    }
+
+  } else {
+    /* If this k/v pair is missing then the database may have been created
+    by an earlier version. So calculate the state. */
+    state_enum = dd_tablespace_get_state_enum(&p, space_id);
+  }
+
+  return (state_enum);
+}
+
+dd_space_states dd_tablespace_get_state_enum(const dd::Properties *p,
+                                             space_id_t space_id) {
+  dd_space_states state_enum;
+
+  if (space_id == SPACE_UNKNOWN) {
+    if (p->exists(dd_space_key_strings[DD_SPACE_ID])) {
+      p->get(dd_space_key_strings[DD_SPACE_ID], &space_id);
+    } else {
+      return (DD_SPACE_STATE__LAST);
+    }
+  }
+  ut_ad(space_id != SPACE_UNKNOWN);
+
+  if (fsp_is_undo_tablespace(space_id)) {
+    undo::spaces->s_lock();
+    undo::Tablespace *undo_space = undo::spaces->find(undo::id2num(space_id));
+
+    if (undo_space->is_active()) {
+      state_enum = DD_SPACE_STATE_ACTIVE;
+    } else if (undo_space->is_empty()) {
+      state_enum = DD_SPACE_STATE_EMPTY;
+    } else {
+      state_enum = DD_SPACE_STATE_INACTIVE;
+    }
+    undo::spaces->s_unlock();
+
+  } else {
+    /* IBD tablespace */
+    bool is_discarded = false;
+    if (p->exists(dd_space_key_strings[DD_SPACE_DISCARD])) {
+      p->get(dd_space_key_strings[DD_SPACE_DISCARD], &is_discarded);
+    }
+
+    state_enum =
+        is_discarded ? DD_SPACE_STATE_DISCARDED : DD_SPACE_STATE_NORMAL;
+  }
+
+  return (state_enum);
+}
+
 /** Get the discarded state from se_private_data of tablespace
 @param[in]	dd_space	dd::Tablespace object */
 bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space) {
   dd::String_type dd_state;
 
-  if (!dd_tablespace_get_state(dd_space, dd_state)) {
-    return (false);
-  }
+  dd_tablespace_get_state(dd_space, &dd_state);
 
   if (dd_state == dd_space_state_values[DD_SPACE_STATE_DISCARDED]) {
     return (true);
@@ -5880,8 +5912,9 @@ char *dd_get_referenced_table(const char *name, const char *database_name,
 }
 
 /** Update all InnoDB tablespace cache objects. This step is done post
-dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
-Update the cached tablespace objects, if they differ from dictionary
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is
+consistent. Update the cached tablespace objects, if they differ from
+the dictionary.
 @param[in,out]	thd	thread handle
 @retval	true	on error
 @retval	false	on success */
@@ -5953,8 +5986,8 @@ bool dd_tablespace_update_cache(THD *thd) {
       the tablespace name matches the name in dictionary.
       If it doesn't match, use the name from dictionary. */
 
-      /* Exclude Encryption flag as (un)encryption operation might be rolling
-      forward in background thread. */
+      /* Exclude Encryption flag as (un)encryption operation might be
+      rolling forward in background thread. */
       ut_ad(!((space->flags ^ flags) & ~(FSP_FLAGS_MASK_ENCRYPTION)));
 
       fil_space_update_name(space, space_name);

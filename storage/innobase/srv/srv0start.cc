@@ -721,7 +721,7 @@ static dberr_t srv_undo_tablespace_fixup_57(space_id_t space_id) {
 }
 
 /** Start the fix-up process on an undo tablespace if it was in the process
-of being truncated when the server crashed. At this point, just, delete the
+of being truncated when the server crashed. At this point, just delete the
 old file if it exists.
 We could do the whole reconstruction here for implicit undo spaces since we
 know the space_id, space_name, and file_name implicitly.  But for explicit
@@ -1000,11 +1000,19 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
 
   undo::Tablespace undo_space(space_id);
 
-  if (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES) {
-    /* Implicit undo tablespaces must match the standard filename and
-    must be found in srv_undo_dir. */
-    if (!Fil_path::equal(undo_space.file_name(), scanned_name.c_str()) ||
-        Fil_path::has_suffix(IBU, scanned_name)) {
+  /* The first 2 undo space numbers must be implicit. v8.0.12 used
+  innodb_undo_tablespaces to implicitly create undo spaces. */
+  bool is_default = (space_num <= FSP_IMPLICIT_UNDO_TABLESPACES);
+
+  /* v8.0.12 used innodb_undo_tablespaces to implicitly create undo
+  spaces so there may be more than 2 implicit undo tablespaces.  They
+  must match the default undo filename and must be found in
+  srv_undo_directory. */
+  bool has_implicit_name =
+      Fil_path::equal(undo_space.file_name(), scanned_name.c_str());
+
+  if (is_default || has_implicit_name) {
+    if (!has_implicit_name) {
       ib::info(ER_IB_MSG_1080, undo_space.file_name(), scanned_name.c_str(),
                space_id);
 
@@ -1115,7 +1123,7 @@ static dberr_t srv_undo_tablespaces_open() {
 
     if (n_found_old != 0) {
       msg << "Found " << n_found_old << " undo tablespaces that"
-          << " need to be upgraded";
+          << " need to be upgraded. ";
     }
 
     if (n_found_new < FSP_IMPLICIT_UNDO_TABLESPACES) {
@@ -1141,16 +1149,14 @@ static dberr_t srv_undo_tablespaces_create() {
 
   undo::spaces->x_lock();
 
-  ulint undo_tablespaces_explicit = 0;
+  ulint initial_implicit_undo_spaces = 0;
   for (auto undo_space : undo::spaces->m_spaces) {
-    if (Fil_path::has_suffix(IBU, undo_space->file_name())) {
-      undo_tablespaces_explicit++;
+    if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES) {
+      initial_implicit_undo_spaces++;
     }
   }
 
-  ulint initial_undo_spaces = undo::spaces->size() - undo_tablespaces_explicit;
-
-  if (initial_undo_spaces >= FSP_IMPLICIT_UNDO_TABLESPACES) {
+  if (initial_implicit_undo_spaces >= FSP_IMPLICIT_UNDO_TABLESPACES) {
     undo::spaces->x_unlock();
     return (DB_SUCCESS);
   }
@@ -1160,9 +1166,9 @@ static dberr_t srv_undo_tablespaces_create() {
 
     mode = srv_read_only_mode ? "read_only" : "force_recovery",
 
-    ib::warn(ER_IB_MSG_1086, mode, initial_undo_spaces);
+    ib::warn(ER_IB_MSG_1086, mode, initial_implicit_undo_spaces);
 
-    if (initial_undo_spaces == 0) {
+    if (initial_implicit_undo_spaces == 0) {
       ib::error(ER_IB_MSG_1087, mode);
 
       undo::spaces->x_unlock();
@@ -1210,7 +1216,8 @@ static dberr_t srv_undo_tablespaces_create() {
 
   undo::spaces->x_unlock();
 
-  ulint new_spaces = FSP_IMPLICIT_UNDO_TABLESPACES - initial_undo_spaces;
+  ulint new_spaces =
+      FSP_IMPLICIT_UNDO_TABLESPACES - initial_implicit_undo_spaces;
 
   ib::info(ER_IB_MSG_1090, new_spaces);
 
