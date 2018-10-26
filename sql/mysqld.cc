@@ -5808,7 +5808,7 @@ int mysqld_main(int argc, char **argv)
 
   init_sql_statement_names();
   sys_var_init();
-  ulong requested_open_files;
+  ulong requested_open_files = 0;
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
   if (!opt_validate_config) adjust_related_options(&requested_open_files);
 
