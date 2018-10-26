@@ -30,67 +30,51 @@ set @@max_error_count = 0;
 insert ignore into t1 select a from t2 limit      0, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  10000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  20000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  30000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  40000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  50000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  60000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  70000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  80000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit  90000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 100000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 110000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 120000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 130000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 140000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 insert ignore into t1 select a from t2 limit 150000, 10000;
 affected rows: 0
 info: Records: 10000  Duplicates: 10000  Warnings: 10000
-Warnings:
 set @@max_error_count = @save_max_error_count;
 
 set ndb_use_transactions=0;
