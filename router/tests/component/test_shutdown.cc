@@ -45,7 +45,6 @@
 
 Path g_origin_path;
 using ::testing::Eq;
-using namespace std::chrono_literals;
 
 class ShutdownTest : public RouterComponentTest, public ::testing::Test {
  protected:
@@ -351,10 +350,10 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
       { delay_sending_handshake(cluster_node_http_ports); });
 
   // wait for a new (slow) Refresh cycle to commence
-  auto deadline = std::chrono::steady_clock::now() + 5s;
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
   while (std::chrono::steady_clock::now() < deadline &&
          !get_delayed_handshakes_count(cluster_node_http_ports.front())) {
-    std::this_thread::sleep_for(10ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   // and tell Router to shutdown and expect it to finish it within
