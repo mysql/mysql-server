@@ -792,7 +792,7 @@ static get_opt_arg_source source_autocommit;
 /*
   Used with --help for detailed option
 */
-bool opt_help = false, opt_verbose = false;
+bool opt_help = false, opt_verbose = false, opt_validate_config = false;
 
 arg_cmp_func Arg_comparator::comparator_matrix[5] = {
     &Arg_comparator::compare_string,      // Compare strings
@@ -1945,7 +1945,7 @@ static void unireg_abort(int exit_code) {
     sysd::notify("ERRNO=", errno, "\n");
   }
 
-  if (opt_initialize && exit_code)
+  if (opt_initialize && exit_code && !opt_validate_config)
     LogErr(ERROR_LEVEL, ER_DATA_DIRECTORY_UNUSABLE, mysql_real_data_home);
 
   // At this point it does not make sense to buffer more messages.
@@ -1954,8 +1954,9 @@ static void unireg_abort(int exit_code) {
 
   if (opt_help) usage();
 
-  bool daemon_launcher_quiet = (IF_WIN(false, opt_daemonize) &&
-                                !mysqld::runtime::is_daemon() && !opt_help);
+  bool daemon_launcher_quiet =
+      (IF_WIN(false, opt_daemonize) && !mysqld::runtime::is_daemon() &&
+       !is_help_or_validate_option());
 
   if (!daemon_launcher_quiet && exit_code) LogErr(ERROR_LEVEL, ER_ABORTING);
 
@@ -1975,7 +1976,7 @@ static void unireg_abort(int exit_code) {
     mysqld::runtime::signal_parent(pipe_write_fd, 0);
   }
 #endif
-  clean_up(!opt_help && !daemon_launcher_quiet &&
+  clean_up(!is_help_or_validate_option() && !daemon_launcher_quiet &&
            (exit_code || !opt_initialize)); /* purecov: inspected */
   DBUG_PRINT("quit", ("done with cleanup in unireg_abort"));
   mysqld_exit(exit_code);
@@ -2090,7 +2091,7 @@ static void clean_up(bool print_message) {
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  if (print_message && ((!opt_help) || (opt_verbose)))
+  if (print_message && (!is_help_or_validate_option() || opt_verbose))
     LogErr(INFORMATION_LEVEL, ER_BINLOG_END);
   ha_binlog_end(current_thd);
 
@@ -2154,7 +2155,7 @@ static void clean_up(bool print_message) {
   free_connection_acceptors();
   Connection_handler_manager::destroy_instance();
 
-  if (!opt_help && !opt_initialize)
+  if (!is_help_or_validate_option() && !opt_initialize)
     resourcegroups::Resource_group_mgr::destroy_instance();
   mysql_client_plugin_deinit();
   finish_client_errs();
@@ -2178,7 +2179,7 @@ static void clean_up(bool print_message) {
   log_builtins_error_stack("log_filter_internal; log_sink_internal", false,
                            nullptr);
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (!opt_help && !opt_initialize) {
+  if (!is_help_or_validate_option() && !opt_initialize) {
     unregister_pfs_notification_service();
     unregister_pfs_resource_group_service();
   }
@@ -2307,7 +2308,7 @@ static struct passwd *check_user(const char *user) {
     return NULL;
   }
   if (!user) {
-    if (!opt_initialize && !opt_help) {
+    if (!opt_initialize && !is_help_or_validate_option()) {
       LogErr(ERROR_LEVEL, ER_REALLY_RUN_AS_ROOT);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -4019,14 +4020,14 @@ int init_common_variables() {
   }
   set_server_version();
 
-  if (!opt_help) {
+  if (!is_help_or_validate_option()) {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
 
-  if (opt_initialize || opt_initialize_insecure) {
+  if (!opt_validate_config && (opt_initialize || opt_initialize_insecure)) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
            (ulong)getpid());
-  } else if (!opt_help) {
+  } else if (!is_help_or_validate_option()) {
     LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
            (ulong)getpid());
   }
@@ -4273,6 +4274,8 @@ int init_common_variables() {
   /* Initialize the debug sync facility. See debug_sync.cc. */
   if (debug_sync_init()) return 1; /* purecov: tested */
 #endif                             /* defined(ENABLED_DEBUG_SYNC) */
+
+  if (opt_validate_config) return 0;
 
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
@@ -4875,13 +4878,14 @@ static void setup_error_log() {
     Enable the error log file only if console option is not specified
     and --help is not used.
   */
-  bool log_errors_to_file = !opt_help && !opt_console;
+  bool log_errors_to_file = !is_help_or_validate_option() && !opt_console;
 #else
   /*
     Enable the error log file only if --log-error=filename or --log-error
     was used. Logging to file is disabled by default unlike on Windows.
   */
-  bool log_errors_to_file = !opt_help && (log_error_dest != disabled_my_option);
+  bool log_errors_to_file =
+      !is_help_or_validate_option() && (log_error_dest != disabled_my_option);
 #endif
 
   if (log_errors_to_file) {
@@ -4944,7 +4948,7 @@ static int init_server_components() {
   /*
     Timers not needed if only starting with --help.
   */
-  if (!opt_help) {
+  if (!is_help_or_validate_option()) {
     if (my_timer_initialize())
       LogErr(ERROR_LEVEL, ER_CANT_INIT_TIMER, errno);
     else
@@ -5062,7 +5066,7 @@ static int init_server_components() {
       to avoid creating the file in an otherwise empty datadir, which will
       cause a succeeding 'mysqld --initialize' to fail.
     */
-    if (!opt_help &&
+    if (!is_help_or_validate_option() &&
         mysql_bin_log.open_index_file(opt_binlog_index_name, ln, true)) {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
@@ -5244,9 +5248,10 @@ static int init_server_components() {
   init_ssl();
 
   /*Load early plugins */
-  if (plugin_register_early_plugins(
-          &remaining_argc, remaining_argv,
-          opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)) {
+  if (plugin_register_early_plugins(&remaining_argc, remaining_argv,
+                                    (is_help_or_validate_option())
+                                        ? PLUGIN_INIT_SKIP_INITIALIZATION
+                                        : 0)) {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_EARLY_PLUGINS);
     unireg_abort(1);
   }
@@ -5254,7 +5259,8 @@ static int init_server_components() {
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv)) {
-    LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_BUILTIN_PLUGINS);
+    if (!opt_validate_config)
+      LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_BUILTIN_PLUGINS);
     unireg_abort(1);
   }
 
@@ -5269,7 +5275,7 @@ static int init_server_components() {
     Initialize DD to create data directory using current server.
   */
   if (opt_initialize) {
-    if (!opt_help) {
+    if (!is_help_or_validate_option()) {
       if (dd::init(dd::enum_dd_init_type::DD_INITIALIZE)) {
         LogErr(ERROR_LEVEL, ER_DD_INIT_FAILED);
         unireg_abort(1);
@@ -5287,7 +5293,8 @@ static int init_server_components() {
       data directory. If it is old data directory, DD tables are created.
       If server is starting on data directory with DD tables, DD is initialized.
     */
-    if (!opt_help && dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)) {
+    if (!is_help_or_validate_option() &&
+        dd::init(dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)) {
       LogErr(ERROR_LEVEL, ER_DD_INIT_FAILED);
       unireg_abort(1);
     }
@@ -5303,14 +5310,16 @@ static int init_server_components() {
   if (plugin_register_dynamic_and_init_all(
           &remaining_argc, remaining_argv,
           (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
-              (opt_help ? (PLUGIN_INIT_SKIP_INITIALIZATION |
-                           PLUGIN_INIT_SKIP_PLUGIN_TABLE)
-                        : 0))) {
+              ((is_help_or_validate_option())
+                   ? (PLUGIN_INIT_SKIP_INITIALIZATION |
+                      PLUGIN_INIT_SKIP_PLUGIN_TABLE)
+                   : 0))) {
     // Delete all DD tables in case of error in initializing plugins.
     if (dd::upgrade_57::in_progress())
       (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
-    LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
+    if (!opt_validate_config)
+      LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   dynamic_plugins_are_initialized =
@@ -5334,7 +5343,7 @@ static int init_server_components() {
   bool dd_upgrade_was_initiated = dd::upgrade_57::in_progress();
 #endif
   // Populate DD tables with meta data from 5.7 in case of upgrade
-  if (!opt_help && dd::upgrade_57::in_progress() &&
+  if (!is_help_or_validate_option() && dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_POPULATE_UPGRADE)) {
     LogErr(ERROR_LEVEL, ER_DD_POPULATING_TABLES_FAILED);
     unireg_abort(1);
@@ -5344,14 +5353,15 @@ static int init_server_components() {
     Store server and plugin IS tables metadata into new DD.
     This is done after all the plugins are registered.
   */
-  if (!opt_help && !opt_initialize && !dd::upgrade_57::in_progress() &&
+  if (!is_help_or_validate_option() && !opt_initialize &&
+      !dd::upgrade_57::in_progress() &&
       dd::init(dd::enum_dd_init_type::DD_UPDATE_I_S_METADATA)) {
     LogErr(ERROR_LEVEL, ER_DD_UPDATING_PLUGIN_MD_FAILED);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  if (!opt_help) {
+  if (!is_help_or_validate_option()) {
     bool st;
     if (opt_initialize || dd_upgrade_was_initiated)
       st = dd::performance_schema::init_pfs_tables(
@@ -5369,7 +5379,7 @@ static int init_server_components() {
 
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
   // Initialize the Resource group subsystem.
-  if (!opt_help && !opt_initialize) {
+  if (!is_help_or_validate_option() && !opt_initialize) {
     if (res_grp_mgr->post_init()) {
       LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_POST_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -5393,7 +5403,21 @@ static int init_server_components() {
   }
   if (tmp_str) my_free(tmp_str);
 
-  if (opt_help) unireg_abort(MYSQLD_SUCCESS_EXIT);
+  // Validate the configuration if --validate-config was specified.
+  if (opt_validate_config && (remaining_argc > 1)) {
+    bool saved_getopt_skip_unknown = my_getopt_skip_unknown;
+    struct my_option no_opts[] = {
+        {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
+
+    my_getopt_skip_unknown = false;
+
+    if (handle_options(&remaining_argc, &remaining_argv, no_opts,
+                       mysqld_get_one_option))
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    my_getopt_skip_unknown = saved_getopt_skip_unknown;
+  }
+
+  if (is_help_or_validate_option()) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!my_default_lc_messages->errmsgs->is_loaded()) {
@@ -5786,11 +5810,11 @@ int mysqld_main(int argc, char **argv)
   sys_var_init();
   ulong requested_open_files;
   if (init_error_log()) unireg_abort(MYSQLD_ABORT_EXIT);
-  adjust_related_options(&requested_open_files);
+  if (!opt_validate_config) adjust_related_options(&requested_open_files);
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0) {
-    if (!opt_help && !opt_initialize) {
+    if (!is_help_or_validate_option() && !opt_initialize) {
       int pfs_rc;
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache = table_def_size;
@@ -5812,15 +5836,15 @@ int mysqld_main(int argc, char **argv)
     }
   }
 #else
-  /*
-    Other provider of the instrumentation interface should
-    initialize PSI_hook here:
-    - HAVE_PSI_INTERFACE is for the instrumentation interface
-    - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
-      of the interface,
-    but there could be alternate implementations, which is why
-    these two defines are kept separate.
-  */
+    /*
+      Other provider of the instrumentation interface should
+      initialize PSI_hook here:
+      - HAVE_PSI_INTERFACE is for the instrumentation interface
+      - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
+        of the interface,
+      but there could be alternate implementations, which is why
+      these two defines are kept separate.
+    */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -5970,7 +5994,7 @@ int mysqld_main(int argc, char **argv)
       Initialize Performance Schema component services.
     */
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (!opt_help && !opt_initialize) {
+  if (!is_help_or_validate_option() && !opt_initialize) {
     register_pfs_notification_service();
     register_pfs_resource_group_service();
   }
@@ -5978,7 +6002,7 @@ int mysqld_main(int argc, char **argv)
 
   // Initialize the resource group subsystem.
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
-  if (!opt_help && !opt_initialize) {
+  if (!is_help_or_validate_option() && !opt_initialize) {
     if (res_grp_mgr->init()) {
       LogErr(ERROR_LEVEL, ER_RESOURCE_GROUP_SUBSYSTEM_INIT_FAILED);
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6083,7 +6107,7 @@ int mysqld_main(int argc, char **argv)
     log_error_dest = "";
   }
 
-  if (opt_daemonize) {
+  if (opt_daemonize && !opt_validate_config) {
     if (chdir("/") < 0) {
       LogErr(ERROR_LEVEL, ER_CANNOT_CHANGE_TO_ROOT_DIR, strerror(errno));
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6179,12 +6203,12 @@ int mysqld_main(int argc, char **argv)
   /*
    We have enough space for fiddling with the argv, continue
   */
-  if (!opt_help && my_setwd(mysql_real_data_home, MYF(0))) {
+  if (!(is_help_or_validate_option()) &&
+      my_setwd(mysql_real_data_home, MYF(0))) {
     char errbuf[MYSYS_STRERROR_SIZE];
 
     LogErr(ERROR_LEVEL, ER_CANT_SET_DATA_DIR, mysql_real_data_home, errno,
            my_strerror(errbuf, sizeof(errbuf), errno));
-
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
 
@@ -7228,6 +7252,10 @@ struct my_option my_long_early_options[] = {
      "is needed.",
      &opt_no_dd_upgrade, &opt_no_dd_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
      0},
+    {"validate-config", 0,
+     "Validate the server configuration specified by the user.",
+     &opt_validate_config, &opt_validate_config, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+     0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**
@@ -8596,7 +8624,7 @@ static void usage(void) {
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
     default_collation_name = (char *)default_charset_info->name;
-  if (opt_help || opt_verbose) {
+  if (is_help_or_validate_option() || opt_verbose) {
     my_progname = my_progname + dirname_length(my_progname);
   }
   print_server_version();
@@ -9426,7 +9454,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (opt_help || opt_initialize) {
+  if (is_help_or_validate_option() || opt_initialize) {
     /*
       Show errors during --help, but mute everything else so the info the
       user actually wants isn't lost in the spam.  (For --help --verbose,
@@ -9491,7 +9519,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
     }
   }
 
-  if (!opt_help)
+  if (!is_help_or_validate_option())
     vector<my_option>().swap(all_options);  // Deletes the vector contents.
 
   /* Add back the program name handle_options removes */
@@ -9524,14 +9552,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
     --explicit_defaults_for_timestamp is not set.
     This behavior is deprecated now.
   */
-  if (!opt_help && !global_system_variables.explicit_defaults_for_timestamp)
+  if (!is_help_or_validate_option() &&
+      !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
 
-  if (!opt_help && opt_mi_repository_id == INFO_REPOSITORY_FILE)
+  if (!is_help_or_validate_option() &&
+      opt_mi_repository_id == INFO_REPOSITORY_FILE)
     push_deprecated_warn(NULL, "--master-info-repository=FILE",
                          "'--master-info-repository=TABLE'");
 
-  if (!opt_help && opt_rli_repository_id == INFO_REPOSITORY_FILE)
+  if (!is_help_or_validate_option() &&
+      opt_rli_repository_id == INFO_REPOSITORY_FILE)
     push_deprecated_warn(NULL, "--relay-log-info-repository=FILE",
                          "'--relay-log-info-repository=TABLE'");
 
@@ -9547,7 +9578,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
     return 1;
   }
 
-  if (opt_noacl && !opt_help) opt_disable_networking = true;
+  if (opt_noacl && !is_help_or_validate_option()) opt_disable_networking = true;
 
   if (opt_disable_networking) mysqld_port = 0;
 

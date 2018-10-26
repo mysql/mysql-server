@@ -171,6 +171,7 @@ extern int32_t opt_regexp_stack_limit;
 extern bool opt_no_monitor;
 #endif  // _WIN32
 extern bool opt_debugging;
+extern bool opt_validate_config;
 
 enum enum_slave_type_conversions {
   SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
@@ -706,6 +707,17 @@ inline MY_ATTRIBUTE(
 /* only here because of unireg_init(). */
 static inline void set_connection_events_loop_aborted(bool value) {
   connection_events_loop_aborted_flag.store(value);
+}
+
+/**
+  Check if --help option or --validate-config is specified.
+
+  @retval false   Neither 'help' or 'validate-config' option is enabled.
+  @retval true    Either 'help' or 'validate-config' or both options
+                  are enabled.
+*/
+inline bool is_help_or_validate_option() {
+  return (opt_help || opt_validate_config);
 }
 
 #ifdef _WIN32
