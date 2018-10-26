@@ -1888,27 +1888,10 @@ ulonglong Json_wrapper::get_uint() const {
 }
 
 void Json_wrapper::get_datetime(MYSQL_TIME *t) const {
-  enum_field_types ftyp = MYSQL_TYPE_NULL;
-
-  switch (type()) {
-    case enum_json_type::J_DATE:
-      ftyp = MYSQL_TYPE_DATE;
-      break;
-    case enum_json_type::J_DATETIME:
-    case enum_json_type::J_TIMESTAMP:
-      ftyp = MYSQL_TYPE_DATETIME;
-      break;
-    case enum_json_type::J_TIME:
-      ftyp = MYSQL_TYPE_TIME;
-      break;
-    default:
-      DBUG_ASSERT(false); /* purecov: inspected */
-  }
-
   if (m_is_dom) {
     *t = *down_cast<Json_datetime *>(m_dom_value)->value();
   } else {
-    Json_datetime::from_packed(m_value.get_data(), ftyp, t);
+    Json_datetime::from_packed(m_value.get_data(), m_value.field_type(), t);
   }
 }
 
