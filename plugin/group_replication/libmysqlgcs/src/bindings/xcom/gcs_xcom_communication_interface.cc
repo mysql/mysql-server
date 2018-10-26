@@ -160,8 +160,10 @@ enum_gcs_error Gcs_xcom_communication::send_binding_message(
   sent_to_xcom = m_xcom_proxy->xcom_client_send_data(
       msg_total_length, reinterpret_cast<char *>(data_buffer));
   if (!sent_to_xcom) {
-    MYSQL_GCS_LOG_ERROR(
-        "Error pushing message into group communication engine.")
+    if (!m_view_control->is_leaving() && m_view_control->belongs_to_group()) {
+      MYSQL_GCS_LOG_ERROR(
+          "Error pushing message into group communication engine.")
+    }
     goto end;
   }
 
