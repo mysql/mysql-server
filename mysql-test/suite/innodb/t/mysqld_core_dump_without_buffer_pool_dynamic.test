@@ -17,6 +17,9 @@
 --let $minimum_required_linux_version = 3.4
 --source include/linux-version.inc
 
+# Unless /proc/sys/kernel/core_pattern is core, it's not possible to locate core file to verify size
+--source include/linux_core_pattern.inc
+
 --source include/not_valgrind.inc
 
 --echo # Shutdown server
