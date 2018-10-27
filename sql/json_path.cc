@@ -49,13 +49,6 @@
 #include "sql_string.h"          // String
 #include "template_utils.h"      // down_cast
 
-// For use in parse_path().
-#define PARSER_RETURN(retval) \
-  {                           \
-    *status = retval;         \
-    return charptr;           \
-  }
-
 namespace {
 
 constexpr char SCOPE = '$';
@@ -67,20 +60,19 @@ constexpr char WILDCARD = '*';
 constexpr char MINUS = '-';
 constexpr char LAST[] = "last";
 
+class Stream;
+
 }  // namespace
 
 static bool is_ecmascript_identifier(const std::string &name);
 static bool is_digit(unsigned codepoint);
+static bool is_whitespace(char);
 
-static const char *parse_path(size_t, const char *, Json_path *, bool *);
-static const char *parse_path_leg(const char *, const char *, Json_path *,
-                                  bool *);
-static const char *parse_ellipsis_leg(const char *, const char *, Json_path *,
-                                      bool *);
-static const char *parse_array_leg(const char *, const char *, Json_path *,
-                                   bool *);
-static const char *parse_member_leg(const char *, const char *, Json_path *,
-                                    bool *);
+static bool parse_path(Stream *, Json_path *);
+static bool parse_path_leg(Stream *, Json_path *);
+static bool parse_ellipsis_leg(Stream *, Json_path *);
+static bool parse_array_leg(Stream *, Json_path *);
+static bool parse_member_leg(Stream *, Json_path *);
 
 static bool append_array_index(String *buf, size_t index, bool from_end) {
   if (!from_end) return buf->append_ulonglong(index);
@@ -198,21 +190,77 @@ bool Json_path::can_match_many() const {
 
 // Json_path parsing
 
+namespace {
+
+/// A simple input stream class for the JSON path parser.
+class Stream {
+ public:
+  /// Creates an input stream reading from a character string.
+  /// @param string  the input string
+  /// @param length  the length of the input string
+  Stream(const char *string, size_t length)
+      : m_position(string), m_end(string + length) {}
+
+  /// Returns a pointer to the current position in the stream.
+  const char *position() const { return m_position; }
+
+  /// Returns a pointer to the position just after the end of the stream.
+  const char *end() const { return m_end; }
+
+  /// Returns the number of bytes remaining in the stream.
+  size_t remaining() const {
+    DBUG_ASSERT(m_position <= m_end);
+    return m_end - m_position;
+  }
+
+  /// Tells if the stream has been exhausted.
+  bool exhausted() const { return remaining() == 0; }
+
+  /// Reads the next byte from the stream and moves the position forward.
+  char read() {
+    DBUG_ASSERT(!exhausted());
+    return *m_position++;
+  }
+
+  /// Reads the next byte from the stream without moving the position forward.
+  char peek() const {
+    DBUG_ASSERT(!exhausted());
+    return *m_position;
+  }
+
+  /// Moves the position to the next non-whitespace character.
+  void skip_whitespace() {
+    m_position = std::find_if_not(m_position, m_end,
+                                  [](char c) { return is_whitespace(c); });
+  }
+
+  /// Moves the position n bytes forward.
+  void skip(size_t n) {
+    DBUG_ASSERT(remaining() >= n);
+    m_position += n;
+  }
+
+ private:
+  /// The current position in the stream.
+  const char *m_position;
+
+  /// The end of the stream.
+  const char *const m_end;
+};
+
+}  // namespace
+
 /** Top level parsing factory method */
 bool parse_path(size_t path_length, const char *path_expression,
                 Json_path *path, size_t *bad_index) {
-  bool status = false;
-
-  const char *end_of_parsed_path =
-      parse_path(path_length, path_expression, path, &status);
-
-  if (status) {
-    *bad_index = 0;
-    return false;
+  Stream stream(path_expression, path_length);
+  if (parse_path(&stream, path)) {
+    *bad_index = stream.position() - path_expression;
+    return true;
   }
 
-  *bad_index = end_of_parsed_path - path_expression;
-  return true;
+  *bad_index = 0;
+  return false;
 }
 
 /// Is this a whitespace character?
@@ -221,111 +269,85 @@ static inline bool is_whitespace(char ch) {
 }
 
 /**
-  Purge leading whitespace in a string.
-  @param[in] str  the string to purge whitespace from
-  @param[in] end  the end of the input string
-  @return pointer to the first non-whitespace character in str
-*/
-static inline const char *purge_whitespace(const char *str, const char *end) {
-  return std::find_if_not(str, end, [](char c) { return is_whitespace(c); });
-}
-
-/**
    Fills in a Json_path from a path expression.
 
-   @param[in] path_length The length of the path expression.
-   @param[in] path_expression The string form of the path expression.
+   @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
-   @param[out] status True if the path parsed successfully. False otherwise.
 
-   @return The pointer advanced to around where the error, if any, occurred.
+   @return true on error, false on success
 */
-static const char *parse_path(size_t path_length, const char *path_expression,
-                              Json_path *path, bool *status) {
+static bool parse_path(Stream *stream, Json_path *path) {
   path->clear();
 
-  const char *charptr = path_expression;
-  const char *endptr = path_expression + path_length;
-
   // the first non-whitespace character must be $
-  charptr = purge_whitespace(charptr, endptr);
-  if ((charptr >= endptr) || (*charptr++ != SCOPE)) PARSER_RETURN(false);
+  stream->skip_whitespace();
+  if (stream->exhausted() || stream->read() != SCOPE) return true;
 
   // now add the legs
-  *status = true;
-  while (*status) {
-    charptr = purge_whitespace(charptr, endptr);
-    if (charptr >= endptr) break;  // input exhausted
-
-    charptr = parse_path_leg(charptr, endptr, path, status);
+  stream->skip_whitespace();
+  while (!stream->exhausted()) {
+    if (parse_path_leg(stream, path)) return true;
+    stream->skip_whitespace();
   }
 
   // a path may not end with an ellipsis
   if (path->leg_count() > 0 && path->last_leg()->get_type() == jpl_ellipsis) {
-    *status = false;
+    return true;
   }
 
-  return charptr;
+  return false;
 }
 
 /**
    Parses a single path leg and appends it to a Json_path object.
 
-   @param[in] charptr The current pointer into the path expression.
-   @param[in] endptr  The end of the path expression.
+   @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
-   @param[out] status The status variable to be filled in.
 
-   @return The pointer advanced past the consumed leg.
+   @return true on error, false on success
 */
-static const char *parse_path_leg(const char *charptr, const char *endptr,
-                                  Json_path *path, bool *status) {
-  switch (*charptr) {
+static bool parse_path_leg(Stream *stream, Json_path *path) {
+  switch (stream->peek()) {
     case BEGIN_ARRAY:
-      return parse_array_leg(charptr, endptr, path, status);
+      return parse_array_leg(stream, path);
     case BEGIN_MEMBER:
-      return parse_member_leg(charptr, endptr, path, status);
+      return parse_member_leg(stream, path);
     case WILDCARD:
-      return parse_ellipsis_leg(charptr, endptr, path, status);
+      return parse_ellipsis_leg(stream, path);
     default:
-      PARSER_RETURN(false);
+      return true;
   }
 }
 
 /**
    Parses a single ellipsis leg and appends it to a Json_path object.
 
-   @param[in] charptr The current pointer into the path expression.
-   @param[in] endptr  The end of the path expression.
+   @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
-   @param[out] status The status variable to be filled in.
 
-   @return The pointer advanced past the consumed leg.
+   @return true on error, false on success
 */
-static const char *parse_ellipsis_leg(const char *charptr, const char *endptr,
-                                      Json_path *path, bool *status) {
-  // assume the worst
-  *status = false;
-
+static bool parse_ellipsis_leg(Stream *stream, Json_path *path) {
   // advance past the first *
-  charptr++;
+  DBUG_ASSERT(stream->peek() == WILDCARD);
+  stream->skip(1);
 
   // must be followed by a second *
-  if ((charptr >= endptr) || (*charptr++ != WILDCARD)) {
-    PARSER_RETURN(false);
+  if (stream->exhausted() || stream->read() != WILDCARD) {
+    return true;
   }
 
   // may not be the last leg
-  if (charptr >= endptr) {
-    PARSER_RETURN(false);
+  if (stream->exhausted()) {
+    return true;
   }
 
   // forbid the hard-to-read *** combination
-  if (*charptr == WILDCARD) {
-    PARSER_RETURN(false);
+  if (stream->peek() == WILDCARD) {
+    return true;
   }
 
-  PARSER_RETURN(!path->append(Json_path_leg(jpl_ellipsis)));
+  return path->append(Json_path_leg(jpl_ellipsis));
 }
 
 /**
@@ -337,111 +359,97 @@ static const char *parse_ellipsis_leg(const char *charptr, const char *endptr,
   non-negative integer (which is the 0-based index relative to the end of the
   array).
 
-  @param charptr   the current position in the path being parsed
-  @param endptr    the end of the JSON path being parsed
-  @param[out] error  gets set to true if there is a syntax error,
-                     false on success
+  @param[in,out] stream    the stream to read the path expression from
   @param[out] array_index  gets set to the parsed array index
   @param[out] from_end     gets set to true if the array index is
                            relative to the end of the array
 
-  @return pointer to the first character after the parsed array index
+  @return true on error, false on success
 */
-static const char *parse_array_index(const char *charptr, const char *endptr,
-                                     bool *error, uint32 *array_index,
-                                     bool *from_end) {
+static bool parse_array_index(Stream *stream, uint32 *array_index,
+                              bool *from_end) {
   *from_end = false;
 
   // Do we have the "last" token?
-  if (charptr + 4 <= endptr && std::equal(charptr, charptr + 4, LAST)) {
-    charptr += 4;
+  if (stream->remaining() >= 4 &&
+      std::equal(LAST, LAST + 4, stream->position())) {
+    stream->skip(4);
     *from_end = true;
 
-    const char *next_token = purge_whitespace(charptr, endptr);
-    if (next_token < endptr && next_token[0] == MINUS) {
+    stream->skip_whitespace();
+
+    if (!stream->exhausted() && stream->peek() == MINUS) {
       // Found a minus sign, go on parsing to find the array index.
-      charptr = purge_whitespace(next_token + 1, endptr);
+      stream->skip(1);
+      stream->skip_whitespace();
     } else {
       // Didn't find any minus sign after "last", so we're done.
       *array_index = 0;
-      *error = false;
-      return charptr;
+      return false;
     }
   }
 
-  if (charptr >= endptr || !is_digit(*charptr)) {
-    *error = true;
-    return charptr;
+  if (stream->exhausted() || !is_digit(stream->peek())) {
+    return true;
   }
 
   const char *endp;
   int err;
-  ulonglong idx = my_strntoull(&my_charset_utf8mb4_bin, charptr,
-                               endptr - charptr, 10, &endp, &err);
+  ulonglong idx = my_strntoull(&my_charset_utf8mb4_bin, stream->position(),
+                               stream->remaining(), 10, &endp, &err);
   if (err != 0 || idx > UINT_MAX32) {
-    *error = true;
-    return charptr;
+    return true;
   }
 
+  stream->skip(endp - stream->position());
   *array_index = static_cast<uint32>(idx);
-  *error = false;
-  return endp;
+  return false;
 }
 
 /**
    Parses a single array leg and appends it to a Json_path object.
 
-   @param[in] charptr The current pointer into the path expression.
-   @param[in] endptr  The end of the path expression.
+   @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
-   @param[out] status The status variable to be filled in.
 
-   @return The pointer advanced past the consumed leg.
+   @return true on error, false on success
 */
-static const char *parse_array_leg(const char *charptr, const char *endptr,
-                                   Json_path *path, bool *status) {
-  // assume the worst
-  *status = false;
-
+static bool parse_array_leg(Stream *stream, Json_path *path) {
   // advance past the [
-  charptr++;
+  DBUG_ASSERT(stream->peek() == BEGIN_ARRAY);
+  stream->skip(1);
 
-  charptr = purge_whitespace(charptr, endptr);
-  if (charptr >= endptr) PARSER_RETURN(false);  // input exhausted
+  stream->skip_whitespace();
+  if (stream->exhausted()) return true;
 
-  if (*charptr == WILDCARD) {
-    charptr++;
-
+  if (stream->peek() == WILDCARD) {
+    stream->skip(1);
     if (path->append(Json_path_leg(jpl_array_cell_wildcard)))
-      PARSER_RETURN(false); /* purecov: inspected */
+      return true; /* purecov: inspected */
   } else {
     /*
       Not a WILDCARD. The next token must be an array index (either
       the single index of a jpl_array_cell path leg, or the start
       index of a jpl_array_range path leg.
     */
-    bool error;
     uint32 cell_index1;
     bool from_end1;
-    charptr =
-        parse_array_index(charptr, endptr, &error, &cell_index1, &from_end1);
-    if (error) PARSER_RETURN(false);
+    if (parse_array_index(stream, &cell_index1, &from_end1)) return true;
 
-    const char *number_end = charptr;
-    charptr = purge_whitespace(charptr, endptr);
-    if (charptr >= endptr) PARSER_RETURN(false);
+    stream->skip_whitespace();
+    if (stream->exhausted()) return true;
 
     // Is this a range, <arrayIndex> to <arrayIndex>?
-    if (charptr > number_end && endptr - charptr > 3 && charptr[0] == 't' &&
-        charptr[1] == 'o' && is_whitespace(charptr[2])) {
+    const char *const pos = stream->position();
+    if (stream->remaining() > 3 && is_whitespace(pos[-1]) && pos[0] == 't' &&
+        pos[1] == 'o' && is_whitespace(pos[2])) {
       // A range. Skip over the "to" token and any whitespace.
-      charptr = purge_whitespace(charptr + 3, endptr);
+      stream->skip(3);
+      stream->skip_whitespace();
 
       uint32 cell_index2;
       bool from_end2;
-      charptr =
-          parse_array_index(charptr, endptr, &error, &cell_index2, &from_end2);
-      if (error) PARSER_RETURN(false);
+      if (parse_array_index(stream, &cell_index2, &from_end2)) return true;
 
       /*
         Reject pointless paths that can never return any matches, regardless of
@@ -451,27 +459,21 @@ static const char *parse_array_leg(const char *charptr, const char *endptr,
       */
       if (from_end1 == from_end2 && ((from_end1 && cell_index1 < cell_index2) ||
                                      (!from_end1 && cell_index2 < cell_index1)))
-        PARSER_RETURN(false);
+        return true;
 
       if (path->append(
               Json_path_leg(cell_index1, from_end1, cell_index2, from_end2)))
-        PARSER_RETURN(false); /* purecov: inspected */
+        return true; /* purecov: inspected */
     } else {
       // A single array cell.
       if (path->append(Json_path_leg(cell_index1, from_end1)))
-        PARSER_RETURN(false); /* purecov: inspected */
+        return true; /* purecov: inspected */
     }
   }
 
   // the next non-whitespace should be the closing ]
-  charptr = purge_whitespace(charptr, endptr);
-  if ((charptr < endptr) && (*charptr++ == END_ARRAY)) {
-    // all is well
-    PARSER_RETURN(true);
-  }
-
-  // An error has occurred.
-  PARSER_RETURN(false);
+  stream->skip_whitespace();
+  return stream->exhausted() || stream->read() != END_ARRAY;
 }
 
 /**
@@ -554,32 +556,30 @@ static std::unique_ptr<Json_string> parse_name_with_rapidjson(const char *str,
 /**
    Parses a single member leg and appends it to a Json_path object.
 
-   @param[in] charptr The current pointer into the path expression.
-   @param[in] endptr  The end of the path expression.
+   @param[in,out] stream The stream to read the path expression from.
    @param[in,out] path The Json_path object to fill.
-   @param[out] status The status variable to be filled in.
 
-   @return The pointer advanced past the consumed leg.
+   @return true on error, false on success
 */
-static const char *parse_member_leg(const char *charptr, const char *endptr,
-                                    Json_path *path, bool *status) {
+static bool parse_member_leg(Stream *stream, Json_path *path) {
   // advance past the .
-  charptr++;
+  DBUG_ASSERT(stream->peek() == BEGIN_MEMBER);
+  stream->skip(1);
 
-  charptr = purge_whitespace(charptr, endptr);
-  if (charptr >= endptr) PARSER_RETURN(false);  // input exhausted
+  stream->skip_whitespace();
+  if (stream->exhausted()) return true;
 
-  if (*charptr == WILDCARD) {
-    charptr++;
+  if (stream->peek() == WILDCARD) {
+    stream->skip(1);
 
     if (path->append(Json_path_leg(jpl_member_wildcard)))
-      PARSER_RETURN(false); /* purecov: inspected */
+      return true; /* purecov: inspected */
   } else {
-    const char *key_start = charptr;
-    const char *key_end = find_end_of_member_name(key_start, endptr);
+    const char *const key_start = stream->position();
+    const char *const key_end =
+        find_end_of_member_name(key_start, stream->end());
     const bool was_quoted = (*key_start == DOUBLE_QUOTE);
-
-    charptr = key_end;
+    stream->skip(key_end - key_start);
 
     std::unique_ptr<Json_string> jstr;
 
@@ -595,28 +595,25 @@ static const char *parse_member_leg(const char *charptr, const char *endptr,
         double quotes and send it through the JSON parser to unescape
         it.
       */
-      char buff[STRING_BUFFER_USUAL_SIZE];
-      String strbuff(buff, sizeof(buff), &my_charset_utf8mb4_bin);
-      strbuff.length(0);
+      StringBuffer<STRING_BUFFER_USUAL_SIZE> strbuff(&my_charset_utf8mb4_bin);
       if (strbuff.append(DOUBLE_QUOTE) ||
           strbuff.append(key_start, key_end - key_start) ||
           strbuff.append(DOUBLE_QUOTE))
-        PARSER_RETURN(false); /* purecov: inspected */
+        return true; /* purecov: inspected */
       jstr = parse_name_with_rapidjson(strbuff.ptr(), strbuff.length());
     }
 
-    if (jstr == nullptr) PARSER_RETURN(false);
+    if (jstr == nullptr) return true;
 
     // unquoted names must be valid ECMAScript identifiers
-    if (!was_quoted && !is_ecmascript_identifier(jstr->value()))
-      PARSER_RETURN(false);
+    if (!was_quoted && !is_ecmascript_identifier(jstr->value())) return true;
 
     // Looking good.
     if (path->append(Json_path_leg(jstr->value())))
-      PARSER_RETURN(false); /* purecov: inspected */
+      return true; /* purecov: inspected */
   }
 
-  PARSER_RETURN(true);
+  return false;
 }
 
 /**
