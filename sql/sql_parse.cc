@@ -2000,8 +2000,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                         (uint)(queries_per_second1000 % 1000));
       // TODO: access of protocol_classic should be removed.
       // should be rewritten using store functions
-      thd->get_protocol_classic()->write((uchar *)buff, length);
-      thd->get_protocol()->flush();
+      if (thd->get_protocol_classic()->write(pointer_cast<const uchar *>(buff),
+                                             length))
+        break;
+      if (thd->get_protocol()->flush()) break;
       thd->get_stmt_da()->disable_status();
       break;
     }
