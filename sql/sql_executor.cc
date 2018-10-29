@@ -445,18 +445,6 @@ bool JOIN::rollup_send_data(uint idx) {
 */
 
 bool has_rollup_result(Item *item) {
-  /*
-    Do not save rollup result for expressions having window functions.
-    Window functions will be evaluated after ROLLUP processing.
-    So we cannot store the result of the expression yet.
-    However, all the expressions having window functions would have
-    called spilt_sum_func(). As a result, rollup fields that are part
-    of this expression would have the ROLLUP NULLs stored. These
-    are later used to evaulate the expressions when window functions
-    get evaulated.
-  */
-  if (item->has_wf()) return false;
-
   if (item->type() == Item::NULL_RESULT_ITEM) return true;
 
   if (item->type() == Item::FUNC_ITEM) {
@@ -501,7 +489,14 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
     if (having_is_true(qep_tab->having)) {
       int write_error;
       for (Item &item : rollup.all_fields[i]) {
-        if (has_rollup_result(&item)) item.save_in_result_field(1);
+        /*
+          Save the values of rollup expressions in the temporary table.
+          Unless it is a literal NULL value, make sure there is actually
+          a temporary table field created for it.
+        */
+        if ((item.type() == Item::NULL_RESULT_ITEM) ||
+            (has_rollup_result(&item) && item.get_tmp_table_field() != nullptr))
+          item.save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
