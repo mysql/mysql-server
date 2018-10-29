@@ -8814,13 +8814,16 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
 int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
 {
   Ndb *pNdb = GETNDB(step);
-  int loops = 2800;
+  int loops = 2200;
   int records = ctx->getNumRecords();
+  bool drop_table = (bool)ctx->getProperty("DropTable", 1);
   HugoTransactions hugoTrans(*ctx->getTab());
   NdbRestarter restarter;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = 2;
-  HugoOperations hugoOps(*ctx->getTab());
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  NdbDictionary::Table tab = * ctx->getTab();
+  HugoOperations hugoOps(tab);
   NdbMgmd mgmd;
   if (nodeCount != 2)
   {
@@ -8897,6 +8900,26 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
       g_err << "Update failed" << endl;
       //return NDBT_FAILED;
     }
+  }
+  if (drop_table)
+  {
+    /**
+     * In this case we will drop this table, this will verify that
+     * BUG#92955 is fixed. After this we create a new table and
+     * perform a scan against the new table.
+     * This will cause a crash if the bug isn't fixed.
+     */
+    pDict->dropTable(tab.getName());
+    int res = pDict->createTable(tab);
+    if (res)
+    {
+      ndbout_c("Failed to create table again");
+      return NDBT_FAILED;
+    }
+    HugoTransactions trans(* pDict->getTable(tab.getName()));
+    trans.loadTable(pNdb, ctx->getNumRecords());
+    trans.scanUpdateRecords(pNdb, ctx->getNumRecords());
+    return NDBT_OK;
   }
   /**
    * Finally after creating a complex restore situation we test this
@@ -9894,6 +9917,13 @@ TESTCASE("MultiCrashTest",
 TESTCASE("LCP_with_many_parts",
          "Ensure that LCP has many parts")
 {
+  TC_PROPERTY("DropTable", (Uint32)0);
+  INITIALIZER(run_PLCP_many_parts);
+}
+TESTCASE("LCP_with_many_parts_drop_table",
+         "Ensure that LCP has many parts")
+{
+  TC_PROPERTY("DropTable", (Uint32)1);
   INITIALIZER(run_PLCP_many_parts);
 }
 TESTCASE("PLCP_R1",
