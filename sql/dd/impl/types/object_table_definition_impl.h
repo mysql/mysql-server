@@ -201,6 +201,21 @@ class Object_table_definition_impl : public Object_table_definition {
   }
 
   /**
+    Get the collation which is used for the name field in the table.
+    Table collation UTF8_BIN is used when collation for the name field
+    is not specified. Tables using different collation must override this
+    method.
+
+    TODO: Changing table collation is not supporting during upgrade as of now.
+          To support this, static definition of this method should be avoided
+          and should provide a possibility to have different collations for
+          actual and target table definition.
+
+    @return Pointer to CHARSET_INFO.
+  */
+  static const CHARSET_INFO *name_collation() { return &my_charset_utf8_bin; }
+
+  /**
     Convert to lowercase if lower_case_table_names == 2. This is needed
     e.g when reconstructing name keys from a dictionary object in order
     to remove the object.

@@ -39,6 +39,10 @@ class Catalogs : public Object_table_impl {
     return *s_instance;
   }
 
+  static const CHARSET_INFO *name_collation() {
+    return Object_table_definition_impl::fs_name_collation();
+  }
+
   enum enum_fields {
     FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_NAME,
@@ -57,11 +61,9 @@ class Catalogs : public Object_table_impl {
 
     m_target_def.add_field(FIELD_ID, "FIELD_ID",
                            "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
-    m_target_def.add_field(
-        FIELD_NAME, "FIELD_NAME",
-        "name VARCHAR(64) NOT NULL COLLATE " +
-            String_type(
-                Object_table_definition_impl::fs_name_collation()->name));
+    m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
+                           "name VARCHAR(64) NOT NULL COLLATE " +
+                               String_type(name_collation()->name));
     m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                            "created TIMESTAMP NOT NULL");
     m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",

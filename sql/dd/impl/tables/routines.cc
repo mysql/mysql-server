@@ -40,6 +40,14 @@ const Routines &Routines::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Routines::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Routines::Routines() {
   m_target_def.set_table_name("routines");
 
@@ -48,7 +56,8 @@ Routines::Routines() {
   m_target_def.add_field(FIELD_SCHEMA_ID, "FIELD_SCHEMA_ID",
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
                          "type ENUM('FUNCTION', 'PROCEDURE') NOT NULL");
   m_target_def.add_field(FIELD_RESULT_DATA_TYPE, "FIELD_RESULT_DATA_TYPE",
@@ -180,7 +189,8 @@ bool Routines::update_object_key(Routine_name_key *key, Object_id schema_id,
                                  Routine::enum_routine_type type,
                                  const String_type &routine_name) {
   key->update(INDEX_UK_SCHEMA_ID_TYPE_NAME, FIELD_SCHEMA_ID, schema_id,
-              FIELD_TYPE, type, FIELD_NAME, routine_name.c_str());
+              FIELD_TYPE, type, FIELD_NAME, routine_name.c_str(),
+              name_collation());
   return false;
 }
 

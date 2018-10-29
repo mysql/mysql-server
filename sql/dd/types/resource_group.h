@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,8 @@
 #include "sql/dd/types/entity_object.h"        // dd::Entity_object
 #include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
 #include "sql/resourcegroups/resource_group_basic_types.h"  // Range, Type
+
+struct MDL_key;
 
 namespace dd {
 
@@ -81,6 +83,8 @@ class Resource_group : virtual public Entity_object {
   virtual void set_thread_priority(int priority) = 0;
 
   virtual Resource_group *clone() const = 0;
+
+  static void create_mdl_key(const String_type &name, MDL_key *key);
 };
 }  // namespace dd
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,15 @@
 #define DD__OBJECT_KEYS_INCLUDED
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
-#include <string>
 
+#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "sql/dd/impl/object_key.h"  // dd::Object_key
 #include "sql/dd/object_id.h"        // dd::Object_id
 #include "sql/dd/string_type.h"
+#include "template_utils.h"
 
 namespace dd {
 
@@ -121,13 +123,18 @@ class Global_name_key : public Object_key {
  public:
   Global_name_key() {}
 
-  Global_name_key(int name_column_no, const String_type &object_name)
-      : m_name_column_no(name_column_no), m_object_name(object_name) {}
+  Global_name_key(int name_column_no, const String_type &object_name,
+                  const CHARSET_INFO *cs)
+      : m_name_column_no(name_column_no),
+        m_object_name(object_name),
+        m_cs(cs) {}
 
   // Update a preallocated instance.
-  void update(int name_column_no, const String_type &object_name) {
+  void update(int name_column_no, const String_type &object_name,
+              const CHARSET_INFO *cs) {
     m_name_column_no = name_column_no;
     m_object_name = object_name;
+    m_cs = cs;
   }
 
  public:
@@ -138,12 +145,18 @@ class Global_name_key : public Object_key {
   /* purecov: end */
 
   bool operator<(const Global_name_key &rhs) const {
-    return m_object_name < rhs.m_object_name;
+    return (my_strnncoll(m_cs,
+                         pointer_cast<const uchar *>(m_object_name.c_str()),
+                         m_object_name.length(),
+                         pointer_cast<const uchar *>(rhs.m_object_name.c_str()),
+                         rhs.m_object_name.length()) < 0);
   }
 
  private:
   int m_name_column_no;
   String_type m_object_name;
+  // Collation used for the name in the table.
+  const CHARSET_INFO *m_cs;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -154,19 +167,23 @@ class Item_name_key : public Object_key {
   Item_name_key() {}
 
   Item_name_key(int container_id_column_no, Object_id container_id,
-                int name_column_no, const String_type &object_name)
+                int name_column_no, const String_type &object_name,
+                const CHARSET_INFO *cs)
       : m_container_id_column_no(container_id_column_no),
         m_name_column_no(name_column_no),
         m_container_id(container_id),
-        m_object_name(object_name) {}
+        m_object_name(object_name),
+        m_cs(cs) {}
 
   // Update a preallocated instance.
   void update(int container_id_column_no, Object_id container_id,
-              int name_column_no, const String_type &object_name) {
+              int name_column_no, const String_type &object_name,
+              const CHARSET_INFO *cs) {
     m_container_id_column_no = container_id_column_no;
     m_name_column_no = name_column_no;
     m_container_id = container_id;
     m_object_name = object_name;
+    m_cs = cs;
   }
 
  public:
@@ -175,11 +192,14 @@ class Item_name_key : public Object_key {
   virtual String_type str() const;
 
   bool operator<(const Item_name_key &rhs) const {
-    return m_container_id < rhs.m_container_id
-               ? true
-               : rhs.m_container_id < m_container_id
-                     ? false
-                     : m_object_name < rhs.m_object_name;
+    if (m_container_id != rhs.m_container_id)
+      return (m_container_id < rhs.m_container_id);
+
+    return (my_strnncoll(m_cs,
+                         pointer_cast<const uchar *>(m_object_name.c_str()),
+                         m_object_name.length(),
+                         pointer_cast<const uchar *>(rhs.m_object_name.c_str()),
+                         rhs.m_object_name.length()) < 0);
   }
 
  private:
@@ -188,6 +208,8 @@ class Item_name_key : public Object_key {
 
   Object_id m_container_id;
   String_type m_object_name;
+  // Collation used for the name in the table.
+  const CHARSET_INFO *m_cs;
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -414,19 +436,21 @@ class Routine_name_key : public Object_key {
 
   Routine_name_key(int index_no, int container_id_column_no,
                    Object_id container_id, int type_column_no, uint type,
-                   int name_column_no, const String_type &object_name)
+                   int name_column_no, const String_type &object_name,
+                   const CHARSET_INFO *cs)
       : m_index_no(index_no),
         m_container_id_column_no(container_id_column_no),
         m_type_column_no(type_column_no),
         m_name_column_no(name_column_no),
         m_container_id(container_id),
         m_type(type),
-        m_object_name(object_name) {}
+        m_object_name(object_name),
+        m_cs(cs) {}
 
   // Update a preallocated instance.
   void update(int index_no, int container_id_column_no, Object_id container_id,
               int type_column_no, uint type, int name_column_no,
-              const String_type &object_name) {
+              const String_type &object_name, const CHARSET_INFO *cs) {
     m_index_no = index_no;
     m_container_id_column_no = container_id_column_no;
     m_type_column_no = type_column_no;
@@ -434,6 +458,7 @@ class Routine_name_key : public Object_key {
     m_container_id = container_id;
     m_type = type;
     m_object_name = object_name;
+    m_cs = cs;
   }
 
  public:
@@ -452,6 +477,8 @@ class Routine_name_key : public Object_key {
   Object_id m_container_id;
   uint m_type;
   String_type m_object_name;
+  // Collation used for the routine name in the table.
+  const CHARSET_INFO *m_cs;
 };
 
 ///////////////////////////////////////////////////////////////////////////

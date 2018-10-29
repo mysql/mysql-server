@@ -41,6 +41,14 @@ const Events &Events::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Events::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Events::Events() {
   m_target_def.set_table_name("events");
 
@@ -49,7 +57,8 @@ Events::Events() {
   m_target_def.add_field(FIELD_SCHEMA_ID, "FIELD_SCHEMA_ID",
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DEFINER, "FIELD_DEFINER",
                          "definer VARCHAR(93) NOT NULL");
   m_target_def.add_field(FIELD_TIME_ZONE, "FIELD_TIME_ZONE",
@@ -128,11 +137,8 @@ Events::Events() {
 
 bool Events::update_object_key(Item_name_key *key, Object_id schema_id,
                                const String_type &event_name) {
-  char buf[NAME_LEN + 1];
-  my_stpcpy(buf, event_name.c_str());
-  my_casedn_str(&my_charset_utf8_tolower_ci, buf);
-
-  key->update(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, buf);
+  key->update(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, event_name,
+              name_collation());
   return false;
 }
 

@@ -90,6 +90,7 @@ SET(DD_SOURCES
   dd/dd_tablespace.cc
   dd/dd_trigger.cc
   dd/dd_view.cc
+  dd/dd_utility.cc
   dd/properties.cc
 
   dd/impl/bootstrap_ctx.cc

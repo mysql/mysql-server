@@ -3476,3 +3476,42 @@ t3 VALUES (1, NEW.i, NULL, CONCAT("BI: ", NEW.j));
 SET sql_mode=default;
 DROP TRIGGER t1_before_insert;
 DROP TABLE t1;
+#
+# Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+#                Even trigger names are case and accent insensitive. Test case to
+#                verify the same.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE t1 (f1 INT, f2 INT);
+#
+# Test case to verify triggers with case and accent insensitive names.
+#
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+# Following statement errors out as trigger with name 'cafe' already
+# exists on the table.
+CREATE TRIGGER café BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+ERROR HY000: Trigger already exists
+# Following statement is to verify operation with the upper case name.
+CREATE TRIGGER CAFE BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+ERROR HY000: Trigger already exists
+SHOW CREATE TRIGGER cAfé;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+cafe	#	#	#	#	#	#
+DROP TRIGGER CaFé;
+# Trigger with NAME_LEN size name.
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e
+BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é
+BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+ERROR HY000: Trigger already exists
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E
+BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+ERROR HY000: Trigger already exists
+SHOW CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#	#
+DROP TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP TABLE t1;
+SET NAMES default;

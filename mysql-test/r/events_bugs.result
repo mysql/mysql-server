@@ -842,6 +842,40 @@ SLEEP(3)
 SET @@global.autocommit=@save_autocommit_value;
 SET @@session.TIMESTAMP=default;
 DROP TABLE t1;
+#
+# Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+#
+# Test case to verify events with case and accent insensitive names.
+#
+CREATE EVENT cafe ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+# Event names are case and accent insensitive. So from the data-dictionary
+# "cafe" is obtained for the following statement. Since MDL key comparison
+# is case and accent sensitive, assert condition to verify expected lock
+# with name "test.cafe" fails (lock is obtained on the test.café)
+CREATE EVENT café ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'café' already exists
+# Following statement is to verify operation with the upper case name.
+CREATE EVENT CAFE ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'CAFE' already exists
+SHOW CREATE EVENT CaFé;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+cafe	#	#	#	#	#	#
+DROP EVENT CaFé;
+# Event with NAME_LEN size name.
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é' already exists
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+ERROR HY000: Event 'очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E' already exists
+SHOW CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#	#
+DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+SET NAMES default;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;

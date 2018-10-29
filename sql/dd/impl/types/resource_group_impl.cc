@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/resource_group_impl.h"
 
+#include "sql/dd/dd_utility.h"                   // normalize_string()
 #include "sql/dd/impl/raw/object_keys.h"         // Primary_id_keys
 #include "sql/dd/impl/raw/raw_record.h"          // Raw_record
 #include "sql/dd/impl/tables/resource_groups.h"  // Resource_groups
@@ -128,5 +129,22 @@ bool Resource_group::update_name_key(Name_key *key, const String_type &name) {
   lc_name[NAME_LEN] = '\0';
   return Resource_groups::update_object_key(key, lc_name);
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+void Resource_group::create_mdl_key(const String_type &name, MDL_key *mdl_key) {
+  /*
+    Normalize the resource group name so that key comparison for case and accent
+    insensitive names yields the correct result.
+  */
+  char normalized_name[NAME_CHAR_LEN * 2];
+  size_t len = normalize_string(DD_table::name_collation(), name,
+                                normalized_name, sizeof(normalized_name));
+
+  mdl_key->mdl_key_init(MDL_key::RESOURCE_GROUPS, "", normalized_name, len,
+                        name.c_str());
+}
+
+///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd

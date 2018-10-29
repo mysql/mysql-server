@@ -45,6 +45,12 @@ const Schemata &Schemata::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Schemata::name_collation() {
+  return Object_table_definition_impl::fs_name_collation();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Schemata::Schemata() {
   m_target_def.set_table_name("schemata");
 
@@ -52,10 +58,9 @@ Schemata::Schemata() {
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_CATALOG_ID, "FIELD_CATALOG_ID",
                          "catalog_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(
-      FIELD_NAME, "FIELD_NAME",
-      "name VARCHAR(64) NOT NULL COLLATE " +
-          String_type(Object_table_definition_impl::fs_name_collation()->name));
+  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DEFAULT_COLLATION_ID,
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
@@ -91,9 +96,8 @@ Schemata::Schemata() {
 
 bool Schemata::update_object_key(Item_name_key *key, Object_id catalog_id,
                                  const String_type &schema_name) {
-  char buf[NAME_LEN + 1];
-  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME,
-              Object_table_definition_impl::fs_name_case(schema_name, buf));
+  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME, schema_name,
+              name_collation());
   return false;
 }
 

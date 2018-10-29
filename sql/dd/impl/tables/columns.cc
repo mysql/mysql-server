@@ -38,6 +38,12 @@ const Columns &Columns::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Columns::name_collation() {
+  return &my_charset_utf8_tolower_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Columns::Columns() {
   m_target_def.set_table_name("columns");
 
@@ -46,7 +52,8 @@ Columns::Columns() {
   m_target_def.add_field(FIELD_TABLE_ID, "FIELD_TABLE_ID",
                          "table_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_ORDINAL_POSITION, "FIELD_ORDINAL_POSITION",
                          "ordinal_position INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",

@@ -679,19 +679,17 @@ void Trigger::add_tables_and_routines(THD *thd,
                           */
                           false,
                           /*
-                            Lowercase trigger name to ensure that we can use
-                            binary comparison for Sroutine_hash_entry's key.
+                            Normalize(lowercase name and remove accent of)
+                            trigger name to ensure that we can use binary
+                            comparison for Sroutine_hash_entry key.
 
-                            TODO: In 8.0 trigger names are always
-                            case-insensitive. If we decide to return
+                            TODO: In 8.0 trigger names are always case and
+                            accent insensitive. If we decide to return
                             to 5.7 behavior, where it is dependent on
                             lower-case-table-name value, then we need
                             to pass different value below.
-                            Also in 8.0 trigger names are accent-
-                            insensitive which doesn't exactly match
-                            comparison of lowercased names.
                           */
-                          true,
+                          Sp_name_normalize_type::UNACCENT_AND_LOWERCASE_NAME,
                           false,  // This is not "own", directly-used routine.
                           table_list->belong_to_view)) {
     m_sp->add_used_tables_to_table_list(thd, &prelocking_ctx->query_tables_last,

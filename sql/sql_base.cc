@@ -84,6 +84,8 @@
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/foreign_key.h"  // dd::Foreign_key
+#include "sql/dd/types/function.h"
+#include "sql/dd/types/procedure.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/view.h"
@@ -4373,7 +4375,10 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
     Therefore we need to normalize/lowercase these names while prelocking
     set key is constructing from them.
   */
-  bool normalize_names = (lower_case_table_names == 2);
+  bool normalize_db_names = (lower_case_table_names == 2);
+  Sp_name_normalize_type name_normalize_type =
+      (lower_case_table_names == 2) ? Sp_name_normalize_type::LOWERCASE_NAME
+                                    : Sp_name_normalize_type::LEAVE_AS_IS;
 
   if (is_insert || is_update) {
     for (TABLE_SHARE_FOREIGN_KEY_INFO *fk = share->foreign_key;
@@ -4383,7 +4388,7 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
           Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK,
           fk->referenced_table_db.str, fk->referenced_table_db.length,
           fk->referenced_table_name.str, fk->referenced_table_name.length,
-          normalize_names, normalize_names, false, belong_to_view);
+          normalize_db_names, name_normalize_type, false, belong_to_view);
     }
   }
 
@@ -4402,8 +4407,8 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
             Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK,
             fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
             fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_names,
-            normalize_names, false, belong_to_view);
+            fk_p->referencing_table_name.length, normalize_db_names,
+            name_normalize_type, false, belong_to_view);
       }
 
       if ((is_update &&
@@ -4418,8 +4423,8 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
             Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_UPDATE,
             fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
             fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_names,
-            normalize_names, false, belong_to_view);
+            fk_p->referencing_table_name.length, normalize_db_names,
+            name_normalize_type, false, belong_to_view);
       }
 
       if (is_delete && fk_p->delete_rule == dd::Foreign_key::RULE_CASCADE) {
@@ -4428,8 +4433,8 @@ static void process_table_fks(THD *thd, Query_tables_list *prelocking_ctx,
             Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_DELETE,
             fk_p->referencing_table_db.str, fk_p->referencing_table_db.length,
             fk_p->referencing_table_name.str,
-            fk_p->referencing_table_name.length, normalize_names,
-            normalize_names, false, belong_to_view);
+            fk_p->referencing_table_name.length, normalize_db_names,
+            name_normalize_type, false, belong_to_view);
       }
     }
   }
@@ -4482,13 +4487,15 @@ static bool open_and_process_routine(
       if (rt != prelocking_ctx->sroutines_list.first ||
           rt->type() != Sroutine_hash_entry::PROCEDURE) {
         MDL_request mdl_request;
+        MDL_key mdl_key;
 
-        MDL_REQUEST_INIT_BY_PART_KEY(
-            &mdl_request,
-            (rt->type() == Sroutine_hash_entry::FUNCTION) ? MDL_key::FUNCTION
-                                                          : MDL_key::PROCEDURE,
-            rt->part_mdl_key(), rt->part_mdl_key_length(), rt->db_length(),
-            MDL_SHARED, MDL_TRANSACTION);
+        if (rt->type() == Sroutine_hash_entry::FUNCTION)
+          dd::Function::create_mdl_key(rt->db(), rt->name(), &mdl_key);
+        else
+          dd::Procedure::create_mdl_key(rt->db(), rt->name(), &mdl_key);
+
+        MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, MDL_SHARED,
+                                MDL_TRANSACTION);
 
         /*
           Waiting for a conflicting metadata lock to go away may

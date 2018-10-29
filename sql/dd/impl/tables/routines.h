@@ -43,6 +43,8 @@ class Routines : public Entity_object_table_impl {
  public:
   static const Routines &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,

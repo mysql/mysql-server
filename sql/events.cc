@@ -57,6 +57,7 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/event.h"
 #include "sql/dd/types/schema.h"
+#include "sql/debug_sync.h"
 #include "sql/event_data_objects.h"   // Event_queue_element
 #include "sql/event_db_repository.h"  // Event_db_repository
 #include "sql/event_parse_data.h"     // Event_parse_data
@@ -639,6 +640,8 @@ bool Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   if (lock_object_name(thd, MDL_key::EVENT, dbname.str, name.str))
     DBUG_RETURN(true);
 
+  DEBUG_SYNC(thd, "after_acquiring_exclusive_lock_on_the_event");
+
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   bool event_exists;
   if (Event_db_repository::drop_event(thd, dbname, name, if_exists,
@@ -702,17 +705,28 @@ bool Events::lock_schema_events(THD *thd, const dd::Schema &schema) {
                                                                 &event_names))
     DBUG_RETURN(true);
 
+  /*
+    If lower_case_table_names == 2 then schema names should be lower cased for
+    proper hash key comparisons.
+  */
+  const char *schema_name = schema.name().c_str();
+  char schema_name_buf[NAME_LEN + 1];
+  if (lower_case_table_names == 2) {
+    my_stpcpy(schema_name_buf, schema_name);
+    my_casedn_str(system_charset_info, schema_name_buf);
+    schema_name = schema_name_buf;
+  }
+
   MDL_request_list mdl_requests;
   for (std::vector<dd::String_type>::const_iterator name = event_names.begin();
        name != event_names.end(); ++name) {
-    // Event names are case insensitive, so convert to lower case.
-    char lc_event_name[NAME_LEN + 1];
-    convert_name_lowercase(name->c_str(), lc_event_name, sizeof(lc_event_name));
+    MDL_key mdl_key;
+    dd::Event::create_mdl_key(dd::String_type(schema_name), *name, &mdl_key);
 
     // Add MDL_request for routine to mdl_requests list.
     MDL_request *mdl_request = new (thd->mem_root) MDL_request;
-    MDL_REQUEST_INIT(mdl_request, MDL_key::EVENT, schema.name().c_str(),
-                     lc_event_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+    MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
+                            MDL_TRANSACTION);
     mdl_requests.push_front(mdl_request);
   }
 
@@ -841,17 +855,17 @@ bool Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
   dd::Schema_MDL_locker mdl_handler(thd);
   if (mdl_handler.ensure_locked(dbname.str)) DBUG_RETURN(true);
 
-  // convert event name to lower case before acquiring MDL lock.
-  char event_name_buf[NAME_LEN + 1];
-  convert_name_lowercase(name.str, event_name_buf, sizeof(event_name_buf));
-
   // Grab MDL lock on object in shared mode.
+  MDL_key mdl_key;
+  dd::Event::create_mdl_key(dbname.str, name.str, &mdl_key);
   MDL_request event_mdl_request;
-  MDL_REQUEST_INIT(&event_mdl_request, MDL_key::EVENT, dbname.str,
-                   event_name_buf, MDL_SHARED_HIGH_PRIO, MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&event_mdl_request, &mdl_key, MDL_SHARED_HIGH_PRIO,
+                          MDL_TRANSACTION);
   if (thd->mdl_context.acquire_lock(&event_mdl_request,
                                     thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
+
+  DEBUG_SYNC(thd, "after_acquiring_shared_lock_on_the_event");
 
   /*
     We would like to allow SHOW CREATE EVENT under LOCK TABLES and

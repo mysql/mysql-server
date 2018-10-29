@@ -246,33 +246,29 @@ bool reload_triggers_for_table(THD *thd, const char *db_name,
 
 bool acquire_mdl_for_trigger(THD *thd, const char *db, const char *trg_name,
                              enum_mdl_type trigger_name_mdl_type) {
-  MDL_request_list mdl_requests;
-  MDL_request mdl_request;
-
   DBUG_ASSERT(trg_name != nullptr);
   DBUG_ASSERT(trigger_name_mdl_type == MDL_EXCLUSIVE ||
               trigger_name_mdl_type == MDL_SHARED_HIGH_PRIO);
 
-  char lc_name[NAME_LEN + 1];
-  my_stpncpy(lc_name, trg_name, NAME_LEN);
-  my_casedn_str(system_charset_info, lc_name);
-  lc_name[NAME_LEN] = '\0';
-
   if (thd->global_read_lock.can_acquire_protection()) return true;
 
+  MDL_key mdl_key;
+  dd::Trigger::create_mdl_key(dd::String_type(db), dd::String_type(trg_name),
+                              &mdl_key);
+
+  MDL_request mdl_request;
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, trigger_name_mdl_type,
+                          MDL_TRANSACTION);
   /*
     It isn't required to create MDL request for MDL_key::GLOBAL,
     MDL_key::SCHEMA since it was already done before while
     calling the method open_and_lock_subj_table().
   */
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TRIGGER, db, lc_name,
-                   trigger_name_mdl_type, MDL_TRANSACTION);
-
-  mdl_requests.push_front(&mdl_request);
-
-  if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                     thd->variables.lock_wait_timeout))
+  if (thd->mdl_context.acquire_lock(&mdl_request,
+                                    thd->variables.lock_wait_timeout))
     return true;
+
+  DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_trigger");
 
   return false;
 }

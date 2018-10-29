@@ -769,8 +769,14 @@ Trigger *Table_impl::add_trigger(Trigger::enum_action_timing at,
 ///////////////////////////////////////////////////////////////////////////
 
 const Trigger *Table_impl::get_trigger(const char *name) const {
+  const uchar *src_trg_name = pointer_cast<const uchar *>(name);
+  size_t src_trg_name_len = strlen(name);
   for (const Trigger *trigger : triggers()) {
-    if (!strcmp(name, trigger->name().c_str())) return trigger;
+    if (!my_strnncoll(dd::tables::Triggers::name_collation(), src_trg_name,
+                      src_trg_name_len,
+                      pointer_cast<const uchar *>(trigger->name().c_str()),
+                      trigger->name().length()))
+      return trigger;
   }
 
   return nullptr;

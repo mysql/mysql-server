@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,8 @@ dd::Column_statistics *Column_statistics::create_entity_object(
 bool Column_statistics::update_object_key(Item_name_key *key,
                                           Object_id catalog_id,
                                           const String_type &name) {
-  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME, name);
+  key->update(FIELD_CATALOG_ID, catalog_id, FIELD_NAME, name,
+              Object_table_definition_impl::name_collation());
   return false;
 }
 

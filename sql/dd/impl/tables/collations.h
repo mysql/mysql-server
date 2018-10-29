@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@ namespace tables {
 class Collations : public Entity_object_table_impl {
  public:
   static const Collations &instance();
+
+  static const CHARSET_INFO *name_collation();
 
   enum enum_fields {
     FIELD_ID = static_cast<uint>(Common_field::ID),

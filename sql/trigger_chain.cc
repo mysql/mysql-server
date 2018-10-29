@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,11 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"  // ER_*
-#include "sql/mysqld.h"    // table_alias_charset
-#include "sql/sp_head.h"   // sp_head
-#include "sql/trigger.h"   // Trigger
+#include "mysqld_error.h"          // ER_*
+#include "sql/dd/types/trigger.h"  // name_collation
+#include "sql/mysqld.h"            // table_alias_charset
+#include "sql/sp_head.h"           // sp_head
+#include "sql/trigger.h"           // Trigger
 
 struct MEM_ROOT;
 
@@ -78,10 +79,13 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger,
           return true;
         }
 
-        if (my_strcasecmp(table_alias_charset, t->get_trigger_name().str,
-                          referenced_trigger_name.str) == 0) {
+        if (!my_strnncoll(
+                dd::Trigger::name_collation(),
+                pointer_cast<const uchar *>(t->get_trigger_name().str),
+                t->get_trigger_name().length,
+                pointer_cast<const uchar *>(referenced_trigger_name.str),
+                referenced_trigger_name.length))
           break;
-        }
 
         it = it2;
       }

@@ -38,6 +38,8 @@ class Columns : public Object_table_impl {
  public:
   static const Columns &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_TABLE_ID,
