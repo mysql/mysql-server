@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -441,6 +441,10 @@ public:
                                  Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
+  void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
+                                               Uint32 callbackData,
+                                               Uint32 returnCode);
+
 
   void create_triggers(Signal*, Ptr<Subscription>);
   void drop_triggers(Signal*, Ptr<Subscription>);
@@ -761,6 +765,7 @@ private:
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint32 b_dti_buf_ref_count;
   Uint64 m_current_gci;
 
   Uint32 m_startphase;
