@@ -5550,6 +5550,17 @@ Suma::execDROP_TAB_CONF(Signal *signal)
  * after use.
  */
 void
+Suma::send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
+                                              Uint32 callbackData,
+                                              Uint32 returnCode)
+{
+  ndbrequire(callbackData == 0);
+  ndbrequire(returnCode == 0);
+  ndbrequire(b_dti_buf_ref_count > 0);
+  b_dti_buf_ref_count--;
+}
+
+void
 Suma::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
@@ -5586,6 +5597,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 				       getSectionSegmentPool());
   reader.printAll(ndbout);
 #endif
+  ndbrequire(b_dti_buf_ref_count == 0);
   copy(b_dti_buf, tabInfoPtr);
   releaseSections(handle);
 
@@ -5631,7 +5643,8 @@ Suma::execALTER_TAB_REQ(Signal *signal)
     {
       jam();
       data->senderData= ptr.p->m_senderData;
-      Callback c = { 0, 0 };
+      Callback c = { safe_cast(&Suma::send_fragmented_SUB_TABLE_DATA_callback), 0 };
+      b_dti_buf_ref_count++;
       sendFragmentedSignal(ptr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                            SubTableData::SignalLength, JBB, lptr, 1, c);
     }

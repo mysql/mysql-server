@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ Suma::Suma(Block_context& ctx) :
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
   c_gcp_list(c_gcp_pool),
+  b_dti_buf_ref_count(0),
   m_current_gci(~(Uint64)0)
 {
   BLOCK_CONSTRUCTOR(Suma);
