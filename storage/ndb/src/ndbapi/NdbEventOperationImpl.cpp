@@ -3199,6 +3199,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
        * Already completed GCI...
        *   Possible in case of resend during NF handling
        */
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
       DBUG_RETURN_EVENT(0);
     }
     
