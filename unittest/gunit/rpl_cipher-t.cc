@@ -271,7 +271,7 @@ void Binlog(Test_data_set ds) {
   Key_string key_str;
   SetKeyStr<T>(key_str, ds.key);
 
-  std::unique_ptr<unsigned char> buffer(new unsigned char[ds.stream_size]);
+  std::unique_ptr<unsigned char[]> buffer(new unsigned char[ds.stream_size]);
   my_rand_buffer(buffer.get(), ds.stream_size);
   /* Decryption will be performed into same encrypted buffer */
   unsigned char *encrypted = buffer.get();
@@ -308,7 +308,7 @@ void EncryptAndDecrypt(Test_data_set ds) {
   Key_string key_str;
   SetKeyStr<T>(key_str, ds.key);
 
-  std::unique_ptr<unsigned char> buffer(new unsigned char[ds.stream_size]);
+  std::unique_ptr<unsigned char[]> buffer(new unsigned char[ds.stream_size]);
   my_rand_buffer(buffer.get(), ds.stream_size);
   /* Decryption will be performed into same encrypted buffer */
   unsigned char *encrypted = buffer.get();
@@ -345,14 +345,14 @@ void SequentialEncryptAndDecrypt(Test_data_set ds) {
   Key_string key_str;
   SetKeyStr<T>(key_str, ds.key);
 
-  std::unique_ptr<unsigned char> buffer(new unsigned char[ds.stream_size]);
+  std::unique_ptr<unsigned char[]> buffer(new unsigned char[ds.stream_size]);
   my_rand_buffer(buffer.get(), ds.stream_size);
   /* Decryption will be performed into same encrypted buffer */
   unsigned char *encrypted = buffer.get();
   unsigned char *decrypted = buffer.get();
 
   /* Buffer to store an encrypted reference */
-  std::unique_ptr<unsigned char> full_encrypted_buffer(
+  std::unique_ptr<unsigned char[]> full_encrypted_buffer(
       new unsigned char[ds.stream_size]);
   my_rand_buffer(full_encrypted_buffer.get(), ds.stream_size);
   unsigned char *full_encrypted = full_encrypted_buffer.get();
@@ -407,14 +407,14 @@ void MultiLengthEncryptAndDecrypt(Test_data_set ds) {
   Key_string key_str;
   SetKeyStr<T>(key_str, ds.key);
 
-  std::unique_ptr<unsigned char> buffer(new unsigned char[ds.stream_size]);
+  std::unique_ptr<unsigned char[]> buffer(new unsigned char[ds.stream_size]);
   my_rand_buffer(buffer.get(), ds.stream_size);
   /* Decryption will be performed into same encrypted buffer */
   unsigned char *encrypted = buffer.get();
   unsigned char *decrypted = buffer.get();
 
   /* Buffer to store an encrypted reference */
-  std::unique_ptr<unsigned char> full_encrypted_buffer(
+  std::unique_ptr<unsigned char[]> full_encrypted_buffer(
       new unsigned char[ds.stream_size]);
   my_rand_buffer(full_encrypted_buffer.get(), ds.stream_size);
   unsigned char *full_encrypted = full_encrypted_buffer.get();
@@ -461,20 +461,20 @@ void SeekAndEncryptAndDecrypt(Test_data_set ds) {
   Key_string key_str;
   SetKeyStr<T>(key_str, ds.key);
 
-  std::unique_ptr<unsigned char> buffer(new unsigned char[ds.stream_size]);
+  std::unique_ptr<unsigned char[]> buffer(new unsigned char[ds.stream_size]);
   my_rand_buffer(buffer.get(), ds.stream_size);
   /* Decryption will be performed into same encrypted buffer */
   unsigned char *encrypted = buffer.get();
   unsigned char *decrypted = buffer.get();
 
   /* Buffer to store an encrypted reference */
-  std::unique_ptr<unsigned char> full_encrypted_buffer(
+  std::unique_ptr<unsigned char[]> full_encrypted_buffer(
       new unsigned char[ds.stream_size]);
   my_rand_buffer(full_encrypted_buffer.get(), ds.stream_size);
   unsigned char *full_encrypted = full_encrypted_buffer.get();
 
   /* The source will be changed during the test */
-  std::unique_ptr<unsigned char> source_buffer(
+  std::unique_ptr<unsigned char[]> source_buffer(
       new unsigned char[ds.stream_size]);
   unsigned char *source = source_buffer.get();
 
