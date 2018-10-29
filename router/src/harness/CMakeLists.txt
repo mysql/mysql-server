@@ -89,6 +89,9 @@ SET(harness_source
   src/random_generator.cc
   src/socket_operations.cc
   src/tcp_address.cc
+  src/tty.cc
+  src/vt100.cc
+  src/vt100_filter.cc
   src/keyring/keyring_manager.cc
   src/keyring/keyring_memory.cc
   src/keyring/keyring_file.cc

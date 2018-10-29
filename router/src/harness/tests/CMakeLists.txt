@@ -63,6 +63,7 @@ SET(TESTS
   test_mpmc_queue.cc
   test_dynamic_state.cc
   test_arg_handler.cc
+  test_vt100.cc
 )
 
 FOREACH(TEST ${TESTS})

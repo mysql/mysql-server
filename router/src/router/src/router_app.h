@@ -108,6 +108,8 @@ class MySQLRouter {
    *
    * @param origin Directory where executable is located
    * @param arguments a vector of strings
+   * @param out_stream output stream representing "stdout"
+   * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const mysql_harness::Path &origin, const vector<string> &arguments
@@ -133,6 +135,8 @@ class MySQLRouter {
    *
    * @param argc number of arguments
    * @param argv pointer to first command line argument
+   * @param out_stream output stream representing "stdout"
+   * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const int argc, char **argv
