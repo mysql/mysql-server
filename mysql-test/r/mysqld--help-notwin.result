@@ -1321,7 +1321,6 @@ The following options may be given as the first argument:
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
  -u, --user=name     Run mysqld daemon as user.
- --validate-config   Validate the server configuration specified by the user.
  --validate-user-plugins 
  Turns on additional validation of authentication plugins
  assigned to user accounts. 
@@ -1690,7 +1689,6 @@ transaction-prealloc-size 4096
 transaction-read-only FALSE
 transaction-write-set-extraction XXHASH64
 updatable-views-with-limit YES
-validate-config FALSE
 validate-user-plugins TRUE
 verbose TRUE
 wait-timeout 28800

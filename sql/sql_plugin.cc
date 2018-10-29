@@ -1523,7 +1523,7 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv) {
           !my_strcasecmp(&my_charset_latin1, plugin->name, "MyISAM");
       bool is_innodb =
           !my_strcasecmp(&my_charset_latin1, plugin->name, "InnoDB");
-      if (!is_myisam && (!is_innodb || is_help_or_validate_option()) &&
+      if (!is_myisam && (!is_innodb || opt_help) &&
           my_strcasecmp(&my_charset_latin1, plugin->name, "CSV"))
         continue;
 
