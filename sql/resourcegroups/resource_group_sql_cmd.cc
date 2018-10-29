@@ -81,14 +81,12 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
                                                      const char *res_grp_name) {
   DBUG_ENTER("acquire_exclusive_mdl_for_resource_group");
 
-  char lc_name[NAME_CHAR_LEN + 1];
-  my_stpncpy(lc_name, res_grp_name, NAME_CHAR_LEN);
-  lc_name[NAME_CHAR_LEN] = '\0';
-  my_casedn_str(system_charset_info, lc_name);
+  MDL_key mdl_key;
+  dd::Resource_group::create_mdl_key(res_grp_name, &mdl_key);
 
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::RESOURCE_GROUPS, "", lc_name,
-                   MDL_EXCLUSIVE, MDL_TRANSACTION);
+  MDL_REQUEST_INIT_BY_KEY(&mdl_request, &mdl_key, MDL_EXCLUSIVE,
+                          MDL_TRANSACTION);
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);

@@ -416,3 +416,63 @@ INSERT INTO t1 VALUES (1,10);
 
 DROP PROCEDURE proc;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+--echo #
+SET NAMES utf8;
+
+--echo #
+--echo # Test case to verify stored procedure with case and accent insensitive names.
+--echo #
+CREATE PROCEDURE cafe() BEGIN END;
+--echo # Stored procedure names are case and accent insensitive. So from the
+--echo # data-dictionary "cafe" is obtained for the following statement. Since
+--echo # MDL key comparison is case and accent sensitive, assert condition to verify
+--echo # expected lock with name "test.cafe" fails (lock is obtained on the
+--echo # test.café).
+--error ER_SP_ALREADY_EXISTS
+CREATE PROCEDURE café() BEGIN END;
+--echo # Following statement is to verify operation with the upper case name.
+--error ER_SP_ALREADY_EXISTS
+CREATE PROCEDURE CAFE() BEGIN END;
+DROP PROCEDURE CaFé;
+
+--echo # Procedure with NAME_LEN size name.
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e() BEGIN END;
+--error ER_SP_ALREADY_EXISTS
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é() BEGIN END;
+--error ER_SP_ALREADY_EXISTS
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E() BEGIN END;
+SHOW CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+
+--echo #
+--echo # Test case to verify stored function with case and accent insensitive names.
+--echo #
+CREATE FUNCTION cafe() RETURNS INT return 15081947;
+--echo # Stored function names are case and accent insensitive. So from the
+--echo # data-dictionary "cafe" is obtained for the following statement. Since
+--echo # MDL key comparison is case and accent sensitive, assert condition to verify
+--echo # expected lock with name "test.cafe" fails (lock is obtained on the
+--echo # test.café).
+--error ER_SP_ALREADY_EXISTS
+CREATE FUNCTION café() RETURNS INT return 15081947;
+--echo # Following statement is to verify operation with the upper case name.
+--error ER_SP_ALREADY_EXISTS
+CREATE FUNCTION CAFE() RETURNS INT return 15081947;
+--replace_column 2 # 3 # 4 # 5 # 6 #
+SHOW CREATE FUNCTION CaFé;
+DROP FUNCTION CaFé;
+
+--echo # Function with NAME_LEN size name.
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e() RETURNS INT return 15081947;
+--error ER_SP_ALREADY_EXISTS
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é() RETURNS INT return 15081947;
+--error ER_SP_ALREADY_EXISTS
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E() RETURNS INT return 15081947;
+--replace_column 2 # 3 # 4 # 5 # 6 #
+SHOW CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+
+SET NAMES default;

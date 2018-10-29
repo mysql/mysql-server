@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,7 +227,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 class Sroutine_hash_entry {
  public:
   /**
-    Key identifiying routine or other object added to the set.
+    Key identifying routine or other object added to the set.
 
     Key format: "@<1-byte entry type@>@<db name@>\0@<routine/object name@>\0".
 
@@ -237,16 +237,18 @@ class Sroutine_hash_entry {
           names which passed to functions working with this set are already
           lowercased. So binary comparison is equivalent to case-insensitive
           comparison for them.
-          To achieve case-insensitive comparison for routine names we need
-          to always lowercase routine names when constructing these keys.
-          TODO: Routine names are also compared in accent-insensitive fashion
-          at this point. This needs to be handled somehow.
+          Routine names are case and accent insensitive. To achieve such
+          comparison we normalize routine names by converting their characters
+          to their sort weights (according to case and accent insensitive
+          collation). In this case, the actual routine name is also stored in
+          the member m_object_name.
 
-    @note The '@<db name@>\0@<object name@>\0' part of the key is compatible
-          with keys used by MDL. So one can easily construct MDL_key from
-          this key.
+    @note For Foreign Key objects, '@<db name@>\0@<object name@>\0' part of the
+          key is compatible with keys used by MDL. So one can easily construct
+          MDL_key from this key.
   */
   char *m_key;
+  LEX_CSTRING m_object_name;
   uint16 m_key_length;
   uint16 m_db_length;
 
@@ -292,13 +294,26 @@ class Sroutine_hash_entry {
   entry_type type() const { return (entry_type)m_key[0]; }
   const char *db() const { return (char *)m_key + 1; }
   size_t db_length() const { return m_db_length; }
-  const char *name() const { return (char *)m_key + 1 + m_db_length + 1; }
+  const char *name() const {
+    return use_normalized_key() ? m_object_name.str
+                                : (char *)m_key + 1 + m_db_length + 1;
+  }
   size_t name_length() const {
-    return m_key_length - 1U - m_db_length - 1U - 1U;
+    return use_normalized_key() ? m_object_name.length
+                                : m_key_length - 1U - m_db_length - 1U - 1U;
+  }
+  bool use_normalized_key() const {
+    return (type() == FUNCTION || type() == PROCEDURE || type() == TRIGGER);
   }
 
-  const char *part_mdl_key() { return (char *)m_key + 1; }
-  size_t part_mdl_key_length() { return m_key_length - 1U; }
+  const char *part_mdl_key() {
+    DBUG_ASSERT(!use_normalized_key());
+    return (char *)m_key + 1;
+  }
+  size_t part_mdl_key_length() {
+    DBUG_ASSERT(!use_normalized_key());
+    return m_key_length - 1U;
+  }
 
   /**
     Next element in list linking all routines in set. See also comments
@@ -325,12 +340,23 @@ class Sroutine_hash_entry {
 };
 
 /*
+  Enum to indicate SP name normalization required when constructing a key
+  in sp_add_used_routine method.
+*/
+enum class Sp_name_normalize_type {
+  LEAVE_AS_IS = 0,              // No normalization needed.
+  LOWERCASE_NAME,               // Lower case SP name.
+  UNACCENT_AND_LOWERCASE_NAME,  // Lower case SP name and remove accent.
+};
+
+/*
   Procedures for handling sets of stored routines used by statement or routine.
 */
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          Sroutine_hash_entry::entry_type type, const char *db,
                          size_t db_length, const char *name, size_t name_length,
-                         bool lowercase_db, bool lowercase_name,
+                         bool lowercase_db,
+                         Sp_name_normalize_type name_normalize_type,
                          bool own_routine, TABLE_LIST *belong_to_view);
 
 /**
@@ -347,7 +373,8 @@ inline bool sp_add_own_used_routine(Query_tables_list *prelocking_ctx,
 
   return sp_add_used_routine(
       prelocking_ctx, arena, type, sp_name->m_db.str, sp_name->m_db.length,
-      sp_name->m_name.str, sp_name->m_name.length, false, true, true, nullptr);
+      sp_name->m_name.str, sp_name->m_name.length, false,
+      Sp_name_normalize_type::UNACCENT_AND_LOWERCASE_NAME, true, nullptr);
 }
 
 void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);

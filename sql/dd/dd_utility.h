@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,50 +20,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DD__PROCEDURE_INCLUDED
-#define DD__PROCEDURE_INCLUDED
+#ifndef DD__UTILITY_INCLUDED
+#define DD__UTILITY_INCLUDED
 
-#include "sql/dd/types/routine.h"  // Routine
+#include "sql/dd/string_type.h"  // dd::String_type
 
-struct MDL_key;
+struct CHARSET_INFO;
 
 namespace dd {
 
-class Procedure_impl;
-
 ///////////////////////////////////////////////////////////////////////////
 
-class Procedure : virtual public Routine {
- public:
-  typedef Procedure_impl Impl;
+/**
+  Normalize (or transform) the multibyte character set string.
 
-  virtual bool update_name_key(Name_key *key) const {
-    return update_routine_name_key(key, schema_id(), name());
-  }
+  The normalized string contains the weight of the each character of the source
+  string. The normalized strings are suitable for the comparisons (strings
+  yields the correct collation order).
 
-  static bool update_name_key(Name_key *key, Object_id schema_id,
-                              const String_type &name);
+  @param      cs                          Character set.
+  @param      src                         Source string.
+  @param[out] normalized_str_buf          Buffer to store the normalized string.
+  @param      normalized_str_buf_length   Size of the normalized_str_buf.
 
- public:
-  virtual ~Procedure() {}
-
- public:
-  /**
-    Allocate a new object graph and invoke the copy contructor for
-    each object. Only used in unit testing.
-
-    @return pointer to dynamically allocated copy
-  */
-  virtual Procedure *clone() const = 0;
-
-  static void create_mdl_key(const String_type &schema_name,
-                             const String_type &name, MDL_key *key) {
-    Routine::create_mdl_key(RT_PROCEDURE, schema_name, name, key);
-  }
-};
+  @returns length of the normalized string. 0 is returned if buffer length is
+  insufficient to store the normalized string.
+*/
+size_t normalize_string(const CHARSET_INFO *cs, const String_type &src,
+                        char *normalized_str_buf,
+                        size_t normalized_str_buf_length);
 
 ///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd
 
-#endif  // DD__PROCEDURE_INCLUDED
+#endif

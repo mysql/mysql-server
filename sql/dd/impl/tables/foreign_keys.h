@@ -38,6 +38,8 @@ class Foreign_keys : public Object_table_impl {
  public:
   static const Foreign_keys &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,

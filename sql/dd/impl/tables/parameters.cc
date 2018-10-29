@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,14 @@ const Parameters &Parameters::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Parameters::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Parameters::Parameters() {
   m_target_def.set_table_name("parameters");
 
@@ -47,8 +55,9 @@ Parameters::Parameters() {
                          "ordinal_position INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_MODE, "FIELD_MODE",
                          "mode ENUM('IN','OUT','INOUT')");
-  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) COLLATE utf8_general_ci");
+  m_target_def.add_field(
+      FIELD_NAME, "FIELD_NAME",
+      "name VARCHAR(64) COLLATE " + String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DATA_TYPE, "FIELD_DATA_TYPE",
                          "data_type ENUM(\n"
                          "    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',\n"

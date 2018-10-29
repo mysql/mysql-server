@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,8 +35,8 @@ Resource_groups::Resource_groups() {
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_RESOURCE_GROUP_NAME, "FIELD_RESOURCE_GROUP_NAME",
-                         "resource_group_name VARCHAR(64) NOT NULL COLLATE "
-                         "utf8_general_ci");
+                         "resource_group_name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_RESOURCE_GROUP_TYPE, "FIELD_RESOURCE_GROUP_TYPE",
                          "resource_group_type enum('SYSTEM', 'USER') NOT NULL");
   m_target_def.add_field(FIELD_RESOURCE_GROUP_ENABLED,
@@ -59,9 +59,13 @@ const Resource_groups &Resource_groups::instance() {
   return *s_instance;
 }
 
+const CHARSET_INFO *Resource_groups::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
 bool Resource_groups::update_object_key(Global_name_key *key,
                                         const String_type &name) {
-  key->update(FIELD_RESOURCE_GROUP_NAME, name);
+  key->update(FIELD_RESOURCE_GROUP_NAME, name, name_collation());
   return false;
 }
 

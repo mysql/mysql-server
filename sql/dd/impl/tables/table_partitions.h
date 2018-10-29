@@ -42,6 +42,8 @@ class Table_partitions : public Object_table_impl {
  public:
   static const Table_partitions &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID,
     FIELD_TABLE_ID,

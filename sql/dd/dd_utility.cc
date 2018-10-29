@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,50 +20,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DD__PROCEDURE_INCLUDED
-#define DD__PROCEDURE_INCLUDED
+#include "sql/dd/dd_utility.h"
 
-#include "sql/dd/types/routine.h"  // Routine
-
-struct MDL_key;
+#include "m_ctype.h"
 
 namespace dd {
 
-class Procedure_impl;
-
 ///////////////////////////////////////////////////////////////////////////
 
-class Procedure : virtual public Routine {
- public:
-  typedef Procedure_impl Impl;
-
-  virtual bool update_name_key(Name_key *key) const {
-    return update_routine_name_key(key, schema_id(), name());
-  }
-
-  static bool update_name_key(Name_key *key, Object_id schema_id,
-                              const String_type &name);
-
- public:
-  virtual ~Procedure() {}
-
- public:
-  /**
-    Allocate a new object graph and invoke the copy contructor for
-    each object. Only used in unit testing.
-
-    @return pointer to dynamically allocated copy
+size_t normalize_string(const CHARSET_INFO *cs, const String_type &src,
+                        char *normalized_str_buf,
+                        size_t normalized_str_buf_length) {
+  /*
+    Count exact number of characters in the string and adjust output buffer
+    size according to it to avoid my_strnxfrm() padding result buffer with
+    spaces(sort weights corresponding to spaces).
   */
-  virtual Procedure *clone() const = 0;
+  size_t len = cs->coll->strnxfrmlen(
+      cs, (cs->mbmaxlen *
+           cs->cset->numchars(cs, src.c_str(), src.c_str() + src.length())));
+  if (len > normalized_str_buf_length) return 0;
 
-  static void create_mdl_key(const String_type &schema_name,
-                             const String_type &name, MDL_key *key) {
-    Routine::create_mdl_key(RT_PROCEDURE, schema_name, name, key);
-  }
-};
+  /*
+    Normalize the src.
+    Store weights corresponding to each character of "src" in the result
+    buffer.
+  */
+  my_strnxfrm(cs, reinterpret_cast<uchar *>(normalized_str_buf), len,
+              reinterpret_cast<const uchar *>(src.c_str()), src.length());
+
+  return len;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd
-
-#endif  // DD__PROCEDURE_INCLUDED

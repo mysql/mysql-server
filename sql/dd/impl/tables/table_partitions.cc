@@ -46,6 +46,12 @@ const Table_partitions &Table_partitions::instance() {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Table_partitions::name_collation() {
+  return &my_charset_utf8_tolower_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Table_partitions::Table_partitions() {
   m_target_def.set_table_name("table_partitions");
 
@@ -58,7 +64,8 @@ Table_partitions::Table_partitions() {
   m_target_def.add_field(FIELD_NUMBER, "FIELD_NUMBER",
                          "number SMALLINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_DESCRIPTION_UTF8, "FIELD_DESCRIPTION_UTF8",

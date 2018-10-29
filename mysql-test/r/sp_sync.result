@@ -93,11 +93,12 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLES t0, t1;
 # Case 1: Test case to verify MDL locking from concurrent SELECT and
-#         DROP FUNCTION operation with case insensitive routine name.
+#         DROP FUNCTION operation with case & access insensitive routine
+#         name.
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_shared_lock_pname SIGNAL locked WAIT_FOR continue';
-SELECT mIxEdCaSe();
-# At this point we have a shared lock on 'mIxEdCaSe'
+SELECT mIxEdCaSé();
+# At this point we have a shared lock on 'mIxEdCaSé'
 CONNECT  con1, localhost, root;
 SET DEBUG_SYNC='now WAIT_FOR locked';
 DROP FUNCTION mixedcase;;
@@ -108,33 +109,34 @@ DROP FUNCTION mixedcase;;
 CONNECT  con2, localhost, root;
 SET DEBUG_SYNC='now SIGNAL continue';
 connection default;
-mIxEdCaSe()
+mIxEdCaSé()
 1
 connection con1;
 # Case 2: Test case to verify MDL locking from concurrent SHOW FUNCTION
-#         and DROP FUNCTION operation with case insensitive routine name.
+#         and DROP FUNCTION operation with case and accent insensitive
+#         function name.
 connection default;
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
-DROP FUNCTION mIxEdCaSe;;
-# At this point we have a exclusive lock on 'mIxEdCaSe'
+DROP FUNCTION mIxEdCaSé;;
+# At this point we have a exclusive lock on 'mIxEdCaSé'
 connection con1;
 SET DEBUG_SYNC='now WAIT_FOR locked';
-SHOW CREATE FUNCTION MiXeDcAsE;
+SHOW CREATE FUNCTION MiXéDcAsE;
 # This statement request for shared lock and it is blocked till DROP
 # statement releases lock.
 connection con2;
 SET DEBUG_SYNC='now SIGNAL continue';
 connection default;
 connection con1;
-ERROR 42000: FUNCTION MiXeDcAsE does not exist
+ERROR 42000: FUNCTION MiXéDcAsE does not exist
 # Case 3: Test case to verify MDL locking from concurrent DDL operations
-#         with case insensitive routine name.
+#         with case and accent insensitive function name.
 connection default;
 CREATE FUNCTION mIxEdCaSe() RETURNS INT RETURN 1;
 SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
-DROP FUNCTION miXEDCAse;
-# At this point we have a exclusive lock on 'miXEDCAse'
+DROP FUNCTION miXEDCAsé;
+# At this point we have a exclusive lock on 'miXEDCAsé'
 connection con1;
 SET DEBUG_SYNC='now WAIT_FOR locked';
 ALTER FUNCTION mixedcase COMMENT "comment_string";;
@@ -145,6 +147,42 @@ SET DEBUG_SYNC='now SIGNAL continue';
 connection default;
 connection con1;
 ERROR 42000: FUNCTION test.mixedcase does not exist
+# Case 4: Test case to verify MDL locking from concurrent SHOW PROCEDURE
+#         and DROP PROCEDURE operation with case and accent insensitive
+#         procedure name.
 connection default;
+CREATE PROCEDURE mIxEdCaSe() BEGIN END;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+DROP PROCEDURE mIxEdCaSé;;
+# At this point we have a exclusive lock on 'mIxEdCaSé'
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+SHOW CREATE PROCEDURE MiXéDcAsE;
+# This statement request for shared lock and it is blocked till DROP
+# statement releases lock.
+connection con2;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+connection con1;
+ERROR 42000: PROCEDURE MiXéDcAsE does not exist
+# Case 5: Test case to verify MDL locking from concurrent DDL operations
+#         with case & accent insensitive procedure name.
+connection default;
+CREATE PROCEDURE mIxEdCaSe() BEGIN END;
+SET DEBUG_SYNC='after_acquiring_mdl_lock_on_routine SIGNAL locked WAIT_FOR continue';
+DROP PROCEDURE miXEDCAsé;
+# At this point we have a exclusive lock on 'miXEDCAsé'
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR locked';
+ALTER PROCEDURE mixedcase COMMENT "comment_string";;
+# This statement request for exclusive lock and it is blocked till DROP
+# statement releases lock.
+connection con2;
+SET DEBUG_SYNC='now SIGNAL continue';
+connection default;
+connection con1;
+ERROR 42000: PROCEDURE test.mixedcase does not exist
+connection default;
+SET DEBUG_SYNC='RESET';
 disconnect con1;
 disconnect con2;

@@ -405,10 +405,15 @@ struct MDL_key {
   const char *db_name() const { return m_ptr + 1; }
   uint db_name_length() const { return m_db_name_length; }
 
-  const char *name() const { return m_ptr + m_db_name_length + 2; }
+  const char *name() const {
+    return (use_normalized_object_name() ? m_ptr + m_length
+                                         : m_ptr + m_db_name_length + 2);
+  }
   uint name_length() const { return m_object_name_length; }
 
   const char *col_name() const {
+    DBUG_ASSERT(!use_normalized_object_name());
+
     if (m_db_name_length + m_object_name_length + 3 < m_length) {
       /* A column name was stored in the key buffer. */
       return m_ptr + m_db_name_length + m_object_name_length + 3;
@@ -419,6 +424,8 @@ struct MDL_key {
   }
 
   uint col_name_length() const {
+    DBUG_ASSERT(!use_normalized_object_name());
+
     if (m_db_name_length + m_object_name_length + 3 < m_length) {
       /* A column name was stored in the key buffer. */
       return m_length - m_db_name_length - m_object_name_length - 4;
@@ -446,6 +453,9 @@ struct MDL_key {
   void mdl_key_init(enum_mdl_namespace mdl_namespace, const char *db,
                     const char *name) {
     m_ptr[0] = (char)mdl_namespace;
+
+    DBUG_ASSERT(!use_normalized_object_name());
+
     /*
       It is responsibility of caller to ensure that db and object names
       are not longer than NAME_LEN. Still we play safe and try to avoid
@@ -492,6 +502,8 @@ struct MDL_key {
     m_ptr[0] = (char)mdl_namespace;
     char *start;
     char *end;
+
+    DBUG_ASSERT(!use_normalized_object_name());
 
     DBUG_ASSERT(strlen(db) <= NAME_LEN);
     start = m_ptr + 1;
@@ -571,6 +583,76 @@ struct MDL_key {
   }
 
   /**
+    Construct a metadata lock key from a quadruplet (mdl_namespace, database,
+    normalized object name buffer and the object name).
+
+    @remark The key for a routine/event/resource group/trigger is
+      @<mdl_namespace@>+@<database name@>+@<normalized object name@>
+      additionaly @<object name@> is stored in the same buffer for information
+      purpose if buffer has sufficent space.
+
+    Routine, Event and Resource group names are case sensitive and accent
+    sensitive. So normalized object name is used to form a MDL_key.
+
+    With the UTF8MB3 charset space reserved for the db name/object name is
+    64 * 3  bytes. utf8_general_ci collation is used for the Routine, Event and
+    Resource group names. With this collation, the normalized object name uses
+    just 2 bytes for each character (max length = 64 * 2 bytes). MDL_key has
+    still some space to store the object names. If there is a sufficient space
+    for the object name in the MDL_key then it is stored in the MDL_key (similar
+    to the column names in the MDL_key). Actual object name is used by the PFS.
+    Not listing actual object name from the PFS should be OK when there is no
+    space to store it (instead of increasing the MDL_key size). Object name is
+    not used in the key comparisons. So only (mdl_namespace + strlen(db) + 1 +
+    normalized_name_len + 1) value is stored in the m_length member.
+
+    @param  mdl_namespace       Id of namespace of object to be locked.
+    @param  db                  Name of database to which the object belongs.
+    @param  normalized_name     Normalized name of the object.
+    @param  normalized_name_len Length of the normalized object name.
+    @param  name                Name of the object.
+  */
+  void mdl_key_init(enum_mdl_namespace mdl_namespace, const char *db,
+                    const char *normalized_name, size_t normalized_name_len,
+                    const char *name) {
+    m_ptr[0] = (char)mdl_namespace;
+
+    /*
+      FUNCTION, PROCEDURE, EVENT and RESOURCE_GROUPS names are case and accent
+      insensitive. For other objects key should not be formed from this method.
+    */
+    DBUG_ASSERT(use_normalized_object_name());
+
+    DBUG_ASSERT(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN &&
+                normalized_name_len <= NAME_CHAR_LEN * 2);
+
+    // Database name.
+    m_db_name_length =
+        static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) - m_ptr - 1);
+
+    // Normalized object name.
+    m_length = m_db_name_length + normalized_name_len + 3;
+    memcpy(m_ptr + m_db_name_length + 2, normalized_name, normalized_name_len);
+    *(m_ptr + m_length - 1) = 0;
+
+    /*
+      Copy name of the object if there is a sufficient space to store the name
+      in the MDL key. This code is not trying to store truncated object names,
+      to avoid cutting object_name in the middle of a multi-byte character.
+    */
+    if (strlen(name) < static_cast<size_t>(MAX_MDLKEY_LENGTH - m_length)) {
+      m_object_name_length =
+          (strmake(m_ptr + m_length, name, MAX_MDLKEY_LENGTH - m_length - 1) -
+           m_ptr - m_length);
+    } else {
+      m_object_name_length = 0;
+      *(m_ptr + m_length) = 0;
+    }
+
+    DBUG_ASSERT(m_length + m_object_name_length < MAX_MDLKEY_LENGTH);
+  }
+
+  /**
     Construct a metadata lock key from namespace and partial key, which
     contains info about object database and name.
 
@@ -594,13 +676,22 @@ struct MDL_key {
     DBUG_ASSERT(part_key_length <= NAME_LEN + 1 + NAME_LEN + 1);
 
     m_ptr[0] = (char)mdl_namespace;
+    /*
+      Partial key of objects with normalized object name can not be used to
+      initialize MDL key.
+    */
+    DBUG_ASSERT(!use_normalized_object_name());
+
     memcpy(m_ptr + 1, part_key, part_key_length);
     m_length = static_cast<uint16>(part_key_length + 1);
     m_db_name_length = static_cast<uint16>(db_length);
     m_object_name_length = m_length - m_db_name_length - 3;
   }
   void mdl_key_init(const MDL_key *rhs) {
-    memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
+    uint16 copy_length = rhs->use_normalized_object_name()
+                             ? rhs->m_length + rhs->m_object_name_length + 1
+                             : rhs->m_length;
+    memcpy(m_ptr, rhs->m_ptr, copy_length);
     m_length = rhs->m_length;
     m_db_name_length = rhs->m_db_name_length;
     m_object_name_length = rhs->m_object_name_length;
@@ -620,11 +711,16 @@ struct MDL_key {
   */
   int cmp(const MDL_key *rhs) const {
     /*
-      The key buffer is always '\0'-terminated. Since key
-      character set is utf-8, we can safely assume that no
-      character starts with a zero byte.
+      For the keys with the normalized names, there is a possibility of getting
+      '\0' in its middle. So only key content comparison would yield incorrect
+      result. Hence comparing key length too when keys are equal.
+      For other keys, key buffer is always '\0'-terminated. Since key character
+      set is utf-8, we can safely assume that no character starts with a zero
+      byte.
     */
-    return memcmp(m_ptr, rhs->m_ptr, std::min(m_length, rhs->m_length));
+    int res = memcmp(m_ptr, rhs->m_ptr, std::min(m_length, rhs->m_length));
+    if (res == 0) res = m_length - rhs->m_length;
+    return res;
   }
 
   MDL_key(const MDL_key &rhs) { mdl_key_init(&rhs); }
@@ -646,6 +742,19 @@ struct MDL_key {
   */
   const PSI_stage_info *get_wait_state_name() const {
     return &m_namespace_to_wait_state_name[(int)mdl_namespace()];
+  }
+
+ private:
+  /**
+    Check if normalized object name should be used.
+
+    @return true if normlized object name should be used, false
+    otherwise.
+  */
+  bool use_normalized_object_name() const {
+    return (mdl_namespace() == FUNCTION || mdl_namespace() == PROCEDURE ||
+            mdl_namespace() == EVENT || mdl_namespace() == RESOURCE_GROUPS ||
+            mdl_namespace() == TRIGGER);
   }
 
  private:

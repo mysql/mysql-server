@@ -495,13 +495,13 @@ template bool Storage_adapter::drop(THD *, const Event *);
 template bool Storage_adapter::store(THD *, Event *);
 
 template bool Storage_adapter::get<Resource_group::Id_key, Resource_group>(
-    THD *, const Tablespace::Id_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Id_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::get<Resource_group::Name_key, Resource_group>(
-    THD *, const Tablespace::Name_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Name_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::get<Resource_group::Aux_key, Resource_group>(
-    THD *, const Tablespace::Aux_key &, enum_tx_isolation, bool,
+    THD *, const Resource_group::Aux_key &, enum_tx_isolation, bool,
     const Resource_group **);
 template bool Storage_adapter::drop(THD *, const Resource_group *);
 template bool Storage_adapter::store(THD *, Resource_group *);

@@ -36,6 +36,14 @@ const Indexes &Indexes::instance() {
   return *s_instance;
 }
 
+///////////////////////////////////////////////////////////////////////////
+
+const CHARSET_INFO *Indexes::name_collation() {
+  return &my_charset_utf8_tolower_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Indexes::Indexes() {
   m_target_def.set_table_name("indexes");
 
@@ -44,7 +52,8 @@ Indexes::Indexes() {
   m_target_def.add_field(FIELD_TABLE_ID, "FIELD_TABLE_ID",
                          "table_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
                          "type ENUM(\n"
                          "  'PRIMARY',\n"

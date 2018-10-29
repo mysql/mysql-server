@@ -28,6 +28,9 @@
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
 #include "sql/dd/types/view.h"            // dd::Column::enum_security_type
 
+struct MDL_key;
+struct CHARSET_INFO;
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -211,6 +214,11 @@ class Routine : virtual public Entity_object {
     @return pointer to dynamically allocated copy
   */
   virtual Routine *clone() const = 0;
+
+  static void create_mdl_key(enum_routine_type type,
+                             const String_type &schema_name,
+                             const String_type &name, MDL_key *key);
+  static const CHARSET_INFO *name_collation();
 };
 
 ///////////////////////////////////////////////////////////////////////////

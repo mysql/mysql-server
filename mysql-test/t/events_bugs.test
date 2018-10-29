@@ -1334,6 +1334,40 @@ SET @@global.autocommit=@save_autocommit_value;
 SET @@session.TIMESTAMP=default;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+--echo #
+SET NAMES utf8;
+
+--echo #
+--echo # Test case to verify events with case and accent insensitive names.
+--echo #
+CREATE EVENT cafe ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--echo # Event names are case and accent insensitive. So from the data-dictionary
+--echo # "cafe" is obtained for the following statement. Since MDL key comparison
+--echo # is case and accent sensitive, assert condition to verify expected lock
+--echo # with name "test.cafe" fails (lock is obtained on the test.café)
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT café ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--echo # Following statement is to verify operation with the upper case name.
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT CAFE ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE EVENT CaFé;
+DROP EVENT CaFé;
+
+--echo # Event with NAME_LEN size name.
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--error ER_EVENT_ALREADY_EXISTS
+CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E ON SCHEDULE EVERY 2 YEAR DO SELECT 1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+
+SET NAMES default;
+
 ###########################################################################
 #
 # End of tests

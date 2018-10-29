@@ -4241,3 +4241,42 @@ SET sql_mode=default;
 DROP TRIGGER t1_before_insert;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+--echo #                Even trigger names are case and accent insensitive. Test case to
+--echo #                verify the same.
+--echo #
+SET NAMES utf8;
+
+CREATE TABLE t1 (f1 INT, f2 INT);
+
+--echo #
+--echo # Test case to verify triggers with case and accent insensitive names.
+--echo #
+CREATE TRIGGER cafe BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--echo # Following statement errors out as trigger with name 'cafe' already
+--echo # exists on the table.
+--error ER_TRG_ALREADY_EXISTS
+CREATE TRIGGER café BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--echo # Following statement is to verify operation with the upper case name.
+--error ER_TRG_ALREADY_EXISTS
+CREATE TRIGGER CAFE BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE TRIGGER cAfé;
+DROP TRIGGER CaFé;
+
+--echo # Trigger with NAME_LEN size name.
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e
+       BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--error ER_TRG_ALREADY_EXISTS
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é
+       BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--error ER_TRG_ALREADY_EXISTS
+CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E
+       BEFORE INSERT ON t1 FOR EACH ROW SET @sum= @sum + NEW.f1;
+--replace_column 2 # 3 # 4 # 5 # 6 # 7 #
+SHOW CREATE TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+DROP TRIGGER очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+
+DROP TABLE t1;
+SET NAMES default;

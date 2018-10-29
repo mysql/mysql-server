@@ -48,6 +48,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/dd/dd_schema.h"  // dd::Schema_MDL_locker
+#include "sql/dd/types/event.h"
 #include "sql/event_data_objects.h"
 #include "sql/event_db_repository.h"
 #include "sql/event_queue.h"
@@ -353,18 +354,15 @@ void Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event) {
     thd is deleted.
   */
   {
-    MDL_request event_mdl_request;
-    char event_name_buf[NAME_LEN + 1];
-
     dd::Schema_MDL_locker mdl_handler(thd);
     if (mdl_handler.ensure_locked(event->dbname.str)) goto end;
 
-    // convert event name to lower case before acquiring MDL lock.
-    convert_name_lowercase(event->name.str, event_name_buf,
-                           sizeof(event_name_buf));
+    MDL_key mdl_key;
+    dd::Event::create_mdl_key(event->dbname.str, event->name.str, &mdl_key);
 
-    MDL_REQUEST_INIT(&event_mdl_request, MDL_key::EVENT, event->dbname.str,
-                     event_name_buf, MDL_SHARED, MDL_EXPLICIT);
+    MDL_request event_mdl_request;
+    MDL_REQUEST_INIT_BY_KEY(&event_mdl_request, &mdl_key, MDL_SHARED,
+                            MDL_EXPLICIT);
     if (thd->mdl_context.acquire_lock(&event_mdl_request,
                                       thd->variables.lock_wait_timeout)) {
       DBUG_PRINT("error", ("Got error in getting MDL locks"));

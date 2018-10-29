@@ -41,6 +41,12 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
+const CHARSET_INFO *Triggers::name_collation() {
+  return &my_charset_utf8_general_ci;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Triggers::Triggers() {
   m_target_def.set_table_name("triggers");
 
@@ -49,8 +55,8 @@ Triggers::Triggers() {
   m_target_def.add_field(FIELD_SCHEMA_ID, "FIELD_SCHEMA_ID",
                          "schema_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
-                         "name VARCHAR(64) NOT NULL "
-                         "COLLATE utf8_general_ci");
+                         "name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->name));
   m_target_def.add_field(FIELD_EVENT_TYPE, "FIELD_EVENT_TYPE",
                          "event_type ENUM('INSERT', 'UPDATE', 'DELETE') "
                          "NOT NULL");
@@ -138,8 +144,8 @@ Object_key *Triggers::create_key_by_table_id(Object_id table_id) {
 
 Object_key *Triggers::create_key_by_trigger_name(Object_id schema_id,
                                                  const char *trigger_name) {
-  return new (std::nothrow)
-      Item_name_key(FIELD_SCHEMA_ID, schema_id, FIELD_NAME, trigger_name);
+  return new (std::nothrow) Item_name_key(
+      FIELD_SCHEMA_ID, schema_id, FIELD_NAME, trigger_name, name_collation());
 }
 
 ///////////////////////////////////////////////////////////////////////////

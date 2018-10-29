@@ -220,15 +220,14 @@ class MDL_checker {
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
     if (thd->dd_client()->acquire(event->schema_id(), &schema)) return false;
-
     DBUG_ASSERT(schema);
 
-    char lc_event_name[NAME_LEN + 1];
-    my_stpcpy(lc_event_name, event->name().c_str());
-    my_casedn_str(&my_charset_utf8_tolower_ci, lc_event_name);
-
-    return is_locked(thd, schema->name().c_str(), lc_event_name, MDL_key::EVENT,
-                     lock_type);
+    MDL_key mdl_key;
+    char schema_name_buf[NAME_LEN + 1];
+    dd::Event::create_mdl_key(dd::Object_table_definition_impl::fs_name_case(
+                                  schema->name(), schema_name_buf),
+                              event->name(), &mdl_key);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**
@@ -257,18 +256,13 @@ class MDL_checker {
 
     DBUG_ASSERT(schema);
 
-    MDL_key::enum_mdl_namespace mdl_namespace = MDL_key::FUNCTION;
-    if (routine->type() == dd::Routine::RT_PROCEDURE)
-      mdl_namespace = MDL_key::PROCEDURE;
-
-    // Routine names are case in-sensitive to MDL's are taken
-    // on lower case names.
-    char lc_routine_name[NAME_LEN + 1];
-    my_stpcpy(lc_routine_name, routine->name().c_str());
-    my_casedn_str(system_charset_info, lc_routine_name);
-
-    return is_locked(thd, schema->name().c_str(), lc_routine_name,
-                     mdl_namespace, lock_type);
+    MDL_key mdl_key;
+    char schema_name_buf[NAME_LEN + 1];
+    dd::Routine::create_mdl_key(routine->type(),
+                                dd::Object_table_definition_impl::fs_name_case(
+                                    schema->name(), schema_name_buf),
+                                routine->name(), &mdl_key);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**
@@ -555,13 +549,10 @@ class MDL_checker {
                         enum_mdl_type lock_type) {
     if (resource_group == nullptr) return true;
 
-    char lc_name[NAME_CHAR_LEN + 1];
-    my_stpcpy(lc_name, resource_group->name().c_str());
-    lc_name[NAME_CHAR_LEN] = '\0';
-    my_casedn_str(system_charset_info, lc_name);
+    MDL_key mdl_key;
+    dd::Resource_group::create_mdl_key(resource_group->name(), &mdl_key);
 
-    return thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::RESOURCE_GROUPS, "", lc_name, lock_type);
+    return thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, lock_type);
   }
 
   /**

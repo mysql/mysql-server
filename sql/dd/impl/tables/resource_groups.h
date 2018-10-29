@@ -42,6 +42,8 @@ class Resource_groups : public Entity_object_table_impl {
 
   static const Resource_groups &instance();
 
+  static const CHARSET_INFO *name_collation();
+
   enum enum_fields {
     FIELD_ID,
     FIELD_RESOURCE_GROUP_NAME,

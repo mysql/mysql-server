@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,9 +306,11 @@ bool Routine_name_key::operator<(const Routine_name_key &rhs) const {
   if (m_container_id != rhs.m_container_id)
     return m_container_id < rhs.m_container_id;
   if (m_type != rhs.m_type) return m_type < rhs.m_type;
-  // Case insensitive comparison
-  return my_strcasecmp(system_charset_info, m_object_name.c_str(),
-                       rhs.m_object_name.c_str()) < 0;
+
+  return (my_strnncoll(m_cs, pointer_cast<const uchar *>(m_object_name.c_str()),
+                       m_object_name.length(),
+                       pointer_cast<const uchar *>(rhs.m_object_name.c_str()),
+                       rhs.m_object_name.length()) < 0);
 }
 
 ///////////////////////////////////////////////////////////////////////////

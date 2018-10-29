@@ -399,3 +399,64 @@ INSERT INTO t1 VALUES (1,10);
 ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc; expected 1, got 2
 DROP PROCEDURE proc;
 DROP TABLE t1;
+#
+# Bug#28122841 - CREATE EVENT/PROCEDURE/FUNCTION CRASHES WITH ACCENT INSENSITIVE NAMES.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+#
+# Test case to verify stored procedure with case and accent insensitive names.
+#
+CREATE PROCEDURE cafe() BEGIN END;
+# Stored procedure names are case and accent insensitive. So from the
+# data-dictionary "cafe" is obtained for the following statement. Since
+# MDL key comparison is case and accent sensitive, assert condition to verify
+# expected lock with name "test.cafe" fails (lock is obtained on the
+# test.café).
+CREATE PROCEDURE café() BEGIN END;
+ERROR 42000: PROCEDURE café already exists
+# Following statement is to verify operation with the upper case name.
+CREATE PROCEDURE CAFE() BEGIN END;
+ERROR 42000: PROCEDURE CAFE already exists
+DROP PROCEDURE CaFé;
+# Procedure with NAME_LEN size name.
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e() BEGIN END;
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é() BEGIN END;
+ERROR 42000: PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é already exists
+CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E() BEGIN END;
+ERROR 42000: PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E already exists
+SHOW CREATE PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e`()
+BEGIN END	utf8	utf8_general_ci	utf8mb4_0900_ai_ci
+DROP PROCEDURE очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+#
+# Test case to verify stored function with case and accent insensitive names.
+#
+CREATE FUNCTION cafe() RETURNS INT return 15081947;
+# Stored function names are case and accent insensitive. So from the
+# data-dictionary "cafe" is obtained for the following statement. Since
+# MDL key comparison is case and accent sensitive, assert condition to verify
+# expected lock with name "test.cafe" fails (lock is obtained on the
+# test.café).
+CREATE FUNCTION café() RETURNS INT return 15081947;
+ERROR 42000: FUNCTION café already exists
+# Following statement is to verify operation with the upper case name.
+CREATE FUNCTION CAFE() RETURNS INT return 15081947;
+ERROR 42000: FUNCTION CAFE already exists
+SHOW CREATE FUNCTION CaFé;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+cafe	#	#	#	#	#
+DROP FUNCTION CaFé;
+# Function with NAME_LEN size name.
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e() RETURNS INT return 15081947;
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é() RETURNS INT return 15081947;
+ERROR 42000: FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é already exists
+CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E() RETURNS INT return 15081947;
+ERROR 42000: FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_E already exists
+SHOW CREATE FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#
+DROP FUNCTION очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
+SET NAMES default;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,8 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd_trigger.h"  // dd::create_trigger
 #include "sql/dd/string_type.h"
-#include "sql/derror.h"  // ER_THD
+#include "sql/dd/types/trigger.h"  // name_collation
+#include "sql/derror.h"            // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h"  // table_alias_charset
@@ -465,10 +466,13 @@ Trigger *Table_trigger_dispatcher::find_trigger(
       Trigger *t;
 
       while ((t = it++) != nullptr) {
-        if (my_strcasecmp(table_alias_charset, t->get_trigger_name().str,
-                          trigger_name.str) == 0) {
+        if (!my_strnncoll(
+                dd::Trigger::name_collation(),
+                pointer_cast<const uchar *>(t->get_trigger_name().str),
+                t->get_trigger_name().length,
+                pointer_cast<const uchar *>(trigger_name.str),
+                trigger_name.length))
           return t;
-        }
       }
     }
   }
