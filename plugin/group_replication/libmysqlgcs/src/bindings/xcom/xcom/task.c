@@ -1220,7 +1220,7 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
   DECL_ENV
   int fd;
   struct sockaddr_storage sock_addr;
-  struct addrinfo *addr;
+  struct addrinfo *addr, *from_ns;
   socklen_t sock_size;
   result sock;
   END_ENV;
@@ -1228,23 +1228,24 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
 
   DBGOUT(FN; STREXP(server); NDBG(port, d));
 
-  ep->addr = 0;
+  ep->addr = NULL;
+  ep->from_ns = NULL;
   ep->sock_size = sizeof(struct sockaddr_storage);
 
-  checked_getaddrinfo_port(server, port, NULL, &ep->addr);
+  checked_getaddrinfo_port(server, port, NULL, &ep->from_ns);
 
-  if (ep->addr == NULL) {
+  if (ep->from_ns == NULL) {
     TASK_FAIL;
   }
 
-  ep->addr = does_node_have_v4_address(ep->addr);
+  ep->addr = does_node_have_v4_address(ep->from_ns);
 
   /* Create socket */
   if ((ep->fd =
            xcom_checked_socket(ep->addr->ai_family, SOCK_STREAM, IPPROTO_TCP)
                .val) < 0) {
     DBGOUT(FN; NDBG(ep->fd, d));
-    if (ep->addr) freeaddrinfo(ep->addr);
+    if (ep->from_ns) freeaddrinfo(ep->from_ns);
     TASK_FAIL;
   }
   /* Make it non-blocking */
@@ -1268,7 +1269,7 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
 #endif
         DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
         close_socket(&ep->fd);
-        if (ep->addr) freeaddrinfo(ep->addr);
+        if (ep->from_ns) freeaddrinfo(ep->from_ns);
         TASK_FAIL;
       }
     }
@@ -1293,7 +1294,7 @@ retry:
     task_dump_err(shut.funerr);
     if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
       goto retry; /* Connect is still active */
-    if (ep->addr) freeaddrinfo(ep->addr);
+    if (ep->from_ns) freeaddrinfo(ep->from_ns);
     TASK_FAIL; /* Connect has failed */
   }
 
@@ -1305,7 +1306,7 @@ retry:
         getpeername(ep->fd, (struct sockaddr *)&ep->sock_addr, &ep->sock_size);
     ep->sock.funerr = to_errno(GET_OS_ERR);
     if (peer >= 0) {
-      if (ep->addr) freeaddrinfo(ep->addr);
+      if (ep->from_ns) freeaddrinfo(ep->from_ns);
       TASK_RETURN(ep->fd);
     } else {
       /* Something is wrong */
@@ -1319,7 +1320,7 @@ retry:
 
       shut_close_socket(&ep->fd);
       if (ep->sock.funerr == 0) ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
-      if (ep->addr) freeaddrinfo(ep->addr);
+      if (ep->from_ns) freeaddrinfo(ep->from_ns);
       TASK_FAIL;
     }
 
