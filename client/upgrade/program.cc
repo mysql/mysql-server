@@ -46,6 +46,7 @@
 #include "my_io.h"
 #include "mysqld_error.h"
 #include "scripts/mysql_fix_privilege_tables_sql.c"
+#include "scripts/sql_commands_ndb_privileges.h"
 #include "scripts/sql_commands_sys_schema.h"
 #include "scripts/sql_commands_system_tables_data_fix.h"
 #include "sql_string.h"
@@ -237,6 +238,24 @@ class Program : public Base::Abstract_connection_program {
 
     if (this->m_check_version && this->is_version_matching() == false)
       return EXIT_BAD_VERSION;
+
+    /*
+      NDB-related upgrades
+    */
+    if (execute_conditional_query(
+            "SELECT support from information_schema.engines "
+            "WHERE engine='ndbcluster'",
+            "YES") == 1) {
+      /* Migration of distributed privileges */
+      if (execute_conditional_query(
+              "SELECT COUNT(*) FROM information_schema.tables "
+              "WHERE engine='ndbcluster' AND TABLE_SCHEMA = 'mysql' "
+              "AND TABLE_NAME IN ('user', 'db', 'tables_priv', "
+              "'columns_priv', 'procs_priv', 'proxies_priv')",
+              "0") != 1) {
+        run_ndb_migrate_privilege_tables();
+      }
+    }
 
     /*
       Check and see if the Server Session Service default user exists
@@ -734,6 +753,37 @@ class Program : public Base::Abstract_connection_program {
     }
 
     return 0;
+  }
+
+  /**
+    Run a compiled SQL script, using the default message_callback and no
+    result_callback. If any error occurs, print the query that caused it
+    and return a non-zero error code.
+   */
+  int run_upgrade_script(const char **query_ptr) {
+    Mysql_query_runner runner(*this->m_query_runner);
+
+    while (*query_ptr != NULL) {
+      int result = runner.run_query(*query_ptr);
+      if (result != 0) {
+        if (m_verbose) std::cout << "At query: " << *query_ptr << std::endl;
+        return result;
+      }
+      query_ptr++;
+    }
+    return 0;
+  }
+
+  /**
+    Migrate legacy NDB distributed privilege tables to InnoDB
+   */
+  void run_ndb_migrate_privilege_tables() {
+    this->print_verbose_message("Migrating NDB privilege tables");
+    if (run_upgrade_script(&ndb_upgrade_privileges[0])) {
+      this->print_error(1, "NDB privilege table migration FAILED.");
+      return;
+    }
+    this->print_verbose_message(" ... privilege table migration successful.");
   }
 
   /**
