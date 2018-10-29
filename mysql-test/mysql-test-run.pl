@@ -5318,7 +5318,8 @@ sub check_expected_crash_and_restart($$) {
         mysqld_start($mysqld, $mysqld->{'started_opts'});
 
         # Start secondary engine server.
-        start_secondary_engine_server() if $secondary_engine_support;
+        start_secondary_engine_server(\&valgrind_arguments)
+          if $secondary_engine_support;
 
         load_table_contents(\&run_query, $mysqld, $tinfo)
           if $secondary_engine_support;
@@ -6203,7 +6204,7 @@ sub start_servers($) {
       return 0 if $tinfo->{'skip'};
 
       # Start secondary engine server.
-      start_secondary_engine_server();
+      start_secondary_engine_server(\&valgrind_arguments);
     }
 
     # Save this test case information, so next can examine it
