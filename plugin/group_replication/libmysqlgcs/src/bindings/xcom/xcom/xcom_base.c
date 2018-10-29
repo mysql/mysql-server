@@ -5661,19 +5661,19 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_DEBUG("connecting to %s %d", server, port);
 
-  struct addrinfo *addr = NULL;
+  struct addrinfo *addr = NULL, *from_ns = NULL;
 
   char buffer[20];
   sprintf(buffer, "%d", port);
 
-  checked_getaddrinfo(server, buffer, 0, &addr);
+  checked_getaddrinfo(server, buffer, 0, &from_ns);
 
-  if (addr == NULL) {
+  if (from_ns == NULL) {
     G_ERROR("Error retrieving server information.");
     goto end;
   }
 
-  addr = does_node_have_v4_address(addr);
+  addr = does_node_have_v4_address(from_ns);
 
   /* Create socket after knowing the family that we are dealing with
      getaddrinfo returns a list of possible addresses. We will alays default
@@ -5806,7 +5806,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   }
 
 end:
-  if (addr) freeaddrinfo(addr);
+  if (from_ns) freeaddrinfo(from_ns);
   return cd;
 }
 
