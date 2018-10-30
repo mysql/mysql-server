@@ -694,6 +694,13 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
     COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
 ENDIF()
 
+# /permissive- gives MSVC compilation error in Boost's pj_gridinfo.hpp
+IF(MSVC)
+  ADD_COMPILE_FLAGS(
+    "gis/transform.cc"
+    COMPILE_FLAGS " /permissive")
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(sql_dd ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenServerSource)
 ADD_DEPENDENCIES(sql_dd GenDigestServerSource)

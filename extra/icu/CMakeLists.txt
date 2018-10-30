@@ -81,6 +81,11 @@ IF(WIN32)
   )
 ENDIF()
 
+IF(MSVC)
+  # ICU does not build cleanly with Visual Studio's /permissive-
+  STRING(REPLACE "/permissive-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ENDIF()
+
 STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 

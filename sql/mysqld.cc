@@ -1530,7 +1530,7 @@ static mysql_mutex_t LOCK_handler_count;
 static mysql_cond_t COND_handler_count;
 static HANDLE hEventShutdown;
 static HANDLE hEventRestart;
-char *shared_memory_base_name = default_shared_memory_base_name;
+const char *shared_memory_base_name = default_shared_memory_base_name;
 bool opt_enable_shared_memory;
 static char shutdown_event_name[40];
 static char restart_event_name[40];
