@@ -414,7 +414,7 @@ int Applier_module::applier_thread_handle() {
 
   if (!applier_error) {
     Pipeline_action *start_action = new Handler_start_action();
-    applier_error = pipeline->handle_action(start_action);
+    applier_error += pipeline->handle_action(start_action);
     delete start_action;
   }
 

@@ -136,12 +136,6 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 --let $assert_count = 1
 --source include/assert_grep.inc
 
---let $assert_file = $error_file
---let $assert_text = The applier should error out trying to create an already existing table
---let $assert_select = Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.
---let $assert_count = 1
---source include/assert_grep.inc
-
 # Verify that M2 goes into OFFLINE state
 --let $group_replication_member_state= OFFLINE
 --let $group_replication_member_id= $member2_uuid
@@ -201,12 +195,6 @@ SET DEBUG_SYNC = "now SIGNAL signal.continue_group_join";
 --let $assert_file = $error_file
 --let $assert_text = The applier should error out trying to create an already existing table
 --let $assert_select = The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.
---let $assert_count = 2
---source include/assert_grep.inc
-
---let $assert_file = $error_file
---let $assert_text = The applier should error out trying to create an already existing table
---let $assert_select = Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.
 --let $assert_count = 2
 --source include/assert_grep.inc
 
