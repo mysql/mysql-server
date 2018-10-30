@@ -77,7 +77,7 @@ count(*)
 SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
 count(*)
 18
-SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit') AND user_host NOT LIKE '%mysql.session%';
 count(*) >= 36
 1
 ##########################################
