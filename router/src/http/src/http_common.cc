@@ -392,8 +392,14 @@ std::string HttpRequest::error_msg() {
   }
 }
 
-std::string HttpRequest::get_uri() const {
-  return evhttp_request_get_uri(pImpl_->req.get());
+HttpUri HttpRequest::get_uri() const {
+  // return a wrapper around a borrowed evhttp_uri
+  //
+  // it is owned by the HttpRequest, not by the HttpUri itself
+  return std::unique_ptr<evhttp_uri, std::function<void(evhttp_uri *)>>(
+      const_cast<evhttp_uri *>(
+          evhttp_request_get_evhttp_uri(pImpl_->req.get())),
+      [](evhttp_uri *) {});
 }
 
 HttpHeaders HttpRequest::get_output_headers() {

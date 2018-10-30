@@ -462,7 +462,7 @@ class HTTP_COMMON_EXPORT HttpRequest {
 
   HttpMethod::type get_method() const;
 
-  std::string get_uri() const;
+  HttpUri get_uri() const;
 
   void send_reply(int status_code) {
     send_reply(status_code,

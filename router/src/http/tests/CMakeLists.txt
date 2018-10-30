@@ -21,7 +21,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE_DIRECTORIES(SYSTEM ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS})
-INCLUDE_DIRECTORIES(../include ../src)
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/tests/)
 
 add_test_file(test_time.cc
@@ -31,6 +30,10 @@ add_test_file(test_time.cc
 
 add_test_file(test_posix_re.cc
   MODULE http
+  )
+TARGET_INCLUDE_DIRECTORIES(routertest_http_posix_re
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/
   )
 
 add_test_file(test_http_uri.cc
@@ -62,4 +65,22 @@ add_test_file(test_passwd.cc
   MODULE http
   LIB_DEPENDS http_auth_backend_lib
   EXTRA_SOURCES ../src/passwd.cc
+  )
+
+add_test_file(test_auth.cc
+  MODULE http
+  LIB_DEPENDS http_server
+  )
+
+add_test_file(test_auth_method.cc
+  MODULE http
+  LIB_DEPENDS http_server
+  )
+
+add_test_file(test_matcher.cc
+  MODULE http
+  )
+TARGET_INCLUDE_DIRECTORIES(routertest_http_matcher
+  PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../src/
   )

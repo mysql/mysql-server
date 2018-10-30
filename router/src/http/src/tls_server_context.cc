@@ -61,6 +61,9 @@ static const SSL_METHOD *server_method =
 TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
     : TlsContext(server_method) {
   version_range(min_ver, max_ver);
+#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
+  SSL_CTX_set_ecdh_auto(ssl_ctx_.get(), 1);
+#endif
   SSL_CTX_set_options(ssl_ctx_.get(), SSL_OP_NO_COMPRESSION);
   cipher_list("ALL");  // ALL - unacceptable ciphers
 }

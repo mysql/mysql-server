@@ -51,7 +51,9 @@
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/utility/string.h"
 
+#include "http_auth.h"
 #include "http_server_plugin.h"
+#include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
@@ -99,7 +101,18 @@ void HttpRequestRouter::route_default(HttpRequest &req) {
   if (default_route_) {
     default_route_->handle_request(req);
   } else {
-    req.send_error(HttpStatusCode::NotFound, "Not Found");
+    if (!require_realm_.empty()) {
+      if (auto realm =
+              HttpAuthRealmComponent::get_instance().get(require_realm_)) {
+        if (HttpAuth::require_auth(req, realm)) {
+          // request is already handled, nothing to do
+          return;
+        }
+
+        // access granted, fall through
+      }
+    }
+    req.send_error(HttpStatusCode::NotFound);
   }
 }
 
@@ -120,7 +133,7 @@ void HttpRequestRouter::route(HttpRequest req) {
   auto uri = req.get_uri();
 
   for (auto &request_handler : request_handlers_) {
-    if (request_handler.url_regex.search(uri)) {
+    if (request_handler.url_regex.search(uri.get_path())) {
       request_handler.handler->handle_request(req);
       return;
     }
@@ -303,6 +316,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string static_basedir;
   std::string srv_address;
+  std::string require_realm;
   std::string ssl_cert;
   std::string ssl_key;
   std::string ssl_cipher;
@@ -315,6 +329,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
       : mysqlrouter::BasePluginConfig(section),
         static_basedir(get_option_string(section, "static_folder")),
         srv_address(get_option_string(section, "bind_address")),
+        require_realm(get_option_string(section, "require_realm")),
         ssl_cert(get_option_string(section, "ssl_cert")),
         ssl_key(get_option_string(section, "ssl_key")),
         ssl_cipher(get_option_string(section, "ssl_cipher")),
@@ -393,6 +408,13 @@ static void init(PluginFuncEnv *env) {
 
   // assume there is only one section for us
   try {
+    std::set<std::string> known_realms;
+    for (const mysql_harness::ConfigSection *section :
+         info->config->sections()) {
+      if (section->name == "http_auth_realm") {
+        known_realms.emplace(section->key);
+      }
+    }
     for (const mysql_harness::ConfigSection *section :
          info->config->sections()) {
       if (section->name != kSectionName) {
@@ -414,6 +436,14 @@ static void init(PluginFuncEnv *env) {
             "if ssl=1 is set, ssl_cert and ssl_key must be set too.");
       }
 
+      if (!config.require_realm.empty() &&
+          (known_realms.find(config.require_realm) == known_realms.end())) {
+        throw std::invalid_argument(
+            "unknown authentication realm for [http_server] '" + section->key +
+            "': " + config.require_realm +
+            ", known realm(s): " + mysql_harness::join(known_realms, ","));
+      }
+
       log_info("listening on %s:%u", config.srv_address.c_str(),
                config.srv_port);
 
@@ -421,6 +451,10 @@ static void init(PluginFuncEnv *env) {
           std::make_pair(section->name, HttpServerFactory::create(config)));
 
       auto srv = http_servers.at(section->name);
+
+      // forward the global require-realm to the request-router
+      srv->request_router().require_realm(config.require_realm);
+
       HttpServerComponent::get_instance().init(srv);
 
       if (!config.static_basedir.empty()) {

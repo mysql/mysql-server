@@ -56,6 +56,8 @@ class HttpRequestRouter {
   void clear_default_route();
   void route(HttpRequest req);
 
+  void require_realm(const std::string &realm) { require_realm_ = realm; }
+
  private:
   struct RouterData {
     std::string url_regex_str;
@@ -65,6 +67,7 @@ class HttpRequestRouter {
   std::vector<RouterData> request_handlers_;
 
   std::unique_ptr<BaseRequestHandler> default_route_;
+  std::string require_realm_;
 
   std::mutex route_mtx_;
 };

@@ -33,7 +33,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS}
   LIB_DEPENDS mock_server_rest_client;http_client;http_common
   DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
-          routing;metadata_cache
+          routing;metadata_cache;http_auth_realm;http_auth_backend
   )
 
 # When system deployment bootstrap is executed, files are

@@ -42,7 +42,7 @@
 #include "mysqlrouter/http_server_component.h"
 
 void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
-  HttpUri parsed_uri{HttpUri::parse(req.get_uri())};
+  HttpUri parsed_uri{req.get_uri()};
 
   // failed to parse the URI
   if (!parsed_uri) {

@@ -100,13 +100,16 @@ TARGET_INCLUDE_DIRECTORIES(http_auth_realm
 
 
 ADD_HARNESS_PLUGIN(http_server
-  NO_INSTALL
   SOURCES
+  http_auth.cc
+  http_auth_method_basic.cc
   http_server_component.cc
   http_server_plugin.cc
   static_files.cc
   tls_server_context.cc
-  REQUIRES router_lib;http_common;${LIBRT};${LIBEVENT_OPENSSL})
+  REQUIRES router_lib;http_common;http_auth_realm;${LIBRT};${LIBEVENT_OPENSSL}
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
+  )
 
 ADD_LIBRARY(http_client
   SHARED
