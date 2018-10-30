@@ -122,6 +122,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
    * @param capabilities Server or Client capability flags
    * @param allow_partial Whether to allow buffers which have incomplete payload
    */
+  /** @throws mysql_protocol::packet_error */
   Packet(const vector_t &buffer, Capabilities::Flags capabilities,
          bool allow_partial = false);
 
@@ -144,6 +145,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
         capability_flags_(capabilities) {}
 
   /** @overload */
+  /** @throws mysql_protocol::packet_error */
   Packet(std::initializer_list<uint8_t> ilist);
 
   /** @brief Destructor */
@@ -580,6 +582,7 @@ class MYSQL_PROTOCOL_API Packet : public std::vector<uint8_t> {
   mutable size_t position_;
 
  private:
+  /** @throws mysql_protocol::packet_error */
   void parse_header(bool allow_partial = false);
 
   void write_bytes_impl(const unsigned char *bytes, size_t length);
