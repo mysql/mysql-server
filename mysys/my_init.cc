@@ -220,16 +220,18 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
               rus.ru_nswap, rus.ru_inblock, rus.ru_oublock, rus.ru_msgsnd,
               rus.ru_msgrcv, rus.ru_nsignals, rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
-#if defined(_WIN32)
+#ifdef _WIN32
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
     _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
     _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+#ifdef MY_MSCRT_DEBUG
     _CrtCheckMemory();
     _CrtDumpMemoryLeaks();
-#endif
+#endif /* MY_MSCRT_DEBUG */
+#endif /* _WIN32 */
   }
 
   if (!(infoflag & MY_DONT_FREE_DBUG)) {
