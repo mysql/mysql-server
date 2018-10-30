@@ -76,7 +76,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef UNIV_HOTBACKUP
 #include "current_thd.h"
 #include "dict0dd.h"
-#include "field.h"
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
@@ -729,22 +728,6 @@ byte *row_upd_index_parse(
   *update_out = update;
 
   return (const_cast<byte *>(ptr));
-}
-
-/** Get field by field number.
-@param[in]	field_no	the field number.
-@return the updated field information. */
-upd_field_t *upd_t::get_upd_field(ulint field_no) const {
-  ulint i;
-  for (i = 0; i < n_fields; i++) {
-    upd_field_t *uf = upd_get_nth_field(this, i);
-
-    if (uf->field_no == field_no) {
-      return (uf);
-    }
-  }
-
-  return (nullptr);
 }
 
 #ifndef UNIV_HOTBACKUP
