@@ -3853,6 +3853,12 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
       if (change_func_or_wf_group_ref(thd, item, &changed))
         DBUG_RETURN(true); /* purecov: inspected */
     }
+    /*
+      Some functions like IS_NULL might have marked this item as
+      const assuming that the field is not nullable. But maybe_null
+      gets updated here. So update the used tables.
+    */
+    item->update_used_tables();
   }
   DBUG_RETURN(false);
 }
