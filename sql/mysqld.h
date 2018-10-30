@@ -209,7 +209,10 @@ extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
     sha256_password_proxy_users;
-extern char *shared_memory_base_name, *mysqld_unix_port;
+#ifdef _WIN32
+extern const char *shared_memory_base_name;
+#endif
+extern char *mysqld_unix_port;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;

@@ -170,6 +170,11 @@ IF(MSVC)
   # 'conversion' conversion from 'type1' to 'type2', possible loss of data
   STRING_APPEND(CMAKE_C_FLAGS " /wd4244")
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
+
+  # Enable stricter standards conformance when using Visual Studio
+  IF(MSVC_VERSION GREATER 1900 AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+  ENDIF()
 ENDIF()
 
 # Always link with socket library

@@ -51,7 +51,7 @@ class Cursor {
       /** [in] Iterator for cursor initial position. */
       const Tree_container::const_iterator &iterator);
 
-  Cursor(Cursor &) = default;
+  Cursor(const Cursor &) = default;
   Cursor(Cursor &&) noexcept = default;
 
   /** Check if the cursor is positioned.
