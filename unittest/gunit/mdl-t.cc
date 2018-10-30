@@ -3829,9 +3829,23 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
 
   for (uint i = 0; i < static_cast<uint>(MDL_key::NAMESPACE_END); i++) {
     MDL_request request;
-    MDL_REQUEST_INIT(&request, static_cast<MDL_key::enum_mdl_namespace>(i), "",
-                     "",  // To work with GLOBAL/COMMIT spaces
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+    if (static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::FUNCTION ||
+        static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::PROCEDURE ||
+        static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::TRIGGER ||
+        static_cast<MDL_key::enum_mdl_namespace>(i) == MDL_key::EVENT ||
+        static_cast<MDL_key::enum_mdl_namespace>(i) ==
+            MDL_key::RESOURCE_GROUPS) {
+      MDL_key mdl_key;
+      mdl_key.mdl_key_init(static_cast<MDL_key::enum_mdl_namespace>(i), "", "",
+                           0, "");
+      MDL_REQUEST_INIT_BY_KEY(&request, &mdl_key, MDL_EXCLUSIVE,
+                              MDL_TRANSACTION);
+    } else {
+      MDL_REQUEST_INIT(&request, static_cast<MDL_key::enum_mdl_namespace>(i),
+                       "",
+                       "",  // To work with GLOBAL/COMMIT spaces
+                       MDL_EXCLUSIVE, MDL_TRANSACTION);
+    }
     EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
     m_mdl_context.release_transactional_locks();
 
