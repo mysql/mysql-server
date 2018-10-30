@@ -38,7 +38,17 @@ class Ndb_binlog_thread : public Ndb_component
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
-  bool remember_pending_purge(const char *file);
+
+  /*
+    @brief Check if purge of the specified binlog file can be handled
+    by the binlog thread.
+
+    @param filename Name of the binlog file which has been purged
+
+    @return true the binlog thread will handle the purge
+    @return false the binlog thread will not handle the purge
+  */
+  bool handle_purge(const char *filename);
 private:
   virtual int do_init();
   virtual void do_run();
@@ -63,9 +73,16 @@ private:
   };
   bool check_reconnect_incident(THD* thd, class injector* inj,
                                 Reconnect_type incident_id) const;
-  void recall_pending_purges(THD* thd);
-  std::mutex m_purge_mutex;
-  std::vector<std::string> m_pending_purges;
+
+  /*
+    @brief Perform any purge requests which has been queued up earlier.
+
+    @param thd Thread handle
+  */
+  void recall_pending_purges(THD *thd);
+  std::mutex m_purge_mutex; // Protects m_pending_purges
+  std::vector<std::string> m_pending_purges; // List of pending purges
+
 };
 
 #endif

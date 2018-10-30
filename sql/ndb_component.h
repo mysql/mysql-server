@@ -55,12 +55,13 @@ public:
   */
   void set_server_started();
 
+protected:
   /*
     Check if the server has started. This checks if the Ndb_component
     has been informed that the server has started.
    */
   bool is_server_started();
-protected:
+
   /**
    * Con/de-structor is protected...so that sub-class needs to provide own
    */

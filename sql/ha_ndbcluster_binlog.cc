@@ -58,6 +58,7 @@
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_table.h"  // build_table_filename,
+#include "sql/sql_thd_internal_api.h"
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
@@ -485,90 +486,99 @@ ndb_create_thd(char * stackptr)
 static Ndb_binlog_thread ndb_binlog_thread;
 
 /*
-  Called from MYSQL_BIN_LOG::purge_logs in log.cc when the binlog "file"
-  is removed
+  @brief Remove all rows from mysql.ndb_binlog_index table that contain
+  references to the given binlog filename.
+
+  @note this function modifies THD state. Caller must ensure that
+  the passed in THD is not affected by these changes. Presumably
+  the state fixes should be moved down into Ndb_local_connection.
+
+  @param thd The thread handle
+  @param filename Name of the binlog file whose references should be removed
+
+  @return true if failure to delete from the table occurs
 */
 
-static int
-ndbcluster_delete_from_ndb_binlog_index(THD* thd, const char *file)
-{
-  /*
-    delete rows from mysql.ndb_binlog_index table for the given
-    filename, if table does not exist ignore the error as it
-    is a "consistent" behavior
-  */
+static bool ndbcluster_binlog_index_remove_file(THD *thd,
+                                                const char *filename) {
   Ndb_local_connection mysqld(thd);
+
+  // Set isolation level to be independent from server settings
+  thd->variables.transaction_isolation = ISO_REPEATABLE_READ;
+
+  // Turn autocommit on, this will make delete_rows() commit
+  thd->variables.option_bits &= ~OPTION_NOT_AUTOCOMMIT;
+
+  // Ensure that file paths are escaped in a way that does not
+  // interfere with path separator on Windows
+  thd->variables.sql_mode |= MODE_NO_BACKSLASH_ESCAPES;
+
+  // ignore "table does not exist" as it is a "consistent" behavior
   const bool ignore_no_such_table = true;
-
-  // Set needed isolation level to be independent from server settings
-  thd->variables.transaction_isolation= ISO_REPEATABLE_READ;
-  // Turn autocommit on
-  // This is needed to ensure calls to mysqld.delete_rows commits.
-  thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
-  // Ensure that file paths on Windows are not modified by parser
-  thd->variables.sql_mode|= MODE_NO_BACKSLASH_ESCAPES;
-  if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
-                        STRING_WITH_LEN("ndb_binlog_index"),
-                        ignore_no_such_table,
-                        "File='", file, "'", NULL))
-    return 1;
-
-  return 0;
+  if (mysqld.delete_rows(
+          STRING_WITH_LEN("mysql"), STRING_WITH_LEN("ndb_binlog_index"),
+          ignore_no_such_table, "File='", filename, "'", nullptr)) {
+    // Failed
+    return true;
+  }
+  return false;
 }
 
-static int
-ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
-{
-  int stack_base = 0;
-  int error = 0;
+
+/*
+  @brief called when a binlog file is purged(i.e the physical
+  binlog file is removed by the MySQL Server). ndbcluster need
+  to remove any rows in its mysql.ndb_binlog_index table which
+  references the removed file.
+
+  @param thd Thread handle
+  @param filename Name of the binlog file which has been removed
+
+  @return 0 for success
+*/
+
+static int ndbcluster_binlog_index_purge_file(THD *thd, const char *filename) {
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
-  DBUG_PRINT("enter", ("file: %s", file));
+  DBUG_PRINT("enter", ("filename: %s", filename));
 
-  /**
-   * Check if the server is properly started so that rows in ndb_binlog_index table
-   * can be deleted. If the server is not yet started we remember the pending purge
-   * request and delete the rows later.
-   **/
-  if (ndb_binlog_thread.remember_pending_purge(file))
-    error = 1;
+  // Check if the binlog thread can handle the purge.
+  // This functionality is initially only implemented for the case when the
+  // "server started" state has not yet been reached, but could in the future be
+  // extended to handle all purging by the binlog thread(this would most likley
+  // eliminate the need to create a separate THD further down in this function)
+  if (ndb_binlog_thread.handle_purge(filename)) {
+    DBUG_RETURN(0);  // Ok, purge handled by binlog thread
+  }
 
-  if (error)
-    DBUG_RETURN(error);
+  if (!ndb_binlog_running) {
+    DBUG_RETURN(0);  // Nothing to do, binlog thread not running
+  }
 
-  if (!ndb_binlog_running || (passed_thd && passed_thd->slave_thread))
-    DBUG_RETURN(0);
+  if (thd_slave_thread(thd)) {
+    DBUG_RETURN(0);  // Nothing to do, slave thread
+  }
 
-  /**
-   * This function cannot safely reuse the passed thd object
-   * due to the variety of places from which it is called.
-   *   new/delete one...yuck!
-   */
-  THD* my_thd;
-  if ((my_thd = ndb_create_thd((char*)&stack_base) /* stack ptr */) == 0)
-  {
-    /**
-     * TODO return proper error code here,
-     * BUT! return code is not (currently) checked in
-     *      log.cc : purge_index_entry() so we settle for warning printout
-     */
-    ndb_log_warning("Unable to purge " NDB_REP_DB "." NDB_REP_TABLE
-                    " File=%s (failed to setup thd)", file);
+  // Create a separate temporary THD, primarily in order to isolate from any
+  // active transactions in the THD passed by caller. NOTE! This should be
+  // revisited
+  int stack_base = 0;
+  THD *tmp_thd = ndb_create_thd((char *)&stack_base);
+  if (!tmp_thd) {
+    ndb_log_warning("NDB Binlog: Failed to purge: '%s' (create THD failed)",
+                    filename);
     DBUG_RETURN(0);
   }
-  if (ndbcluster_delete_from_ndb_binlog_index(my_thd, file))
-  {
+
+  int error = 0;
+  if (ndbcluster_binlog_index_remove_file(tmp_thd, filename)) {
     // Failed to delete rows from table
-    ndb_log_warning("NDB Binlog: Failed purging ndb_binlog_index file: %s", file);
-    error = 1;
+    ndb_log_warning("NDB Binlog: Failed to purge: '%s'", filename);
+    error = 1; // Failed
   }
+  delete tmp_thd;
 
-  delete my_thd;
-  
-  if (passed_thd)
-  {
-    /* Relink passed THD with this thread */
-    passed_thd->store_globals();
-  }
+  /* Relink original THD */
+  thd->store_globals();
 
   DBUG_RETURN(error);
 }
@@ -7703,37 +7713,35 @@ Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
   return true; // Incident written
 }
 
-bool
-Ndb_binlog_thread::remember_pending_purge(const char *file)
-{
-  if (is_server_started())
+bool Ndb_binlog_thread::handle_purge(const char *filename) {
+  if (is_server_started()) {
+    // The binlog thread currently only handles purge requests
+    // that occurs before "server started"
     return false;
-  log_verbose(1, "Remembering pending binlog purge of file %s", file);
-  std::lock_guard<std::mutex> lock_thd(m_purge_mutex);
-  m_pending_purges.push_back(file);
+  }
+
+  // The "server started" state is not yet reached, defer the purge request of
+  // this binlog file to later and handle it just before entering main loop
+  log_verbose(1, "Remember purge binlog file: '%s'", filename);
+  std::lock_guard<std::mutex> lock_pending_purges(m_purge_mutex);
+  m_pending_purges.push_back(filename);
   return true;
 }
 
-void
-Ndb_binlog_thread::recall_pending_purges(THD *thd)
-{
-  std::lock_guard<std::mutex> lock_thd(m_purge_mutex);
-  uint no_purges= m_pending_purges.size();
-  if (no_purges == 0)
-    return;
-  while (no_purges > 0)
-  {
-    char file[NAME_LEN + 1];
-    std::string file_name = m_pending_purges[--no_purges];
-    strncpy(file, file_name.c_str(), file_name.length());
-    file[file_name.length()] = '\0';
-    log_verbose(1, "Recalling pending binlog purge of file %s", file);
-    if (ndbcluster_delete_from_ndb_binlog_index(thd, file))
-    {
-      // Failed to delete rows from table
-      ndb_log_warning("NDB Binlog: Failed purging ndb_binlog_index file: %s", file);
+void Ndb_binlog_thread::recall_pending_purges(THD *thd) {
+  std::lock_guard<std::mutex> lock_pending_purges(m_purge_mutex);
+
+  // Iterate list of pending purges and delete corresponding
+  // rows from ndb_binlog_index table
+  for (std::string filename : m_pending_purges) {
+    log_verbose(1, "Purging binlog file: '%s'", filename.c_str());
+
+    if (ndbcluster_binlog_index_remove_file(thd, filename.c_str())) {
+      // Failed to delete filename from ndb_binlog_index table
+      log_warning("Failed to purge binlog file: '%s'", filename.c_str());
     }
   }
+  // All pending purges performed, clear the list
   m_pending_purges.clear();
 }
 
@@ -7911,14 +7919,8 @@ restart_cluster_failure:
   }
   reconnect_incident_id= CLUSTER_DISCONNECT;
 
-  {
-    log_verbose(1, "Checking for any pending binlog purges");
-    /*
-      Check if any purge requests were done before
-      server was started
-     */
-    recall_pending_purges(thd);
-  }
+  // Handle pending purge requests from before "server started" state
+  recall_pending_purges(thd);
 
   {
     log_verbose(1, "Wait for cluster to start");
