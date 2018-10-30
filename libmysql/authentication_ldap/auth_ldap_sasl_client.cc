@@ -133,7 +133,9 @@ int Sasl_client::initilize() {
     log_error(
         "sasl client initilize: failed to find executable path or buffer size "
         "for path is too small.");
-    goto EXIT;
+    log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
+    log_error(log_stream.str());
+    return SASL_FAIL;
   }
   char *pos = strrchr(sasl_plugin_dir, '\\');
   if (pos != NULL) {
@@ -153,23 +155,23 @@ int Sasl_client::initilize() {
   /** Initialize client-side of SASL. */
   rc_sasl = sasl_client_init(NULL);
   if (rc_sasl != SASL_OK) {
-    goto EXIT;
+    log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
+    log_error(log_stream.str());
+    return rc_sasl;
   }
 
   /** Creating sasl connection. */
   rc_sasl = sasl_client_new(m_service_name, NULL, NULL, NULL, callbacks, 0,
                             &m_connection);
-  if (rc_sasl != SASL_OK) goto EXIT;
-
-  /** Set security properties. */
-  sasl_setprop(m_connection, SASL_SEC_PROPS, &security_properties);
-  rc_sasl = SASL_OK;
-EXIT:
   if (rc_sasl != SASL_OK) {
     log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
     log_error(log_stream.str());
+    return rc_sasl;
   }
-  return rc_sasl;
+
+  /** Set security properties. */
+  sasl_setprop(m_connection, SASL_SEC_PROPS, &security_properties);
+  return SASL_OK;
 }
 
 Sasl_client::~Sasl_client() {
