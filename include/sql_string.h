@@ -260,10 +260,7 @@ class String {
       (void)mem_realloc(m_length);
     return m_ptr;
   }
-  LEX_STRING lex_string() const {
-    LEX_STRING lex_string = {(char *)ptr(), length()};
-    return lex_string;
-  }
+  LEX_STRING lex_string() { return {m_ptr, length()}; }
 
   LEX_CSTRING lex_cstring() const {
     LEX_CSTRING lex_cstring = {ptr(), length()};

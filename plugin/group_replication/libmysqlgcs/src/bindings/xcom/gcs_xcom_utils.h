@@ -75,7 +75,7 @@ class Gcs_xcom_utils {
 
    @return calculated hash
    */
-  static uint32_t mhash(unsigned char *buf, size_t length);
+  static uint32_t mhash(const unsigned char *buf, size_t length);
 
   static int init_net();
   static int deinit_net();

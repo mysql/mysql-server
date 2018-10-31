@@ -5706,11 +5706,11 @@ table name always to lower case if "set_lower_case" is set to TRUE.
 void create_table_info_t::normalize_table_name_low(char *norm_name,
                                                    const char *name,
                                                    ibool set_lower_case) {
-  char *name_ptr;
+  const char *name_ptr;
   ulint name_len;
-  char *db_ptr;
+  const char *db_ptr;
   ulint db_len;
-  char *ptr;
+  const char *ptr;
   ulint norm_len;
 
   /* Scan name from the end */

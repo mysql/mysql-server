@@ -131,8 +131,9 @@ Gcs_xcom_control::Gcs_xcom_control(
   set_node_address(xcom_node_address);
 
   m_gid = new Gcs_group_identifier(m_group_identifier.get_group_id());
+  const void *group_id = m_gid->get_group_id().c_str();
   m_gid_hash =
-      Gcs_xcom_utils::mhash((unsigned char *)m_gid->get_group_id().c_str(),
+      Gcs_xcom_utils::mhash(static_cast<const unsigned char *>(group_id),
                             m_gid->get_group_id().size());
   /*
     Clone the members - we may want to pass parameters directly to the
@@ -395,7 +396,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
 
     int n = 0;
     xcom_port port = 0;
-    char *addr = NULL;
+    const char *addr = nullptr;
     std::vector<Gcs_xcom_node_address *>::iterator it;
 
     std::map<std::string, int> local_node_info_str_ips;
@@ -422,7 +423,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join() {
           continue;
         }
         port = peer->get_member_port();
-        addr = (char *)peer->get_member_ip().c_str();
+        addr = peer->get_member_ip().c_str();
 
         MYSQL_GCS_LOG_TRACE(
             "Client local port %d xcom_client_open_connection to %s:%d",

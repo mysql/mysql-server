@@ -3292,8 +3292,8 @@ struct TABLE_LIST {
     These attributes MUST NOT be used for any purposes but the parsing.
   */
 
-  LEX_STRING view_client_cs_name{nullptr, 0};
-  LEX_STRING view_connection_cl_name{nullptr, 0};
+  LEX_CSTRING view_client_cs_name{nullptr, 0};
+  LEX_CSTRING view_connection_cl_name{nullptr, 0};
 
   /*
     View definition (SELECT-statement) in the UTF-form.

@@ -1725,14 +1725,14 @@ void mysql_read_default_options(struct st_mysql_options *options,
         continue;
       /* DBUG_PRINT("info",("option: %s",option[0])); */
       if (option[0][0] == '-' && option[0][1] == '-') {
-        char *end = strcend(*option, '=');
-        char *opt_arg = 0;
-        if (*end) {
+        char *end = strchr(*option, '=');
+        char *opt_arg = nullptr;
+        if (end != nullptr) {
           opt_arg = end + 1;
           *end = 0; /* Remove '=' */
         }
         /* Change all '_' in variable name to '-' */
-        for (end = *option; *(end = strcend(end, '_'));) *end = '-';
+        for (end = *option; end != nullptr; end = strchr(end, '_')) *end = '-';
         switch (find_type(*option + 2, &option_types, FIND_TYPE_BASIC)) {
           case OPT_port:
             if (opt_arg) options->port = atoi(opt_arg);

@@ -1041,8 +1041,7 @@ static void my_hash_sort_utf16(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((s < e) &&
-         (res = cs->cset->mb_wc(cs, &wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((s < e) && (res = cs->cset->mb_wc(cs, &wc, s, e)) > 0) {
     my_tosort_utf16(uni_plane, &wc);
     tmp1 ^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
     tmp2 += 3;
@@ -1527,7 +1526,7 @@ static int my_uni_utf16le(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static size_t my_lengthsp_utf16le(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                   const char *ptr, size_t length) {
   const char *end = ptr + length;
-  while (end > ptr + 1 && uint2korr((uchar *)end - 2) == 0x20) end -= 2;
+  while (end > ptr + 1 && uint2korr(end - 2) == 0x20) end -= 2;
   return (size_t)(end - ptr);
 }
 }  // extern "C"
@@ -1712,7 +1711,7 @@ static void my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((res = my_utf32_uni(cs, &wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((res = my_utf32_uni(cs, &wc, s, e)) > 0) {
     my_tosort_utf32(uni_plane, &wc);
 
     ch = (wc >> 24);
@@ -1908,10 +1907,10 @@ static size_t my_vsnprintf_utf32(char *dst, size_t n, const char *fmt,
 
     if (*fmt == 's') /* String parameter */
     {
-      char *par = va_arg(ap, char *);
+      const char *par = va_arg(ap, char *);
       size_t plen;
       size_t left_len = (size_t)(end - dst);
-      if (!par) par = (char *)"(null)";
+      if (!par) par = "(null)";
       plen = strlen(par);
       if (left_len <= plen * 4) plen = left_len / 4 - 1;
 
@@ -2104,7 +2103,7 @@ end4:
 no_conv:
   /* There was no number to convert.  */
   *error = MY_ERRNO_EDOM;
-  *endptr = (char *)nptr;
+  *endptr = nptr;
   return 0;
 }
 
@@ -2265,7 +2264,8 @@ static size_t my_scan_utf32(const CHARSET_INFO *cs, const char *str,
     case MY_SEQ_SPACES:
       for (; str < end;) {
         my_wc_t wc;
-        int res = my_utf32_uni(cs, &wc, (uchar *)str, (uchar *)end);
+        int res = my_utf32_uni(cs, &wc, pointer_cast<const uchar *>(str),
+                               pointer_cast<const uchar *>(end));
         if (res < 0 || wc != ' ') break;
         str += res;
       }
@@ -2539,7 +2539,7 @@ static void my_hash_sort_ucs2(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((s < e) && (res = my_ucs2_uni(cs, &wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((s < e) && (res = my_ucs2_uni(cs, &wc, s, e)) > 0) {
     my_tosort_ucs2(uni_plane, &wc);
     tmp1 ^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
     tmp2 += 3;
@@ -2801,7 +2801,7 @@ static void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   tmp1 = *nr1;
   tmp2 = *nr2;
 
-  for (; pos < (uchar *)key; pos++) {
+  for (; pos < key; pos++) {
     tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
     tmp2 += 3;
   }

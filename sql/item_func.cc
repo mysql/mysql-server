@@ -7482,8 +7482,8 @@ bool Item_func_version::itemize(Parse_context *pc, Item **res) {
   @retval   false         If schema and table are not hidden by NDB.
 */
 
-static inline bool is_hidden_by_ndb(THD *thd, const String *schema_name,
-                                    const String *table_name) {
+static inline bool is_hidden_by_ndb(THD *thd, String *schema_name,
+                                    String *table_name) {
   if (!strncmp(schema_name->ptr(), "ndb", 3)) {
     List<LEX_STRING> list;
 

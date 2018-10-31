@@ -5595,7 +5595,7 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((s < e) && (res = my_mb_wc_utf8(&wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((s < e) && (res = my_mb_wc_utf8(&wc, s, e)) > 0) {
     my_tosort_unicode(uni_plane, &wc, cs->state);
     tmp1 ^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
     tmp2 += 3;
@@ -5899,7 +5899,9 @@ static size_t my_well_formed_len_utf8(const CHARSET_INFO *, const char *b,
   while (pos) {
     int mb_len;
 
-    if ((mb_len = my_valid_mbcharlen_utf8mb3((uchar *)b, (uchar *)e)) <= 0) {
+    if ((mb_len = my_valid_mbcharlen_utf8mb3(pointer_cast<const uchar *>(b),
+                                             pointer_cast<const uchar *>(e))) <=
+        0) {
       *error = b < e ? 1 : 0;
       break;
     }
@@ -7580,7 +7582,7 @@ static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
   tmp1 = *n1;
   tmp2 = *n2;
 
-  while ((res = my_mb_wc_utf8mb4(&wc, (uchar *)s, (uchar *)e)) > 0) {
+  while ((res = my_mb_wc_utf8mb4(&wc, s, e)) > 0) {
     my_tosort_unicode(uni_plane, &wc, cs->state);
 
     ch = (wc & 0xFF);
@@ -7889,7 +7891,8 @@ static size_t my_well_formed_len_utf8mb4(const CHARSET_INFO *cs, const char *b,
   while (pos) {
     int mb_len;
 
-    if ((mb_len = my_valid_mbcharlen_utf8mb4(cs, (uchar *)b, (uchar *)e)) <=
+    if ((mb_len = my_valid_mbcharlen_utf8mb4(cs, pointer_cast<const uchar *>(b),
+                                             pointer_cast<const uchar *>(e))) <=
         0) {
       *error = b < e ? 1 : 0;
       break;

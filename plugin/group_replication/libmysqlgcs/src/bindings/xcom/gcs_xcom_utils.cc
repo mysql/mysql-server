@@ -97,7 +97,7 @@ void Gcs_xcom_utils::validate_peer_nodes(
   }
 }
 
-uint32_t Gcs_xcom_utils::mhash(unsigned char *buf, size_t length) {
+uint32_t Gcs_xcom_utils::mhash(const unsigned char *buf, size_t length) {
   size_t i = 0;
   uint32_t sum = 0;
   for (i = 0; i < length; i++) {

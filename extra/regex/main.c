@@ -1,6 +1,8 @@
+#include "my_config.h"
 #include <assert.h>
-#include <m_string.h>
+#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>

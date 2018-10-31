@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,8 @@
 #endif
 
 bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
-  char *end, *copy;
+  const char *end;
+  char *copy;
   char buff[FN_REFLEN];
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));

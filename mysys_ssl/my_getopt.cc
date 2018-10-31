@@ -345,7 +345,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
           continue;
         }
         opt_str = check_struct_option(cur_arg, key_name);
-        optend = strcend(opt_str, '=');
+        optend = const_cast<char *>(strcend(opt_str, '='));
         length = (uint)(optend - opt_str);
         if (*optend == '=')
           optend++;
@@ -684,11 +684,10 @@ void print_cmdline_password_warning() {
 */
 
 static char *check_struct_option(char *cur_arg, char *key_name) {
-  char *dot_pos, *equal_pos, *space_pos;
-
-  dot_pos = strcend(cur_arg + 1, '.'); /* Skip the first character */
-  equal_pos = strcend(cur_arg, '=');
-  space_pos = strcend(cur_arg, ' ');
+  char *dot_pos = const_cast<char *>(
+      strcend(cur_arg + 1, '.')); /* Skip the first character */
+  const char *equal_pos = strcend(cur_arg, '=');
+  const char *space_pos = strcend(cur_arg, ' ');
 
   /*
      If the first dot is after an equal sign, then it is part
@@ -698,7 +697,7 @@ static char *check_struct_option(char *cur_arg, char *key_name) {
      dot found, the option is not a struct option.
   */
   if ((equal_pos > dot_pos) && (space_pos > dot_pos)) {
-    size_t len = (uint)(dot_pos - cur_arg);
+    size_t len = dot_pos - cur_arg;
     set_if_smaller(len, FN_REFLEN - 1);
     strmake(key_name, cur_arg, len);
     return ++dot_pos;

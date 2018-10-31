@@ -968,11 +968,11 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     frm-file.
   */
 
-  lex_string_set(&view->view_client_cs_name,
-                 view->view_creation_ctx->get_client_cs()->csname);
+  lex_cstring_set(&view->view_client_cs_name,
+                  view->view_creation_ctx->get_client_cs()->csname);
 
-  lex_string_set(&view->view_connection_cl_name,
-                 view->view_creation_ctx->get_connection_cl()->name);
+  lex_cstring_set(&view->view_connection_cl_name,
+                  view->view_creation_ctx->get_connection_cl()->name);
 
   /*
     Our parser allows incorrect invalid UTF8 characters in literals.

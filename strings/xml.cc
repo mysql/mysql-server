@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,16 +162,16 @@ static int my_xml_scan(MY_XML_PARSER *p, MY_XML_ATTR *a) {
   a->beg = p->cur;
   a->end = p->cur;
 
-  if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("<!--"))) {
+  if (!my_xml_parser_prefix_cmp(p, STRING_WITH_LEN("<!--"))) {
     for (; p->cur < p->end; p->cur++) {
-      if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("-->"))) {
+      if (!my_xml_parser_prefix_cmp(p, STRING_WITH_LEN("-->"))) {
         p->cur += 3;
         break;
       }
     }
     a->end = p->cur;
     lex = MY_XML_COMMENT;
-  } else if (!my_xml_parser_prefix_cmp(p, C_STRING_WITH_LEN("<![CDATA["))) {
+  } else if (!my_xml_parser_prefix_cmp(p, STRING_WITH_LEN("<![CDATA["))) {
     p->cur += 9;
     for (; p->cur < p->end - 2; p->cur++) {
       if (p->cur[0] == ']' && p->cur[1] == ']' && p->cur[2] == '>') {

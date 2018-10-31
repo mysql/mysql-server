@@ -1423,13 +1423,13 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
 
     if (var->value) {
       res = var->value->val_str(&str);
-      lex_string_set(&se_name, res->ptr());
+      lex_string_set(&se_name, const_cast<char *>(res->ptr()));
     } else {
       // Use the default value defined by sys_var.
       lex_string_set(&se_name,
-                     reinterpret_cast<const char *>(
-                         dynamic_cast<Sys_var_plugin *>(self)->global_value_ptr(
-                             thd, NULL)));
+                     pointer_cast<char *>(
+                         down_cast<Sys_var_plugin *>(self)->global_value_ptr(
+                             thd, nullptr)));
     }
 
     plugin_ref plugin;

@@ -3,12 +3,12 @@
 
    This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
 
-   Modifications copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Modifications copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 */
 
 #include <assert.h>
 #include <m_ctype.h>
-#include <m_string.h>
+#include <string.h>
 #include <stdlib.h>
 #ifdef _WIN32
 #include  <limits.h>

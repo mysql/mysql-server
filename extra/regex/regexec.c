@@ -7,7 +7,7 @@
  */
 #include <assert.h>
 #include <m_ctype.h>
-#include <m_string.h>
+#include <string.h>
 #include <stdlib.h>
 #ifdef _WIN32
 #include  <limits.h>

@@ -1,5 +1,5 @@
 #include <m_ctype.h>
-#include <m_string.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
 

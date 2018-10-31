@@ -1,7 +1,7 @@
 /* Init cclasses array from ctypes */
 
 #include <m_ctype.h>
-#include <m_string.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 

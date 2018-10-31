@@ -85,20 +85,26 @@ static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
   the end of strings.  It is redundant, because  strchr(s,'\0')  could
   be used instead, but this is clearer and faster.
 */
-static inline char *strend(const char *s) {
+static inline const char *strend(const char *s) {
   while (*s++)
     ;
-  return (char *)(s - 1);
+  return s - 1;
+}
+
+static inline char *strend(char *s) {
+  while (*s++)
+    ;
+  return s - 1;
 }
 
 /*
   strcend(s, c) returns a pointer to the  first  place  in  s where  c
   occurs,  or a pointer to the end-null of s if c does not occur in s.
 */
-static inline char *strcend(const char *s, char c) {
+static inline const char *strcend(const char *s, char c) {
   for (;;) {
-    if (*s == (char)c) return (char *)s;
-    if (!*s++) return (char *)s - 1;
+    if (*s == c) return s;
+    if (!*s++) return s - 1;
   }
 }
 
@@ -352,8 +358,8 @@ static inline void human_readable_num_bytes(char *buf, int buf_len,
     snprintf(buf, buf_len, "%llu%c", (unsigned long long)dbl_val, mult);
 }
 
-static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str) {
-  lex_str->str = (char *)c_str;
+static inline void lex_string_set(LEX_STRING *lex_str, char *c_str) {
+  lex_str->str = c_str;
   lex_str->length = strlen(c_str);
 }
 

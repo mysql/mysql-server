@@ -343,14 +343,16 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
       character set.
     */
 
-    lex_string_set(&default_client_cs_name,
-                   thd->variables.character_set_client->csname);
+    lex_string_set(
+        &default_client_cs_name,
+        const_cast<char *>(thd->variables.character_set_client->csname));
 
-    lex_string_set(&default_connection_cl_name,
-                   thd->variables.collation_connection->name);
+    lex_string_set(
+        &default_connection_cl_name,
+        const_cast<char *>(thd->variables.collation_connection->name));
 
     lex_string_set(&default_db_cl_name,
-                   thd->variables.collation_database->name);
+                   const_cast<char *>(thd->variables.collation_database->name));
   }
 
   LEX_CSTRING db_name_str = {db_name, strlen(db_name)};

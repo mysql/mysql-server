@@ -1007,10 +1007,10 @@ static size_t my_wstrnlen(my_wc_t *s, size_t maxlen) {
 
 const uint16 *my_uca_scanner::contraction_find(my_wc_t wc0,
                                                size_t *chars_skipped) {
-  uchar *s, *beg = nullptr;
+  const uchar *beg = nullptr;
   auto mb_wc = cs->cset->mb_wc;
 
-  s = (uchar *)sbeg;
+  const uchar *s = sbeg;
   const std::vector<MY_CONTRACTION> *cont_nodes = uca->contraction_nodes;
   const MY_CONTRACTION *longest_contraction = nullptr;
   std::vector<MY_CONTRACTION>::const_iterator node_it;
@@ -1918,7 +1918,7 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
   ulong tmp1;
   ulong tmp2;
 
-  slen = cs->cset->lengthsp(cs, (char *)s, slen);
+  slen = cs->cset->lengthsp(cs, pointer_cast<const char *>(s), slen);
   uca_scanner_any<Mb_wc> scanner(mb_wc, cs, s, slen);
 
   tmp1 = *n1;
@@ -2611,7 +2611,8 @@ static my_coll_lexem_num my_coll_lexem_next(MY_COLL_LEXEM *lexem) {
     {
       CHARSET_INFO *cs = &my_charset_utf8_general_ci;
       my_wc_t wc;
-      int nbytes = cs->cset->mb_wc(cs, &wc, (uchar *)beg, (uchar *)lexem->end);
+      int nbytes = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(beg),
+                                   pointer_cast<const uchar *>(lexem->end));
       if (nbytes > 0) {
         rc = MY_COLL_LEXEM_CHAR;
         beg += nbytes;
@@ -2936,15 +2937,13 @@ static int my_coll_parser_scan_setting(MY_COLL_RULE_PARSER *p) {
   MY_COLL_RULES *rules = p->rules;
   MY_COLL_LEXEM *lexem = my_coll_parser_curr(p);
 
-  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[version 4.0.0]"))) {
+  if (!lex_cmp(lexem, STRING_WITH_LEN("[version 4.0.0]"))) {
     rules->uca = &my_uca_v400;
-  } else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[version 5.2.0]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[version 5.2.0]"))) {
     rules->uca = &my_uca_v520;
-  } else if (!lex_cmp(lexem,
-                      C_STRING_WITH_LEN("[shift-after-method expand]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[shift-after-method expand]"))) {
     rules->shift_after_method = my_shift_method_expand;
-  } else if (!lex_cmp(lexem,
-                      C_STRING_WITH_LEN("[shift-after-method simple]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[shift-after-method simple]"))) {
     rules->shift_after_method = my_shift_method_simple;
   } else {
     return 0;
@@ -2982,17 +2981,17 @@ static int my_coll_parser_scan_settings(MY_COLL_RULE_PARSER *p) {
 
 static int my_coll_parser_scan_reset_before(MY_COLL_RULE_PARSER *p) {
   MY_COLL_LEXEM *lexem = my_coll_parser_curr(p);
-  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before primary]")) ||
-      !lex_cmp(lexem, C_STRING_WITH_LEN("[before 1]"))) {
+  if (!lex_cmp(lexem, STRING_WITH_LEN("[before primary]")) ||
+      !lex_cmp(lexem, STRING_WITH_LEN("[before 1]"))) {
     p->rule.before_level = 1;
-  } else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before secondary]")) ||
-             !lex_cmp(lexem, C_STRING_WITH_LEN("[before 2]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[before secondary]")) ||
+             !lex_cmp(lexem, STRING_WITH_LEN("[before 2]"))) {
     p->rule.before_level = 2;
-  } else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before tertiary]")) ||
-             !lex_cmp(lexem, C_STRING_WITH_LEN("[before 3]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[before tertiary]")) ||
+             !lex_cmp(lexem, STRING_WITH_LEN("[before 3]"))) {
     p->rule.before_level = 3;
-  } else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[before quaternary]")) ||
-             !lex_cmp(lexem, C_STRING_WITH_LEN("[before 4]"))) {
+  } else if (!lex_cmp(lexem, STRING_WITH_LEN("[before quaternary]")) ||
+             !lex_cmp(lexem, STRING_WITH_LEN("[before 4]"))) {
     p->rule.before_level = 4;
   } else {
     p->rule.before_level = 0;
@@ -3018,29 +3017,29 @@ static int my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
   MY_COLL_RULES *rules = p->rules;
   MY_COLL_LEXEM *lexem = my_coll_parser_curr(p);
 
-  if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first non-ignorable]")))
+  if (!lex_cmp(lexem, STRING_WITH_LEN("[first non-ignorable]")))
     lexem->code = rules->uca->first_non_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last non-ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last non-ignorable]")))
     lexem->code = rules->uca->last_non_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first primary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[first primary ignorable]")))
     lexem->code = rules->uca->first_primary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last primary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last primary ignorable]")))
     lexem->code = rules->uca->last_primary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first secondary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[first secondary ignorable]")))
     lexem->code = rules->uca->first_secondary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last secondary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last secondary ignorable]")))
     lexem->code = rules->uca->last_secondary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first tertiary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[first tertiary ignorable]")))
     lexem->code = rules->uca->first_tertiary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last tertiary ignorable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last tertiary ignorable]")))
     lexem->code = rules->uca->last_tertiary_ignorable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first trailing]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[first trailing]")))
     lexem->code = rules->uca->first_trailing;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last trailing]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last trailing]")))
     lexem->code = rules->uca->last_trailing;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[first variable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[first variable]")))
     lexem->code = rules->uca->first_variable;
-  else if (!lex_cmp(lexem, C_STRING_WITH_LEN("[last variable]")))
+  else if (!lex_cmp(lexem, STRING_WITH_LEN("[last variable]")))
     lexem->code = rules->uca->last_variable;
   else
     return 0; /* Don't scan the next token */
