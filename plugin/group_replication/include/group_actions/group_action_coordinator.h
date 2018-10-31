@@ -260,6 +260,9 @@ class Group_action_coordinator : public Group_event_observer {
   /** The flag to avoid action starts post stop */
   bool coordinator_terminating;
 
+  /** If we propose an action but the coordinator ends before it starts*/
+  bool action_cancelled_on_termination;
+
   /** Is this member leaving */
   bool member_leaving_group;
 

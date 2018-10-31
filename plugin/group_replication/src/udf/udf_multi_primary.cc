@@ -57,6 +57,13 @@ static bool group_replication_switch_to_multi_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("group_replication_switch_to_multi_primary_mode_init");
 
+  UDF_counter udf_counter;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(7);
+  }
+
   if (args->arg_count > 0) {
     my_stpcpy(message, "Wrong arguments: This function takes no arguments.");
     DBUG_RETURN(1);
@@ -91,10 +98,13 @@ static bool group_replication_switch_to_multi_primary_mode_init(
   }
 
   initid->maybe_null = 0;
+  udf_counter.succeeded();
   DBUG_RETURN(0);
 }
 
-static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {}
+static void group_replication_switch_to_multi_primary_mode_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
+}
 
 udf_descriptor switch_to_multi_primary_udf() {
   return {"group_replication_switch_to_multi_primary_mode",
