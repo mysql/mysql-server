@@ -1669,7 +1669,9 @@ sub command_line_setup {
     mtr_error("Can't use --secondary-engine option.");
   } elsif (!$opt_secondary_engine and $secondary_engine_support) {
     $secondary_engine_support = 0
-      if (defined $opt_suites and !check_secondary_engine_suite($opt_suites));
+      if (
+         (defined $opt_suites and !check_secondary_engine_suite($opt_suites)) or
+         not defined $opt_suites);
   }
 
   if (defined $opt_change_propagation) {
