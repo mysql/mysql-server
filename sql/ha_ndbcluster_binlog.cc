@@ -485,45 +485,8 @@ ndb_create_thd(char * stackptr)
 // Instantiate Ndb_binlog_thread component
 static Ndb_binlog_thread ndb_binlog_thread;
 
-/*
-  @brief Remove all rows from mysql.ndb_binlog_index table that contain
-  references to the given binlog filename.
-
-  @note this function modifies THD state. Caller must ensure that
-  the passed in THD is not affected by these changes. Presumably
-  the state fixes should be moved down into Ndb_local_connection.
-
-  @param thd The thread handle
-  @param filename Name of the binlog file whose references should be removed
-
-  @return true if failure to delete from the table occurs
-*/
-
-static bool ndbcluster_binlog_index_remove_file(THD *thd,
-                                                const char *filename) {
-  Ndb_local_connection mysqld(thd);
-
-  // Set isolation level to be independent from server settings
-  thd->variables.transaction_isolation = ISO_REPEATABLE_READ;
-
-  // Turn autocommit on, this will make delete_rows() commit
-  thd->variables.option_bits &= ~OPTION_NOT_AUTOCOMMIT;
-
-  // Ensure that file paths are escaped in a way that does not
-  // interfere with path separator on Windows
-  thd->variables.sql_mode |= MODE_NO_BACKSLASH_ESCAPES;
-
-  // ignore "table does not exist" as it is a "consistent" behavior
-  const bool ignore_no_such_table = true;
-  if (mysqld.delete_rows(
-          STRING_WITH_LEN("mysql"), STRING_WITH_LEN("ndb_binlog_index"),
-          ignore_no_such_table, "File='", filename, "'", nullptr)) {
-    // Failed
-    return true;
-  }
-  return false;
-}
-
+// Forward declaration
+static bool ndbcluster_binlog_index_remove_file(THD *thd, const char *filename);
 
 /*
   @brief called when a binlog file is purged(i.e the physical
@@ -5702,7 +5665,52 @@ public:
     // Relink this thread with original THD
     orig_thd->store_globals();
   }
+
+  /*
+    @brief Remove all rows from mysql.ndb_binlog_index table that contain
+    references to the given binlog filename.
+
+    @note this function modifies THD state. Caller must ensure that
+    the passed in THD is not affected by these changes. Presumably
+    the state fixes should be moved down into Ndb_local_connection.
+
+    @param thd The thread handle
+    @param filename Name of the binlog file whose references should be removed
+
+    @return true if failure to delete from the table occurs
+  */
+
+  static bool remove_rows_for_file(THD *thd, const char *filename) {
+    Ndb_local_connection mysqld(thd);
+
+    // Set isolation level to be independent from server settings
+    thd->variables.transaction_isolation = ISO_REPEATABLE_READ;
+
+    // Turn autocommit on, this will make delete_rows() commit
+    thd->variables.option_bits &= ~OPTION_NOT_AUTOCOMMIT;
+
+    // Ensure that file paths are escaped in a way that does not
+    // interfere with path separator on Windows
+    thd->variables.sql_mode |= MODE_NO_BACKSLASH_ESCAPES;
+
+    // ignore "table does not exist" as it is a "consistent" behavior
+    const bool ignore_no_such_table = true;
+    if (mysqld.delete_rows(
+            STRING_WITH_LEN("mysql"), STRING_WITH_LEN("ndb_binlog_index"),
+            ignore_no_such_table, "File='", filename, "'", nullptr)) {
+      // Failed
+      return true;
+    }
+    return false;
+  }
 };
+
+// Wrapper function allowing Ndb_binlog_index_table_util::remove_rows_for_file()
+// to be forward declared
+static bool ndbcluster_binlog_index_remove_file(THD *thd, const char *filename)
+{
+  return Ndb_binlog_index_table_util::remove_rows_for_file(thd, filename);
+}
 
 
 /*********************************************************************
@@ -7736,8 +7744,8 @@ void Ndb_binlog_thread::recall_pending_purges(THD *thd) {
   for (std::string filename : m_pending_purges) {
     log_verbose(1, "Purging binlog file: '%s'", filename.c_str());
 
-    if (ndbcluster_binlog_index_remove_file(thd, filename.c_str())) {
-      // Failed to delete filename from ndb_binlog_index table
+    if (Ndb_binlog_index_table_util::remove_rows_for_file(thd,
+                                                          filename.c_str())) {
       log_warning("Failed to purge binlog file: '%s'", filename.c_str());
     }
   }
