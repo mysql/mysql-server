@@ -1391,9 +1391,14 @@ sub unspace {
 sub opts_from_file ($) {
   my $file = shift;
 
-  open(FILE, "<", $file) or mtr_error("can't open file \"$file\": $!");
+  my $file_handle =
+    IO::File->new($file, '<') or mtr_error("Can't open file '$file': $!");
+
   my @args;
-  while (<FILE>) {
+  while (<$file_handle>) {
+    # Skip a line if it starts with '#' (i.e comments)
+    next if /^\s*#/;
+
     chomp;
     s/^\s+//;    # Remove leading space
     s/\s+$//;    # Remove ending space
@@ -1418,12 +1423,11 @@ sub opts_from_file ($) {
 
       # Do not pass empty string since my_getopt is not capable to
       # handle it.
-      if (length($arg)) {
-        push(@args, $arg);
-      }
+      push(@args, $arg) if (length($arg));
     }
   }
-  close FILE;
+
+  $file_handle->close();
   return \@args;
 }
 
