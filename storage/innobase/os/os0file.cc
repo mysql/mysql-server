@@ -2805,9 +2805,18 @@ the global variable errno is set to indicate the error.
 @return 0 if success, -1 otherwise */
 static int os_file_fsync_posix(os_file_t file) {
   ulint failures = 0;
+#ifdef UNIV_HOTBACKUP
+  static meb::Mutex meb_mutex;
+#endif /* UNIV_HOTBACKUP */
 
   for (;;) {
+#ifdef UNIV_HOTBACKUP
+    meb_mutex.lock();
+#endif /* UNIV_HOTBACKUP */
     ++os_n_fsyncs;
+#ifdef UNIV_HOTBACKUP
+    meb_mutex.unlock();
+#endif /* UNIV_HOTBACKUP */
 
     int ret = fsync(file);
 
@@ -4975,9 +4984,19 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     os_file_pwrite(IORequest &type, os_file_t file, const byte *buf, ulint n,
                    os_offset_t offset, dberr_t *err) {
+#ifdef UNIV_HOTBACKUP
+  static meb::Mutex meb_mutex;
+#endif /* UNIV_HOTBACKUP */
+
   ut_ad(type.validate());
 
+#ifdef UNIV_HOTBACKUP
+  meb_mutex.lock();
+#endif /* UNIV_HOTBACKUP */
   ++os_n_file_writes;
+#ifdef UNIV_HOTBACKUP
+  meb_mutex.unlock();
+#endif /* UNIV_HOTBACKUP */
 
   (void)os_atomic_increment_ulint(&os_n_pending_writes, 1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
@@ -5048,7 +5067,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     os_file_pread(IORequest &type, os_file_t file, void *buf, ulint n,
                   os_offset_t offset, dberr_t *err) {
+#ifdef UNIV_HOTBACKUP
+  static meb::Mutex meb_mutex;
+
+  meb_mutex.lock();
+#endif /* UNIV_HOTBACKUP */
   ++os_n_file_reads;
+#ifdef UNIV_HOTBACKUP
+  meb_mutex.unlock();
+#endif /* UNIV_HOTBACKUP */
 
   (void)os_atomic_increment_ulint(&os_n_pending_reads, 1);
   MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
@@ -5076,7 +5103,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                       os_offset_t offset, ulint n, ulint *o, bool exit_on_err) {
   dberr_t err;
 
+#ifdef UNIV_HOTBACKUP
+  static meb::Mutex meb_mutex;
+
+  meb_mutex.lock();
+#endif /* UNIV_HOTBACKUP */
   os_bytes_read_since_printout += n;
+#ifdef UNIV_HOTBACKUP
+  meb_mutex.unlock();
+#endif /* UNIV_HOTBACKUP */
 
   ut_ad(type.validate());
   ut_ad(n > 0);
