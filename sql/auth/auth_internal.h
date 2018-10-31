@@ -130,7 +130,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      ulong privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
-                     MYSQL_TIME password_change_time, LEX_ALTER password_life,
+                     const MYSQL_TIME &password_change_time,
+                     const LEX_ALTER &password_life,
                      acl_table::Pod_user_what_to_update &what_to_update);
 void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                        const char *host, enum SSL_type ssl_type,
@@ -138,14 +139,15 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                        const char *x509_subject, USER_RESOURCES *mqh,
                        ulong privileges, const LEX_CSTRING &plugin,
                        const LEX_CSTRING &auth, const LEX_CSTRING &second_auth,
-                       MYSQL_TIME password_change_time, LEX_ALTER password_life,
-                       bool add_role_vertex);
+                       const MYSQL_TIME &password_change_time,
+                       const LEX_ALTER &password_life, bool add_role_vertex);
 void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type, const char *ssl_cipher,
                      const char *x509_issuer, const char *x509_subject,
                      USER_RESOURCES *mqh, ulong privileges,
                      const LEX_CSTRING &plugin, const LEX_CSTRING &auth,
-                     MYSQL_TIME password_change_time, LEX_ALTER password_life);
+                     const MYSQL_TIME &password_change_time,
+                     const LEX_ALTER &password_life);
 void acl_update_proxy_user(ACL_PROXY_USER *new_value, bool is_revoke);
 void acl_update_db(const char *user, const char *host, const char *db,
                    ulong privileges);

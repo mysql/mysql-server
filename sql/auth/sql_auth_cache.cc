@@ -2456,7 +2456,8 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      ulong privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
-                     MYSQL_TIME password_change_time, LEX_ALTER password_life,
+                     const MYSQL_TIME &password_change_time,
+                     const LEX_ALTER &password_life,
                      acl_table::Pod_user_what_to_update &what_to_update) {
   DBUG_ENTER("acl_update_user");
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
@@ -2594,8 +2595,8 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                        const char *x509_subject, USER_RESOURCES *mqh,
                        ulong privileges, const LEX_CSTRING &plugin,
                        const LEX_CSTRING &auth, const LEX_CSTRING &second_auth,
-                       MYSQL_TIME password_change_time, LEX_ALTER password_life,
-                       bool add_role_vertex) {
+                       const MYSQL_TIME &password_change_time,
+                       const LEX_ALTER &password_life, bool add_role_vertex) {
   DBUG_ENTER("acl_users_add_one");
   ACL_USER acl_user;
 
@@ -2700,8 +2701,9 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
                      ulong privileges, const LEX_CSTRING &plugin,
-                     const LEX_CSTRING &auth, MYSQL_TIME password_change_time,
-                     LEX_ALTER password_life) {
+                     const LEX_CSTRING &auth,
+                     const MYSQL_TIME &password_change_time,
+                     const LEX_ALTER &password_life) {
   DBUG_ENTER("acl_insert_user");
   acl_users_add_one(thd, user, host, ssl_type, ssl_cipher, x509_issuer,
                     x509_subject, mqh, privileges, plugin, auth, EMPTY_CSTR,
