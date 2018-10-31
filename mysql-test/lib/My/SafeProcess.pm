@@ -235,8 +235,6 @@ sub shutdown {
     if ($ret != 0) {
       push(@kill_processes, $proc);
     }
-    # Only wait for the first process with shutdown timeout
-    $shutdown_timeout = 0;
   }
 
   # Wait infinitely for those process that has been killed

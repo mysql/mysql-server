@@ -129,7 +129,7 @@ my $opt_port_base          = $ENV{'MTR_PORT_BASE'} || "auto";
 my $opt_reorder            = 1;
 my $opt_retry              = 3;
 my $opt_retry_failure      = env_or_val(MTR_RETRY_FAILURE => 2);
-my $opt_shutdown_timeout   = $ENV{MTR_SHUTDOWN_TIMEOUT} || 10;         # seconds
+my $opt_shutdown_timeout   = $ENV{MTR_SHUTDOWN_TIMEOUT} || 20;         # seconds
 my $opt_skip_ndbcluster    = 0;
 my $opt_skip_sys_schema    = 0;
 my $opt_start_timeout      = $ENV{MTR_START_TIMEOUT} || 180;           # seconds
