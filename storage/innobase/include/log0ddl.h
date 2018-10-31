@@ -474,17 +474,21 @@ class Log_DDL {
   entry for the tablespaces for which (un)encyrption operation
   was resumed.
   NOTE: This is called by background thread doing resume (un)encryption.
-  param[in]	records		list of records to be deleted */
-  void post_ts_encryption(DDL_Records &records) {
+  param[in]	records		list of records to be deleted
+  @return InnoDB error code */
+  dberr_t post_ts_encryption(DDL_Records &records) {
     for (auto record : records) {
       record->set_deletable(true);
     }
 
-    delete_by_ids(records);
-
-    for (auto record : records) {
-      delete record;
+    dberr_t err = delete_by_ids(records);
+    if (err == DB_SUCCESS) {
+      for (auto record : records) {
+        delete record;
+      }
     }
+
+    return (err);
   }
 
   /** Is it in ddl recovery in server startup.

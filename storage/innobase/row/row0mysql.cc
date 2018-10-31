@@ -2682,7 +2682,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
     initialized and we don't need to write DDL logs too.
     This can only happen for CREATE TABLE. */
     if (log_ddl != nullptr) {
-      log_ddl->write_remove_cache_log(trx, table);
+      err = log_ddl->write_remove_cache_log(trx, table);
     }
 
     mem_heap_free(heap);
@@ -3960,11 +3960,14 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
   if (!table->is_temporary() && !file_per_table) {
     mutex_exit(&dict_sys->mutex);
-    for (dict_index_t *index = table->first_index(); index != NULL;
-         index = index->next()) {
-      log_ddl->write_free_tree_log(trx, index, true);
+    for (dict_index_t *index = table->first_index();
+         err == DB_SUCCESS && index != NULL; index = index->next()) {
+      err = log_ddl->write_free_tree_log(trx, index, true);
     }
     mutex_enter(&dict_sys->mutex);
+    if (err != DB_SUCCESS) {
+      goto funct_exit;
+    }
   }
 
   /* Mark all indexes unavailable in the data dictionary cache
@@ -4053,7 +4056,8 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   }
 
   ut_ad(file_per_table);
-  log_ddl->write_delete_space_log(trx, nullptr, space_id, filepath, true, true);
+  err = log_ddl->write_delete_space_log(trx, nullptr, space_id, filepath, true,
+                                        true);
 
 funct_exit:
 

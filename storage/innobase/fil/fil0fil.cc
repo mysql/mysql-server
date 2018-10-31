@@ -4711,9 +4711,12 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
 
       /* Rename ddl log is for rollback, so we exchange
       old file name with new file name. */
-      log_ddl->write_rename_space_log(space_id, new_file_name, old_file_name);
-
+      dberr_t err = log_ddl->write_rename_space_log(space_id, new_file_name,
+                                                    old_file_name);
       ut_free(new_file_name);
+      if (err != DB_SUCCESS) {
+        return (false);
+      }
 
       write_ddl_log = false;
       continue;

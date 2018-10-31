@@ -6954,7 +6954,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
       missing if root is FIL_NULL, do nothing. */
       if (index->page != FIL_NULL) {
         mutex_exit(&dict_sys->mutex);
-        log_ddl->write_free_tree_log(trx, index, true);
+        ut_d(dberr_t err =) log_ddl->write_free_tree_log(trx, index, true);
+        ut_ad(err == DB_SUCCESS);
         mutex_enter(&dict_sys->mutex);
       }
 

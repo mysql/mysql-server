@@ -14405,8 +14405,11 @@ static int innodb_drop_tablespace(handlerton *hton, THD *thd,
     DBUG_RETURN(error);
   }
 
-  log_ddl->write_delete_space_log(
+  err = log_ddl->write_delete_space_log(
       trx, NULL, space_id, dd_tablespace_get_filename(dd_space), true, false);
+  if (err != DB_SUCCESS) {
+    error = convert_error_code_to_mysql(err, 0, NULL);
+  }
 
   DBUG_RETURN(error);
 }
@@ -14694,17 +14697,17 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   has been altered inactive and is now empty. */
   if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES ||
       !undo_space->is_empty()) {
-    ib::error err;
-    err << "Cannot drop undo tablespace '" << undo_space->space_name();
+    ib::error err_msg;
+    err_msg << "Cannot drop undo tablespace '" << undo_space->space_name();
     if (undo_space->num() <= FSP_IMPLICIT_UNDO_TABLESPACES) {
-      err << "' because it was not created explicitly.";
+      err_msg << "' because it was not created explicitly.";
     } else if (undo_space->is_active() || undo_space->is_inactive_implicit()) {
-      err << "' because it is active. "
-          << "Please do: ALTER UNDO TABLESPACE " << undo_space->space_name()
-          << " SET INACTIVE;";
+      err_msg << "' because it is active. "
+              << "Please do: ALTER UNDO TABLESPACE " << undo_space->space_name()
+              << " SET INACTIVE;";
     } else {
-      err << "' because it is still being truncated."
-             " Please try again later.";
+      err_msg << "' because it is still being truncated."
+                 " Please try again later.";
     }
 
     undo::spaces->x_unlock();
@@ -14728,8 +14731,11 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   TrxInInnoDB trx_in_innodb(trx);
   trx_start_if_not_started(trx, true);
   ++trx->will_lock;
-  log_ddl->write_delete_space_log(trx, NULL, space_id, file_name.c_str(), true,
-                                  false);
+  dberr_t err = log_ddl->write_delete_space_log(trx, NULL, space_id,
+                                                file_name.c_str(), true, false);
+  if (err != DB_SUCCESS) {
+    error = convert_error_code_to_mysql(err, 0, NULL);
+  }
 
   mutex_exit(&(undo::ddl_mutex));
   DBUG_RETURN(error);
