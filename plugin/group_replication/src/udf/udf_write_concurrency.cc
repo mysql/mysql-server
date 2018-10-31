@@ -34,6 +34,14 @@ static bool group_replication_get_write_concurrency_init(UDF_INIT *,
   bool constexpr failure = true;
   bool constexpr success = false;
   bool result = failure;
+
+  UDF_counter udf_counter;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    goto end;
+  }
+
   if (args->arg_count != 0) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, "UDF does not take arguments.");
     goto end;
@@ -43,11 +51,15 @@ static bool group_replication_get_write_concurrency_init(UDF_INIT *,
     goto end;
   }
   result = success;
+  udf_counter.succeeded();
 end:
+
   return result;
 }
 
-static void group_replication_get_write_concurrency_deinit(UDF_INIT *) {}
+static void group_replication_get_write_concurrency_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
+}
 
 static long long group_replication_get_write_concurrency(UDF_INIT *, UDF_ARGS *,
                                                          unsigned char *is_null,
@@ -78,10 +90,18 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
   bool constexpr success = false;
   bool result = failure;
 
+  UDF_counter udf_counter;
+
   privilege_result privilege = privilege_result::error();
   bool const wrong_number_of_args = args->arg_count != 1;
   bool const wrong_arg_type =
       !wrong_number_of_args && args->arg_type[0] != INT_RESULT;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    goto end;
+  }
+
   if (wrong_number_of_args || wrong_arg_type) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, wrong_nr_args_str);
     goto end;
@@ -117,11 +137,14 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
     }
   }
   result = success;
+  udf_counter.succeeded();
 end:
   return result;
 }
 
-static void group_replication_set_write_concurrency_deinit(UDF_INIT *) {}
+static void group_replication_set_write_concurrency_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
+}
 
 static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
                                                      char *result,

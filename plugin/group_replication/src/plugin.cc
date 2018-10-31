@@ -35,6 +35,7 @@
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
+#include "plugin/group_replication/include/udf/udf_utils.h"
 
 #ifndef DBUG_OFF
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
@@ -1079,6 +1080,11 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
   });
 
   group_action_coordinator->stop_coordinator_process(true, true);
+
+  while (!UDF_counter::is_zero()) {
+    /* Give 50 ms to udf terminate*/
+    my_sleep(50000);
+  }
 
   if (primary_election_handler != NULL) {
     primary_election_handler->terminate_election_process();

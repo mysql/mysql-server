@@ -101,6 +101,7 @@ Group_action_coordinator::Group_action_coordinator()
       local_action_killed(false),
       action_execution_error(false),
       coordinator_terminating(false),
+      action_cancelled_on_termination(false),
       member_leaving_group(false),
       remote_warnings_reported(false),
       action_handler_thd_state(),
@@ -159,6 +160,7 @@ int send_message(Group_action_message *message) {
 
 void Group_action_coordinator::reset_coordinator_process() {
   coordinator_terminating = false;
+  action_cancelled_on_termination = false;
   action_running = false;
   local_action_killed = false;
   action_execution_error = false;
@@ -174,7 +176,15 @@ int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
 
   if (action_running) {
     current_executing_action->executing_action->stop_action_execution(false);
+  } else if (action_proposed) {
+    /**
+      If we sent a start message but then left the group, the action might be
+      waiting
+    */
+    action_cancelled_on_termination = true;
+    mysql_cond_broadcast(&coordinator_process_condition);
   }
+
   mysql_mutex_unlock(&coordinator_process_lock);
 
   /**
@@ -277,7 +287,7 @@ int Group_action_coordinator::coordinate_action_execution(
   delete start_message;
 
   while (!local_action_terminating && !action_execution_error &&
-         !thread_killed()) {
+         !action_cancelled_on_termination && !thread_killed()) {
     struct timespec abstime;
     set_timespec(&abstime, 1);
 
@@ -325,6 +335,15 @@ int Group_action_coordinator::coordinate_action_execution(
     else
       execution_info->append_warning_message(
           " There were warnings detected on other members, check their logs.");
+  }
+
+  // This action was proposed but canceled before being declared running
+  if (action_cancelled_on_termination && !local_action_terminating &&
+      !action_execution_error) {
+    execution_info->set_execution_message(
+        Group_action_diagnostics::GROUP_ACTION_LOG_ERROR,
+        "The group coordination process is terminating.");
+    error = 2;
   }
 
   action_proposed = false;

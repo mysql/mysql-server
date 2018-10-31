@@ -108,6 +108,13 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
                                                   char *message) {
   DBUG_ENTER("group_replication_set_as_primary_init");
 
+  UDF_counter udf_counter;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(10);
+  }
+
   if (args->arg_count != 1 || args->arg_type[0] != STRING_RESULT ||
       args->lengths[0] == 0) {
     my_stpcpy(message, "Wrong arguments: You need to specify a server uuid.");
@@ -174,10 +181,13 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
   }
 
   init_id->maybe_null = 0;
+  udf_counter.succeeded();
   DBUG_RETURN(0);
 }
 
-static void group_replication_set_as_primary_deinit(UDF_INIT *) {}
+static void group_replication_set_as_primary_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
+}
 
 udf_descriptor set_as_primary_udf() {
   return {"group_replication_set_as_primary", Item_result::STRING_RESULT,
@@ -264,6 +274,20 @@ static bool group_replication_switch_to_single_primary_mode_init(
     UDF_INIT *initid, UDF_ARGS *args, char *message) {
   DBUG_ENTER("group_replication_switch_to_single_primary_mode_init");
 
+  UDF_counter udf_counter;
+
+  if (plugin_is_stopping) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    DBUG_RETURN(9);
+  }
+
+  DBUG_EXECUTE_IF("group_replication_hold_udf_after_plugin_is_stopping", {
+    const char act[] =
+        "now signal signal.group_replication_resume_udf "
+        "wait_for signal.group_replication_resume_udf_continue";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
+
   if (args->arg_count > 1 ||
       (args->arg_count == 1 &&
        (args->arg_type[0] != STRING_RESULT || args->lengths[0] == 0))) {
@@ -325,10 +349,12 @@ static bool group_replication_switch_to_single_primary_mode_init(
   }
 
   initid->maybe_null = 0;
+  udf_counter.succeeded();
   DBUG_RETURN(0);
 }
 
 static void group_replication_switch_to_single_primary_mode_deinit(UDF_INIT *) {
+  UDF_counter::terminated();
 }
 
 udf_descriptor switch_to_single_primary_udf() {

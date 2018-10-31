@@ -82,6 +82,33 @@ class privilege_result {
 };
 
 /**
+  @class UDF_counter
+  Class used to increase an atomic value when UDF functions are being
+  initialized. If initialization fails the value will be decreased.
+
+  number_udfs_running works together with plugin_is_stopping so when group
+  replication is stopping, all new udf will fail to start and server will
+  wait for the running ones to finish.
+*/
+
+class UDF_counter {
+ public:
+  static std::atomic<int> number_udfs_running;
+  static void terminated() { number_udfs_running--; }
+  static bool is_zero() { return number_udfs_running == 0; }
+
+  UDF_counter() : success(false) { number_udfs_running++; }
+  ~UDF_counter() {
+    if (!success) number_udfs_running--;
+  }
+
+  void succeeded() { success = true; }
+
+ private:
+  bool success;
+};
+
+/**
  * Checks whether the user has GROUP_REPLICATION_ADMIN privilege.
  *
  * @retval privilege_result::error if there was an error fetching the user's

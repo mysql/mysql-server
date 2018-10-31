@@ -26,6 +26,8 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "sql/auth/auth_acls.h"
 
+std::atomic<int> UDF_counter::number_udfs_running(0);
+
 privilege_result user_has_gr_admin_privilege() {
   THD *thd = current_thd;
   privilege_result result = privilege_result::error();
@@ -101,20 +103,20 @@ void log_privilege_status_result(privilege_result const &privilege,
 }
 
 bool member_online_with_majority() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
+  if (!plugin_is_group_replication_running()) return false;
+
   bool const not_online = local_member_info == nullptr ||
                           local_member_info->get_recovery_status() !=
                               Group_member_info::MEMBER_ONLINE;
   bool const on_partition = group_partition_handler != nullptr &&
                             group_partition_handler->is_member_on_partition();
-  if (!plugin_is_group_replication_running() || not_online || on_partition) {
+  if (not_online || on_partition) {
     return false;
   }
   return true;
 }
 
 bool group_contains_unreachable_member() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
   if (group_member_mgr) {
     if (group_member_mgr->is_unreachable_member_present()) {
       return true;
@@ -124,7 +126,6 @@ bool group_contains_unreachable_member() {
 }
 
 bool group_contains_recovering_member() {
-  Mutex_autolock auto_lock_mutex(get_plugin_running_lock());
   if (group_member_mgr) {
     if (group_member_mgr->is_recovering_member_present()) {
       return true;
