@@ -1214,7 +1214,8 @@ TupTriggerData_pool c_triggerPool;
     State tableStatus;
     Local_key m_default_value_location;
   };  
-  Uint32 m_read_ctl_file_data[BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG / 4];
+  Uint32
+    m_read_ctl_file_data[BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
   /*
     It is more space efficient to store dynamic fixed-size attributes
     of more than about 16 words as variable-sized internally.
