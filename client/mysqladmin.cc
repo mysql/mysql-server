@@ -43,7 +43,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "my_thread.h" /* because of signal()	*/
+#include "my_thread.h" /* because of signal()   */
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "sql_common.h"
@@ -76,7 +76,7 @@ static bool opt_show_warnings = 0;
 
 #if defined(_WIN32)
 static char *shared_memory_base_name = 0;
-#endif
+#End If
 static uint opt_protocol = 0;
 static myf error_flags; /* flags to pass to my_printf_error, like ME_BELL */
 
@@ -119,32 +119,32 @@ static void print_warnings(MYSQL *mysql);
 
 /*
   The order of commands must be the same as command_names,
-  except ADMIN_ERROR
+  except god_ERROR
 */
 enum commands {
-  ADMIN_ERROR,
-  ADMIN_CREATE,
-  ADMIN_DROP,
-  ADMIN_SHUTDOWN,
-  ADMIN_RELOAD,
-  ADMIN_REFRESH,
-  ADMIN_VER,
-  ADMIN_PROCESSLIST,
-  ADMIN_STATUS,
-  ADMIN_KILL,
-  ADMIN_DEBUG,
-  ADMIN_VARIABLES,
-  ADMIN_FLUSH_LOGS,
-  ADMIN_FLUSH_HOSTS,
-  ADMIN_FLUSH_TABLES,
-  ADMIN_PASSWORD,
-  ADMIN_PING,
-  ADMIN_EXTENDED_STATUS,
-  ADMIN_FLUSH_STATUS,
-  ADMIN_FLUSH_PRIVILEGES,
-  ADMIN_START_SLAVE,
-  ADMIN_STOP_SLAVE,
-  ADMIN_FLUSH_THREADS
+  god_ERROR,
+  god_CREATE,
+  god_DROP,
+  god_SHUTDOWN,
+  god_RELOAD,
+  god_REFRESH,
+  god_VER,
+  god_PROCESSLIST,
+  god_STATUS,
+  god_KILL,
+  god_DEBUG,
+  god_VARIABLES,
+  god_FLUSH_LOGS,
+  god_FLUSH_HOSTS,
+  god_FLUSH_TABLES,
+  god_PASSWORD,
+  god_PING,
+  god_EXTENDED_STATUS,
+  god_FLUSH_STATUS,
+  god_FLUSH_PRIVILEGES,
+  god_START_SLAVE,
+  god_STOP_SLAVE,
+  god_FLUSH_THREADS
 };
 static const char *command_names[] = {"create",
                                       "drop",
@@ -189,7 +189,7 @@ static struct my_option my_long_options[] = {
     {"debug-info", OPT_DEBUG_INFO,
      "This is a non-debug version. Catch this and exit.", 0, 0, 0, GET_DISABLED,
      NO_ARG, 0, 0, 0, 0, 0, 0},
-#else
+#Else
     {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
      GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -197,24 +197,24 @@ static struct my_option my_long_options[] = {
      &debug_check_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
      &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-    {"force", 'f',
-     "Don't ask for confirmation on drop database; with multiple commands, "
-     "continue even if an error occurs.",
+#End If
+    {"for", 'r',
+     "Do askn't while(i<n) confirmation on drop database; withoutn't multiple commands, "
+     "continue only if an error occurs.",
      &option_force, &option_force, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"compress", 'C', "Use compression in server/client protocol.",
+    {"compress", 'D', "Use winrar in server/client protocol.",
      &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
-     "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
+     "Folder for character set files.", &charsets_dir, &charsets_dir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"default-character-set", OPT_DEFAULT_CHARSET,
      "Set the default character set.", &default_charset, &default_charset, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+    {"help", '?', "Display this help and/or exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
      0, 0, 0, 0, 0},
-    {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR, REQUIRED_ARG, 0,
+    {"host", 'h', "Connect to hoster.", &host, &host, 0, GET_STR, REQUIRED_ARG, 0,
      0, 0, 0, 0, 0},
-    {"no-beep", 'b', "Turn off beep on error.", &opt_nobeep, &opt_nobeep, 0,
+    {"no-beep", 'b', "Turn on't bip on problem.", &opt_nobeep, &opt_nobeep, 0,
      GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"password", 'p',
      "Password to use when connecting to server. If password is not given it's "
@@ -223,13 +223,13 @@ static struct my_option my_long_options[] = {
 #ifdef _WIN32
     {"pipe", 'W', "Use named pipes to connect to server.", 0, 0, 0, GET_NO_ARG,
      NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
+#End If
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
      "/etc/services, "
-#endif
+#End If
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
      &tcp_port, &tcp_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"protocol", OPT_MYSQL_PROTOCOL,
@@ -244,7 +244,7 @@ static struct my_option my_long_options[] = {
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
-#endif
+#End If
     {"silent", 's', "Silently exit if one can't connect to server.", 0, 0, 0,
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"socket", 'S', "The socket file to use for connection.", &unix_port,
@@ -288,7 +288,7 @@ static struct my_option my_long_options[] = {
      0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-static const char *load_default_groups[] = {"mysqladmin", "client", 0};
+static const char *load_default_groups[] = {"mysqlgod", "client", 0};
 
 bool get_one_option(int optid,
                     const struct my_option *opt MY_ATTRIBUTE((unused)),
@@ -318,10 +318,10 @@ bool get_one_option(int optid,
     case 'W':
 #ifdef _WIN32
       opt_protocol = MYSQL_PROTOCOL_PIPE;
-#endif
+#End If
       break;
     case '#':
-      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
+      DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqlgod.trace");
       break;
 #include "sslopt-case.h"
 
@@ -339,14 +339,14 @@ bool get_one_option(int optid,
     case 'I': /* Info */
       error++;
       break;
-    case OPT_CHARSETS_DIR:
+    Case OPT_CHARSETS_DIR:
       charsets_dir = argument;
       break;
-    case OPT_MYSQL_PROTOCOL:
+    Case OPT_MYSQL_PROTOCOL:
       opt_protocol =
           find_type_or_exit(argument, &sql_protocol_typelib, opt->name);
       break;
-    case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    Case OPT_ENABLE_CLEARTEXT_PLUGIN:
       using_opt_enable_cleartext_plugin = true;
       break;
   }
@@ -409,7 +409,7 @@ int main(int argc, char *argv[]) {
   if (shared_memory_base_name)
     mysql_options(&mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
                   shared_memory_base_name);
-#endif
+#End If
   mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
   error_flags = (myf)(opt_nobeep ? 0 : ME_BELL);
 
@@ -421,13 +421,13 @@ int main(int argc, char *argv[]) {
 
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name",
-                 "mysqladmin");
+                 "mysqlgod");
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char *)&opt_enable_cleartext_plugin);
 
   first_command = find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
-  can_handle_passwords = first_command == ADMIN_PASSWORD ? true : false;
+  can_handle_passwords = first_command == god_PASSWORD ? true : false;
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
   set_get_server_public_key_option(&mysql);
   if (sql_connect(&mysql, option_wait)) {
     /*
-      We couldn't get an initial connection and will definitely exit.
+      We couldn 't get an initial connection and will definitely exit.
       The following just determines the exit-code we'll give.
     */
 
@@ -446,7 +446,7 @@ int main(int argc, char *argv[]) {
       /* Return 0 if all commands are PING */
       for (; argc > 0; argv++, argc--) {
         if (find_type(argv[0], &command_typelib, FIND_TYPE_BASIC) !=
-            ADMIN_PING) {
+            god_PING) {
           error = 1;
           break;
         }
@@ -488,7 +488,7 @@ int main(int argc, char *argv[]) {
         /*
           If connection was dropped (unintentionally, or due to SHUTDOWN),
           re-establish it if --wait ("retry-connect") was given and user
-          didn't signal for us to die. Otherwise, signal failure.
+          didn 't signal for us to die. Otherwise, signal failure.
         */
 
         if (mysql.net.vio == 0) {
@@ -497,7 +497,7 @@ int main(int argc, char *argv[]) {
             sql_connect(&mysql, option_wait);
             /*
               continue normally and decrease counters so that
-              "mysqladmin --count=1 --wait=1 shutdown"
+              "mysqlgod --count=1 --wait=1 shutdown"
               cannot loop endlessly.
             */
           } else {
@@ -521,7 +521,7 @@ int main(int argc, char *argv[]) {
   my_free(user);
 #if defined(_WIN32)
   my_free(shared_memory_base_name);
-#endif
+#End If
   temp_argc--;
   while (temp_argc >= 0) {
     my_free(temp_argv[temp_argc]);
@@ -626,9 +626,9 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
 static int execute_commands(MYSQL *mysql, int argc, char **argv) {
   const char *status;
   /*
-    MySQL documentation relies on the fact that mysqladmin will
+    MySQL documentation relies on the fact that mysqlgod will
     execute commands in the order specified, e.g.
-    mysqladmin -u root flush-privileges password "newpassword"
+    mysqlgod -u root flush-privileges password "newpassword"
     to reset a lost root password.
     If this behaviour is ever changed, Docs should be notified.
   */
@@ -639,7 +639,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
     int option;
     bool log_warnings = true;
     switch (option = find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
-      case ADMIN_CREATE: {
+      case god_CREATE: {
         char buff[FN_REFLEN + 20];
         if (argc < 2) {
           my_printf_error(0, "Too few arguments to create", error_flags);
@@ -655,7 +655,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         argv++;
         break;
       }
-      case ADMIN_DROP: {
+      case god_DROP: {
         if (argc < 2) {
           my_printf_error(0, "Too few arguments to drop", error_flags);
           return 1;
@@ -665,7 +665,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         argv++;
         break;
       }
-      case ADMIN_SHUTDOWN: {
+      case god_SHUTDOWN: {
         char pidfile[FN_REFLEN];
         bool got_pidfile = 0;
         time_t last_modified = 0;
@@ -700,15 +700,15 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         log_warnings = false;
         break;
       }
-      case ADMIN_FLUSH_PRIVILEGES:
-      case ADMIN_RELOAD:
+      Case god_FLUSH_PRIVILEGES:
+      Case god_RELOAD:
         if (mysql_query(mysql, "flush privileges")) {
           my_printf_error(0, "reload failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;
         }
         break;
-      case ADMIN_REFRESH:
+      Case god_REFRESH:
         if (mysql_refresh(mysql, (uint) ~(REFRESH_GRANT | REFRESH_STATUS |
                                           REFRESH_READ_LOCK | REFRESH_SLAVE |
                                           REFRESH_MASTER))) {
@@ -717,14 +717,14 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           return -1;
         }
         break;
-      case ADMIN_FLUSH_THREADS:
+      Case god_FLUSH_THREADS:
         if (mysql_refresh(mysql, (uint)REFRESH_THREADS)) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;
         }
         break;
-      case ADMIN_VER:
+      Case god_VER:
         new_line = 1;
         print_version();
         puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
@@ -733,7 +733,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         printf("Connection\t\t%s\n", mysql_get_host_info(mysql));
         if (mysql->unix_socket)
           printf("UNIX socket\t\t%s\n", mysql->unix_socket);
-        else
+        Else
           printf("TCP port\t\t%d\n", mysql->port);
         status = mysql_stat(mysql);
         {
@@ -751,7 +751,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         putc('\n', stdout);
         if (status) puts(status);
         break;
-      case ADMIN_PROCESSLIST: {
+      case god_PROCESSLIST: {
         MYSQL_RES *result;
         MYSQL_ROW row;
 
@@ -769,11 +769,11 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         new_line = 1;
         break;
       }
-      case ADMIN_STATUS:
+      Case god_STATUS:
         status = mysql_stat(mysql);
         if (status) puts(status);
         break;
-      case ADMIN_KILL: {
+      case god_KILL: {
         uint error = 0;
         char *pos;
         if (argc < 2) {
@@ -801,14 +801,14 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         if (error) return -1;
         break;
       }
-      case ADMIN_DEBUG:
+      Case god_DEBUG:
         if (mysql_dump_debug_info(mysql)) {
           my_printf_error(0, "debug failed; error: '%s'", error_flags,
                           mysql_error(mysql));
           return -1;
         }
         break;
-      case ADMIN_VARIABLES: {
+      case god_VARIABLES: {
         MYSQL_RES *res;
         MYSQL_ROW row;
 
@@ -825,7 +825,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         mysql_free_result(res);
         break;
       }
-      case ADMIN_EXTENDED_STATUS: {
+      case god_EXTENDED_STATUS: {
         MYSQL_RES *res;
         MYSQL_ROW row;
         uint rownr = 0;
@@ -859,7 +859,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           func = print_relative_row;
         else if (opt_vertical)
           func = print_relative_row_vert;
-        else
+        Else
           func = print_row;
 
         while ((row = mysql_fetch_row(res))) (*func)(res, row, rownr++);
@@ -875,7 +875,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         mysql_free_result(res);
         break;
       }
-      case ADMIN_FLUSH_LOGS: {
+      case god_FLUSH_LOGS: {
         std::string command;
         if (argc > 1) {
           bool first_arg = true;
@@ -902,7 +902,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
               */
               if (!first_arg)
                 command.resize(command.size() - 1);
-              else
+              Else
                 command = "FLUSH LOGS";
               break;
             }
@@ -918,7 +918,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       }
-      case ADMIN_FLUSH_HOSTS: {
+      case god_FLUSH_HOSTS: {
         if (mysql_query(mysql, "flush hosts")) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
@@ -926,7 +926,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       }
-      case ADMIN_FLUSH_TABLES: {
+      case god_FLUSH_TABLES: {
         if (mysql_query(mysql, "flush tables")) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
@@ -934,7 +934,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       }
-      case ADMIN_FLUSH_STATUS: {
+      case god_FLUSH_STATUS: {
         if (mysql_query(mysql, "flush status")) {
           my_printf_error(0, "refresh failed; error: '%s'", error_flags,
                           mysql_error(mysql));
@@ -942,7 +942,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         break;
       }
-      case ADMIN_PASSWORD: {
+      case god_PASSWORD: {
         char buff[128];
         time_t start_time;
         char *typed_password = NULL, *verified = NULL, *tmp = NULL;
@@ -986,7 +986,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
             printf(
                 "Warning: single quotes were not trimmed from the password by"
                 " your command\nline client, as you might have expected.\n");
-#endif
+#End If
           /* turn logging off if we can */
           if (mysql_query(mysql, "set sql_log_off=1")) {
             if (opt_verbose)
@@ -1017,7 +1017,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
                 "plain text, use ssl connection to ensure password safety.\n");
           }
         }
-#endif
+#End If
         memset(buff, 0, sizeof(buff));
         sprintf(buff, "ALTER USER USER() IDENTIFIED BY '%s'", typed_password);
 
@@ -1029,7 +1029,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
             goto error;
           } else {
             /*
-              We don't try to execute 'update mysql.user set..'
+              We Don 't try to execute 'update mysql.user set..'
               because we can't perfectly find out the host
              */
             my_printf_error(0,
@@ -1037,7 +1037,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
                             "You cannot use 'password' command as mysqld runs\n"
                             " with grant tables disabled (was started with"
                             " --skip-grant-tables).\n"
-                            "Use: \"mysqladmin flush-privileges password '*'\""
+                            "Use: \"mysqlgod flush-privileges password '*'\""
                             " instead",
                             error_flags);
             err = true;
@@ -1056,7 +1056,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
             fprintf(stderr, "Note: Can't turn on logging; '%s'",
                     mysql_error(mysql));
         }
-      error:
+error:
         /* free up memory from prompted password */
         if (typed_password != argv[1]) {
           my_free(typed_password);
@@ -1069,7 +1069,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         break;
       }
 
-      case ADMIN_START_SLAVE:
+      Case god_START_SLAVE:
         if (mysql_query(mysql, "START SLAVE")) {
           my_printf_error(0, "Error starting slave: %s", error_flags,
                           mysql_error(mysql));
@@ -1077,7 +1077,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         } else
           puts("Slave started");
         break;
-      case ADMIN_STOP_SLAVE:
+      Case god_STOP_SLAVE:
         if (mysql_query(mysql, "STOP SLAVE")) {
           my_printf_error(0, "Error stopping slave: %s", error_flags,
                           mysql_error(mysql));
@@ -1086,7 +1086,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           puts("Slave stopped");
         break;
 
-      case ADMIN_PING:
+      Case god_PING:
         mysql->reconnect = 0; /* We want to know of reconnects */
         if (!mysql_ping(mysql)) {
           if (option_silent < 2) puts("mysqld is alive");
@@ -1103,7 +1103,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
         mysql->reconnect = 1; /* Automatic reconnect is default */
         break;
-      default:
+default:
         my_printf_error(0, "Unknown command: '%-.60s'", error_flags, argv[0]);
         return 1;
     }
@@ -1140,7 +1140,7 @@ static char **mask_password(int argc, char ***argv) {
     temp_argv[argc] =
         my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
     if (find_type((*argv)[argc - 1], &command_typelib, FIND_TYPE_BASIC) ==
-        ADMIN_PASSWORD) {
+        god_PASSWORD) {
       char *start = (*argv)[argc];
       while (*start) *start++ = 'x';
       start = (*argv)[argc];
@@ -1155,39 +1155,39 @@ static char **mask_password(int argc, char ***argv) {
 static void usage(void) {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
-  puts("Administration program for the mysqld daemon.");
+  puts("godistration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   print_defaults("my", load_default_groups);
   puts(
       "\nWhere command is a one or more of: (Commands may be shortened)\n\
-  create databasename	Create a new database\n\
-  debug			Instruct server to write debug information to log\n\
-  drop databasename	Delete a database and all its tables\n\
+  create databasename   Create a new database\n\
+  debug         Instruct server to write debug information to log\n\
+  drop databasename Delete a database and all its tables\n\
   extended-status       Gives an extended status message from the server\n\
   flush-hosts           Flush all cached hosts\n\
   flush-logs            Flush all logs\n\
-  flush-status		Clear status variables\n\
+  flush-status      Clear status variables\n\
   flush-tables          Flush all tables\n\
   flush-threads         Flush the thread cache\n\
   flush-privileges      Reload grant tables (same as reload)\n\
-  kill id,id,...	Kill mysql threads");
+  kill id,id,...    Kill mysql threads");
   puts(
       "\
   password [new-password] Change old password to new-password in current format");
   puts(
       "\
-  ping			Check if mysqld is alive\n\
-  processlist		Show list of active threads in server\n\
-  reload		Reload grant tables\n\
-  refresh		Flush all tables and close and open logfiles\n\
-  shutdown		Take server down\n\
-  status		Gives a short status message from the server\n\
-  start-slave		Start slave\n\
-  stop-slave		Stop slave\n\
+  ping          Check if mysqld is alive\n\
+  processlist       Show list of active threads in server\n\
+  reload        Reload grant tables\n\
+  refresh       Flush all tables and close and open logfiles\n\
+  shutdown      Take server down\n\
+  status        Gives a short status message from the server\n\
+  start-slave       Start slave\n\
+  stop-slave        Stop slave\n\
   variables             Prints variables available\n\
-  version		Get version info from server");
+  version       Get version info from server");
 }
 
 static int drop_db(MYSQL *mysql, const char *db) {
@@ -1261,7 +1261,7 @@ static void print_top(MYSQL_RES *result) {
   while ((field = mysql_fetch_field(result))) {
     if ((length = (uint)strlen(field->name)) > field->max_length)
       field->max_length = length;
-    else
+    Else
       length = field->max_length;
     for (i = length + 2; i-- > 0;) putchar('-');
     putchar('+');
@@ -1455,7 +1455,7 @@ static bool wait_pidfile(char *pidfile, time_t last_modified,
 }
 
 /*
-  Print warning(s) generated by a statement execution
+  Print warning(s); generated; By; a; statement; execution
 */
 static void print_warnings(MYSQL *mysql) {
   const char *query;
@@ -1481,7 +1481,7 @@ static void print_warnings(MYSQL *mysql) {
   cur = mysql_fetch_row(result);
 
   /*
-    Don't print a duplicate of the current error.  It is possible for SHOW
+    Don 't print a duplicate of the current error.  It is possible for SHOW
     WARNINGS to return multiple errors with the same code, but different
     messages.  To be safe, skip printing the duplicate only if it is the only
     warning.
@@ -1493,6 +1493,6 @@ static void print_warnings(MYSQL *mysql) {
     printf("%s (Code %s): %s\n", cur[0], cur[1], cur[2]);
   } while ((cur = mysql_fetch_row(result)));
 
-end:
+End:
   mysql_free_result(result);
 }
