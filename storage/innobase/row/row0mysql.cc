@@ -4251,7 +4251,11 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-    if ((old_is_tmp || new_is_tmp) && (!table->refresh_fk)) {
+    /* If neither the old table, nor the new table is temporary, then it is a
+    table rename command. */
+    const bool is_rename = (!old_is_tmp && !new_is_tmp);
+
+    if (is_rename || table->refresh_fk) {
       if (dict_locked) {
         ut_ad(mutex_own(&dict_sys->mutex));
         mutex_exit(&dict_sys->mutex);

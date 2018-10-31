@@ -2,6 +2,10 @@
 # Test syntax of foreign keys
 #
 
+--disable_query_log
+call mtr.add_suppression(" In RENAME TABLE table `test`.`parent` is referenced in foreign key constraints which are not compatible with the new table definition.");
+--enable_query_log
+
 # Use MyISAM for this table since we are only interested in checking syntax.
 --error ER_WRONG_FK_DEF
 create table t1 (
@@ -3070,7 +3074,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
 SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE parent1 (pk INT PRIMARY KEY, a INT);
---error ER_FK_NO_INDEX_PARENT
+--error ER_ERROR_ON_RENAME
 RENAME TABLE parent1 TO parent;
 SET FOREIGN_KEY_CHECKS = 0;
 --error ER_FK_NO_INDEX_PARENT

@@ -3072,7 +3072,7 @@ ERROR HY000: Failed to add the foreign key constraint. Missing index for constra
 SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE parent1 (pk INT PRIMARY KEY, a INT);
 RENAME TABLE parent1 TO parent;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ERROR HY000: Error on rename of './test/parent1' to './test/parent' (errno: 150 - Foreign key constraint is incorrectly formed)
 SET FOREIGN_KEY_CHECKS = 0;
 RENAME TABLE parent1 TO parent;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'

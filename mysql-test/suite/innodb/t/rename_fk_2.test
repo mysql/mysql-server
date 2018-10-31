@@ -1,0 +1,82 @@
+--echo #
+--echo # Bug #27453180 FOREIGN KEYS CONSTRAINTS IGNORED AFTER RENAME TABLE
+--echo #
+
+SET foreign_key_checks=0;
+
+CREATE TABLE `country` (
+       `country_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `country` VARCHAR(50) NOT NULL,
+       `last_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       PRIMARY KEY (`country_id`)
+     ) ENGINE=InnoDB;
+
+CREATE TABLE `city` (
+       `city_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `city` VARCHAR(50) NOT NULL,
+       `country_id` SMALLINT(5) UNSIGNED NOT NULL,
+       `last_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       PRIMARY KEY (`city_id`),
+       KEY `idx_fk_country_id` (`country_id`),
+       CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`country_id`) ON UPDATE CASCADE
+     ) ENGINE=InnoDB;
+
+CREATE TABLE `address` (
+       `address_id` SMALLINT(5) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `address` VARCHAR(50) NOT NULL,
+       `city_id` SMALLINT(5) UNSIGNED NOT NULL,
+       `postal_code` VARCHAR(10) DEFAULT NULL,
+       `last_update` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+       PRIMARY KEY (`address_id`),
+       KEY `idx_fk_city_id` (`city_id`),
+       CONSTRAINT `fk_address_city` FOREIGN KEY (`city_id`) REFERENCES `city` (`city_id`) ON UPDATE CASCADE
+     ) ENGINE=InnoDB;
+
+INSERT INTO country (`country_id`, `country`) VALUES
+       (1, 'Canada'),
+       (2, 'USA'),
+       (3, 'Mexico'),
+       (4, 'France'),
+       (5, 'Spain');
+
+INSERT INTO city (`city_id`, `city`, `country_id`) VALUES
+       (1, 'Montral', 1),
+       (2, 'New York', 2),
+       (3, 'Durango',  3),
+       (4, 'Paris',    4),
+       (5, 'Madrid',   5);
+
+INSERT INTO address (`address_id`, `address`, `city_id`, `postal_code`) VALUES
+       (1, 'addy 1', 1, '10000'),
+       (2, 'addy 2', 2, '20000'),
+       (3, 'addy 3', 3, '30000'),
+       (4, 'addy 4', 4, '40000'),
+       (5, 'addy 5', 5, '50000');
+
+SET foreign_key_checks=1;
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM country WHERE country_id =1;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+CREATE TABLE tmp_country LIKE country;
+INSERT INTO tmp_country SELECT * FROM country;
+
+SET foreign_key_checks=0;
+
+DROP TABLE country;
+
+RENAME TABLE tmp_country TO country;
+
+SET foreign_key_checks=1;
+
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM country WHERE country_id =1;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
+
+DROP TABLE address;
+DROP TABLE city;
+DROP TABLE country;
