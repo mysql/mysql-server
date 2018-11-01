@@ -42,7 +42,7 @@ SELECT 'original';
 --echo # Statements history displays queries after they've been parsed and rewritten
 SELECT sql_text, digest
 FROM performance_schema.events_statements_history
-WHERE sql_text LIKE 'SELECT %' order by event_id;
+WHERE sql_text LIKE 'SELECT %' AND sql_text NOT LIKE '%@@skip_networking%@@skip_name_resolve%' ORDER BY event_id;
 
 --echo
 UPDATE performance_schema.setup_consumers
