@@ -25,6 +25,7 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/server_ongoing_transactions_handler.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "template_utils.h"
 
 Primary_election_action::Primary_election_action()
     : Primary_election_action(std::string(""), 0) {}
@@ -494,6 +495,7 @@ int Primary_election_action::after_view_change(
       }
       /* purecov: end */
     }
+    delete_container_pointers(*all_members_info);
     delete all_members_info;
 
     mysql_mutex_unlock(&phase_lock);
