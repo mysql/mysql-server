@@ -2095,7 +2095,7 @@ static ulint trx_purge_dml_delay(void) {
     if (ratio > 1.0) {
       /* If the history list length exceeds the srv_max_purge_lag, the data
       manipulation statements are delayed by at least 5 microseconds. */
-      delay = (ulint)((ratio - .995) * 10000);
+      delay = (ulint)((ratio - 0.9995) * 10000);
     }
 
     if (delay > srv_max_purge_lag_delay) {
