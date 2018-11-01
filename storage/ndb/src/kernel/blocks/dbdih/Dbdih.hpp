@@ -2165,6 +2165,8 @@ private:
      */
     NdbSeqLock m_lock;
     Uint64 m_old_gci;
+    // To avoid double send of SUB_GCP_COMPLETE_REP to SUMA via DBLQH.
+    Uint64 m_last_sent_gci;
     Uint64 m_current_gci; // Currently active
     Uint64 m_new_gci;     // Currently being prepared...
     enum State {
