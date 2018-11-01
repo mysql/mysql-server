@@ -11,8 +11,8 @@ insert into t1 values
 set @save_debug=@@debug;
 set debug='+d,ndb_fail_start_trans';
 delete from t1;
-ERROR HY000: Got error 157 'Unknown error code' from NDBCLUSTER
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
 delete from t1 where a > 5;
-ERROR HY000: Got error 157 'Unknown error code' from NDBCLUSTER
+ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
 set debug=@save_debug;
 drop table t1;
