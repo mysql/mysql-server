@@ -1,2 +1,7 @@
+# This is a wrapper for gtid_disconnect_drop_temporary_table.test
+# so that the same test can be used for statement and mix/row mode
+# The o/p of the above mentioned test varies with binlog format due to
+# Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
+
 --source include/have_binlog_format_mixed_or_row.inc
 --source extra/rpl_tests/gtid_disconnect_drop_temporary_table.test

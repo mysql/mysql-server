@@ -1,3 +1,21 @@
+# ====== Purpose =======
+#
+# This test verifies that DROP for a temporary table created
+# in Statement mode is logged in binlog at session disconnect.
+#
+# ====== Implementation ======
+#
+# Create temporary tables in statement mode using different engines,
+# now when you connect to the session after a disconnect print the
+# output of show binlog events.
+# This will verify that the DROP for temporary table created in stmt
+# mode is written to binary log at session disconnect.
+#
+# ====== References =======
+#
+# Bug#24670909:USING TEMPORARY TABLES ON SLAVES INCREASES GTID SEQUENCE NUMBER
+#
+
 --source include/have_log_bin.inc
 --source include/have_myisam.inc
 --source include/have_binlog_format_statement.inc
