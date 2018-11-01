@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -6078,6 +6078,12 @@ int ha_ndbcluster::end_bulk_delete()
   // m_handler must be NULL or point to _this_ handler instance
   assert(m_thd_ndb->m_handler == NULL || m_thd_ndb->m_handler == this);
 
+  if (unlikely(trans == NULL))
+  {
+    /* Problem with late starting transaction, do nothing here */
+    DBUG_RETURN(0);
+  }
+
   if (m_thd_ndb->m_handler &&
       m_read_before_write_removal_possible)
   {
@@ -8231,6 +8237,13 @@ ha_ndbcluster::start_transaction(int &error)
 
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
+
+  if(DBUG_EVALUATE_IF("ndb_fail_start_trans", true, false))
+  {
+    fprintf(stderr, "ndb_fail_start_trans\n");
+    error = HA_ERR_NO_CONNECTION;
+    DBUG_RETURN(NULL);
+  }
 
   m_thd_ndb->transaction_checks();
 
