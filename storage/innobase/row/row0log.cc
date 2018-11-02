@@ -967,11 +967,17 @@ row_log_table_low(
 		+ (extra_size >= 0x80) + rec_offs_size(offsets) - omit_size;
 
 	if (ventry && ventry->n_v_fields > 0) {
-		ulint	v_extra = 0;
-		mrec_size += rec_get_converted_size_temp(
+		ulint		v_extra = 0;
+		uint64_t	rec_size = rec_get_converted_size_temp(
 			new_index, NULL, 0, ventry, &v_extra);
 
-		if (o_ventry) {
+		mrec_size += rec_size;
+
+		/* If there is actually nothing to be logged for new entry,
+		then there must be also nothing to do with old entry.
+		In this case, make it same with the case below, by only keep
+		2 bytes length marker */
+		if (rec_size > 2 && o_ventry != NULL) {
 			mrec_size += rec_get_converted_size_temp(
 				new_index, NULL, 0, o_ventry, &v_extra);
 		}
@@ -1028,11 +1034,16 @@ row_log_table_low(
 		b += rec_offs_data_size(offsets);
 
 		if (ventry && ventry->n_v_fields > 0) {
+			uint64_t	new_v_size;
+
 			rec_convert_dtuple_to_temp(
 				b, new_index, NULL, 0, ventry);
-			b += mach_read_from_2(b);
+			new_v_size = mach_read_from_2(b);
+			b += new_v_size;
 
-			if (o_ventry) {
+			/* Nothing for new entry to be logged,
+			skip the old one too. */
+			if (new_v_size != 2 && o_ventry != NULL) {
 				rec_convert_dtuple_to_temp(
 					b, new_index, NULL, 0, o_ventry);
 				b += mach_read_from_2(b);
