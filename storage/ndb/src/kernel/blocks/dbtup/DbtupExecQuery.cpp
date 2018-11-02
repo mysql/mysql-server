@@ -37,6 +37,7 @@
 
 #define JAM_FILE_ID 422
 
+#define TUP_NO_TUPLE_FOUND 626
 #ifdef VM_TRACE
 //#define DEBUG_LCP 1
 //#define DEBUG_DELETE 1
@@ -538,7 +539,18 @@ Dbtup::load_diskpage(Signal* signal,
   PagePtr page_ptr;
   Uint32* tmp= get_ptr(&page_ptr, &regOperPtr->m_tuple_location, regTabPtr);
   Tuple_header* ptr= (Tuple_header*)tmp;
-  
+
+  if (((flags & 7) == ZREAD) &&
+      ptr->m_header_bits & Tuple_header::DELETE_WAIT)
+  {
+    jam();
+    /**
+     * Tuple is already deleted and must not be read at this point in
+     * time since when we come back from real-time break the row
+     * will already be removed and invalidated.
+     */
+    return -(TUP_NO_TUPLE_FOUND);
+  }
   int res= 1;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
@@ -631,7 +643,18 @@ Dbtup::load_diskpage_scan(Signal* signal,
   PagePtr page_ptr;
   Uint32* tmp= get_ptr(&page_ptr, &regOperPtr->m_tuple_location, regTabPtr);
   Tuple_header* ptr= (Tuple_header*)tmp;
-  
+
+  if (ptr->m_header_bits & Tuple_header::DELETE_WAIT)
+  {
+    jam();
+    /**
+     * Tuple is already deleted and must not be read at this point in
+     * time since when we come back from real-time break the row
+     * will already be removed and invalidated.
+     */
+    return -(TUP_NO_TUPLE_FOUND);
+  }
+
   int res= 1;
   if(ptr->m_header_bits & Tuple_header::DISK_PART)
   {
