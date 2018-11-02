@@ -1,0 +1,60 @@
+# *********************************************
+# Bug#28598943 TEMPTABLE STORAGE ENGINE DOES NOT HONOUR THE TMPDIR OPTION
+# *********************************************
+--source include/not_windows.inc
+--source include/have_debug.inc
+
+--echo # Restart server with --tmpdir
+
+let $restart_parameters = "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp --temptable_max_ram=1M --log_error_verbosity=3 --log-error=$MYSQLTEST_VARDIR/log/tmpdir_basic.err";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+--echo # Test with --tmpdir
+SET DEBUG='+d,enter';
+
+SET SESSION cte_max_recursion_depth = 20000;
+WITH RECURSIVE cte (n, val1, val2, val3, val4, val5) AS
+  (SELECT 1, UUID(), UUID(), UUID(), UUID(), UUID()
+    UNION ALL
+    SELECT n + 1 + IF(n > 18000, SLEEP(0.01), 0),
+      UUID(), UUID(), UUID(), UUID(), UUID()
+      FROM cte WHERE n < 20000
+  )
+  SELECT COUNT(*) FROM cte;
+
+--let tmp_dir = `SELECT @@tmpdir`
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/tmpdir_basic.err
+--let SEARCH_PATTERN = create_temp_file: enter: dir: $tmp_dir
+--source include/search_pattern_multiline.inc
+
+SET DEBUG='-d,enter';
+
+let $restart_parameters = "restart: --temptable_max_ram=1M --log_error_verbosity=3 --log-error=$MYSQLTEST_VARDIR/log/tmpdir_basic_default.err";
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--source include/restart_mysqld.inc
+
+--echo # Test with default tmpdir
+
+SET DEBUG='+d,enter';
+
+SET SESSION cte_max_recursion_depth = 20000;
+WITH RECURSIVE cte (n, val1, val2, val3, val4, val5) AS
+  (SELECT 1, UUID(), UUID(), UUID(), UUID(), UUID()
+    UNION ALL
+    SELECT n + 1 + IF(n > 18000, SLEEP(0.01), 0),
+      UUID(), UUID(), UUID(), UUID(), UUID()
+      FROM cte WHERE n < 20000
+  )
+  SELECT COUNT(*) FROM cte;
+
+--let default_tmp_dir = `SELECT @@tmpdir`
+
+--let SEARCH_FILE = $MYSQLTEST_VARDIR/log/tmpdir_basic_default.err
+--let SEARCH_PATTERN = create_temp_file: enter: dir: $default_tmp_dir
+--source include/search_pattern_multiline.inc
+
+SET DEBUG='-d,enter';
+
+let $restart_parameters=;
+--source include/restart_mysqld.inc

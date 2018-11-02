@@ -770,7 +770,7 @@ inline void *Allocator<T>::mem_fetch_from_disk(size_t bytes) {
 #endif /* _WIN32 */
 
   char file_path[FN_REFLEN];
-  File f = create_temp_file(file_path, nullptr, "mysql_temptable.", mode,
+  File f = create_temp_file(file_path, mysql_tmpdir, "mysql_temptable.", mode,
                             MYF(MY_WME));
 
   if (f >= 0) {
