@@ -14,43 +14,47 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 't4' is full");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 't5' is full");
 --enable_query_log
 
-set global innodb_compression_level = 0;
+SET GLOBAL innodb_compression_level = 0;
 
-create table t1 (f1 int primary key, f2 longblob) row_format=compressed;
-set debug = '+d,innodb_alloc_lob_page_failed';
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
+SET DEBUG = '+d,innodb_alloc_lob_page_failed';
 --error ER_RECORD_FILE_FULL
-insert into t1 values (1, repeat('x', 81920));
-set debug = '-d,innodb_alloc_lob_page_failed';
-drop table t1;
+INSERT INTO t1 VALUES (1, REPEAT('x', 81920));
+SET DEBUG = '-d,innodb_alloc_lob_page_failed';
 
-create table t2 (f1 int primary key, f2 longblob) row_format=compressed;
-set debug = '+d,innodb_lob_alloc_z_data_page_failed';
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
+SET DEBUG = '+d,innodb_lob_alloc_z_data_page_failed';
 --error ER_RECORD_FILE_FULL
-insert into t2 values (1, repeat('x', 81920));
-set debug = '-d,innodb_lob_alloc_z_data_page_failed';
-drop table t2;
+INSERT INTO t2 VALUES (1, REPEAT('x', 81920));
+SET DEBUG = '-d,innodb_lob_alloc_z_data_page_failed';
 
-create table t3 (f1 int primary key, f2 longblob) row_format=compressed;
-set debug = '+d,innodb_lob_alloc_z_frag_page_failed';
+CREATE TABLE t3 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
+SET DEBUG = '+d,innodb_lob_alloc_z_frag_page_failed';
 --error ER_RECORD_FILE_FULL
-insert into t3 values (1, repeat('x', 81920));
-set debug = '-d,innodb_lob_alloc_z_frag_page_failed';
-drop table t3;
+INSERT INTO t3 VALUES (1, repeat('x', 81920));
+SET DEBUG = '-d,innodb_lob_alloc_z_frag_page_failed';
 
-create table t4 (f1 int primary key, f2 longblob) row_format=compressed;
-set debug = '+d,innodb_lob_alloc_z_index_page_failed';
+CREATE TABLE t4 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
+SET DEBUG = '+d,innodb_lob_alloc_z_index_page_failed';
 --error ER_RECORD_FILE_FULL
-insert into t4 values (1, repeat('x', 14417920));
-set debug = '-d,innodb_lob_alloc_z_index_page_failed';
-drop table t4;
+INSERT INTO t4 VALUES (1, REPEAT('x', 14417920));
+SET DEBUG = '-d,innodb_lob_alloc_z_index_page_failed';
 
-create table t5 (f1 int primary key, f2 longblob) row_format=compressed;
-set debug = '+d,innodb_zlob_first_use_only_1_frag_entries';
-set debug = '+d,innodb_lob_alloc_z_frag_node_page_failed';
+CREATE TABLE t5 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
+SET DEBUG = '+d,innodb_zlob_first_use_only_1_frag_entries';
+SET DEBUG = '+d,innodb_lob_alloc_z_frag_node_page_failed';
 --error ER_RECORD_FILE_FULL
-insert into t5 values (1, repeat('x', 28000000));
-set debug = '-d,innodb_lob_alloc_z_frag_node_page_failed';
-set debug = '-d,innodb_zlob_first_use_only_1_frag_entries';
-drop table t5;
+INSERT INTO t5 VALUES (1, REPEAT('x', 28000000));
+SET DEBUG = '-d,innodb_lob_alloc_z_frag_node_page_failed';
+SET DEBUG = '-d,innodb_zlob_first_use_only_1_frag_entries';
 
-set global innodb_compression_level = default;
+FLUSH TABLES t1, t2, t3, t4, t5 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+
+SET GLOBAL innodb_compression_level = default;
+
