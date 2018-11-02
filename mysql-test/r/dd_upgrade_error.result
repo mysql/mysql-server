@@ -64,5 +64,17 @@ Pattern "Error in parsing Routine 'test'.'procedure_groupby_desc' during upgrade
 Pattern "Error in parsing View 'test'.'view_groupby_desc' during upgrade" found
 Pattern "Failed to Populate DD tables." found
 # Remove copied files
+# ------------------------------------------------------------------
+# Bug#28760011: UPGRADE TO 8.0.12 FAILS
+# Check upgrade from 5.7 when triggers are listed in wrong order in the TRG file.
+# ------------------------------------------------------------------
+# Set different path for log file and datadir, and unzip the zip file.
+# DB server which was started above is not running, no need for shutdown, just start
+# the server. This will not fail after the bugfix since the trigger order is now corrected.
+# Stop the server.
+# Remove the datadir, but keep the error log in case.
+# ------------------------------------------------------------------
+# End-of-test cleanup.
+# ------------------------------------------------------------------
 # Restart the server with default options.
 # restart

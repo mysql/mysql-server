@@ -34,7 +34,7 @@ let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/bugdata_80011;
 --echo ########################################################################
 --echo # Restart the server against the unzipped datadir.
 --echo ########################################################################
-let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011.log;
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_1.log;
 --exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 3000
@@ -94,6 +94,60 @@ WHERE mysql.tables.name = 'users' AND
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQL_TMP_DIR/bugdata_80011.zip
 --force-rmdir $MYSQL_TMP_DIR/bugdata_80011
+
+
+
+--echo ########################################################################
+--echo # Bug#27960500: Upgrade fails due to FTS tables with 0 timestamps
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir.
+--echo ########################################################################
+# The datadir is created by buildling 8.0.11, creating
+# a table with an FTS index, and then zipping the entire
+# data/ directory.
+--let $BUGDATA_80011_DATADIR = $MYSQL_TMP_DIR/data_80011_fts
+--exec unzip -qo $MYSQLTEST_VARDIR/std_data/upgrade/data_80011_fts.zip -d $MYSQL_TMP_DIR
+
+--echo ########################################################################
+--echo # Restart the server against the unzipped datadir.
+--echo ########################################################################
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_80011_2.log
+--exec echo "restart: --datadir=$BUGDATA_80011_DATADIR --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+--echo ########################################################################
+--echo # Execute mysql_upgrade.
+--echo ########################################################################
+--source include/mysql_upgrade_preparation.inc
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --user=root --skip-verbose --force 2>&1
+--source include/mysql_upgrade_cleanup.inc
+
+--echo ########################################################################
+--echo # Also create a new FTS table on this version.
+--echo ########################################################################
+CREATE TABLE t2 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) charset utf8mb4;
+
+--echo ########################################################################
+--echo # 0 timestamps for FTS entries?
+--echo ########################################################################
+SET debug='+d,skip_dd_table_access_check';
+let $assert_cond = "[SELECT COUNT(name) FROM mysql.tables WHERE created = 0 OR last_altered = 0]" = 0;
+--let $assert_text = No entries with 0 timestamps.
+--source include/assert.inc
+
+--echo ########################################################################
+--echo # Remove copied files and stop the server.
+--echo ########################################################################
+--source include/shutdown_mysqld.inc
+--force-rmdir $BUGDATA_80011_DATADIR
+
 
 
 --echo ########################################################################

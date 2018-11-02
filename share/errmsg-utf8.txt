@@ -18761,6 +18761,9 @@ ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL
 ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
   eng "A request to force a new group membership was issued when the member is leaving the group."
 
+ER_TRG_WRONG_ORDER
+  eng "Trigger %s.%s for table %s.%s is listed in wrong order. Please drop and recreate all triggers for the table."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
