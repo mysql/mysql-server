@@ -461,11 +461,13 @@ sub read_known_length {
 
   $self->{read_try} = 0;
   while ($self->{read_try} < $self->{max_read_tries}) {
-    $self->{read_try}++;
     $data = $self->get_length_from_buffer($len);
     return $data if (defined($data));
     if (!$self->read($len - $self->{buflen})) {
       return undef;
+    }
+    if($self->{buflen} == 0) {
+      $self->{read_try}++;
     }
   }
   # Perhaps the read completed on the final attempt
