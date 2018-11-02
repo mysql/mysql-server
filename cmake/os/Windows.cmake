@@ -168,7 +168,12 @@ IF(MSVC)
 
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099 /permissive-")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4800 /wd4805 /wd4996 /we4099")
+
+  # Enable stricter standards conformance when using Visual Studio
+  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+  ENDIF()
 ENDIF()
 
 # Always link with socket library
