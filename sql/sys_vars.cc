@@ -4378,11 +4378,25 @@ static Sys_var_ulong Sys_table_cache_instances(
     */
     sys_var::PARSE_EARLY);
 
+/**
+  Modify the thread size cache size.
+*/
+
+static inline bool modify_thread_cache_size(sys_var *, THD *, enum_var_type) {
+  if (Connection_handler_manager::thread_handling ==
+      Connection_handler_manager::SCHEDULER_ONE_THREAD_PER_CONNECTION) {
+    Per_thread_connection_handler::modify_thread_cache_size(
+        Per_thread_connection_handler::max_blocked_pthreads);
+  }
+  return false;
+}
+
 static Sys_var_ulong Sys_thread_cache_size(
     "thread_cache_size", "How many threads we should keep in a cache for reuse",
     GLOBAL_VAR(Per_thread_connection_handler::max_blocked_pthreads),
     CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE), VALID_RANGE(0, 16384),
-    DEFAULT(0), BLOCK_SIZE(1));
+    DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, nullptr,
+    ON_UPDATE(modify_thread_cache_size));
 
 /**
   Function to check if the 'next' transaction isolation level

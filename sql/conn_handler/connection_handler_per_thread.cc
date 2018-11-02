@@ -66,6 +66,7 @@
 ulong Per_thread_connection_handler::blocked_pthread_count = 0;
 ulong Per_thread_connection_handler::slow_launch_threads = 0;
 ulong Per_thread_connection_handler::max_blocked_pthreads = 0;
+bool Per_thread_connection_handler::shrink_cache = false;
 std::list<Channel_info *>
     *Per_thread_connection_handler ::waiting_channel_info_list = NULL;
 mysql_mutex_t Per_thread_connection_handler::LOCK_thread_cache;
@@ -86,11 +87,6 @@ static Error_log_throttle create_thd_err_log_throttle(
   Protected by LOCK_thread_cache.
 */
 static uint wake_pthread = 0;
-/*
-  Set if we are trying to kill of pthreads in the thread cache.
-  Protected by LOCK_thread_cache.
-*/
-static uint kill_blocked_pthreads_flag = 0;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_thread_cache;
@@ -147,8 +143,7 @@ void Per_thread_connection_handler::destroy() {
 Channel_info *Per_thread_connection_handler::block_until_new_connection() {
   Channel_info *new_conn = NULL;
   mysql_mutex_lock(&LOCK_thread_cache);
-  if (blocked_pthread_count < max_blocked_pthreads &&
-      !kill_blocked_pthreads_flag) {
+  if (blocked_pthread_count < max_blocked_pthreads && !shrink_cache) {
     /* Don't kill the pthread, just block it for reuse */
     DBUG_PRINT("info", ("Blocking pthread for reuse"));
 
@@ -162,12 +157,14 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
 
     // Block pthread
     blocked_pthread_count++;
-    while (!connection_events_loop_aborted() && !wake_pthread &&
-           !kill_blocked_pthreads_flag)
+    while (!connection_events_loop_aborted() && !wake_pthread && !shrink_cache)
       mysql_cond_wait(&COND_thread_cache, &LOCK_thread_cache);
     blocked_pthread_count--;
 
-    if (kill_blocked_pthreads_flag) mysql_cond_signal(&COND_flush_thread_cache);
+    if (shrink_cache && blocked_pthread_count <= max_blocked_pthreads) {
+      mysql_cond_signal(&COND_flush_thread_cache);
+    }
+
     if (wake_pthread) {
       wake_pthread--;
       if (!waiting_channel_info_list->empty()) {
@@ -352,15 +349,31 @@ static void *handle_connection(void *arg) {
 }
 }  // extern "C"
 
-void Per_thread_connection_handler::kill_blocked_pthreads() {
+void Per_thread_connection_handler::modify_thread_cache_size(
+    const ulong thread_cache_size) {
   mysql_mutex_lock(&LOCK_thread_cache);
-  kill_blocked_pthreads_flag++;
-  while (Per_thread_connection_handler::blocked_pthread_count) {
-    mysql_cond_broadcast(&COND_thread_cache);
-    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
+  if (thread_cache_size >= blocked_pthread_count) {
+    mysql_mutex_unlock(&LOCK_thread_cache);
+    return;
   }
-  kill_blocked_pthreads_flag--;
+
+  shrink_cache = true;
+  if (thread_cache_size == 0) {
+    mysql_cond_broadcast(&COND_thread_cache);
+  } else {
+    ulong num_threads = blocked_pthread_count - thread_cache_size;
+    for (ulong i = 0; i < num_threads; i++)
+      mysql_cond_signal(&COND_thread_cache);
+  }
+  // Wait until threads have been unblocked from thread cache.
+  while (blocked_pthread_count > thread_cache_size)
+    mysql_cond_wait(&COND_flush_thread_cache, &LOCK_thread_cache);
+  shrink_cache = false;
   mysql_mutex_unlock(&LOCK_thread_cache);
+}
+
+void Per_thread_connection_handler::kill_blocked_pthreads() {
+  modify_thread_cache_size(0);
 }
 
 bool Per_thread_connection_handler::check_idle_thread_and_enqueue_connection(
