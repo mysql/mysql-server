@@ -842,15 +842,17 @@ char *Tablespace::make_log_file_name(space_id_t space_id) {
 }
 
 void Tablespace::alter_active() {
-  if (is_empty()) {
-    set_active();
-  } else if (is_inactive_explicit()) {
+  m_rsegs->x_lock();
+  if (m_rsegs->is_empty()) {
+    m_rsegs->set_active();
+  } else if (m_rsegs->is_inactive_explicit()) {
     if (purge_sys->undo_trunc.get_marked_space_num() == m_num) {
-      set_inactive_implicit();
+      m_rsegs->set_inactive_implicit();
     } else {
-      set_active();
+      m_rsegs->set_active();
     }
   }
+  m_rsegs->x_unlock();
 }
 
 dberr_t start_logging(Tablespace *undo_space) {

@@ -1,0 +1,90 @@
+# A rhino can weigh over 2000 kg, run about 12 meters per second,
+# but see accurately only 10 meters...  A group of rhinos is called a 'crash'!
+
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
+CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
+CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
+CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
+
+CREATE DATABASE rhinos;
+USE rhinos;
+
+CREATE TABLE serengeti (a BIGINT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(1000) NOT NULL);
+
+DELIMITER |;
+CREATE PROCEDURE rhino (IN loops BIGINT, IN undo_space char(20))
+BEGIN
+	SET @x = 0;
+	WHILE (@x < loops) DO
+		SET @y = 0;
+		ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
+		WHILE (@y < 5) DO
+			SET @c = concat("INSERT INTO serengeti (b) VALUES ('Insert #", @x * 10 + @y + 1, " while ", undo_space, " is inactive')");
+			PREPARE stmt FROM @c;
+			EXECUTE stmt;
+			SET @y = @y + 1;
+		END WHILE;
+		ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
+		WHILE (@y < 10) DO
+			SET @c = concat("INSERT INTO serengeti (b) VALUES ('Insert #", @x * 10 + @y + 1, " while ", undo_space, " is active')");
+			PREPARE stmt FROM @c;
+			EXECUTE stmt;
+			SET @y = @y + 1;
+		END WHILE;
+		SET @x = @x + 1;
+	END WHILE;
+END|
+DELIMITER ;|
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+connection con1;
+--send CALL rhinos.rhino(10, 'innodb_undo_001');
+
+connection con2;
+--send CALL rhinos.rhino(10, 'undo_003');
+
+connection con3;
+--send CALL rhinos.rhino(10, 'undo_005');
+
+connection con1;
+--reap;
+
+connection con2;
+--reap;
+
+connection con3;
+--reap;
+
+connection default;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+
+SELECT count(*) from serengeti;
+
+USE test;
+DROP DATABASE rhinos;
+
+ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
+let $inactive_undo_space = undo_003;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_003;
+
+ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
+let $inactive_undo_space = undo_004;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_004;
+
+ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
+let $inactive_undo_space = undo_005;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_005;
+
+ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
+let $inactive_undo_space = undo_006;
+source include/wait_until_undo_space_is_empty.inc;
+DROP UNDO TABLESPACE undo_006;
+

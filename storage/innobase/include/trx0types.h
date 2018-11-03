@@ -348,10 +348,7 @@ class Rsegs {
 
   /** Set the state of the rollback segments in this undo tablespace
   to ACTIVE for use by new transactions. */
-  void set_active() {
-    ut_ad(m_state != INACTIVE_EXPLICIT);
-    m_state = ACTIVE;
-  }
+  void set_active() { m_state = ACTIVE; }
 
   /** Set the state of the rollback segments in this undo
   tablespace to inactive_implicit. This means that it will be
