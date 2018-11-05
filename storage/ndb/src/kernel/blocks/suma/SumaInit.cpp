@@ -154,6 +154,9 @@ Suma::Suma(Block_context& ctx) :
   m_min_gcp_rep_counter_index = 0;
   m_max_gcp_rep_counter_index = 0;
   bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
+  m_oldest_gcp_inflight_index = 0;
+  m_newest_gcp_inflight_index = 0;
+  bzero(m_gcp_inflight, sizeof(m_gcp_inflight));
 }
 
 Suma::~Suma()

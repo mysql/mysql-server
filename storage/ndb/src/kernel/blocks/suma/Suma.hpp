@@ -91,6 +91,8 @@ public:
   void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
   void sendSUB_GCP_COMPLETE_REP(Signal* signal);
+  Uint32 mark_epoch_inflight(Uint64 gci);
+  void unmark_epoch_inflight(Signal* signal, Uint32 inflight_index);
   
   /**
    * DIH signals
@@ -443,7 +445,7 @@ public:
   
   Uint32 getFirstGCI(Signal* signal);
   void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
-                                               Uint32 callbackData,
+                                               Uint32 inflight_index,
                                                Uint32 returnCode);
 
 
@@ -774,6 +776,10 @@ private:
   */
   Uint32 m_max_gcp_rep_counter_index;
   SubGcpCompleteCounter m_gcp_rep_counter[10];
+
+  Uint32 m_oldest_gcp_inflight_index;
+  Uint32 m_newest_gcp_inflight_index;
+  SubGcpCompleteCounter m_gcp_inflight[2];
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];
