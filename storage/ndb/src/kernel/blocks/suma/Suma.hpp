@@ -90,6 +90,7 @@ public:
   void execFIRE_TRIG_ORD(Signal* signal);
   void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
+  void sendSUB_GCP_COMPLETE_REP(Signal* signal);
   
   /**
    * DIH signals
@@ -756,12 +757,23 @@ private:
   {
     Uint64 m_gci;
     Uint32 m_cnt;
+    Uint32 m_flags;
   };
 
   Uint32 m_gcp_rep_cnt;
+  /**
+    Next complete epoch to send report for.
+  */
+  Uint32 m_snd_gcp_rep_counter_index;
+  /**
+    Oldest incomplete epoch.
+  */
   Uint32 m_min_gcp_rep_counter_index;
+  /**
+    Index of next epoch to store.
+  */
   Uint32 m_max_gcp_rep_counter_index;
-  struct SubGcpCompleteCounter m_gcp_rep_counter[10];
+  SubGcpCompleteCounter m_gcp_rep_counter[10];
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];
