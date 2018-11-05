@@ -12,7 +12,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/child_ibfk_1	test/child	test/parent	1	0
+test/child_ibfk_1	test/child	test/parent	1	48
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/child_ibfk_1	fk	pk	1
@@ -36,7 +36,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-test/child_ibfk_1	test/child	test/parent	1	0
+test/child_ibfk_1	test/child	test/parent	1	48
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/child_ibfk_1	fk	pk	1
