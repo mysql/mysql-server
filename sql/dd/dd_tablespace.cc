@@ -194,4 +194,19 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
   return false;
 }
 
+// The explicit instantiation of the template members below
+// is not handled well by doxygen, so we enclose this in a
+// cond/endcon block.
+
+/**
+ @cond
+*/
+
+template bool get_tablespace_name<dd::Partition>(THD *, dd::Partition const *,
+                                                 char const **, MEM_ROOT *);
+
+/**
+ @endcond
+*/
+
 }  // namespace dd

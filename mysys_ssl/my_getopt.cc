@@ -1045,6 +1045,11 @@ LLorULL eval_num_suffix(const char *argument, int *error,
   return result;
 }
 
+// Some platforms need explicit instantiation of these:
+template longlong eval_num_suffix<longlong>(const char *, int *, const char *);
+template ulonglong eval_num_suffix<ulonglong>(const char *, int *,
+                                              const char *);
+
 /*
   function: getopt_ll
 
