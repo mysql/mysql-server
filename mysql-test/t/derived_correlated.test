@@ -661,3 +661,14 @@ set optimizer_switch='derived_merge=off';
 create table lateral(a int);
 
 drop table t1,t2;
+
+--echo #
+--echo # Bug#28723670 RECENT REGRESSION: CRASH/ASSERTION IN FIND_FIELD_IN_TABLE_REF
+--echo #
+
+CREATE TABLE t(x INT);
+--echo # Don't search for 'y' in top SELECT
+--error ER_BAD_FIELD_ERROR
+SELECT 1 FROM
+  (SELECT 1 FROM (SELECT (SELECT y FROM t) FROM t) AS a) AS b;
+DROP TABLE t;

@@ -575,8 +575,8 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
 
   if (select->set_context(NULL)) DBUG_RETURN(NULL); /* purecov: inspected */
   /*
-    Assume that a subquery has an outer name resolution context.
-    If not (ie. if this is a non-lateral derived table), set it to NULL later.
+    Assume that a subquery has an outer name resolution context
+    (even a non-lateral derived table may have outer references).
     When we come here for a view, it's when we parse the view (in
     open_tables()): we parse it as a standalone query, where parsing_place
     is CTX_NONE, so the outer context is set to nullptr. Then we'll resolve the

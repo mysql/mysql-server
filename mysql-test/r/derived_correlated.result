@@ -3042,3 +3042,12 @@ set optimizer_switch='derived_merge=off';
 create table lateral(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'lateral(a int)' at line 1
 drop table t1,t2;
+#
+# Bug#28723670 RECENT REGRESSION: CRASH/ASSERTION IN FIND_FIELD_IN_TABLE_REF
+#
+CREATE TABLE t(x INT);
+# Don't search for 'y' in top SELECT
+SELECT 1 FROM
+(SELECT 1 FROM (SELECT (SELECT y FROM t) FROM t) AS a) AS b;
+ERROR 42S22: Unknown column 'y' in 'field list'
+DROP TABLE t;

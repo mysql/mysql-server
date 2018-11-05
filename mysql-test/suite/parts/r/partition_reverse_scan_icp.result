@@ -36,7 +36,7 @@ date_col	col1	filler
 2014-04-01 00:00:00	123456	raw-dataraw-dataraw-dataraw-dataraw-data
 2014-04-01 00:00:00	123456	raw-dataraw-dataraw-dataraw-dataraw-data
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select @cnt;
 @cnt
 11
@@ -97,7 +97,7 @@ date_col	col1	filler
 2014-04-06 00:00:00	123456	raw-dataraw-dataraw-dataraw-dataraw-data
 2014-04-06 00:00:00	123456	raw-dataraw-dataraw-dataraw-dataraw-data
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select @cnt;
 @cnt
 51
