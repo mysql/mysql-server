@@ -3111,7 +3111,7 @@ class Row_sel_get_clust_rec_for_mysql {
  public:
   /** Constructor */
   Row_sel_get_clust_rec_for_mysql()
-      : cached_clust_rec(NULL), cached_old_vers(NULL) {}
+      : cached_clust_rec(nullptr), cached_old_vers(nullptr) {}
 
   /** Retrieve the clustered index record corresponding to a record in a
   non-clustered index. Does the necessary locking.
@@ -3327,9 +3327,14 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
         err = DB_SUCCESS;
         old_vers = cached_old_vers;
 
-        /* Avoid a debug assertion in rec_offs_validate(). */
         if (old_vers != nullptr) {
-          rec_offs_make_valid(old_vers, clust_index, *offsets);
+          /* The offsets need not be same for the latest version of
+          clust_rec and its old version old_vers.  Re-calculate the offsets
+          for old_vers. */
+          *offsets = rec_get_offsets(old_vers, clust_index, *offsets,
+                                     ULINT_UNDEFINED, offset_heap);
+          ut_ad(
+              lob::rec_check_lobref_space_id(clust_index, old_vers, *offsets));
         }
       }
 
