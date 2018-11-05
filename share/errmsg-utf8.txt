@@ -8664,7 +8664,7 @@ ER_FK_CANNOT_CHANGE_ENGINE
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
 ER_WARN_DEPRECATED_USER_SET_EXPR
-  eng "Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead."
+  eng "Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'."
 
 ER_WARN_DEPRECATED_UTF8MB3_COLLATION
   eng "'%-.64s' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead."

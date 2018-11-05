@@ -104,7 +104,7 @@ is not null AS Loaded;
 Loaded
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select 0 /* must return 0 to mean the killed update is in */;
 0
 0
@@ -143,7 +143,7 @@ is not null AS Loaded;
 Loaded
 1
 Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select 0 /* must return 0 to mean the killed delete is in */;
 0
 0

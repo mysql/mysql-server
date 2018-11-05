@@ -22,7 +22,7 @@ mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
 @the_epoch:=epoch	inserts	updates	deletes	schemaops
 <the_epoch>	2	0	0	0
 Warnings:
-<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT * FROM t2 ORDER BY a;
 a	b
 1	1
@@ -60,7 +60,7 @@ mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
 @the_epoch2:=epoch	inserts	updates	deletes	schemaops
 <the_epoch2>	2	0	0	0
 Warnings:
-<the_epoch2>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Please set variables in separate statements instead.
+<the_epoch2>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT inserts,updates,deletes,schemaops FROM
 mysql.ndb_binlog_index WHERE epoch > <the_epoch> AND epoch <= <the_epoch2>;
 inserts	updates	deletes	schemaops
