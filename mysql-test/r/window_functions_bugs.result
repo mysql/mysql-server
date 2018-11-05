@@ -859,3 +859,16 @@ bit_count(sum(cos(-66365726))over())
 SELECT bit_count(avg(cos(-66365726))over());
 bit_count(avg(cos(-66365726))over())
 64
+#
+# Bug#28431783 ASSERTION FALSE IN ITEM::TYPE_FOR_VARIABLE()
+# Regression after introduction of window functions
+#
+CREATE TABLE t(a DATETIME(6) NOT NULL)ENGINE=INNODB;
+INSERT INTO t(a) VALUES('2008-01-01 00:22:33');
+SELECT( SELECT a FROM  ( SELECT 1 FROM t ) e ORDER BY (@f:=a) )
+FROM t GROUP BY a;
+( SELECT a FROM  ( SELECT 1 FROM t ) e ORDER BY (@f:=a) )
+2008-01-01 00:22:33.000000
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+DROP TABLE t;

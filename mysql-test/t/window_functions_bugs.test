@@ -436,3 +436,13 @@ DO TO_BASE64(AVG(@d)OVER());
 
 SELECT bit_count(sum(cos(-66365726))over());
 SELECT bit_count(avg(cos(-66365726))over());
+
+--echo #
+--echo # Bug#28431783 ASSERTION FALSE IN ITEM::TYPE_FOR_VARIABLE()
+--echo # Regression after introduction of window functions
+--echo #
+CREATE TABLE t(a DATETIME(6) NOT NULL)ENGINE=INNODB;
+INSERT INTO t(a) VALUES('2008-01-01 00:22:33');
+SELECT( SELECT a FROM  ( SELECT 1 FROM t ) e ORDER BY (@f:=a) )
+    FROM t GROUP BY a;
+DROP TABLE t;

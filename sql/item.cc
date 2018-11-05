@@ -5245,7 +5245,16 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
                                         resolution == RESOLVED_AGAINST_ALIAS);
             if (!rf) return 1;
 
-            if (thd->lex->current_select()->group_fix_field && m_alias_of_expr)
+            const bool group_fix_field =
+                thd->lex->current_select()->group_fix_field;
+            if (!rf->fixed) {
+              // No need for recursive resolving of aliases.
+              thd->lex->current_select()->group_fix_field = false;
+              bool ret = rf->fix_fields(thd, (Item **)&rf) || rf->check_cols(1);
+              thd->lex->current_select()->group_fix_field = group_fix_field;
+              if (ret) return true;
+            }
+            if (group_fix_field && m_alias_of_expr)
               thd->change_item_tree(reference, *rf->ref);
             else
               thd->change_item_tree(reference, rf);
