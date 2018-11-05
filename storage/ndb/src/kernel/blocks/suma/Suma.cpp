@@ -4866,7 +4866,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   Ptr<Subscription> subPtr;
   c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
 
-  ndbassert(gci > m_last_complete_gci);
+  ndbrequire(gci > m_last_complete_gci);
 
   if (signal->getNoOfSections())
   {
@@ -5039,72 +5039,107 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   Uint32 gci_lo = rep->gci_lo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
-  if (isNdbMtLqh() && m_gcp_rep_cnt > 1)
-  {
-
 #define SSPP 0
 
-    if (SSPP)
-      printf("execSUB_GCP_COMPLETE_REP(%u/%u)", gci_hi, gci_lo);
-    jam();
-    Uint32 min = m_min_gcp_rep_counter_index;
-    Uint32 sz = NDB_ARRAY_SIZE(m_gcp_rep_counter);
-    for (Uint32 i = min; i != m_max_gcp_rep_counter_index; i = (i + 1) % sz)
+  if (SSPP)
+    printf("execSUB_GCP_COMPLETE_REP(%u/%u)", gci_hi, gci_lo);
+  jam();
+
+  const Uint32 sz = NDB_ARRAY_SIZE(m_gcp_rep_counter);
+  bool found = false;
+
+  ndbrequire(m_snd_gcp_rep_counter_index < sz);
+  ndbrequire(m_min_gcp_rep_counter_index < sz);
+  ndbrequire(m_max_gcp_rep_counter_index < sz);
+
+  Uint32 i = m_min_gcp_rep_counter_index;
+  while (i != m_max_gcp_rep_counter_index)
+  {
+    if (gci < m_gcp_rep_counter[i].m_gci)
     {
-      jam();
-      if (m_gcp_rep_counter[i].m_gci == gci)
-      {
-        jam();
-        m_gcp_rep_counter[i].m_cnt ++;
-        if (m_gcp_rep_counter[i].m_cnt == m_gcp_rep_cnt)
-        {
-          jam();
-          /**
-           * Release this entry...
-           */
-          if (i != min)
-          {
-            jam();
-            m_gcp_rep_counter[i] = m_gcp_rep_counter[min];
-          }
-          m_min_gcp_rep_counter_index = (min + 1) % sz;
-          if (SSPP)
-            ndbout_c(" found - complete after: (min: %u max: %u)",
-                     m_min_gcp_rep_counter_index,
-                     m_max_gcp_rep_counter_index);
-          goto found;
-        }
-        else
-        {
-          jam();
-          if (SSPP)
-            ndbout_c(" found - wait unchanged: (min: %u max: %u)",
-                     m_min_gcp_rep_counter_index,
-                     m_max_gcp_rep_counter_index);
-          return; // Wait for more...
-        }
-      }
+      break;
     }
-    /**
-     * Not found...
-     */
-    Uint32 next = (m_max_gcp_rep_counter_index + 1) % sz;
-    ndbrequire(next != min); // ring buffer full
-    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_gci = gci;
-    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_cnt = 1;
-    m_max_gcp_rep_counter_index = next;
-    if (SSPP)
-      ndbout_c(" new - after: (min: %u max: %u)",
-               m_min_gcp_rep_counter_index,
-               m_max_gcp_rep_counter_index);
+    else if (gci == m_gcp_rep_counter[i].m_gci)
+    {
+      found = true;
+      break;
+    }
+    i = (i + 1) % sz;
+  }
+
+  /**
+    If ndbrequire fails, epoch already completed.  This should not be possible.
+    Each LDM sends message exactly once per epoch.  And an epoch is not
+    complete until message from all LDM have arrived.
+  */
+  ndbrequire(found ||
+             i != m_min_gcp_rep_counter_index ||
+             i == m_max_gcp_rep_counter_index);
+
+  if (!found)
+  {
+    ndbrequire(i == m_max_gcp_rep_counter_index);
+    m_gcp_rep_counter[i].m_gci = gci;
+    m_gcp_rep_counter[i].m_cnt = 0;
+    m_gcp_rep_counter[i].m_flags = rep->flags;
+    m_max_gcp_rep_counter_index = (m_max_gcp_rep_counter_index + 1) % sz;
+
+    // Verify epoch buffer not full, else panic!
+    ndbrequire(m_snd_gcp_rep_counter_index != m_max_gcp_rep_counter_index);
+
+    if (gci > m_max_seen_gci)
+    {
+      m_max_seen_gci = gci;
+    }
+  }
+
+  if (likely(m_gcp_rep_cnt > 0))
+  {
+    ndbrequire(m_gcp_rep_counter[i].m_cnt < m_gcp_rep_cnt);
+    m_gcp_rep_counter[i].m_cnt++;
+  }
+  else
+  {
+    ndbrequire(m_gcp_rep_counter[i].m_cnt == 0);
+  }
+  ndbrequire(m_gcp_rep_counter[i].m_flags == rep->flags);
+
+  // Epoch is completed.
+  if (m_gcp_rep_counter[i].m_cnt == m_gcp_rep_cnt)
+  {
+    ndbrequire(i == m_min_gcp_rep_counter_index);
+    m_min_gcp_rep_counter_index = (m_min_gcp_rep_counter_index + 1) % sz;
+    if (i == m_snd_gcp_rep_counter_index)
+    {
+      ndbrequire(gci > m_last_complete_gci);
+      m_last_complete_gci = gci;
+      checkMaxBufferedEpochs(signal);
+      sendSUB_GCP_COMPLETE_REP(signal);
+    }
+  }
+}
+
+void
+Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
+{
+  if (m_snd_gcp_rep_counter_index == m_min_gcp_rep_counter_index)
+  {
+    // No complete epoch yet.
     return;
   }
-found:
-  bool drop = false;
-  Uint32 flags = (m_missing_data)
-                 ? rep->flags | SubGcpCompleteRep::MISSING_DATA
-                 : rep->flags;
 
+  const Uint64 gci = m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_gci;
+  const Uint32 gci_hi = gci >> 32;
+  const Uint32 gci_lo = Uint32(gci);
+  ndbrequire(((Uint64(gci_hi) << 32) | gci_lo) == gci);
+
+  // Send!
+  ndbassert(m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_cnt == m_gcp_rep_cnt);
+  bool drop = false;
+  Uint32 flags = m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_flags |
+                 (m_missing_data
+                 ? SubGcpCompleteRep::MISSING_DATA
+                 : 0);
   if (ERROR_INSERTED(13036))
   {
     jam();
@@ -5128,10 +5163,6 @@ found:
   }
   m_gcp_monitor = gci;
 #endif
-
-  m_last_complete_gci = gci;
-  checkMaxBufferedEpochs(signal);
-  m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
    * 
@@ -5316,6 +5347,7 @@ found:
   /**
    * Signal to subscribers
    */
+  SubGcpCompleteRep* rep = (SubGcpCompleteRep*)signal->theData;
   rep->gci_hi = gci_hi;
   rep->gci_lo = gci_lo;
   rep->flags = flags;
@@ -5425,6 +5457,12 @@ found:
     c_nodes_in_nodegroup_mask.clear();
     fix_nodegroup();
   }
+
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_gci = 0;
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_cnt = 0;
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_flags = 0;
+  m_snd_gcp_rep_counter_index = (m_snd_gcp_rep_counter_index + 1) % NDB_ARRAY_SIZE(m_gcp_rep_counter);
+  ndbrequire(m_snd_gcp_rep_counter_index == m_min_gcp_rep_counter_index);
 }
 
 void

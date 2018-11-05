@@ -150,6 +150,7 @@ Suma::Suma(Block_context& ctx) :
   bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
 
   m_gcp_rep_cnt = getLqhWorkers();
+  m_snd_gcp_rep_counter_index = 0;
   m_min_gcp_rep_counter_index = 0;
   m_max_gcp_rep_counter_index = 0;
   bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
