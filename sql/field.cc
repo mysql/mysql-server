@@ -10164,8 +10164,17 @@ Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
     case Item::TRIGGER_FIELD_ITEM:
       table_field = ((Item_field *)item)->field;
       break;
-    default:
+    default: {
+      /*
+       If the expression is of temporal type having date and non-nullable,
+       a zero date is generated. If in strict mode, then zero date is
+       invalid. For such cases no default is generated.
+     */
       table_field = nullptr;
+      if (tmp_table_field->is_temporal_with_date() && thd->is_strict_mode() &&
+          !item->maybe_null)
+        tmp_table_field->flags |= NO_DEFAULT_VALUE_FLAG;
+    }
   }
 
   DBUG_ASSERT(tmp_table_field->gcol_info == nullptr &&
