@@ -3727,44 +3727,54 @@ static ulong get_param_length(uchar *packet, ulong packet_left_len,
     *header_len = 0;
     return 0;
   }
-  if (*packet < 251) {
-    *header_len = 1;
-    return (ulong)*packet;
+
+  switch (*packet) {
+    case (252): {
+      if (packet_left_len < 3) {
+        *header_len = 0;
+        return 0;
+      }
+      *header_len = 3;
+      return static_cast<ulong>(uint2korr(packet + 1));
+    }
+
+    case (253): {
+      if (packet_left_len < 4) {
+        *header_len = 0;
+        return 0;
+      }
+      *header_len = 4;
+      return static_cast<ulong>(uint3korr(packet + 1));
+    }
+
+    case (254): {
+      /*
+       In our client-server protocol all numbers bigger than 2^24
+       stored as 8 bytes with uint8korr. Here we always know that
+       parameter length is less than 2^4 so we don't look at the second
+       4 bytes. But still we need to obey the protocol hence 9 in the
+       assignment below.
+      */
+      if (packet_left_len < 9) {
+        *header_len = 0;
+        return 0;
+      }
+      *header_len = 9;
+      return static_cast<ulong>(uint4korr(packet + 1));
+    }
+
+    // 0xff as the first byte of a length-encoded integer is undefined.
+    case (255): {
+      *header_len = 0;
+      return 0;
+    }
+
+    // (*packet < 251)
+    default: {
+      *header_len = 1;
+      return static_cast<ulong>(*packet);
+    }
   }
-  if (packet_left_len < 3) {
-    *header_len = 0;
-    return 0;
-  }
-  if (*packet == 252) {
-    *header_len = 3;
-    return (ulong)uint2korr(packet + 1);
-  }
-  if (packet_left_len < 4) {
-    *header_len = 0;
-    return 0;
-  }
-  if (*packet == 253) {
-    *header_len = 4;
-    return (ulong)uint3korr(packet + 1);
-  }
-  if (packet_left_len < 5) {
-    *header_len = 0;
-    return 0;
-  }
-  if (packet_left_len < 9) {
-    *header_len = 0;
-    return 0;
-  }
-  DBUG_ASSERT(*packet == 254);
-  *header_len = 9;
-  /*
-    In our client-server protocol all numbers bigger than 2^24
-    stored as 8 bytes with uint8korr. Here we always know that
-    parameter length is less than 2^4 so don't look at the second
-    4 bytes. But still we need to obey the protocol hence 9 in the
-    assignment above.
-  */
-  return (ulong)uint4korr(packet + 1);
 }
 
 /**
