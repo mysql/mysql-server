@@ -186,6 +186,16 @@ class DD_properties : public Object_table_impl {
   */
   bool set(THD *thd, const String_type &key, const dd::Properties &properties);
 
+  /**
+    Remove a property key.
+
+    @param thd        Thread context.
+    @param key        Key name.
+
+    @returns false on success otherwise true.
+  */
+  bool remove(THD *thd, const String_type &key);
+
  private:
   // A cache of the table contents.
   Properties_impl m_properties;

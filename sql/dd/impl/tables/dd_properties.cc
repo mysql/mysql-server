@@ -287,5 +287,15 @@ bool DD_properties::set(THD *thd, const String_type &key,
   return unchecked_set(thd, key, properties.raw_string());
 }
 
+// Initialize the cache, and remove the submitted key if it exists.
+bool DD_properties::remove(THD *thd, const String_type &key) {
+  // Read cached properties from disk, if not existing.
+  if (init_cached_properties(thd)) return true;
+
+  // Update the cached properties and the table.
+  if (m_properties.exists(key)) (void)m_properties.remove(key);
+  return flush_cached_properties(thd);
+}
+
 }  // namespace tables
 }  // namespace dd

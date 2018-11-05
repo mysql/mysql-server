@@ -18743,6 +18743,18 @@ ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_ENCRYPT
   eng "Failed to encrypt content to write into binlog file: %s."
 
+ER_CANNOT_GET_SERVER_VERSION_FROM_TABLESPACE_HEADER
+  eng "Cannot get the server version number from the dictionary tablespace header."
+
+ER_CANNOT_SET_SERVER_VERSION_IN_TABLESPACE_HEADER
+  eng "Cannot set the server version number in the dictionary tablespace header."
+
+ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED
+  eng "Upgrading the server from server version '%u' is not supported."
+
+ER_SERVER_UPGRADE_FROM_VERSION
+  eng "MySQL server upgrading from version '%u' to '%u'."
+
 ER_SECONDARY_ENGINE_PLUGIN
   eng "%s"
 

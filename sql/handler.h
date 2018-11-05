@@ -1673,6 +1673,25 @@ typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
                                uint version);
 
 /**
+  Get the server version id stored in the header of the
+  dictionary tablespace.
+
+  @param [out] version  Version number from the DD
+                        tablespace header.
+
+  @retval Operation outcome, false if no error, otherwise true.
+*/
+typedef bool (*dict_get_server_version_t)(uint *version);
+
+/**
+  Store the current server version number into the
+  header of the dictionary tablespace.
+
+  @retval Operation outcome, false if no error, otherwise true.
+*/
+typedef bool (*dict_set_server_version_t)();
+
+/**
   Notify/get permission from storage engine before acquisition or after
   release of exclusive metadata lock on object represented by key.
 
@@ -2063,6 +2082,8 @@ struct handlerton {
   dict_cache_reset_tables_and_tablespaces_t
       dict_cache_reset_tables_and_tablespaces;
   dict_recover_t dict_recover;
+  dict_get_server_version_t dict_get_server_version;
+  dict_set_server_version_t dict_set_server_version;
 
   /** Global handler flags. */
   uint32 flags;

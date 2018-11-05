@@ -958,6 +958,34 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
                                       false, true, mtr));
 }
 
+/** Read the server version number from the DD tablespace header.
+@param[out]     version server version from tablespace header
+@return false if success. */
+bool fsp_header_dict_get_server_version(uint *version) {
+  fil_space_t *space = fil_space_acquire(dict_sys_t::s_space_id);
+
+  if (space == nullptr) {
+    return (true);
+  }
+
+  buf_block_t *block;
+  page_t *page;
+  mtr_t mtr;
+
+  const page_size_t page_size(space->flags);
+
+  mtr_start(&mtr);
+  block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0), page_size,
+                       RW_SX_LATCH, &mtr);
+  page = buf_block_get_frame(block);
+  *version = fsp_header_get_server_version(page);
+
+  mtr_commit(&mtr);
+  fil_space_release(space);
+
+  return (false);
+}
+
 /** Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0.
 @param[in]	space_id	space id

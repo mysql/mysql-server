@@ -264,7 +264,6 @@ bool do_server_upgrade_checks(THD *thd) {
   */
   if (error_count.has_errors()) return dd::end_transaction(thd, true);
 
-  DD_bootstrap_ctx::instance().set_actual_server_version(MYSQL_VERSION_ID);
   return false;
 }
 

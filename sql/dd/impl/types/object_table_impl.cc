@@ -65,7 +65,7 @@ int Object_table_impl::field_number(int target_field_number,
     for minor downgrade, we use the target field number directly since
     only extensions are allowed.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade())
     return m_actual_def.field_number(field_label);
   return target_field_number;
 }
@@ -76,7 +76,7 @@ int Object_table_impl::field_number(const String_type &field_label) const {
     the actual definition. Otherwise, we get the position from the
     the target definition.
   */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade())
     return m_actual_def.field_number(field_label);
   return m_target_def.field_number(field_label);
 }

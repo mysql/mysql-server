@@ -56,9 +56,6 @@ static constexpr uint DD_VERSION_80012 = 80012;
 static constexpr uint DD_VERSION_80013 = 80013;
 static constexpr uint DD_VERSION_80014 = 80014;
 
-// Individual server version labels that we can refer to.
-static constexpr uint SERVER_VERSION_80013 = 80013;
-
 /*
   Set of supported DD version labels. A supported DD version is a version
   from which we can upgrade. In the case of downgrade, this is not relevant,
@@ -69,6 +66,21 @@ static constexpr uint SERVER_VERSION_80013 = 80013;
 */
 static std::set<uint> supported_dd_versions = {
     DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014};
+
+// Individual server version labels that we can refer to.
+static constexpr uint SERVER_VERSION_80011 = 80011;
+static constexpr uint SERVER_VERSION_80012 = 80012;
+static constexpr uint SERVER_VERSION_80013 = 80013;
+static constexpr uint SERVER_VERSION_80014 = 80014;
+static constexpr uint SERVER_VERSION_80015 = 80015;
+
+/*
+  Set of supported server version labels. A supported server version is a
+  version from which we can upgrade.
+*/
+static std::set<uint> supported_server_versions = {
+    SERVER_VERSION_80011, SERVER_VERSION_80012, SERVER_VERSION_80013,
+    SERVER_VERSION_80014, SERVER_VERSION_80015};
 
 class DD_bootstrap_ctx {
  private:
@@ -96,21 +108,35 @@ class DD_bootstrap_ctx {
 
   uint get_actual_dd_version() const { return m_actual_dd_version; }
 
+  bool actual_dd_version_is(uint compare_actual_dd_version) const {
+    return (m_actual_dd_version == compare_actual_dd_version);
+  }
+
+  bool supported_server_version(uint version) const {
+    return (supported_server_versions.find(version) !=
+            supported_server_versions.end());
+  }
+
+  bool supported_server_version() const {
+    return supported_server_version(m_actual_server_version);
+  }
+
   void set_actual_server_version(uint actual_server_version) {
     m_actual_server_version = actual_server_version;
   }
 
   uint get_actual_server_version() const { return m_actual_server_version; }
 
-  bool actual_dd_version_is(uint compare_actual_dd_version) const {
-    return (m_actual_dd_version == compare_actual_dd_version);
+  bool actual_server_version_is(uint compare_actual_server_version) const {
+    return (m_actual_server_version == compare_actual_server_version);
   }
 
   bool is_restart() const {
-    return !opt_initialize && (m_actual_dd_version == dd::DD_VERSION);
+    return !opt_initialize && (m_actual_dd_version == dd::DD_VERSION) &&
+           (m_actual_server_version == MYSQL_VERSION_ID);
   }
 
-  bool is_upgrade() const {
+  bool is_dd_upgrade() const {
     return !opt_initialize && (m_actual_dd_version < dd::DD_VERSION);
   }
 
@@ -118,8 +144,8 @@ class DD_bootstrap_ctx {
     return !opt_initialize && (m_actual_server_version < MYSQL_VERSION_ID);
   }
 
-  bool is_upgrade_from_before(uint compare_actual_dd_version) const {
-    return (is_upgrade() && m_actual_dd_version < compare_actual_dd_version);
+  bool is_dd_upgrade_from_before(uint compare_actual_dd_version) const {
+    return (is_dd_upgrade() && m_actual_dd_version < compare_actual_dd_version);
   }
 
   bool is_server_upgrade_from_before(uint compare_actual_server_version) const {

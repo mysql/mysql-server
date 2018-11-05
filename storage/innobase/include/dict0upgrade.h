@@ -62,10 +62,11 @@ table by DICT_MAX_DD_TABLES
 @return MySQL error code*/
 int dd_upgrade_tablespace(THD *thd);
 
-/** Add server version number to tablespace while upgrading.
+/** Add server and space version number to tablespace while upgrading.
 @param[in]	space_id		space id of tablespace
+@param[in]	server_version_only	leave space version unchanged
 @return false on success, true on failure. */
-bool upgrade_space_version(const uint32 space_id);
+bool upgrade_space_version(const uint32 space_id, bool server_version_only);
 
 /** Add server version number to tablespace while upgrading.
 @param[in]	tablespace		dd::Tablespace
