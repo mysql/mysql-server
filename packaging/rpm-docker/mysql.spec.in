@@ -32,8 +32,10 @@
 
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
-%{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - GPL}
-%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
+%{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
+%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
+%{!?compilation_comment_server_release: %global compilation_comment_release MySQL Community Server - GPL}
+%{!?compilation_comment_server_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %global src_dir               %{src_base}-@VERSION_SRC@
@@ -168,6 +170,7 @@ mkdir release
            -DWITH_MEB=1 \
 %endif
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make %{?_smp_mflags} VERBOSE=1
@@ -414,6 +417,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Nov 21 2018 Erlend Dahl <Erlend Dahl> - 8.0.14-1
+- Add specific compilation comment for the server
+
 * Tue Aug 21 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
 - No need to ship test plugins and components in docker image
 

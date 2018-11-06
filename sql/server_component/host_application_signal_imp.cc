@@ -61,7 +61,7 @@ DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
       case HOST_APPLICATION_SIGNAL_SHUTDOWN:
         LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO,
                "<internal signal component service>", server_version,
-               MYSQL_COMPILATION_COMMENT);
+               MYSQL_COMPILATION_COMMENT_SERVER);
         kill_mysql();
         break;
       default:

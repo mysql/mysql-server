@@ -2149,7 +2149,7 @@ static void clean_up(bool print_message) {
 
   if (print_message && my_default_lc_messages && server_start_time)
     LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
-           server_version, MYSQL_COMPILATION_COMMENT);
+           server_version, MYSQL_COMPILATION_COMMENT_SERVER);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -6632,7 +6632,7 @@ int mysqld_main(int argc, char **argv)
 #else
               (char *)"",
 #endif
-              mysqld_port, MYSQL_COMPILATION_COMMENT);
+              mysqld_port, MYSQL_COMPILATION_COMMENT_SERVER);
 
   if (!opt_disable_networking && my_admin_bind_addr_str)
     LogEvent()
