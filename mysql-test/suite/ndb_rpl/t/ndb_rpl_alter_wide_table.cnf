@@ -1,0 +1,9 @@
+!include ../my.cnf
+
+[cluster_config]
+TimeBetweenGlobalCheckpoints = 20
+TimeBetweenEpochs = 1
+TimeBetweenEpochsTimeout = 30000
+
+[mysqld]
+debug=+d,ndb_crash_on_drop_SUB_TABLE_DATA
