@@ -438,7 +438,7 @@ static const char* const jamFileNames[] =
    "ArenaPool.cpp",                      // 309
    "LHLevel.cpp",                        // 310
    "RWPool.hpp",                         // 311
-   "t.cpp",                              // 312
+   "mt-send-t.cpp",                      // 312
    "DLHashTable.hpp",                    // 313
    "VMSignal.hpp",                       // 314
    "Pool.hpp",                           // 315
@@ -449,7 +449,7 @@ static const char* const jamFileNames[] =
    "main.cpp",                           // 320
    "arrayPoolTest.cpp",                  // 321
    "SimBlockList.hpp",                   // 322
-   "lock.hpp",                           // 323
+   "mt-lock.hpp",                        // 323
    "rr.cpp",                             // 324
    "testCopy.cpp",                       // 325
    "Ndbinfo.cpp",                        // 326
@@ -619,7 +619,7 @@ static const char* const jamFileNames[] =
    "ErrorReporter.cpp",                  // 490
    "angel.hpp",                          // 491
    "SimBlockList.cpp",                   // 492
-   "CopyTab.cpp",                        // 493
+   "CopyTab.hpp",                        // 493
    "IsolateOrd.hpp",                     // 494
    "IsolateOrd.cpp",                     // 495
    "SegmentList.hpp",                    // 496
