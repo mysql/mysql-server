@@ -775,7 +775,9 @@ private:
     Index of next epoch to store.
   */
   Uint32 m_max_gcp_rep_counter_index;
-  SubGcpCompleteCounter m_gcp_rep_counter[10];
+
+  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+  SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
 
   Uint32 m_oldest_gcp_inflight_index;
   Uint32 m_newest_gcp_inflight_index;
