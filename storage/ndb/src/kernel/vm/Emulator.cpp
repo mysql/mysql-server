@@ -619,14 +619,14 @@ static const char* const jamFileNames[] =
    "ErrorReporter.cpp",                  // 490
    "angel.hpp",                          // 491
    "SimBlockList.cpp",                   // 492
-   "CopyTab.cpp"                         // 493
+   "CopyTab.cpp",                        // 493
    "IsolateOrd.hpp",                     // 494
-   "IsolateOrd.cpp"                      // 495
+   "IsolateOrd.cpp",                     // 495
    "SegmentList.hpp",                    // 496
    "SegmentList.cpp",                    // 497
    "LocalSysfile.hpp",                   // 498
    "UndoLogLevel.hpp",                   // 499
-   "RedoStateRep.hpp"                    // 500
+   "RedoStateRep.hpp",                   // 500
    };
 
 bool 
