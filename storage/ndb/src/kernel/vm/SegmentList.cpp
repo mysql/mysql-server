@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -587,11 +587,7 @@ SegmentSubPool::checkInvariants()
 
 #ifdef TEST_SEGMENTLIST
 
-#undef JAM_FILE_ID
-
 #include <NdbTap.hpp>
-
-#define JAM_FILE_ID 494
 
 /* Redefine ArrayPool dependencies to enable standalone Unit-test compile */
 void ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
