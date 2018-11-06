@@ -29,9 +29,9 @@
 
 #include <stddef.h>
 #include <functional>  // std::less
+#include <map>
 #include <string>
 #include <utility>  // std::pair
-#include <vector>   // std::vector
 
 #include "m_ctype.h"
 #include "my_alloc.h"
@@ -79,26 +79,6 @@ struct Histogram_comparator {
   template <class T>
   bool operator()(const T &lhs, const T &rhs) const {
     return std::less<T>()(lhs, rhs);
-  }
-
-  template <class T>
-  bool operator()(const T &a, const std::pair<T, ha_rows> &b) const {
-    return Histogram_comparator()(a, b.first);
-  }
-
-  template <class T>
-  bool operator()(const std::pair<T, ha_rows> &a, const T &b) const {
-    return Histogram_comparator()(a.first, b);
-  }
-
-  template <class T>
-  bool operator()(const std::pair<const T, double> &a, const T &b) const {
-    return Histogram_comparator()(a.first, b);
-  }
-
-  template <class T>
-  bool operator()(const T &a, const std::pair<const T, double> &b) const {
-    return Histogram_comparator()(a, b.first);
   }
 
   template <class T>
@@ -218,6 +198,10 @@ class Value_map_base {
 
   /// @return the data type that this Value_map contains
   Value_map_type get_data_type() const { return m_data_type; }
+
+  /// @return the overhead in bytes for each distinct value stored in the
+  ///         Value_map.
+  virtual size_t element_overhead() const = 0;
 };
 
 /**
@@ -230,8 +214,9 @@ class Value_map_base {
 template <class T>
 class Value_map final : public Value_map_base {
  private:
-  using value_map_type = std::vector<std::pair<T, ha_rows>,
-                                     Memroot_allocator<std::pair<T, ha_rows>>>;
+  using value_map_type =
+      std::map<T, ha_rows, Histogram_comparator,
+               Memroot_allocator<std::pair<const T, ha_rows>>>;
 
   value_map_type m_value_map;
 
@@ -273,6 +258,16 @@ class Value_map final : public Value_map_base {
   virtual Histogram *build_histogram(
       MEM_ROOT *mem_root, size_t num_buckets, const std::string &db_name,
       const std::string &tbl_name, const std::string &col_name) const override;
+
+  /// @return the overhead in bytes for each distinct value stored in the
+  ///         Value_map. The value 32 is obtained from both GCC 8.2 and
+  ///         Clang 8.0 (same as sizeof(value_map_type::node_type) in C++17).
+  size_t element_overhead() const override {
+    // TODO: Replace this with sizeof(value_map_type::node_type) when we have
+    // full C++17 support.
+    return sizeof(typename value_map_type::value_type) +
+           sizeof(typename value_map_type::key_type) + 32;
+  }
 };
 
 // Explicit template instantiations.

@@ -648,8 +648,6 @@ static bool prepare_value_maps(
   for (const Field *field : fields) {
     histograms::Value_map_base *value_map = nullptr;
 
-    // Row count variable
-    *row_size_bytes += sizeof(ha_rows);
     const Value_map_type value_map_type =
         histograms::field_type_to_value_map_type(field);
 
@@ -659,13 +657,11 @@ static bool prepare_value_maps(
             std::min(static_cast<size_t>(field->field_length),
                      histograms::HISTOGRAM_MAX_COMPARE_LENGTH);
         *row_size_bytes += max_field_length * field->charset()->mbmaxlen;
-        *row_size_bytes += sizeof(String);
         value_map =
             new histograms::Value_map<String>(field->charset(), value_map_type);
         break;
       }
       case histograms::Value_map_type::DOUBLE: {
-        *row_size_bytes += sizeof(double);
         value_map =
             new histograms::Value_map<double>(field->charset(), value_map_type);
         break;
@@ -673,13 +669,11 @@ static bool prepare_value_maps(
       case histograms::Value_map_type::INT:
       case histograms::Value_map_type::ENUM:
       case histograms::Value_map_type::SET: {
-        *row_size_bytes += sizeof(longlong);
         value_map = new histograms::Value_map<longlong>(field->charset(),
                                                         value_map_type);
         break;
       }
       case histograms::Value_map_type::UINT: {
-        *row_size_bytes += sizeof(ulonglong);
         value_map = new histograms::Value_map<ulonglong>(field->charset(),
                                                          value_map_type);
         break;
@@ -687,13 +681,11 @@ static bool prepare_value_maps(
       case histograms::Value_map_type::DATETIME:
       case histograms::Value_map_type::DATE:
       case histograms::Value_map_type::TIME: {
-        *row_size_bytes += sizeof(MYSQL_TIME);
         value_map = new histograms::Value_map<MYSQL_TIME>(field->charset(),
                                                           value_map_type);
         break;
       }
       case histograms::Value_map_type::DECIMAL: {
-        *row_size_bytes += sizeof(my_decimal);
         value_map = new histograms::Value_map<my_decimal>(field->charset(),
                                                           value_map_type);
         break;
@@ -703,6 +695,9 @@ static bool prepare_value_maps(
         return true;
       }
     }
+
+    // Overhead for each element
+    *row_size_bytes += value_map->element_overhead();
 
     value_maps.emplace(field->field_index,
                        std::unique_ptr<histograms::Value_map_base>(value_map));
