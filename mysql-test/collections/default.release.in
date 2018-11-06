@@ -12,8 +12,8 @@
 
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600 --parallel=auto --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
 # Run with --non-parallel-test option so that non parallel tests are also run
-perl mysql-test-run.pl --force --timer --parallel=auto --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
-perl mysql-test-run.pl --force --timer --parallel=auto --comment=ps         --vardir=var-ps --ps-protocol
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600 --parallel=auto --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600 --parallel=auto --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer --parallel=auto --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer --parallel=auto --comment=stress     --vardir=var-stress     --suite=stress
