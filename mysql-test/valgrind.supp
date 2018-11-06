@@ -1920,3 +1920,22 @@
    fun:start_thread
    fun:clone
 }
+{
+   Mysqlx: OpenSSL cert file still possible.
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:CRYPTO_malloc
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:*
+   fun:X509_STORE_load_locations
+   fun:*
+   fun:*
+   fun:*
+   fun:*
+}
