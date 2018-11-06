@@ -32,6 +32,7 @@
 
 --let $rpl_atomic_ddl_print_verbose=1
 
+--source include/big_test.inc
 --source include/not_crashrep.inc
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
