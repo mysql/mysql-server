@@ -627,6 +627,7 @@ static const char* const jamFileNames[] =
    "LocalSysfile.hpp",                   // 498
    "UndoLogLevel.hpp",                   // 499
    "RedoStateRep.hpp",                   // 500
+   "printFragfile.cpp",                  // 501
    };
 
 bool 
