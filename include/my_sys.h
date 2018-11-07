@@ -605,9 +605,10 @@ extern my_off_t my_ftell(FILE *stream);
 /* Platform-independent SysLog support */
 enum my_syslog_options { MY_SYSLOG_PIDS = 1 };
 
-int my_openlog(const char *eventSourceName, int option, int facility);
-int my_closelog();
-int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
+extern int my_openlog(const char *eventSourceName, int option, int facility);
+extern int my_closelog();
+extern int my_syslog(const CHARSET_INFO *cs, enum loglevel level,
+                     const char *msg);
 
 #ifdef _WIN32
 extern int my_access(const char *path, int amode);

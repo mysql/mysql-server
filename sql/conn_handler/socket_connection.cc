@@ -765,6 +765,18 @@ Mysqld_socket_listener::Mysqld_socket_listener(
       m_unlink_sockname(false),
       m_admin_interface_listen_socket(mysql_socket_invalid()) {
 #ifdef HAVE_LIBWRAP
+  /*
+    Set up syslog parameters on behalf of the TCP-wrappers.
+    The loadable component that logs server errors to syslog
+    may re-open it with user-defined attributes (logging of
+    PIDS / ident) later, but we establish a sensible baseline
+    here in case that log-sink is not used. Note that the
+    wrapper is hard-coded to use LOG_AUTH in the syslog()
+    call below, which lets the wrapper log to a different
+    facility than the rest of the server (the facility of
+    which defaults to LOG_DAEMON and is user-configurable)
+    if desired.
+  */
   libwrap_name = my_progname + dirname_length(my_progname);
   openlog(libwrap_name, LOG_PID, LOG_AUTH);
 #endif /* HAVE_LIBWRAP */
@@ -868,6 +880,12 @@ bool check_connection_refused_by_tcp_wrapper(MYSQL_SOCKET connect_sock) {
       This may be stupid but refuse() includes an exit(0)
       which we surely don't want...
       clean_exit() - same stupid thing ...
+
+      We're using syslog() here instead of my_syslog()
+      as this lets us pass in a facility that may differ
+      from that used by the error logging component.
+      This is unproblematic as TCP-wrapper is unix specific,
+      anyway.
     */
     syslog(LOG_AUTH | LOG_WARNING, "refused connect from %s",
            eval_client(&req));
