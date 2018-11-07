@@ -740,6 +740,23 @@ int JOIN::optimize() {
   }
 
   /*
+    If enabled by optimizer settings, and implemented by handler,
+    (parts of) the table condition may be pushed down to the
+    SE-engine for evaluation.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    for (uint i = const_tables; i < tables; i++) {
+      if (!qep_tab[i].is_inner_table_of_outer_join()) {
+        const Item *cond = qep_tab[i].condition();
+        if (cond != nullptr) {
+          const Item *remainder = qep_tab[i].table()->file->cond_push(cond);
+          qep_tab[i].set_condition(const_cast<Item *>(remainder));
+	}
+      }
+    }
+  }
+
+  /*
     If we decided to not sort after all, update the cost of the JOIN.
     Windowing sorts are handled elsewhere
   */
