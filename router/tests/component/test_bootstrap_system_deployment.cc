@@ -69,9 +69,6 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
   }
 
   TcpPortPool port_pool_;
-#ifdef __APPLE__
-  std::string library_link_file_;
-#endif
   uint16_t server_port_;
 };
 
