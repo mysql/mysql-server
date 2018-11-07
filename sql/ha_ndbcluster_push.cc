@@ -1419,40 +1419,7 @@ int ndb_pushed_builder_ctx::build_query() {
       if (unlikely(error)) DBUG_RETURN(error);
     }
 
-    /**
-     * Generate the 'pushed condition' code:
-     *
-     * Note that for lookup_operations there is a hard limit on ~32K
-     * on the size of the unfragmented sendSignal() used to send the
-     * LQH_KEYREQ from SPJ -> LQH. (SCANFRAGREQ's are fragmented, and thus
-     * can be larger). As the generated code is embedded in the LQH_KEYREQ,
-     * we have to limit the 'code' size in a lookup_operation.
-     *
-     * Also see bug#27397802 ENTIRE CLUSTER CRASHES WITH "MESSAGE TOO
-     *    BIG IN SENDSIGNAL" WITH BIG IN CLAUSE.
-     *
-     * There is a limited gain of pushing a condition for a lookup:
-     *
-     * 1) A lookup operation returns at most a single row, so the gain
-     *    of adding a filter is limited.
-     * 2) The filter could be big (Large IN-lists...) and have to be
-     *    included in the AttrInfo of every LQH_KEYREQ. So the overhead
-     *    could exceed the gain.
-     *
-     * So we allow only 'small' filters (64 words) to be pushed for EQ_REF's.
-     */
     NdbQueryOptions options;
-    if (handler->pushed_cond) {
-      NdbInterpretedCode code(handler->m_table);
-      handler->generate_scan_filter(&code, NULL);
-      const uint codeSize = code.getWordsUsed();
-      if (ndbcluster_is_lookup_operation(access_type) && codeSize >= 64) {
-        // Not pushed, let ha_ndbcluster evaluate the condition
-        handler->m_cond.set_condition(handler->pushed_cond);
-      } else {
-        options.setInterpretedCode(code);
-      }
-    }
     if (table != m_join_root) {
       DBUG_ASSERT(m_tables[tab_no].m_parent != MAX_TABLES);
       const uint parent_no = m_tables[tab_no].m_parent;

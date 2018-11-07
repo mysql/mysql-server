@@ -398,7 +398,7 @@ public:
     return false;
   }
 
-  // Return 'true' is query type is a multi-row scan
+  // Return 'true' if query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
   virtual const NdbQueryOperationDef& getInterface() const = 0; 

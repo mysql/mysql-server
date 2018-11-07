@@ -16101,6 +16101,46 @@ ha_ndbcluster::create_pushed_join(const NdbQueryParamValue* keyFieldParams, uint
     handler->m_pushed_operation= op;
     handler->get_read_set(false, handler->active_index);
 
+    /**
+     * Generate the 'pushed condition' code:
+     *
+     * Note that for lookup_operations there is a hard limit on ~32K
+     * on the size of the unfragmented sendSignal() used to send the
+     * LQH_KEYREQ from SPJ -> LQH. (SCANFRAGREQ's are fragmented, and thus
+     * can be larger). As the generated code is embedded in the LQH_KEYREQ,
+     * we have to limit the 'code' size in a lookup_operation.
+     *
+     * Also see bug#27397802 ENTIRE CLUSTER CRASHES WITH "MESSAGE TOO
+     *    BIG IN SENDSIGNAL" WITH BIG IN CLAUSE.
+     *
+     * There is a limited gain of pushing a condition for a lookup:
+     *
+     * 1) A lookup operation returns at most a single row, so the gain
+     *    of adding a filter is limited.
+     * 2) The filter could be big (Large IN-lists...) and have to be
+     *    included in the AttrInfo of every LQH_KEYREQ. So the overhead
+     *    could exceed the gain.
+     *
+     * So we allow only 'small' filters (64 words) to be pushed for EQ_REF's.
+     */
+    if (handler->pushed_cond) {
+      NdbInterpretedCode code(handler->m_table);
+      handler->generate_scan_filter(&code, NULL);
+      const uint codeSize = code.getWordsUsed();
+      if (code.getNdbError().code == 0) {
+        const NdbQueryOperationDef::Type type = op->getQueryOperationDef().getType();
+        const bool isLookup = (type == NdbQueryOperationDef::PrimaryKeyAccess ||
+                               type == NdbQueryOperationDef::UniqueIndexAccess);
+        if (isLookup && codeSize >= 64) {
+          // Too large, not pushed. Let ha_ndbcluster evaluate the condition
+          handler->m_cond.set_condition(handler->pushed_cond);
+        } else if (op->setInterpretedCode(code)) {
+          // Failed to set generated code, let ha_ndbcluster evaluate
+          handler->m_cond.set_condition(handler->pushed_cond);
+        }
+      }
+    }
+
     // Bind to result buffers
     int res= op->setResultRowRef(
                         handler->m_ndb_record,
