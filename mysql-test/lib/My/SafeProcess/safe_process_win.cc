@@ -163,7 +163,7 @@ int main(int argc, const char **argv) {
 
   BOOL nocore = FALSE;
   DWORD parent_pid = get_parent_pid(pid);
-  char child_args[4096] = {0};
+  char child_args[8192] = {0};
   std::string exe_name;
 
   // Parse arguments
