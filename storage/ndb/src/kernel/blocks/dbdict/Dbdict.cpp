@@ -4484,8 +4484,17 @@ void Dbdict::checkSchemaStatus(Signal* signal)
     if (c_restartRecord.activeTable >= c_noOfMetaTables)
     {
       jam();
-      ndbrequire(masterState == SchemaFile::SF_UNUSED);
-      ndbrequire(ownState == SchemaFile::SF_UNUSED);
+      if (masterState != SchemaFile::SF_UNUSED ||
+          ownState != SchemaFile::SF_UNUSED)
+      {
+        progError(__LINE__,
+                  NDBD_EXIT_RESTORE_SCHEMA,
+                  "Failed to restore schema during restart. "
+                  "Too many tables or too high id number for some table. "
+                  "Please check configuration. Have sum of MaxNoOfTables, "
+                  "MaxNoOfOrderedIndexes, and, MaxNoOfUniqueHashIndexes "
+                  "decreased?");
+      }
       continue;
     }//if
 

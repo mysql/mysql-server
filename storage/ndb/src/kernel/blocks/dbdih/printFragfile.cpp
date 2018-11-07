@@ -26,7 +26,7 @@
 
 #include <NdbOut.hpp>
 
-#define JAM_FILE_ID 358
+#define JAM_FILE_ID 501
 
 [[noreturn]] inline void ndb_end_and_exit(int exitcode)
 {

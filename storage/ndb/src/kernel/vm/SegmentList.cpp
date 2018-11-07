@@ -594,11 +594,7 @@ SegmentSubPool::checkInvariants()
 
 #ifdef TEST_SEGMENTLIST
 
-#undef JAM_FILE_ID
-
 #include <NdbTap.hpp>
-
-#define JAM_FILE_ID 494
 
 /* Redefine ArrayPool dependencies to enable standalone Unit-test compile */
 void ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
