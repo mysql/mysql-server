@@ -570,13 +570,16 @@ struct Tablespace {
 
   /** Set the state of the rollback segments in this undo tablespace to
   inactive_implicit if currently active.  If the state is inactive_explicit,
-  leave as is.  This is done when marking a space for truncate.  It will not
-  be used for new transactions until it becomes active again. */
-  void set_inactive_implicit() {
+  leave as is. Then put the space_id into the callers marked_space_id.
+  This is done when marking a space for truncate.  It will not be used
+  for new transactions until it becomes active again. */
+  void set_inactive_implicit(space_id_t *marked_space_id) {
     m_rsegs->x_lock();
     if (m_rsegs->is_active()) {
       m_rsegs->set_inactive_implicit();
     }
+    *marked_space_id = m_id;
+
     m_rsegs->x_unlock();
   }
 
@@ -835,18 +838,21 @@ class Truncate {
   void mark(Tablespace *undo_space) {
     /* Set the internal state of this undo space to inactive_implicit
     so that its rsegs will not be allocated to any new transaction.
-    If the space is already in the inactive_explicit state, it will stay
-    there.  Note that the DD is not modified since in case of crash, the
-    action must be completed before the DD is available. */
-    undo_space->set_inactive_implicit();
+    If the space is already in the inactive_explicit state, it will
+    stay there.
+    Note that the DD is not modified since in case of crash, the
+    action must be completed before the DD is available.
+    Set both the state and this marked id while this routine has
+    an x_lock on m_rsegs because a concurrent user thread might issue
+    undo_space->alter_active(). */
+    undo_space->set_inactive_implicit(&m_space_id_marked);
+
+    m_marked_space_is_empty = false;
 
     /* We found an UNDO-tablespace to truncate so set the
     local purge rseg truncate frequency to 3. This will help
     accelerate the purge action and in turn truncate. */
     set_rseg_truncate_frequency(3);
-
-    m_space_id_marked = undo_space->id();
-    m_marked_space_is_empty = false;
   }
 
   /** Get the ID of the tablespace marked for truncate.

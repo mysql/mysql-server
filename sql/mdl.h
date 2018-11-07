@@ -631,7 +631,7 @@ struct MDL_key {
         static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) - m_ptr - 1);
 
     // Normalized object name.
-    m_length = m_db_name_length + normalized_name_len + 3;
+    m_length = static_cast<uint16>(m_db_name_length + normalized_name_len + 3);
     memcpy(m_ptr + m_db_name_length + 2, normalized_name, normalized_name_len);
     *(m_ptr + m_length - 1) = 0;
 
@@ -641,9 +641,9 @@ struct MDL_key {
       to avoid cutting object_name in the middle of a multi-byte character.
     */
     if (strlen(name) < static_cast<size_t>(MAX_MDLKEY_LENGTH - m_length)) {
-      m_object_name_length =
+      m_object_name_length = static_cast<uint16>(
           (strmake(m_ptr + m_length, name, MAX_MDLKEY_LENGTH - m_length - 1) -
-           m_ptr - m_length);
+           m_ptr - m_length));
     } else {
       m_object_name_length = 0;
       *(m_ptr + m_length) = 0;
