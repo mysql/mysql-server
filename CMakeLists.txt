@@ -24,9 +24,15 @@ IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
 ELSEIF(APPLE)
-  # Version 3.9.2 in needed because INCLUDE_DIRECTORIES(SYSTEM ...) wasn't
+  # Version 3.12.4 is needed because the new build system of Xcode is not
+  # supported by cmake. 3.12.4 will force using the legacy build system.
+  # Version 3.9.2 is needed because INCLUDE_DIRECTORIES(SYSTEM ...) wasn't
   # handled properly by the cmake Xcode generator.
-  CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
+  IF(CMAKE_GENERATOR STREQUAL "Xcode")
+    CMAKE_MINIMUM_REQUIRED(VERSION 3.12.4)
+  ELSE()
+    CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
+  ENDIF()
 ELSEIF(UNIX)
   # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
   # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
