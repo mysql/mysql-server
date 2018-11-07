@@ -33,7 +33,6 @@
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
-#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <direct.h>
 #include <io.h>

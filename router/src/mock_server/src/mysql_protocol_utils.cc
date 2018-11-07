@@ -46,7 +46,6 @@
 #include <unistd.h>
 #include <cstring>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 typedef long ssize_t;
