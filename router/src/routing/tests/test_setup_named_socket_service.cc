@@ -25,6 +25,8 @@
 #ifndef _WIN32  // named sockets are not supported on Windows;
                 // on Unix, they're implemented using Unix sockets
 
+#include <stdexcept>
+
 #include "gmock/gmock.h"
 
 #include "../../routing/src/mysql_routing.h"

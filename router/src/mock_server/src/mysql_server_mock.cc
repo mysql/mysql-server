@@ -40,6 +40,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <iostream>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <system_error>
 #include <thread>
 

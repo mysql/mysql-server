@@ -44,6 +44,7 @@
 #include <cstring>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #include "keyring/keyring_manager.h"
 #ifndef _WIN32

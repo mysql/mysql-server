@@ -28,6 +28,7 @@
 #include <fstream>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 
 #include <signal.h>
 #include <sys/types.h>

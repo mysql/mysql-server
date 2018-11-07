@@ -58,6 +58,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 
 #include "cluster_metadata.h"
 #include "cluster_metadata_dynamic_state.h"

@@ -35,6 +35,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <strstream>
 #include <vector>
 

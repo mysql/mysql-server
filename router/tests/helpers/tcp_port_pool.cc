@@ -40,6 +40,7 @@
 
 #include <fcntl.h>
 #include <string.h>
+#include <stdexcept>
 
 #include "mysqlrouter/utils.h"
 #include "socket_operations.h"

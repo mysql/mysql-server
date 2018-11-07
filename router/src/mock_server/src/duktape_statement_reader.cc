@@ -30,6 +30,7 @@
 
 #include <functional>
 #include <map>
+#include <stdexcept>
 #include <string>
 
 #include "duk_logging.h"

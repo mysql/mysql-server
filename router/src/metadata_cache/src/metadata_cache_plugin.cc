@@ -26,6 +26,7 @@
 #include <termios.h>
 #include <unistd.h>
 #endif
+#include <stdexcept>
 #include <string>
 #include <thread>
 

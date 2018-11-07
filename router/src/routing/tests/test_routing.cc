@@ -24,6 +24,8 @@
 
 #include <gtest/gtest_prod.h>  // must be the first header
 
+#include <stdexcept>
+
 #include "common.h"
 #include "mysql/harness/loader.h"
 #include "mysql_routing.h"

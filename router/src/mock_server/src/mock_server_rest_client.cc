@@ -35,6 +35,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <stdexcept>
 #include <thread>
 
 /* static */ constexpr std::chrono::milliseconds

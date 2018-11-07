@@ -27,6 +27,7 @@
  */
 
 #include <iostream>
+#include <stdexcept>
 
 #include <event2/buffer.h>
 #include <event2/event.h>

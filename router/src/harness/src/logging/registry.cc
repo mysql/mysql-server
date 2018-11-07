@@ -44,6 +44,7 @@
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using mysql_harness::Path;
 using mysql_harness::logging::LogLevel;

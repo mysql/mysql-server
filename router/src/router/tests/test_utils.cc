@@ -35,6 +35,7 @@
 #endif
 
 #include <fstream>
+#include <stdexcept>
 #include <vector>
 #include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"

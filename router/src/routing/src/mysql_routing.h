@@ -55,6 +55,7 @@ class PluginFuncEnv;
 #include <iostream>
 #include <map>
 #include <memory>
+#include <stdexcept>
 
 #ifndef _WIN32
 #include <arpa/inet.h>

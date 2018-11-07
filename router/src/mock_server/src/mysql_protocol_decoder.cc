@@ -41,6 +41,7 @@
 #endif
 
 #include <iostream>
+#include <stdexcept>
 
 namespace server_mock {
 

@@ -24,6 +24,7 @@
 #include "cmd_exec.h"
 #include "router_test_helpers.h"
 
+#include <stdexcept>
 #include <string>
 
 #include <stdio.h>

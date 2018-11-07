@@ -32,6 +32,7 @@
 #include <cerrno>
 #include <exception>
 #include <map>
+#include <stdexcept>
 #include <vector>
 
 #include "dim.h"

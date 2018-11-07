@@ -36,6 +36,7 @@
  * sys/feature_set.h on solaris.
  */
 #include <climits>
+#include <stdexcept>
 #include <system_error>
 
 #ifndef _WIN32

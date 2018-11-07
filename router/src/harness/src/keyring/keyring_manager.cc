@@ -26,6 +26,7 @@
 #include <string.h>
 #include <fstream>
 #include <random>
+#include <stdexcept>
 #include <system_error>
 #include "common.h"
 #include "dim.h"

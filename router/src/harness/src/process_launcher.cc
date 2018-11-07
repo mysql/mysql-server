@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
+#include <stdexcept>
 #include <string>
 #include <thread>
 

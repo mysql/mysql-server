@@ -27,6 +27,7 @@
 #include "test/helpers.h"
 
 #include <cstring>
+#include <stdexcept>
 
 // ignore GMock warnings
 #ifdef __clang__

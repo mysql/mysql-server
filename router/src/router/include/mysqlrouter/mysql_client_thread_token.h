@@ -25,6 +25,8 @@
 #ifndef ROUTER_MYSQL_CLIENT_THREAD_TOKEN_INCLUDED
 #define ROUTER_MYSQL_CLIENT_THREAD_TOKEN_INCLUDED
 
+#include <stdexcept>
+
 #include <mysql.h>
 
 namespace mysqlrouter {

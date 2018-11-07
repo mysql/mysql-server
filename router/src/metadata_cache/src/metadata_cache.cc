@@ -484,6 +484,7 @@
 #include <cassert>
 #include <cmath>  // fabs()
 #include <memory>
+#include <stdexcept>
 #include <vector>
 
 #include "common.h"

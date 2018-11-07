@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <exception>
+#include <stdexcept>
 #include <vector>
 
 #include "mysqlrouter/utils.h"

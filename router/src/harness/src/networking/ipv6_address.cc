@@ -36,6 +36,7 @@
 #endif
 #include <cerrno>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

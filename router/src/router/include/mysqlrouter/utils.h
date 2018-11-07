@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <functional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #ifndef _WIN32

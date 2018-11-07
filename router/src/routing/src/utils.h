@@ -28,6 +28,7 @@
 #include <array>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 #ifndef _WIN32
 #include <netdb.h>

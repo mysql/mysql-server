@@ -26,6 +26,7 @@
 #define MYSQL_HARNESS_KEYRING_MEMORY_INCLUDED
 
 #include <map>
+#include <stdexcept>
 #include <vector>
 #include "keyring.h"
 

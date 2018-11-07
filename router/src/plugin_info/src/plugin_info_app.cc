@@ -23,6 +23,9 @@
 */
 
 #include "plugin_info_app.h"
+
+#include <stdexcept>
+
 #include "library_file.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"

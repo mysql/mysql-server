@@ -50,6 +50,7 @@
 #include <string.h>
 
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 
 using mysql_harness::SocketOperations;

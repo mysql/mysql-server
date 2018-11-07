@@ -25,6 +25,7 @@
 #include "keyring/keyring_memory.h"
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
 #include "my_aes.h"
 
 constexpr auto kAesMode = my_aes_256_cbc;

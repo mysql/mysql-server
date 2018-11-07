@@ -38,6 +38,7 @@
 #endif
 #include <cerrno>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 using mysql_harness::utility::get_message_error;

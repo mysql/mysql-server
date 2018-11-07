@@ -34,6 +34,7 @@
 #include <atomic>
 #include <map>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

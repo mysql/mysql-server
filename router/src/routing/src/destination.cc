@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/tcp.h>

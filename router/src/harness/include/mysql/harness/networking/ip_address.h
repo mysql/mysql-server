@@ -30,6 +30,7 @@
 #include "mysql/harness/networking/ipv6_address.h"
 
 #include <ostream>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

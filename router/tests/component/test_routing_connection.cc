@@ -34,6 +34,7 @@
 #include "gmock/gmock.h"
 
 #include <fstream>
+#include <stdexcept>
 #include <thread>
 
 Path g_origin_path;

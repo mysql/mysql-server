@@ -28,6 +28,7 @@
 #include "harness_export.h"
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

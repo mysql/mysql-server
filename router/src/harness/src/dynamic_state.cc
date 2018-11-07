@@ -27,6 +27,7 @@
 #include "common.h"
 
 #include <fstream>
+#include <stdexcept>
 
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>

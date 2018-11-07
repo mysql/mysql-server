@@ -53,6 +53,7 @@
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <stdexcept>
 
 #include <sys/types.h>
 

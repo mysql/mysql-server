@@ -34,6 +34,7 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #include <vector>
 #ifndef _WIN32

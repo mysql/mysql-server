@@ -46,6 +46,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 
 IMPORT_LOG_FUNCTIONS()

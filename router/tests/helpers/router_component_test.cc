@@ -59,6 +59,7 @@
 #include <algorithm>
 #include <chrono>
 #include <iterator>
+#include <stdexcept>
 #include <system_error>
 #include <thread>
 

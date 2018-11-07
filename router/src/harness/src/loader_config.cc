@@ -33,6 +33,7 @@
 // Standard include files
 #include <algorithm>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 // <cassert> places assert() in global namespace on Ubuntu14.04, but might
