@@ -204,6 +204,12 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
 
 template bool get_tablespace_name<dd::Partition>(THD *, dd::Partition const *,
                                                  char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Partition_index>(
+    THD *, dd::Partition_index const *, char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Index>(THD *, dd::Index const *,
+                                             char const **, MEM_ROOT *);
+template bool get_tablespace_name<dd::Table>(THD *, dd::Table const *,
+                                             char const **, MEM_ROOT *);
 
 /**
  @endcond
