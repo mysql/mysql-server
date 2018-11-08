@@ -140,6 +140,12 @@ vector<RowIterator::Child> FilterIterator::children() const {
 
 int LimitOffsetIterator::Read() {
   if (m_seen_rows++ >= m_limit) {
+    if (m_count_all_rows) {
+      // Count rows until the end or error (ignore the error if any).
+      while (m_source->Read() == 0) {
+        ++*m_skipped_rows;
+      }
+    }
     return -1;
   } else {
     return m_source->Read();

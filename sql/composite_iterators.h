@@ -103,16 +103,25 @@ class LimitOffsetIterator final : public RowIterator {
     @param limit Maximum number of rows to read, including the ones skipped by
       offset. Can be HA_POS_ERROR for no limit.
     @param offset Number of initial rows to skip. Can be 0 for no offset.
+    @param count_all_rows If true, the query will run to completion to get
+      more accurate numbers for skipped_rows, so you will not get any
+      performance benefits of early end.
     @param skipped_rows If not nullptr, is incremented for each row skipped by
-      offset.
+      offset or limit.
    */
   LimitOffsetIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                      ha_rows limit, ha_rows offset, ha_rows *skipped_rows)
+                      ha_rows limit, ha_rows offset, bool count_all_rows,
+                      ha_rows *skipped_rows)
       : RowIterator(thd),
         m_source(move(source)),
         m_limit(limit),
         m_offset(offset),
-        m_skipped_rows(skipped_rows) {}
+        m_count_all_rows(count_all_rows),
+        m_skipped_rows(skipped_rows) {
+    if (count_all_rows) {
+      DBUG_ASSERT(m_skipped_rows != nullptr);
+    }
+  }
 
   bool Init() override;
 
@@ -145,6 +154,7 @@ class LimitOffsetIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_source;
   ha_rows m_seen_rows;
   const ha_rows m_limit, m_offset;
+  const bool m_count_all_rows;
   ha_rows *m_skipped_rows;
 };
 

@@ -1602,7 +1602,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1)) {
         table_iterator.reset(new (thd->mem_root) LimitOffsetIterator(
             thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
-            /*skipped_rows=*/nullptr));
+            /*count_all_rows=*/false, /*skipped_rows=*/nullptr));
       }
 
       // Inner join this table to the existing tree.
@@ -1886,12 +1886,10 @@ void JOIN::create_iterators() {
                        FilterIterator(thd, move(iterator), having_cond));
   }
 
-  ha_rows select_limit_cnt =
-      calc_found_rows ? HA_POS_ERROR : unit->select_limit_cnt;
-  if (select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
+  if (unit->select_limit_cnt != HA_POS_ERROR || unit->offset_limit_cnt != 0) {
     iterator.reset(new (thd->mem_root) LimitOffsetIterator(
-        thd, move(iterator), select_limit_cnt, unit->offset_limit_cnt,
-        /*skipped_rows=*/&send_records));
+        thd, move(iterator), unit->select_limit_cnt, unit->offset_limit_cnt,
+        calc_found_rows, &send_records));
   }
 
 #if 0
@@ -1939,16 +1937,8 @@ static int ExecuteIteratorQuery(JOIN *join) {
 
     ++join->send_records;
 
-    // If we have calc_found_rows, limit doesn't happen in a LimitOffsetIterator
-    // (offset will still, though), so we'll need to do the check ourselves
-    // here.
-    if (!(join->calc_found_rows &&
-          join->unit->select_limit_cnt != HA_POS_ERROR &&
-          join->send_records > join->unit->select_limit_cnt)) {
-      if (join->select_lex->query_result()->send_data(join->thd,
-                                                      *join->fields)) {
-        return 1;
-      }
+    if (join->select_lex->query_result()->send_data(join->thd, *join->fields)) {
+      return 1;
     }
     join->thd->get_stmt_da()->inc_current_row_for_condition();
   }
