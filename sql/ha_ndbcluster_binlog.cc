@@ -7850,36 +7850,36 @@ restart_cluster_failure:
 
   if (!(s_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection,
                                       NDB_REP_DB)) ||
-      s_ndb->setNdbObjectName("Ndb Binlog schema change monitoring") ||
+      s_ndb->setNdbObjectName("schema change monitoring") ||
       s_ndb->init())
   {
     log_error("Creating schema Ndb object failed");
     goto err;
   }
-  log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
-           s_ndb->getReference(), s_ndb->getNdbObjectName());
+  log_verbose(49, "Created schema Ndb object, reference: 0x%x, name: '%s'",
+              s_ndb->getReference(), s_ndb->getNdbObjectName());
 
   // empty database
   if (!(i_ndb= new (std::nothrow) Ndb(g_ndb_cluster_connection, "")) ||
-      i_ndb->setNdbObjectName("Ndb Binlog data change monitoring") ||
+      i_ndb->setNdbObjectName("data change monitoring") ||
       i_ndb->init())
   {
     log_error("Creating injector Ndb object failed");
     goto err;
   }
-  log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
-                      i_ndb->getReference(), i_ndb->getNdbObjectName());
+  log_verbose(49, "Created injector Ndb object, reference: 0x%x, name: '%s'",
+              i_ndb->getReference(), i_ndb->getNdbObjectName());
 
   /* Set free percent event buffer needed to resume buffering */
   if (i_ndb->set_eventbuffer_free_percent(opt_ndb_eventbuffer_free_percent))
   {
-    log_error("Setting ventbuffer free percent failed");
+    log_error("Setting eventbuffer free percent failed");
     goto err;
   }
 
   log_verbose(10, "Exposing global references");
   /*
-    Expose global reference to our ndb object.
+    Expose global reference to our Ndb object.
 
     Used by both sql client thread and binlog thread to interact
     with the storage
