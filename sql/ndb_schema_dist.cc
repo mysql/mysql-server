@@ -195,8 +195,8 @@ Ndb_schema_dist_client::~Ndb_schema_dist_client()
   which is unique in this node.
 */
 static std::atomic<uint32> schema_dist_id_sequence{0};
-int Ndb_schema_dist_client::unique_id() {
-  int id = ++schema_dist_id_sequence;
+uint32 Ndb_schema_dist_client::unique_id() const {
+  uint32 id = ++schema_dist_id_sequence;
   // Handle wraparound
   if (id == 0) {
     id = ++schema_dist_id_sequence;
@@ -210,17 +210,16 @@ int Ndb_schema_dist_client::unique_id() {
   does not have any global version from NDB. Use own nodeid
   which is unique in NDB.
 */
-int Ndb_schema_dist_client::unique_version() const {
-  Thd_ndb* thd_ndb = get_thd_ndb(m_thd);
-  const int ver = thd_ndb->connection->node_id();
+uint32 Ndb_schema_dist_client::unique_version() const {
+  const uint32 ver = m_thd_ndb->connection->node_id();
   DBUG_ASSERT(ver != 0);
   return ver;
 }
 
 bool Ndb_schema_dist_client::log_schema_op(const char* query,
                                            size_t query_length, const char* db,
-                                           const char* table_name, int id,
-                                           int version, SCHEMA_OP_TYPE type,
+                                           const char* table_name, uint32 id,
+                                           uint32 version, SCHEMA_OP_TYPE type,
                                            bool log_query_on_participant) {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op");
   DBUG_ASSERT(db && table_name);
@@ -268,9 +267,8 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   }
 
   const int result = log_schema_op_impl(
-      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name,
-      static_cast<uint32>(id), static_cast<uint32>(version), type,
-      log_query_on_participant);
+      m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name, id,
+      version, type, log_query_on_participant);
   if (result != 0) {
     // Schema distribution failed
     m_thd_ndb->push_warning("Schema distribution failed!");
