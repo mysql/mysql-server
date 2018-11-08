@@ -451,8 +451,6 @@ Command::Result Command::cmd_recverror(std::istream &input,
                                        const std::string &args) {
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError xerror;
-  Message_ptr msg(
-      context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
   if (args.empty()) {
     context->print_error(
@@ -460,30 +458,37 @@ Command::Result Command::cmd_recverror(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  if (msg.get()) {
-    bool failed = false;
-    try {
-      const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
-      if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
-          expected_error_code !=
-              static_cast<int>(
-                  static_cast<Mysqlx::Error *>(msg.get())->code())) {
-        context->print_error(context->m_script_stack, "Was expecting Error ",
-                             args, ", but got:\n");
-        failed = true;
-      } else {
-        context->print("Got expected error:\n");
-      }
+  Message_ptr msg(
+      context->session()->get_protocol().recv_single_message(&msgid, &xerror));
 
-      context->print(*msg, "\n");
+  if (nullptr == msg.get()) {
+    context->print_error(context->m_script_stack, "Was expecting Error ", args,
+                         ", but got I/O error:", xerror.error(),
+                         ", message:", xerror.what(), "\n");
+    return Result::Stop_with_failure;
+  }
 
-      if (failed && context->m_options.m_fatal_errors) {
-        return Result::Stop_with_success;
-      }
-    } catch (std::exception &e) {
-      context->print_error_red(context->m_script_stack, e, '\n');
-      if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
+  bool failed = false;
+  try {
+    const int expected_error_code = mysqlxtest::get_error_code_by_text(args);
+    if (msg->GetDescriptor()->full_name() != "Mysqlx.Error" ||
+        expected_error_code !=
+            static_cast<int>(static_cast<Mysqlx::Error *>(msg.get())->code())) {
+      context->print_error(context->m_script_stack, "Was expecting Error ",
+                           args, ", but got:\n");
+      failed = true;
+    } else {
+      context->print("Got expected error:\n");
     }
+
+    context->print(*msg, "\n");
+
+    if (failed && context->m_options.m_fatal_errors) {
+      return Result::Stop_with_success;
+    }
+  } catch (std::exception &e) {
+    context->print_error_red(context->m_script_stack, e, '\n');
+    if (context->m_options.m_fatal_errors) return Result::Stop_with_success;
   }
 
   return Result::Continue;
