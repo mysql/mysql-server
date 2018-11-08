@@ -251,7 +251,7 @@ Ndb_event_data* Ndb_event_data::create_event_data(
 
 void Ndb_event_data::destroy(const Ndb_event_data* event_data)
 {
-  DBUG_ENTER("delete_event_data");
+  DBUG_ENTER("Ndb_event_data::destroy");
 
   delete event_data;
 
