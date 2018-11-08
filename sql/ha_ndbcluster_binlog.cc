@@ -2993,7 +2993,7 @@ public:
   {
     const uint own_nodeid = cluster_connection->node_id();
 
-    // Initialize "g_node_id_map" which maps from nodeid to index in
+    // Initialize "m_data_node_id_list" which maps from nodeid to index in
     // subscriber bitmaps array. The mapping array is only used when
     // the NDB binlog thread handles events on the mysql.ndb_schema table
     uint node_id, i= 0;
