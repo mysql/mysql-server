@@ -18755,6 +18755,9 @@ ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED
 ER_SERVER_UPGRADE_FROM_VERSION
   eng "MySQL server upgrading from version '%u' to '%u'."
 
+ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL
+  eng "The certification information could not be set in this server: '%s'"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
