@@ -516,7 +516,7 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
      To avoid this, we  now instead encode an error that will make the joiner
      leave the group.
   */
-  if (event_size > slave_max_allowed_packet) {
+  if (event_size > get_slave_max_allowed_packet()) {
     cert_info.clear();
     cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
         "Certification information is too large for transmission.";

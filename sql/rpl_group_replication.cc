@@ -384,3 +384,7 @@ bool is_gtid_committed(const Gtid &gtid) {
   global_sid_lock->unlock();
   return result;
 }
+
+unsigned long get_slave_max_allowed_packet() {
+  return slave_max_allowed_packet;
+}
