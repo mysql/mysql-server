@@ -8222,8 +8222,8 @@ my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) {
   return decimal_value;
 }
 
-longlong Field_enum::val_int() {
-  ASSERT_COLUMN_MARKED_FOR_READ;
+// Utility function used by ::val_int() and ::cmp()
+static longlong enum_val_int(const uchar *ptr, uint packlength) {
   switch (packlength) {
     case 1:
       return (longlong)ptr[0];
@@ -8263,6 +8263,11 @@ longlong Field_enum::val_int() {
   return 0;  // impossible
 }
 
+longlong Field_enum::val_int() {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  return enum_val_int(ptr, packlength);
+}
+
 /**
    Save the field metadata for enum fields.
 
@@ -8292,12 +8297,8 @@ String *Field_enum::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
 }
 
 int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr) {
-  uchar *old = ptr;
-  ptr = (uchar *)a_ptr;
-  ulonglong a = Field_enum::val_int();
-  ptr = (uchar *)b_ptr;
-  ulonglong b = Field_enum::val_int();
-  ptr = old;
+  const longlong a = enum_val_int(a_ptr, packlength);
+  const longlong b = enum_val_int(b_ptr, packlength);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
