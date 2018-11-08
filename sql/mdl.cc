@@ -4441,7 +4441,7 @@ void MDL_context::release_transactional_locks() {
 }
 
 void MDL_context::release_statement_locks() {
-  DBUG_ENTER("MDL_context::release_transactional_locks");
+  DBUG_ENTER("MDL_context::release_statement_locks");
   release_locks_stored_before(MDL_STATEMENT, NULL);
   DBUG_VOID_RETURN;
 }
