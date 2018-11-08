@@ -1155,10 +1155,10 @@ public:
       const char* separator = "";
       for (unsigned j = 0; j < fk.getChildColumnCount(); j++)
       {
-        unsigned no = fk.getChildColumnNo(j);
+        const int child_col_index = fk.getChildColumnNo(j);
         fk_string.append(separator);
         fk_string.append("`");
-        fk_string.append(childtab->getColumn(no)->getName());
+        fk_string.append(childtab->getColumn(child_col_index)->getName());
         fk_string.append("`");
         separator = ",";
       }
@@ -1190,10 +1190,10 @@ public:
       const char* separator = "";
       for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
       {
-        unsigned no = fk.getParentColumnNo(j);
+        const int parent_col_index = fk.getParentColumnNo(j);
         fk_string.append(separator);
         fk_string.append("`");
-        fk_string.append(parenttab->getColumn(no)->getName());
+        fk_string.append(parenttab->getColumn(parent_col_index)->getName());
         fk_string.append("`");
         separator = ",";
       }
@@ -2396,8 +2396,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
         const NDBCOL * cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
         for (unsigned j= 0; j < fk.getParentColumnCount(); j++)
         {
-          unsigned no= fk.getParentColumnNo(j);
-          const NDBCOL * orgcol = srctab.get_table()->getColumn(no);
+          const int parent_col_index = fk.getParentColumnNo(j);
+          const NDBCOL * orgcol = srctab.get_table()->getColumn(parent_col_index);
           cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getParentColumnCount()]= 0;
@@ -2455,8 +2455,8 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
         const NDBCOL * cols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
         for (unsigned j= 0; j < fk.getChildColumnCount(); j++)
         {
-          unsigned no= fk.getChildColumnNo(j);
-          const NDBCOL * orgcol = srctab.get_table()->getColumn(no);
+          const int child_col_index = fk.getChildColumnNo(j);
+          const NDBCOL * orgcol = srctab.get_table()->getColumn(child_col_index);
           cols[j]= dsttab.get_table()->getColumn(orgcol->getName());
         }
         cols[fk.getChildColumnCount()]= 0;
