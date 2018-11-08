@@ -297,3 +297,67 @@ CHARACTER SET utf8mb4)
 BEGIN
 END;
 
+--echo #
+--echo # Bug#28777704, Bug#28769996,  Field_enum::cmp() hit ASSERT_COLUMN_MARKED_FOR_READ
+--echo #
+
+set session optimizer_switch="derived_merge=off";
+set session internal_tmp_mem_storage_engine=temptable;
+
+#Testcase as reported in bug#28777704
+--disable_result_log
+show function status;
+
+#Failure point is the following select from the view ROUTINES:
+select ROUTINE_SCHEMA, ROUTINE_NAME, ROUTINE_TYPE
+  from INFORMATION_SCHEMA.ROUTINES
+  where ROUTINE_TYPE = 'FUNCTION'
+  order by  ROUTINE_SCHEMA, ROUTINE_NAME;
+--enable_result_log
+
+set session internal_tmp_mem_storage_engine=default;
+set session optimizer_switch="derived_merge=default";
+
+#During debugging, similar problems were found with the more
+#to-the-point testcase:
+
+CREATE TABLE grants (
+  USER char(32),
+  HOST char(60),
+  PRIV char(32),
+  WITH_GRANT_OPTION enum('N','Y'),
+  PRIMARY KEY (WITH_GRANT_OPTION,`USER`,`HOST`, `PRIV`)
+) engine innodb;
+
+insert into grants values ('mysql.session','localhost','PERSIST_RO_VARIABLES_ADMIN','N');
+insert into grants values ('mysql.session','localhost','SESSION_VARIABLES_ADMIN','N');
+insert into grants values ('mysql.session','localhost','SYSTEM_VARIABLES_ADMIN','N');
+insert into grants values ('root','localhost','AXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','BXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','CXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','DXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','EXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','FXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','GXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','HXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','IXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','JXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','KXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','LXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','MXA_RECOVER_ADMIN','Y');
+insert into grants values ('root','localhost','XA_RECOVER_ADMIN','Y');
+analyze table grants;
+
+#
+# In this test case, it is the default handler implementation of
+# handler::read_range_first() which access 'priv' in compare_key(priv = 'XA_RECOVER_ADMIN').
+# As 'priv' is not in the read_set required by count(*), Field_enum::cmp()
+# called by compare_key, will hit ASSERT_COLUMN_MARKED_FOR_READ
+#
+# Verify that query plan is 'Using index for skip scan'
+EXPLAIN SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
+
+SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
+
+drop table grants;
+
