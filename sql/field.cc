@@ -8223,14 +8223,15 @@ my_decimal *Field_enum::val_decimal(my_decimal *decimal_value) {
 }
 
 // Utility function used by ::val_int() and ::cmp()
-static longlong enum_val_int(const uchar *ptr, uint packlength) {
+static longlong enum_val_int(const uchar *ptr, uint packlength,
+                             bool low_byte_first MY_ATTRIBUTE((unused))) {
   switch (packlength) {
     case 1:
       return (longlong)ptr[0];
     case 2: {
       uint16 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
         tmp = sint2korr(ptr);
       else
 #endif
@@ -8242,7 +8243,7 @@ static longlong enum_val_int(const uchar *ptr, uint packlength) {
     case 4: {
       uint32 tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
         tmp = uint4korr(ptr);
       else
 #endif
@@ -8252,7 +8253,7 @@ static longlong enum_val_int(const uchar *ptr, uint packlength) {
     case 8: {
       longlong tmp;
 #ifdef WORDS_BIGENDIAN
-      if (table->s->db_low_byte_first)
+      if (low_byte_first)
         tmp = sint8korr(ptr);
       else
 #endif
@@ -8265,7 +8266,7 @@ static longlong enum_val_int(const uchar *ptr, uint packlength) {
 
 longlong Field_enum::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  return enum_val_int(ptr, packlength);
+  return enum_val_int(ptr, packlength, table->s->db_low_byte_first);
 }
 
 /**
@@ -8297,8 +8298,10 @@ String *Field_enum::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
 }
 
 int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr) {
-  const longlong a = enum_val_int(a_ptr, packlength);
-  const longlong b = enum_val_int(b_ptr, packlength);
+  const longlong a =
+      enum_val_int(a_ptr, packlength, table->s->db_low_byte_first);
+  const longlong b =
+      enum_val_int(b_ptr, packlength, table->s->db_low_byte_first);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
