@@ -4056,7 +4056,7 @@ class View_change_log_event : public binary_log::View_change_event,
      might render the log even invalid. Also due to its size doing it
      here avoid looping over the data multiple times.
 
-     @param[in] cert_info    certification info to be written
+     @param[in] info    certification info to be written
      @param[out] event_size  the event size after this operation
    */
   void set_certification_info(std::map<std::string, std::string> *info,
