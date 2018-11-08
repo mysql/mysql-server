@@ -2438,10 +2438,6 @@ public:
          if (ndb_apply_table__create(m_thd))
            break;
        }
-       /*
-          NOTE! Failure to create APPLY_TABLE eventOp is retried
-          by find_all_files(), and eventually failed.
-       */
 
        if (find_all_databases(m_thd, m_thd_ndb))
          break;
