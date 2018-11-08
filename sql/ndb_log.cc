@@ -120,15 +120,11 @@ void
 ndb_log_detect_prefix(const char* fmt,
                       const char** prefix, const char** fmt_start)
 {
-  DBUG_ENTER("ndb_log_detect_prefix");
-  DBUG_PRINT("enter", ("fmt: '%s'", fmt));
-
   // Check if string starts with "NDB <subsystem>:" by reading
   // at most 15 chars whithout colon, then a colon and space
   char subsystem[16], colon[2];
   if (sscanf(fmt, "NDB %15[^:]%1[:] ", subsystem, colon) == 2)
   {
-    DBUG_PRINT("info",("detected subsystem: '%s'", subsystem));
     static
     const char* allowed_prefixes[] =
     {
@@ -143,8 +139,6 @@ ndb_log_detect_prefix(const char* fmt,
     {
       const char* allowed_prefix = allowed_prefixes[i];
 
-      DBUG_PRINT("info", ("checking allowed_prefix: '%s'",
-                          allowed_prefix));
       if (strncmp(subsystem, allowed_prefix, strlen(allowed_prefix)) == 0)
       {
         // String started with an allowed subsystem prefix, return
@@ -154,9 +148,7 @@ ndb_log_detect_prefix(const char* fmt,
                      4 + /* "NDB " */
                      strlen(allowed_prefix) +
                      2; /* ": " */
-        DBUG_PRINT("info", ("Found! Returning prefix: '%s', fmt_start: '%s'",
-                            *prefix, *fmt_start));
-        DBUG_VOID_RETURN;
+        return;
       }
     }
     // Used subsystem prefix not in allowed list, caller should
@@ -176,7 +168,7 @@ ndb_log_detect_prefix(const char* fmt,
   // this would be the default case
   *prefix = NULL;
   *fmt_start = fmt;
-  DBUG_VOID_RETURN;
+  return;
 }
 
 void
