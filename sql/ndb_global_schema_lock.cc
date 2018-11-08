@@ -218,8 +218,6 @@ private:
   const char *m_proc_info;
 };
 
-
-#include "sql/derror.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_thd.h"
 #include "sql/ndb_thd_ndb.h"
@@ -306,10 +304,12 @@ ndbcluster_global_schema_lock(THD *thd,
   }
   else if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
-                        ndb_error.code, ndb_error.message,
-                        "NDB. Could not acquire global schema lock");
+    if (ndb_thd_is_background_thread(thd)) {
+      // Don't push any warning when background thread fail to acquire GSL
+    } else {
+      thd_ndb->push_ndb_error_warning(ndb_error);
+      thd_ndb->push_warning("Could not acquire global schema lock");
+    }
   }
   thd_ndb->global_schema_lock_error= ndb_error.code ? ndb_error.code : -1;
   DBUG_RETURN(-1);
@@ -321,16 +321,17 @@ int
 ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  DBUG_ASSERT(thd_ndb != 0);
   if (unlikely(thd_ndb == NULL))
   {
     return 0;
   }
-  else if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
+
+  if (thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT))
   {
     ndb_set_gsl_participant(NULL);
     return 0;
   }
+
   Ndb *ndb= thd_ndb->ndb;
   DBUG_ENTER("ndbcluster_global_schema_unlock");
   NdbTransaction *trans= thd_ndb->global_schema_lock_trans;
@@ -357,11 +358,8 @@ ndbcluster_global_schema_unlock(THD *thd)
     {
       ndb_log_warning("Failed to release global schema lock, error: (%d)%s",
                       ndb_error.code, ndb_error.message);
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
-                          ndb_error.code,
-                          ndb_error.message,
-                          "ndb. Releasing global schema lock");
+      thd_ndb->push_ndb_error_warning(ndb_error);
+      thd_ndb->push_warning("Failed to release global schema lock");
       DBUG_RETURN(-1);
     }
 

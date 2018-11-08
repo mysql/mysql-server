@@ -85,4 +85,11 @@ size_t ndb_thd_query_length(const THD* thd);
 */
 bool ndb_thd_is_binlog_thread(const class THD* thd);
 
+/*
+ @brief Check if THD is a "background thread"
+
+ @return true if thread matches condition
+*/
+bool ndb_thd_is_background_thread(const class THD* thd);
+
 #endif

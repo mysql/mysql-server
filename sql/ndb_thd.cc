@@ -98,3 +98,8 @@ bool ndb_thd_is_binlog_thread(const THD* thd)
 {
   return thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 }
+
+bool ndb_thd_is_background_thread(const THD* thd)
+{
+  return thd->system_thread == SYSTEM_THREAD_BACKGROUND;
+}
