@@ -59,7 +59,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#define pid_t DWORD
+typedef int pid_t; /* getpid() */
 #endif
 
 namespace mysql_harness {

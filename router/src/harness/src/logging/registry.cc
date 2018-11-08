@@ -23,8 +23,8 @@
 */
 
 #ifdef _WIN32
+#include <process.h>  // getpid()
 #include <windows.h>
-#define getpid GetCurrentProcessId
 #endif
 
 #include "my_compiler.h"
