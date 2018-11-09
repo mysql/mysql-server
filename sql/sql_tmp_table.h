@@ -44,16 +44,11 @@ class Field;
 class KEY;
 class SJ_TMP_TABLE;
 class THD;
-struct MI_COLUMNDEF;
 struct ORDER;
 struct TABLE;
 template <class T>
 class List;
 
-enum enum_internal_tmp_disk_storage_engine {
-  TMP_TABLE_MYISAM,
-  TMP_TABLE_INNODB
-};
 enum enum_internal_tmp_mem_storage_engine {
   TMP_TABLE_MEMORY,
   TMP_TABLE_TEMPTABLE
@@ -68,16 +63,12 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                                     bool is_virtual = true,
                                     ulonglong select_options = 0,
                                     const char *alias = NULL);
-bool create_ondisk_from_heap(THD *thd, TABLE *table,
-                             MI_COLUMNDEF *start_recinfo,
-                             MI_COLUMNDEF **recinfo, int error,
+bool create_ondisk_from_heap(THD *thd, TABLE *table, int error,
                              bool ignore_last_dup, bool *is_duplicate);
 void free_tmp_table(THD *thd, TABLE *entry);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
-bool instantiate_tmp_table(THD *thd, TABLE *table, KEY *keyinfo,
-                           MI_COLUMNDEF *start_recinfo, MI_COLUMNDEF **recinfo,
-                           ulonglong options, bool big_tables);
+bool instantiate_tmp_table(THD *thd, TABLE *table);
 Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         Func_ptr_array *copy_func, Field **from_field,
                         Field **default_field, bool group, bool modify_item,

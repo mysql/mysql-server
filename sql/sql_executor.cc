@@ -501,9 +501,7 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
       TABLE *table_arg = qep_tab->table();
       if ((write_error = table_arg->file->ha_write_row(table_arg->record[0]))) {
-        if (create_ondisk_from_heap(
-                thd, table_arg, tmp_table_param.start_recinfo,
-                &tmp_table_param.recinfo, write_error, false, NULL))
+        if (create_ondisk_from_heap(thd, table_arg, write_error, false, NULL))
           return true;
       }
     }
@@ -726,9 +724,7 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
     if ((error = table->file->ha_write_row(table->record[0]))) {
       /* create_ondisk_from_heap will generate error if needed */
       if (!table->file->is_ignorable_error(error)) {
-        if (create_ondisk_from_heap(thd, table, sjm->table_param.start_recinfo,
-                                    &sjm->table_param.recinfo, error, true,
-                                    NULL))
+        if (create_ondisk_from_heap(thd, table, error, true, NULL))
           DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
         /* Initialize the index, since create_ondisk_from_heap does
            not replicate the earlier index initialization */
@@ -1707,8 +1703,8 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
       Other error than duplicate error: Attempt to create a temporary table.
     */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, sjtbl->tmp_table, sjtbl->start_recinfo,
-                                &sjtbl->recinfo, error, true, &is_duplicate))
+    if (create_ondisk_from_heap(thd, sjtbl->tmp_table, error, true,
+                                &is_duplicate))
       DBUG_RETURN(-1);
     DBUG_RETURN(is_duplicate ? 1 : 0);
   }
@@ -3745,9 +3741,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, t, w->frame_buffer_param()->start_recinfo,
-                                &w->frame_buffer_param()->recinfo, error, true,
-                                &is_duplicate))
+    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate))
       DBUG_RETURN(-1);
 
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
@@ -5109,8 +5103,7 @@ static inline enum_nested_loop_state write_or_send_row(
       QEP_tmp_table::prepare_tmp_table() but we may have a set of buffered
       rows to write before such function is executed.
     */
-    if (create_ondisk_from_heap(join->thd, table, out_tbl->start_recinfo,
-                                &out_tbl->recinfo, error, true, NULL) ||
+    if (create_ondisk_from_heap(join->thd, table, error, true, NULL) ||
         (table->hash_field && table->file->ha_index_init(0, 0)))
       return NESTED_LOOP_ERROR;  // Not a table_is_full error
   }
@@ -5157,8 +5150,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
 
       if ((error = table->file->ha_write_row(table->record[0]))) {
         if (table->file->is_ignorable_error(error)) goto end;
-        if (create_ondisk_from_heap(join->thd, table, tmp_tbl->start_recinfo,
-                                    &tmp_tbl->recinfo, error, true, NULL))
+        if (create_ondisk_from_heap(join->thd, table, error, true, NULL))
           DBUG_RETURN(NESTED_LOOP_ERROR);  // Not a table_is_full error
       }
       if (++qep_tab->send_records >= tmp_tbl->end_write_records &&
@@ -5516,8 +5508,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   }
   init_tmptable_sum_functions(join->sum_funcs);
   if ((error = table->file->ha_write_row(table->record[0]))) {
-    if (create_ondisk_from_heap(join->thd, table, tmp_tbl->start_recinfo,
-                                &tmp_tbl->recinfo, error, false, NULL))
+    if (create_ondisk_from_heap(join->thd, table, error, false, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);  // Not a table_is_full error
     /* Change method to update rows */
     if ((error = table->file->ha_index_init(0, 0))) {
@@ -5579,9 +5570,8 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
                          join->sum_funcs_end[join->send_group_parts]);
           if (having_is_true(qep_tab->having)) {
             int error = table->file->ha_write_row(table->record[0]);
-            if (error && create_ondisk_from_heap(
-                             join->thd, table, tmp_tbl->start_recinfo,
-                             &tmp_tbl->recinfo, error, false, NULL))
+            if (error &&
+                create_ondisk_from_heap(join->thd, table, error, false, NULL))
               DBUG_RETURN(NESTED_LOOP_ERROR);
           }
           if (join->rollup.state != ROLLUP::STATE_NONE) {
@@ -6432,11 +6422,7 @@ bool QEP_tmp_table::prepare_tmp_table() {
   int rc = 0;
 
   if (!table->is_created()) {
-    if (instantiate_tmp_table(join->thd, table, tmp_tbl->keyinfo,
-                              tmp_tbl->start_recinfo, &tmp_tbl->recinfo,
-                              join->select_lex->active_options(),
-                              join->thd->variables.big_tables))
-      DBUG_RETURN(true);
+    if (instantiate_tmp_table(join->thd, table)) DBUG_RETURN(true);
     empty_record(table);
   }
   /* If it wasn't already, start index scan for grouping using table index. */

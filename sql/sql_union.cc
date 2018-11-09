@@ -96,9 +96,7 @@ bool Query_result_union::send_data(THD *thd, List<Item> &values) {
   // create_ondisk_from_heap will generate error if needed
   if (!table->file->is_ignorable_error(error)) {
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, table, tmp_table_param.start_recinfo,
-                                &tmp_table_param.recinfo, error, true,
-                                &is_duplicate))
+    if (create_ondisk_from_heap(thd, table, error, true, &is_duplicate))
       return true; /* purecov: inspected */
     // Table's engine changed, index is not initialized anymore
     if (table->hash_field) table->file->ha_index_init(0, false);
@@ -655,14 +653,6 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
     }
     ulonglong create_options =
         first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
-    /*
-      Force the temporary table to be a MyISAM table if we're going to use
-      fulltext functions (MATCH ... AGAINST .. IN BOOLEAN MODE) when reading
-      from it (this should be removed when fulltext search is moved
-      out of MyISAM).
-    */
-    if (fake_select_lex && fake_select_lex->ftfunc_list->elements)
-      create_options |= TMP_TABLE_FORCE_MYISAM;
 
     if (union_result->create_result_table(
             thd, &types, union_distinct != nullptr, create_options, "", false,

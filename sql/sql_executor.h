@@ -55,7 +55,6 @@ class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
 struct CACHE_FIELD;
-struct MI_COLUMNDEF;
 struct POSITION;
 struct st_join_table;
 template <class T>
@@ -148,13 +147,6 @@ class SJ_TMP_TABLE {
 
   /* The temporary table itself (NULL means not created yet) */
   TABLE *tmp_table;
-
-  /*
-    These are the members we got from temptable creation code. We'll need
-    them if we'll need to convert table from HEAP to MyISAM/Maria.
-  */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF *recinfo;
 
   /* Pointer to next table (next->start_idx > this->end_idx) */
   SJ_TMP_TABLE *next;

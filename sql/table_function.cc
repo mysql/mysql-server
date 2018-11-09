@@ -73,8 +73,7 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(thd, table, nullptr, nullptr, error, true,
-                                nullptr))
+        create_ondisk_from_heap(thd, table, error, true, nullptr))
       return true;  // Not a table_is_full error
   }
   return false;

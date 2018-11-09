@@ -1,4 +1,3 @@
-set global internal_tmp_disk_storage_engine = MyISAM;
 CREATE TABLE tab(a BIGINT PRIMARY KEY,c1 TINYTEXT,c2 TEXT,c3 MEDIUMTEXT,
 c4 TINYBLOB,c5 BLOB,c6 MEDIUMBLOB,c7 LONGBLOB) charset latin1 ENGINE=InnoDB STATS_PERSISTENT=0;
 CREATE INDEX index1 ON tab(c1(255)) COMMENT 'Check index level merge MERGE_THRESHOLD=51';

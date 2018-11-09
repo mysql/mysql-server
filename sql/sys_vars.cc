@@ -122,7 +122,7 @@
 #include "sql/sql_lex.h"
 #include "sql/sql_locale.h"     // my_locale_by_number
 #include "sql/sql_parse.h"      // killall_non_super_threads
-#include "sql/sql_tmp_table.h"  // internal_tmp_disk_storage_engine
+#include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -4581,13 +4581,6 @@ static Sys_var_plugin Sys_default_storage_engine(
     SESSION_VAR(table_plugin), NO_CMD_LINE, MYSQL_STORAGE_ENGINE_PLUGIN,
     DEFAULT(&default_storage_engine), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_storage_engine));
-
-const char *internal_tmp_disk_storage_engine_names[] = {"MyISAM", "InnoDB", 0};
-static Sys_var_enum Sys_internal_tmp_disk_storage_engine(
-    "internal_tmp_disk_storage_engine",
-    "The default storage engine for on-disk internal temporary tables.",
-    GLOBAL_VAR(internal_tmp_disk_storage_engine), CMD_LINE(OPT_ARG),
-    internal_tmp_disk_storage_engine_names, DEFAULT(TMP_TABLE_INNODB));
 
 const char *internal_tmp_mem_storage_engine_names[] = {"MEMORY", "TempTable",
                                                        0};

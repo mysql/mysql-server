@@ -2281,20 +2281,6 @@ SELECT AVG(a), SUM(a) OVER () FROM t;
 
 DROP TABLE t;
 
-#Bug#25420638 : PROBLEM WHEN USING MYISAM FOR INTERNAL TEMP TABLE
-
-set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
-set global internal_tmp_disk_storage_engine='myisam';
-set @old_big_tables= @@big_tables;
-set big_tables= on;
-
-CREATE TABLE t(a int, b int);
-INSERT INTO t VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
-SELECT a,b,NTILE(2) OVER (ORDER BY b) FROM t;
-DROP TABLE t;
-
-set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
-set big_tables= @old_big_tables;
 
 --echo
 --echo Bug#25643783 EXPRESSION INVOLVING WF WITH GROUPED AGGREGATE ARG GIVES WRONG VALUE

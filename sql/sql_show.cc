@@ -2517,11 +2517,7 @@ extern ST_SCHEMA_TABLE schema_tables[];
 bool schema_table_store_record(THD *thd, TABLE *table) {
   int error;
   if ((error = table->file->ha_write_row(table->record[0]))) {
-    Temp_table_param *param = table->pos_in_table_list->schema_table_param;
-
-    if (create_ondisk_from_heap(thd, table, param->start_recinfo,
-                                &param->recinfo, error, false, NULL))
-      return true;
+    if (create_ondisk_from_heap(thd, table, error, false, NULL)) return true;
   }
   return false;
 }
@@ -2555,10 +2551,7 @@ int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk) {
   @return false on success, true on error.
 */
 bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error) {
-  Temp_table_param *param = table->pos_in_table_list->schema_table_param;
-
-  return (create_ondisk_from_heap(thd, table, param->start_recinfo,
-                                  &param->recinfo, error, false, NULL));
+  return (create_ondisk_from_heap(thd, table, error, false, NULL));
 }
 
 /**

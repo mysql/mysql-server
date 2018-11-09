@@ -2153,9 +2153,8 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       /* Write row, ignoring duplicated updates to a row */
       error = tmp_table->file->ha_write_row(tmp_table->record[0]);
       if (error != HA_ERR_FOUND_DUPP_KEY && error != HA_ERR_FOUND_DUPP_UNIQUE) {
-        if (error && create_ondisk_from_heap(
-                         thd, tmp_table, tmp_table_param[offset].start_recinfo,
-                         &tmp_table_param[offset].recinfo, error, true, NULL)) {
+        if (error &&
+            create_ondisk_from_heap(thd, tmp_table, error, true, NULL)) {
           update_completed = true;
           DBUG_RETURN(true);  // Not a table_is_full error
         }

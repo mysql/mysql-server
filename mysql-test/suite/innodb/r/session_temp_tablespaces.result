@@ -306,7 +306,7 @@ explain format = json select b, count(a), sum(a), avg(a), std(a),
 min(a), max(a), bit_and(a), bit_or(a) from t1 group by b;
 select b, count(a), sum(a), avg(a), std(a), min(a),
 max(a), bit_and(a), bit_or(a) from t1 group by b;
-select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_disk_storage_engine';
+select sql_big_result * from performance_schema.global_variables where variable_name like 'internal_tmp_mem_storage_engine';
 select 1 union distinct select 1 union all select 1;
 select alias1.`col_int_key` AS field1 from (t8 as alias1) where (5) in
 (select 7 union select 1) order by alias1.`col_varchar_key` asc;

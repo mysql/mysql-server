@@ -41,7 +41,6 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/mem_root_array.h"
-#include "sql/mysqld.h"     // internal_tmp_disk_storage_engine
 #include "sql/opt_trace.h"  // opt_trace_disable_etc
 #include "sql/query_options.h"
 #include "sql/sql_base.h"  // EXTRA_RECORD
@@ -63,7 +62,6 @@
 #include "thr_lock.h"
 
 class Opt_trace_context;
-struct MI_COLUMNDEF;
 
 /**
    Produces, from the first tmp TABLE object, a clone TABLE object for
@@ -529,12 +527,6 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 
   if (table == NULL) {
     // Create the result table for the materialization
-    if (m_common_table_expr &&
-        internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
-      my_error(ER_SWITCH_TMP_ENGINE, MYF(0),
-               "Materialization of a Common Table Expression");
-      DBUG_RETURN(true);
-    }
     ulonglong create_options =
         derived->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
@@ -657,11 +649,6 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   if (table_function->init()) DBUG_RETURN(true);
 
   // Create the result table for the materialization
-  if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
-    my_error(ER_SWITCH_TMP_ENGINE, MYF(0), "Table function");
-    DBUG_RETURN(true);
-  }
-
   if (table_function->create_result_table(0LL, alias))
     DBUG_RETURN(true); /* purecov: inspected */
   table = table_function->table;
@@ -743,10 +730,9 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
 bool TABLE_LIST::create_materialized_table(THD *thd) {
   DBUG_ENTER("TABLE_LIST::create_materialized_table");
 
-  SELECT_LEX_UNIT *const unit = is_table_function() ? NULL : derived_unit();
-
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT((unit || is_table_function()) && uses_materialization() && table);
+  DBUG_ASSERT((is_table_function() || derived_unit()) &&
+              uses_materialization() && table);
 
   if (!table->is_created()) {
     Derived_refs_iterator it(this);
@@ -780,22 +766,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
     DBUG_RETURN(false);
   }
   /* create tmp table */
-  MI_COLUMNDEF *start_recinfo;
-  MI_COLUMNDEF **recinfo;
-  if (!is_table_function()) {
-    Query_result_union *result = (Query_result_union *)unit->query_result();
-    start_recinfo = result->tmp_table_param.start_recinfo;
-    recinfo = &result->tmp_table_param.recinfo;
-  } else {
-    start_recinfo = NULL;
-    recinfo = NULL;
-  }
-
-  ulonglong options =
-      thd->lex->select_lex->active_options() | TMP_TABLE_ALL_COLUMNS |
-      (is_table_function() ? 0 : unit->first_select()->active_options());
-  if (instantiate_tmp_table(thd, table, table->key_info, start_recinfo, recinfo,
-                            options, thd->variables.big_tables))
+  if (instantiate_tmp_table(thd, table))
     DBUG_RETURN(true); /* purecov: inspected */
 
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);

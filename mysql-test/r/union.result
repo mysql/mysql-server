@@ -1764,32 +1764,21 @@ a
 EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary; Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by (match `a` against ('+abc' in boolean mode))
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 # Should not crash
 WITH cte AS (
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE)
 ) SELECT * FROM cte;
-a
-1
-2
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 # Should not crash
 SELECT * FROM t1 UNION SELECT * FROM t1
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
-a
-1
-2
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 # Should not crash
 (SELECT * FROM t1) UNION (SELECT * FROM t1)
 ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
-a
-1
-2
+ERROR HY000: The used table type doesn't support FULLTEXT indexes
 # Should not crash
 EXPLAIN
 SELECT * FROM t1 UNION SELECT * FROM t1
@@ -2170,8 +2159,6 @@ DROP TABLE t1, t2;
 # Bug #19471564 WL#6737:IN-CONSISTENT DATA-TYPE FOR GEOMETRY TYPES WHILE
 # PROJECTING DERIVED TBL.
 #
-SET @tmp=@@internal_tmp_disk_storage_engine;
-SET GLOBAL internal_tmp_disk_storage_engine=InnoDB;
 CREATE TABLE t1(g GEOMETRY, p POINT, l LINESTRING);
 INSERT INTO t1 (p, l) VALUES (ST_GeomFromText('POINT(1 1)'),
 ST_GeomFromText('LINESTRING(0 0,1 1,2 2)'));
@@ -2187,7 +2174,6 @@ t2	CREATE TABLE `t2` (
   `a` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
-SET GLOBAL internal_tmp_disk_storage_engine=@tmp;
 CREATE TABLE geometries (
 g GEOMETRY,
 pt POINT,

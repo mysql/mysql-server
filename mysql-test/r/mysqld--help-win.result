@@ -393,9 +393,6 @@ The following options may be given as the first argument:
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
- --internal-tmp-disk-storage-engine[=name] 
- The default storage engine for on-disk internal temporary
- tables.
  --internal-tmp-mem-storage-engine=name 
  The default storage engine for in-memory internal
  temporary tables.
@@ -1440,7 +1437,6 @@ init-slave
 initialize TRUE
 initialize-insecure TRUE
 interactive-timeout 28800
-internal-tmp-disk-storage-engine InnoDB
 internal-tmp-mem-storage-engine TempTable
 join-buffer-size 262144
 keep-files-on-create FALSE

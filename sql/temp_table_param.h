@@ -31,7 +31,6 @@
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 
-struct MI_COLUMNDEF;
 class KEY;
 class Copy_field;
 class Item;
@@ -86,7 +85,6 @@ class Temp_table_param {
 
   uchar *group_buff;
   Func_ptr_array *items_to_copy; /* Fields in tmp table */
-  MI_COLUMNDEF *recinfo, *start_recinfo;
 
   /**
     After temporary table creation, points to an index on the table
@@ -175,8 +173,6 @@ class Temp_table_param {
         copy_fields(Memroot_allocator<Copy_field>(mem_root)),
         group_buff(nullptr),
         items_to_copy(nullptr),
-        recinfo(NULL),
-        start_recinfo(NULL),
         keyinfo(NULL),
         end_write_records(0),
         field_count(0),

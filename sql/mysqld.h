@@ -218,7 +218,6 @@ extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
 extern char *default_tmp_storage_engine;
-extern ulong internal_tmp_disk_storage_engine;
 extern ulonglong temptable_max_ram;
 extern bool using_udf_functions;
 extern bool locked_in_memory;

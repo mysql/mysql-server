@@ -2074,26 +2074,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 set @save_heap_size= @@max_heap_table_size;
 set @@max_heap_table_size= 16384;
-set @saved_engine=@@internal_tmp_disk_storage_engine;
-set global internal_tmp_disk_storage_engine = 'myisam';
-EXPLAIN SELECT COUNT(*)
-FROM t1
-WHERE t1.a NOT IN (
-SELECT t2.a FROM t1 as t2
-);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where 1 having 1 ), <index_lookup>(`test`.`t1`.`a` in <temporary table> on <hash_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))))
-SELECT COUNT(*)
-FROM t1
-WHERE t1.a NOT IN (
-SELECT t2.a FROM t1 as t2
-);
-COUNT(*)
-0
-set global internal_tmp_disk_storage_engine = 'innodb';
 EXPLAIN SELECT COUNT(*)
 FROM t1
 WHERE t1.a NOT IN (
@@ -2112,7 +2092,6 @@ SELECT t2.a FROM t1 as t2
 COUNT(*)
 0
 DROP TABLE t1;
-set global internal_tmp_disk_storage_engine = @saved_engine;
 set @@max_heap_table_size= @save_heap_size;
 #
 # Bug#19805761 ASSERTION FAILURE IN SUBSELECT_HASH_SJ_ENGINE::EXEC WITH SUBQUERY IN LEFT ARGUME

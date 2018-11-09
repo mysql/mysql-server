@@ -897,11 +897,6 @@ bool listen_admin_interface_in_separate_thread;
 static char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
-/**
-   Use to mark which engine should be chosen to create internal
-   temp table
- */
-ulong internal_tmp_disk_storage_engine;
 ulonglong temptable_max_ram;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used = false;

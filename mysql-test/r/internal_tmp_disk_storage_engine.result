@@ -1,6 +1,8 @@
 #
 # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 #
+# NOTE: internal_tmp_disk_storage_engine system variable is removed, WL#11974.
+# So on-disk tmp table engine is always InnoDB now.
 create table t1(a int, b varchar(20));
 create table t2(a int, b varchar(20));
 insert into t1 values(1, 'a'), (2, 'b'), (3, 'c'), (3, 'c'), (4, 'c');
@@ -12,8 +14,6 @@ test.t1	analyze	status	OK
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine;
-set global internal_tmp_disk_storage_engine='innodb';
 set @old_big_tables= @@big_tables;
 set big_tables= on;
 set @old_optimizer_switch= @@optimizer_switch;
@@ -242,47 +242,24 @@ EXPLAIN
     "duplicates_removal": {
       "using_temporary_table": true,
       "using_filesort": false,
-      "buffer_result": {
-        "using_temporary_table": true,
-        "nested_loop": [
-          {
-            "table": {
-              "table_name": "t1",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 5,
-              "rows_produced_per_join": 5,
-              "filtered": "100.00",
-              "cost_info": {
-                "read_cost": "0.25",
-                "eval_cost": "0.50",
-                "prefix_cost": "0.75",
-                "data_read_per_join": "440"
-              },
-              "used_columns": [
-                "a",
-                "b"
-              ]
-            }
-          },
-          {
-            "table": {
-              "table_name": "t2",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 7,
-              "rows_produced_per_join": 35,
-              "filtered": "100.00",
-              "using_join_buffer": "Block Nested Loop",
-              "cost_info": {
-                "read_cost": "0.25",
-                "eval_cost": "3.50",
-                "prefix_cost": "4.50",
-                "data_read_per_join": "3K"
-              },
-              "used_columns": [
-                "a",
-                "b"
-              ]
-            }
+      "nested_loop": [
+        {
+          "table": {
+            "table_name": "t1",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 5,
+            "rows_produced_per_join": 5,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "0.50",
+              "prefix_cost": "0.75",
+              "data_read_per_join": "440"
+            },
+            "used_columns": [
+              "a",
+              "b"
+            ]
           }
         },
         {
@@ -297,7 +274,7 @@ EXPLAIN
               "read_cost": "0.25",
               "eval_cost": "3.50",
               "prefix_cost": "4.50",
-              "data_read_per_join": "1K"
+              "data_read_per_join": "3K"
             },
             "used_columns": [
               "a",
@@ -360,7 +337,7 @@ EXPLAIN
               "read_cost": "0.25",
               "eval_cost": "0.50",
               "prefix_cost": "0.75",
-              "data_read_per_join": "160"
+              "data_read_per_join": "440"
             },
             "used_columns": [
               "b"
@@ -379,7 +356,7 @@ EXPLAIN
               "read_cost": "0.25",
               "eval_cost": "3.50",
               "prefix_cost": "4.50",
-              "data_read_per_join": "1K"
+              "data_read_per_join": "3K"
             }
           }
         }
@@ -445,72 +422,6 @@ EXPLAIN
             }
           }
         ]
-      }
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t2` group by `test`.`t1`.`b`
-select SQL_BIG_RESULT t1.b from t1, t2 group by t1.b order by 1;
-b
-a
-b
-c
-explain format=json select SQL_BIG_RESULT distinct t1.a from t1, t2 group by t1.b;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "4.50"
-    },
-    "duplicates_removal": {
-      "using_temporary_table": true,
-      "using_filesort": false,
-      "grouping_operation": {
-        "using_temporary_table": true,
-        "using_filesort": false,
-        "buffer_result": {
-          "using_temporary_table": true,
-          "nested_loop": [
-            {
-              "table": {
-                "table_name": "t1",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 5,
-                "rows_produced_per_join": 5,
-                "filtered": "100.00",
-                "cost_info": {
-                  "read_cost": "0.25",
-                  "eval_cost": "0.50",
-                  "prefix_cost": "0.75",
-                  "data_read_per_join": "440"
-                },
-                "used_columns": [
-                  "a",
-                  "b"
-                ]
-              }
-            },
-            {
-              "table": {
-                "table_name": "t2",
-                "access_type": "ALL",
-                "rows_examined_per_scan": 7,
-                "rows_produced_per_join": 35,
-                "filtered": "100.00",
-                "distinct": true,
-                "using_join_buffer": "Block Nested Loop",
-                "cost_info": {
-                  "read_cost": "0.25",
-                  "eval_cost": "3.50",
-                  "prefix_cost": "4.50",
-                  "data_read_per_join": "3K"
-                }
-              }
-            }
-          ]
-        }
       }
     }
   }
@@ -1480,7 +1391,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "49.45"
+              "query_cost": "18.70"
             },
             "nested_loop": [
               {
@@ -1497,7 +1408,7 @@ EXPLAIN
                     "read_cost": "0.25",
                     "eval_cost": "4.10",
                     "prefix_cost": "4.35",
-                    "data_read_per_join": "254K"
+                    "data_read_per_join": "255K"
                   },
                   "used_columns": [
                     "name",
@@ -1526,9 +1437,9 @@ EXPLAIN
                   "rows_produced_per_join": 41,
                   "filtered": "100.00",
                   "cost_info": {
-                    "read_cost": "41.00",
+                    "read_cost": "10.25",
                     "eval_cost": "4.10",
-                    "prefix_cost": "49.45",
+                    "prefix_cost": "18.70",
                     "data_read_per_join": "9K"
                   },
                   "used_columns": [
@@ -1601,6 +1512,8 @@ EXPLAIN
     ]
   }
 }
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 9,`test`.`t2`.`a` = 10 where (`test`.`t1`.`b` = 'a')
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 explain format=json select count(distinct a) from t1;
 EXPLAIN
@@ -2112,37 +2025,39 @@ a	b	pk1	pk2	pk3
 2	2	2	2	2
 set @@optimizer_switch=@old_optimizer_switch;
 update t1, t3 set t3.b=10, t1.a=20;
+ERROR 42000: Specified key was too long; max key length is 1024 bytes
 select * from t1 order by 1,2;
 a	b
-20	1
-20	1
-20	2
+1	1
+1	1
+2	2
 select * from t3 order by 1,2;
 a	b	pk1	pk2	pk3
-0	10	0	0	0
-1	10	1	1	1
-2	10	2	2	2
-3	10	3	3	3
-4	10	4	4	4
-5	10	5	5	5
-6	10	6	6	6
-7	10	7	7	7
-8	10	8	8	8
-9	10	9	9	9
+0	0	0	0	0
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+6	6	6	6	6
+7	7	7	7	7
+8	8	8	8	8
+9	9	9	9	9
 create trigger trg before update on t3 for each row set new.b=new.b+1;
 update t1, t3 set t3.b=10, t1.a=20;
+ERROR 42000: Specified key was too long; max key length is 1024 bytes
 select * from t3 order by 1,2;
 a	b	pk1	pk2	pk3
-0	11	0	0	0
-1	11	1	1	1
-2	11	2	2	2
-3	11	3	3	3
-4	11	4	4	4
-5	11	5	5	5
-6	11	6	6	6
-7	11	7	7	7
-8	11	8	8	8
-9	11	9	9	9
+0	0	0	0	0
+1	1	1	1	1
+2	2	2	2	2
+3	3	3	3	3
+4	4	4	4	4
+5	5	5	5	5
+6	6	6	6	6
+7	7	7	7	7
+8	8	8	8	8
+9	9	9	9	9
 drop table t0, t1, t3;
 create table t1(f1 text);
 insert into t1 values ('a'),('a'),('mn');
@@ -2170,8 +2085,6 @@ drop table t2;
 SET @old_big_tables=@@big_tables;
 SET big_tables=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE N (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -2180,6 +2093,8 @@ PRIMARY KEY (pk),
 KEY col_int_key (col_int_key),
 KEY col_varchar_1024_utf8_key (col_varchar_1024_utf8_key(333))
 ) ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO N VALUES
 (1,3,repeat('a',1000)),(0,4,'tell'),(7,6,'o'),(6,7,'g'),(8,8,'can'),
 (9,15,repeat('a',1020)),(4,16,repeat('a',1020)),(6,18,'his'),(NULL,19,'going'),
@@ -2491,8 +2406,6 @@ DROP TABLE t1,E,H;
 #               WITH ORDER BY GIVING INCORRECT RESULTS 
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(a BLOB, b INT);
 INSERT INTO t VALUES('1',3);
 INSERT INTO t VALUES('1',2);
@@ -2670,6 +2583,11 @@ KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key),
 KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
 KEY col_varchar_16_utf8_key (col_varchar_16_utf8_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO C VALUES
 (8,1,'o',6,'qlbynryfw','from','w','lby','bynry','ynryfwcfedjhz','I'),
 (6,2,'nry',127008768,'q','ryfw','p','h','b','have','i'),
@@ -2694,6 +2612,11 @@ KEY col_int_key (col_int_key),
 KEY col_varchar_16_latin1_key (col_varchar_16_latin1_key),
 KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO D VALUES
 (1,'l','it\'s','o','you\'re','f',0,'they','with','this',1);
 SELECT
@@ -3191,8 +3114,6 @@ DROP TABLE t1;
 # Bug#20454833 PREFIX INDEX FIELD, ON AN INAPPROPRIATE DATA TYPE
 #
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a blob,b int) engine=innodb;
 create table t2 (b blob) engine=innodb;
 select t2.b,t1.b,t1.a
@@ -3206,8 +3127,10 @@ drop table t1,t2;
 #
 set names utf8, sql_mode='';
 Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1(a date,b text charset utf8,c linestring not null);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values ('2015-01-01','a',linestring(point(1,1),point(2,2)));
 select distinct nullif(a,b) as c from t1 z order by z.c;
 c
@@ -3248,9 +3171,7 @@ SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
 Variable_name	Value
 default_storage_engine	InnoDB
 default_tmp_storage_engine	InnoDB
-internal_tmp_disk_storage_engine	InnoDB
 internal_tmp_mem_storage_engine	TempTable
-set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
 #
@@ -3260,14 +3181,6 @@ set optimizer_switch= @old_optimizer_switch;
 CREATE TABLE test_distinct (c1 VARCHAR(1000),
 c2 CHAR(5) DEFAULT 'xxxxx');
 INSERT INTO test_distinct VALUES ('a',null),  ('a',null);
-SET global internal_tmp_disk_storage_engine=MYISAM;
-SELECT DISTINCT c1, c2 FROM test_distinct;
-c1	c2
-a	NULL
-SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
-c1	c2
-a	NULL
-SET global internal_tmp_disk_storage_engine=INNODB;
 SELECT DISTINCT c1, c2 FROM test_distinct;
 c1	c2
 a	NULL

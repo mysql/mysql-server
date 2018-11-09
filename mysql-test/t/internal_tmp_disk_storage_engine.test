@@ -5,6 +5,9 @@
 --echo #
 --echo # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 --echo #
+--echo # NOTE: internal_tmp_disk_storage_engine system variable is removed, WL#11974.
+--echo # So on-disk tmp table engine is always InnoDB now.
+
 # In order to support innodb_limit_optimistic_insert_debug
 --source include/have_debug.inc
 # In order to make the output of explain json-format stable
@@ -22,8 +25,6 @@ analyze table t2;
 # Notice: if want mysql to use innodb tmp table, the following variable
 # settings should not be commented 
 #
-set @old_internal_tmp_disk_storage_engine= @@internal_tmp_disk_storage_engine; 
-set global internal_tmp_disk_storage_engine='innodb';
 set @old_big_tables= @@big_tables;
 set big_tables= on;
 set @old_optimizer_switch= @@optimizer_switch;
@@ -268,10 +269,12 @@ select * from t3 where b in (select a from t1);
 set @@optimizer_switch=@old_optimizer_switch;
 
 #multi-update
+--error ER_TOO_LONG_KEY
 update t1, t3 set t3.b=10, t1.a=20;
 select * from t1 order by 1,2;
 select * from t3 order by 1,2;
 create trigger trg before update on t3 for each row set new.b=new.b+1;
+--error ER_TOO_LONG_KEY
 update t1, t3 set t3.b=10, t1.a=20;
 select * from t3 order by 1,2;
 drop table t0, t1, t3;
@@ -1363,7 +1366,6 @@ drop table t1;
 --echo #
 SHOW GLOBAL VARIABLES LIKE '%\_storage\_engine';
 #============================end && cleanup======================= 
-set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_engine;
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1377,11 +1379,6 @@ CREATE TABLE test_distinct (c1 VARCHAR(1000),
                             c2 CHAR(5) DEFAULT 'xxxxx');
 INSERT INTO test_distinct VALUES ('a',null),  ('a',null);
 
-SET global internal_tmp_disk_storage_engine=MYISAM;
-SELECT DISTINCT c1, c2 FROM test_distinct;
-SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
-
-SET global internal_tmp_disk_storage_engine=INNODB;
 SELECT DISTINCT c1, c2 FROM test_distinct;
 SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
 

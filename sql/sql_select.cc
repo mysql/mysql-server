@@ -2156,8 +2156,7 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
   TABLE *const tbl = table();
 
   // Disable ICP for Innodb intrinsic temp table because of performance
-  if (internal_tmp_disk_storage_engine == TMP_TABLE_INNODB &&
-      tbl->s->db_type() == innodb_hton && tbl->s->tmp_table != NO_TMP_TABLE &&
+  if (tbl->s->db_type() == innodb_hton && tbl->s->tmp_table != NO_TMP_TABLE &&
       tbl->s->tmp_table != TRANSACTIONAL_TMP_TABLE)
     DBUG_VOID_RETURN;
 
