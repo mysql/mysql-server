@@ -54,7 +54,8 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                         TABLE_LIST *tables, ORDER *order, List<Item> &fields,
-                        List<Item> &all_fields, bool is_group_field);
+                        List<Item> &all_fields, bool is_group_field,
+                        bool is_window_order);
 
 #include "my_table_map.h"
 bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map);

@@ -691,7 +691,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
     }
 
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
-                           all_fields, false))
+                           all_fields, false, true))
       DBUG_RETURN(true);
     oi = *order->item;
 

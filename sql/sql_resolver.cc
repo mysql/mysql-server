@@ -3337,6 +3337,8 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
   @param[in,out] all_fields         All select, group and order by fields
   @param[in] is_group_field         True if order is a GROUP field, false if
     ORDER by field
+  @param[in] is_window_order        True if order is a Window function's
+    PARTITION BY or ORDER BY field
 
   @retval
     false if OK
@@ -3346,7 +3348,8 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                         TABLE_LIST *tables, ORDER *order, List<Item> &fields,
-                        List<Item> &all_fields, bool is_group_field) {
+                        List<Item> &all_fields, bool is_group_field,
+                        bool is_window_order) {
   Item *order_item = *order->item; /* The item from the GROUP/ORDER clause. */
   Item::Type order_item_type;
   Item **select_item; /* The corresponding item from the SELECT clause. */
@@ -3388,10 +3391,14 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         order_item->fix_fields(thd, order->item))
       return true;
 
-    /* Lookup the current GROUP field in the FROM clause. */
+    /*
+      Lookup the current GROUP or WINDOW partition by or order by field in the
+      FROM clause.
+    */
     order_item_type = order_item->type();
     from_field = not_found_field;
-    if ((is_group_field && order_item_type == Item::FIELD_ITEM) ||
+    if (((is_group_field || is_window_order) &&
+         order_item_type == Item::FIELD_ITEM) ||
         order_item_type == Item::REF_ITEM) {
       from_field =
           find_field_in_tables(thd, (Item_ident *)order_item, tables, NULL,
@@ -3435,7 +3442,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
             ->walk(&Item::clean_up_after_removal, walk_subquery, NULL);
       order->item = &ref_item_array[counter];
       order->in_field_list = 1;
-      if (resolution == RESOLVED_AGAINST_ALIAS) order->used_alias = true;
+      if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
+        order->used_alias = true;
       return false;
     } else {
       /*
@@ -3443,10 +3451,15 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         is the field that will be chosen. In this case we issue a
         warning so the user knows that the field from the FROM clause
         overshadows the column reference from the SELECT list.
+        For window functions we do not need to issue this warning
+        (field should resolve to a unique column in the FROM derived
+        table expression, cf. SQL 2016 section 7.15 SR 4)
       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
-                          ER_THD(thd, ER_NON_UNIQ_ERROR),
-                          ((Item_ident *)order_item)->field_name, thd->where);
+      if (!is_window_order) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
+                            ER_THD(thd, ER_NON_UNIQ_ERROR),
+                            ((Item_ident *)order_item)->field_name, thd->where);
+      }
     }
   }
 
@@ -3541,7 +3554,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
 
   for (uint number = 1; order; order = order->next, number++) {
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
-                           all_fields, false))
+                           all_fields, false, false))
       DBUG_RETURN(true);
     if ((*order->item)->has_aggregation()) {
       /*
@@ -3672,7 +3685,7 @@ bool SELECT_LEX::setup_group(THD *thd) {
   thd->where = "group statement";
   for (ORDER *group = group_list.first; group; group = group->next) {
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
-                           fields_list, all_fields, true))
+                           fields_list, all_fields, true, false))
       DBUG_RETURN(true);
 
     Item *item = *group->item;
