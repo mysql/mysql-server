@@ -1610,7 +1610,7 @@ class PT_select_var_list : public PT_into_destination {
 */
 class PT_border : public Parse_tree_node {
   friend class Window;
-  Item *m_value;  ///< only relevant iff m_border_type == WBT_VALUE_*
+  Item *m_value{nullptr};  ///< only relevant iff m_border_type == WBT_VALUE_*
  public:
   enum_window_border_type m_border_type;
   const bool m_date_time;
