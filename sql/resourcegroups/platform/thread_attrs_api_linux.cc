@@ -146,7 +146,16 @@ bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
 uint32_t num_vcpus() {
   cpu_id_t num_vcpus = 0;
 
-#ifdef _SC_NPROCESSORS_ONLN
+#if defined(HAVE_PTHREAD_GETAFFINITY_NP)
+  cpu_set_t set;
+
+  if (pthread_getaffinity_np(pthread_self(), sizeof(set), &set) == 0)
+  {
+    num_vcpus= CPU_COUNT(&set);
+  }
+  else
+#endif
+#if defined(_SC_NPROCESSORS_ONLN)
   num_vcpus = sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined(_SC_NPROCESSORS_CONF)
   num_vcpus = sysconf(_SC_NPROCESSORS_CONF);
