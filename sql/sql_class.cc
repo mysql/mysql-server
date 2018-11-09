@@ -175,6 +175,13 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
   // Reset transaction state.
 
   m_thd->m_transaction.release();  // it's been backed up.
+  DBUG_EXECUTE_IF("after_delete_wait", {
+    const char act[] = "now SIGNAL leader_reached WAIT_FOR leader_proceed";
+    DBUG_ASSERT(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
+    DBUG_SET("-d,after_delete_wait");
+    DBUG_SET("-d,block_leader_after_delete");
+  };);
+
   m_thd->m_transaction.reset(new Transaction_ctx());
 
   // Prepare for a new attachable transaction for read-only DD-transaction.
@@ -464,6 +471,7 @@ THD::THD(bool enable_plugins)
   binlog_evt_union.do_union = false;
   enable_slow_log = 0;
   commit_error = CE_NONE;
+  tx_commit_pending = false;
   durability_property = HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry = THD_SENTRY_MAGIC;

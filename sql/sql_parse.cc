@@ -4913,6 +4913,7 @@ void THD::reset_for_next_command() {
   thd->want_privilege = ~NO_ACCESS;
 
   thd->reset_skip_readonly_check();
+  thd->tx_commit_pending = false;
 
   DBUG_PRINT("debug", ("is_current_stmt_binlog_format_row(): %d",
                        thd->is_current_stmt_binlog_format_row()));

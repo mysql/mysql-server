@@ -183,7 +183,6 @@ class Transaction_ctx {
   */
   struct {
     bool enabled;      // see ha_enable_transaction()
-    bool pending;      // Is the transaction commit pending?
     bool xid_written;  // The session wrote an XID
     bool real_commit;  // Is this a "real" commit?
     bool commit_low;   // see MYSQL_BIN_LOG::ordered_commit
