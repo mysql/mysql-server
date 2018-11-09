@@ -97,6 +97,9 @@ public:
   void execFIRE_TRIG_ORD(Signal* signal);
   void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
+  void sendSUB_GCP_COMPLETE_REP(Signal* signal);
+  Uint32 mark_epoch_inflight(Uint64 gci);
+  void unmark_epoch_inflight(Signal* signal, Uint32 inflight_index);
   
   /**
    * DIH signals
@@ -451,6 +454,10 @@ public:
                                  Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
+  void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
+                                               Uint32 inflight_index,
+                                               Uint32 returnCode);
+
 
   void create_triggers(Signal*, Ptr<Subscription>);
   void drop_triggers(Signal*, Ptr<Subscription>);
@@ -762,15 +769,33 @@ private:
   {
     Uint64 m_gci;
     Uint32 m_cnt;
+    Uint32 m_flags;
   };
 
   Uint32 m_gcp_rep_cnt;
+  /**
+    Next complete epoch to send report for.
+  */
+  Uint32 m_snd_gcp_rep_counter_index;
+  /**
+    Oldest incomplete epoch.
+  */
   Uint32 m_min_gcp_rep_counter_index;
+  /**
+    Index of next epoch to store.
+  */
   Uint32 m_max_gcp_rep_counter_index;
-  struct SubGcpCompleteCounter m_gcp_rep_counter[10];
+
+  STATIC_CONST(MAX_LDM_EPOCH_LAG = 50);
+  SubGcpCompleteCounter m_gcp_rep_counter[MAX_LDM_EPOCH_LAG];
+
+  Uint32 m_oldest_gcp_inflight_index;
+  Uint32 m_newest_gcp_inflight_index;
+  SubGcpCompleteCounter m_gcp_inflight[2];
 
   /* Buffer used in Suma::execALTER_TAB_REQ(). */
   Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint32 b_dti_buf_ref_count;
   Uint64 m_current_gci;
 
   Uint32 m_startphase;

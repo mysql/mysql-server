@@ -17411,6 +17411,8 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   }
   
   Uint32 masterRef = rep.senderRef;
+  const Uint64 gci = (Uint64(rep.gci_hi) << 32) | rep.gci_lo;
+
   if (m_micro_gcp.m_state == MicroGcp::M_GCP_IDLE)
   {
     jam();
@@ -17426,11 +17428,26 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
 
   /**
-   * To handle multiple LDM instances, this need to be passed though
-   * each LQH...(so that no fire-trig-ord can arrive "too" late)
-   */
-  sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
-             signal->length(), JBB);
+    Ensure that SUB_GCP_COMPLETE_REP is send once per epoch to Dblqh.
+  */
+  ndbrequire(gci == m_micro_gcp.m_old_gci);
+#if defined(ERROR_INSER) || defined(VM_TRACE)
+  /**
+    Detect if some test actually provoke a double send.
+    At point of writing no test have failed yet.
+  */
+  ndbrequire(gci > m_micro_gcp.m_last_sent_gci);
+#endif
+  if (gci > m_micro_gcp.m_last_sent_gci)
+  {
+    /**
+     * To handle multiple LDM instances, this need to be passed though
+     * each LQH...(so that no fire-trig-ord can arrive "too" late)
+     */
+    sendSignal(DBLQH_REF, GSN_SUB_GCP_COMPLETE_REP, signal,
+               signal->length(), JBB);
+    m_micro_gcp.m_last_sent_gci = gci;
+  }
 reply:
   Uint32 nodeId = refToNode(masterRef);
   if (!ndbd_dih_sub_gcp_complete_ack(getNodeInfo(nodeId).m_version))

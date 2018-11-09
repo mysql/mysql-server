@@ -1109,6 +1109,12 @@ Suma::execCONTINUEB(Signal* signal){
                       signal->theData[3]);
     return;
   }
+  case SumaContinueB::SEND_SUB_GCP_COMPLETE_REP:
+  {
+    jam();
+    sendSUB_GCP_COMPLETE_REP(signal);
+    return;
+  }
   default:
   {
     ndbabort();
@@ -4870,7 +4876,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   Ptr<Subscription> subPtr;
   c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
 
-  ndbassert(gci > m_last_complete_gci);
+  ndbrequire(gci > m_last_complete_gci);
 
   if (signal->getNoOfSections())
   {
@@ -4972,6 +4978,29 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   DBUG_VOID_RETURN;
 }
 
+/**
+  The SUB_GCP_COMPLETE_REP signal is used to signal to receiver that an epoch
+  is completed and that receiver have received all data for the epoch.
+
+  SUMA get SUB_GCP_COMPLETE_REP from DBDIH via DBLQH so that
+  SUB_GCP_COMPLETE_REP for an certain epoch will arrive after any data for that
+  epoch that each DBLQH instance have sent to SUMA (via FIRE_TRIG_ORD or
+  FIRE_TRIG_ORD_L).
+
+  If one have more than one DBLQH they can be at different epochs so SUMA need
+  to count in SUB_GCP_COMPLETE_REP from all DBLQH to know when SUMA have got
+  all the data from all DBLQH.
+
+  When SUMA have got SUB_GCP_COMPLETE_REP from all DBLQH it should in turn send
+  out SUB_GCP_COMPLETE_REP to all subscribers.  But only after it have sent all
+  data to the subscribers.
+
+  Typically SUMA relays the data it got from DBLQH and DBDICT immediately when
+  it arrives to SUMA.  But in some cases fragmented signals may be used to send
+  data to subscribers.  These fragmented signals should not be considered sent
+  until the last fragment of signal is sent.
+*/
+
 void
 Suma::checkMaxBufferedEpochs(Signal *signal)
 {
@@ -5043,72 +5072,123 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   Uint32 gci_lo = rep->gci_lo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
 
-  if (isNdbMtLqh() && m_gcp_rep_cnt > 1)
-  {
-
 #define SSPP 0
 
-    if (SSPP)
-      printf("execSUB_GCP_COMPLETE_REP(%u/%u)", gci_hi, gci_lo);
-    jam();
-    Uint32 min = m_min_gcp_rep_counter_index;
-    Uint32 sz = NDB_ARRAY_SIZE(m_gcp_rep_counter);
-    for (Uint32 i = min; i != m_max_gcp_rep_counter_index; i = (i + 1) % sz)
+  if (SSPP)
+    printf("execSUB_GCP_COMPLETE_REP(%u/%u)", gci_hi, gci_lo);
+  jam();
+
+  const Uint32 sz = NDB_ARRAY_SIZE(m_gcp_rep_counter);
+  bool found = false;
+
+  ndbrequire(m_snd_gcp_rep_counter_index < sz);
+  ndbrequire(m_min_gcp_rep_counter_index < sz);
+  ndbrequire(m_max_gcp_rep_counter_index < sz);
+
+  Uint32 i = m_min_gcp_rep_counter_index;
+  while (i != m_max_gcp_rep_counter_index)
+  {
+    if (gci < m_gcp_rep_counter[i].m_gci)
     {
-      jam();
-      if (m_gcp_rep_counter[i].m_gci == gci)
-      {
-        jam();
-        m_gcp_rep_counter[i].m_cnt ++;
-        if (m_gcp_rep_counter[i].m_cnt == m_gcp_rep_cnt)
-        {
-          jam();
-          /**
-           * Release this entry...
-           */
-          if (i != min)
-          {
-            jam();
-            m_gcp_rep_counter[i] = m_gcp_rep_counter[min];
-          }
-          m_min_gcp_rep_counter_index = (min + 1) % sz;
-          if (SSPP)
-            ndbout_c(" found - complete after: (min: %u max: %u)",
-                     m_min_gcp_rep_counter_index,
-                     m_max_gcp_rep_counter_index);
-          goto found;
-        }
-        else
-        {
-          jam();
-          if (SSPP)
-            ndbout_c(" found - wait unchanged: (min: %u max: %u)",
-                     m_min_gcp_rep_counter_index,
-                     m_max_gcp_rep_counter_index);
-          return; // Wait for more...
-        }
-      }
+      break;
     }
-    /**
-     * Not found...
-     */
-    Uint32 next = (m_max_gcp_rep_counter_index + 1) % sz;
-    ndbrequire(next != min); // ring buffer full
-    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_gci = gci;
-    m_gcp_rep_counter[m_max_gcp_rep_counter_index].m_cnt = 1;
-    m_max_gcp_rep_counter_index = next;
-    if (SSPP)
-      ndbout_c(" new - after: (min: %u max: %u)",
-               m_min_gcp_rep_counter_index,
-               m_max_gcp_rep_counter_index);
+    else if (gci == m_gcp_rep_counter[i].m_gci)
+    {
+      found = true;
+      break;
+    }
+    i = (i + 1) % sz;
+  }
+
+  /**
+    If ndbrequire fails, epoch already completed.  This should not be possible.
+    Each LDM sends message exactly once per epoch.  And an epoch is not
+    complete until message from all LDM have arrived.
+  */
+  ndbrequire(found ||
+             i != m_min_gcp_rep_counter_index ||
+             i == m_max_gcp_rep_counter_index);
+
+  if (!found)
+  {
+    ndbrequire(i == m_max_gcp_rep_counter_index);
+    m_gcp_rep_counter[i].m_gci = gci;
+    m_gcp_rep_counter[i].m_cnt = 0;
+    m_gcp_rep_counter[i].m_flags = rep->flags;
+    m_max_gcp_rep_counter_index = (m_max_gcp_rep_counter_index + 1) % sz;
+
+    // Verify epoch buffer not full, else panic!
+    ndbrequire(m_snd_gcp_rep_counter_index != m_max_gcp_rep_counter_index);
+
+    if (gci > m_max_seen_gci)
+    {
+      m_max_seen_gci = gci;
+    }
+  }
+
+  if (likely(m_gcp_rep_cnt > 0))
+  {
+    ndbrequire(m_gcp_rep_counter[i].m_cnt < m_gcp_rep_cnt);
+    m_gcp_rep_counter[i].m_cnt++;
+  }
+  else
+  {
+    ndbrequire(m_gcp_rep_counter[i].m_cnt == 0);
+  }
+  ndbrequire(m_gcp_rep_counter[i].m_flags == rep->flags);
+
+  if (m_gcp_rep_counter[i].m_cnt < m_gcp_rep_cnt)
+  {
     return;
   }
-found:
-  bool drop = false;
-  Uint32 flags = (m_missing_data)
-                 ? rep->flags | SubGcpCompleteRep::MISSING_DATA
-                 : rep->flags;
 
+  // Epoch is completed.
+  ndbrequire(gci > m_last_complete_gci);
+  m_last_complete_gci = gci;
+  ndbrequire(m_gcp_rep_counter[i].m_cnt == m_gcp_rep_cnt);
+  ndbrequire(i == m_min_gcp_rep_counter_index);
+  m_min_gcp_rep_counter_index = (m_min_gcp_rep_counter_index + 1) % sz;
+  if (i != m_snd_gcp_rep_counter_index)
+  {
+    return;
+  }
+  checkMaxBufferedEpochs(signal);
+  sendSUB_GCP_COMPLETE_REP(signal);
+}
+
+void
+Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
+{
+  if (m_snd_gcp_rep_counter_index == m_min_gcp_rep_counter_index)
+  {
+    // No complete epoch yet.
+    return;
+  }
+
+  const Uint64 gci = m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_gci;
+  const Uint32 gci_hi = gci >> 32;
+  const Uint32 gci_lo = Uint32(gci);
+  ndbrequire(((Uint64(gci_hi) << 32) | gci_lo) == gci);
+
+  const bool no_inflight_gci = (m_oldest_gcp_inflight_index == m_newest_gcp_inflight_index);
+
+  if (!no_inflight_gci)
+  {
+    if (gci == m_gcp_inflight[m_oldest_gcp_inflight_index].m_gci)
+    {
+      // Do not send yet, epoch have undelivered data.
+      return;
+    }
+    ndbrequire(gci < m_gcp_inflight[m_oldest_gcp_inflight_index].m_gci);
+  }
+
+  // Send!
+  ndbassert(m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_cnt == m_gcp_rep_cnt);
+  bool drop = false;
+  Uint32 flags = m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_flags |
+                 (m_missing_data
+                 ? SubGcpCompleteRep::MISSING_DATA
+                 : 0);
   if (ERROR_INSERTED(13036))
   {
     jam();
@@ -5132,10 +5212,6 @@ found:
   }
   m_gcp_monitor = gci;
 #endif
-
-  m_last_complete_gci = gci;
-  checkMaxBufferedEpochs(signal);
-  m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
    * 
@@ -5320,6 +5396,7 @@ found:
   /**
    * Signal to subscribers
    */
+  SubGcpCompleteRep* rep = (SubGcpCompleteRep*)signal->theData;
   rep->gci_hi = gci_hi;
   rep->gci_lo = gci_lo;
   rep->flags = flags;
@@ -5429,6 +5506,69 @@ found:
     c_nodes_in_nodegroup_mask.clear();
     fix_nodegroup();
   }
+
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_gci = 0;
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_cnt = 0;
+  m_gcp_rep_counter[m_snd_gcp_rep_counter_index].m_flags = 0;
+  m_snd_gcp_rep_counter_index = (m_snd_gcp_rep_counter_index + 1) % NDB_ARRAY_SIZE(m_gcp_rep_counter);
+  if (m_snd_gcp_rep_counter_index != m_min_gcp_rep_counter_index)
+  {
+    signal->theData[0] = SumaContinueB::SEND_SUB_GCP_COMPLETE_REP;
+    sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 1, JBB);
+  }
+}
+
+Uint32
+Suma::mark_epoch_inflight(Uint64 gci)
+{
+  const Uint32 sz = NDB_ARRAY_SIZE(m_gcp_inflight);
+  bool found = false;
+  Uint32 i = m_oldest_gcp_inflight_index;
+  while (i != m_newest_gcp_inflight_index)
+  {
+    if (m_gcp_inflight[i].m_gci == gci)
+    {
+      found = true;
+      break;
+    }
+    ndbrequire(gci > m_gcp_inflight[i].m_gci);
+    i = (i + 1) % sz;
+  }
+  if (!found)
+  {
+    m_gcp_inflight[i].m_gci = gci;
+    m_gcp_inflight[i].m_cnt = 0;
+    m_newest_gcp_inflight_index = (m_newest_gcp_inflight_index + 1) % sz;
+    ndbrequire(m_newest_gcp_inflight_index != m_oldest_gcp_inflight_index);
+  }
+  m_gcp_inflight[i].m_cnt++;
+  return i;
+}
+
+void
+Suma::unmark_epoch_inflight(Signal* signal, Uint32 inflight_index)
+{
+  ndbrequire(m_gcp_inflight[inflight_index].m_cnt > 0);
+  m_gcp_inflight[inflight_index].m_cnt--;
+
+  if (m_gcp_inflight[inflight_index].m_cnt > 0)
+  {
+    return;
+  }
+
+  if (inflight_index != m_oldest_gcp_inflight_index)
+  {
+    return;
+  }
+
+  const Uint32 sz = NDB_ARRAY_SIZE(m_gcp_inflight);
+  while (m_oldest_gcp_inflight_index != m_newest_gcp_inflight_index &&
+         m_gcp_inflight[m_oldest_gcp_inflight_index].m_cnt == 0)
+  {
+    m_gcp_inflight[m_oldest_gcp_inflight_index].m_gci = 0;
+    m_oldest_gcp_inflight_index = (m_oldest_gcp_inflight_index + 1) % sz;
+  }
+  sendSUB_GCP_COMPLETE_REP(signal);
 }
 
 void
@@ -5554,6 +5694,18 @@ Suma::execDROP_TAB_CONF(Signal *signal)
  * after use.
  */
 void
+Suma::send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
+                                              Uint32 inflight_index,
+                                              Uint32 returnCode)
+{
+  ndbrequire(returnCode == 0);
+  ndbrequire(b_dti_buf_ref_count > 0);
+  b_dti_buf_ref_count--;
+  ndbrequire(inflight_index < NDB_ARRAY_SIZE(m_gcp_inflight));
+  unmark_epoch_inflight(signal, inflight_index);
+}
+
+void
 Suma::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
@@ -5590,6 +5742,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 				       getSectionSegmentPool());
   reader.printAll(ndbout);
 #endif
+  ndbrequire(b_dti_buf_ref_count == 0);
   copy(b_dti_buf, tabInfoPtr);
   releaseSections(handle);
 
@@ -5635,7 +5788,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
     {
       jam();
       data->senderData= ptr.p->m_senderData;
-      Callback c = { 0, 0 };
+      Uint32 inflight_index = mark_epoch_inflight(gci);
+      Callback c = {
+          safe_cast(&Suma::send_fragmented_SUB_TABLE_DATA_callback),
+          inflight_index
+      };
+      b_dti_buf_ref_count++;
       sendFragmentedSignal(ptr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
                            SubTableData::SignalLength, JBB, lptr, 1, c);
     }

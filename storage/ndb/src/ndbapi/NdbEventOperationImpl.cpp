@@ -867,11 +867,20 @@ NdbEventOperationImpl::execSUB_TABLE_DATA(const NdbApiSignal * signal,
   const SubTableData * const sdata=
     CAST_CONSTPTR(SubTableData, signal->getDataPtr());
 
-  if(signal->isFirstFragment()){
+  if (signal->isFirstFragment())
+  {
+    /*
+      Only one buffer for fragmented signal assembly.
+      Buffer must be empty for first fragment.
+     */
+    require(m_buffer.empty());
     m_fragmentId = signal->getFragmentId();
     m_buffer.grow(4 * sdata->totalLen);
-  } else {
-    if(m_fragmentId != signal->getFragmentId()){
+  }
+  else
+  {
+    if (m_fragmentId != signal->getFragmentId())
+    {
       abort();
     }
   }
@@ -3194,6 +3203,7 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
        * Already completed GCI...
        *   Possible in case of resend during NF handling
        */
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
       DBUG_RETURN_EVENT(0);
     }
     

@@ -1189,6 +1189,7 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
     {
       g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
                            "number");
+      DBUG_EXECUTE_IF("ndb_crash_on_drop_SUB_TABLE_DATA", DBUG_SUICIDE(););
       return ;
     }
 

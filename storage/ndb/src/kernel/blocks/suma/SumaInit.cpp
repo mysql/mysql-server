@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ Suma::Suma(Block_context& ctx) :
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
   c_gcp_list(c_gcp_pool),
+  b_dti_buf_ref_count(0),
   m_current_gci(~(Uint64)0)
 {
   BLOCK_CONSTRUCTOR(Suma);
@@ -156,9 +157,13 @@ Suma::Suma(Block_context& ctx) :
   bzero(c_subscriber_per_node, sizeof(c_subscriber_per_node));
 
   m_gcp_rep_cnt = getLqhWorkers();
+  m_snd_gcp_rep_counter_index = 0;
   m_min_gcp_rep_counter_index = 0;
   m_max_gcp_rep_counter_index = 0;
   bzero(m_gcp_rep_counter, sizeof(m_gcp_rep_counter));
+  m_oldest_gcp_inflight_index = 0;
+  m_newest_gcp_inflight_index = 0;
+  bzero(m_gcp_inflight, sizeof(m_gcp_inflight));
 }
 
 Suma::~Suma()
