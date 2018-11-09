@@ -454,10 +454,15 @@ create table t1 as select concat(row_count()) as c1;
 show create table t1;
 drop table t1;
 
+# Make found_rows() below defined.
+create table t2 ( f1 integer );
+insert into t2 values (1),(2),(3),(4);
+select sql_calc_found_rows * from t2 limit 2;
+
 select hex(concat(found_rows()));
 create table t1 as select concat(found_rows()) as c1;
 show create table t1;
-drop table t1;
+drop table t1, t2;
 
 create table t1 as select concat(uuid_short()) as c1;
 show create table t1;

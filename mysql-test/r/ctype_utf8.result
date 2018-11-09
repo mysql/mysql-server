@@ -3425,16 +3425,22 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
+create table t2 ( f1 integer );
+insert into t2 values (1),(2),(3),(4);
+select sql_calc_found_rows * from t2 limit 2;
+f1
+1
+2
 select hex(concat(found_rows()));
 hex(concat(found_rows()))
-30
+34
 create table t1 as select concat(found_rows()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(21) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-drop table t1;
+drop table t1, t2;
 create table t1 as select concat(uuid_short()) as c1;
 show create table t1;
 Table	Create Table
