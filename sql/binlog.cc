@@ -2252,8 +2252,7 @@ bool Stage_manager::enroll_for(StageID stage, THD *thd,
     thd->get_transaction()->m_flags.ready_preempt = 1;
     if (leader_await_preempt_status) mysql_cond_signal(&m_cond_preempt);
 #endif
-    while (thd->get_transaction()->m_flags.pending)
-      mysql_cond_wait(&m_cond_done, &m_lock_done);
+    while (thd->tx_commit_pending) mysql_cond_wait(&m_cond_done, &m_lock_done);
     mysql_mutex_unlock(&m_lock_done);
   }
   return leader;
@@ -2305,7 +2304,7 @@ void Stage_manager::wait_count_or_timeout(ulong count, long usec,
 void Stage_manager::signal_done(THD *queue) {
   mysql_mutex_lock(&m_lock_done);
   for (THD *thd = queue; thd; thd = thd->next_to_commit)
-    thd->get_transaction()->m_flags.pending = false;
+    thd->tx_commit_pending = false;
   mysql_mutex_unlock(&m_lock_done);
   mysql_cond_broadcast(&m_cond_done);
 }
@@ -8058,9 +8057,11 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
   thd->get_transaction()->m_flags.ready_preempt = 1;  // formality by the leader
 #endif
   for (THD *head = first; head; head = head->next_to_commit) {
-    DBUG_PRINT("debug", ("Thread ID: %u, commit_error: %d, flags.pending: %s",
+    DBUG_PRINT("debug", ("Thread ID: %u, commit_error: %d, commit_pending: %s",
                          head->thread_id(), head->commit_error,
-                         YESNO(head->get_transaction()->m_flags.pending)));
+                         YESNO(head->tx_commit_pending)));
+    DBUG_EXECUTE_IF("block_leader_after_delete",
+                    if (thd != head) { DBUG_SET("+d,after_delete_wait"); };);
     /*
       If flushing failed, set commit_error for the session, skip the
       transaction and proceed with the next transaction instead. This
@@ -8094,9 +8095,8 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
       if (ha_commit_low(head, all, false))
         head->commit_error = THD::CE_COMMIT_ERROR;
     }
-    DBUG_PRINT("debug",
-               ("commit_error: %d, flags.pending: %s", head->commit_error,
-                YESNO(head->get_transaction()->m_flags.pending)));
+    DBUG_PRINT("debug", ("commit_error: %d, commit_pending: %s",
+                         head->commit_error, YESNO(head->tx_commit_pending)));
   }
 
   /*
@@ -8516,7 +8516,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     - Everything in the transaction structure is reset when calling
       ha_commit_low since that calls Transaction_ctx::cleanup.
   */
-  thd->get_transaction()->m_flags.pending = true;
+  thd->tx_commit_pending = true;
   thd->commit_error = THD::CE_NONE;
   thd->next_to_commit = NULL;
   thd->durability_property = HA_IGNORE_DURABILITY;
@@ -8536,9 +8536,9 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
   thd->get_transaction()->m_flags.ready_preempt = 0;
 #endif
 
-  DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %u",
-                       YESNO(thd->get_transaction()->m_flags.pending),
-                       thd->commit_error, thd->thread_id()));
+  DBUG_PRINT("enter", ("commit_pending: %s, commit_error: %d, thread_id: %u",
+                       YESNO(thd->tx_commit_pending), thd->commit_error,
+                       thd->thread_id()));
 
   DEBUG_SYNC(thd, "bgc_before_flush_stage");
 
@@ -8739,8 +8739,13 @@ commit_stage:
   if (sync_error)
     handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */);
 
+  DEBUG_SYNC(thd, "before_signal_done");
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
+  DBUG_EXECUTE_IF("block_leader_after_delete", {
+    const char action[] = "now SIGNAL leader_proceed";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+  };);
 
   /*
     Finish the commit before executing a rotate, or run the risk of a
