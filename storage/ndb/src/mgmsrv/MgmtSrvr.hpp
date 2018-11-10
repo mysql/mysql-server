@@ -420,6 +420,7 @@ private:
 
   bool is_any_node_starting(void);
   bool is_any_node_stopping(void);
+  bool is_any_node_alive(void);
   bool is_any_node_in_started_state(void);
   bool is_cluster_single_user(void);
   bool are_all_nodes_in_cmvmi_state(void);

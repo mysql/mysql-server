@@ -1947,6 +1947,17 @@ bool MgmtSrvr::is_any_node_starting()
   return false; // No node was starting
 }
 
+bool MgmtSrvr::is_any_node_alive()
+{
+  NodeId nodeId = 0;
+  while (getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    if (getNodeInfo(nodeId).m_alive == true)
+      return true; // At least one node in alive state
+  }
+  return false; // No node in alive state
+}
+
 bool MgmtSrvr::is_any_node_in_started_state()
 {
   NodeId nodeId = 0;
@@ -2208,6 +2219,14 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
 {
   NodeBitmask nodes;
 
+  /*
+  * Restart cannot be performed without any data nodes being started.
+  */
+  if (!is_any_node_alive())
+  {
+    return 0;
+  }
+
   int ret = sendall_STOP_REQ(nodes,
                              abort,
                              true,
@@ -2225,14 +2244,6 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
     ndbout_c("Stopped %d nodes", nodes.count());
 #endif
 
-  if (!nodes.count())
-  {
-    /*
-     * When no alive data nodes are found, can return the function as
-     * restart cannot be performed without any data nodes being started.
-     */
-    return 0;
-  }
 
   /*
    * The wait for all nodes to reach NOT_STARTED state is
