@@ -1,0 +1,31 @@
+CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+CREATE TABLE t2(c1 INT) ENGINE=MEMORY;
+# TC.1 `GTID_NEXT` = `UNDEFINED` + Query statement acquiring wr-lock
+# ------------------------------------------------------------------
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1';
+CREATE TABLE t3(c1 CHAR CHARACTER SET utf16) ENGINE=InnoDB;
+SELECT * FROM t1, t2, t3 FOR UPDATE OF t1, t2, t3 SKIP LOCKED;
+ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1'.
+# TC.2 `GTID_NEXT` = `ASSIGNED` + Query statement acquiring wr-lock
+# -----------------------------------------------------------------
+SET GTID_NEXT='aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2';
+SELECT * FROM t1, t3 FOR UPDATE OF t1, t3 SKIP LOCKED;
+c1	c1
+include/assert.inc [No change in `GTID_EXECUTED`]
+include/assert.inc [No change in `GTID_OWNED`]
+include/assert.inc [No change in `GTID_NEXT`]
+SET GTID_NEXT='AUTOMATIC';
+ERROR HY000: @@SESSION.GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2. Ownership is released on COMMIT or ROLLBACK.
+COMMIT;
+# TC.3 `GTID_NEXT` = `AUTOMATIC` + Query statement acquiring wr-lock
+# ------------------------------------------------------------------
+SET GTID_NEXT='AUTOMATIC';
+CREATE TABLE t4(c1 FLOAT) ENGINE=InnoDB;
+SELECT * FROM t1, t3, t4 FOR UPDATE OF t1, t3, t4 SKIP LOCKED;
+c1	c1	c1
+include/assert.inc [No change in `GTID_EXECUTED`]
+include/assert.inc [No change in `GTID_OWNED`]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
