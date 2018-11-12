@@ -43,21 +43,6 @@ class Plugin_gcs_view_modification_notifier {
   void start_view_modification();
 
   /**
-    Signals that a injected view modification, usually to
-    unblock a group that did lost majority, is about to start.
-   */
-  void start_injected_view_modification();
-
-  /**
-    Checks if the view modification is a injected one.
-
-    @return
-      @retval true  if the current view modification is a injected one
-      @retval false otherwise
-   */
-  bool is_injected_view_modification();
-
-  /**
     Checks if there is a view modification ongoing.
 
     @return
@@ -114,7 +99,6 @@ class Plugin_gcs_view_modification_notifier {
  private:
   bool view_changing;
   bool cancelled_view_change;
-  bool injected_view_modification;
   int error;
 
   mysql_cond_t wait_for_view_cond;

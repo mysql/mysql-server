@@ -44,11 +44,9 @@ using std::vector;
 
 Plugin_gcs_events_handler::Plugin_gcs_events_handler(
     Applier_module_interface *applier_module, Recovery_module *recovery_module,
-    Plugin_gcs_view_modification_notifier *vc_notifier,
     Compatibility_module *compatibility_module, ulong components_stop_timeout)
     : applier_module(applier_module),
       recovery_module(recovery_module),
-      view_change_notifier(vc_notifier),
       compatibility_manager(compatibility_module),
       stop_wait_timeout(components_stop_timeout) {
   this->temporary_states =
@@ -624,7 +622,7 @@ void Plugin_gcs_events_handler::on_view_changed(
   if (is_joining && local_member_info->get_recovery_status() ==
                         Group_member_info::MEMBER_ERROR) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_EXIT_PLUGIN_ERROR);
-    view_change_notifier->cancel_view_modification(
+    gcs_module->notify_of_view_change_cancellation(
         GROUP_REPLICATION_CONFIGURATION_ERROR);
   } else {
     /*
@@ -657,7 +655,7 @@ void Plugin_gcs_events_handler::on_view_changed(
     if (update_group_info_manager(new_view, exchanged_data, is_joining,
                                   is_leaving) &&
         is_joining) {
-      view_change_notifier->cancel_view_modification();
+      gcs_module->notify_of_view_change_cancellation();
       return;
     }
 
@@ -688,8 +686,8 @@ void Plugin_gcs_events_handler::on_view_changed(
     if (is_leaving) gcs_module->leave_coordination_member_left();
 
     // Signal that the injected view was delivered
-    if (view_change_notifier->is_injected_view_modification())
-      view_change_notifier->end_view_modification();
+    if (gcs_module->is_injected_view_modification())
+      gcs_module->notify_of_view_change_end();
 
     group_events_observation_manager->after_view_change(
         new_view.get_joined_members(), new_view.get_leaving_members(),
@@ -780,7 +778,9 @@ bool Plugin_gcs_events_handler::was_member_expelled_from_group(
       We do not need to kill ongoing transactions when the applier
       is already stopping.
     */
-    if (!error) applier_module->kill_pending_transactions(true, true);
+    if (!error)
+      applier_module->kill_pending_transactions(
+          true, true, Gcs_operations::ALREADY_LEFT, nullptr);
   }
 
   DBUG_RETURN(result);
@@ -863,10 +863,10 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
   if (is_joining) {
     int error = 0;
     if ((error = check_group_compatibility(number_of_members))) {
-      view_change_notifier->cancel_view_modification(error);
+      gcs_module->notify_of_view_change_cancellation(error);
       return;
     }
-    view_change_notifier->end_view_modification();
+    gcs_module->notify_of_view_change_end();
 
     /**
      On the joining list there can be 2 types of members: online/recovering
@@ -1044,7 +1044,7 @@ void Plugin_gcs_events_handler::handle_leaving_members(const Gcs_view &new_view,
   }
 
   if (is_leaving) {
-    view_change_notifier->end_view_modification();
+    gcs_module->notify_of_view_change_end();
   }
 }
 
@@ -1564,7 +1564,7 @@ bool Plugin_gcs_events_handler::is_group_running_a_primary_election() const {
 }
 
 void Plugin_gcs_events_handler::leave_group_on_error() const {
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+  Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
   char **error_message = NULL;
 
   int error = channel_stop_all(CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,

@@ -28,6 +28,7 @@
 
 #include "plugin/group_replication/include/gcs_logger.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/include/gcs_view_modification_notifier.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 /**
@@ -124,6 +125,8 @@ class Gcs_operations {
 
     @param[in] communication_event_listener The communication event listener
     @param[in] control_event_listener       The control event listener
+    @param[in] view_notifier  A view change notifier to know the response
+
 
     @return the operation status
       @retval 0      OK
@@ -131,7 +134,8 @@ class Gcs_operations {
   */
   enum enum_gcs_error join(
       const Gcs_communication_event_listener &communication_event_listener,
-      const Gcs_control_event_listener &control_event_listener);
+      const Gcs_control_event_listener &control_event_listener,
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   /**
     Returns true if this server belongs to the group.
@@ -140,6 +144,9 @@ class Gcs_operations {
 
   /**
     Request GCS interface to leave the group.
+
+    @param[in] view_notifier  A view change notifier to know the response.
+                              Pass a null pointer if you don't want to wait
 
     Note: This method only asks to leave, it does not know if request was
           successful
@@ -150,7 +157,35 @@ class Gcs_operations {
       @retval ALREADY_LEFT        The member already left
       @retval ERROR_WHEN_LEAVING  An error happened when trying to leave
   */
-  enum_leave_state leave();
+  enum_leave_state leave(Plugin_gcs_view_modification_notifier *view_notifier);
+
+  /**
+    Notify all listeners that a view changed.
+  */
+  void notify_of_view_change_end();
+
+  /**
+    Notify all listeners that a view was canceled.
+
+    @param[in] errnr  The error associated to this view
+  */
+  void notify_of_view_change_cancellation(
+      int errnr = GROUP_REPLICATION_CONFIGURATION_ERROR);
+
+  /**
+    Checks if the view modification is a injected one.
+
+    @return
+      @retval true  if the current view modification is a injected one
+      @retval false otherwise
+   */
+  bool is_injected_view_modification();
+
+  /**
+    Removes the notifier from the list
+  */
+  void remove_view_notifer(
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   /**
     Declare the member as being already out of the group.
@@ -252,6 +287,8 @@ class Gcs_operations {
   Gcs_gr_logger_impl gcs_logger;
   Gcs_interface *gcs_interface;
 
+  /** Was this view change injected */
+  bool injected_view_modification;
   /** Is the member leaving*/
   bool leave_coordination_leaving;
   /** Did the member already left*/
@@ -259,7 +296,12 @@ class Gcs_operations {
   /** Is finalize ongoing*/
   bool finalize_ongoing;
 
+  /** List of associated view change notifiers waiting */
+  std::list<Plugin_gcs_view_modification_notifier *> view_change_notifier_list;
+
   Checkable_rwlock *gcs_operations_lock;
+  /** Lock for the list of waiters on a view change */
+  Checkable_rwlock *view_observers_lock;
   Checkable_rwlock *finalize_ongoing_lock;
 };
 
