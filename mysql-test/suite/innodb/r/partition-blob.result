@@ -29,3 +29,21 @@ f3
 2
 3
 DROP TABLE t1;
+#
+# Bug #28491099 [FATAL] MEMORY BLOCK IS INVALID | INNODB: ASSERTION
+# FAILURE: UT0UT.CC:670
+#
+set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a INT, b TEXT NOT NULL) PARTITION BY RANGE(a)
+(PARTITION p0 VALUES LESS THAN (6), PARTITION p1 VALUES LESS THAN (9),
+PARTITION p2 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1(a) VALUES(0);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+ALTER TABLE t1 ADD COLUMN c DATE NOT NULL;
+ALTER TABLE t1 drop partition p0;
+ALTER TABLE t1 ADD COLUMN d DATE NOT NULL;
+DROP TABLE t1;
+SET sql_mode = default;
