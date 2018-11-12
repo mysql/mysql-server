@@ -4255,7 +4255,9 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
     table rename command. */
     const bool is_rename = (!old_is_tmp && !new_is_tmp);
 
-    if (is_rename || table->refresh_fk) {
+    /* When table->refresh_fk is true, the foreign keys will be loaded when the
+       table is opened. */
+    if (is_rename || !table->refresh_fk) {
       if (dict_locked) {
         ut_ad(mutex_own(&dict_sys->mutex));
         mutex_exit(&dict_sys->mutex);
