@@ -919,3 +919,18 @@ vector<RowIterator::Child> TemptableAggregateIterator::children() const {
   // join.)
   return vector<Child>{{m_subquery_iterator.get(), ""}};
 }
+
+MaterializedTableFunctionIterator::MaterializedTableFunctionIterator(
+    THD *thd, Table_function *table_function, TABLE *table,
+    unique_ptr_destroy_only<RowIterator> table_iterator)
+    : TableRowIterator(thd, table),
+      m_table_iterator(move(table_iterator)),
+      m_table_function(table_function) {}
+
+bool MaterializedTableFunctionIterator::Init() {
+  (void)m_table_function->fill_result_table();
+  if (table()->in_use->is_error()) {
+    return true;
+  }
+  return m_table_iterator->Init();
+}

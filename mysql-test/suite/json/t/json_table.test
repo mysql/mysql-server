@@ -12,6 +12,7 @@ let $query=select * from
   ) as tt;
 eval $query;
 eval explain $query; 
+eval explain format=tree $query;   # Tests printing of MaterializedTableFunctionIterator.
 
 --error ER_INVALID_DEFAULT
 select * from

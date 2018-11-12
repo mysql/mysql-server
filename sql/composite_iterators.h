@@ -558,4 +558,39 @@ class TemptableAggregateIterator final : public TableRowIterator {
   bool using_hash_key() const { return table()->hash_field; }
 };
 
+/**
+  An iterator that wraps a Table_function (e.g. JSON_TABLE) and allows you to
+  iterate over the materialized temporary table. The table is materialized anew
+  for every Init().
+
+  TODO: Just wrapping it is probably not the optimal thing to do;
+  Table_function is highly oriented around materialization, but never caches.
+  Thus, perhaps we should rewrite Table_function to return a RowIterator
+  instead of going through a temporary table.
+ */
+class MaterializedTableFunctionIterator final : public TableRowIterator {
+ public:
+  MaterializedTableFunctionIterator(
+      THD *thd, Table_function *table_function, TABLE *table,
+      unique_ptr_destroy_only<RowIterator> table_iterator);
+
+  bool Init() override;
+  int Read() override { return m_table_iterator->Read(); }
+  std::vector<std::string> DebugString() const override {
+    return {{"Materialize table function"}};
+  }
+  void SetNullRowFlag(bool is_null_row) override {
+    m_table_iterator->SetNullRowFlag(is_null_row);
+  }
+
+  // The temporary table is private to us, so there's no need to worry about
+  // locks to other transactions.
+  void UnlockRow() override {}
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_table_iterator;
+
+  Table_function *m_table_function;
+};
+
 #endif  // SQL_COMPOSITE_ITERATORS_INCLUDED

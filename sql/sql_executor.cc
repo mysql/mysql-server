@@ -1538,6 +1538,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           }
         }
       }
+    } else if (qep_tab->materialize_table == join_materialize_table_function) {
+      table_iterator.reset(
+          new (thd->mem_root) MaterializedTableFunctionIterator(
+              thd, qep_tab->table_ref->table_function, qep_tab->table(),
+              move(qep_tab->read_record.iterator)));
     } else {
       table_iterator = move(qep_tab->read_record.iterator);
     }
@@ -1639,8 +1644,9 @@ void JOIN::create_iterators() {
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->materialize_table != nullptr &&
-        qep_tab->materialize_table != join_materialize_derived) {
-      // Materialized table functions or semijoins.
+        qep_tab->materialize_table != join_materialize_derived &&
+        qep_tab->materialize_table != join_materialize_table_function) {
+      // Materialized semijoins.
       return;
     }
     if (qep_tab->materialize_table == join_materialize_derived) {
