@@ -1844,6 +1844,7 @@ xa end 'test1';
 xa prepare 'test1';
 --echo # Disconnect temporary connection
 disconnect con_tmp;
+--source include/wait_until_disconnected.inc
 --echo # Create temporary connection for XA transaction.
 connect (con_tmp,localhost,root,,);
 xa start 'test2';
@@ -1852,6 +1853,7 @@ xa end 'test2';
 xa prepare 'test2';
 --echo # Disconnect temporary connection
 disconnect con_tmp;
+--source include/wait_until_disconnected.inc
 --echo # Switching to connection '$con_aux1'.
 connection $con_aux1;
 flush tables with read lock;

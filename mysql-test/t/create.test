@@ -1880,3 +1880,65 @@ DROP TABLE t1, t2, t3, t4;
 DROP TABLE t1, t2, t3, t4;
 SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
 SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
+
+
+--echo #
+--echo # Bug#28022129: NOW() DOESN?T HONOR NO_ZERO_DATE SQL_MODE
+--echo #
+
+SET @saved_mode= @@sql_mode;
+
+CREATE TABLE t1(fld1 int);
+
+--echo # NO_ZERO_DATE and STRICT SQL mode.
+
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+CREATE TABLE t3 AS SELECT now();
+
+--echo # With patch, zero date is not generated as default.
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+DROP TABLE t2, t3;
+
+SET SQL_MODE= "NO_ZERO_DATE";
+
+--echo # NO_ZERO_DATE SQL mode.
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+CREATE TABLE t3 AS SELECT now();
+
+--echo # Zero date is generated as default in non strict mode.
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2, t3;
+
+SET SQL_MODE= DEFAULT;
+
+--echo # Test cases added for coverage.
+
+CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+
+--echo # CREATE TABLE..SELECT using fields of another table.
+CREATE TABLE t2 AS SELECT * FROM t1;
+--echo # Default value is copied from the source table column.
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+--echo # CREATE TABLE..SELECT based on trigger fields.
+CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+
+DELIMITER |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+  CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
+END
+|
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (1, '1111:11:11');
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE= @saved_mode;
