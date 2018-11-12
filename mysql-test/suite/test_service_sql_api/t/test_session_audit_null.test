@@ -3,6 +3,8 @@
 --let plugins= AUDIT_NULL,TEST_SESSION_IN_THD
 --source include/check_plugin_dir.inc
 
+# X plugin might increase counter Audit_null_connection_*
+source include/xplugin_wait_for_interfaces.inc;
 
 --echo ##########################################
 --echo # Run audit_null plugin
