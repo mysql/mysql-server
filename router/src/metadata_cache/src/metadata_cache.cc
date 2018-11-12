@@ -475,10 +475,6 @@
  *      a bug, reported as BUG#28082473
  */
 
-#ifdef _WIN32
-#define NOMINMAX
-#endif
-
 #include "metadata_cache.h"
 
 #include <cassert>

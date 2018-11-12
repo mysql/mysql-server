@@ -33,7 +33,6 @@
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
-#define NOMINMAX
 #include <direct.h>
 #include <io.h>
 #include <stdio.h>

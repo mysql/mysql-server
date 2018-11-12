@@ -21,9 +21,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#ifdef _WIN32
-#define NOMINMAX
-#endif
 
 #include "mysql_routing.h"
 #include "common.h"

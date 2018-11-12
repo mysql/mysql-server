@@ -22,12 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-// disable the min() macro in favor of std::min() and
-// std::numeric_limits<>::min()
-#define NOMINMAX
-#endif
-
 #include <functional>
 #include <map>
 #include <stdexcept>
