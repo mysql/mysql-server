@@ -102,15 +102,15 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  if (view_change_notifier != NULL &&
-      !view_change_notifier->is_view_modification_ongoing()) {
-    view_change_notifier->start_view_modification();
-  }
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+
+  Plugin_gcs_view_modification_notifier view_change_notifier;
+  view_change_notifier.start_view_modification();
+  Gcs_operations::enum_leave_state leave_state =
+      gcs_module->leave(&view_change_notifier);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;
-  switch (state) {
+  switch (leave_state) {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP; /* purecov:
                                                                     inspected */
@@ -148,15 +148,17 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
 
-  if (view_change_notifier != NULL) {
+  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
+      Gcs_operations::ALREADY_LEFT != leave_state) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier->wait_for_view_modification()) {
+    if (view_change_notifier.wait_for_view_modification()) {
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN); /* purecov:
                                                                     inspected */
     }
   }
+  gcs_module->remove_view_notifer(&view_change_notifier);
 
   if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
     std::string error_message(

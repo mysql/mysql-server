@@ -64,7 +64,6 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   */
   Plugin_gcs_events_handler(Applier_module_interface *applier_module,
                             Recovery_module *recovery_module,
-                            Plugin_gcs_view_modification_notifier *vc_notifier,
                             Compatibility_module *compatibility_manager,
                             ulong components_stop_timeout);
   virtual ~Plugin_gcs_events_handler();
@@ -300,8 +299,6 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   */
   std::set<Group_member_info *, Group_member_info_pointer_comparator>
       *temporary_states;
-
-  Plugin_gcs_view_modification_notifier *view_change_notifier;
 
   Compatibility_module *compatibility_manager;
 

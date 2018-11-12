@@ -713,11 +713,12 @@ void Applier_module::leave_group_on_failure() {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  if (view_change_notifier != NULL &&
-      !view_change_notifier->is_view_modification_ongoing()) {
-    view_change_notifier->start_view_modification();
-  }
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+  Plugin_gcs_view_modification_notifier view_change_notifier;
+
+  view_change_notifier.start_view_modification();
+
+  Gcs_operations::enum_leave_state leave_state =
+      gcs_module->leave(&view_change_notifier);
 
   char **error_message = NULL;
   int error = channel_stop_all(CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,
@@ -740,7 +741,7 @@ void Applier_module::leave_group_on_failure() {
 
   longlong errcode = 0;
   enum loglevel log_severity = WARNING_LEVEL;
-  switch (state) {
+  switch (leave_state) {
     case Gcs_operations::ERROR_WHEN_LEAVING:
       errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
       log_severity = ERROR_LEVEL;
@@ -759,13 +760,16 @@ void Applier_module::leave_group_on_failure() {
   }
   LogPluginErr(log_severity, errcode);
 
-  kill_pending_transactions(set_read_mode, false);
+  kill_pending_transactions(set_read_mode, false, leave_state,
+                            &view_change_notifier);
 
   DBUG_VOID_RETURN;
 }
 
-void Applier_module::kill_pending_transactions(bool set_read_mode,
-                                               bool threaded_sql_session) {
+void Applier_module::kill_pending_transactions(
+    bool set_read_mode, bool threaded_sql_session,
+    Gcs_operations::enum_leave_state leave_state,
+    Plugin_gcs_view_modification_notifier *view_notifier) {
   DBUG_ENTER("Applier_module::kill_pending_transactions");
 
   // Stop any more transactions from waiting
@@ -789,13 +793,15 @@ void Applier_module::kill_pending_transactions(bool set_read_mode,
       enable_server_read_mode(PSESSION_USE_THREAD);
   }
 
-  if (view_change_notifier != NULL) {
+  if (Gcs_operations::ERROR_WHEN_LEAVING != leave_state &&
+      Gcs_operations::ALREADY_LEFT != leave_state) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier->wait_for_view_modification()) {
+    if (view_notifier->wait_for_view_modification()) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
     }
   }
+  gcs_module->remove_view_notifer(view_notifier);
 
   /*
     Only execute abort if we were already inside a group. We may happen to come

@@ -110,7 +110,7 @@ void Group_partition_handling::kill_transactions_and_leave() {
   notify_and_reset_ctx(ctx);
 
   bool set_read_mode = false;
-  Gcs_operations::enum_leave_state state = gcs_module->leave();
+  Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;

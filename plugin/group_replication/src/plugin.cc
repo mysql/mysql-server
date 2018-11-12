@@ -746,8 +746,10 @@ int initialize_plugin_and_join(
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TIMEOUT_ON_VIEW_AFTER_JOINING_GRP);
     }
     error = view_change_notifier->get_error();
+    gcs_module->remove_view_notifer(view_change_notifier);
     goto err;
   }
+  gcs_module->remove_view_notifer(view_change_notifier);
 
   transaction_consistency_manager->register_transaction_observer();
   transaction_consistency_manager->plugin_started();
@@ -910,7 +912,8 @@ int leave_group() {
   if (gcs_module->belongs_to_group()) {
     view_change_notifier->start_view_modification();
 
-    Gcs_operations::enum_leave_state state = gcs_module->leave();
+    Gcs_operations::enum_leave_state state =
+        gcs_module->leave(view_change_notifier);
 
     longlong log_severity = WARNING_LEVEL;
     longlong errcode = 0;
@@ -930,16 +933,18 @@ int leave_group() {
         break;
       /* purecov: end */
       case Gcs_operations::NOW_LEAVING:
-        goto bypass_message;
+        break;
     }
-    LogPluginErr(log_severity, errcode);
-  bypass_message:
-    // Wait anyway
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
-    if (view_change_notifier->wait_for_view_modification()) {
-      LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
+    if (errcode) LogPluginErr(log_severity, errcode);
+
+    if (!errcode || ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING == errcode) {
+      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE);
+      if (view_change_notifier->wait_for_view_modification()) {
+        LogPluginErr(WARNING_LEVEL,
+                     ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN);
+      }
     }
+    gcs_module->remove_view_notifer(view_change_notifier);
   } else {
     /*
       Even when we do not belong to the group we invoke leave()
@@ -953,7 +958,7 @@ int leave_group() {
     */
     LogPluginErr(INFORMATION_LEVEL,
                  ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE);
-    gcs_module->leave();
+    gcs_module->leave(nullptr);
   }
 
   // Finalize GCS.
@@ -1669,12 +1674,12 @@ int start_group_communication() {
   DBUG_ENTER("start_group_communication");
 
   events_handler = new Plugin_gcs_events_handler(
-      applier_module, recovery_module, view_change_notifier, compatibility_mgr,
+      applier_module, recovery_module, compatibility_mgr,
       components_stop_timeout_var);
 
   view_change_notifier->start_view_modification();
 
-  if (gcs_module->join(*events_handler, *events_handler))
+  if (gcs_module->join(*events_handler, *events_handler, view_change_notifier))
     DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
 
   DBUG_RETURN(0);

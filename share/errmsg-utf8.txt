@@ -13710,7 +13710,7 @@ ER_GRP_RPL_WAITING_FOR_VIEW_UPDATE
   eng "Going to wait for view modification"
 
 ER_GRP_RPL_TIMEOUT_RECEIVING_VIEW_CHANGE_ON_SHUTDOWN
-  eng "On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details"
+  eng "While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details"
 
 ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE
   eng "Requesting to leave the group despite of not being a member"
@@ -13923,7 +13923,7 @@ ER_GRP_RPL_EXIT_GRP_GCS_ERROR
   eng "Error calling group communication interfaces while trying to leave the group"
 
 ER_GRP_RPL_GRP_MEMBER_OFFLINE
-  eng "Member is OFFLINE, it is not possible to force a new group membership"
+  eng "Member is not ONLINE, it is not possible to force a new group membership"
 
 ER_GRP_RPL_GCS_INTERFACE_ERROR
   eng "Error calling group communication interfaces"
@@ -18760,6 +18760,9 @@ ER_SECONDARY_ENGINE_PLUGIN
 
 ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL
   eng "The certification information could not be set in this server: '%s'"
+
+ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
+  eng "A request to force a new group membership was issued when the member is leaving the group."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

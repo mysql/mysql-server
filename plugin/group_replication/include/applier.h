@@ -31,6 +31,7 @@
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/applier_channel_state_observer.h"
 #include "plugin/group_replication/include/consistency_manager.h"
+#include "plugin/group_replication/include/gcs_operations.h"
 #include "plugin/group_replication/include/handlers/applier_handler.h"
 #include "plugin/group_replication/include/handlers/certification_handler.h"
 #include "plugin/group_replication/include/handlers/pipeline_handlers.h"
@@ -270,8 +271,10 @@ class Applier_module_interface {
   virtual Flow_control_module *get_flow_control_module() = 0;
   virtual void run_flow_control_step() = 0;
   virtual int purge_applier_queue_and_restart_applier_module() = 0;
-  virtual void kill_pending_transactions(bool set_read_mode,
-                                         bool threaded_sql_session) = 0;
+  virtual void kill_pending_transactions(
+      bool set_read_mode, bool threaded_sql_session,
+      Gcs_operations::enum_leave_state leave_state,
+      Plugin_gcs_view_modification_notifier *view_notifier) = 0;
   virtual bool queue_and_wait_on_queue_checkpoint(
       std::shared_ptr<Continuation> checkpoint_condition) = 0;
   virtual Pipeline_stats_member_collector *
@@ -703,8 +706,13 @@ class Applier_module : public Applier_module_interface {
     @param set_read_mode         if true, enable super_read_only mode
     @param threaded_sql_session  if true, creates a thread to open the
                                  SQL session
+    @param leave_state           the result of the leave attempt
+    @param view_notifier         the view notification object
   */
-  void kill_pending_transactions(bool set_read_mode, bool threaded_sql_session);
+  void kill_pending_transactions(
+      bool set_read_mode, bool threaded_sql_session,
+      Gcs_operations::enum_leave_state leave_state,
+      Plugin_gcs_view_modification_notifier *view_notifier);
 
   virtual bool queue_and_wait_on_queue_checkpoint(
       std::shared_ptr<Continuation> checkpoint_condition);

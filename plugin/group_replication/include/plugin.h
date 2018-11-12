@@ -117,7 +117,6 @@ extern Hold_transactions *hold_transactions;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;
-extern Plugin_gcs_view_modification_notifier *view_change_notifier;
 extern Group_member_info *local_member_info;
 extern Compatibility_module *compatibility_mgr;
 extern Group_partition_handling *group_partition_handler;
