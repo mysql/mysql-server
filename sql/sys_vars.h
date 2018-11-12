@@ -1284,7 +1284,7 @@ class Sys_var_flagset : public Sys_var_typelib {
       if (!(res = var->value->val_str(&str)))
         return true;
       else {
-        char *error;
+        const char *error;
         uint error_len;
 
         var->save_result.ulonglong_value = find_set_from_flags(

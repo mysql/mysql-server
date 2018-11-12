@@ -271,7 +271,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
   if (num_rounds) *num_rounds = rounds;
 
   /* Refine the salt */
-  salt = (char *)switchsalt;
+  salt = const_cast<char *>(switchsalt);
 
   /* skip our magic string */
   if (strncmp(salt, crypt_alg_magic, crypt_alg_magic_len) == 0) {

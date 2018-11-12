@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
+#include "template_utils.h"
 #if defined(_WIN32)
 #include "mysys/mysys_priv.h"
 #endif
@@ -118,9 +119,9 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
 
   seekptr = ftell(stream);
   for (;;) {
-    size_t written;
-    if ((written = (size_t)fwrite((char *)Buffer, sizeof(char), Count,
-                                  stream)) != Count) {
+    size_t written =
+        fwrite(pointer_cast<const char *>(Buffer), sizeof(char), Count, stream);
+    if (written != Count) {
       DBUG_PRINT("error", ("Write only %d bytes", (int)writtenbytes));
       set_my_errno(errno);
       if (written != (size_t)-1) {

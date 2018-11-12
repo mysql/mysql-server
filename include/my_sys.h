@@ -495,42 +495,64 @@ extern my_error_reporter my_charset_error_reporter;
 extern PSI_file_key key_file_io_cache;
 
 /* Test if buffer is inited */
-#define my_b_clear(info) (info)->buffer = 0
-#define my_b_inited(info) (info)->buffer
-#define my_b_EOF INT_MIN
+inline void my_b_clear(IO_CACHE *info) { info->buffer = nullptr; }
 
-#define my_b_read(info, Buffer, Count)                       \
-  ((info)->read_pos + (Count) <= (info)->read_end            \
-       ? (memcpy(Buffer, (info)->read_pos, (size_t)(Count)), \
-          ((info)->read_pos += (Count)), 0)                  \
-       : (*(info)->read_function)((info), Buffer, Count))
+inline bool my_b_inited(const IO_CACHE *info) {
+  return info->buffer != nullptr;
+}
 
-#define my_b_write(info, Buffer, Count)                         \
-  ((info)->write_pos + (Count) <= (info)->write_end             \
-       ? (memcpy((info)->write_pos, (Buffer), (size_t)(Count)), \
-          ((info)->write_pos += (Count)), 0)                    \
-       : (*(info)->write_function)((info), (uchar *)(Buffer), (Count)))
+constexpr int my_b_EOF = INT_MIN;
 
-#define my_b_get(info)                                          \
-  ((info)->read_pos != (info)->read_end                         \
-       ? ((info)->read_pos++, (int)(uchar)(info)->read_pos[-1]) \
-       : _my_b_get(info))
+inline int my_b_read(IO_CACHE *info, uchar *buffer, size_t count) {
+  if (info->read_pos + count <= info->read_end) {
+    memcpy(buffer, info->read_pos, count);
+    info->read_pos += count;
+    return 0;
+  }
+  return (*info->read_function)(info, buffer, count);
+}
 
-#define my_b_tell(info) \
-  ((info)->pos_in_file + (size_t)(*(info)->current_pos - (info)->request_pos))
+inline int my_b_write(IO_CACHE *info, const uchar *buffer, size_t count) {
+  if (info->write_pos + count <= info->write_end) {
+    memcpy(info->write_pos, buffer, count);
+    info->write_pos += count;
+    return 0;
+  }
+  return (*info->write_function)(info, buffer, count);
+}
 
-#define my_b_get_buffer_start(info) (info)->request_pos
-#define my_b_get_bytes_in_buffer(info) \
-  (char *)(info)->read_end - (char *)my_b_get_buffer_start(info)
-#define my_b_get_pos_in_file(info) (info)->pos_in_file
+extern int _my_b_get(IO_CACHE *info);
+
+inline int my_b_get(IO_CACHE *info) {
+  if (info->read_pos != info->read_end) {
+    info->read_pos++;
+    return info->read_pos[-1];
+  }
+  return _my_b_get(info);
+}
+
+inline my_off_t my_b_tell(const IO_CACHE *info) {
+  return info->pos_in_file + *info->current_pos - info->request_pos;
+}
+
+inline uchar *my_b_get_buffer_start(const IO_CACHE *info) {
+  return info->request_pos;
+}
+
+inline size_t my_b_get_bytes_in_buffer(const IO_CACHE *info) {
+  return info->read_end - my_b_get_buffer_start(info);
+}
+
+inline my_off_t my_b_get_pos_in_file(const IO_CACHE *info) {
+  return info->pos_in_file;
+}
 
 /* tell write offset in the SEQ_APPEND cache */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file);
-my_off_t my_b_append_tell(IO_CACHE *info);
-my_off_t my_b_safe_tell(IO_CACHE *info); /* picks the correct tell() */
 
-#define my_b_bytes_in_cache(info) \
-  (size_t)(*(info)->current_end - *(info)->current_pos)
+inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
+  return *info->current_end - *info->current_pos;
+}
 
 typedef uint32 ha_checksum;
 
@@ -669,7 +691,7 @@ void my_message_local_stderr(enum loglevel, uint ecode, va_list args);
 extern void my_message_local(enum loglevel ll, uint ecode, ...);
 extern bool my_init(void);
 extern void my_end(int infoflag);
-extern char *my_filename(File fd);
+extern const char *my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
 
@@ -690,7 +712,8 @@ extern int test_if_hard_path(const char *dir_name);
 extern bool has_path(const char *name);
 extern char *convert_dirname(char *to, const char *from, const char *from_end);
 extern void to_unix_path(char *name);
-extern char *fn_ext(const char *name);
+extern char *fn_ext(char *name);
+extern const char *fn_ext(const char *name);
 extern char *fn_same(char *toname, const char *name, int flag);
 extern char *fn_format(char *to, const char *name, const char *dir,
                        const char *form, uint flag);
@@ -729,7 +752,6 @@ extern void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
 extern void remove_io_thread(IO_CACHE *info);
 extern int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count);
 extern int _my_b_net_read(IO_CACHE *info, uchar *Buffer, size_t Count);
-extern int _my_b_get(IO_CACHE *info);
 extern int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count);
 extern int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count);

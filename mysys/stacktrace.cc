@@ -67,13 +67,18 @@
 #ifdef __linux__
 /* __bss_start doesn't seem to work on FreeBSD and doesn't exist on OSX/Solaris.
  */
-#define PTR_SANE(p) \
-  ((p) && (char *)(p) >= heap_start && (char *)(p) <= heap_end)
-static char *heap_start;
+static const char *heap_start;
 extern char *__bss_start;
-#else
-#define PTR_SANE(p) (p)
 #endif /* __linux */
+
+inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
+                     const char *heap_end MY_ATTRIBUTE((unused))) {
+#ifdef __linux__
+  return p && p >= heap_start && p <= heap_end;
+#else
+  return true;
+#endif
+}
 
 void my_init_stacktrace() {
 #ifdef __linux__
@@ -157,19 +162,20 @@ static int safe_print_str(const char *addr, int max_len) {
 #endif /* __linux __ */
 
 void my_safe_puts_stderr(const char *val, size_t max_len) {
+  const char *heap_end = nullptr;
 #ifdef __linux__
   if (!safe_print_str(val, max_len)) return;
 
-  /* Only needed by the linux version of PTR_SANE */
-  char *heap_end = (char *)sbrk(0);
+  /* Only needed by the linux version of ptr_sane() */
+  heap_end = static_cast<const char *>(sbrk(0));
 #endif
 
-  if (!PTR_SANE(val)) {
+  if (!ptr_sane(val, heap_end)) {
     my_safe_printf_stderr("%s", "is an invalid pointer\n");
     return;
   }
 
-  for (; max_len && PTR_SANE(val) && *val; --max_len)
+  for (; max_len && ptr_sane(val, heap_end) && *val; --max_len)
     my_write_stderr((val++), 1);
   my_safe_printf_stderr("%s", "\n");
 }

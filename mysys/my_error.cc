@@ -107,7 +107,7 @@ static struct my_err_head *my_errmsgs_list = &my_errmsgs_globerrs;
 */
 
 char *my_strerror(char *buf, size_t len, int nr) {
-  char *msg = NULL;
+  const char *msg = nullptr;
 
   buf[0] = '\0'; /* failsafe */
 
@@ -116,7 +116,7 @@ char *my_strerror(char *buf, size_t len, int nr) {
     by the principle of least surprise.
   */
   if ((nr >= HA_ERR_FIRST) && (nr <= HA_ERR_LAST))
-    msg = (char *)handler_error_messages[nr - HA_ERR_FIRST];
+    msg = handler_error_messages[nr - HA_ERR_FIRST];
 
   if (msg != NULL)
     strmake(buf, msg, len - 1);

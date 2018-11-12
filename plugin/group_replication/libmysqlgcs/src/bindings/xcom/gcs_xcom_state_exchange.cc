@@ -346,8 +346,9 @@ bool Gcs_xcom_state_exchange::state_exchange(
       it. Please, check ::get_new_view_id to find out how the view is
       chosen.
     */
-    Gcs_xcom_view_identifier &xcom_view_id =
-        (Gcs_xcom_view_identifier &)current_view->get_view_id();
+    const Gcs_xcom_view_identifier &xcom_view_id =
+        static_cast<const Gcs_xcom_view_identifier &>(
+            current_view->get_view_id());
     fixed_part = xcom_view_id.get_fixed_part();
     monotonic_part = xcom_view_id.get_monotonic_part();
   } else {

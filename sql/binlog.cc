@@ -3534,7 +3534,7 @@ const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
   }
   // get rid of extension to avoid problems
 
-  char *p = fn_ext(log_name);
+  const char *p = fn_ext(log_name);
   uint length = (uint)(p - log_name);
   strmake(buff, log_name, min<size_t>(length, FN_REFLEN - 1));
   return (const char *)buff;

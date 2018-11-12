@@ -671,8 +671,6 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
        it++) {
     Gcs_xcom_node_address *peer = *(it);
     std::string peer_rep_ip;
-    xcom_port port = 0;
-    char *addr = NULL;
 
     if (skip_own_peer_address(local_node_info_str_ips,
                               m_local_node_address->get_member_port(),
@@ -681,8 +679,8 @@ connection_descriptor *Gcs_xcom_control::get_connection_to_node(
       continue;
     }
 
-    port = peer->get_member_port();
-    addr = (char *)peer->get_member_ip().c_str();
+    xcom_port port = peer->get_member_port();
+    const char *addr = peer->get_member_ip().c_str();
 
     MYSQL_GCS_LOG_TRACE(
         "get_connection_to_node: xcom_client_open_connection to %s:%d", addr,
@@ -1179,7 +1177,8 @@ void Gcs_xcom_control::install_leave_view(
 
   // Create the new view id here, based in the previous one plus 1
   Gcs_xcom_view_identifier *new_view_id = new Gcs_xcom_view_identifier(
-      (Gcs_xcom_view_identifier &)current_view->get_view_id());
+      static_cast<const Gcs_xcom_view_identifier &>(
+          current_view->get_view_id()));
   new_view_id->increment_by_one();
 
   // Build a best-effort view...

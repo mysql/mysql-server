@@ -26,8 +26,9 @@
 #include "plugin_info_app.h"
 
 int main(int argc, char *argv[]) {
-  Plugin_info_app plugin_info_app(argc, (const char **)argv, std::cout,
-                                  std::cerr);
+  void *p = argv;
+  Plugin_info_app plugin_info_app(argc, static_cast<const char **>(p),
+                                  std::cout, std::cerr);
 
   return plugin_info_app.run();
 }

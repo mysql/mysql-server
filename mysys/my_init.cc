@@ -163,7 +163,7 @@ bool my_init() {
 
   {
     DBUG_ENTER("my_init");
-    DBUG_PROCESS((char *)(my_progname ? my_progname : "unknown"));
+    DBUG_PROCESS(my_progname ? my_progname : "unknown");
 #ifdef _WIN32
     if (my_win_init()) DBUG_RETURN(TRUE);
 #endif

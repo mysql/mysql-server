@@ -604,7 +604,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
   strmake(log_name_tmp, log_name->ptr(),
           min<uint32>(log_name->length(), FN_REFLEN - 1));
 
-  char *p = fn_ext(log_name_tmp);
+  const char *p = fn_ext(log_name_tmp);
   char *p_end;
   if (!*p || log_pos < 0) {
     error = -2;  // means improper arguments
@@ -660,7 +660,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
         and protect against user's input error :
         if the names do not match up to '.' included, return error
       */
-      char *q = (fn_ext(basename) + 1);
+      const char *q = fn_ext(basename) + 1;
       if (strncmp(basename, log_name_tmp, (int)(q - basename))) {
         error = -2;
         break;

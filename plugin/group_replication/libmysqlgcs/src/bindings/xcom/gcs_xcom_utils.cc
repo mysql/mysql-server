@@ -53,7 +53,9 @@ Gcs_xcom_utils::~Gcs_xcom_utils() {}
 
 u_long Gcs_xcom_utils::build_xcom_group_id(Gcs_group_identifier &group_id) {
   std::string group_id_str = group_id.get_group_id();
-  return mhash((unsigned char *)group_id_str.c_str(), group_id_str.size());
+  return mhash(static_cast<const unsigned char *>(
+                   static_cast<const void *>(group_id_str.c_str())),
+               group_id_str.size());
 }
 
 void Gcs_xcom_utils::process_peer_nodes(

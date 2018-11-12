@@ -62,6 +62,6 @@ extern TYPELIB sql_protocol_typelib;
 my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
                                  my_ulonglong cur_set, my_ulonglong default_set,
                                  const char *str, unsigned int length,
-                                 char **err_pos, unsigned int *err_len);
+                                 const char **err_pos, unsigned int *err_len);
 
 #endif /* _typelib_h */

@@ -75,9 +75,8 @@ static char *expand_tilde(char **path);
 */
 
 size_t cleanup_dirname(char *to, const char *from) {
-  size_t length;
   char *pos;
-  char *from_ptr;
+  const char *from_ptr;
   char *start;
   char parent[5], /* for "FN_PARENTDIR" */
       buff[FN_REFLEN + 1], *end_parentdir;
@@ -88,17 +87,20 @@ size_t cleanup_dirname(char *to, const char *from) {
   DBUG_PRINT("enter", ("from: '%s'", from));
 
   start = buff;
-  from_ptr = (char *)from;
+  from_ptr = from;
 #ifdef FN_DEVCHAR
-  if ((pos = strrchr(from_ptr, FN_DEVCHAR)) != 0) { /* Skip device part */
-    length = (size_t)(pos - from_ptr) + 1;
-    start = my_stpnmov(buff, from_ptr, length);
-    from_ptr += length;
+  {
+    const char *dev_pos = strrchr(from_ptr, FN_DEVCHAR);
+    if (dev_pos != nullptr) { /* Skip device part */
+      size_t length = (dev_pos - from_ptr) + 1;
+      start = my_stpnmov(buff, from_ptr, length);
+      from_ptr += length;
+    }
   }
 #endif
 
   parent[0] = FN_LIBCHAR;
-  length = (size_t)(my_stpcpy(parent + 1, FN_PARENTDIR) - parent);
+  size_t length = my_stpcpy(parent + 1, FN_PARENTDIR) - parent;
   const char *end = start + FN_REFLEN;
   for (pos = start; pos < end && ((*pos = *from_ptr++) != 0); pos++) {
 #ifdef _WIN32

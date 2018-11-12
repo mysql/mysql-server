@@ -862,7 +862,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
         }
         break;
       case GET_FLAGSET: {
-        char *error;
+        const char *error;
         uint error_len;
 
         *((ulonglong *)value) =

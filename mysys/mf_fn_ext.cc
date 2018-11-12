@@ -55,20 +55,19 @@
     points at the end ASCII(0) of the filename.
 */
 
-char *fn_ext(const char *name) {
-  const char *pos, *gpos;
-  DBUG_ENTER("fn_ext");
-  DBUG_PRINT("mfunkt", ("name: '%s'", name));
-
+const char *fn_ext(const char *name) {
 #if defined(FN_DEVCHAR) || defined(_WIN32)
-  {
-    char buff[FN_REFLEN];
-    size_t res_length;
-    gpos = name + dirname_part(buff, (char *)name, &res_length);
-  }
+  char buff[FN_REFLEN];
+  size_t res_length;
+  const char *gpos = name + dirname_part(buff, name, &res_length);
 #else
-  if (!(gpos = strrchr(name, FN_LIBCHAR))) gpos = name;
+  const char *gpos = strrchr(name, FN_LIBCHAR);
+  if (gpos == nullptr) gpos = name;
 #endif
-  pos = strrchr(gpos, FN_EXTCHAR);
-  DBUG_RETURN((char *)(pos ? pos : strend(gpos)));
-} /* fn_ext */
+  const char *pos = strrchr(gpos, FN_EXTCHAR);
+  return pos ? pos : strend(gpos);
+}
+
+char *fn_ext(char *name) {
+  return const_cast<char *>(fn_ext(static_cast<const char *>(name)));
+}
