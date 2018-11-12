@@ -1,4 +1,7 @@
 
+# X plugin might add rows to general_log
+source include/xplugin_wait_for_interfaces.inc;
+
 --echo # Setting general_log to initial state empty
 TRUNCATE TABLE mysql.general_log;
 

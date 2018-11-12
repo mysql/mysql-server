@@ -2,6 +2,8 @@
 --echo # Checks the basic functionality of the plugin.
 --echo #
 
+--source include/xplugin_wait_for_interfaces.inc
+
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
 
