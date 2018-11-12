@@ -1387,6 +1387,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   }
   
   bool get_page = false;
+  bool initial_delete = false;
   if(regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit)
   {
     jam();
@@ -1440,6 +1441,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     {
       jam();
       // initial delete
+      initial_delete = true;
       ndbassert(regOperPtr.p->op_type == ZDELETE);
       memcpy(&req.m_page, 
 	     tuple_ptr->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
@@ -1453,6 +1455,20 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
                            diskPagePtr,
                            regFragPtr.p) == 0)
     {
+      if (!initial_delete)
+      {
+        jam();
+      }
+      else
+      {
+        jam();
+        /* Set bit to indicate the tuple is already deleted */
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
+      }
+      signal->theData[0] = 1; //Ensure we report real-time break
       return; // Data page has not been retrieved yet.
     }
     get_page = true;
@@ -1469,6 +1485,20 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     
     if (retrieve_log_page(signal, regFragPtr, regOperPtr) == 0)
     {
+      if (!initial_delete)
+      {
+        jam();
+      }
+      else
+      {
+        jam();
+        /* Set bit to indicate the tuple is already deleted */
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
+      }
+      signal->theData[0] = 1; //Ensure we report real-time break
       return; // Log page has not been retrieved yet.
     }
   }

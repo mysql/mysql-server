@@ -7426,7 +7426,16 @@ Dblqh::acckeyconf_load_diskpage(Signal* signal, TcConnectionrecPtr regTcPtr,
     regTcPtr.p->transactionState = TcConnectionrec::WAIT_TUP;
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= regTcPtr.i;
-    ref->errorCode= ~0;
+    if (res == -1)
+    {
+      jam();
+      ref->errorCode= ~0;
+    }
+    else
+    {
+      jam();
+      ref->errorCode = -res;
+    }
     execTUPKEYREF(signal);
     return;
   }
@@ -13685,7 +13694,16 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
     jam();
     TupKeyRef * ref = (TupKeyRef *)signal->getDataPtr();
     ref->userRef= regTcPtr.i;
-    ref->errorCode= ~0;
+    if (res == -1)
+    {
+      jam();
+      ref->errorCode= ~0;
+    }
+    else
+    {
+      jam();
+      ref->errorCode= -res;
+    }
     execTUPKEYREF(signal);
     return;
   }

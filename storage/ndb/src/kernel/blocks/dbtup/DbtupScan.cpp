@@ -1134,6 +1134,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
       return ZSCAN_FOUND_DELETED_ROWID;
     }
     else if (! (thbits & Tuple_header::FREE ||
+                thbits & Tuple_header::DELETE_WAIT ||
                 thbits & Tuple_header::ALLOC))
     {
       jam();
@@ -2278,7 +2279,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                                   thbits);
               ndbabort();
             }
-	    if (! ((thbits & Tuple_header::FREE) ||
+	    if (! ((thbits & Tuple_header::FREE ||
+                    thbits & Tuple_header::DELETE_WAIT) ||
                    ((bits & ScanOp::SCAN_LCP) &&
                     (thbits & Tuple_header::ALLOC))))
 	    {
@@ -2360,7 +2362,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
                * row again. This is handled by changing the pos.m_get state
                * to Get_tuple instead of Get_next_tuple.
                */
-        if (! (thbits & Tuple_header::FREE))
+              if (! (thbits & Tuple_header::FREE ||
+                     thbits & Tuple_header::DELETE_WAIT))
 	      {
 		jam();
 		goto found_tuple;
@@ -2603,7 +2606,8 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
               foundGCI == 0)
           {
             thbits = tuple_header_ptr->m_header_bits;
-            if (! (thbits & Tuple_header::FREE))
+            if (! (thbits & Tuple_header::FREE ||
+                   thbits & Tuple_header::DELETE_WAIT))
             {
               jam();
               break;
