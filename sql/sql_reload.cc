@@ -177,7 +177,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
       if (active_mi != NULL)
       {
         mysql_mutex_lock(&active_mi->data_lock);
-        if (rotate_relay_log(active_mi))
+        if (rotate_relay_log(active_mi, true/*need_log_space_lock=true*/))
           *write_to_binlog= -1;
         mysql_mutex_unlock(&active_mi->data_lock);
       }
