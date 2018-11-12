@@ -2122,6 +2122,15 @@ void
 dict_allocate_mem_intrinsic_cache(
                 dict_index_t*           index);
 
+/** Check whether the table is a partitioned table.
+@param[in]      table   Table to check.
+@return true if the table is a partitioned table else false. */
+UNIV_INLINE
+bool
+dict_table_is_partition(
+        const dict_table_t*     table);
+
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
