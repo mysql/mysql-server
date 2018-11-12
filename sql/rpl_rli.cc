@@ -30,6 +30,7 @@
 
 #include "binlog_event.h"
 #include "m_ctype.h"
+#include "mutex_lock.h"  // Mutex_lock
 #include "my_dbug.h"
 #include "my_dir.h"  // MY_STAT
 #include "my_sqlcommand.h"
@@ -440,6 +441,7 @@ err:
 static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
+  mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog, linfo->log_file_name, &s, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_RPL_FAILED_TO_STAT_LOG_IN_INDEX,
            linfo->log_file_name);
@@ -456,6 +458,7 @@ static inline int add_relay_log(Relay_log_info *rli, LOG_INFO *linfo) {
 int Relay_log_info::count_relay_log_space() {
   LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  MUTEX_LOCK(lock, &log_space_lock);
   log_space_total = 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1)) {
     LogErr(ERROR_LEVEL, ER_RPL_LOG_NOT_FOUND_WHILE_COUNTING_RELAY_LOG_SPACE);
@@ -1760,7 +1763,7 @@ void Relay_log_info::end_info() {
   inited = 0;
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true /*need_lock_log=true*/, true /*need_lock_index=true*/);
-  relay_log.harvest_bytes_written(&log_space_total);
+  relay_log.harvest_bytes_written(this, true /*need_log_space_lock=true*/);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance

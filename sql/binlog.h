@@ -667,17 +667,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
 #endif /* defined(MYSQL_SERVER) */
   void add_bytes_written(ulonglong inc) { bytes_written += inc; }
   void reset_bytes_written() { bytes_written = 0; }
-  void harvest_bytes_written(ulonglong *counter) {
-#ifndef DBUG_OFF
-    char buf1[22], buf2[22];
-#endif
-    DBUG_ENTER("harvest_bytes_written");
-    (*counter) += bytes_written;
-    DBUG_PRINT("info", ("counter: %s  bytes_written: %s", llstr(*counter, buf1),
-                        llstr(bytes_written, buf2)));
-    bytes_written = 0;
-    DBUG_VOID_RETURN;
-  }
+  void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
   void signal_update() {
     DBUG_ENTER("MYSQL_BIN_LOG::signal_update");

@@ -5986,6 +5986,13 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         DBUG_PRINT("info", ("purging %s", log_info.log_file_name));
         if (!mysql_file_delete(key_file_binlog, log_info.log_file_name,
                                MYF(0))) {
+          DBUG_EXECUTE_IF("wait_in_purge_index_entry", {
+            const char action[] =
+                "now SIGNAL in_purge_index_entry WAIT_FOR go_ahead_sql";
+            DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+            DBUG_SET("-d,wait_in_purge_index_entry");
+          };);
+
           if (decrease_log_space) *decrease_log_space -= s.st_size;
         } else {
           if (my_errno() == ENOENT) {
@@ -6528,7 +6535,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
   lock_binlog_end_pos();
   mi->rli->ign_master_log_name_end[0] = 0;
   update_binlog_end_pos(false /*need_lock*/);
-  harvest_bytes_written(&mi->rli->log_space_total);
+  harvest_bytes_written(mi->rli, true /*need_log_space_lock=true*/);
   unlock_binlog_end_pos();
 
   DBUG_RETURN(error);
@@ -7419,6 +7426,26 @@ void MYSQL_BIN_LOG::close(
 
   if (need_lock_log) mysql_mutex_unlock(&LOCK_log);
 
+  DBUG_VOID_RETURN;
+}
+
+void MYSQL_BIN_LOG::harvest_bytes_written(Relay_log_info *rli,
+                                          bool need_log_space_lock) {
+#ifndef DBUG_OFF
+  char buf1[22], buf2[22];
+#endif
+
+  DBUG_ENTER("harvest_bytes_written");
+  if (need_log_space_lock)
+    mysql_mutex_lock(&rli->log_space_lock);
+  else
+    mysql_mutex_assert_owner(&rli->log_space_lock);
+  rli->log_space_total += bytes_written;
+  DBUG_PRINT("info",
+             ("relay_log_space: %s  bytes_written: %s",
+              llstr(rli->log_space_total, buf1), llstr(bytes_written, buf2)));
+  bytes_written = 0;
+  if (need_log_space_lock) mysql_mutex_unlock(&rli->log_space_lock);
   DBUG_VOID_RETURN;
 }
 
