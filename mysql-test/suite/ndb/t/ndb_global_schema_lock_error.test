@@ -47,8 +47,24 @@ TRUNCATE TABLE t2;
 CREATE TABLE t4 AS SELECT * FROM t2;
 DROP TABLE t2;
 DROP TABLE t3, t4;
---enable_ps_protocol
 
+# Check if tablespace DDL works as expected i.e. passes with two warnings
+# generated including one about failure to acquire global schema lock
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1.ibd';
+CREATE TABLE t5 (a INT PRIMARY KEY) TABLESPACE ts1;
+DROP TABLE t5;
+ALTER TABLESPACE ts1 RENAME TO ts2;
+DROP TABLESPACE ts2;
+
+# Check logfile group DDL. This shall fail of course with 3 warnings
+# generated including one about failure to acquire global schema lock
+--error ER_GET_ERRNO
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  ENGINE NDB;
+SHOW WARNINGS;
+--enable_ps_protocol
 
 # Start NDB nodes back up again
 --source ndb_restart_start.inc

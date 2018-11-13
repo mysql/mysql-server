@@ -53,5 +53,37 @@ DROP TABLE t3, t4;
 Warnings:
 Warning	1296	Got error 4009 'Cluster Failure' from NDB
 Warning	1296	Could not acquire global schema lock
+CREATE TABLESPACE ts1
+ADD DATAFILE 'ts1.ibd';
+Warnings:
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+CREATE TABLE t5 (a INT PRIMARY KEY) TABLESPACE ts1;
+Warnings:
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+DROP TABLE t5;
+Warnings:
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+ALTER TABLESPACE ts1 RENAME TO ts2;
+Warnings:
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+DROP TABLESPACE ts2;
+Warnings:
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'lg1_undofile.dat'
+  ENGINE NDB;
+ERROR HY000: Got error 157 - 'Could not connect to storage engine' from storage engine
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 4009 'Cluster Failure' from NDB
+Warning	1296	Could not acquire global schema lock
+Warning	1296	Schema distribution is not ready
+Error	1030	Got error 157 - 'Could not connect to storage engine' from storage engine
 Starting all nodes
 Waiting for started
