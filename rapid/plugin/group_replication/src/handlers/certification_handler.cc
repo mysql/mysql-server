@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -503,7 +503,21 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
 
   std::map<std::string, std::string> cert_info;
   cert_module->get_certification_info(&cert_info);
-  vchange_event->set_certification_info(&cert_info);
+  size_t event_size = 0;
+  vchange_event->set_certification_info(&cert_info, &event_size);
+
+  /*
+     If certification information is too big this event can't be transmitted
+     as it would cause failures on all group members.
+     To avoid this, we  now instead encode an error that will make the joiner
+     leave the group.
+  */
+  if (event_size > get_slave_max_allowed_packet()) {
+    cert_info.clear();
+    cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
+        "Certification information is too large for transmission.";
+    vchange_event->set_certification_info(&cert_info, &event_size);
+  }
 
   //Assure the last known local transaction was already executed
   error= wait_for_local_transaction_execution();
