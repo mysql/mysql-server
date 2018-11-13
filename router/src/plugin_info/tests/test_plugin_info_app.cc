@@ -26,19 +26,19 @@
  * Test the mysqlrouter_plugin_info tool.
  */
 
-#include "gmock/gmock.h"
-
 #include "plugin_info_app.h"
-
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/plugin.h"
-#include "router_config.h"
-
-#include "print_version.h"
-#include "welcome_copyright_notice.h"
 
 #include <iostream>
 #include <sstream>
+
+#include <gmock/gmock.h>
+
+#include "helpers/router_test_helpers.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/plugin.h"
+#include "print_version.h"
+#include "router_config.h"
+#include "welcome_copyright_notice.h"
 
 using mysql_harness::Path;
 
@@ -93,23 +93,25 @@ string PluginInfoAppTest::get_plugin_file_path(const string &plugin_name) {
 
 void PluginInfoAppTest::verify_help_output() {
   const string kHelpOutput =
-      "Usage:\n"
-      "\tmysqlrouter_plugin_info <mysqlrouter_plugin_file> "
-      "<mysql_plugin_name>\n"
-      "Example:\n"
+      "Usage: mysqlrouter_plugin_info <mysqlrouter_plugin_file> "
+      "<plugin_name>\n\n"
+      "# Examples\n\n"
+      "Print plugin information:\n\n"
 #ifndef _WIN32
-      "\tmysqlrouter_plugin_info /usr/lib/mysqlrouter/routing.so routing\n"
+      "    mysqlrouter_plugin_info /usr/lib/mysqlrouter/routing.so routing\n"
 #else
-      "\tmysqlrouter_plugin_info \"c:\\Program Files (x86)\\MySQL\\MySQL "
-      "Router 2.1\\lib\\routing.dll\" routing\n"
+      "    mysqlrouter_plugin_info \"c:\\Program Files\\MySQL\\MySQL "
+      "Router 8.0\\lib\\routing.dll\" routing\n"
 #endif
-      "To print help information:\n"
-      "\tmysqlrouter_plugin_info --help\n"
-      "To print application version:\n"
-      "\tmysqlrouter_plugin_info --version\n";
+      "\n"
+      "# Options\n\n"
+      "  -V, --version\n"
+      "      Display version information and exit.\n"
+      "  -?, --help\n"
+      "      Display this help and exit.\n";
 
-  EXPECT_THAT(out_stream_.str(), StrEq(""));
-  EXPECT_THAT(out_stream_err_.str(), StrEq(kHelpOutput));
+  EXPECT_EQ(out_stream_.str(), kHelpOutput);
+  EXPECT_THAT(out_stream_err_.str(), StrEq(""));
 }
 
 void PluginInfoAppTest::verify_version_output() {
@@ -119,8 +121,8 @@ void PluginInfoAppTest::verify_version_output() {
   const string kVersionOutput =
       version_string + "\n" + ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") + "\n";
 
-  EXPECT_THAT(out_stream_.str(), StrEq(""));
-  EXPECT_THAT(out_stream_err_.str(), StrEq(kVersionOutput));
+  EXPECT_EQ(out_stream_.str(), kVersionOutput);
+  EXPECT_THAT(out_stream_err_.str(), StrEq(""));
 }
 
 void PluginInfoAppTest::verify_plugin_info(const string &brief,
@@ -160,98 +162,79 @@ void PluginInfoAppTest::verify_plugin_info(const string &brief,
 }
 
 TEST_F(PluginInfoAppTest, NoParametersPassed) {
-  const char *argv[] = {kPluginInfoAppExeFileName};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, {}, out_stream_,
+                                     out_stream_err_);
 
-  int res = plugin_info_app.run();
-
-  // if the mysqlrouter_plugin_info was called with no command line options
-  // we expect usage being printed to error stream and app returning with -1
-  EXPECT_EQ(-1, res);
-  verify_help_output();
+  EXPECT_THROW(plugin_info_app.run(), UsageError);
 }
 
+// if the mysqlrouter_plugin_info was called with --help parameter
+// we expect usage being printed to error stream and app returning with 0
 TEST_F(PluginInfoAppTest, HelpRequested) {
-  const char *argv[] = {kPluginInfoAppExeFileName, "--help"};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
+  std::vector<std::string> args{"--help"};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
   int res = plugin_info_app.run();
 
-  // if the mysqlrouter_plugin_info was called with --help parameter
-  // we expect usage being printed to error stream and app returning with 0
-  EXPECT_EQ(0, res);
+  EXPECT_EQ(EXIT_SUCCESS, res);
   verify_help_output();
 }
 
+// if the mysqlrouter_plugin_info was called with --version parameter
+// we expect the version being printed to error stream and app returning
+// with
+// 0
 TEST_F(PluginInfoAppTest, VersionRequested) {
-  const char *argv[] = {kPluginInfoAppExeFileName, "--version"};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
+  std::vector<std::string> args{"--version"};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
   int res = plugin_info_app.run();
 
-  // if the mysqlrouter_plugin_info was called with --version parameter
-  // we expect the version being printed to error stream and app returning with
-  // 0
-  EXPECT_EQ(0, res);
+  EXPECT_EQ(EXIT_SUCCESS, res);
   verify_version_output();
 }
 
 TEST_F(PluginInfoAppTest, WrongNumberOfParams) {
-  const char *argv[] = {kPluginInfoAppExeFileName, "one", "two", "three"};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
+  std::vector<std::string> args{"one", "two", "three"};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
-  int res = plugin_info_app.run();
-
-  // if the mysqlrouter_plugin_info was called with too many command line
-  // parameters we expect usage being printed to error stream and app returning
-  // with -1
-  EXPECT_EQ(-1, res);
-  verify_help_output();
+  EXPECT_THROW(plugin_info_app.run(), UsageError);
 }
 
 TEST_F(PluginInfoAppTest, NonExistingLibrary) {
-  const char *non_existing_plugin = "non_existing_plugin";
-  std::string lib_path = get_plugin_file_path(non_existing_plugin);
-  const char *argv[] = {kPluginInfoAppExeFileName, lib_path.c_str(),
-                        non_existing_plugin};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
-
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
-  int res = plugin_info_app.run();
-
-  EXPECT_EQ(-1, res);
+  const char *plugin_name = "non_existing_plugin";
+  std::string lib_path = get_plugin_file_path(plugin_name);
+  std::vector<std::string> args{lib_path.c_str(), plugin_name};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
   const std::string expected_error = "Could not load plugin file: ";
+  EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
 
-  // check if correct error gets printed on error stream
-  EXPECT_THAT(out_stream_.str(), StrEq(""));
-  EXPECT_THAT(out_stream_err_.str(), StartsWith(expected_error));
+  // that nothing else is printed
+  EXPECT_EQ(out_stream_.str(), "");
+  EXPECT_EQ(out_stream_err_.str(), "");
 }
 
+// we use mysql_protocol which is an existing library but it's not a
+// plugin so should not have Plugin struct exported/defined
 TEST_F(PluginInfoAppTest, NonPluginExistingLibrary) {
-  // we use mysql_protocol which is an existing library but it's not a plugin
-  // so should not have Plugin struct exported/defined
-  const char *non_plugin_lib = "mysql_protocol";
-  std::string lib_path = get_plugin_file_path(non_plugin_lib);
-  const char *argv[] = {kPluginInfoAppExeFileName, lib_path.c_str(),
-                        non_plugin_lib};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
+  const char *plugin_name = "mysql_protocol";
+  std::string lib_path = get_plugin_file_path(plugin_name);
 
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
-  int res = plugin_info_app.run();
+  std::vector<std::string> args{lib_path.c_str(), plugin_name};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
-  EXPECT_EQ(-1, res);
+  const std::string expected_error = "Loading plugin information for ";
+  EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
 
-  const std::string expected_error =
-      "Loading plugin information for '" + lib_path + "' failed:";
-
-  // check if correct error gets printed on error stream
-  EXPECT_THAT(out_stream_.str(), StrEq(""));
-  EXPECT_THAT(out_stream_err_.str(), StartsWith(expected_error));
+  // that nothing else is printed
+  EXPECT_EQ(out_stream_.str(), "");
+  EXPECT_EQ(out_stream_err_.str(), "");
 }
 
 //
@@ -273,15 +256,14 @@ TEST_P(PluginInfoAppTestReadInfo, ReadInfo) {
   const string plugin_conflicts = std::get<4>(GetParam());
   const string plugin_file_path = get_plugin_file_path(plugin_name);
 
-  const char *argv[] = {kPluginInfoAppExeFileName, plugin_file_path.c_str(),
-                        plugin_name.c_str()};
-  const int argc = static_cast<int>(sizeof(argv) / sizeof(char *));
+  std::vector<std::string> args{plugin_file_path.c_str(), plugin_name.c_str()};
 
-  Plugin_info_app plugin_info_app(argc, argv, out_stream_, out_stream_err_);
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     out_stream_, out_stream_err_);
 
   int res = plugin_info_app.run();
 
-  EXPECT_EQ(0, res);
+  EXPECT_EQ(EXIT_SUCCESS, res);
   verify_plugin_info(plugin_brief, plugin_version, plugin_requires,
                      plugin_conflicts);
 }

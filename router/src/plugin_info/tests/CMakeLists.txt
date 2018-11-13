@@ -28,6 +28,7 @@ SET(PLUGIN_INFO_SOURCES
 
 SET(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}/../src/
+  ${PROJECT_SOURCE_DIR}/tests/
 )
 
 IF(NOT WIN32)

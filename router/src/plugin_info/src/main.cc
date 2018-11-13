@@ -22,13 +22,51 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <iostream>
 #include "plugin_info_app.h"
 
-int main(int argc, char *argv[]) {
-  void *p = argv;
-  Plugin_info_app plugin_info_app(argc, static_cast<const char **>(p),
-                                  std::cout, std::cerr);
+#include <iostream>
+#include <string>
 
-  return plugin_info_app.run();
+/**
+ * display error.
+ *
+ * in case the frontend failed to parse arguments, show errormsg
+ * and a hint for help.
+ * If the frontend failed for another reason, just show the errormsg.
+ *
+ * @param cerr output stream
+ * @param program_name name of executable that was started (argv[0])
+ * @param errmsg error message to display
+ * @param with_help true, if "hint for help" shall be displayed
+ */
+static void display_error(std::ostream &cerr, const std::string program_name,
+                          const std::string &errmsg, bool with_help) {
+  cerr << "[Error] " << errmsg << std::endl;
+
+  if (with_help) {
+    cerr << std::endl
+         << "[Note] Use '" << program_name << " --help' to show the help."
+         << std::endl;
+  }
+}
+
+int main(int argc, char **argv) {
+  try {
+    std::vector<std::string> args;
+    if (argc > 1) {
+      // if there are more args, place them in a vector
+      args.reserve(argc - 1);
+      for (int n = 1; n < argc; ++n) {
+        args.emplace_back(argv[n]);
+      }
+    }
+    PluginInfoFrontend frontend(argv[0], args, std::cout, std::cerr);
+    return frontend.run();
+  } catch (const UsageError &e) {
+    display_error(std::cerr, argv[0], e.what(), true);
+    return EXIT_FAILURE;
+  } catch (const FrontendError &e) {
+    display_error(std::cerr, argv[0], e.what(), false);
+    return EXIT_FAILURE;
+  }
 }

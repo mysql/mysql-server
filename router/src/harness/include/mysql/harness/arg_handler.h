@@ -346,7 +346,8 @@ class HARNESS_EXPORT CmdArgHandler {
    * @return vector of strings
    */
   std::vector<std::string> option_descriptions(const size_t width,
-                                               const size_t indent) noexcept;
+                                               const size_t indent) const
+      noexcept;
 
   /** @brief Returns an iterator to first option
    *

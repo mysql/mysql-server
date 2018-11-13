@@ -24,7 +24,9 @@
 
 #include "plugin_info_app.h"
 
+#include <sstream>
 #include <stdexcept>
+#include <vector>
 
 #include "library_file.h"
 #include "print_version.h"
@@ -32,83 +34,110 @@
 
 #include "router_config.h"
 
-Plugin_info_app::Plugin_info_app(int argc, const char **argv,
-                                 std::ostream &out_stream,
-                                 std::ostream &out_stream_err)
-    : argc_(argc),
-      argv_(argv),
-      out_stream_(out_stream),
-      out_stream_err_(out_stream_err) {}
+PluginInfoFrontend::PluginInfoFrontend(
+    const std::string &exe_name, const std::vector<std::string> &arguments,
+    std::ostream &out, std::ostream &err)
+    : program_name_(exe_name), cout_(out), cerr_(err) {
+  prepare_command_options();
+  try {
+    arg_handler_.process(arguments);
+  } catch (const std::invalid_argument &e) {
+    throw FrontendError(e.what());
+  }
+}
 
-int Plugin_info_app::run() {
-  if (argc_ == 2) {
-    std::string command = argv_[1];
-    if (command == "--help") {
-      print_usage(argv_[0]);
-      return 0;
-    }
+constexpr const char kNewline[] = "\n";
 
-    if (command == "--version") {
-      print_version();
-      return 0;
-    }
+std::string PluginInfoFrontend::get_version() const noexcept {
+  std::stringstream os;
+
+  std::string version_string;
+  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
+
+  os << version_string << kNewline;
+  os << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << kNewline;
+
+  return os.str();
+}
+
+std::string PluginInfoFrontend::get_help(const size_t screen_width) const {
+  std::stringstream os;
+
+  os << "Usage: " << program_name_ << " <mysqlrouter_plugin_file> <plugin_name>"
+     << kNewline << kNewline;
+
+  os << "# Examples" << kNewline << kNewline;
+
+  os << "Print plugin information:" << kNewline << kNewline;
+  os << "    " << program_name_
+#ifndef _WIN32
+     << " /usr/lib/mysqlrouter/routing.so routing"
+#else
+     << " \"c:\\Program Files\\MySQL\\MySQL Router "
+        "8.0\\lib\\routing.dll\" routing"
+#endif
+     << kNewline << kNewline;
+  os << "# Options" << kNewline << kNewline;
+
+  for (const auto &line : arg_handler_.option_descriptions(screen_width, 6)) {
+    os << line << kNewline;
   }
 
-  if (argc_ != 3) {
-    print_usage(argv_[0]);
-    return -1;
+  return os.str();
+}
+
+void PluginInfoFrontend::prepare_command_options() {
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"-V", "--version"}),
+      "Display version information and exit.", CmdOptionValueReq::none, "",
+      [this](const std::string &) { this->config_.cmd = Cmd::SHOW_VERSION; });
+
+  arg_handler_.add_option(
+      CmdOption::OptionNames({"-?", "--help"}), "Display this help and exit.",
+      CmdOptionValueReq::none, "",
+      [this](const std::string &) { this->config_.cmd = Cmd::SHOW_HELP; });
+}
+
+int PluginInfoFrontend::run() {
+  switch (config_.cmd) {
+    case Cmd::SHOW_HELP:
+      cout_ << get_help() << std::flush;
+      return EXIT_SUCCESS;
+    case Cmd::SHOW_VERSION:
+      cout_ << get_version() << std::flush;
+      return EXIT_SUCCESS;
+    default:
+      break;
   }
 
-  const std::string file_name = argv_[1];
-  const std::string plugin_name = argv_[2];
+  auto &rest_args = arg_handler_.get_rest_arguments();
+  auto rest_args_count = rest_args.size();
+
+  if (rest_args_count != 2) {
+    throw UsageError("<file> and <plugin_name> are required");
+  }
+
+  const std::string file_name = rest_args[0];
+  const std::string plugin_name = rest_args[1];
 
   try {
     Library_file plugin_file(file_name, plugin_name);
     uint32_t abi_version = plugin_file.get_abi_version();
 
     if (abi_version > mysql_harness::PLUGIN_ABI_VERSION) {
-      throw std::runtime_error("Unsupported plugin ABI version: " +
-                               Plugin_info::get_abi_version_str(abi_version));
+      throw FrontendError("Unsupported plugin ABI version: " +
+                          Plugin_info::get_abi_version_str(abi_version));
     }
 
     // all the other versions so far have the same structure from our
     // perspective
     Plugin_v1 *plugin = plugin_file.get_plugin_struct<Plugin_v1>(plugin_name);
     Plugin_info plugin_info(*plugin);
-    out_stream_ << plugin_info << std::endl;
-  } catch (std::runtime_error &err) {
-    out_stream_err_ << err.what() << std::endl;
-    return -1;
+
+    cout_ << plugin_info << std::endl;
+
+    return EXIT_SUCCESS;
+  } catch (const std::runtime_error &e) {
+    throw FrontendError(e.what());
   }
-
-  return 0;
-}
-
-void Plugin_info_app::print_usage(const char *exec_name) {
-  out_stream_err_ << "Usage:" << std::endl;
-  out_stream_err_ << "\t" << exec_name
-                  << " <mysqlrouter_plugin_file> <mysql_plugin_name>"
-                  << std::endl;
-  out_stream_err_ << "Example:" << std::endl;
-#ifndef _WIN32
-  out_stream_err_ << "\t" << exec_name
-                  << " /usr/lib/mysqlrouter/routing.so routing" << std::endl;
-#else
-  out_stream_err_ << "\t" << exec_name
-                  << " \"c:\\Program Files (x86)\\MySQL\\MySQL Router "
-                     "2.1\\lib\\routing.dll\" routing"
-                  << std::endl;
-#endif
-  out_stream_err_ << "To print help information:" << std::endl;
-  out_stream_err_ << "\t" << exec_name << " --help" << std::endl;
-  out_stream_err_ << "To print application version:" << std::endl;
-  out_stream_err_ << "\t" << exec_name << " --version" << std::endl;
-}
-
-void Plugin_info_app::print_version() {
-  std::string version_string;
-  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
-
-  out_stream_err_ << version_string << std::endl;
-  out_stream_err_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 }

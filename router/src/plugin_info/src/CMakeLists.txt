@@ -20,9 +20,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+MYSQL_ADD_EXECUTABLE(mysqlrouter_plugin_info
+  library_file.cc
+  main.cc
+  plugin_info_app.cc
+  plugin.cc
+  COMPONENT Router)
 
-ADD_SUBDIRECTORY(src/)
+TARGET_INCLUDE_DIRECTORIES(
+  mysqlrouter_plugin_info
+  PRIVATE
+  ${CMAKE_BINARY_DIR}/include
+  )
 
-IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
-  ADD_SUBDIRECTORY(tests/)
-ENDIF()
+ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET} mysqlrouter_plugin_info)
+
+TARGET_LINK_LIBRARIES(mysqlrouter_plugin_info
+  harness-library
+  mysys
+  ${CMAKE_DL_LIBS})
+
+SET_TARGET_PROPERTIES(mysqlrouter_plugin_info PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+)

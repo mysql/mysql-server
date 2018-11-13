@@ -27,8 +27,31 @@
 
 #include <ostream>
 
+#include "mysql/harness/arg_handler.h"
+
 // name displayed with --version request
 const std::string kPluginInfoAppName = "MySQL Router - Plugin Info App";
+
+/**
+ * exception thrown by the frontend.
+ *
+ * Should be presented to the user.
+ */
+class FrontendError : public std::runtime_error {
+ public:
+  FrontendError(const std::string &what) : std::runtime_error(what) {}
+};
+
+/**
+ * frontend error that involved the command-line options.
+ *
+ * should bet handled by showing the user the help-text or a high how to get the
+ * help
+ */
+class UsageError : public FrontendError {
+ public:
+  UsageError(const std::string &what) : FrontendError(what) {}
+};
 
 /** @class Plugin_info
  *
@@ -36,51 +59,65 @@ const std::string kPluginInfoAppName = "MySQL Router - Plugin Info App";
  *        selecting input parameters and regular and error outputs.
  *
  **/
-class Plugin_info_app final {
+class PluginInfoFrontend final {
  public:
+  enum class Cmd { INFO, SHOW_HELP, SHOW_VERSION };
+  struct Config {
+    Cmd cmd{Cmd::INFO};
+    std::string filename;
+    std::string username;
+  };
+
   /** Constructor.
    *
    * @brief Normal application operation exepcts 3 parameters:
-   *        {app_name} {path_to_plugin_file} {plugin_name}
+   *        {exe_name} {path_to_plugin_file} {plugin_name}
    *        This retrieves the data read from the plugin file to the output
    *stream.
    *
    *        Other supported options are:
-   *        {app_name} --help     outputs application usage to the error stream
-   *        {app_name} --version  outputs application version to the error
+   *        {exe_name} --help     outputs application usage to the error stream
+   *        {exe_name} --version  outputs application version to the error
    *stream
    *
-   * @param argc number of parameters passed to the application
-   * @param argv array of the parameters passed to the applications
-   *        NOTE: the first parameter is expected to be application file name as
-   *in c and c++ main() convention
-   * @param out_stream      Output stream for the data printed by the
-   *application
-   * @param out_stream_err  Output stream for the error data printed by the
+   * @param exe_name  name of the started executable
+   * @param arguments command line arguments (without exe_name)
+   * @param out       Output stream for the data printed by the application
+   * @param err       Output stream for the error data printed by the
    *application
    *
    **/
-  Plugin_info_app(int argc, const char **argv, std::ostream &out_stream,
-                  std::ostream &out_stream_err);
+  PluginInfoFrontend(const std::string &exe_name,
+                     const std::vector<std::string> &arguments,
+                     std::ostream &out, std::ostream &err);
+
+  std::string get_version() const noexcept;
+
+  // should be const, but arg_handler's
+  std::string get_help(const size_t screen_width = 80) const;
 
   /**
-   * @brief Executes the action requested from the application with the
-   *parameters passed to the contructor. Redirects the output to the streams
-   *provided to the constructor.
+   * Executes the action requested from the application with the
+   * parameters passed to the contructor.
    *
-   * @returns 0 on success, -1 if an error occured.
-   **/
+   * Note: Redirects the output to the streams provided to the constructor.
+   *
+   * @returns exit-code
+   * @retval EXIT_SUCESS on success
+   * @retval EXIT_FAILURE if an error occured.
+   */
   int run();
 
  private:
-  void print_usage(const char *exec_name);
-  void print_version();
+  void prepare_command_options();
 
-  const int argc_;
-  const char **const argv_;
+  std::string program_name_;
+  CmdArgHandler arg_handler_{true};
+  std::ostream &cout_;
+  std::ostream &cerr_;
 
-  std::ostream &out_stream_;
-  std::ostream &out_stream_err_;
+  Config config_;  // must be last as config-handling may depend on cin, ...
+                   // and arg_handler_
 };
 
 #endif

@@ -284,7 +284,8 @@ vector<string> CmdArgHandler::usage_lines(const string &prefix,
 }
 
 vector<string> CmdArgHandler::option_descriptions(size_t width,
-                                                  size_t indent) noexcept {
+                                                  size_t indent) const
+    noexcept {
   std::stringstream ss;
   vector<string> desc_lines;
 
