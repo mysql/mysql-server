@@ -188,5 +188,12 @@ void global_thd_manager_remove_thd(THD *thd);
 */
 const char* get_write_set_algorithm_string(unsigned int algorithm);
 
+/**
+  Returns the value of slave_max_allowed_packet.
+
+  @return slave_max_allowed_packet
+*/
+unsigned long get_slave_max_allowed_packet();
+
 #endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
 

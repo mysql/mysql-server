@@ -402,3 +402,7 @@ void global_thd_manager_remove_thd(THD *thd)
 {
   Global_THD_manager::get_instance()->remove_thd(thd);
 }
+
+unsigned long get_slave_max_allowed_packet() {
+  return slave_max_allowed_packet;
+}
