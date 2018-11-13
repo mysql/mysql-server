@@ -31,7 +31,7 @@ IF(WIN32)
   LIST(APPEND common_libraries harness-library)
 ENDIF()
 
-TARGET_LINK_LIBRARIES(mysqlrouter_plugin_info ${common_libraries}
+TARGET_LINK_LIBRARIES(mysqlrouter_plugin_info mysys ${common_libraries}
                       ${CMAKE_DL_LIBS})
 
 SET_TARGET_PROPERTIES(mysqlrouter_plugin_info PROPERTIES

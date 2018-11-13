@@ -34,6 +34,9 @@
 #include "mysql/harness/plugin.h"
 #include "router_config.h"
 
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
+
 #include <iostream>
 #include <sstream>
 
@@ -110,14 +113,11 @@ void PluginInfoAppTest::verify_help_output() {
 }
 
 void PluginInfoAppTest::verify_version_output() {
-  std::string edition{MYSQL_ROUTER_VERSION_EDITION};
+  std::string version_string;
+  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
 
   const string kVersionOutput =
-      kPluginInfoAppName + " " + "v" +
-      MYSQL_ROUTER_VERSION  // we use the same version as MySQLRouter
-      + " on " + MYSQL_ROUTER_PACKAGE_PLATFORM + " (" +
-      (MYSQL_ROUTER_PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") + ")" +
-      (edition.empty() ? "" : " (" + edition + ")") + "\n";
+      version_string + "\n" + ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") + "\n";
 
   EXPECT_THAT(out_stream_.str(), StrEq(""));
   EXPECT_THAT(out_stream_err_.str(), StrEq(kVersionOutput));

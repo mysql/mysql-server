@@ -157,11 +157,7 @@ TEST_F(AppTest, GetVersionLine) {
   ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION));
   ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_VERSION_EDITION));
   ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_PACKAGE_PLATFORM));
-  if (MYSQL_ROUTER_PACKAGE_ARCH_64BIT == 1) {
-    ASSERT_THAT(r.get_version_line(), HasSubstr("64-bit"));
-  } else {
-    ASSERT_THAT(r.get_version_line(), HasSubstr("32-bit"));
-  }
+  ASSERT_THAT(r.get_version_line(), HasSubstr(MYSQL_ROUTER_PACKAGE_ARCH_CPU));
 }
 
 TEST_F(AppTest, CheckConfigFilesSuccess) {
@@ -387,7 +383,7 @@ TEST_F(AppTest, CmdLineHelp) {
   MySQLRouter r(g_origin, argv);
 
   // several substrings from help output that are unlikely to change soon
-  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router v"));
+  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router  V"));
   EXPECT_THAT(
       ssout.str(),
       HasSubstr(
@@ -401,7 +397,7 @@ TEST_F(AppTest, CmdLineHelpShort) {
   MySQLRouter r(g_origin, argv);
 
   // several substrings from help output that are unlikely to change soon
-  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router v"));
+  EXPECT_THAT(ssout.str(), HasSubstr("MySQL Router  V"));
   EXPECT_THAT(
       ssout.str(),
       HasSubstr(
@@ -610,7 +606,7 @@ TEST_F(AppTest, ShowingInfoTrue) {
       MySQLRouter r(g_origin, argv);
       r.start();
     });
-    ASSERT_THAT(ssout.str(), HasSubstr("MySQL Router v"));
+    ASSERT_THAT(ssout.str(), HasSubstr("MySQL Router  V"));
     reset_ssout();
   }
 }

@@ -24,6 +24,8 @@
 
 #include "plugin_info_app.h"
 #include "library_file.h"
+#include "print_version.h"
+#include "welcome_copyright_notice.h"
 
 #include "router_config.h"
 
@@ -101,11 +103,9 @@ void Plugin_info_app::print_usage(const char *exec_name) {
 }
 
 void Plugin_info_app::print_version() {
-  std::string edition{MYSQL_ROUTER_VERSION_EDITION};
-  out_stream_err_
-      << kPluginInfoAppName << " "
-      << "v" << MYSQL_ROUTER_VERSION  // we use the same version as MySQLRouter
-      << " on " << MYSQL_ROUTER_PACKAGE_PLATFORM << " ("
-      << (MYSQL_ROUTER_PACKAGE_ARCH_64BIT ? "64-bit" : "32-bit") << ")"
-      << (edition.empty() ? "" : " (" + edition + ")") << std::endl;
+  std::string version_string;
+  build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
+
+  out_stream_err_ << version_string.c_str() << std::endl;
+  out_stream_err_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 }
