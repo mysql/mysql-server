@@ -367,3 +367,12 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 SET sql_mode = default;
 --echo End of 5.5 tests
+
+--echo #
+--echo # Bug#28547906 ENUM TYPE CASTING WORKS WRONG WITH SUBQUERIES
+--echo #
+CREATE TABLE t (c1 ENUM('a','b','c'));
+INSERT INTO t VALUES ('a'), ('b'), ('c');
+SELECT CAST(c1 AS UNSIGNED) AS c5 FROM t;
+SELECT CAST(c1 AS UNSIGNED) AS c5 FROM (SELECT c1 FROM t) t;
+DROP TABLE t;

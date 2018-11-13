@@ -4651,6 +4651,9 @@ class Item_ref : public Item_ident {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
+  Item_result cast_to_int_type() const override {
+    return (*ref)->cast_to_int_type();
+  }
 };
 
 /**
