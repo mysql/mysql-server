@@ -12928,10 +12928,11 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
 
   if (error == DB_SUCCESS) {
     char errstr[512];
+    dberr_t ret;
 
-    error = dict_stats_rename_table(norm_from, norm_to, errstr, sizeof(errstr));
+    ret = dict_stats_rename_table(norm_from, norm_to, errstr, sizeof(errstr));
 
-    if (error != DB_SUCCESS) {
+    if (ret != DB_SUCCESS) {
       ib::error(ER_IB_MSG_566) << errstr;
 
       push_warning(thd, Sql_condition::SL_WARNING, ER_LOCK_WAIT_TIMEOUT,
@@ -12939,6 +12940,9 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
     }
   }
 
+  /* The duplicate key scenario was possible only for old DD since InnoDB would
+  update it internally. With new DD, the rename conflict should be checked by
+  server before diving into SE */
   ut_ad(error != DB_DUPLICATE_KEY);
 
   return (convert_error_code_to_mysql(error, 0, NULL));

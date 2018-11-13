@@ -219,6 +219,20 @@ class DeadlockChecker {
   @return 0 if no deadlock else the victim transaction.*/
   const trx_t *search();
 
+#ifdef UNIV_DEBUG
+  /** Determines if a situation in which the lock takes part in a deadlock
+  cycle is expected (as in: handled correctly) or not (say because it is on a DD
+  table, for which there is no reason to expect a deadlock and we don't handle
+  deadlocks correctly). The purpose of the function is to use it in an assertion
+  failing as soon as the deadlock is identified, to give developer a chance to
+  investigate the root cause of the situation (without such assertion, the code
+  might continue to run and either fail at later stage when the data useful for
+  debugging is no longer on stack, or not fail at all, which is risky).
+  @param[in] lock lock found in a deadlock cycle
+  @return true if we expect that this lock can take part in a deadlock cycle */
+  static bool is_allowed_to_be_on_cycle(const lock_t *lock);
+#endif /* UNIV_DEBUG */
+
   /** Print transaction data to the deadlock file and possibly to stderr.
   @param trx transaction
   @param max_query_len max query length to print */
@@ -7015,6 +7029,59 @@ const trx_t *DeadlockChecker::select_victim() const {
   return (m_wait_lock->trx);
 }
 
+#ifdef UNIV_DEBUG
+bool DeadlockChecker::is_allowed_to_be_on_cycle(const lock_t *lock) {
+  /* The original purpose of this validation is to check record locks from
+  DD & SDI tables only, because we think a deadlock for these locks should be
+  prevented by MDL and proper updating order, but later, some exemptions were
+  introduced (for more context see comment to this function).
+  In particular, we don't check table locks here, since there never was any
+  guarantee saying a deadlock is impossible for table locks. */
+  if (!lock->is_record_lock()) {
+    return (true);
+  }
+  /* The only places where we don't expect deadlocks are in handling DD
+  tables, and since WL#9538 also in code handling SDI tables.
+  Therefore the second condition is that we only pay attention to DD and SDI
+  tables. */
+  const bool is_dd_or_sdi = (lock->index->table->is_dd_table ||
+                             dict_table_is_sdi(lock->index->table->id));
+  if (!is_dd_or_sdi) {
+    return (true);
+  }
+
+  /* If we are still here, the lock is a record lock on some DD or SDI table.
+  There are some such tables though, for which a deadlock is somewhat expected,
+  for various reasons specific to these particular tables.
+  So, we have a list of exceptions here:
+
+  innodb_table_stats and innodb_index_stats
+      These two tables are visible to the end user, so can take part in
+      quite arbitrary queries and transactions, so deadlock is possible.
+      Therefore we need to allow such deadlocks, as otherwise a user
+      could crash a debug build of a server by issuing a specific sequence of
+      queries. DB_DEADLOCK error in dict0stats is either handled (see for
+      example dict_stats_rename_table), or ignored silently (for example in
+      dict_stats_process_entry_from_recalc_pool), but I am not aware of any
+      situation in which DB_DEADLOCK could cause a serious problem.
+      Most such queries are performed via dict_stats_exec_sql() which logs an
+      ERROR in case of a DB_DEADLOCK, and also returns error code to the caller,
+      so both the end user and a developer should be aware of a problem in case
+      they want to do something about it.
+
+  table_stats and index_stats
+      These two tables take part in queries which are issued by background
+      threads, and the code which performs these queries can handle failures
+      such as deadlocks, because they were expected at design phase. */
+
+  const char *name = lock->index->table->name.m_name;
+  return (!strcmp(name, "mysql/innodb_table_stats") ||
+          !strcmp(name, "mysql/innodb_index_stats") ||
+          !strcmp(name, "mysql/table_stats") ||
+          !strcmp(name, "mysql/index_stats"));
+}
+#endif /* UNIV_DEBUG */
+
 /** Looks iteratively for a deadlock. Note: the joining transaction may
 have been granted its lock by the deadlock checks.
 @return 0 if no deadlock else the victim transaction instance.*/
@@ -7069,27 +7136,11 @@ const trx_t *DeadlockChecker::search() {
 
       notify(lock);
 
-#ifdef UNIV_DEBUG
-      /* We don't expect Deadlocks with DD tables. If
-      we find, we crash early to find the transactions
-      causing deadlock */
-      const auto wait_index = m_wait_lock->index;
+      /* We don't expect deadlocks with most DD tables and all SDI tables.
+      If we find, we crash early to find the transactions causing deadlock */
+      ut_ad(is_allowed_to_be_on_cycle(lock));
+      ut_ad(is_allowed_to_be_on_cycle(m_wait_lock));
 
-      if ((lock->is_record_lock() && lock->index != nullptr &&
-           lock->index->table->skip_gap_locks() &&
-           strstr(lock->index->table->name.m_name, "mysql/table_stats") ==
-               nullptr &&
-           strstr(lock->index->table->name.m_name, "mysql/index_stats") ==
-               nullptr) ||
-          (m_wait_lock->is_record_lock() && wait_index != nullptr &&
-           wait_index->table->skip_gap_locks() &&
-           strstr(wait_index->table->name.m_name, "mysql/table_stats") ==
-               nullptr &&
-           strstr(wait_index->table->name.m_name, "mysql/index_stats") ==
-               nullptr)) {
-        ut_error;
-      }
-#endif /* UNIV_DEBUG */
       return (select_victim());
 
     } else if (is_too_deep()) {
