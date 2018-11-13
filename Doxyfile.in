@@ -860,6 +860,7 @@ INPUT                  = ./client \
                          ./plugin/audit_null \
                          ./plugin/auth \
                          ./plugin/daemon_example \
+                         ./plugin/ddl_rewriter \
                          ./plugin/fulltext \
                          ./plugin/innodb_memcached \
                          ./plugin/password_validation \

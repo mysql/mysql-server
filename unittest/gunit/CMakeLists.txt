@@ -558,6 +558,7 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
 ENDFOREACH()
 
+ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)

@@ -102,6 +102,7 @@ debian/extra/libtest_sql_views_triggers-plugin
 debian/extra/libtest_sql_reset_connection-plugin
 debian/extra/libtest_x_sessions_deinit-plugin
 debian/extra/libtest_x_sessions_init-plugin
+debian/extra/ddl_rewriter-plugin
 debian/extra/locking_service-plugin
 debian/extra/mypluglib-plugin
 debian/extra/mysql_no_login-plugin

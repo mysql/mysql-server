@@ -1,0 +1,71 @@
+# Tests for replication of statements that are rewritten by
+# the ddl rewrite plugin.
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+
+--echo #
+--echo # Install plugin on nmaster.
+--echo #
+
+connection master;
+
+--source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
+--source suite/query_rewrite_plugins/include/install_ddl_rewriter.inc
+--source include/have_log_bin.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'ddl_rewriter';
+
+--source include/sync_slave_sql_with_master.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'ddl_rewriter';
+
+connection master;
+
+--echo #
+--echo # Create tables.
+--echo #
+
+CREATE SCHEMA mysqltest_ddl_rewriter;
+USE mysqltest_ddl_rewriter;
+CREATE TABLE t1(i int) DATA DIRECTORY = '/tmp';
+CREATE TABLE t2(i int) INDEX DIRECTORY = '/tmp';
+CREATE TABLE t3(i int) ENCRYPTION = 'n';
+
+
+--echo #
+--echo # Tables on master.
+--echo #
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+--source include/sync_slave_sql_with_master.inc
+
+
+--echo #
+--echo # Tables on slave.
+--echo #
+
+USE mysqltest_ddl_rewriter;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+
+
+--echo #
+--echo # Cleanup and uninstall plugin.
+--echo #
+
+connection master;
+DROP SCHEMA mysqltest_ddl_rewriter;
+UNINSTALL PLUGIN ddl_rewriter;
+
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

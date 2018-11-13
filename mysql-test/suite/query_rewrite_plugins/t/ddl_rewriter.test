@@ -1,0 +1,248 @@
+--echo #
+--echo # Test for the DDL rewrite plugin.
+--echo #
+
+--source suite/query_rewrite_plugins/include/have_ddl_rewriter.inc
+--source include/have_log_bin.inc
+
+
+--echo #
+--echo # Create a table with a DATA DIRECTORY clause, to be dumped and
+--echo # restored when the plugin is installed.
+--echo #
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval CREATE TABLE t(i int) DATA DIRECTORY = '$MYSQLTEST_VARDIR/tmp';
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t;
+INSERT INTO t VALUES (1);
+--let $mysqldumpfile = $MYSQLTEST_VARDIR/tmp/mysqldumpfile.sql
+--exec $MYSQL_DUMP test t > $mysqldumpfile
+
+
+--echo #
+--echo # Install plugin.
+--echo #
+
+--source suite/query_rewrite_plugins/include/install_ddl_rewriter.inc
+
+SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
+FROM information_schema.plugins
+WHERE plugin_name LIKE 'ddl_rewriter';
+
+
+--echo #
+--echo # Restore dump file.
+--echo #
+
+DROP TABLE t;
+--exec $MYSQL test < $mysqldumpfile
+SHOW CREATE TABLE t;
+--let $assert_text = Expected table contents
+--let $assert_cond = "[SELECT COUNT(*) FROM t]" = 1
+--source include/assert.inc
+DROP TABLE t;
+--remove_file $mysqldumpfile
+--rmdir $MYSQLTEST_VARDIR/tmp/test
+
+
+--echo #
+--echo # False positives.
+--echo #
+
+CREATE TABLE t(i int) /* data directory = 'x' */ ;
+DROP TABLE t;
+
+CREATE TABLE t(i int, `j encryption='n'j` int);
+DROP TABLE t;
+
+
+--echo #
+--echo # Prefix comments make the statement not be rewritten.
+--echo #
+
+/* */ CREATE TABLE t(i int) /* data directory = 'x' */ ;
+DROP TABLE t;
+
+/* */
+CREATE TABLE t(i int) /* data directory = 'x' */ ;
+DROP TABLE t;
+
+
+--echo #
+--echo # Double quotes.
+--echo #
+
+CREATE TABLE t(i int) DATA DIRECTORY = "/tmp";
+DROP TABLE t;
+
+CREATE TABLE t(i int) ENCRYPTION = "n";
+DROP TABLE t;
+
+
+--echo #
+--echo # Multi-statement queries are separated before pre-parse,
+--echo # so a second non-CREATE TABLE statement will be treated
+--echo # separately.
+--echo #
+
+CREATE SCHEMA s; CREATE TABLE s.t(i int) DATA DIRECTORY = '/tmp';
+DROP SCHEMA s;
+
+CREATE TABLE t(i int); CREATE SCHEMA s /* DATA DIRECTORY = '/tmp' */;
+DROP SCHEMA s; DROP TABLE t;
+
+
+--echo #
+--echo # Statements with prefix != 'CREATE TABLE' are not rewritten.
+--echo #
+
+CREATE SCHEMA s /* data directory = 'x' */ ;
+DROP SCHEMA s;
+
+CREATE SCHEMA `s encryption='n' s`;
+DROP SCHEMA `s encryption='n' s`;
+
+--echo #
+--echo # Case sensitivity.
+--echo #
+
+CREATE TABLE t(i int) DATA DIRECTORY = '/tmp', ENGINE = MyISAM;
+DROP TABLE t;
+create table t(i int) DATA DIRECTORY = '/tmp', ENGINE = MyISAM;
+DROP TABLE t;
+
+CREATE TABLE t(i int) data directory = '/tmp', ENGINE = MyISAM;
+DROP TABLE t;
+
+CREATE TABLE t(i int) INDEX DIRECTORY = '/tmp', ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) index directory = '/tmp', ENGINE = MyISAM;
+DROP TABLE t;
+
+CREATE TABLE t(i int) ENCRYPTION = 'N', ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) encryption = 'n', ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'Y', ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'y', ENGINE = MyISAM;
+DROP TABLE t;
+
+
+--echo #
+--echo # Optional preceding comma with optional surrounding whitespace.
+--echo #
+
+CREATE TABLE t(i int) ENGINE = MyISAM ENCRYPTION = 'N';
+DROP TABLE t;
+CREATE TABLE t(i int) ENGINE = MyISAM,ENCRYPTION = 'N';
+DROP TABLE t;
+CREATE TABLE t(i int) ENGINE = MyISAM, ENCRYPTION = 'N';
+DROP TABLE t;
+CREATE TABLE t(i int) ENGINE = MyISAM ,ENCRYPTION = 'N';
+DROP TABLE t;
+CREATE TABLE t(i int) ENGINE = MyISAM , ENCRYPTION = 'N';
+DROP TABLE t;
+
+
+--echo #
+--echo # Optional succeeding comma with optional surrounding whitespace.
+--echo #
+
+CREATE TABLE t(i int) ENCRYPTION = 'N' ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'N',ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'N', ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'N' ,ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'N' , ENGINE = MyISAM;
+DROP TABLE t;
+
+
+--echo #
+--echo # Optional assignment operator with optional surrounding whitespace.
+--echo #
+
+CREATE TABLE t(i int) ENCRYPTION 'N' ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION='N' ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION= 'N' ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION ='N' ENGINE = MyISAM;
+DROP TABLE t;
+CREATE TABLE t(i int) ENCRYPTION = 'N' ENGINE = MyISAM;
+DROP TABLE t;
+
+
+--echo #
+--echo # Multi line statements.
+--echo #
+
+CREATE TABLE t(i int) ENCRYPTION ='N'
+                      ,ENGINE = MyISAM
+                      DATA
+                      DIRECTORY = '/tmp'
+                      DEFAULT CHARSET latin1
+                      INDEX
+
+                      DIRECTORY '/t
+                      mp';
+DROP TABLE t;
+
+
+--echo #
+--echo # Partitioned tables.
+--echo #
+
+CREATE TABLE t (
+    i  int NOT NULL AUTO_INCREMENT,
+    mt mediumtext NOT NULL,
+    c  varchar(10) NOT NULL,
+    ti tinyint(1) unsigned NOT NULL,
+    PRIMARY KEY (i, ti)
+  )
+  ENGINE = InnoDB AUTO_INCREMENT = 0
+  DEFAULT CHARSET = latin1, DATA DIRECTORY = '/tmp'
+  PARTITION BY LIST (ti) (
+    PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+    PARTITION p1 VALUES IN (1) DATA DIRECTORY = '/tmp' ,ENGINE = InnoDB
+  );
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+
+--echo #
+--echo # Stored programs.
+--echo #
+
+CREATE PROCEDURE p() CREATE TABLE test.t(i int) ENCRYPTION = 'N';
+CALL p();
+SHOW CREATE TABLE test.t;
+DROP TABLE test.t;
+DROP PROCEDURE p;
+
+# CREATE TABLE not allowed in a stored function.
+
+
+--echo #
+--echo # Prepared statements.
+--echo #
+
+PREPARE stmt FROM 'CREATE TABLE test.t(i int) ENCRYPTION = "N"';
+EXECUTE stmt;
+SHOW CREATE TABLE test.t;
+DROP TABLE test.t;
+DROP PREPARE stmt;
+
+
+--echo #
+--echo # Uninstall plugin and verify that queries are not rewritten anymore.
+--echo #
+
+UNINSTALL PLUGIN ddl_rewriter;
+CREATE TABLE t(i int) /* data directory = 'x' */ ;
+DROP TABLE t;

@@ -53,6 +53,7 @@ libmemcached                            plugin_output_directory DAEMON_MEMCACHED
 innodb_engine      			plugin_output_directory INNODB_ENGINE
 validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
 rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
+ddl_rewriter                            plugin_output_directory DDL_REWRITER
 rewriter           			plugin_output_directory REWRITER
 mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
 test_udf_services  			plugin_output_directory TESTUDFSERVICES

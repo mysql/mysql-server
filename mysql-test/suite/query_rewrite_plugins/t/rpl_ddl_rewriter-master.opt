@@ -1,0 +1,1 @@
+$DDL_REWRITER_OPT --binlog-do-db=mysqltest_ddl_rewriter
