@@ -3133,10 +3133,11 @@ static void	handle_ack_prepare(site_def const * site, pax_machine *p, pax_msg *m
 	    SYCEXP(m->synode))		;
 	if (m->from != VOID_NODE_NO && eq_ballot(p->proposer.bal, m->reply_to)) { /* answer to my prepare */
 		handle_simple_ack_prepare(site, p, m);
-		if (gt_ballot(m->proposal, p->proposer.msg->proposal)) { /* greater */
+		/* if (gt_ballot(m->proposal, p->proposer.msg->proposal)) {  greater */
+			assert(m);
 			replace_pax_msg(&p->proposer.msg, m);
 			assert(p->proposer.msg);
-		}
+		/* } */
 		if (gt_ballot(m->reply_to, p->proposer.sent_prop))
 			check_propose(site, p);
 	}
