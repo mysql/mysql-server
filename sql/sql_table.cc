@@ -10635,10 +10635,10 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         if (!field->gcol_expr_is_equal(new_field)) {
           if (field->is_virtual_gcol())
             ha_alter_info->handler_flags |=
-                Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE;
+                Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR;
           else
             ha_alter_info->handler_flags |=
-                Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+                Alter_inplace_info::ALTER_STORED_GCOL_EXPR;
         }
       }
 
@@ -10702,20 +10702,6 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       if (new_field->column_format() != field->column_format())
         ha_alter_info->handler_flags |=
             Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
-
-      /*
-        We don't have easy way to detect change in generation expression.
-        So we always assume that it has changed if generated column was
-        mentioned in CHANGE/MODIFY COLUMN clause of ALTER TABLE.
-      */
-      if (new_field->change) {
-        if (new_field->is_virtual_gcol())
-          ha_alter_info->handler_flags |=
-              Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR;
-        else if (new_field->gcol_info)
-          ha_alter_info->handler_flags |=
-              Alter_inplace_info::ALTER_STORED_GCOL_EXPR;
-      }
     } else {
       /*
         Field is not present in new version of table and therefore was dropped.

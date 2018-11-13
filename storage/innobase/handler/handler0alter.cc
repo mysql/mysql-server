@@ -138,11 +138,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD =
     Alter_inplace_info::DROP_STORED_COLUMN |
     Alter_inplace_info::ADD_STORED_BASE_COLUMN
     /* ADD_STORED_BASE_COLUMN needs to check innobase_need_rebuild() */
-    | Alter_inplace_info::RECREATE_TABLE
-    /*
-    | Alter_inplace_info::ALTER_STORED_COLUMN_TYPE
-    */
-    ;
+    | Alter_inplace_info::RECREATE_TABLE;
 
 /** Operations that require changes to data */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_DATA =
@@ -153,9 +149,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE =
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT |
     Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE |
-    Alter_inplace_info::ALTER_RENAME |
-    Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR |
-    Alter_inplace_info::CHANGE_INDEX_OPTION;
+    Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::CHANGE_INDEX_OPTION;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS =
@@ -172,7 +166,6 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_NOREBUILD =
     Alter_inplace_info::DROP_VIRTUAL_COLUMN |
     Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
     Alter_inplace_info::ALTER_COLUMN_INDEX_LENGTH;
-/* | Alter_inplace_info::ALTER_VIRTUAL_COLUMN_TYPE; */
 
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
   /** Dummy query graph */
@@ -809,8 +802,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     flags &=
         ~(Alter_inplace_info::ADD_VIRTUAL_COLUMN |
           Alter_inplace_info::DROP_VIRTUAL_COLUMN |
-          Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER |
-          Alter_inplace_info::ALTER_VIRTUAL_GCOL_EXPR
+          Alter_inplace_info::ALTER_VIRTUAL_COLUMN_ORDER
           /*
           | Alter_inplace_info::ALTER_STORED_COLUMN_ORDER
           | Alter_inplace_info::ADD_STORED_BASE_COLUMN
