@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 #include "dim.h"
 #include "mysql/harness/arg_handler.h"

@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <fstream>
 #include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <system_error>
 
 #include "common.h"

@@ -26,6 +26,8 @@
 #define MYSQLROUTER_MYSQL_PROTOCOL_HANDSHAKE_PACKET_INCLUDED
 
 #include <memory>
+#include <stdexcept>
+
 #include "base_packet.h"
 
 // GCC 4.8.4 requires all classes to be forward-declared before being used with

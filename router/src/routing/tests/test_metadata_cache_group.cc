@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <stdexcept>
+
 #include "dest_metadata_cache.h"
 #include "router_test_helpers.h"
 #include "routing_mocks.h"

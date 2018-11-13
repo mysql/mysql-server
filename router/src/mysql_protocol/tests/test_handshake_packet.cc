@@ -27,6 +27,7 @@
 #include <string.h>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"

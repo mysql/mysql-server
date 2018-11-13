@@ -26,6 +26,7 @@
 
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 namespace server_mock {
 

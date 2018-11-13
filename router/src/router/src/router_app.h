@@ -39,6 +39,7 @@
 #include "router_config.h"
 
 #include <cstdint>
+#include <stdexcept>
 #include <vector>
 
 using std::make_tuple;

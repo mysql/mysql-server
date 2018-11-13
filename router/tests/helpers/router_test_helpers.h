@@ -25,6 +25,7 @@
 #ifndef ROUTER_TESTS_TEST_HELPERS_INCLUDED
 #define ROUTER_TESTS_TEST_HELPERS_INCLUDED
 
+#include <stdexcept>
 #include <typeinfo>
 
 #define SKIP_GIT_TESTS(COND)                                       \

@@ -31,6 +31,7 @@
 #include <unistd.h>
 #endif
 #include <cstring>
+#include <stdexcept>
 
 RouterSystemLayout::RouterSystemLayout() {}
 

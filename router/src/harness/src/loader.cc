@@ -48,6 +48,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <exception>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <thread>

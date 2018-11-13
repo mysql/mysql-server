@@ -30,6 +30,7 @@
 #include <chrono>
 #include <iostream>
 #include <set>
+#include <stdexcept>
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/tcp.h>

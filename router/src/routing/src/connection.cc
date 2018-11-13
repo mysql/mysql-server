@@ -23,6 +23,7 @@
 */
 
 #include <cstring>
+#include <stdexcept>
 #include <string>
 
 #include "common.h"

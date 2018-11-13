@@ -37,6 +37,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 
 using std::back_inserter;

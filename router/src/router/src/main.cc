@@ -73,6 +73,7 @@
 
 #include <mysql.h>
 #include <iostream>
+#include <stdexcept>
 #include "common.h"
 #include "dim.h"
 #include "mysql/harness/loader_config.h"

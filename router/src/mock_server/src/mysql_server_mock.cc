@@ -40,6 +40,7 @@ IMPORT_LOG_FUNCTIONS()
 #include <iostream>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <system_error>
 #include <thread>
 
@@ -55,7 +56,6 @@ IMPORT_LOG_FUNCTIONS()
 #include <sys/un.h>
 #include <unistd.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>

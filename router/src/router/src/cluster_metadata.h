@@ -25,6 +25,8 @@
 #ifndef ROUTER_CLUSTER_METADATA_INCLUDED
 #define ROUTER_CLUSTER_METADATA_INCLUDED
 
+#include <stdexcept>
+
 #include "config_generator.h"
 #include "mysqlrouter/mysql_session.h"
 #include "socket_operations.h"

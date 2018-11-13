@@ -25,8 +25,7 @@
 #define MYSQL_ROUTER_LOG_DOMAIN "my_domain"
 
 #ifdef _WIN32
-#define NOMINMAX
-#define getpid GetCurrentProcessId
+#include <process.h>  // getpid()
 #endif
 
 ////////////////////////////////////////

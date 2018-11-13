@@ -32,6 +32,7 @@
 #include "test/helpers.h"
 
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 #include <vector>
 

@@ -26,6 +26,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 std::string get_master_key_file_path() {
 #ifdef _WIN32

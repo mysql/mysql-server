@@ -28,6 +28,8 @@
 #include <unistd.h>  // getcwd
 #endif
 
+#include <stdexcept>
+
 #include "mock_server_plugin.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"

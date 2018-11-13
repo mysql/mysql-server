@@ -30,6 +30,7 @@
 
 #include <map>
 #include <memory>
+#include <stdexcept>
 
 // routing's destination_* and the metadata-cache plugin itself
 // may work on the cache in parallel.

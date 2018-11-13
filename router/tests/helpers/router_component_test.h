@@ -34,12 +34,11 @@
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #include <vector>
 #ifndef _WIN32
 #include <unistd.h>
-#else
-#define NOMINMAX
 #endif
 
 using mysql_harness::Path;

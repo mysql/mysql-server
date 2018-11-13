@@ -635,6 +635,7 @@ end). Actions taken for each plugin function are as follows:
 #include <map>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <tuple>

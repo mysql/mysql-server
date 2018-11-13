@@ -1,7 +1,6 @@
 #ifndef NT_SERVC_INCLUDED
 #define NT_SERVC_INCLUDED
 
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 #ifdef StartService

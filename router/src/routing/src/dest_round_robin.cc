@@ -22,13 +22,13 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include <chrono>
+#include <stdexcept>
 
 #include "common.h"
 #include "dest_round_robin.h"
 #include "mysql/harness/logging/logging.h"
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>

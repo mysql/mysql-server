@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <stdexcept>
 
 // needed for ip_to_hostname(), should probably be turned into a service
 #include "my_inttypes.h"

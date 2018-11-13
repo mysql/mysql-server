@@ -28,6 +28,7 @@
 #include <functional>
 #include <map>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include "mysqlrouter/datatypes.h"

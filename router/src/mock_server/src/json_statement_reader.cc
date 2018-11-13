@@ -39,6 +39,7 @@
 #include <cerrno>
 #include <chrono>
 #include <memory>
+#include <stdexcept>
 
 #include "mysql_server_mock_schema.h"
 

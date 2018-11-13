@@ -23,9 +23,8 @@
 */
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
+#include <process.h>  // getpid()
 #include <windows.h>
-#define getpid GetCurrentProcessId
 #endif
 
 #include "my_compiler.h"
@@ -44,6 +43,7 @@
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 using mysql_harness::Path;
 using mysql_harness::logging::LogLevel;

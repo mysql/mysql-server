@@ -26,6 +26,7 @@
 #include <event2/http.h>
 
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 #include "http_request_impl.h"

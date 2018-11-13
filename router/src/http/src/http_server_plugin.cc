@@ -29,6 +29,7 @@
 #include <chrono>
 #include <future>
 #include <mutex>
+#include <stdexcept>
 #include <thread>
 
 #include <sys/types.h>

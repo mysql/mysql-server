@@ -31,6 +31,8 @@
 #include <ctime>
 #include <functional>  // std::function
 #include <memory>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 struct evhttp_uri;

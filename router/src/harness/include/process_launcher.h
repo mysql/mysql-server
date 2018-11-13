@@ -37,6 +37,7 @@
 #include <unistd.h>
 #endif
 #include <stdint.h>
+#include <stdexcept>
 #include <string>
 
 namespace mysql_harness {

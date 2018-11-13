@@ -24,6 +24,8 @@
 
 #include "library_file.h"
 
+#include <stdexcept>
+
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <unistd.h>

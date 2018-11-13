@@ -31,6 +31,8 @@
 IMPORT_LOG_FUNCTIONS()
 
 #include <string.h>
+#include <stdexcept>
+
 #ifdef _WIN32
 #define strcasecmp _stricmp
 #endif

@@ -28,6 +28,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <stdexcept>
 #include <streambuf>
 #ifndef _WIN32
 #include <unistd.h>

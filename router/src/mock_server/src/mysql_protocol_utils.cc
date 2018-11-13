@@ -36,6 +36,7 @@
  * sys/feature_set.h on solaris.
  */
 #include <climits>
+#include <stdexcept>
 #include <system_error>
 
 #ifndef _WIN32
@@ -45,7 +46,6 @@
 #include <unistd.h>
 #include <cstring>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsock2.h>
 typedef long ssize_t;

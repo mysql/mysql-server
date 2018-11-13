@@ -40,6 +40,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include <errmsg.h>

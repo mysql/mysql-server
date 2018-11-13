@@ -28,13 +28,13 @@
 #include <array>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/in.h>
 #include <unistd.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <stdint.h>
 #include <windows.h>
 #include <winsock2.h>

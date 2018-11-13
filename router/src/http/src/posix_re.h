@@ -48,6 +48,7 @@
 #endif
 
 #include <memory>
+#include <stdexcept>
 
 class PosixRE_constants {
  public:

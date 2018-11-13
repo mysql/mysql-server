@@ -23,6 +23,7 @@
  */
 
 #include <fstream>
+#include <stdexcept>
 #include <system_error>
 
 #ifdef _WIN32

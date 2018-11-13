@@ -58,9 +58,8 @@
 #endif
 
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#define pid_t DWORD
+typedef int pid_t; /* getpid() */
 #endif
 
 namespace mysql_harness {

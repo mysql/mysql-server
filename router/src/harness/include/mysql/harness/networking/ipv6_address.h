@@ -29,7 +29,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #else
-#define WIN32_LEAN_AND_MEAN
 #include <ws2tcpip.h>  // in6_addr
 #endif
 #include <array>

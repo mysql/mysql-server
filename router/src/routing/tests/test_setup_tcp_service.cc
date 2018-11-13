@@ -31,6 +31,7 @@
 #include "test/helpers.h"
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #ifndef _WIN32
 #include <netinet/in.h>
