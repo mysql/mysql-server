@@ -9290,6 +9290,8 @@ int main(int argc, char **argv) {
   if (opt_change_propagation != -1) {
     secondary_engine =
         new Secondary_engine(opt_change_propagation, opt_secondary_engine);
+  } else if (opt_offload_count_file) {
+    secondary_engine = new Secondary_engine();
   }
 
   if (opt_offload_count_file) {
