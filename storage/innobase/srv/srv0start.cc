@@ -847,6 +847,7 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   DBUG_EXECUTE_IF("ib_undo_tablespace_open_fail",
+                  ib::info() << "ib_undo_tablespace_open_fail";
                   return (DB_CANNOT_OPEN_FILE););
 
   pfs_os_file_t fh;

@@ -790,6 +790,59 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DISPLAY_CURRENT, MONITOR_DEFAULT_START,
      MONITOR_PURGE_RESUME_COUNT},
 
+    {"purge_truncate_history_count", "purge",
+     "Number of times the purge thread attempted to truncate undo history",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_PURGE_TRUNCATE_HISTORY_COUNT},
+
+    {"purge_truncate_history_usec", "purge",
+     "Time (in microseconds) the purge thread spent truncating undo history.",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_PURGE_TRUNCATE_HISTORY_MICROSECOND},
+
+    /* ========== Counters for Undo Tablespace Truncation ========== */
+    {"module_undo", "undo", "Undo Truncation", MONITOR_MODULE,
+     MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE},
+
+    {"undo_truncate_count", "undo",
+     "Number of times undo truncation was initiated", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_COUNT},
+
+    {"undo_truncate_sweep_count", "undo",
+     "Number of times undo truncation invalidates old pages from the buffer "
+     "pool",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_SWEEP_COUNT},
+
+    {"undo_truncate_sweep_usec", "undo",
+     "Time (in microseconds) spent during undo truncation invalidating old "
+     "pages from the buffer pool",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_SWEEP_MICROSECOND},
+
+    {"undo_truncate_start_logging_count", "undo",
+     "Number of times during undo truncation a log file was started",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_START_LOGGING_COUNT},
+
+    {"undo_truncate_flush_count", "undo",
+     "Number of times undo truncation flushed new pages from the buffer pool "
+     "to disk",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_FLUSH_COUNT},
+
+    {"undo_truncate_flush_usec", "undo",
+     "Time (in microseconds) spent during undo truncation flushing new pages "
+     "from the buffer pool to disk",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_FLUSH_MICROSECOND},
+
+    {"undo_truncate_done_logging_count", "undo",
+     "Number of times during undo truncation a log file was deleted",
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_UNDO_TRUNCATE_DONE_LOGGING_COUNT},
+
+    {"undo_truncate_usec", "undo",
+     "Time (in microseconds) spent to process undo truncation", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_UNDO_TRUNCATE_MICROSECOND},
+
     /* ========== Counters for Redo log Module ========== */
     {"module_log", "log", "Redo log Module", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_REDO_LOG},
@@ -1271,7 +1324,7 @@ static monitor_info_t innodb_counter_info[] = {
 
     /* ========== Mutex monitoring on/off ========== */
     {"latch_status", "Latch counters",
-     "Collect latch counters to display via SHOW ENGING INNODB MUTEX",
+     "Collect latch counters to display via SHOW ENGINE INNODB MUTEX",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_MODULE_LATCHES},
 
     {"latch", "sync", "Latch monitoring control", MONITOR_HIDDEN,

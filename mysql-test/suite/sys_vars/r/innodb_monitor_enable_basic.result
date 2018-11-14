@@ -164,6 +164,16 @@ purge_undo_log_pages	disabled
 purge_dml_delay_usec	disabled
 purge_stop_count	disabled
 purge_resume_count	disabled
+purge_truncate_history_count	disabled
+purge_truncate_history_usec	disabled
+undo_truncate_count	disabled
+undo_truncate_sweep_count	disabled
+undo_truncate_sweep_usec	disabled
+undo_truncate_start_logging_count	disabled
+undo_truncate_flush_count	disabled
+undo_truncate_flush_usec	disabled
+undo_truncate_done_logging_count	disabled
+undo_truncate_usec	disabled
 log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
 log_lsn_current	disabled
