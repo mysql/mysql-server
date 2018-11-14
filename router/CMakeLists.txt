@@ -66,6 +66,11 @@ IF(SOLARIS)
   ENDIF()
 ENDIF()
 
+IF(WIN32)
+  # 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
+ENDIF()
+
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/rapidjson.cmake)
 
 SET(ROUTER_LICENSE_FILE "${CMAKE_SOURCE_DIR}/router/LICENSE.router")

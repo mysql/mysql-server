@@ -81,6 +81,11 @@ IF(WIN32)
   )
 ENDIF()
 
+IF(MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+  # anachronism used : modifiers on data are ignored
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4229")
+ENDIF()
+
 STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 STRING(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 

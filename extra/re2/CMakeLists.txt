@@ -97,6 +97,10 @@ ENDIF()
 
 IF(DEFINED WIN32)
   IF(MSVC)
+    # 'identifier' : macro redefinition
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "/wd4005")
+    # 'expression' : signed/unsigned mismatch
+    TARGET_COMPILE_OPTIONS(re2_lib PRIVATE "/wd4018")
     ADD_DEFINITIONS(-DSTL_MSVC)
   ENDIF()
 ENDIF()

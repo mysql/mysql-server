@@ -105,6 +105,10 @@ SET_TARGET_PROPERTIES(duktape PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 
 IF(WIN32)
+  # LNK4049: locally defined symbol 'symbol' imported
+  # LNK4217: locally defined symbol 'symbol' imported in function 'function'
+  STRING_APPEND(CMAKE_SHARED_LINKER_FLAGS " /ignore:4049 /ignore:4217")
+
   ADD_CUSTOM_COMMAND(TARGET duktape POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/duktape.dll"
