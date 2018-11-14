@@ -4339,7 +4339,7 @@ void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
 
 /** Releases transaction locks, and releases possible other transactions waiting
  because of these locks.
-@param[in/out]  trx   transaction */
+@param[in,out]  trx   transaction */
 static void lock_release(trx_t *trx) {
   lock_t *lock;
   ulint count = 0;
