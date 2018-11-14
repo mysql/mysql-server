@@ -67,10 +67,13 @@ bool plist_base_node_t::validate() const {
 
 /** Allocate one node page. */
 buf_block_t *node_page_t::alloc(first_page_t &first_page, bool bulk) {
+  ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_node_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_node_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -538,9 +541,13 @@ dberr_t z_print_info(const dict_index_t *index, const lob::ref_t &ref,
                         false otherwise.
 @return the allocated buffer block. */
 buf_block_t *z_frag_page_t::alloc(page_no_t hint, bool bulk) {
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
+  /* The m_block member could point to valid block.  Overwriting it is
+  good enough. */
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -590,10 +597,10 @@ buf_block_t *z_frag_node_page_t::alloc(z_first_page_t &first, bool bulk) {
   ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
 
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
-
   DBUG_EXECUTE_IF("innodb_lob_alloc_z_frag_node_page_failed",
-                  m_block = nullptr;);
+                  return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -1181,9 +1188,11 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
   ut_ad(m_block == nullptr);
   page_no_t hint = FIL_NULL;
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_index_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_index_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
@@ -1208,9 +1217,11 @@ buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {
 @return the allocated buffer block. */
 buf_block_t *z_data_page_t::alloc(page_no_t hint, bool bulk) {
   ut_ad(m_block == nullptr);
-  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
-  DBUG_EXECUTE_IF("innodb_lob_alloc_z_data_page_failed", m_block = nullptr;);
+  /* For testing purposes, pretend that the LOB page allocation failed.*/
+  DBUG_EXECUTE_IF("innodb_lob_alloc_z_data_page_failed", return (nullptr););
+
+  m_block = alloc_lob_page(m_index, m_mtr, hint, bulk);
 
   if (m_block == nullptr) {
     return (nullptr);
