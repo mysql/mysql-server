@@ -84,6 +84,8 @@ ENDIF()
 IF(MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
   # ICU does not build cleanly with Visual Studio's /permissive-
   STRING(REPLACE "/permissive-" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  # anachronism used : modifiers on data are ignored
+  STRING_APPEND(CMAKE_CXX_FLAGS " /wd4229")
 ENDIF()
 
 STRING(REPLACE "-flto" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
