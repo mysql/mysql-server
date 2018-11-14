@@ -109,6 +109,6 @@ void Plugin_info_app::print_version() {
   std::string version_string;
   build_version(std::string(MYSQL_ROUTER_PACKAGE_NAME), &version_string);
 
-  out_stream_err_ << version_string.c_str() << std::endl;
+  out_stream_err_ << version_string << std::endl;
   out_stream_err_ << ORACLE_WELCOME_COPYRIGHT_NOTICE("2015") << std::endl;
 }
