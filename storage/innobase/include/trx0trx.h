@@ -599,17 +599,6 @@ struct trx_lock_t {
   lock_pool_t table_locks; /*!< All table locks requested by this
                            transaction, including AUTOINC locks */
 
-  bool cancel;       /*!< true if the transaction is being
-                     rolled back either via deadlock
-                     detection or due to lock timeout. The
-                     caller has to acquire the trx_t::mutex
-                     in order to cancel the locks. In
-                     lock_trx_table_locks_remove() we
-                     check for this cancel of a transaction's
-                     locks and avoid reacquiring the trx
-                     mutex to prevent recursive deadlocks.
-                     Protected by both the lock sys mutex
-                     and the trx_t::mutex. */
   ulint n_rec_locks; /*!< number of rec locks in this trx */
 #ifdef UNIV_DEBUG
   /** When a transaction is forced to rollback due to a deadlock

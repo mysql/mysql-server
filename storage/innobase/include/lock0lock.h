@@ -577,12 +577,6 @@ bool lock_table_has_locks(
 /** A thread which wakes up threads whose lock wait may have lasted too long. */
 void lock_wait_timeout_thread();
 
-/** Releases a user OS thread waiting for a lock to be released, if the
- thread is already suspended. */
-void lock_wait_release_thread_if_suspended(
-    que_thr_t *thr); /*!< in: query thread associated with the
-                     user OS thread	 */
-
 /** Puts a user OS thread to wait for a lock to be released. If an error
  occurs during the wait trx->error_state associated with thr is
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK

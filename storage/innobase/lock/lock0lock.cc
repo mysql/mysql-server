@@ -566,19 +566,6 @@ void lock_set_lock_and_trx_wait(lock_t *lock, /*!< in: lock */
   lock->type_mode |= LOCK_WAIT;
 }
 
-/** The back pointer to a waiting lock request in the transaction is set to NULL
- and the wait bit in lock type_mode is reset. */
-UNIV_INLINE
-void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
-{
-  ut_ad(lock->trx->lock.wait_lock == lock);
-  ut_ad(lock_get_wait(lock));
-  ut_ad(lock_mutex_own());
-
-  lock->trx->lock.wait_lock = NULL;
-  lock->type_mode &= ~LOCK_WAIT;
-}
-
 /** Gets the gap flag of a record lock.
  @return LOCK_GAP or 0 */
 UNIV_INLINE
@@ -2071,8 +2058,6 @@ static void lock_grant(lock_t *lock) /*!< in/out: waiting lock request */
 {
   ut_ad(lock_mutex_own());
 
-  lock_reset_lock_and_trx_wait(lock);
-
   if (!lock->trx->owns_mutex) {
     trx_mutex_enter(lock->trx);
   }
@@ -2093,20 +2078,7 @@ static void lock_grant(lock_t *lock) /*!< in/out: waiting lock request */
   DBUG_PRINT("ib_lock", ("wait for trx " TRX_ID_FMT " ends",
                          trx_get_id_for_print(lock->trx)));
 
-  /* If we are resolving a deadlock by choosing another transaction
-  as a victim, then our original transaction may not be in the
-  TRX_QUE_LOCK_WAIT state, and there is no need to end the lock wait
-  for it */
-
-  if (lock->trx_que_state() == TRX_QUE_LOCK_WAIT) {
-    que_thr_t *thr;
-
-    thr = que_thr_end_lock_wait(lock->trx);
-
-    if (thr != NULL) {
-      lock_wait_release_thread_if_suspended(thr);
-    }
-  }
+  lock_reset_wait_and_release_thread_if_suspended(lock);
 
   if (!lock->trx->owns_mutex) {
     trx_mutex_exit(lock->trx);
@@ -2336,27 +2308,15 @@ void RecLock::make_trx_hit_list(lock_t *lock, const lock_t *conflict_lock) {
 static void lock_rec_cancel(
     lock_t *lock) /*!< in: waiting record lock request */
 {
-  que_thr_t *thr;
-
   ut_ad(lock_mutex_own());
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
   /* Reset the bit (there can be only one set bit) in the lock bitmap */
   lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
-  /* Reset the wait flag and the back pointer to lock in trx */
-
-  lock_reset_lock_and_trx_wait(lock);
-
-  /* The following function releases the trx from lock wait */
-
   trx_mutex_enter(lock->trx);
 
-  thr = que_thr_end_lock_wait(lock->trx);
-
-  if (thr != NULL) {
-    lock_wait_release_thread_if_suspended(thr);
-  }
+  lock_reset_wait_and_release_thread_if_suspended(lock);
 
   trx_mutex_exit(lock->trx);
 }
@@ -2631,27 +2591,7 @@ to a lock. NOTE: all record locks contained in in_lock are removed.
                                 qualified to it
 @param[in]	use_fcfs	true -> use first come first served strategy */
 static void lock_rec_dequeue_from_page(lock_t *in_lock, bool use_fcfs) {
-  ut_ad(lock_mutex_own());
-  ut_ad(lock_get_type_low(in_lock) == LOCK_REC);
-
-  /* We may or may not be holding in_lock->trx->mutex here. */
-
-  auto trx_lock = &in_lock->trx->lock;
-  auto space = in_lock->rec_lock.space;
-  auto page_no = in_lock->rec_lock.page_no;
-
-  ut_ad(in_lock->index->table->n_rec_locks > 0);
-  in_lock->index->table->n_rec_locks--;
-
-  hash_table_t *lock_hash = lock_hash_get(in_lock->type_mode);
-
-  HASH_DELETE(lock_t, hash, lock_hash, lock_rec_fold(space, page_no), in_lock);
-
-  UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
-
-  MONITOR_INC(MONITOR_RECLOCK_REMOVED);
-  MONITOR_DEC(MONITOR_NUM_RECLOCK);
-
+  lock_rec_discard(in_lock);
   lock_rec_grant(in_lock, use_fcfs);
 }
 
@@ -6483,12 +6423,8 @@ waiting behind it.
 @param[in,out]	lock		Waiting lock request
 @param[in]	use_fcfs	true -> use first come first served strategy */
 void lock_cancel_waiting_and_release(lock_t *lock, bool use_fcfs) {
-  que_thr_t *thr;
-
   ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(lock->trx));
-
-  lock->trx->lock.cancel = true;
 
   if (lock_get_type_low(lock) == LOCK_REC) {
     lock_rec_dequeue_from_page(lock, use_fcfs);
@@ -6503,19 +6439,7 @@ void lock_cancel_waiting_and_release(lock_t *lock, bool use_fcfs) {
     lock_table_dequeue(lock);
   }
 
-  /* Reset the wait flag and the back pointer to lock in trx. */
-
-  lock_reset_lock_and_trx_wait(lock);
-
-  /* The following function releases the trx from lock wait. */
-
-  thr = que_thr_end_lock_wait(lock->trx);
-
-  if (thr != NULL) {
-    lock_wait_release_thread_if_suspended(thr);
-  }
-
-  lock->trx->lock.cancel = false;
+  lock_reset_wait_and_release_thread_if_suspended(lock);
 }
 
 /** Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
@@ -7250,13 +7174,16 @@ const trx_t *DeadlockChecker::check_and_resolve(const lock_t *lock,
   }
 
   /*  Release the mutex to obey the latching order.
+  In particular, printing out trx details requires trx_sys->mutex,
+  which we can not acquire while holding any trx->mutex.
   This is safe, because DeadlockChecker::check_and_resolve()
   is invoked when a lock wait is enqueued for the currently
   running transaction. Because m_trx is a running transaction
   (it is not currently suspended because of a lock wait),
   its state can only be changed by this thread, which is
   currently associated with the transaction. */
-
+  const bool was_trx_mutex_ownership_tracked = trx->owns_mutex;
+  trx->owns_mutex = false;
   trx_mutex_exit(trx);
 
   const trx_t *victim_trx;
@@ -7301,6 +7228,7 @@ const trx_t *DeadlockChecker::check_and_resolve(const lock_t *lock,
   }
 
   trx_mutex_enter(trx);
+  trx->owns_mutex = was_trx_mutex_ownership_tracked;
 
   return (victim_trx);
 }
