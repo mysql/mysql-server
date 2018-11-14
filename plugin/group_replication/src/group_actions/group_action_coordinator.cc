@@ -118,6 +118,9 @@ Group_action_coordinator::Group_action_coordinator()
                    &group_thread_end_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_thread_end,
                   &group_thread_end_cond);
+#ifndef DBUG_OFF
+  failure_debug_flag = false;
+#endif
 }
 
 Group_action_coordinator::~Group_action_coordinator() {
@@ -167,6 +170,11 @@ void Group_action_coordinator::reset_coordinator_process() {
   action_proposed = false;
   member_leaving_group = false;
   remote_warnings_reported = false;
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_group_action_start_msg_error",
+                  { failure_debug_flag = true; });
+#endif
 }
 
 int Group_action_coordinator::stop_coordinator_process(bool coordinator_stop,
@@ -468,11 +476,29 @@ bool Group_action_coordinator::handle_action_start_message(
   if (!is_sender) {
     Group_action_message::enum_action_message_type message_type =
         message->get_group_action_message_type();
+#ifndef DBUG_OFF
+    if (failure_debug_flag) {
+      message_type = Group_action_message::ACTION_UNKNOWN_MESSAGE;
+    }
+#endif
     if (message_type == Group_action_message::ACTION_MULTI_PRIMARY_MESSAGE)
       action_info->executing_action = new Multi_primary_migration_action();
     else if (message_type ==
              Group_action_message::ACTION_PRIMARY_ELECTION_MESSAGE)
       action_info->executing_action = new Primary_election_action();
+  }
+  /*
+   In the unlikely case a member of a higher version sent an unknown action
+   type we abort directly.
+   This case should never happen IRL and we cannot set read only mode in this
+   method
+  */
+  if (nullptr == action_info->executing_action) {
+    abort_plugin_process(
+        "Fatal error during a Group Replication configuration change: This "
+        "member received an unknown action for execution.");
+    error = 1;
+    goto end;
   }
 
   current_executing_action = action_info;

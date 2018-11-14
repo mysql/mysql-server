@@ -121,6 +121,14 @@ class Group_action_coordinator : public Group_event_observer {
   */
   int execute_group_action_handler();
 
+#ifndef DBUG_OFF
+  /**
+    Flag for cases where we don't have debug execution tools
+    Can be an enum if other cases emerge
+  */
+  bool failure_debug_flag;
+#endif
+
  private:
   // The listeners for group events
 
@@ -218,6 +226,8 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     Internal method that contains the logic for leaving and killing transactions
+
+    @param error_msg error to log in case an action error is not present
   */
   void kill_transactions_and_leave();
 
