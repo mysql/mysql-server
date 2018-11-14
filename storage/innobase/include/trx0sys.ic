@@ -284,10 +284,11 @@ trx_t *trx_rw_is_active_low(
     }
   } else {
     trx = trx_get_rw_trx_by_id(trx_id);
-
-    if (trx != NULL && trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-      trx = NULL;
-    }
+    /* We remove trx from rw trxs list and change state to
+    TRX_STATE_COMMITED_IN_MEMORY in a same critical section protected by
+    trx_sys->mutex, which we happen to hold here, so we expect the state of trx
+    to match its presence in that list */
+    ut_ad(trx == NULL || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
   }
 
   return (trx);
