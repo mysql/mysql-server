@@ -178,6 +178,14 @@ while ($i)
          DEALLOCATE PREPARE stmt;
 
          let $query=
+         SELECT * FROM t1 WHERE EXISTS 
+           (SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+            WHERE t1.i = t3.i);
+         eval EXPLAIN $query;
+         --sorted_result
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
@@ -2255,10 +2263,13 @@ INSERT INTO t1 VALUES (1,10),(2,11),(1,13);
 CREATE TABLE t2 AS SELECT * FROM t1;
 CREATE TABLE t3 AS SELECT * FROM t1;
 
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
 SELECT COUNT(*) FROM t1
 GROUP BY t1.a 
 HAVING t1.a IN (SELECT t3.a FROM t3
                 WHERE t3.b IN (SELECT b FROM t2 WHERE t2.a=t1.a));
+--enable_ps_protocol
 
 DROP TABLE t1, t2, t3;
 

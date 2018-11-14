@@ -356,10 +356,10 @@ WHERE t2.int_key IS NULL
 GROUP BY t2.pk
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t2	NULL	ref	int_key	int_key	5	const	1	100.00	Using index condition
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ref	int_key	int_key	5	const	1	100.00	Using index condition; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select min('1') AS `MIN(t1.pk)` from <constant table> semi join (`test`.`t2`) where isnull(`test`.`t2`.`int_key`)
 DROP TABLE t1, t2;
 #
 # BUG#42048 Discrepancy between MyISAM and Maria's ICP implementation

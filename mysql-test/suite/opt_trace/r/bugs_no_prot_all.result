@@ -407,9 +407,7 @@ FROM t1
               "select#": 2,
               "from": "IN (SELECT)",
               "to": "semijoin",
-              "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "chosen": true
             } /* transformation */
           },
           {

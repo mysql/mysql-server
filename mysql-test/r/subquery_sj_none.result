@@ -344,6 +344,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -445,6 +458,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -546,6 +572,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -650,6 +689,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -751,6 +803,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -852,6 +917,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -957,6 +1035,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1059,6 +1150,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1161,6 +1265,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select NULL AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((NULL = `test`.`t3`.`i`) and (`test`.`t2`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1269,6 +1386,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', NULL, NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1370,6 +1500,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` where multiple equal('2'))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1473,6 +1616,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', `test`.`t3`.`i`, NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1579,6 +1735,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t3` where multiple equal('2', NULL))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1684,6 +1853,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1797,6 +1981,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1910,6 +2109,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where multiple equal('2', NULL, `test`.`t2`.`i`))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2017,6 +2229,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2131,6 +2358,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select '2' AS `i` from dual where 1
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2248,6 +2490,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal(NULL, NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2349,6 +2604,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = '2') and multiple equal(NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2452,6 +2720,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = `test`.`t3`.`i`) and multiple equal(NULL, `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2559,6 +2840,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal('2', NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2664,6 +2958,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from dual where ((`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2777,6 +3086,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t3` where ((`test`.`t3`.`i` = '2') and (`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2892,6 +3216,19 @@ i
 EXECUTE stmt;
 i
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t1`.`i` = NULL) and multiple equal(`test`.`t2`.`i`, NULL)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2999,6 +3336,21 @@ EXECUTE stmt;
 i
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`i` = '2') and (`test`.`t1`.`i` = '2')))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3116,6 +3468,22 @@ i
 1
 2
 DEALLOCATE PREPARE stmt;
+EXPLAIN SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`i` = `test`.`t3`.`i`) and (`test`.`t1`.`i` = `test`.`t3`.`i`)))
+SELECT * FROM t1 WHERE EXISTS 
+(SELECT * FROM t2 LEFT JOIN t3 ON t2.i=t3.i
+WHERE t1.i = t3.i);
+i
+1
+2
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

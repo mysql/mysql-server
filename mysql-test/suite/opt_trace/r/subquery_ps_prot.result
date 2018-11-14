@@ -542,6 +542,14 @@ WHERE NOT EXISTS
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select 1 from `t2` where ((`t2`.`a` = 50) and (`t2`.`b` = 3))"
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "EXISTS (SELECT)",
+                    "to": "semijoin",
+                    "chosen": false
+                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -687,6 +695,14 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER
               "steps": [
                 {
                   "expanded_query": "/* select#2 */ select `t2`.`a` from `t2`"
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "EXISTS (SELECT)",
+                    "to": "semijoin",
+                    "chosen": false
+                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -935,6 +951,14 @@ field4,field5,field6	{
                     "steps": [
                       {
                         "expanded_query": "/* select#3 */ select `c_sq1_alias2`.`col_int_nokey` AS `c_sq1_field1` from `t4` `c_sq1_alias2` left join `t3` `c_sq1_alias1` on((`c_sq1_alias2`.`col_int_nokey` = `c_sq1_alias1`.`pk`)) where (`c_sq1_alias2`.`col_varchar_key` = `sq1_alias2`.`col_varchar_nokey`)"
+                      },
+                      {
+                        "transformation": {
+                          "select#": 3,
+                          "from": "EXISTS (SELECT)",
+                          "to": "semijoin",
+                          "chosen": false
+                        } /* transformation */
                       }
                     ] /* steps */
                   } /* join_preparation */

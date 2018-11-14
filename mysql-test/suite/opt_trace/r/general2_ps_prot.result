@@ -1631,6 +1631,14 @@ jump_if_not 2(2) exists(select 1)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 1"
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "EXISTS (SELECT)",
+              "to": "semijoin",
+              "chosen": false
+            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */
@@ -1670,6 +1678,14 @@ jump_if_not 4(4) exists(select 2)	{
         "steps": [
           {
             "expanded_query": "/* select#2 */ select 2"
+          },
+          {
+            "transformation": {
+              "select#": 2,
+              "from": "EXISTS (SELECT)",
+              "to": "semijoin",
+              "chosen": false
+            } /* transformation */
           }
         ] /* steps */
       } /* join_preparation */

@@ -1382,6 +1382,9 @@ class SELECT_LEX {
   /// @returns true if query block is a recursive member of a recursive unit
   bool is_recursive() const { return recursive_reference != nullptr; }
 
+  /// @returns true if query block contains window functions
+  bool has_windows() const { return m_windows.elements > 0; }
+
   void invalidate();
 
   bool set_braces(bool value);
@@ -1787,7 +1790,10 @@ class SELECT_LEX {
   /// Remove semijoin condition for this query block
   void clear_sj_expressions(NESTED_JOIN *nested_join);
   ///  Build semijoin condition for th query block
-  bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join, Item **sj_cond);
+  bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
+                     SELECT_LEX *subq_select, table_map outer_tables_map,
+                     Item **sj_cond);
+  bool decorrelate_where_cond(TABLE_LIST *sj_nest);
 
  private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);

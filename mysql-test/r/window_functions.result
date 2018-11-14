@@ -6318,93 +6318,88 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.55"
+      "query_cost": "3.99"
     },
-    "table": {
-      "table_name": "upper",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 3,
-      "rows_produced_per_join": 3,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "0.25",
-        "eval_cost": "0.30",
-        "prefix_cost": "0.55",
-        "data_read_per_join": "24"
+    "nested_loop": [
+      {
+        "table": {
+          "table_name": "upper",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "0.30",
+            "prefix_cost": "0.55",
+            "data_read_per_join": "24"
+          },
+          "used_columns": [
+            "a"
+          ]
+        }
       },
-      "used_columns": [
-        "a"
-      ],
-      "attached_condition": "exists(/* select#2 */ select `ta`.`rn` from (/* select#3 */ select row_number() OVER ()  AS `rn` from `test`.`t`) `ta` where (`ta`.`rn` > `test`.`upper`.`a`))",
-      "attached_subqueries": [
-        {
-          "dependent": true,
-          "cacheable": false,
-          "query_block": {
-            "select_id": 2,
-            "cost_info": {
-              "query_cost": "2.84"
-            },
-            "table": {
-              "table_name": "ta",
-              "access_type": "ALL",
-              "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 1,
-              "filtered": "33.33",
+      {
+        "table": {
+          "table_name": "ta",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 3,
+          "rows_produced_per_join": 3,
+          "filtered": "33.33",
+          "first_match": "upper",
+          "using_join_buffer": "Block Nested Loop",
+          "cost_info": {
+            "read_cost": "2.54",
+            "eval_cost": "0.30",
+            "prefix_cost": "3.99",
+            "data_read_per_join": "48"
+          },
+          "used_columns": [
+            "rn"
+          ],
+          "attached_condition": "(`ta`.`rn` > `test`.`upper`.`a`)",
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "dependent": false,
+            "cacheable": true,
+            "query_block": {
+              "select_id": 3,
               "cost_info": {
-                "read_cost": "2.54",
-                "eval_cost": "0.10",
-                "prefix_cost": "2.84",
-                "data_read_per_join": "16"
+                "query_cost": "0.55"
               },
-              "used_columns": [
-                "rn"
-              ],
-              "attached_condition": "(`ta`.`rn` > `test`.`upper`.`a`)",
-              "materialized_from_subquery": {
-                "using_temporary_table": true,
-                "dependent": false,
-                "cacheable": true,
-                "query_block": {
-                  "select_id": 3,
+              "windowing": {
+                "windows": [
+                  {
+                    "name": "<unnamed window>",
+                    "functions": [
+                      "row_number"
+                    ]
+                  }
+                ],
+                "table": {
+                  "table_name": "t",
+                  "access_type": "ALL",
+                  "rows_examined_per_scan": 3,
+                  "rows_produced_per_join": 3,
+                  "filtered": "100.00",
                   "cost_info": {
-                    "query_cost": "0.55"
-                  },
-                  "windowing": {
-                    "windows": [
-                      {
-                        "name": "<unnamed window>",
-                        "functions": [
-                          "row_number"
-                        ]
-                      }
-                    ],
-                    "table": {
-                      "table_name": "t",
-                      "access_type": "ALL",
-                      "rows_examined_per_scan": 3,
-                      "rows_produced_per_join": 3,
-                      "filtered": "100.00",
-                      "cost_info": {
-                        "read_cost": "0.25",
-                        "eval_cost": "0.30",
-                        "prefix_cost": "0.55",
-                        "data_read_per_join": "24"
-                      }
-                    }
+                    "read_cost": "0.25",
+                    "eval_cost": "0.30",
+                    "prefix_cost": "0.55",
+                    "data_read_per_join": "24"
                   }
                 }
               }
             }
           }
         }
-      ]
-    }
+      }
+    ]
   }
 }
 Warnings:
 Note	1276	Field or reference 'test.upper.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`upper`.`a` AS `a` from `test`.`t` `upper` where exists(/* select#2 */ select `ta`.`rn` from (/* select#3 */ select row_number() OVER ()  AS `rn` from `test`.`t`) `ta` where (`ta`.`rn` > `test`.`upper`.`a`))
+Note	1003	/* select#1 */ select `test`.`upper`.`a` AS `a` from `test`.`t` `upper` semi join ((/* select#3 */ select row_number() OVER ()  AS `rn` from `test`.`t`) `ta`) where (`ta`.`rn` > `test`.`upper`.`a`)
 # Correlated => no subquery materialization.
 # IN => EXISTS, error
 SELECT * FROM t upper

@@ -1957,7 +1957,9 @@ DROP FUNCTION f1;
 EXPLAIN
 SELECT a, b
 FROM t1 AS t1o
-WHERE EXISTS ( SELECT 1 FROM t1 WHERE (a, b) IN ((t1o.a, t1o.b)) );
+WHERE EXISTS (SELECT /*+ NO_SEMIJOIN() */ 1
+              FROM t1
+              WHERE (a, b) IN ((t1o.a, t1o.b)) );
 
 --echo #
 --echo # Tests of dynamic range access

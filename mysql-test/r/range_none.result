@@ -3006,14 +3006,16 @@ DROP FUNCTION f1;
 EXPLAIN
 SELECT a, b
 FROM t1 AS t1o
-WHERE EXISTS ( SELECT 1 FROM t1 WHERE (a, b) IN ((t1o.a, t1o.b)) );
+WHERE EXISTS (SELECT /*+ NO_SEMIJOIN() */ 1
+FROM t1
+WHERE (a, b) IN ((t1o.a, t1o.b)) );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1o	NULL	index	NULL	x	10	NULL	4098	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ref	x	x	10	test.t1o.a,test.t1o.b	410	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.t1o.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1o.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`select#2`) */ `test`.`t1o`.`a` AS `a`,`test`.`t1o`.`b` AS `b` from `test`.`t1` `t1o` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t1o`.`a`) and (`test`.`t1`.`b` = `test`.`t1o`.`b`)))
 #
 # Tests of dynamic range access
 #

@@ -373,7 +373,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.ta.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t4` `tc` join `test`.`t2` `tb`) where ((`test`.`tc`.`g` = `test`.`tb`.`d`) and (`test`.`tc`.`f` = `test`.`tb`.`c`) and (`test`.`ta`.`a` = `test`.`tb`.`c`))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t4` `tc` join `test`.`t2` `tb`) where ((`test`.`tc`.`f` = `test`.`tb`.`c`) and (`test`.`ta`.`a` = `test`.`tb`.`c`) and (`test`.`tc`.`g` = `test`.`tb`.`d`))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d IN (SELECT g FROM t4 as tc
@@ -504,12 +504,12 @@ WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE EXISTS (SELECT * FROM t3 as tc
 WHERE ta.b=tc.e));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary; Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+1	SIMPLE	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Start temporary
+1	SIMPLE	ta	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	tb	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and exists(/* select#3 */ select 1 from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`)))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t3` `tc` join `test`.`t2` `tb`) where ((`test`.`ta`.`b` = `test`.`tc`.`e`) and (`test`.`tb`.`c` = `test`.`ta`.`a`))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE EXISTS (SELECT * FROM t3 as tc
@@ -517,8 +517,8 @@ WHERE ta.b=tc.e));
 a	b
 2	10
 2	20
-3	20
 2	30
+3	20
 # Scalar subquery with reference to the parent query block
 set @@optimizer_switch='materialization=off,semijoin=off';
 EXPLAIN SELECT * FROM t1 AS ta
@@ -551,7 +551,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	tc	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.ta.b' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and (`test`.`tb`.`d` = (/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`))))
+Note	1003	/* select#1 */ select `test`.`ta`.`a` AS `a`,`test`.`ta`.`b` AS `b` from `test`.`t1` `ta` semi join (`test`.`t2` `tb`) where ((`test`.`ta`.`a` = `test`.`tb`.`c`) and ((/* select#3 */ select min(`test`.`tc`.`e`) from `test`.`t3` `tc` where (`test`.`ta`.`b` = `test`.`tc`.`e`)) = `test`.`tb`.`d`))
 SELECT * FROM t1 AS ta
 WHERE ta.a IN (SELECT c FROM t2 AS tb
 WHERE tb.d = (SELECT MIN(e) FROM t3 as tc

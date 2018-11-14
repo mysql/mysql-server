@@ -883,7 +883,7 @@ double Optimize_table_order::lateral_derived_cost(
   table_map deps = tab->table_ref->derived_unit()->m_lateral_deps;
   POSITION *positions = got_final_plan ? join->best_positions : join->positions;
   double derived_mat_cost = 0;
-  for (uint j = idx; j >= join->const_tables; j--) {
+  for (int j = idx; j >= (int)join->const_tables; j--) {
     if (deps & join->best_ref[j]->table_ref->map()) {
       // We found the last table in plan, on which 'tab' depends.
       auto res = tab->table_ref->derived_unit()->query_result();
