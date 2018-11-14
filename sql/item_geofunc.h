@@ -1655,7 +1655,8 @@ class Item_func_st_length : public Item_real_func {
   String value;
 
  public:
-  Item_func_st_length(const POS &pos, Item *a) : Item_real_func(pos, a) {}
+  Item_func_st_length(const POS &pos, PT_item_list *ilist)
+      : Item_real_func(pos, ilist) {}
   double val_real() override;
   const char *func_name() const override { return "st_length"; }
   bool resolve_type(THD *thd) override {

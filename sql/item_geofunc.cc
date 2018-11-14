@@ -47,6 +47,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -5047,14 +5048,79 @@ double Item_func_st_area::val_real() {
   return result;
 }
 
+enum class ConvertUnitResult {
+  kError,
+  kNull,
+  kOk,
+};
+/// ConvertUnit converts length to from the unit used in srs, to the unit in
+/// to_uint read as a string.
+///
+///  Srs's linear unit is used to ocnvert back to meters and to_unit is used to
+///  find the conversion factor from meters to the wanted unit.
+///
+///  @param[in] to_unit An item treated as the name of the unit we want to
+/// convert to.
+///  @param[in] srs The spatial reference system the length is assumed to come
+/// from.
+///  @param[inout] length The length to convert to another unit.
+///
+///  @retval kError An error has occured, this could be overflows, unsupported
+/// units, srs without unit (SRID 0), conversion errors.
+///  @retval kNull The result is sql null, because the to_unit was null.
+///  @retval kOk Success.
+///
+///
+static ConvertUnitResult ConvertUnit(Item *to_unit,
+                                     const dd::Spatial_reference_system *srs,
+                                     const char *function_name,
+                                     double *length) {
+  String buffer;
+  String *unit = to_unit->val_str(&buffer);
+  if (!to_unit->null_value) {
+    double conversion_factor = 0.0;
+
+    uint convert_errors = 0;
+    String converted_string;
+    if (converted_string.copy(unit->ptr(), unit->length(), unit->charset(),
+                              &my_charset_utf8mb4_0900_ai_ci,
+                              &convert_errors) ||
+        convert_errors) {
+      /* purecov:begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return ConvertUnitResult::kError;
+      /* purecov: end */
+    }
+    std::string unit_name(converted_string.ptr(), converted_string.length());
+    if (srs == nullptr) {
+      my_error(ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT, MYF(0), function_name,
+               unit_name.c_str());
+      return ConvertUnitResult::kError;
+    }
+
+    if (gis::get_conversion_factor(unit_name, &conversion_factor)) {
+      return ConvertUnitResult::kError;
+    }
+    *length *= srs->linear_unit() / conversion_factor;
+    if (std::isinf(*length)) {
+      /* purecov:begin inspected */
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "result", function_name);
+      return ConvertUnitResult::kError;
+      /* purecov: end */
+    }
+    return ConvertUnitResult::kOk;
+  } else {
+    return ConvertUnitResult::kNull;
+  }
+}
+
 double Item_func_st_length::val_real() {
-  DBUG_ENTER("Item_func_st_length::val_real");
   DBUG_ASSERT(fixed);
   String *swkb = args[0]->val_str(&value);
 
   if ((null_value = (args[0]->null_value))) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
   if (swkb == nullptr) {
@@ -5064,7 +5130,7 @@ double Item_func_st_length::val_real() {
     */
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   const dd::Spatial_reference_system *srs = nullptr;
@@ -5073,19 +5139,34 @@ double Item_func_st_length::val_real() {
       new dd::cache::Dictionary_client::Auto_releaser(
           current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g)) {
-    DBUG_RETURN(error_real());
+    return error_real();
   }
 
   double length;
   if (gis::length(srs, g.get(), &length, &null_value))
-    DBUG_RETURN(error_real()); /* purecov: inspected */
+    return error_real(); /* purecov: inspected */
 
   if (null_value) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0.0);
+    return 0.0;
   }
 
-  DBUG_RETURN(length);
+  if (arg_count == 2) {
+    switch (ConvertUnit(args[1], srs, func_name(), &length)) {
+      case ConvertUnitResult::kError:
+        return error_real();
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return length;
+        break;
+    }
+  }
+  return length;
 }
 
 longlong Item_func_st_srid_observer::val_int() {
@@ -5222,45 +5303,19 @@ double Item_func_distance::val_real() {
     return 0.0;
   }
 
-  if (3 == arg_count) {
-    String buffer;
-    String *unit = args[2]->val_str(&buffer);
-    if (!args[2]->null_value) {
-      double conversion_factor = 0;
-
-      uint convert_errors = 0;
-      String converted_string;
-      if (converted_string.copy(unit->ptr(), unit->length(), unit->charset(),
-                                &my_charset_utf8mb4_0900_ai_ci,
-                                &convert_errors) ||
-          convert_errors) {
-        my_error(ER_OOM, MYF(0));
+  if (arg_count == 3) {
+    switch (ConvertUnit(args[2], srs1, func_name(), &distance)) {
+      case ConvertUnitResult::kError:
         return error_real();
-      }
-      std::string unit_name =
-          std::string(converted_string.ptr(), converted_string.length());
-      if (nullptr == srs1) {
-        my_error(ER_GEOMETRY_IN_UNKNOWN_LENGTH_UNIT, MYF(0), "st_distance",
-                 unit_name.c_str());
-        return error_real();
-      }
-
-      if (gis::get_conversion_factor(unit_name, &conversion_factor)) {
-        return error_real();
-      }
-      distance *= srs1->linear_unit() / conversion_factor;
-      if (std::isinf(distance)) {
-        /* purecov: begin inspected */
-        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "result", func_name());
-        return error_real();
-        /* purecov: end */
-      }
-
-      return distance;
-    } else {
-      DBUG_ASSERT(maybe_null);
-      null_value = true;
-      return 0.0;
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return distance;
+        break;
     }
   }
 
