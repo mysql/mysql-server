@@ -159,15 +159,32 @@ class Ha_innopart_share : public Partition_share {
   @return	MySQL key number or MAX_KEY if non-existent. */
   uint get_mysql_key(uint part_id, const dict_index_t *index);
 
-  /** Initialize the share with table and indexes per partition.
+  /** Return whether share has opened InnoDB tables for partitions. */
+  bool has_table_parts() const { return (m_table_parts != nullptr); }
+
+  /** Increment share and InnoDB tables reference counters. */
+  void increment_ref_counts();
+
+  /** Open InnoDB tables for partitions and return them as array.
   @param[in,out]	thd		Thread context
   @param[in]	table		MySQL table definition
   @param[in]	dd_table	Global DD table object
   @param[in]	part_info	Partition info (partition names to use)
   @param[in]	table_name	Table name (db/table_name)
+  @return	Array on InnoDB tables on success else nullptr. */
+  static dict_table_t **open_table_parts(THD *thd, const TABLE *table,
+                                         const dd::Table *dd_table,
+                                         partition_info *part_info,
+                                         const char *table_name);
+
+  /** Initialize the share with table and indexes per partition.
+  @param[in]	table		MySQL table definition
+  @param[in]	part_info	Partition info (partition names to use)
+  @param[in]	table_parts	Array of InnoDB tables for partitions.
   @return false on success else true. */
-  bool open_table_parts(THD *thd, const TABLE *table, const dd::Table *dd_table,
-                        partition_info *part_info, const char *table_name);
+  bool set_table_parts_and_indexes(const TABLE *table,
+                                   partition_info *part_info,
+                                   dict_table_t **table_parts);
 
   /** Close the table partitions.
   If all instances are closed, also release the resources.
@@ -176,6 +193,11 @@ class Ha_innopart_share : public Partition_share {
                                   DDL, and we just need to release the
                                   resources */
   void close_table_parts(bool only_free);
+
+  /** Close InnoDB tables for partitions.
+  @param[in]	table_parts	Array of InnoDB tables for partitions.
+  @param[in]	tot_parts       Number of partitions. */
+  static void close_table_parts(dict_table_t **table_parts, uint tot_parts);
 
   /** @return the TABLE SHARE object */
   const TABLE_SHARE *get_table_share() const { return (m_table_share); }
@@ -226,12 +248,14 @@ class Ha_innopart_share : public Partition_share {
   @param[in]	table		MySQL table definition
   @param[in]	dd_part		dd::Partition
   @param[in]	part_name	Table name of this partition
-  @param[in]	part_id		Partition id
+  @param[out]	part_dict_table	InnoDB table for partition
   @retval	False	On success
   @retval	True	On failure */
-  bool open_one_table_part(dd::cache::Dictionary_client *client, THD *thd,
-                           const TABLE *table, const dd::Partition *dd_part,
-                           const char *part_name, uint part_id);
+  static bool open_one_table_part(dd::cache::Dictionary_client *client,
+                                  THD *thd, const TABLE *table,
+                                  const dd::Partition *dd_part,
+                                  const char *part_name,
+                                  dict_table_t **part_dict_table);
 };
 
 /** Get explicit specified tablespace for one (sub)partition, checking
