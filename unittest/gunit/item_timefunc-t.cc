@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ void testItemTimeFunctions(Item_time_func *item, MYSQL_TIME *ltime,
       10000 * ltime->hour + 100 * ltime->minute + ltime->second;
   EXPECT_EQ(mysql_time, item->val_int());
 
-  long long int packed = TIME_to_longlong_packed(ltime);
+  long long int packed = TIME_to_longlong_packed(*ltime);
   EXPECT_EQ(packed, item->val_time_temporal());
 
   double d = mysql_time + ltime->second_part / 1000000.0;

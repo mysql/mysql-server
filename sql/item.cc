@@ -353,7 +353,7 @@ my_decimal *Item::val_decimal_from_time(my_decimal *decimal_value) {
 longlong Item::val_time_temporal() {
   MYSQL_TIME ltime;
   if ((null_value = get_time(&ltime))) return 0;
-  return TIME_to_longlong_time_packed(&ltime);
+  return TIME_to_longlong_time_packed(ltime);
 }
 
 longlong Item::val_date_temporal() {
@@ -364,14 +364,14 @@ longlong Item::val_date_temporal() {
       (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
       (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0);
   if (get_date(&ltime, flags)) return error_int();
-  return TIME_to_longlong_datetime_packed(&ltime);
+  return TIME_to_longlong_datetime_packed(ltime);
 }
 
 // TS-TODO: split into separate methods?
 longlong Item::val_temporal_with_round(enum_field_types type, uint8 dec) {
   longlong nr = val_temporal_by_field_type();
   longlong diff =
-      my_time_fraction_remainder(MY_PACKED_TIME_GET_FRAC_PART(nr), dec);
+      my_time_fraction_remainder(my_packed_time_get_frac_part(nr), dec);
   longlong abs_diff = diff > 0 ? diff : -diff;
   if (abs_diff * 2 >= (int)log_10_int[DATETIME_MAX_DECIMALS - dec]) {
     /* Needs rounding */
@@ -382,17 +382,19 @@ longlong Item::val_temporal_with_round(enum_field_types type, uint8 dec) {
         return my_time_adjust_frac(&ltime, dec,
                                    current_thd->is_fsp_truncate_mode())
                    ? 0
-                   : TIME_to_longlong_time_packed(&ltime);
+                   : TIME_to_longlong_time_packed(ltime);
       }
       case MYSQL_TYPE_TIMESTAMP:
       case MYSQL_TYPE_DATETIME: {
         MYSQL_TIME ltime;
         int warnings = 0;
         TIME_from_longlong_datetime_packed(&ltime, nr);
-        return my_datetime_adjust_frac(&ltime, dec, &warnings,
-                                       current_thd->is_fsp_truncate_mode())
+        return propagate_datetime_overflow(
+                   current_thd, &warnings,
+                   my_datetime_adjust_frac(&ltime, dec, &warnings,
+                                           current_thd->is_fsp_truncate_mode()))
                    ? 0
-                   : TIME_to_longlong_datetime_packed(&ltime);
+                   : TIME_to_longlong_datetime_packed(ltime);
         return nr;
       }
       default:
@@ -430,9 +432,9 @@ longlong Item::val_int_from_time() {
   if (get_time(&ltime)) return 0LL;
 
   if (current_thd->is_fsp_truncate_mode())
-    value = TIME_to_ulonglong_time(&ltime);
+    value = TIME_to_ulonglong_time(ltime);
   else
-    value = TIME_to_ulonglong_time_round(&ltime);
+    value = TIME_to_ulonglong_time_round(ltime);
 
   return (ltime.neg ? -1 : 1) * value;
 }
@@ -442,7 +444,7 @@ longlong Item::val_int_from_date() {
   MYSQL_TIME ltime;
   return get_date(&ltime, TIME_FUZZY_DATE)
              ? 0LL
-             : (longlong)TIME_to_ulonglong_date(&ltime);
+             : (longlong)TIME_to_ulonglong_date(ltime);
 }
 
 longlong Item::val_int_from_datetime() {
@@ -451,9 +453,12 @@ longlong Item::val_int_from_datetime() {
   if (get_date(&ltime, TIME_FUZZY_DATE)) return 0LL;
 
   if (current_thd->is_fsp_truncate_mode())
-    return TIME_to_ulonglong_datetime(&ltime);
-  else
-    return TIME_to_ulonglong_datetime_round(&ltime);
+    return TIME_to_ulonglong_datetime(ltime);
+  else {
+    return propagate_datetime_overflow(current_thd, [&](int *warnings) {
+      return TIME_to_ulonglong_datetime_round(ltime, warnings);
+    });
+  }
 }
 
 type_conversion_status Item::save_time_in_field(Field *field) {
@@ -637,8 +642,10 @@ uint Item::datetime_precision() {
     DBUG_ASSERT(fixed);
     // Nanosecond rounding is not needed, for performance purposes
     if ((tmp = val_str(&buf)) &&
-        !str_to_datetime(tmp, &ltime, TIME_FRAC_TRUNCATE | TIME_FUZZY_DATE,
-                         &status))
+        !propagate_datetime_overflow(
+            current_thd, &status.warnings,
+            str_to_datetime(tmp, &ltime, TIME_FRAC_TRUNCATE | TIME_FUZZY_DATE,
+                            &status)))
       return MY_MIN(status.fractional_digits, DATETIME_MAX_DECIMALS);
   }
   return MY_MIN(decimals, DATETIME_MAX_DECIMALS);
@@ -3360,7 +3367,7 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   value.time.time_type = time_type;
   decimals = tm->second_part ? DATETIME_MAX_DECIMALS : 0;
 
-  if (check_datetime_range(&value.time)) {
+  if (check_datetime_range(value.time)) {
     /*
       TODO : Add error handling for Item_param::set_* functions.
       make_truncated_value_warning() can return error in STRICT mode.
@@ -3609,7 +3616,7 @@ double Item_param::val_real() {
         This works for example when user says SELECT ?+0.0 and supplies
         time value for the placeholder.
       */
-      return TIME_to_double(&value.time);
+      return TIME_to_double(value.time);
     case NULL_VALUE:
       return 0.0;
     default:
@@ -3636,7 +3643,9 @@ longlong Item_param::val_int() {
                          str_value.length(), 10, nullptr, &dummy_err);
     }
     case TIME_VALUE:
-      return (longlong)TIME_to_ulonglong_round(&value.time);
+      return (longlong)propagate_datetime_overflow(current_thd, [&](int *w) {
+        return TIME_to_ulonglong_round(value.time, w);
+      });
     case NULL_VALUE:
       return 0;
     default:
@@ -3688,7 +3697,7 @@ String *Item_param::val_str(String *str) {
     case TIME_VALUE: {
       if (str->reserve(MAX_DATE_STRING_REP_LENGTH)) break;
       str->length(
-          (uint)my_TIME_to_str(&value.time, (char *)str->ptr(),
+          (uint)my_TIME_to_str(value.time, (char *)str->ptr(),
                                MY_MIN(decimals, DATETIME_MAX_DECIMALS)));
       str->set_charset(&my_charset_bin);
       return str;
@@ -3738,7 +3747,7 @@ const String *Item_param::query_val_str(const THD *thd, String *str) const {
       buf = str->c_ptr_quick();
       ptr = buf;
       *ptr++ = '\'';
-      ptr += (uint)my_TIME_to_str(&value.time, ptr,
+      ptr += (uint)my_TIME_to_str(value.time, ptr,
                                   MY_MIN(decimals, DATETIME_MAX_DECIMALS));
       *ptr++ = '\'';
       str->length((uint32)(ptr - buf));
@@ -6177,7 +6186,7 @@ void Item_temporal_with_ref::print(const THD *, String *str,
   MYSQL_TIME ltime;
   TIME_from_longlong_packed(&ltime, data_type(), value);
   str->append("'");
-  my_TIME_to_str(&ltime, buff, decimals);
+  my_TIME_to_str(ltime, buff, decimals);
   str->append(buff);
   str->append('\'');
 }
@@ -8356,7 +8365,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item) {
       get_mysql_time_from_str(thd, field_result, type, field_name, &field_time);
       get_mysql_time_from_str(thd, item_result, type, field_name, &item_time);
 
-      return my_time_compare(&field_time, &item_time);
+      return my_time_compare(field_time, item_time);
     }
     return sortcmp(field_result, item_result, field->charset());
   }
@@ -8613,13 +8622,13 @@ bool Item_cache_datetime::get_date(MYSQL_TIME *ltime,
     case MYSQL_TYPE_DATE: {
       int warnings = 0;
       TIME_from_longlong_date_packed(ltime, int_value);
-      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+      return check_date(*ltime, non_zero_date(*ltime), fuzzydate, &warnings);
     }
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
       int warnings = 0;
       TIME_from_longlong_datetime_packed(ltime, int_value);
-      return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
+      return check_date(*ltime, non_zero_date(*ltime), fuzzydate, &warnings);
     }
     default:
       DBUG_ASSERT(0);
@@ -8663,7 +8672,7 @@ longlong Item_cache_datetime::val_time_temporal() {
     MYSQL_TIME ltime;
     return get_time_from_date(&ltime)
                ? 0
-               : TIME_to_longlong_packed(&ltime, data_type());
+               : TIME_to_longlong_packed(ltime, data_type());
   }
   return int_value;
 }
@@ -8674,9 +8683,8 @@ longlong Item_cache_datetime::val_date_temporal() {
   if (data_type() == MYSQL_TYPE_TIME) {
     /* Convert packed time to packed date */
     MYSQL_TIME ltime;
-    return get_date_from_time(&ltime)
-               ? 0
-               : TIME_to_longlong_datetime_packed(&ltime);
+    return get_date_from_time(&ltime) ? 0
+                                      : TIME_to_longlong_datetime_packed(ltime);
   }
   return int_value;
 }

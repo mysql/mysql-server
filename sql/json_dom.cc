@@ -1324,7 +1324,7 @@ Json_dom_ptr Json_datetime::clone() const {
 
 #ifdef MYSQL_SERVER
 void Json_datetime::to_packed(char *dest) const {
-  longlong packed = TIME_to_longlong_packed(&m_t);
+  longlong packed = TIME_to_longlong_packed(m_t);
   int8store(dest, packed);
 }
 #endif  // ifdef MYSQL_SERVER
@@ -1553,7 +1553,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (single_quote(buffer, json_quoted))
         return true; /* purecov: inspected */
       char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
-      const int size = my_TIME_to_str(&t, ptr, 6);
+      const int size = my_TIME_to_str(t, ptr, 6);
       buffer->length(buffer->length() + size);
       if (single_quote(buffer, json_quoted))
         return true; /* purecov: inspected */
@@ -2651,8 +2651,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
         get_datetime(&val_a);
         MYSQL_TIME val_b;
         other.get_datetime(&val_b);
-        return compare_numbers(TIME_to_longlong_packed(&val_a),
-                               TIME_to_longlong_packed(&val_b));
+        return compare_numbers(TIME_to_longlong_packed(val_a),
+                               TIME_to_longlong_packed(val_b));
       }
     case enum_json_type::J_TIME:
     case enum_json_type::J_DATE:
@@ -2663,8 +2663,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
         get_datetime(&val_a);
         MYSQL_TIME val_b;
         other.get_datetime(&val_b);
-        return compare_numbers(TIME_to_longlong_packed(&val_a),
-                               TIME_to_longlong_packed(&val_b));
+        return compare_numbers(TIME_to_longlong_packed(val_a),
+                               TIME_to_longlong_packed(val_b));
       }
     case enum_json_type::J_OPAQUE:
       /*

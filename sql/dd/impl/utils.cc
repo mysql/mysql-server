@@ -137,6 +137,6 @@ bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
 ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch) {
   MYSQL_TIME curtime;
   my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, seconds_since_epoch);
-  return TIME_to_ulonglong_datetime(&curtime);
+  return TIME_to_ulonglong_datetime(curtime);
 }
 }  // namespace dd

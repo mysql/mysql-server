@@ -2966,9 +2966,10 @@ static bool check_password_lifetime(THD *thd, const ACL_USER *acl_user) {
       interval.day = default_password_lifetime;
     }
     if (interval.day) {
-      if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
+      if (!date_add_interval_with_warn(thd, &password_change_by, INTERVAL_DAY,
+                                       interval))
         password_time_expired =
-            my_time_compare(&password_change_by, &cur_time) >= 0 ? false : true;
+            my_time_compare(password_change_by, cur_time) >= 0 ? false : true;
       else {
         DBUG_ASSERT(false);
         /* Make the compiler happy. */

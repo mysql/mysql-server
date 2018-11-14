@@ -1557,7 +1557,8 @@ out_of_range:
 */
 type_conversion_status Field_num::store_time(
     MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
-  longlong nr = TIME_to_ulonglong_round(ltime);
+  longlong nr = propagate_datetime_overflow(
+      current_thd, [&](int *w) { return TIME_to_ulonglong_round(*ltime, w); });
   return store(ltime->neg ? -nr : nr, 0);
 }
 
@@ -2139,8 +2140,8 @@ bool Field::get_timestamp(struct timeval *tm, int *warnings) {
 type_conversion_status Field::store_time(MYSQL_TIME *ltime, uint8 dec_arg) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  uint length =
-      (uint)my_TIME_to_str(ltime, buff, MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
+  uint length = (uint)my_TIME_to_str(*ltime, buff,
+                                     MY_MIN(dec_arg, DATETIME_MAX_DECIMALS));
   /* Avoid conversion when field character set is ASCII compatible */
   return store(
       buff, length,
@@ -4113,7 +4114,7 @@ const uchar *Field_real::unpack(uchar *to, const uchar *from, uint param_data,
 
 type_conversion_status Field_real::store_time(
     MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
-  double nr = TIME_to_double(ltime);
+  double nr = TIME_to_double(*ltime);
   return store(ltime->neg ? -nr : nr);
 }
 
@@ -4767,7 +4768,7 @@ longlong Field_temporal_with_date::val_date_temporal() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   return get_date_internal(&ltime) ? 0
-                                   : TIME_to_longlong_datetime_packed(&ltime);
+                                   : TIME_to_longlong_datetime_packed(ltime);
 }
 
 longlong Field_temporal_with_date::val_time_temporal() {
@@ -4777,7 +4778,7 @@ longlong Field_temporal_with_date::val_time_temporal() {
   */
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_time_packed(&ltime);
+  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_time_packed(ltime);
 }
 
 /**
@@ -4858,8 +4859,10 @@ type_conversion_status Field_temporal_with_date::convert_number_to_TIME(
   }
 
   ltime->second_part = 0;
-  if (datetime_add_nanoseconds_adjust_frac(
-          ltime, nanoseconds, warnings, (date_flags() & TIME_FRAC_TRUNCATE))) {
+  if (propagate_datetime_overflow(current_thd, warnings,
+                                  datetime_add_nanoseconds_adjust_frac(
+                                      ltime, nanoseconds, warnings,
+                                      (date_flags() & TIME_FRAC_TRUNCATE)))) {
     reset();
     return TYPE_WARN_OUT_OF_RANGE;
   }
@@ -4876,15 +4879,16 @@ type_conversion_status Field_temporal_with_date::store_time(
   {
     case MYSQL_TIMESTAMP_DATETIME:
     case MYSQL_TIMESTAMP_DATE:
-      if (check_date(ltime, non_zero_date(ltime), date_flags(), &warnings)) {
+      if (check_date(*ltime, non_zero_date(*ltime), date_flags(), &warnings)) {
         DBUG_ASSERT(warnings &
                     (MYSQL_TIME_WARN_OUT_OF_RANGE | MYSQL_TIME_WARN_ZERO_DATE |
                      MYSQL_TIME_WARN_ZERO_IN_DATE));
 
         error = time_warning_to_type_conversion_status(warnings);
         reset();
-      } else
+      } else {
         error = store_internal_adjust_frac(ltime, &warnings);
+      }
       break;
     case MYSQL_TIMESTAMP_TIME: {
       /* Convert TIME to DATETIME */
@@ -4912,7 +4916,9 @@ bool Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
                                                    const CHARSET_INFO *cs,
                                                    MYSQL_TIME *ltime,
                                                    MYSQL_TIME_STATUS *status) {
-  return str_to_datetime(cs, str, len, ltime, date_flags(), status);
+  return propagate_datetime_overflow(
+      current_thd, &status->warnings,
+      str_to_datetime(cs, str, len, ltime, date_flags(), status));
 }
 
 bool Field_temporal_with_date::send_binary(Protocol *protocol) {
@@ -4928,8 +4934,10 @@ bool Field_temporal_with_date::send_binary(Protocol *protocol) {
 
 type_conversion_status Field_temporal_with_date::store_internal_adjust_frac(
     MYSQL_TIME *ltime, int *warnings) {
-  if (my_datetime_adjust_frac(ltime, dec, warnings,
-                              (date_flags() & TIME_FRAC_TRUNCATE))) {
+  if (propagate_datetime_overflow(
+          current_thd, warnings,
+          my_datetime_adjust_frac(ltime, dec, warnings,
+                                  (date_flags() & TIME_FRAC_TRUNCATE)))) {
     reset();
     return time_warning_to_type_conversion_status(*warnings);
   } else
@@ -4951,7 +4959,7 @@ type_conversion_status Field_temporal_with_date::validate_stored_val(THD *) {
 
   memset(&ltime, 0, sizeof(MYSQL_TIME));
   get_date_internal(&ltime);
-  if (check_date(&ltime, non_zero_date(&ltime), date_flags(), &warnings))
+  if (check_date(ltime, non_zero_date(ltime), date_flags(), &warnings))
     error = time_warning_to_type_conversion_status(warnings);
 
   if (warnings) {
@@ -5011,14 +5019,17 @@ void Field_temporal_with_date_and_time::init_timestamp_flags() {
 double Field_temporal_with_date_and_timef::val_real() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0 : TIME_to_double_datetime(&ltime);
+  return get_date_internal(&ltime) ? 0 : TIME_to_double_datetime(ltime);
 }
 
 longlong Field_temporal_with_date_and_timef::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0
-                                   : TIME_to_ulonglong_datetime_round(&ltime);
+  return get_date_internal(&ltime)
+             ? 0
+             : propagate_datetime_overflow(current_thd, [&](int *w) {
+                 return TIME_to_ulonglong_datetime_round(ltime, w);
+               });
 }
 
 my_decimal *Field_temporal_with_date_and_timef::val_decimal(
@@ -5133,7 +5144,7 @@ void Field_timestamp::store_timestamp_internal(const struct timeval *tm) {
 
 type_conversion_status Field_timestamp::store_packed(longlong nr) {
   /* Make sure the stored value was previously properly rounded or truncated */
-  DBUG_ASSERT((MY_PACKED_TIME_GET_FRAC_PART(nr) %
+  DBUG_ASSERT((my_packed_time_get_frac_part(nr) %
                (int)log_10_int[DATETIME_MAX_DECIMALS - decimals()]) == 0);
   MYSQL_TIME ltime;
   TIME_from_longlong_datetime_packed(&ltime, nr);
@@ -5143,7 +5154,7 @@ type_conversion_status Field_timestamp::store_packed(longlong nr) {
 longlong Field_timestamp::val_int() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0 : TIME_to_ulonglong_datetime(&ltime);
+  return get_date_internal(&ltime) ? 0 : TIME_to_ulonglong_datetime(ltime);
 }
 
 bool Field_timestamp::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
@@ -5401,7 +5412,7 @@ longlong Field_time_common::val_date_temporal() {
     return 0;
   }
   time_to_datetime(table ? table->in_use : current_thd, &time, &datetime);
-  return TIME_to_longlong_datetime_packed(&datetime);
+  return TIME_to_longlong_datetime_packed(datetime);
 }
 
 bool Field_time_common::send_binary(Protocol *protocol) {
@@ -5449,7 +5460,7 @@ type_conversion_status Field_time::store_packed(longlong nr) {
 longlong Field_time::val_time_temporal() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_time(&ltime) ? 0 : TIME_to_longlong_time_packed(&ltime);
+  return get_time(&ltime) ? 0 : TIME_to_longlong_time_packed(ltime);
 }
 
 longlong Field_time::val_int() {
@@ -5500,7 +5511,7 @@ longlong Field_timef::val_int() {
     DBUG_ASSERT(0);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
   }
-  longlong tmp = (longlong)TIME_to_ulonglong_time_round(&ltime);
+  longlong tmp = (longlong)TIME_to_ulonglong_time_round(ltime);
   return ltime.neg ? -tmp : tmp;
 }
 
@@ -5521,7 +5532,7 @@ double Field_timef::val_real() {
     DBUG_ASSERT(0);
     return 0;
   }
-  double tmp = TIME_to_double_time(&ltime);
+  double tmp = TIME_to_double_time(ltime);
   return ltime.neg ? -tmp : tmp;
 }
 
@@ -5549,8 +5560,9 @@ longlong Field_timef::val_time_temporal() {
 
 type_conversion_status Field_timef::store_internal(const MYSQL_TIME *ltime,
                                                    int *warnings) {
-  type_conversion_status rc = store_packed(TIME_to_longlong_time_packed(ltime));
-  if (rc == TYPE_OK && non_zero_date(ltime)) {
+  type_conversion_status rc =
+      store_packed(TIME_to_longlong_time_packed(*ltime));
+  if (rc == TYPE_OK && non_zero_date(*ltime)) {
     /*
       The DATE part got lost; we warn, like in Field_newdate::store_internal,
       and trigger some code in get_mm_leaf()
@@ -5713,7 +5725,7 @@ type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
                                                      int *warnings) {
   long tmp = ltime->day + ltime->month * 32 + ltime->year * 16 * 32;
   int3store(ptr, tmp);
-  if (non_zero_time(ltime)) {
+  if (non_zero_time(*ltime)) {
     *warnings |= MYSQL_TIME_NOTE_TRUNCATED;
     return TYPE_NOTE_TIME_TRUNCATED;
   }
@@ -5755,7 +5767,7 @@ longlong Field_newdate::val_int() {
 longlong Field_newdate::val_date_temporal() {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
-  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_date_packed(&ltime);
+  return get_date_internal(&ltime) ? 0 : TIME_to_longlong_date_packed(ltime);
 }
 
 longlong Field_newdate::val_time_temporal() {
@@ -5796,7 +5808,7 @@ String *Field_newdate::val_str(String *val_buffer,
 
 bool Field_newdate::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   return get_internal_check_zero(ltime, fuzzydate) ||
-         check_fuzzy_date(ltime, fuzzydate);
+         check_fuzzy_date(*ltime, fuzzydate);
 }
 
 int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr) {
@@ -5898,7 +5910,7 @@ bool Field_datetime::get_date_internal(MYSQL_TIME *ltime) {
 
 type_conversion_status Field_datetime::store_internal(const MYSQL_TIME *ltime,
                                                       int *) {
-  ulonglong tmp = TIME_to_ulonglong_datetime(ltime);
+  ulonglong tmp = TIME_to_ulonglong_datetime(*ltime);
   return datetime_store_internal(table, tmp, ptr);
 }
 
@@ -5949,7 +5961,7 @@ String *Field_datetime::val_str(String *val_buffer,
 
 bool Field_datetime::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   return get_internal_check_zero(ltime, fuzzydate) ||
-         check_fuzzy_date(ltime, fuzzydate);
+         check_fuzzy_date(*ltime, fuzzydate);
 }
 
 int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr) {
@@ -6015,7 +6027,7 @@ void Field_datetimef::store_timestamp_internal(const timeval *tm) {
 
 bool Field_datetimef::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
   return get_internal_check_zero(ltime, fuzzydate) ||
-         check_fuzzy_date(ltime, fuzzydate);
+         check_fuzzy_date(*ltime, fuzzydate);
 }
 
 void Field_datetimef::sql_type(String &res) const {
@@ -6035,7 +6047,7 @@ bool Field_datetimef::get_date_internal(MYSQL_TIME *ltime) {
 
 type_conversion_status Field_datetimef::store_internal(const MYSQL_TIME *ltime,
                                                        int *) {
-  store_packed(TIME_to_longlong_datetime_packed(ltime));
+  store_packed(TIME_to_longlong_datetime_packed(*ltime));
   return TYPE_OK;
 }
 

@@ -154,7 +154,7 @@ TEST_F(FieldTest, FieldTimef) {
   EXPECT_EQ(MYSQL_TYPE_TIME, field->type());
   EXPECT_EQ(MYSQL_TYPE_TIME2, field->binlog_type());
 
-  longlong packed = TIME_to_longlong_packed(&time);
+  longlong packed = TIME_to_longlong_packed(time);
 
   EXPECT_EQ(0, field->store_packed(packed));
   EXPECT_DOUBLE_EQ(122312.1234, field->val_real());
@@ -315,7 +315,7 @@ TEST_F(FieldTest, FieldTimefCompare) {
     fields[i] = new (thd()->mem_root) Field_timef(
         fieldBufs[i], nullPtrs + i, false, Field::NONE, fieldName, 6);
 
-    longlong packed = TIME_to_longlong_packed(&times[i]);
+    longlong packed = TIME_to_longlong_packed(times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
     fields[i]->make_sort_key(sortStrings[i], fields[i]->pack_length());
   }

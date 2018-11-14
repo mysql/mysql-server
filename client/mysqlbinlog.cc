@@ -1685,7 +1685,7 @@ static my_time_t convert_str_to_timestamp(const char *str) {
     the next existing day, like in mysqld. Maybe this could be changed when
     mysqld is changed too (with its "strict" mode?).
   */
-  return my_system_gmt_sec(&l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
+  return my_system_gmt_sec(l_time, &dummy_my_timezone, &dummy_in_dst_time_gap);
 }
 
 extern "C" bool get_one_option(int optid, const struct my_option *opt,

@@ -3905,7 +3905,7 @@ int init_common_variables() {
   mysql_bin_log.init_pthread_objects();
 
   /* TODO: remove this when my_time_t is 64 bit compatible */
-  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(server_start_time)) {
+  if (!is_time_t_valid_for_timestamp(server_start_time)) {
     LogErr(ERROR_LEVEL, ER_UNSUPPORTED_DATE);
     return 1;
   }
@@ -7619,7 +7619,7 @@ static int show_max_used_connections_time(THD *thd, SHOW_VAR *var, char *buff) {
   thd->variables.time_zone->gmt_sec_to_TIME(
       &max_used_connections_time,
       Connection_handler_manager::max_used_connections_time);
-  my_datetime_to_str(&max_used_connections_time, buff, 0);
+  my_datetime_to_str(max_used_connections_time, buff, 0);
   return 0;
 }
 
@@ -7794,7 +7794,7 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff) {
       thd->variables.time_zone->gmt_sec_to_TIME(
           &received_heartbeat_time,
           static_cast<my_time_t>(mi->last_heartbeat / 1000000));
-      my_datetime_to_str(&received_heartbeat_time, buff, 0);
+      my_datetime_to_str(received_heartbeat_time, buff, 0);
     }
   } else
     var->type = SHOW_UNDEF;

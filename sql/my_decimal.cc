@@ -300,8 +300,8 @@ static my_decimal *lldiv_t2my_decimal(const lldiv_t *lld, bool neg,
 my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
   lldiv_t lld;
   lld.quot = ltime->time_type > MYSQL_TIMESTAMP_DATE
-                 ? TIME_to_ulonglong_datetime(ltime)
-                 : TIME_to_ulonglong_date(ltime);
+                 ? TIME_to_ulonglong_datetime(*ltime)
+                 : TIME_to_ulonglong_date(*ltime);
   lld.rem = (longlong)ltime->second_part * 1000;
   return lldiv_t2my_decimal(&lld, ltime->neg, dec);
 }
@@ -313,7 +313,7 @@ my_decimal *date2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
 */
 my_decimal *time2my_decimal(const MYSQL_TIME *ltime, my_decimal *dec) {
   lldiv_t lld;
-  lld.quot = TIME_to_ulonglong_time(ltime);
+  lld.quot = TIME_to_ulonglong_time(*ltime);
   lld.rem = (longlong)ltime->second_part * 1000;
   return lldiv_t2my_decimal(&lld, ltime->neg, dec);
 }

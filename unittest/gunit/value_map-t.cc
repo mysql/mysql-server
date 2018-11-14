@@ -230,11 +230,9 @@ TEST_F(ValueMapTest, MysqlTimeValueMap) {
   EXPECT_EQ(value_map.size(), 3U);
 
   // Check that data is sorted
-  EXPECT_EQ(my_time_compare(&time3, &value_map.begin()->first), 0);
-  EXPECT_EQ(my_time_compare(&time1, &std::next(value_map.begin(), 1)->first),
-            0);
-  EXPECT_EQ(my_time_compare(&time2, &std::next(value_map.begin(), 2)->first),
-            0);
+  EXPECT_EQ(my_time_compare(time3, value_map.begin()->first), 0);
+  EXPECT_EQ(my_time_compare(time1, std::next(value_map.begin(), 1)->first), 0);
+  EXPECT_EQ(my_time_compare(time2, std::next(value_map.begin(), 2)->first), 0);
 
   // Check that the counts are correct
   EXPECT_EQ(value_map.begin()->second, 3U);

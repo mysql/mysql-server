@@ -1945,7 +1945,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       MYSQL_TIME ltime;
       longlong packed = my_datetime_packed_from_binary(ptr, meta);
       TIME_from_longlong_datetime_packed(&ltime, packed);
-      int buflen = my_datetime_to_str(&ltime, buf, meta);
+      int buflen = my_datetime_to_str(ltime, buf, meta);
       my_b_write_quoted(file, (uchar *)buf, buflen);
       return my_datetime_binary_length(meta);
     }
@@ -1966,7 +1966,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       MYSQL_TIME ltime;
       longlong packed = my_time_packed_from_binary(ptr, meta);
       TIME_from_longlong_time_packed(&ltime, packed);
-      int buflen = my_time_to_str(&ltime, buf, meta);
+      int buflen = my_time_to_str(ltime, buf, meta);
       my_b_write_quoted(file, (uchar *)buf, buflen);
       return my_time_binary_length(meta);
     }

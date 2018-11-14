@@ -322,6 +322,7 @@ SET(TESTS
   mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_symlink
+  mysys_my_time
   mysys_my_write
   mysys_my_read
   mysys_pathfuncs

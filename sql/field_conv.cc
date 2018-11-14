@@ -903,15 +903,18 @@ type_conversion_status field_conv(Field *to, Field *from) {
     if (from->type() == MYSQL_TYPE_TIME) {
       from->get_time(&ltime);
       if (current_thd->is_fsp_truncate_mode())
-        nr = TIME_to_ulonglong_time(&ltime);
+        nr = TIME_to_ulonglong_time(ltime);
       else
-        nr = TIME_to_ulonglong_time_round(&ltime);
+        nr = TIME_to_ulonglong_time_round(ltime);
     } else {
       from->get_date(&ltime, TIME_FUZZY_DATE);
       if (current_thd->is_fsp_truncate_mode())
-        nr = TIME_to_ulonglong_datetime(&ltime);
-      else
-        nr = TIME_to_ulonglong_datetime_round(&ltime);
+        nr = TIME_to_ulonglong_datetime(ltime);
+      else {
+        nr = propagate_datetime_overflow(current_thd, [&](int *w) {
+          return TIME_to_ulonglong_datetime_round(ltime, w);
+        });
+      }
     }
     return to->store(ltime.neg ? -nr : nr, 0);
   } else if (from->is_temporal() && (to->result_type() == REAL_RESULT ||

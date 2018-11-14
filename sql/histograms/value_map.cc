@@ -61,8 +61,8 @@ bool Histogram_comparator::operator()(const String &lhs,
 template <>
 bool Histogram_comparator::operator()(const MYSQL_TIME &lhs,
                                       const MYSQL_TIME &rhs) const {
-  longlong lhs_packed = TIME_to_longlong_packed(&lhs);
-  longlong rhs_packed = TIME_to_longlong_packed(&rhs);
+  longlong lhs_packed = TIME_to_longlong_packed(lhs);
+  longlong rhs_packed = TIME_to_longlong_packed(rhs);
   return lhs_packed < rhs_packed;
 }
 

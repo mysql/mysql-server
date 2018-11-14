@@ -1901,12 +1901,16 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
   switch (type) {
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
           ltime.time_type == MYSQL_TIMESTAMP_DATE && !status.warnings)
         item = new (thd->mem_root) Item_date_literal(&ltime);
       break;
     case MYSQL_TYPE_DATETIME:
-      if (!str_to_datetime(cs, str, length, &ltime, flags, &status) &&
+      if (!propagate_datetime_overflow(
+              thd, &status.warnings,
+              str_to_datetime(cs, str, length, &ltime, flags, &status)) &&
           ltime.time_type == MYSQL_TIMESTAMP_DATETIME && !status.warnings)
         item = new (thd->mem_root)
             Item_datetime_literal(&ltime, status.fractional_digits);

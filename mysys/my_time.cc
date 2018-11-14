@@ -25,6 +25,26 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+/**
+  @defgroup MY_TIME Mysys time utilities
+  @ingroup MYSYS
+  @{
+
+  @file mysys/my_time.cc
+
+  Implementation of low level time utilities.
+*/
+
+/**
+   @ingroup MY_TIME
+   @page LOW_LEVEL_FORMATS Low-level memory and disk formats
+
+   Some description goes here.
+
+   - @subpage datetime_and_date_low_level_rep
+   - @subpage time_low_level_rep
+ */
+
 #include "my_time.h"
 
 #include <stdio.h>
@@ -38,46 +58,66 @@
 #include "my_systime.h"
 #include "myisampack.h"
 
-ulonglong log_10_int[20] = {1,
-                            10,
-                            100,
-                            1000,
-                            10000UL,
-                            100000UL,
-                            1000000UL,
-                            10000000UL,
-                            100000000ULL,
-                            1000000000ULL,
-                            10000000000ULL,
-                            100000000000ULL,
-                            1000000000000ULL,
-                            10000000000000ULL,
-                            100000000000000ULL,
-                            1000000000000000ULL,
-                            10000000000000000ULL,
-                            100000000000000000ULL,
-                            1000000000000000000ULL,
-                            10000000000000000000ULL};
+const ulonglong log_10_int[20] = {1,
+                                  10,
+                                  100,
+                                  1000,
+                                  10000UL,
+                                  100000UL,
+                                  1000000UL,
+                                  10000000UL,
+                                  100000000ULL,
+                                  1000000000ULL,
+                                  10000000000ULL,
+                                  100000000000ULL,
+                                  1000000000000ULL,
+                                  10000000000000ULL,
+                                  100000000000000ULL,
+                                  1000000000000000ULL,
+                                  10000000000000000ULL,
+                                  100000000000000000ULL,
+                                  1000000000000000000ULL,
+                                  10000000000000000000ULL};
 
 const char my_zero_datetime6[] = "0000-00-00 00:00:00.000000";
 
-/* Position for YYYY-DD-MM HH-MM-DD.FFFFFF AM in default format */
+/**
+   Position for YYYY-DD-MM HH-MM-DD.FFFFFF AM in default format.
+*/
+static constexpr const uchar internal_format_positions[] = {0, 1, 2, 3,
+                                                            4, 5, 6, 255};
 
-static uchar internal_format_positions[] = {0, 1, 2, 3, 4, 5, 6, (uchar)255};
+static constexpr const char time_separator = ':';
 
-static char time_separator = ':';
+/** Day number with 1970-01-01 as  base. */
+static constexpr ulong const days_at_timestart = 719528;
+const uchar days_in_month[] = {31, 28, 31, 30, 31, 30, 31,
+                               31, 30, 31, 30, 31, 0};
 
-static ulong const days_at_timestart = 719528; /* daynr at 1970.01.01 */
-uchar days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0};
-
-/*
-  Offset of system time zone from UTC in seconds used to speed up
-  work of my_system_gmt_sec() function.
+/**
+   Offset of system time zone from UTC in seconds used to speed up
+   work of my_system_gmt_sec() function.
 */
 static long my_time_zone = 0;
 
-/* Calc days in one year. works with 0 <= year <= 99 */
+// Right-shift of a negative value is implementation-defined
+// Assert that we have arithmetic shift of negative numbers
+static_assert((-2 >> 1) == -1, "Right shift of negative numbers is arithmetic");
+static longlong my_packed_time_get_int_part(longlong i) { return (i >> 24); }
 
+static longlong my_packed_time_make(longlong i, longlong f) {
+  DBUG_ASSERT(std::abs(f) <= 0xffffffLL);
+  return (i << 24) + f;
+}
+
+static longlong my_packed_time_make_int(longlong i) { return (i << 24); }
+
+/**
+   Calc days in one year.
+   @note Works with both two and four digit years.
+
+   @return number of days in that year
+*/
 uint calc_days_in_year(uint year) {
   return ((year & 3) == 0 && (year % 100 || (year % 400 == 0 && year)) ? 366
                                                                        : 365);
@@ -117,34 +157,33 @@ void set_max_time(MYSQL_TIME *tm, bool neg) {
 /**
   @brief Check datetime value for validity according to flags.
 
-  @param[in]  ltime          Date to check.
-  @param[in]  not_zero_date  ltime is not the zero date
+  @param[in]  my_time        Date to check.
+  @param[in]  not_zero_date  my_time is not the zero date
   @param[in]  flags          flags to check
                              (see str_to_datetime() flags in my_time.h)
   @param[out] was_cut        set to 2 if value was invalid according to flags.
-                             (Feb 29 in non-leap etc.)  This remains unchanged
+                             (Feb 29 in non-leap etc.). This remains unchanged
                              if value is not invalid.
+
   @details Here we assume that year and month is ok!
     If month is 0 we allow any date. (This only happens if we allow zero
     date parts in str_to_datetime())
     Disallow dates with zero year and non-zero month and/or day.
 
-  @return
-    0  OK
-    1  error
+  @retval false  OK
+  @retval true   error
 */
-
-bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
+bool check_date(const MYSQL_TIME &my_time, bool not_zero_date,
                 my_time_flags_t flags, int *was_cut) {
   if (not_zero_date) {
     if (((flags & TIME_NO_ZERO_IN_DATE) || !(flags & TIME_FUZZY_DATE)) &&
-        (ltime->month == 0 || ltime->day == 0)) {
+        (my_time.month == 0 || my_time.day == 0)) {
       *was_cut = MYSQL_TIME_WARN_ZERO_IN_DATE;
       return true;
-    } else if ((!(flags & TIME_INVALID_DATES) && ltime->month &&
-                ltime->day > days_in_month[ltime->month - 1] &&
-                (ltime->month != 2 || calc_days_in_year(ltime->year) != 366 ||
-                 ltime->day != 29))) {
+    } else if ((!(flags & TIME_INVALID_DATES) && my_time.month &&
+                my_time.day > days_in_month[my_time.month - 1] &&
+                (my_time.month != 2 || calc_days_in_year(my_time.year) != 366 ||
+                 my_time.day != 29))) {
       *was_cut = MYSQL_TIME_WARN_OUT_OF_RANGE;
       return true;
     }
@@ -156,14 +195,16 @@ bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
 }
 
 /**
-  Check if TIME fields are fatally bad and cannot be further adjusted.
-  @param ltime  Time value.
-  @retval  true   if the value is fatally bad.
-  @retval  false  if the value is Ok.
+  Check if TIME fields can be adjusted to make the time value valid.
+
+  @param  my_time Time value.
+  @retval true    if the value cannot be made valid.
+  @retval false   if the value is already valid or can be adjusted to
+                  become valid.
 */
-bool check_time_mmssff_range(const MYSQL_TIME *ltime) {
-  return ltime->minute >= 60 || ltime->second >= 60 ||
-         ltime->second_part > 999999;
+bool check_time_mmssff_range(const MYSQL_TIME &my_time) {
+  return my_time.minute >= 60 || my_time.second >= 60 ||
+         my_time.second_part > 999999;
 }
 
 /**
@@ -173,59 +214,47 @@ bool check_time_mmssff_range(const MYSQL_TIME *ltime) {
   minute, second and second_part values are not checked
   unless hour is equal TIME_MAX_HOUR.
 
-  @param ltime   Rime value.
+  @param my_time Time value.
   @returns       Test result.
   @retval        false if value is Ok.
   @retval        true if value is out of range.
 */
-bool check_time_range_quick(const MYSQL_TIME *ltime) {
-  longlong hour = (longlong)ltime->hour + 24LL * ltime->day;
+bool check_time_range_quick(const MYSQL_TIME &my_time) {
+  longlong hour = static_cast<longlong>(my_time.hour) + 24LL * my_time.day;
   /* The input value should not be fatally bad */
-  DBUG_ASSERT(!check_time_mmssff_range(ltime));
+  DBUG_ASSERT(!check_time_mmssff_range(my_time));
   if (hour <= TIME_MAX_HOUR &&
-      (hour != TIME_MAX_HOUR || ltime->minute != TIME_MAX_MINUTE ||
-       ltime->second != TIME_MAX_SECOND || !ltime->second_part))
+      (hour != TIME_MAX_HOUR || my_time.minute != TIME_MAX_MINUTE ||
+       my_time.second != TIME_MAX_SECOND || !my_time.second_part))
     return false;
   return true;
 }
 
 /**
   Check datetime, date, or normalized time (i.e. time without days) range.
-  @param ltime   Datetime value.
+  @param my_time  Datetime value.
   @returns
   @retval   false on success
   @retval   true  on error
 */
-bool check_datetime_range(const MYSQL_TIME *ltime) {
+bool check_datetime_range(const MYSQL_TIME &my_time) {
   /*
     In case of MYSQL_TIMESTAMP_TIME hour value can be up to TIME_MAX_HOUR.
     In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
   */
-  return ltime->year > 9999U || ltime->month > 12U || ltime->day > 31U ||
-         ltime->minute > 59U || ltime->second > 59U ||
-         ltime->second_part > 999999U ||
-         (ltime->hour >
-          (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23U));
+  return my_time.year > 9999U || my_time.month > 12U || my_time.day > 31U ||
+         my_time.minute > 59U || my_time.second > 59U ||
+         my_time.second_part > 999999U ||
+         (my_time.hour >
+          (my_time.time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23U));
 }
 
-  /*
-    Convert a timestamp string to a MYSQL_TIME value.
+#define MAX_DATE_PARTS 8
 
-    SYNOPSIS
-      str_to_datetime()
-      str                 String to parse
-      length              Length of string
-      l_time              Date is stored here
-      flags               Bitmap of following items
-                          TIME_FUZZY_DATE    Set if we should allow partial
-    dates TIME_DATETIME_ONLY Set if we only allow full datetimes.
-                          TIME_NO_ZERO_IN_DATE	Don't allow partial dates
-                          TIME_NO_ZERO_DATE	Don't allow 0000-00-00 date
-                          TIME_INVALID_DATES	Allow 2000-02-31
-      status              Conversion status
+/**
+   Convert a timestamp string to a MYSQL_TIME value.
 
-
-    DESCRIPTION
+   DESCRIPTION
       At least the following formats are recogniced (based on number of digits)
       YYMMDD, YYYYMMDD, YYMMDDHHMMSS, YYYYMMDDHHMMSS
       YY-MM-DD, YYYY-MM-DD, YY-MM-DD HH.MM.SS
@@ -261,29 +290,53 @@ bool check_datetime_range(const MYSQL_TIME *ltime) {
       MYSQL_TIMESTAMP_DATETIME    Full timestamp
       MYSQL_TIMESTAMP_ERROR       Timestamp with wrong values.
                                   All elements in l_time is set to 0
-    RETURN VALUES
-      0 - Ok
-      1 - Error
+
+      flags is a bit field with the follwing possible values:
+       TIME_FUZZY_DATE
+       TIME_DATETIME_ONLY
+       TIME_NO_ZERO_IN_DATE
+       TIME_NO_ZERO_DATE
+       TIME_INVALID_DATES
+
+    @param str          String to parse
+    @param length       Length of string
+    @param[out] l_time  Date is stored here
+    @param flags        Bitfield
+   TIME_FUZZY_DATE|TIME_DATETIME_ONLY|TIME_NO_ZERO_IN_DATE|TIME_NO_ZERO_DATE|TIME_INVALID_DATES
+   (described above)
+    @param status Conversion status and warnings
+
+    @retval false Ok
+    @retval true  Error
   */
-
-#define MAX_DATE_PARTS 8
-
 bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
                      my_time_flags_t flags, MYSQL_TIME_STATUS *status) {
-  uint field_length = 0, year_length = 0, digits, i, number_of_fields;
-  uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
-  uint add_hours = 0, start_loop;
-  ulong not_zero_date, allow_space;
+  uint field_length = 0;
+  uint year_length = 0;
+  uint digits;
+  uint i;
+  uint number_of_fields;
+  uint date[MAX_DATE_PARTS];
+  uint date_len[MAX_DATE_PARTS];
+  uint add_hours = 0;
+  uint start_loop;
+  ulong not_zero_date;
+  ulong allow_space;
   bool is_internal_format;
-  const char *pos, *last_field_pos = NULL;
+  const char *pos;
+  const char *last_field_pos = nullptr;
   const char *end = str + length;
   const uchar *format_position;
-  bool found_delimitier = 0, found_space = 0;
-  uint frac_pos, frac_len;
-  DBUG_ENTER("str_to_datetime");
-  DBUG_PRINT("ENTER", ("str: %.*s", (int)length, str));
+  bool found_delimitier = 0;
+  bool found_space = 0;
+  uint frac_pos;
+  uint frac_len;
 
-  my_time_status_init(status);
+  DBUG_ENTER("str_to_datetime");
+  DBUG_PRINT("ENTER", ("str: %.*s", static_cast<int>(length), str));
+
+  DBUG_ASSERT(status->warnings == 0 && status->fractional_digits == 0 &&
+              status->nanoseconds == 0);
 
   /* Skip space at start */
   for (; str != end && my_isspace(&my_charset_latin1, *str); str++)
@@ -308,7 +361,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
        pos++)
     ;
 
-  digits = (uint)(pos - str);
+  digits = static_cast<uint>(pos - str);
   start_loop = 0;                   /* Start of scan loop */
   date_len[format_position[0]] = 0; /* Length of year field */
   if (pos == end || *pos == '.') {
@@ -335,7 +388,11 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
           DBUG_RETURN(1); /* Can't be a full datetime */
         }
         /* Date field.  Set hour, minutes and seconds to 0 */
-        date[0] = date[1] = date[2] = date[3] = date[4] = 0;
+        date[0] = 0;
+        date[1] = 0;
+        date[2] = 0;
+        date[3] = 0;
+        date[4] = 0;
         start_loop = 5; /* Start with first date part */
       }
     }
@@ -351,8 +408,9 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
     2003-03-03 20:00:20 AM
     20:00:20.000000 AM 03-03-2000
   */
-  i = MY_MAX((uint)format_position[0], (uint)format_position[1]);
-  set_if_bigger(i, (uint)format_position[2]);
+  i = MY_MAX(static_cast<uint>(format_position[0]),
+             static_cast<uint>(format_position[1]));
+  set_if_bigger(i, static_cast<uint>(format_position[2]));
   allow_space = ((1 << i) | (1 << format_position[6]));
   allow_space &= (1 | 2 | 4 | 8 | 64);
 
@@ -361,7 +419,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
                        my_isdigit(&my_charset_latin1, *str);
        i++) {
     const char *start = str;
-    ulong tmp_value = (uint)(uchar)(*str++ - '0');
+    ulong tmp_value = static_cast<uchar>(*str++ - '0');
 
     /*
       Internal format means no delimiters; every field has a fixed
@@ -374,10 +432,11 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
 
     while (str != end && my_isdigit(&my_charset_latin1, str[0]) &&
            (scan_until_delim || --field_length)) {
-      tmp_value = tmp_value * 10 + (ulong)(uchar)(*str - '0');
+      tmp_value =
+          tmp_value * 10 + static_cast<ulong>(static_cast<uchar>(*str - '0'));
       str++;
     }
-    date_len[i] = (uint)(str - start);
+    date_len[i] = static_cast<uint>(str - start);
     if (tmp_value > 999999) /* Impossible date part */
     {
       status->warnings = MYSQL_TIME_WARN_TRUNCATED;
@@ -468,7 +527,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
   }
 
   if (!is_internal_format) {
-    year_length = date_len[(uint)format_position[0]];
+    year_length = date_len[static_cast<uint>(format_position[0])];
     if (!year_length) /* Year must be specified */
     {
       status->warnings = MYSQL_TIME_WARN_TRUNCATED;
@@ -476,21 +535,22 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
       DBUG_RETURN(1);
     }
 
-    l_time->year = date[(uint)format_position[0]];
-    l_time->month = date[(uint)format_position[1]];
-    l_time->day = date[(uint)format_position[2]];
-    l_time->hour = date[(uint)format_position[3]];
-    l_time->minute = date[(uint)format_position[4]];
-    l_time->second = date[(uint)format_position[5]];
+    l_time->year = date[static_cast<uint>(format_position[0])];
+    l_time->month = date[static_cast<uint>(format_position[1])];
+    l_time->day = date[static_cast<uint>(format_position[2])];
+    l_time->hour = date[static_cast<uint>(format_position[3])];
+    l_time->minute = date[static_cast<uint>(format_position[4])];
+    l_time->second = date[static_cast<uint>(format_position[5])];
 
-    frac_pos = (uint)format_position[6];
+    frac_pos = static_cast<uint>(format_position[6]);
     frac_len = date_len[frac_pos];
     status->fractional_digits = frac_len;
     if (frac_len < 6)
-      date[frac_pos] *= (uint)log_10_int[DATETIME_MAX_DECIMALS - frac_len];
+      date[frac_pos] *=
+          static_cast<uint>(log_10_int[DATETIME_MAX_DECIMALS - frac_len]);
     l_time->second_part = date[frac_pos];
 
-    if (format_position[7] != (uchar)255) {
+    if (format_position[7] != static_cast<uchar>(255)) {
       if (l_time->hour > 12) {
         status->warnings = MYSQL_TIME_WARN_TRUNCATED;
         goto err;
@@ -505,7 +565,8 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
     l_time->minute = date[4];
     l_time->second = date[5];
     if (date_len[6] < 6)
-      date[6] *= (uint)log_10_int[DATETIME_MAX_DECIMALS - date_len[6]];
+      date[6] *=
+          static_cast<uint>(log_10_int[DATETIME_MAX_DECIMALS - date_len[6]]);
     l_time->second_part = date[6];
     status->fractional_digits = date_len[6];
   }
@@ -521,7 +582,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
   l_time->time_type =
       (number_of_fields <= 3 ? MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
 
-  if (number_of_fields < 3 || check_datetime_range(l_time)) {
+  if (number_of_fields < 3 || check_datetime_range(*l_time)) {
     /* Only give warning for a zero date if there is some garbage after */
     if (!not_zero_date) /* If zero date */
     {
@@ -537,7 +598,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
     goto err;
   }
 
-  if (check_date(l_time, not_zero_date != 0, flags, &status->warnings))
+  if (check_date(*l_time, not_zero_date != 0, flags, &status->warnings))
     goto err;
 
   /* Scan all digits left after microseconds */
@@ -547,7 +608,7 @@ bool str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
         We don't need the exact nanoseconds value.
         Knowing the first digit is enough for rounding.
       */
-      status->nanoseconds = 100 * (int)(*str++ - '0');
+      status->nanoseconds = 100 * (*str++ - '0');
       for (; str != end && my_isdigit(&my_charset_latin1, *str); str++) {
       }
     }
@@ -567,43 +628,42 @@ err:
   DBUG_RETURN(1);
 }
 
-/*
+/**
  Convert a time string to a MYSQL_TIME struct.
 
-  SYNOPSIS
-   str_to_time()
-   str                  A string in full TIMESTAMP format or
-                        [-] DAYS [H]H:MM:SS, [H]H:MM:SS, [M]M:SS, [H]HMMSS,
-                        [M]MSS or [S]S
-                        There may be an optional [.second_part] after seconds
-   length               Length of str
-   l_time               Store result here
-   status               Conversion status
-
-   status.warning is set to:
+ status.warning is set to:
      MYSQL_TIME_WARN_TRUNCATED flag if the input string
                         was cut during conversion, and/or
      MYSQL_TIME_WARN_OUT_OF_RANGE flag, if the value is out of range.
 
-   NOTES
+ @note
      Because of the extra days argument, this function can only
      work with times where the time arguments are in the above order.
 
-   RETURN
-     0  ok
-     1  error
-*/
+ @param      str     A string in full TIMESTAMP format or
+                         [-] DAYS [H]H:MM:SS, [H]H:MM:SS, [M]M:SS, [H]HMMSS,
+                         [M]MSS or [S]S
+ @param      length  Length of str
+ @param[out] l_time  Store result here
+ @param[out] status  Conversion status, including warnings.
 
+ @retval false  Ok
+ @retval true   Error
+*/
 bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
                  MYSQL_TIME_STATUS *status) {
   ulong date[5];
   ulonglong value;
-  const char *end = str + length, *end_of_days;
-  bool found_days, found_hours;
+  const char *end = str + length;
+  const char *end_of_days;
+  bool found_days;
+  bool found_hours;
   uint state;
   const char *start;
 
-  my_time_status_init(status);
+  DBUG_ASSERT(status->warnings == 0 && status->fractional_digits == 0 &&
+              status->nanoseconds == 0);
+
   l_time->neg = 0;
   for (; str != end && my_isspace(&my_charset_latin1, *str); str++) length--;
   if (str != end && *str == '-') {
@@ -618,16 +678,20 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
 
   /* Check first if this is a full TIMESTAMP */
   if (length >= 12) { /* Probably full timestamp */
+    MYSQL_TIME_STATUS tmpstatus;
     (void)str_to_datetime(str, length, l_time,
-                          (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), status);
-    if (l_time->time_type >= MYSQL_TIMESTAMP_ERROR)
+                          (TIME_FUZZY_DATE | TIME_DATETIME_ONLY), &tmpstatus);
+    if (l_time->time_type >= MYSQL_TIMESTAMP_ERROR) {
+      *status = tmpstatus;
       return l_time->time_type == MYSQL_TIMESTAMP_ERROR;
-    my_time_status_init(status);
+    }
+    DBUG_ASSERT(status->warnings == 0 && status->fractional_digits == 0 &&
+                status->nanoseconds == 0);
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
   for (value = 0; str != end && my_isdigit(&my_charset_latin1, *str); str++)
-    value = value * 10L + (long)(*str - '0');
+    value = value * 10L + static_cast<long>(*str - '0');
 
   if (value > UINT_MAX) return 1;
 
@@ -638,24 +702,24 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
 
   state = 0;
   found_days = found_hours = 0;
-  if ((uint)(end - str) > 1 && str != end_of_days &&
+  if (static_cast<uint>(end - str) > 1 && str != end_of_days &&
       my_isdigit(&my_charset_latin1, *str)) { /* Found days part */
-    date[0] = (ulong)value;
+    date[0] = static_cast<ulong>(value);
     state = 1; /* Assume next is hours */
     found_days = 1;
   } else if ((end - str) > 1 && *str == time_separator &&
              my_isdigit(&my_charset_latin1, str[1])) {
     date[0] = 0; /* Assume we found hours */
-    date[1] = (ulong)value;
+    date[1] = static_cast<ulong>(value);
     state = 2;
     found_hours = 1;
     str++; /* skip ':' */
   } else {
     /* String given as one number; assume HHMMSS format */
     date[0] = 0;
-    date[1] = (ulong)(value / 10000);
-    date[2] = (ulong)(value / 100 % 100);
-    date[3] = (ulong)(value % 100);
+    date[1] = static_cast<ulong>(value / 10000);
+    date[2] = static_cast<ulong>(value / 100 % 100);
+    date[3] = static_cast<ulong>(value % 100);
     state = 4;
     goto fractional;
   }
@@ -663,8 +727,8 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
   /* Read hours, minutes and seconds */
   for (;;) {
     for (value = 0; str != end && my_isdigit(&my_charset_latin1, *str); str++)
-      value = value * 10L + (long)(*str - '0');
-    date[state++] = (ulong)value;
+      value = value * 10L + static_cast<long>(*str - '0');
+    date[state++] = static_cast<ulong>(value);
     if (state == 4 || (end - str) < 2 || *str != time_separator ||
         !my_isdigit(&my_charset_latin1, str[1]))
       break;
@@ -675,7 +739,8 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
     /* Fix the date to assume that seconds was given */
     if (!found_hours && !found_days) {
       size_t len = sizeof(long) * (state - 1);
-      memmove((uchar *)(date + 4) - len, (uchar *)(date + state) - len, len);
+      memmove(pointer_cast<uchar *>(date + 4) - len,
+              pointer_cast<uchar *>(date + state) - len, len);
       memset(date, 0, sizeof(long) * (4 - state));
     } else
       memset((date + state), 0, sizeof(long) * (4 - state));
@@ -687,21 +752,23 @@ fractional:
       my_isdigit(&my_charset_latin1, str[1])) {
     int field_length = 5;
     str++;
-    value = (uint)(uchar)(*str - '0');
+    value = static_cast<uint>(static_cast<uchar>(*str - '0'));
     while (++str != end && my_isdigit(&my_charset_latin1, *str)) {
-      if (field_length-- > 0) value = value * 10 + (uint)(uchar)(*str - '0');
+      if (field_length-- > 0)
+        value = value * 10 + static_cast<uint>(static_cast<uchar>(*str - '0'));
     }
     if (field_length >= 0) {
       status->fractional_digits = DATETIME_MAX_DECIMALS - field_length;
-      if (field_length > 0) value *= (long)log_10_int[field_length];
+      if (field_length > 0)
+        value *= static_cast<long>(log_10_int[field_length]);
     } else {
       /* Scan digits left after microseconds */
       status->fractional_digits = 6;
-      status->nanoseconds = 100 * (int)(str[-1] - '0');
+      status->nanoseconds = 100 * (str[-1] - '0');
       for (; str != end && my_isdigit(&my_charset_latin1, *str); str++) {
       }
     }
-    date[4] = (ulong)value;
+    date[4] = static_cast<ulong>(value);
   } else if ((end - str) == 1 && *str == '.') {
     str++;
     date[4] = 0;
@@ -744,7 +811,7 @@ fractional:
   l_time->second_part = date[4];
   l_time->time_type = MYSQL_TIMESTAMP_TIME;
 
-  if (check_time_mmssff_range(l_time)) {
+  if (check_time_mmssff_range(*l_time)) {
     status->warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
     return true;
   }
@@ -804,7 +871,7 @@ bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings) {
   }
   ltime->time_type = MYSQL_TIMESTAMP_TIME;
   ltime->year = ltime->month = ltime->day = 0;
-  TIME_set_hhmmss(ltime, (uint)nr);
+  TIME_set_hhmmss(ltime, static_cast<uint>(nr));
   ltime->second_part = 0;
   return false;
 }
@@ -815,78 +882,67 @@ bool number_to_time(longlong nr, MYSQL_TIME *ltime, int *warnings) {
   set it to the closest endpoint of the range and set
   MYSQL_TIME_WARN_OUT_OF_RANGE flag in the 'warning' variable.
 
-  @param  my_time  pointer to MYSQL_TIME value
-  @param  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is out of
-  range
+  @param[in,out]  my_time  pointer to MYSQL_TIME value
+  @param[out]  warning  set MYSQL_TIME_WARN_OUT_OF_RANGE flag if the value is
+  out of range
 */
 void adjust_time_range(MYSQL_TIME *my_time, int *warning) {
-  DBUG_ASSERT(!check_time_mmssff_range(my_time));
-  if (check_time_range_quick(my_time)) {
+  DBUG_ASSERT(!check_time_mmssff_range(*my_time));
+  if (check_time_range_quick(*my_time)) {
     my_time->day = my_time->second_part = 0;
     set_max_hhmmss(my_time);
     *warning |= MYSQL_TIME_WARN_OUT_OF_RANGE;
   }
 }
 
-/*
-  Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
-
-  SYNOPSIS
-    my_init_time()
+/**
+   Prepare offset of system time zone from UTC for my_system_gmt_sec() func.
 */
-void my_init_time(void) {
+void my_init_time() {
   time_t seconds;
-  struct tm *l_time, tm_tmp;
+  struct tm *l_time;
+  struct tm tm_tmp;
   MYSQL_TIME my_time;
   bool not_used;
 
-  seconds = (time_t)time((time_t *)0);
+  seconds = time(nullptr);
   localtime_r(&seconds, &tm_tmp);
   l_time = &tm_tmp;
   my_time_zone = 3600; /* Comp. for -3600 in my_gmt_sec */
-  my_time.year = (uint)l_time->tm_year + 1900;
-  my_time.month = (uint)l_time->tm_mon + 1;
-  my_time.day = (uint)l_time->tm_mday;
-  my_time.hour = (uint)l_time->tm_hour;
-  my_time.minute = (uint)l_time->tm_min;
-  my_time.second = (uint)l_time->tm_sec;
+  my_time.year = static_cast<uint>(l_time->tm_year) + 1900;
+  my_time.month = static_cast<uint>(l_time->tm_mon) + 1;
+  my_time.day = static_cast<uint>(l_time->tm_mday);
+  my_time.hour = static_cast<uint>(l_time->tm_hour);
+  my_time.minute = static_cast<uint>(l_time->tm_min);
+  my_time.second = static_cast<uint>(l_time->tm_sec);
   my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
   my_time.neg = 0;
   my_time.second_part = 0;
-  my_system_gmt_sec(&my_time, &my_time_zone, &not_used); /* Init my_time_zone */
+  my_system_gmt_sec(my_time, &my_time_zone, &not_used); /* Init my_time_zone */
 }
 
-/*
-  Handle 2 digit year conversions
+/**
+  Handle 2 digit year conversions.
 
-  SYNOPSIS
-  year_2000_handling()
-  year     2 digit year
-
-  RETURN
-    Year between 1970-2069
+  @param year 2 digit year
+  @return Year between 1970-2069
 */
-
 uint year_2000_handling(uint year) {
   if ((year = year + 1900) < 1900 + YY_PART_YEAR) year += 100;
   return year;
 }
 
-/*
-  Calculate nr of day since year 0 in new date-system (from 1615)
+/**
+  Calculate nr of day since year 0 in new date-system (from 1615).
 
-  SYNOPSIS
-    calc_daynr()
-    year		 Year (exact 4 digit year, no year conversions)
-    month		 Month
-    day			 Day
+  @param year	  Year (exact 4 digit year, no year conversions)
+  @param month  Month
+  @param day	  Day
 
-  NOTES: 0000-00-00 is a valid date, and will return 0
+  @note 0000-00-00 is a valid date, and will return 0
 
-  RETURN
-    Days since 0000-00-00
+  @return Days since 0000-00-00
 */
-
 long calc_daynr(uint year, uint month, uint day) {
   long delsum;
   int temp;
@@ -895,30 +951,29 @@ long calc_daynr(uint year, uint month, uint day) {
 
   if (y == 0 && month == 0) DBUG_RETURN(0); /* Skip errors */
   /* Cast to int to be able to handle month == 0 */
-  delsum = (long)(365 * y + 31 * ((int)month - 1) + (int)day);
+  delsum = static_cast<long>(365 * y + 31 * (static_cast<int>(month) - 1) +
+                             static_cast<int>(day));
   if (month <= 2)
     y--;
   else
-    delsum -= (long)((int)month * 4 + 23) / 10;
-  temp = (int)((y / 100 + 1) * 3) / 4;
+    delsum -= static_cast<long>(static_cast<int>(month) * 4 + 23) / 10;
+  temp = ((y / 100 + 1) * 3) / 4;
   DBUG_PRINT("exit", ("year: %d  month: %d  day: %d -> daynr: %ld",
                       y + (month <= 2), month, day, delsum + y / 4 - temp));
-  DBUG_ASSERT(delsum + (int)y / 4 - temp >= 0);
-  DBUG_RETURN(delsum + (int)y / 4 - temp);
+  DBUG_ASSERT(delsum + static_cast<int>(y) / 4 - temp >= 0);
+  DBUG_RETURN(delsum + static_cast<int>(y) / 4 - temp);
 } /* calc_daynr */
 
-/*
+/**
   Convert time in MYSQL_TIME representation in system time zone to its
   my_time_t form (number of seconds in UTC since begginning of Unix Epoch).
 
-  SYNOPSIS
-    my_system_gmt_sec()
-      t               - time value to be converted
-      my_timezone     - pointer to long where offset of system time zone
-                        from UTC will be stored for caching
-      in_dst_time_gap - set to true if time falls into spring time-gap
+  @param my_time         - time value to be converted
+  @param my_timezone     - pointer to long where offset of system time zone
+                           from UTC will be stored for caching
+  @param in_dst_time_gap - set to true if time falls into spring time-gap
 
-  NOTES
+  @note
     The idea is to cache the time zone offset from UTC (including daylight
     saving time) for the next call to make things faster. But currently we
     just calculate this offset during startup (by calling my_init_time()
@@ -926,26 +981,27 @@ long calc_daynr(uint year, uint month, uint day) {
     Time value provided should be legal time value (e.g. '2003-01-01 25:00:00'
     is not allowed).
 
-  RETURN VALUE
-    Time in UTC seconds since Unix Epoch representation.
+  @return Time in UTC seconds since Unix Epoch representation.
 */
-my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
+my_time_t my_system_gmt_sec(const MYSQL_TIME &my_time, long *my_timezone,
                             bool *in_dst_time_gap) {
   uint loop;
   time_t tmp = 0;
   int shift = 0;
   MYSQL_TIME tmp_time;
   MYSQL_TIME *t = &tmp_time;
-  struct tm *l_time, tm_tmp;
+  struct tm *l_time;
+  struct tm tm_tmp;
   long diff, current_timezone;
 
   /*
     Use temp variable to avoid trashing input data, which could happen in
     case of shift required for boundary dates processing.
   */
-  memcpy(&tmp_time, t_src, sizeof(MYSQL_TIME));
+  // memcpy(&tmp_time, &my_time, sizeof(MYSQL_TIME));
+  tmp_time = my_time;
 
-  if (!validate_timestamp_range(t)) return 0;
+  if (!validate_timestamp_range(*t)) return 0;
 
   /*
     Calculate the gmt time based on current time and timezone
@@ -999,7 +1055,7 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
   */
   if ((t->year == TIMESTAMP_MAX_YEAR) && (t->month == 1) && (t->day > 4)) {
     /*
-      Below we will pass (uint) (t->day - shift) to calc_daynr.
+      Below we will pass static_cast<uint>(t->day - shift) to calc_daynr.
       As we don't want to get an overflow here, we will shift
       only safe dates. That's why we have (t->day > 4) above.
     */
@@ -1007,18 +1063,21 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     shift = 2;
   }
 
-  tmp = (time_t)(((calc_daynr((uint)t->year, (uint)t->month, (uint)t->day) -
-                   (long)days_at_timestart) *
-                      SECONDS_IN_24H +
-                  (long)t->hour * 3600L + (long)(t->minute * 60 + t->second)) +
-                 (time_t)my_time_zone - 3600);
+  tmp = static_cast<time_t>(
+      ((calc_daynr(static_cast<uint>(t->year), static_cast<uint>(t->month),
+                   static_cast<uint>(t->day)) -
+        static_cast<long>(days_at_timestart)) *
+           SECONDS_IN_24H +
+       static_cast<long>(t->hour) * 3600L +
+       static_cast<long>(t->minute * 60 + t->second)) +
+      static_cast<time_t>(my_time_zone) - 3600);
 
   current_timezone = my_time_zone;
   localtime_r(&tmp, &tm_tmp);
   l_time = &tm_tmp;
-  for (loop = 0; loop < 2 && (t->hour != (uint)l_time->tm_hour ||
-                              t->minute != (uint)l_time->tm_min ||
-                              t->second != (uint)l_time->tm_sec);
+  for (loop = 0; loop < 2 && (t->hour != static_cast<uint>(l_time->tm_hour) ||
+                              t->minute != static_cast<uint>(l_time->tm_min) ||
+                              t->second != static_cast<uint>(l_time->tm_sec));
        loop++) { /* One check should be enough ? */
     /* Get difference in days */
     int days = t->day - l_time->tm_mday;
@@ -1026,11 +1085,13 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
       days = 1; /* Month has wrapped */
     else if (days > 1)
       days = -1;
-    diff = (3600L * (long)(days * 24 + ((int)t->hour - (int)l_time->tm_hour)) +
-            (long)(60 * ((int)t->minute - (int)l_time->tm_min)) +
-            (long)((int)t->second - (int)l_time->tm_sec));
+    diff = (3600L * static_cast<long>(days * 24 + (static_cast<int>(t->hour) -
+                                                   l_time->tm_hour)) +
+            static_cast<long>(60 *
+                              (static_cast<int>(t->minute) - l_time->tm_min)) +
+            static_cast<long>(static_cast<int>(t->second) - l_time->tm_sec));
     current_timezone += diff + 3600; /* Compensate for -3600 above */
-    tmp += (time_t)diff;
+    tmp += static_cast<time_t>(diff);
     localtime_r(&tmp, &tm_tmp);
     l_time = &tm_tmp;
   }
@@ -1044,15 +1105,17 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     general time correction like it happened for Africa/Monrovia time zone
     in year 1972).
   */
-  if (loop == 2 && t->hour != (uint)l_time->tm_hour) {
+  if (loop == 2 && t->hour != static_cast<uint>(l_time->tm_hour)) {
     int days = t->day - l_time->tm_mday;
     if (days < -1)
       days = 1; /* Month has wrapped */
     else if (days > 1)
       days = -1;
-    diff = (3600L * (long)(days * 24 + ((int)t->hour - (int)l_time->tm_hour)) +
-            (long)(60 * ((int)t->minute - (int)l_time->tm_min)) +
-            (long)((int)t->second - (int)l_time->tm_sec));
+    diff = (3600L * static_cast<long>(days * 24 + (static_cast<int>(t->hour) -
+                                                   l_time->tm_hour)) +
+            static_cast<long>(60 *
+                              (static_cast<int>(t->minute) - l_time->tm_min)) +
+            static_cast<long>(static_cast<int>(t->second) - l_time->tm_sec));
     if (diff == 3600)
       tmp += 3600 - t->minute * 60 - t->second; /* Move to next hour */
     else if (diff == -3600)
@@ -1075,142 +1138,163 @@ my_time_t my_system_gmt_sec(const MYSQL_TIME *t_src, long *my_timezone,
     with unsigned time_t tmp+= shift*86400L might result in a number,
     larger then TIMESTAMP_MAX_VALUE, so another check will work.
   */
-  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(tmp)) tmp = 0;
+  if (!is_time_t_valid_for_timestamp(tmp)) tmp = 0;
 
-  return (my_time_t)tmp;
+  return static_cast<my_time_t>(tmp);
 } /* my_system_gmt_sec */
 
 /**
-  Print the microsecond part: ".NNN"
-  @param to        OUT The string pointer to print at
-  @param useconds      The microseconds value.
-  @param dec           Precision, between 1 and 6.
-  @return              The length of the result string.
+  Print the microsecond part with the specified precision.
+
+  @param[out] to   The string pointer to print at
+  @param useconds  The microseconds value
+  @param dec       Precision, between 1 and 6
+
+  @return          The length of the result string
 */
-static inline int my_useconds_to_str(char *to, ulong useconds, uint dec) {
+static int my_useconds_to_str(char *to, ulong useconds, uint dec) {
   DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
-  return sprintf(to, ".%0*lu", (int)dec,
-                 useconds / (ulong)log_10_int[DATETIME_MAX_DECIMALS - dec]);
+  return sprintf(
+      to, ".%0*lu", static_cast<int>(dec),
+      useconds / static_cast<ulong>(log_10_int[DATETIME_MAX_DECIMALS - dec]));
 }
 
-/*
-  Functions to convert time/date/datetime value to a string,
-  using default format.
+/**
+  Functions to convert time value to a string, using default format.
+
   This functions don't check that given MYSQL_TIME structure members are
   in valid range. If they are not, return value won't reflect any
   valid date either. Additionally, make_time doesn't take into
   account time->day member: it's assumed that days have been converted
   to hours already.
 
-  RETURN
-    number of characters written to 'to'
+  @param      my_time Source time value
+  @param[out] to      Destnation char array
+  @param      dec     Precision, in the range 0..6
+
+  @return number of characters written to 'to'
 */
 
-int my_time_to_str(const MYSQL_TIME *l_time, char *to, uint dec) {
+int my_time_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
   uint extra_hours = 0;
-  int len = sprintf(to, "%s%02u:%02u:%02u", (l_time->neg ? "-" : ""),
-                    extra_hours + l_time->hour, l_time->minute, l_time->second);
-  if (dec) len += my_useconds_to_str(to + len, l_time->second_part, dec);
+  int len = sprintf(to, "%s%02u:%02u:%02u", (my_time.neg ? "-" : ""),
+                    extra_hours + my_time.hour, my_time.minute, my_time.second);
+  if (dec) len += my_useconds_to_str(to + len, my_time.second_part, dec);
   return len;
 }
 
-int my_date_to_str(const MYSQL_TIME *l_time, char *to) {
-  return sprintf(to, "%04u-%02u-%02u", l_time->year, l_time->month,
-                 l_time->day);
+/**
+  Function to convert date value to a string, using default format.
+
+  This functions don't check that given MYSQL_TIME structure members are
+  in valid range. If they are not, return value won't reflect any
+  valid date either. Additionally, make_time doesn't take into
+  account time->day member: it's assumed that days have been converted
+  to hours already.
+
+  @param      my_time Source time value
+  @param[out] to      Destination character array
+
+  @return number of characters written to 'to'
+*/
+int my_date_to_str(const MYSQL_TIME &my_time, char *to) {
+  return sprintf(to, "%04u-%02u-%02u", my_time.year, my_time.month,
+                 my_time.day);
 }
 
-/*
+/**
   Convert datetime to a string 'YYYY-MM-DD hh:mm:ss'.
   Open coded for better performance.
   This code previously resided in field.cc, in Field_timestamp::val_str().
 
-  @param  to     OUT  The string pointer to print at.
-  @param  ltime       The MYSQL_TIME value.
-  @return             The length of the result string.
+  @param      my_time  The src MYSQL_TIME value.
+  @param[out] to       The string pointer to print at.
+  @return The length of the result string.
 */
-static inline int TIME_to_datetime_str(char *to, const MYSQL_TIME *ltime) {
+static int TIME_to_datetime_str(const MYSQL_TIME &my_time, char *to) {
   uint32 temp, temp2;
   /* Year */
-  temp = ltime->year / 100;
-  *to++ = (char)('0' + temp / 10);
-  *to++ = (char)('0' + temp % 10);
-  temp = ltime->year % 100;
-  *to++ = (char)('0' + temp / 10);
-  *to++ = (char)('0' + temp % 10);
+  temp = my_time.year / 100;
+  *to++ = static_cast<char>('0' + temp / 10);
+  *to++ = static_cast<char>('0' + temp % 10);
+  temp = my_time.year % 100;
+  *to++ = static_cast<char>('0' + temp / 10);
+  *to++ = static_cast<char>('0' + temp % 10);
   *to++ = '-';
   /* Month */
-  temp = ltime->month;
+  temp = my_time.month;
   temp2 = temp / 10;
   temp = temp - temp2 * 10;
-  *to++ = (char)('0' + (char)(temp2));
-  *to++ = (char)('0' + (char)(temp));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp));
   *to++ = '-';
   /* Day */
-  temp = ltime->day;
+  temp = my_time.day;
   temp2 = temp / 10;
   temp = temp - temp2 * 10;
-  *to++ = (char)('0' + (char)(temp2));
-  *to++ = (char)('0' + (char)(temp));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp));
   *to++ = ' ';
   /* Hour */
-  temp = ltime->hour;
+  temp = my_time.hour;
   temp2 = temp / 10;
   temp = temp - temp2 * 10;
-  *to++ = (char)('0' + (char)(temp2));
-  *to++ = (char)('0' + (char)(temp));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp));
   *to++ = ':';
   /* Minute */
-  temp = ltime->minute;
+  temp = my_time.minute;
   temp2 = temp / 10;
   temp = temp - temp2 * 10;
-  *to++ = (char)('0' + (char)(temp2));
-  *to++ = (char)('0' + (char)(temp));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp));
   *to++ = ':';
   /* Second */
-  temp = ltime->second;
+  temp = my_time.second;
   temp2 = temp / 10;
   temp = temp - temp2 * 10;
-  *to++ = (char)('0' + (char)(temp2));
-  *to++ = (char)('0' + (char)(temp));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp2));
+  *to++ = static_cast<char>('0' + static_cast<char>(temp));
   return 19;
 }
 
 /**
   Print a datetime value with an optional fractional part.
 
-  @param l_time       The MYSQL_TIME value to print
-  @param [out] to     The string pointer to print at
-  @param dec          Precision, in the range 0..6
-  @return       The length of the result string.
+  @param       my_time The MYSQL_TIME value to print
+  @param [out] to      The string pointer to print at
+  @param       dec     Precision, in the range 0..6
+
+  @return The length of the result string.
 */
-int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint dec) {
-  int len = TIME_to_datetime_str(to, l_time);
+int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
+  int len = TIME_to_datetime_str(my_time, to);
   if (dec)
-    len += my_useconds_to_str(to + len, l_time->second_part, dec);
+    len += my_useconds_to_str(to + len, my_time.second_part, dec);
   else
     to[len] = '\0';
   return len;
 }
 
-/*
+/**
   Convert struct DATE/TIME/DATETIME value to string using built-in
   MySQL time conversion formats.
 
-  SYNOPSIS
-    my_TIME_to_string()
+  @note The string must have at least MAX_DATE_STRING_REP_LENGTH bytes reserved.
+  @param my_time      The MYSQL_TIME value to print
+  @param [out] to     The string pointer to print at
+  @param dec          Precision, in the range 0..6
 
-  NOTE
-    The string must have at least MAX_DATE_STRING_REP_LENGTH bytes reserved.
+  @return number of bytes written
 */
-
-int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec) {
-  switch (l_time->time_type) {
+int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, uint dec) {
+  switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATETIME:
-      return my_datetime_to_str(l_time, to, dec);
+      return my_datetime_to_str(my_time, to, dec);
     case MYSQL_TIMESTAMP_DATE:
-      return my_date_to_str(l_time, to);
+      return my_date_to_str(my_time, to);
     case MYSQL_TIMESTAMP_TIME:
-      return my_time_to_str(l_time, to, dec);
+      return my_time_to_str(my_time, to, dec);
     case MYSQL_TIMESTAMP_NONE:
     case MYSQL_TIMESTAMP_ERROR:
       to[0] = '\0';
@@ -1230,34 +1314,21 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec) {
   @return         The length of the result string.
 */
 int my_timeval_to_str(const struct timeval *tm, char *to, uint dec) {
-  int len = sprintf(to, "%d", (int)tm->tv_sec);
+  int len = sprintf(to, "%d", static_cast<int>(tm->tv_sec));
   if (dec) len += my_useconds_to_str(to + len, tm->tv_usec, dec);
   return len;
 }
 
-/*
+/**
   Convert datetime value specified as number to broken-down TIME
   representation and form value of DATETIME type as side-effect.
 
-  SYNOPSIS
-    number_to_datetime()
-      nr         - datetime value as number
-      time_res   - pointer for structure for broken-down representation
-      flags      - flags to use in validating date, as in str_to_datetime()
-      was_cut    0      Value ok
-                 1      If value was cut during conversion
-                 2      check_date(date,flags) considers date invalid
+  Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
+  YYYYMMDDHHMMSS to broken-down MYSQL_TIME representation. Return value in
+  YYYYMMDDHHMMSS format as side-effect.
 
-  DESCRIPTION
-    Convert a datetime value of formats YYMMDD, YYYYMMDD, YYMMDDHHMSS,
-    YYYYMMDDHHMMSS to broken-down MYSQL_TIME representation. Return value in
-    YYYYMMDDHHMMSS format as side-effect.
+  This function also checks if datetime value fits in DATETIME range.
 
-    This function also checks if datetime value fits in DATETIME range.
-
-  RETURN VALUE
-    -1              Timestamp with wrong values
-    anything else   DATETIME as integer in YYYYMMDDHHMMSS format
     Datetime value in YYYYMMDDHHMMSS format.
 
     was_cut         if return value -1: one of
@@ -1265,11 +1336,23 @@ int my_timeval_to_str(const struct timeval *tm, char *to, uint dec) {
                       - MYSQL_TIME_WARN_ZERO_DATE
                       - MYSQL_TIME_WARN_TRUNCATED
                     otherwise 0.
-*/
 
+  @param         nr        datetime value as number
+  @param[in,out] time_res  pointer for structure for broken-down
+                            representation
+  @param         flags     TIME_NO_ZERO_DATE and flags used by check_date()
+  @param[out]    was_cut   0 Value ok
+                           1 If value was cut during conversion
+                           2 check_date(date,flags) considers date invalid
+
+  @retval -1              Timestamp with wrong values, e.g. nr == 0 with
+                          TIME_NO_ZERO_DATE
+  @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
+*/
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
                             my_time_flags_t flags, int *was_cut) {
-  long part1, part2;
+  long part1;
+  long part2;
 
   *was_cut = 0;
   memset(time_res, 0, sizeof(*time_res));
@@ -1317,19 +1400,19 @@ longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
     nr = nr + 19000000000000LL; /* YYMMDDHHMMSS, 1970-1999 */
 
 ok:
-  part1 = (long)(nr / 1000000LL);
-  part2 = (long)(nr - (longlong)part1 * 1000000LL);
-  time_res->year = (int)(part1 / 10000L);
+  part1 = static_cast<long>(nr / 1000000LL);
+  part2 = static_cast<long>(nr - static_cast<longlong>(part1) * 1000000LL);
+  time_res->year = static_cast<int>(part1 / 10000L);
   part1 %= 10000L;
-  time_res->month = (int)part1 / 100;
-  time_res->day = (int)part1 % 100;
-  time_res->hour = (int)(part2 / 10000L);
+  time_res->month = static_cast<int>(part1) / 100;
+  time_res->day = static_cast<int>(part1) % 100;
+  time_res->hour = static_cast<int>(part2 / 10000L);
   part2 %= 10000L;
-  time_res->minute = (int)part2 / 100;
-  time_res->second = (int)part2 % 100;
+  time_res->minute = static_cast<int>(part2) / 100;
+  time_res->second = static_cast<int>(part2) % 100;
 
-  if (!check_datetime_range(time_res) &&
-      !check_date(time_res, (nr != 0), flags, was_cut))
+  if (!check_datetime_range(*time_res) &&
+      !check_date(*time_res, (nr != 0), flags, was_cut))
     return nr;
 
   /* Don't want to have was_cut get set if TIME_NO_ZERO_DATE was violated. */
@@ -1342,83 +1425,90 @@ err:
 
 /**
   Convert time value to integer in YYYYMMDDHHMMSS.
+
   @param  my_time  The MYSQL_TIME value to convert.
+
   @return          A number in format YYYYMMDDHHMMSS.
 */
-ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *my_time) {
-  return ((ulonglong)(my_time->year * 10000UL + my_time->month * 100UL +
-                      my_time->day) *
+ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME &my_time) {
+  return (static_cast<ulonglong>(my_time.year * 10000UL +
+                                 my_time.month * 100UL + my_time.day) *
               1000000ULL +
-          (ulonglong)(my_time->hour * 10000UL + my_time->minute * 100UL +
-                      my_time->second));
+          static_cast<ulonglong>(my_time.hour * 10000UL +
+                                 my_time.minute * 100UL + my_time.second));
 }
 
 /**
   Convert MYSQL_TIME value to integer in YYYYMMDD format
+
   @param my_time  The MYSQL_TIME value to convert.
   @return         A number in format YYYYMMDD.
 */
-ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *my_time) {
-  return (ulonglong)(my_time->year * 10000UL + my_time->month * 100UL +
-                     my_time->day);
+ulonglong TIME_to_ulonglong_date(const MYSQL_TIME &my_time) {
+  return static_cast<ulonglong>(my_time.year * 10000UL + my_time.month * 100UL +
+                                my_time.day);
 }
 
 /**
   Convert MYSQL_TIME value to integer in HHMMSS format.
   This function doesn't take into account time->day member:
   it's assumed that days have been converted to hours already.
+
   @param my_time  The TIME value to convert.
   @return         The number in HHMMSS format.
 */
-ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *my_time) {
-  return (ulonglong)(my_time->hour * 10000UL + my_time->minute * 100UL +
-                     my_time->second);
+ulonglong TIME_to_ulonglong_time(const MYSQL_TIME &my_time) {
+  return static_cast<ulonglong>(my_time.hour * 10000UL +
+                                my_time.minute * 100UL + my_time.second);
 }
 
 /**
-  Set day, month and year from a number
+  Set day, month and year from a number.
+
   @param ltime    MYSQL_TIME variable
   @param yymmdd   Number in YYYYMMDD format
 */
 void TIME_set_yymmdd(MYSQL_TIME *ltime, uint yymmdd) {
-  ltime->day = (int)(yymmdd % 100);
-  ltime->month = (int)(yymmdd / 100) % 100;
-  ltime->year = (int)(yymmdd / 10000);
+  ltime->day = static_cast<int>(yymmdd % 100);
+  ltime->month = static_cast<int>(yymmdd / 100) % 100;
+  ltime->year = static_cast<int>(yymmdd / 10000);
 }
 
 /**
-  Set hour, minute and secondr from a number
+  Set hour, minute and secondr from a number.
+
   @param ltime    MYSQL_TIME variable
   @param hhmmss   Number in HHMMSS format
 */
 void TIME_set_hhmmss(MYSQL_TIME *ltime, uint hhmmss) {
-  ltime->second = (int)(hhmmss % 100);
-  ltime->minute = (int)(hhmmss / 100) % 100;
-  ltime->hour = (int)(hhmmss / 10000);
+  ltime->second = static_cast<int>(hhmmss % 100);
+  ltime->minute = static_cast<int>(hhmmss / 100) % 100;
+  ltime->hour = static_cast<int>(hhmmss / 10000);
 }
 
-/*
+/**
   Convert struct MYSQL_TIME (date and time split into year/month/day/hour/...
   to a number in format YYYYMMDDHHMMSS (DATETIME),
-  YYYYMMDD (DATE)  or HHMMSS (TIME).
+  YYYYMMDD (DATE) or HHMMSS (TIME).
 
-  SYNOPSIS
-    TIME_to_ulonglong()
+  The function is used when we need to convert value of time item
+  to a number if it's used in numeric context, i. e.:
+  SELECT NOW()+1, CURDATE()+0, CURTIMIE()+0;
+  SELECT ?+1;
 
-  DESCRIPTION
-    The function is used when we need to convert value of time item
-    to a number if it's used in numeric context, i. e.:
-    SELECT NOW()+1, CURDATE()+0, CURTIMIE()+0;
-    SELECT ?+1;
+  @param my_time Source time value
 
-  NOTE
+  @retval 0 in case of errors!
+  @retval number in format YYYYMMDDHHMMSS (DATETIME), YYYYMMDD (DATE) or HHMMSS
+  (TIME), otherwise.
+
+  @note
     This function doesn't check that given MYSQL_TIME structure members are
     in valid range. If they are not, return value won't reflect any
     valid date either.
 */
-
-ulonglong TIME_to_ulonglong(const MYSQL_TIME *my_time) {
-  switch (my_time->time_type) {
+ulonglong TIME_to_ulonglong(const MYSQL_TIME &my_time) {
+  switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATETIME:
       return TIME_to_ulonglong_datetime(my_time);
     case MYSQL_TIMESTAMP_DATE:
@@ -1434,34 +1524,73 @@ ulonglong TIME_to_ulonglong(const MYSQL_TIME *my_time) {
   return 0;
 }
 
-/*** TIME low-level memory and disk representation routines ***/
+/**
+   Round MYSQL_TIME datetime value and convert to ulonglong representation.
 
-/*
+   @param my_time input time
+   @param[out] warnings warning vector
+
+   @return time in (u)longlong format
+ */
+ulonglong TIME_to_ulonglong_datetime_round(const MYSQL_TIME &my_time,
+                                           int *warnings) {
+  // Catch simple cases
+  if (my_time.second_part < 500000) return TIME_to_ulonglong_datetime(my_time);
+  if (my_time.second < 59) return TIME_to_ulonglong_datetime(my_time) + 1;
+  // Corner case e.g. 'YYYY-MM-DD hh:mm:59.5'. Proceed with slower method.
+  MYSQL_TIME tmp = my_time;
+  my_datetime_adjust_frac(&tmp, 0, warnings, false);
+  return TIME_to_ulonglong_datetime(tmp);  // + TIME_microseconds_round(ltime);
+}
+
+/**
+   Round MYSQL_TIME time value and convert to to ulonglong representation.
+
+   @param my_time input time
+   @return time in (u)longlong format
+ */
+ulonglong TIME_to_ulonglong_time_round(const MYSQL_TIME &my_time) {
+  if (my_time.second_part < 500000) return TIME_to_ulonglong_time(my_time);
+  if (my_time.second < 59) return TIME_to_ulonglong_time(my_time) + 1;
+  // Corner case e.g. 'hh:mm:59.5'. Proceed with slower method.
+  MYSQL_TIME tmp = my_time;
+  my_time_adjust_frac(&tmp, 0, false);
+  return TIME_to_ulonglong_time(tmp);
+}
+
+/**
+   @page time_low_level_rep TIME
+
   In-memory format:
 
-   1  bit sign          (Used for sign, when on disk)
-   1  bit unused        (Reserved for wider hour range, e.g. for intervals)
-   10 bit hour          (0-836)
-   6  bit minute        (0-59)
-   6  bit second        (0-59)
-  24  bits microseconds (0-999999)
+| Bits  | Field         | Value range |
+| ----: | :----         | :---- |
+|   1   | sign          |(Used for sign, when on disk) |
+|   1   | unused        |(Reserved for wider hour range, e.g. for intervals) |
+|   10  | hour          |(0-838) |
+|   6   | minute        |(0-59) |
+|   6   | second        |(0-59) |
+|  24   | microseconds  |(0-999999) |
 
  Total: 48 bits = 6 bytes
-   Suhhhhhh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+
+@verbatim
+Format: Suhhhhhh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+@endverbatim
 */
 
 /**
   Convert time value to numeric packed representation.
 
-  @param    ltime   The value to convert.
+  @param    my_time The value to convert.
   @return           Numeric packed representation.
 */
-longlong TIME_to_longlong_time_packed(const MYSQL_TIME *ltime) {
+longlong TIME_to_longlong_time_packed(const MYSQL_TIME &my_time) {
   /* If month is 0, we mix day with hours: "1 00:10:10" -> "24:00:10" */
-  long hms = (((ltime->month ? 0 : ltime->day * 24) + ltime->hour) << 12) |
-             (ltime->minute << 6) | ltime->second;
-  longlong tmp = MY_PACKED_TIME_MAKE(hms, ltime->second_part);
-  return ltime->neg ? -tmp : tmp;
+  long hms = (((my_time.month ? 0 : my_time.day * 24) + my_time.hour) << 12) |
+             (my_time.minute << 6) | my_time.second;
+  longlong tmp = my_packed_time_make(hms, my_time.second_part);
+  return my_time.neg ? -tmp : tmp;
 }
 
 /**
@@ -1473,18 +1602,21 @@ longlong TIME_to_longlong_time_packed(const MYSQL_TIME *ltime) {
 void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp) {
   longlong hms;
   if ((ltime->neg = (tmp < 0))) tmp = -tmp;
-  hms = MY_PACKED_TIME_GET_INT_PART(tmp);
-  ltime->year = (uint)0;
-  ltime->month = (uint)0;
-  ltime->day = (uint)0;
-  ltime->hour = (uint)(hms >> 12) % (1 << 10); /* 10 bits starting at 12th */
-  ltime->minute = (uint)(hms >> 6) % (1 << 6); /* 6 bits starting at 6th   */
-  ltime->second = (uint)hms % (1 << 6);        /* 6 bits starting at 0th   */
-  ltime->second_part = MY_PACKED_TIME_GET_FRAC_PART(tmp);
+  hms = my_packed_time_get_int_part(tmp);
+  ltime->year = static_cast<uint>(0);
+  ltime->month = static_cast<uint>(0);
+  ltime->day = static_cast<uint>(0);
+  ltime->hour =
+      static_cast<uint>(hms >> 12) % (1 << 10); /* 10 bits starting at 12th */
+  ltime->minute =
+      static_cast<uint>(hms >> 6) % (1 << 6); /* 6 bits starting at 6th   */
+  ltime->second =
+      static_cast<uint>(hms) % (1 << 6); /* 6 bits starting at 0th   */
+  ltime->second_part = my_packed_time_get_frac_part(tmp);
   ltime->time_type = MYSQL_TIMESTAMP_TIME;
 }
 
-/*
+/**
   On disk we convert from signed representation to unsigned
   representation using TIMEF_OFS, so all values become binary comparable.
 */
@@ -1501,25 +1633,26 @@ void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp) {
 void my_time_packed_to_binary(longlong nr, uchar *ptr, uint dec) {
   DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   /* Make sure the stored value was previously properly rounded or truncated */
-  DBUG_ASSERT((MY_PACKED_TIME_GET_FRAC_PART(nr) %
-               (int)log_10_int[DATETIME_MAX_DECIMALS - dec]) == 0);
+  DBUG_ASSERT((my_packed_time_get_frac_part(nr) %
+               static_cast<int>(log_10_int[DATETIME_MAX_DECIMALS - dec])) == 0);
 
   switch (dec) {
     case 0:
     default:
-      mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
+      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
       break;
 
     case 1:
     case 2:
-      mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
-      ptr[3] = (unsigned char)(char)(MY_PACKED_TIME_GET_FRAC_PART(nr) / 10000);
+      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
+      ptr[3] = static_cast<unsigned char>(
+          static_cast<char>(my_packed_time_get_frac_part(nr) / 10000));
       break;
 
     case 4:
     case 3:
-      mi_int3store(ptr, TIMEF_INT_OFS + MY_PACKED_TIME_GET_INT_PART(nr));
-      mi_int2store(ptr + 3, MY_PACKED_TIME_GET_FRAC_PART(nr) / 100);
+      mi_int3store(ptr, TIMEF_INT_OFS + my_packed_time_get_int_part(nr));
+      mi_int2store(ptr + 3, my_packed_time_get_frac_part(nr) / 100);
       break;
 
     case 5:
@@ -1544,16 +1677,17 @@ longlong my_time_packed_from_binary(const uchar *ptr, uint dec) {
     case 0:
     default: {
       longlong intpart = mi_uint3korr(ptr) - TIMEF_INT_OFS;
-      return MY_PACKED_TIME_MAKE_INT(intpart);
+      return my_packed_time_make_int(intpart);
     }
     case 1:
     case 2: {
       longlong intpart = mi_uint3korr(ptr) - TIMEF_INT_OFS;
-      int frac = (uint)ptr[3];
+      int frac = static_cast<uint>(ptr[3]);
       if (intpart < 0 && frac) {
         /*
-          Negative values are stored with reverse fractional part order,
-          for binary sort compatibility.
+           Negative values are stored with
+           reverse fractional part order,
+           for binary sort compatibility.
 
             Disk value  intpart frac   Time value   Memory value
             800000.00    0      0      00:00:00.00  0000000000.000000
@@ -1571,7 +1705,7 @@ longlong my_time_packed_from_binary(const uchar *ptr, uint dec) {
         intpart++;     /* Shift to the next integer value */
         frac -= 0x100; /* -(0x100 - frac) */
       }
-      return MY_PACKED_TIME_MAKE(intpart, frac * 10000);
+      return my_packed_time_make(intpart, frac * 10000);
     }
 
     case 3:
@@ -1586,42 +1720,48 @@ longlong my_time_packed_from_binary(const uchar *ptr, uint dec) {
         intpart++;       /* Shift to the next integer value */
         frac -= 0x10000; /* -(0x10000-frac) */
       }
-      return MY_PACKED_TIME_MAKE(intpart, frac * 100);
+      return my_packed_time_make(intpart, frac * 100);
     }
 
     case 5:
     case 6:
-      return ((longlong)mi_uint6korr(ptr)) - TIMEF_OFS;
+      return (static_cast<longlong> mi_uint6korr(ptr)) - TIMEF_OFS;
   }
 }
 
-/*** DATETIME and DATE low-level memory and disk representation routines ***/
+/**
+   @page datetime_and_date_low_level_rep DATETIME and DATE
 
-/*
-    1 bit  sign            (used when on disk)
-   17 bits year*13+month   (year 0-9999, month 0-12)
-    5 bits day             (0-31)
-    5 bits hour            (0-23)
-    6 bits minute          (0-59)
-    6 bits second          (0-59)
-   24 bits microseconds    (0-999999)
+| Bits  | Field         | Value |
+| ----: | :----         | :---- |
+|    1  | sign          |(used when on disk) |
+|   17  | year*13+month |(year 0-9999, month 0-12) |
+|    5  | day           |(0-31)|
+|    5  | hour          |(0-23)|
+|    6  | minute        |(0-59)|
+|    6  | second        |(0-59)|
+|   24  | microseconds  |(0-999999)|
 
    Total: 64 bits = 8 bytes
 
-   SYYYYYYY.YYYYYYYY.YYdddddh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+@verbatim
+Format: SYYYYYYY.YYYYYYYY.YYdddddh.hhhhmmmm.mmssssss.ffffffff.ffffffff.ffffffff
+@endverbatim
+
 */
 
 /**
   Convert datetime to packed numeric datetime representation.
-  @param ltime  The value to convert.
-  @return       Packed numeric representation of ltime.
+
+  @param my_time  The value to convert.
+  @return       Packed numeric representation of my_time.
 */
-longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *ltime) {
-  longlong ymd = ((ltime->year * 13 + ltime->month) << 5) | ltime->day;
-  longlong hms = (ltime->hour << 12) | (ltime->minute << 6) | ltime->second;
-  longlong tmp = MY_PACKED_TIME_MAKE(((ymd << 17) | hms), ltime->second_part);
-  DBUG_ASSERT(!check_datetime_range(ltime)); /* Make sure no overflow */
-  return ltime->neg ? -tmp : tmp;
+longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME &my_time) {
+  longlong ymd = ((my_time.year * 13 + my_time.month) << 5) | my_time.day;
+  longlong hms = (my_time.hour << 12) | (my_time.minute << 6) | my_time.second;
+  longlong tmp = my_packed_time_make(((ymd << 17) | hms), my_time.second_part);
+  DBUG_ASSERT(!check_datetime_range(my_time)); /* Make sure no overflow */
+  return my_time.neg ? -tmp : tmp;
 }
 
 /**
@@ -1629,35 +1769,41 @@ longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *ltime) {
   Numeric packed date format is similar to numeric packed datetime
   representation, with zero hhmmss part.
 
-  @param ltime The value to convert.
+  @param my_time The value to convert.
   @return      Packed numeric representation of ltime.
 */
-longlong TIME_to_longlong_date_packed(const MYSQL_TIME *ltime) {
-  longlong ymd = ((ltime->year * 13 + ltime->month) << 5) | ltime->day;
-  return MY_PACKED_TIME_MAKE_INT(ymd << 17);
+longlong TIME_to_longlong_date_packed(const MYSQL_TIME &my_time) {
+  longlong ymd = ((my_time.year * 13 + my_time.month) << 5) | my_time.day;
+  return my_packed_time_make_int(ymd << 17);
 }
 
 /**
   Convert year to packed numeric date representation.
   Packed value for YYYY is the same to packed value for date YYYY-00-00.
+
+  @return packed value for date YYYY-00-00.
 */
 longlong year_to_longlong_datetime_packed(long year) {
   longlong ymd = ((year * 13) << 5);
-  return MY_PACKED_TIME_MAKE_INT(ymd << 17);
+  return my_packed_time_make_int(ymd << 17);
 }
 
 /**
   Convert packed numeric datetime representation to MYSQL_TIME.
+
   @param [out] ltime The datetime variable to convert to.
   @param      tmp   The packed numeric datetime value.
 */
 void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp) {
-  longlong ymd, hms;
-  longlong ymdhms, ym;
+  longlong ymd;
+  longlong hms;
+  longlong ymdhms;
+  longlong ym;
+
   if ((ltime->neg = (tmp < 0))) tmp = -tmp;
 
-  ltime->second_part = MY_PACKED_TIME_GET_FRAC_PART(tmp);
-  ymdhms = MY_PACKED_TIME_GET_INT_PART(tmp);
+  ltime->second_part = my_packed_time_get_frac_part(tmp);
+  ymdhms = my_packed_time_get_int_part(tmp);
 
   ymd = ymdhms >> 17;
   ym = ymd >> 5;
@@ -1665,17 +1811,18 @@ void TIME_from_longlong_datetime_packed(MYSQL_TIME *ltime, longlong tmp) {
 
   ltime->day = ymd % (1 << 5);
   ltime->month = ym % 13;
-  ltime->year = (uint)(ym / 13);
+  ltime->year = static_cast<uint>(ym / 13);
 
   ltime->second = hms % (1 << 6);
   ltime->minute = (hms >> 6) % (1 << 6);
-  ltime->hour = (uint)(hms >> 12);
+  ltime->hour = static_cast<uint>(hms >> 12);
 
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
 }
 
 /**
   Convert packed numeric date representation to MYSQL_TIME.
+
   @param [out] ltime The date variable to convert to.
   @param      tmp   The packed numeric date value.
 */
@@ -1684,7 +1831,7 @@ void TIME_from_longlong_date_packed(MYSQL_TIME *ltime, longlong tmp) {
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
 }
 
-/*
+/**
   On disk we store as unsigned number with DATETIMEF_INT_OFS offset,
   for HA_KETYPE_BINARY compatibilty purposes.
 */
@@ -1705,10 +1852,10 @@ longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec) {
   switch (dec) {
     case 0:
     default:
-      return MY_PACKED_TIME_MAKE_INT(intpart);
+      return my_packed_time_make_int(intpart);
     case 1:
     case 2:
-      frac = ((int)(signed char)ptr[5]) * 10000;
+      frac = (static_cast<int>(static_cast<signed char>(ptr[5]))) * 10000;
       break;
     case 3:
     case 4:
@@ -1719,7 +1866,7 @@ longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec) {
       frac = mi_sint3korr(ptr + 5);
       break;
   }
-  return MY_PACKED_TIME_MAKE(intpart, frac);
+  return my_packed_time_make(intpart, frac);
 }
 
 /**
@@ -1732,25 +1879,26 @@ longlong my_datetime_packed_from_binary(const uchar *ptr, uint dec) {
 void my_datetime_packed_to_binary(longlong nr, uchar *ptr, uint dec) {
   DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   /* The value being stored must have been properly rounded or truncated */
-  DBUG_ASSERT((MY_PACKED_TIME_GET_FRAC_PART(nr) %
-               (int)log_10_int[DATETIME_MAX_DECIMALS - dec]) == 0);
+  DBUG_ASSERT((my_packed_time_get_frac_part(nr) %
+               static_cast<int>(log_10_int[DATETIME_MAX_DECIMALS - dec])) == 0);
 
-  mi_int5store(ptr, MY_PACKED_TIME_GET_INT_PART(nr) + DATETIMEF_INT_OFS);
+  mi_int5store(ptr, my_packed_time_get_int_part(nr) + DATETIMEF_INT_OFS);
   switch (dec) {
     case 0:
     default:
       break;
     case 1:
     case 2:
-      ptr[5] = (unsigned char)(char)(MY_PACKED_TIME_GET_FRAC_PART(nr) / 10000);
+      ptr[5] = static_cast<unsigned char>(
+          static_cast<char>(my_packed_time_get_frac_part(nr) / 10000));
       break;
     case 3:
     case 4:
-      mi_int2store(ptr + 5, MY_PACKED_TIME_GET_FRAC_PART(nr) / 100);
+      mi_int2store(ptr + 5, my_packed_time_get_frac_part(nr) / 100);
       break;
     case 5:
     case 6:
-      mi_int3store(ptr + 5, MY_PACKED_TIME_GET_FRAC_PART(nr));
+      mi_int3store(ptr + 5, my_packed_time_get_frac_part(nr));
   }
 }
 
@@ -1773,7 +1921,7 @@ void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec) {
       break;
     case 1:
     case 2:
-      tm->tv_usec = ((int)ptr[4]) * 10000;
+      tm->tv_usec = (static_cast<int>(ptr[4])) * 10000;
       break;
     case 3:
     case 4:
@@ -1795,8 +1943,8 @@ void my_timestamp_from_binary(struct timeval *tm, const uchar *ptr, uint dec) {
 void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec) {
   DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
   /* Stored value must have been previously properly rounded or truncated */
-  DBUG_ASSERT((tm->tv_usec % (int)log_10_int[DATETIME_MAX_DECIMALS - dec]) ==
-              0);
+  DBUG_ASSERT((tm->tv_usec %
+               static_cast<int>(log_10_int[DATETIME_MAX_DECIMALS - dec])) == 0);
   mi_int4store(ptr, tm->tv_sec);
   switch (dec) {
     case 0:
@@ -1804,7 +1952,8 @@ void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec) {
       break;
     case 1:
     case 2:
-      ptr[4] = (unsigned char)(char)(tm->tv_usec / 10000);
+      ptr[4] =
+          static_cast<unsigned char>(static_cast<char>(tm->tv_usec / 10000));
       break;
     case 3:
     case 4:
@@ -1817,23 +1966,21 @@ void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec) {
   }
 }
 
-/****************************************/
-
 /**
   Convert a temporal value to packed numeric temporal representation,
   depending on its time_type.
 
-  @param ltime   The value to convert.
+  @param my_time   The value to convert.
   @return  Packed numeric time/date/datetime representation.
 */
-longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime) {
-  switch (ltime->time_type) {
+longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
+  switch (my_time.time_type) {
     case MYSQL_TIMESTAMP_DATE:
-      return TIME_to_longlong_date_packed(ltime);
+      return TIME_to_longlong_date_packed(my_time);
     case MYSQL_TIMESTAMP_DATETIME:
-      return TIME_to_longlong_datetime_packed(ltime);
+      return TIME_to_longlong_datetime_packed(my_time);
     case MYSQL_TIMESTAMP_TIME:
-      return TIME_to_longlong_time_packed(ltime);
+      return TIME_to_longlong_time_packed(my_time);
     case MYSQL_TIMESTAMP_NONE:
     case MYSQL_TIMESTAMP_ERROR:
       return 0;
@@ -1842,4 +1989,800 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime) {
   return 0;
 }
 
-/*** End of low level format routines ***/
+/**
+    Change a daynr to year, month and day. Daynr 0 is returned as date
+    00.00.00
+*/
+void get_date_from_daynr(long daynr, uint *ret_year, uint *ret_month,
+                         uint *ret_day) {
+  uint year;
+  uint temp;
+  uint leap_day;
+  uint day_of_year;
+  uint days_in_year;
+  const uchar *month_pos;
+  DBUG_ENTER("get_date_from_daynr");
+
+  if (daynr <= 365L || daynr >= 3652500) { /* Fix if wrong daynr */
+    *ret_year = *ret_month = *ret_day = 0;
+  } else {
+    year = static_cast<uint>(daynr * 100 / 36525L);
+    temp = (((year - 1) / 100 + 1) * 3) / 4;
+    day_of_year = static_cast<uint>(daynr - static_cast<long>(year) * 365L) -
+                  (year - 1) / 4 + temp;
+    while (day_of_year > (days_in_year = calc_days_in_year(year))) {
+      day_of_year -= days_in_year;
+      (year)++;
+    }
+    leap_day = 0;
+    if (days_in_year == 366) {
+      if (day_of_year > 31 + 28) {
+        day_of_year--;
+        if (day_of_year == 31 + 28) leap_day = 1; /* Handle leapyears leapday */
+      }
+    }
+    *ret_month = 1;
+    for (month_pos = days_in_month; day_of_year > static_cast<uint>(*month_pos);
+         day_of_year -= *(month_pos++), (*ret_month)++)
+      ;
+    *ret_year = year;
+    *ret_day = day_of_year + leap_day;
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+   Calc weekday from daynr.
+
+   @retval 0 for Monday
+   @retval 6 for Sunday
+*/
+int calc_weekday(long daynr, bool sunday_first_day_of_week) {
+  DBUG_ENTER("calc_weekday");
+  DBUG_RETURN(static_cast<int>(
+      (daynr + 5L + (sunday_first_day_of_week ? 1L : 0L)) % 7));
+}
+
+/**
+  Calculate the week number from a MYSQL_TIME value.
+
+  The bits in week_format has the following meaning:
+   WEEK_MONDAY_FIRST (0)  If not set	Sunday is first day of week
+                          If set	Monday is first day of week
+   WEEK_YEAR (1)	  If not set	Week is in range 0-53
+
+        Week 0 is returned for the the last week of the previous year (for
+        a date at start of january) In this case one can get 53 for the
+        first week of next year.  This flag ensures that the week is
+        relevant for the given year. Note that this flag is only
+        releveant if WEEK_JANUARY is not set.
+
+                          If set	 Week is in range 1-53.
+
+        In this case one may get week 53 for a date in January (when
+        the week is that last week of previous year) and week 1 for a
+        date in December.
+
+  WEEK_FIRST_WEEKDAY (2)  If not set	Weeks are numbered according
+                                        to ISO 8601:1988
+                          If set	The week that contains the first
+                                        'first-day-of-week' is week 1.
+
+        ISO 8601:1988 means that if the week containing January 1 has
+        four or more days in the new year, then it is week 1;
+        Otherwise it is the last week of the previous year, and the
+        next week is week 1.
+
+   @param my_time         Source time value
+   @param week_behaviour  Parameter controlling how weeks are counted
+   @param[out] year       The year of the week number (which may be different
+                          from my_time.year as descibed above)
+
+   @return week number
+*/
+uint calc_week(const MYSQL_TIME &my_time, uint week_behaviour, uint *year) {
+  uint days;
+  ulong daynr = calc_daynr(my_time.year, my_time.month, my_time.day);
+  ulong first_daynr = calc_daynr(my_time.year, 1, 1);
+  bool monday_first = (week_behaviour & WEEK_MONDAY_FIRST);
+  bool week_year = (week_behaviour & WEEK_YEAR);
+  bool first_weekday = (week_behaviour & WEEK_FIRST_WEEKDAY);
+
+  uint weekday = calc_weekday(first_daynr, !monday_first);
+  *year = my_time.year;
+
+  if (my_time.month == 1 && my_time.day <= 7 - weekday) {
+    if (!week_year &&
+        ((first_weekday && weekday != 0) || (!first_weekday && weekday >= 4)))
+      return 0;
+    week_year = 1;
+    (*year)--;
+    first_daynr -= (days = calc_days_in_year(*year));
+    weekday = (weekday + 53 * 7 - days) % 7;
+  }
+
+  if ((first_weekday && weekday != 0) || (!first_weekday && weekday >= 4))
+    days = daynr - (first_daynr + (7 - weekday));
+  else
+    days = daynr - (first_daynr - weekday);
+
+  if (week_year && days >= 52 * 7) {
+    weekday = (weekday + calc_days_in_year(*year)) % 7;
+    if ((!first_weekday && weekday < 4) || (first_weekday && weekday == 0)) {
+      (*year)++;
+      return 1;
+    }
+  }
+  return days / 7 + 1;
+}
+
+/**
+   Predicate for the validity of a period.
+
+   @param period
+   @retval true if ?
+   @retval false if ?
+ */
+bool valid_period(ulong period) {
+  if (period <= 0) return false;
+  if ((period % 100) == 0) return false;
+  if ((period % 100) > 12) return false;
+  return true;
+}
+
+/**
+   Calculate month from period.
+
+   @return month
+ */
+ulong convert_period_to_month(ulong period) {
+  ulong a;
+  ulong b;
+  if (period == 0) return 0L;
+  if ((a = period / 100) < YY_PART_YEAR)
+    a += 2000;
+  else if (a < 100)
+    a += 1900;
+  b = period % 100;
+  return a * 12 + b - 1;
+}
+
+/**
+   Convert month to period.
+
+   @return period
+ */
+ulong convert_month_to_period(ulong month) {
+  ulong year;
+  if (month == 0L) return 0L;
+  if ((year = month / 12) < 100) {
+    year += (year < YY_PART_YEAR) ? 2000 : 1900;
+  }
+  return year * 100 + month % 12 + 1;
+}
+
+/** Daynumber from year 0 to 9999-12-31 */
+#define MAX_DAY_NUMBER 3652424UL
+
+/**
+   Add an interval to a MYSQL_TIME struct.
+
+   @retval true if error
+   @retval false otherwise
+ */
+bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
+                       Interval interval, int *warnings) {
+  ltime->neg = 0;
+
+  long long sign = (interval.neg ? -1 : 1);
+
+  switch (int_type) {
+    case INTERVAL_SECOND:
+    case INTERVAL_SECOND_MICROSECOND:
+    case INTERVAL_MICROSECOND:
+    case INTERVAL_MINUTE:
+    case INTERVAL_HOUR:
+    case INTERVAL_MINUTE_MICROSECOND:
+    case INTERVAL_MINUTE_SECOND:
+    case INTERVAL_HOUR_MICROSECOND:
+    case INTERVAL_HOUR_SECOND:
+    case INTERVAL_HOUR_MINUTE:
+    case INTERVAL_DAY_MICROSECOND:
+    case INTERVAL_DAY_SECOND:
+    case INTERVAL_DAY_MINUTE:
+    case INTERVAL_DAY_HOUR: {
+      longlong sec, days, daynr, microseconds, extra_sec;
+      ltime->time_type = MYSQL_TIMESTAMP_DATETIME;  // Return full date
+      microseconds = ltime->second_part + sign * interval.second_part;
+      extra_sec = microseconds / 1000000L;
+      microseconds = microseconds % 1000000L;
+
+      if (interval.day > MAX_DAY_NUMBER) goto invalid_date;
+      if (interval.hour > MAX_DAY_NUMBER * 24ULL) goto invalid_date;
+      if (interval.minute > MAX_DAY_NUMBER * 24ULL * 60ULL) goto invalid_date;
+      if (interval.second > MAX_DAY_NUMBER * 24ULL * 60ULL * 60ULL)
+        goto invalid_date;
+      sec =
+          ((ltime->day - 1) * 3600LL * 24LL + ltime->hour * 3600LL +
+           ltime->minute * 60LL + ltime->second +
+           sign * static_cast<longlong>(
+                      interval.day * 3600ULL * 24ULL + interval.hour * 3600ULL +
+                      interval.minute * 60ULL + interval.second)) +
+          extra_sec;
+      if (microseconds < 0) {
+        microseconds += 1000000LL;
+        sec--;
+      }
+      days = sec / (3600 * 24LL);
+      sec -= days * 3600 * 24LL;
+      if (sec < 0) {
+        days--;
+        sec += 3600 * 24LL;
+      }
+      ltime->second_part = static_cast<uint>(microseconds);
+      ltime->second = static_cast<uint>(sec % 60);
+      ltime->minute = static_cast<uint>(sec / 60 % 60);
+      ltime->hour = static_cast<uint>(sec / 3600);
+      daynr = calc_daynr(ltime->year, ltime->month, 1) + days;
+      /* Day number from year 0 to 9999-12-31 */
+      if (static_cast<ulonglong>(daynr) > MAX_DAY_NUMBER) goto invalid_date;
+      get_date_from_daynr(static_cast<long>(daynr), &ltime->year, &ltime->month,
+                          &ltime->day);
+      break;
+    }
+    case INTERVAL_DAY:
+    case INTERVAL_WEEK: {
+      unsigned long period;
+      period = calc_daynr(ltime->year, ltime->month, ltime->day);
+      if (interval.neg) {
+        if (period < interval.day)  // Before 0.
+          goto invalid_date;
+        period -= interval.day;
+      } else {
+        if (period + interval.day < period)  // Overflow.
+          goto invalid_date;
+        if (period + interval.day > MAX_DAY_NUMBER)  // After 9999-12-31.
+          goto invalid_date;
+        period += interval.day;
+      }
+      get_date_from_daynr(static_cast<long>(period), &ltime->year,
+                          &ltime->month, &ltime->day);
+    } break;
+    case INTERVAL_YEAR:
+      if (interval.year > 10000UL) goto invalid_date;
+      ltime->year += sign * static_cast<long>(interval.year);
+      if (static_cast<ulong>(ltime->year) >= 10000L) goto invalid_date;
+      if (ltime->month == 2 && ltime->day == 29 &&
+          calc_days_in_year(ltime->year) != 366)
+        ltime->day = 28;  // Was leap-year
+      break;
+    case INTERVAL_YEAR_MONTH:
+    case INTERVAL_QUARTER:
+    case INTERVAL_MONTH: {
+      unsigned long long period;
+
+      // Simple guards against arithmetic overflow when calculating period.
+      if (interval.month >= UINT_MAX / 2) goto invalid_date;
+      if (interval.year >= UINT_MAX / 12) goto invalid_date;
+
+      period = (ltime->year * 12ULL +
+                sign * static_cast<unsigned long long>(interval.year) * 12ULL +
+                ltime->month - 1ULL +
+                sign * static_cast<unsigned long long>(interval.month));
+      if (period >= 120000LL) goto invalid_date;
+      ltime->year = period / 12;
+      ltime->month = (period % 12L) + 1;
+      /* Adjust day if the new month doesn't have enough days */
+      if (ltime->day > days_in_month[ltime->month - 1]) {
+        ltime->day = days_in_month[ltime->month - 1];
+        if (ltime->month == 2 && calc_days_in_year(ltime->year) == 366)
+          ltime->day++;  // Leap-year
+      }
+    } break;
+    default:
+      fprintf(stderr, "Unexpected interval type: %u\n",
+              static_cast<unsigned int>(int_type));
+      DBUG_ASSERT(false);
+      goto null_date;
+  }
+
+  return false;  // Ok
+
+invalid_date:
+  if (warnings) {
+    *warnings |= MYSQL_TIME_WARN_DATETIME_OVERFLOW;
+  }
+
+null_date:
+
+  return true;
+}
+
+/**
+  Add nanoseconds to a time value with truncation.
+
+  @param [in,out] ltime        MYSQL_TIME variable to add to.
+  @param          nanoseconds  Nanoseconds value.
+  @param [in,out] warnings     Warning flag vector.
+  @retval                      False on success. No real failure case here.
+*/
+bool time_add_nanoseconds_with_truncate(MYSQL_TIME *ltime, uint nanoseconds,
+                                        int *warnings) {
+  /*
+    If second_part is not set then only add nanoseconds to it.
+    If second_part is already set and then nanoseconds just represent
+    additional numbers which help rounding, so we can ignore them.
+  */
+  if (ltime->second_part == 0) ltime->second_part = nanoseconds / 1000;
+
+  adjust_time_range(ltime, warnings);
+  return false;
+}
+
+/**
+   Add nanoseconds to a datetime value with truncation.
+
+   @param [in,out] ltime        MYSQL_TIME variable to add to.
+   @param          nanoseconds  Nanoseconds value.
+   @retval                      False on success. No real failure case here.
+*/
+bool datetime_add_nanoseconds_with_truncate(MYSQL_TIME *ltime,
+                                            uint nanoseconds) {
+  /*
+    If second_part is not set then only add nanoseconds to it.
+    If second_part is already set and then nanoseconds just represent
+    additional numbers which help rounding, so we can ignore them.
+  */
+  if (ltime->second_part == 0) ltime->second_part = nanoseconds / 1000;
+  return false;
+}
+
+/**
+  Add nanoseconds to a time value with rounding.
+
+  @param [in,out] ltime        MYSQL_TIME variable to add to.
+  @param          nanoseconds  Nanoseconds value.
+  @param [in,out] warnings     Warning flag vector.
+  @retval                      False on success, true on error.
+*/
+bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
+                                     int *warnings) {
+  /* We expect correct input data */
+  DBUG_ASSERT(nanoseconds < 1000000000);
+  DBUG_ASSERT(!check_time_mmssff_range(*ltime));
+
+  if (nanoseconds < 500) return false;
+
+  ltime->second_part += (nanoseconds + 500) / 1000;
+  if (ltime->second_part < 1000000) goto ret;
+
+  ltime->second_part %= 1000000;
+  if (ltime->second < 59) {
+    ltime->second++;
+    goto ret;
+  }
+
+  ltime->second = 0;
+  if (ltime->minute < 59) {
+    ltime->minute++;
+    goto ret;
+  }
+  ltime->minute = 0;
+  ltime->hour++;
+
+ret:
+  /*
+    We can get '838:59:59.000001' at this point, which
+    is bigger than the maximum possible value '838:59:59.000000'.
+    Checking only "hour > 838" is not enough.
+    Do full adjust_time_range().
+  */
+  adjust_time_range(ltime, warnings);
+  return false;
+}
+
+/**
+  Add nanoseconds to a datetime value with rounding.
+
+  @param [in,out] ltime        MYSQL_TIME variable to add to.
+  @param          nanoseconds  Nanoseconds value.
+  @param [in,out] warnings     Warning flag vector.
+  @retval                      False on success, true on error.
+*/
+bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime, uint nanoseconds,
+                                         int *warnings) {
+  DBUG_ASSERT(nanoseconds < 1000000000);
+  if (nanoseconds < 500) return false;
+
+  ltime->second_part += (nanoseconds + 500) / 1000;
+  if (ltime->second_part < 1000000) return false;
+
+  ltime->second_part %= 1000000;
+  Interval interval;
+  memset(&interval, 0, sizeof(interval));
+  interval.second = 1;
+  /* date_add_interval cannot handle bad dates */
+  if (check_date(*ltime, non_zero_date(*ltime),
+                 (TIME_NO_ZERO_IN_DATE | TIME_NO_ZERO_DATE), warnings))
+    return true;
+
+  if (date_add_interval(ltime, INTERVAL_SECOND, interval, warnings)) {
+    *warnings |= MYSQL_TIME_WARN_OUT_OF_RANGE;
+    return true;
+  }
+  return false;
+}
+
+/**
+  Add nanoseconds to time and round or tuncate as indicated by argument.
+
+  @param [in,out] ltime        MYSQL_TIME variable to add to.
+  @param          nanoseconds  Nanosecons value.
+  @param [in,out] warnings     Warning flag vector.
+  @param          truncate     Decides whether fractional part of seconds will
+                               be truncated/rounded.
+  @retval                      False on success. No real failure case here.
+*/
+bool time_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
+                                      int *warnings, bool truncate) {
+  if (truncate)
+    return time_add_nanoseconds_with_truncate(ltime, nanoseconds, warnings);
+  else
+    return time_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
+}
+
+/**
+   Add nanoseconds to datetime and round or tuncate as indicated by argument.
+
+  @param [in,out] ltime        MYSQL_TIME variable to add to.
+  @param          nanoseconds  Nanoseconds value.
+  @param [in,out] warnings     Warning flag vector.
+  @param          truncate     Decides whether fractional part of seconds will
+                               be truncated/rounded.
+  @retval                      False on success, true on error.
+*/
+bool datetime_add_nanoseconds_adjust_frac(MYSQL_TIME *ltime, uint nanoseconds,
+                                          int *warnings, bool truncate) {
+  if (truncate)
+    return datetime_add_nanoseconds_with_truncate(ltime, nanoseconds);
+  else
+    return datetime_add_nanoseconds_with_round(ltime, nanoseconds, warnings);
+}
+
+/** Rounding functions */
+static constexpr const uint msec_round_add[7] = {
+    500000000, 50000000, 5000000, 500000, 50000, 5000, 0};
+
+/**
+  Round/Truncate time value to the given precision.
+
+  @param [in,out]  ltime    The value to round.
+  @param           dec      Precision.
+  @param           truncate Decides whether fractional part of seconds will be
+                            truncated/rounded.
+  @return                   False on success, true on error.
+*/
+bool my_time_adjust_frac(MYSQL_TIME *ltime, uint dec, bool truncate) {
+  int warnings = 0;
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Add half away from zero */
+  bool rc = time_add_nanoseconds_adjust_frac(ltime, msec_round_add[dec],
+                                             &warnings, truncate);
+
+  /* Truncate non-significant digits */
+  my_time_trunc(ltime, dec);
+  return rc;
+}
+
+/**
+  Round/Truncate datetime value to the given precision.
+
+  @param [in,out]  ltime    The value to round.
+  @param           dec      Precision.
+  @param [in,out]  warnings Warning flag vector
+  @param           truncate Decides whether fractional part of seconds will be
+                            truncated/rounded.
+  @return                   False on success, true on error.
+*/
+bool my_datetime_adjust_frac(MYSQL_TIME *ltime, uint dec, int *warnings,
+                             bool truncate) {
+  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  /* Add half away from zero */
+  bool rc = datetime_add_nanoseconds_adjust_frac(ltime, msec_round_add[dec],
+                                                 warnings, truncate);
+  /* Truncate non-significant digits */
+  my_time_trunc(ltime, dec);
+  return rc;
+}
+
+/**
+  Round timeval value to the given precision.
+
+  @param [in,out]  tv       The value to round.
+  @param           decimals Precision.
+  @return                   False on success, true on error.
+*/
+bool my_timeval_round(struct timeval *tv, uint decimals) {
+  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
+  uint nanoseconds = msec_round_add[decimals];
+  tv->tv_usec += (nanoseconds + 500) / 1000;
+  if (tv->tv_usec < 1000000) goto ret;
+
+  tv->tv_usec = 0;
+  tv->tv_sec++;
+  if (!is_time_t_valid_for_timestamp(tv->tv_sec)) {
+    tv->tv_sec = TIMESTAMP_MAX_VALUE;
+    return true;
+  }
+
+ret:
+  my_timeval_trunc(tv, decimals);
+  return false;
+}
+
+/**
+  Mix a date value and a time value.
+
+  @param [in,out] ldate    Date value.
+  @param          my_time  Time value.
+*/
+void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME &my_time) {
+  DBUG_ASSERT(ldate->time_type == MYSQL_TIMESTAMP_DATE ||
+              ldate->time_type == MYSQL_TIMESTAMP_DATETIME);
+
+  if (!my_time.neg && my_time.hour < 24) {
+    /*
+      Simple case: TIME is within normal 24 hours internal.
+      Mix DATE part of ltime2 and TIME part of ltime together.
+    */
+    ldate->hour = my_time.hour;
+    ldate->minute = my_time.minute;
+    ldate->second = my_time.second;
+    ldate->second_part = my_time.second_part;
+  } else {
+    /* Complex case: TIME is negative or outside of 24 hours internal. */
+    longlong seconds;
+    long days, useconds;
+    int sign = my_time.neg ? 1 : -1;
+    ldate->neg = calc_time_diff(*ldate, my_time, sign, &seconds, &useconds);
+    DBUG_ASSERT(!ldate->neg);
+
+    /*
+      We pass current date to mix_date_and_time. If we want to use
+      this function with arbitrary dates, this code will need
+      to cover cases when ltime is negative and "ldate < -ltime".
+    */
+    DBUG_ASSERT(ldate->year > 0);
+
+    days = static_cast<long>(seconds / SECONDS_IN_24H);
+    calc_time_from_sec(ldate, seconds % SECONDS_IN_24H, useconds);
+    get_date_from_daynr(days, &ldate->year, &ldate->month, &ldate->day);
+  }
+  ldate->time_type = MYSQL_TIMESTAMP_DATETIME;
+}
+
+/**
+   Convert a timepoint in a posix tm struct to a MSYQL_TIME struct.
+
+   @param [out] to store converted timepoint here
+   @param from posix tm struct holding a valid timepoint
+ */
+void localtime_to_TIME(MYSQL_TIME *to, const struct tm *from) {
+  to->neg = 0;
+  to->second_part = 0;
+  to->year = ((from->tm_year + 1900) % 10000);
+  to->month = from->tm_mon + 1;
+  to->day = from->tm_mday;
+  to->hour = from->tm_hour;
+  to->minute = from->tm_min;
+  to->second = from->tm_sec;
+}
+
+/**
+   Initialize MYSQL_TIME with MYSQL_TIMESTAMP_TIME from given number
+   of seconds and microseconds.
+ */
+void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds) {
+  long t_seconds;
+  // to->neg is not cleared, it may already be set to a useful value
+  to->time_type = MYSQL_TIMESTAMP_TIME;
+  to->year = 0;
+  to->month = 0;
+  to->day = 0;
+  DBUG_ASSERT(seconds < (0xFFFFFFFFLL * 3600LL));
+  to->hour = static_cast<long>(seconds / 3600L);
+  t_seconds = static_cast<long>(seconds % 3600L);
+  to->minute = t_seconds / 60L;
+  to->second = t_seconds % 60L;
+  to->second_part = microseconds;
+}
+
+/**
+  Calculate difference between two datetime values as seconds + microseconds.
+
+  @param my_time1         - TIME/DATE/DATETIME value
+  @param my_time2         - TIME/DATE/DATETIME value
+  @param l_sign           - 1 absolute values are substracted, -1 absolute
+  values are added.
+  @param[out] seconds_out - where difference between my_time1 and my_time2
+                            in seconds is stored.
+  @param[out] microseconds_out - where microsecond part of difference between
+                                 my_time1 and my_time2 is stored.
+
+  @note This function calculates difference between my_time1 and
+    my_time2 absolute values. So one should set l_sign and correct
+    result if he want to take signs into account (i.e. for MYSQL_TIME
+    values).
+
+  @returns Sign of difference.
+    @retval 1 means negative result
+    @retval 0 means positive result
+*/
+bool calc_time_diff(const MYSQL_TIME &my_time1, const MYSQL_TIME &my_time2,
+                    int l_sign, longlong *seconds_out, long *microseconds_out) {
+  long days;
+  bool neg;
+  longlong microseconds;
+
+  /*
+    We suppose that if first argument is MYSQL_TIMESTAMP_TIME
+    the second argument should be TIMESTAMP_TIME also.
+    We should check it before calc_time_diff call.
+  */
+  if (my_time1.time_type == MYSQL_TIMESTAMP_TIME)  // Time value
+    days = static_cast<long>(my_time1.day) -
+           l_sign * static_cast<long>(my_time2.day);
+  else {
+    days = calc_daynr(static_cast<uint>(my_time1.year),
+                      static_cast<uint>(my_time1.month),
+                      static_cast<uint>(my_time1.day));
+    if (my_time2.time_type == MYSQL_TIMESTAMP_TIME)
+      days -= l_sign * static_cast<long>(my_time2.day);
+    else
+      days -= l_sign * calc_daynr(static_cast<uint>(my_time2.year),
+                                  static_cast<uint>(my_time2.month),
+                                  static_cast<uint>(my_time2.day));
+  }
+
+  microseconds =
+      (static_cast<longlong>(days) * SECONDS_IN_24H +
+       static_cast<longlong>(my_time1.hour * 3600L + my_time1.minute * 60L +
+                             my_time1.second) -
+       l_sign *
+           static_cast<longlong>(my_time2.hour * 3600L + my_time2.minute * 60L +
+                                 my_time2.second)) *
+          1000000LL +
+      static_cast<longlong>(my_time1.second_part) -
+      l_sign * static_cast<longlong>(my_time2.second_part);
+
+  neg = 0;
+  if (microseconds < 0) {
+    microseconds = -microseconds;
+    neg = 1;
+  }
+  *seconds_out = microseconds / 1000000L;
+  *microseconds_out = static_cast<long>(microseconds % 1000000L);
+  return neg;
+}
+
+/**
+   Compare tow MYSQL_TIME objects.
+
+   @retval 0 if a and b are equal
+   @retval -1 if a comes before b
+   @retval 1 if b comes before a
+ */
+int my_time_compare(const MYSQL_TIME &my_time_a, const MYSQL_TIME &my_time_b) {
+  ulonglong a_t = TIME_to_ulonglong_datetime(my_time_a);
+  ulonglong b_t = TIME_to_ulonglong_datetime(my_time_b);
+
+  if (a_t < b_t) return -1;
+  if (a_t > b_t) return 1;
+
+  if (my_time_a.second_part < my_time_b.second_part) return -1;
+  if (my_time_a.second_part > my_time_b.second_part) return 1;
+
+  return 0;
+}
+
+/**
+  Convert MYSQL_TIME value to its packed numeric representation,
+  using field type.
+
+  @param my_time The time value to convert.
+  @param type    MySQL field type.
+  @return        Packed numeric representation.
+*/
+longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time,
+                                 enum enum_field_types type) {
+  switch (type) {
+    case MYSQL_TYPE_TIME:
+      return TIME_to_longlong_time_packed(my_time);
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return TIME_to_longlong_datetime_packed(my_time);
+    case MYSQL_TYPE_DATE:
+      return TIME_to_longlong_date_packed(my_time);
+    default:
+      return TIME_to_longlong_packed(my_time);
+  }
+}
+
+/**
+  Convert packed numeric temporal representation to time, date or datetime,
+  using field type.
+
+  @param[out] ltime        The variable to write to.
+  @param      type         MySQL field type.
+  @param      packed_value Numeric datetype representation.
+*/
+void TIME_from_longlong_packed(MYSQL_TIME *ltime, enum enum_field_types type,
+                               longlong packed_value) {
+  switch (type) {
+    case MYSQL_TYPE_TIME:
+      TIME_from_longlong_time_packed(ltime, packed_value);
+      break;
+    case MYSQL_TYPE_DATE:
+      TIME_from_longlong_date_packed(ltime, packed_value);
+      break;
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      TIME_from_longlong_datetime_packed(ltime, packed_value);
+      break;
+    default:
+      DBUG_ASSERT(0);
+      set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
+      break;
+  }
+}
+
+/**
+  Convert packed numeric representation to
+  unpacked numeric representation.
+
+  @param type           MySQL field type.
+  @param packed_value   Packed numeric temporal value.
+  @return               Number in one of the following formats,
+                        depending on type: YYMMDD, YYMMDDhhmmss, hhmmss.
+*/
+longlong longlong_from_datetime_packed(enum enum_field_types type,
+                                       longlong packed_value) {
+  MYSQL_TIME ltime;
+  switch (type) {
+    case MYSQL_TYPE_TIME:
+      TIME_from_longlong_time_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_time(ltime);
+    case MYSQL_TYPE_DATE:
+      TIME_from_longlong_date_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_date(ltime);
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      TIME_from_longlong_datetime_packed(&ltime, packed_value);
+      return TIME_to_ulonglong_datetime(ltime);
+    default:
+      DBUG_ASSERT(0);
+      return 0;
+  }
+}
+
+/**
+  Convert packed numeric temporal representation to unpacked numeric
+  representation.
+
+  @param type           MySQL field type.
+  @param packed_value   Numeric packed temporal representation.
+  @return               A double value in on of the following formats,
+                        depending  on type:
+                        YYYYMMDD, hhmmss.ffffff or YYMMDDhhmmss.ffffff.
+*/
+double double_from_datetime_packed(enum enum_field_types type,
+                                   longlong packed_value) {
+  longlong result = longlong_from_datetime_packed(type, packed_value);
+  return result +
+         (static_cast<double>(my_packed_time_get_frac_part(packed_value))) /
+             1000000;
+}
+
+/**
+   @} (end of defgroup MY_TIME)
+*/

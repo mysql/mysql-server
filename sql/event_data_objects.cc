@@ -455,7 +455,8 @@ bool Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
 */
 static my_time_t add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
                               interval_type scale, Interval interval) {
-  if (date_add_interval(ltime, scale, interval)) return 0;
+  if (date_add_interval_with_warn(current_thd, ltime, scale, interval))
+    return 0;
 
   bool not_used;
   return time_zone->TIME_to_gmt_sec(ltime, &not_used);
@@ -557,7 +558,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   if (seconds) {
     longlong seconds_diff;
     long microsec_diff;
-    bool negative = calc_time_diff(&local_now, &local_start, 1, &seconds_diff,
+    bool negative = calc_time_diff(local_now, local_start, 1, &seconds_diff,
                                    &microsec_diff);
     if (!negative) {
       /*
@@ -895,7 +896,7 @@ static void append_datetime(String *buf, Time_zone *time_zone, my_time_t secs,
   */
   MYSQL_TIME time;
   time_zone->gmt_sec_to_TIME(&time, secs);
-  buf->append(dtime_buff, my_datetime_to_str(&time, dtime_buff, 0));
+  buf->append(dtime_buff, my_datetime_to_str(time, dtime_buff, 0));
   buf->append(STRING_WITH_LEN("'"));
 }
 
@@ -933,7 +934,7 @@ int Event_timed::get_create_event(const THD *thd, String *buf) {
     buf->append(STRING_WITH_LEN(" ON SCHEDULE EVERY "));
     buf->append(expr_buf);
     buf->append(' ');
-    LEX_STRING *ival = &interval_type_to_name[m_interval];
+    const LEX_STRING *ival = &interval_type_to_name[m_interval];
     buf->append(ival->str, ival->length);
 
     if (!m_starts_null)

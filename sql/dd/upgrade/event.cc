@@ -341,9 +341,9 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   @retval >=0  Ordinal position.
 */
 
-static int find_string_in_array(LEX_STRING *const haystack,
-                                LEX_STRING *const needle,
-                                CHARSET_INFO *const cs) {
+static int find_string_in_array(const LEX_STRING *haystack,
+                                const LEX_STRING *needle,
+                                const CHARSET_INFO *cs) {
   const LEX_STRING *pos;
   for (pos = haystack; pos->str; pos++) {
     if (!cs->coll->strnncollsp(cs, (uchar *)pos->str, pos->length,

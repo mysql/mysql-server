@@ -893,7 +893,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
 
   DBUG_ENTER("TIME_to_gmt_sec");
 
-  if (!validate_timestamp_range(t)) DBUG_RETURN(0);
+  if (!validate_timestamp_range(*t)) DBUG_RETURN(0);
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -1029,7 +1029,7 @@ class Time_zone_system : public Time_zone {
 my_time_t Time_zone_system::TIME_to_gmt_sec(const MYSQL_TIME *t,
                                             bool *in_dst_time_gap) const {
   long not_used;
-  return my_system_gmt_sec(t, &not_used, in_dst_time_gap);
+  return my_system_gmt_sec(*t, &not_used, in_dst_time_gap);
 }
 
 /*
@@ -1298,7 +1298,7 @@ my_time_t Time_zone_offset::TIME_to_gmt_sec(
     Check timestamp range.we have to do this as calling function relies on
     us to make all validation checks here.
   */
-  if (!validate_timestamp_range(t)) return 0;
+  if (!validate_timestamp_range(*t)) return 0;
 
   /*
     Do a temporary shift of the boundary dates to avoid

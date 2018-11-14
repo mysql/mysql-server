@@ -3315,7 +3315,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
       break;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE: {
-      ulonglong value = TIME_to_ulonglong(my_time);
+      ulonglong value = TIME_to_ulonglong(*my_time);
       fetch_float_with_conversion(param, field, ulonglong2double(value),
                                   MY_GCVT_ARG_DOUBLE);
       break;
@@ -3325,7 +3325,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG: {
-      longlong value = (longlong)TIME_to_ulonglong(my_time);
+      longlong value = (longlong)TIME_to_ulonglong(*my_time);
       fetch_long_with_conversion(param, field, value, true);
       break;
     }
@@ -3335,7 +3335,7 @@ static void fetch_datetime_with_conversion(MYSQL_BIND *param,
         fetch_string_with_conversion:
       */
       char buff[MAX_DATE_STRING_REP_LENGTH];
-      uint length = my_TIME_to_str(my_time, buff, field->decimals);
+      uint length = my_TIME_to_str(*my_time, buff, field->decimals);
       /* Resort to string conversion */
       fetch_string_with_conversion(param, (char *)buff, length);
       break;

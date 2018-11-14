@@ -785,7 +785,9 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
   if (thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
 
-  if (!str_to_datetime(str, l_time, flags, &status) &&
+  if (!propagate_datetime_overflow(
+          thd, &status.warnings,
+          str_to_datetime(str, l_time, flags, &status)) &&
       (l_time->time_type == MYSQL_TIMESTAMP_DATETIME ||
        l_time->time_type == MYSQL_TIMESTAMP_DATE))
     /*
@@ -833,7 +835,7 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   *error_arg = get_mysql_time_from_str(thd, str, warn_type, warn_name, &l_time);
 
   if (*error_arg) return 0;
-  return TIME_to_longlong_datetime_packed(&l_time);
+  return TIME_to_longlong_datetime_packed(l_time);
 }
 
 /**
@@ -981,7 +983,7 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
       *is_null = true;
       return ~(ulonglong)0;
     }
-    value = TIME_to_longlong_datetime_packed(&l_time);
+    value = TIME_to_longlong_datetime_packed(l_time);
   }
 
   if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM &&

@@ -3322,7 +3322,7 @@ bool Protocol_text::store(MYSQL_TIME *tm, uint decimals) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_datetime_to_str(tm, buff, decimals);
+  size_t length = my_datetime_to_str(*tm, buff, decimals);
   return net_store_data((uchar *)buff, length);
 }
 
@@ -3334,7 +3334,7 @@ bool Protocol_text::store_date(MYSQL_TIME *tm) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_date_to_str(tm, buff);
+  size_t length = my_date_to_str(*tm, buff);
   return net_store_data((uchar *)buff, length);
 }
 
@@ -3346,7 +3346,7 @@ bool Protocol_text::store_time(MYSQL_TIME *tm, uint decimals) {
   field_pos++;
 #endif
   char buff[MAX_DATE_STRING_REP_LENGTH];
-  size_t length = my_time_to_str(tm, buff, decimals);
+  size_t length = my_time_to_str(*tm, buff, decimals);
   return net_store_data((uchar *)buff, length);
 }
 

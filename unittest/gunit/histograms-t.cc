@@ -1358,9 +1358,9 @@ void VerifyEquiHeightBucketContentsTemporal(Json_array *equi_height_buckets,
   Json_uint *json_num_distinct = down_cast<Json_uint *>((*json_bucket)[3]);
 
   EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_time_compare(json_lower_inclusive->value(), &lower_inclusive),
+  EXPECT_EQ(my_time_compare(*json_lower_inclusive->value(), lower_inclusive),
             0);
-  EXPECT_EQ(my_time_compare(json_upper_inclusive->value(), &upper_inclusive),
+  EXPECT_EQ(my_time_compare(*json_upper_inclusive->value(), upper_inclusive),
             0);
   EXPECT_EQ(num_distinct, json_num_distinct->value());
 }
@@ -1480,7 +1480,7 @@ void VerifySingletonBucketContentsTemporal(Json_array *singleton_buckets,
       down_cast<Json_double *>((*json_bucket)[1]);
 
   EXPECT_DOUBLE_EQ(cumulative_frequency, json_cumulative_frequency->value());
-  EXPECT_EQ(my_time_compare(json_value->value(), &value), 0);
+  EXPECT_EQ(my_time_compare(*json_value->value(), value), 0);
 }
 
 /*
@@ -2595,7 +2595,7 @@ TEST_F(HistogramsTest, HistogramTimeCreated) {
 
   longlong seconds_diff = 0;
   long microseconds_diff = 0;
-  calc_time_diff(last_updated->value(), &current_time, 1, &seconds_diff,
+  calc_time_diff(*last_updated->value(), current_time, 1, &seconds_diff,
                  &microseconds_diff);
 
   EXPECT_LE(seconds_diff, 2LL);

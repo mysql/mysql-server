@@ -83,8 +83,6 @@ typedef enum enum_field_types {
   MYSQL_TYPE_GEOMETRY = 255
 } enum_field_types;
 
-#define DATETIME_MAX_DECIMALS 6
-
 #ifdef __cplusplus
 }
 #endif  // __cplusplus

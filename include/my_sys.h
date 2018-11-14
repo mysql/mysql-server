@@ -24,7 +24,11 @@
 #define _my_sys_h
 
 /**
-  @file include/my_sys.h
+  @defgroup MYSYS Mysys - low level utilities for MySQL
+  @ingroup Runtime_Environment
+  @{
+  @file include/my_sys.h Common header for many mysys elements.
+  @note Many mysys implementation files now have their own header file.
 */
 
 #include "my_config.h"
@@ -984,5 +988,9 @@ extern void set_psi_transaction_service(void *psi);
 
 struct MYSQL_FILE;
 extern MYSQL_FILE *mysql_stdin;
+
+/**
+  @} (end of group MYSYS)
+*/
 
 #endif /* _my_sys_h */
