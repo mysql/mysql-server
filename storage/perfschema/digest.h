@@ -23,7 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file digest.h
+  @file storage/perfschema/digest.h
   Constants and functionality that facilitate working with digests.
 */
 
