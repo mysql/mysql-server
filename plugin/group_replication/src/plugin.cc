@@ -851,8 +851,13 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
   DBUG_EXECUTE_IF("group_replication_force_member_uuid", {
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
   };);
-  delete local_member_info;
-  local_member_info = new Group_member_info(
+
+  /*
+    To avoid leaving a invalid pointer on Group_member_info_manager,
+    first we update the local member information on group_member_mgr,
+    and only then we delete and update the local_member_info.
+  */
+  Group_member_info *local_member_info_tmp = new Group_member_info(
       hostname, port, uuid, write_set_extraction_algorithm,
       gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
       local_member_plugin_version, gtid_assignment_block_size_var,
@@ -861,10 +866,13 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
       gr_lower_case_table_names);
 
   // Update membership info of member itself
-  if (group_member_mgr != NULL) group_member_mgr->update(local_member_info);
+  if (group_member_mgr != NULL) group_member_mgr->update(local_member_info_tmp);
   // Create the membership info visible for the group
   else
-    group_member_mgr = new Group_member_info_manager(local_member_info);
+    group_member_mgr = new Group_member_info_manager(local_member_info_tmp);
+  // Update local_member_info
+  delete local_member_info;
+  local_member_info = local_member_info_tmp;
   group_member_mgr_configured = true;
 
   LogPluginErr(
