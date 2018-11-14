@@ -477,8 +477,6 @@ void trx_sys_close(void) {
   for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != NULL;
        trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) {
     trx_free_prepared(trx);
-
-    UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
   }
 
   /* There can't be any active transactions. */

@@ -87,6 +87,29 @@ TrxVersion::TrxVersion(trx_t *trx) : m_trx(trx), m_version(trx->version) {
   /* No op */
 }
 
+/* The following function makes the transaction committed in memory
+and makes its changes to data visible to other transactions.
+In particular it releases implicit and explicit locks held by transaction and
+transitions to the transaction to the TRX_STATE_COMMITTED_IN_MEMORY state.
+NOTE that there is a small discrepancy from the strict formal
+visibility rules here: a human user of the database can see
+modifications made by another transaction T even before the necessary
+log segment has been flushed to the disk. If the database happens to
+crash before the flush, the user has seen modifications from T which
+will never be a committed transaction. However, any transaction T2
+which sees the modifications of the committing transaction T, and
+which also itself makes modifications to the database, will get an lsn
+larger than the committing transaction T. In the case where the log
+flush fails, and T never gets committed, also T2 will never get
+committed.
+@param[in,out]  trx         The transaction for which will be committed in
+                            memory
+@param[in]      serialized  true if serialisation log was written. Affects the
+                            list of things we need to clean up during
+                            trx_erase_lists.
+*/
+static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized);
+
 /** Set flush observer for the transaction
 @param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
@@ -567,24 +590,18 @@ void trx_free_prepared(trx_t *trx) /*!< in, own: trx object */
   ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
   ut_a(trx->magic_n == TRX_MAGIC_N);
 
-  lock_trx_release_locks(trx);
-  trx_undo_free_prepared(trx);
-
   assert_trx_in_rw_list(trx);
 
-  ut_a(!trx->read_only);
+  trx_release_impl_and_expl_locks(trx, false);
+  trx_undo_free_prepared(trx);
 
-  ut_d(trx->in_rw_trx_list = FALSE);
+  ut_ad(!trx->in_rw_trx_list);
+  ut_a(!trx->read_only);
 
   trx->state = TRX_STATE_NOT_STARTED;
 
   /* Undo trx_resurrect_table_locks(). */
   lock_trx_lock_list_init(&trx->lock.trx_locks);
-
-  /* Note: This vector is not guaranteed to be empty because the
-  transaction was never committed and therefore lock_trx_release()
-  was not called. */
-  trx->lock.table_locks.clear();
 
   trx_free(trx);
 }
@@ -1662,7 +1679,7 @@ also released by this call as trx is removed from rw_trx_list.
 @param[in] serialised	true if serialisation log was written */
 static void trx_erase_lists(trx_t *trx, bool serialised) {
   ut_ad(trx->id > 0);
-  trx_sys_mutex_enter();
+  ut_ad(trx_sys_mutex_own());
 
   if (serialised) {
     UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
@@ -1692,8 +1709,58 @@ static void trx_erase_lists(trx_t *trx, bool serialised) {
                                                 : trx_sys->rw_trx_ids.front();
 
   trx_sys->min_active_id.store(min_id);
+}
 
-  trx_sys_mutex_exit();
+static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
+  check_trx_state(trx);
+  ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE) ||
+        trx_state_eq(trx, TRX_STATE_PREPARED));
+
+  bool trx_sys_latch_is_needed =
+      (trx->id > 0) || trx_state_eq(trx, TRX_STATE_PREPARED);
+
+  if (trx_sys_latch_is_needed) {
+    trx_sys_mutex_enter();
+  }
+
+  if (trx->id > 0) {
+    /* For consistent snapshot, we need to remove current
+    transaction from running transaction id list for mvcc
+    before doing commit and releasing locks. */
+    trx_erase_lists(trx, serialized);
+  }
+
+  if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
+    ut_a(trx_sys->n_prepared_trx > 0);
+    --trx_sys->n_prepared_trx;
+  }
+
+  trx_mutex_enter(trx);
+  /* Please consider this particular point in time as the moment the trx's
+  implicit locks become released.
+  This change is protected by both trx_sys->mutex and trx->mutex.
+  Therefore, there are two secure ways to check if the trx still can hold
+  implicit locks:
+  (1) if you only know id of the trx, then you can obtain trx_sys->mutex and
+      check if trx is still in rw_trx_set. This works, because the call to
+      trx_erase_list() which removes trx from this list several lines above is
+      also protected by trx_sys->mutex. We use this approach in
+      lock_rec_convert_impl_to_expl() by using trx_rw_is_active()
+  (2) if you have pointer to trx, and you know it is safe to access (say, you
+      hold reference to this trx which prevents it from being freed) then you
+      can obtain trx->mutex and check if trx->state is equal to
+      TRX_STATE_COMMITTED_IN_MEMORY. We use this approach in
+      lock_rec_convert_impl_to_expl_for_trx() when deciding for the final time
+      if we really want to create explicit lock on behalf of implicit lock
+      holder. */
+  trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
+  trx_mutex_exit(trx);
+
+  if (trx_sys_latch_is_needed) {
+    trx_sys_mutex_exit();
+  }
+
+  lock_trx_release_locks(trx);
 }
 
 /** Commits a transaction in memory. */
@@ -1745,14 +1812,7 @@ written */
     trx->state = TRX_STATE_NOT_STARTED;
 
   } else {
-    if (trx->id > 0) {
-      /* For consistent snapshot, we need to remove current
-      transaction from running transaction id list for mvcc
-      before doing commit and releasing locks. */
-      trx_erase_lists(trx, serialised);
-    }
-
-    lock_trx_release_locks(trx);
+    trx_release_impl_and_expl_locks(trx, serialised);
 
     /* Remove the transaction from the list of active
     transactions now that it no longer holds any user locks. */
