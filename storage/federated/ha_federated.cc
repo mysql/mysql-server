@@ -916,6 +916,9 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
 
   lengths = mysql_fetch_lengths(result);
 
+  // Clear BLOB data from the previous row.
+  m_blob_root.ClearForReuse();
+
   for (field = table->field; *field; field++, row++, lengths++) {
     /*
       index variable to move us through the row at the
@@ -931,6 +934,22 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
       if (bitmap_is_set(table->read_set, (*field)->field_index)) {
         (*field)->set_notnull();
         (*field)->store(*row, *lengths, &my_charset_bin);
+        if ((*field)->flags & BLOB_FLAG) {
+          Field_blob *blob_field = down_cast<Field_blob *>(*field);
+          size_t length = blob_field->get_length(blob_field->ptr);
+          // BLOB data is not stored inside record. It only contains a
+          // pointer to it. Copy the BLOB data into a separate memory
+          // area so that it is not overwritten by subsequent calls to
+          // Field::store() after moving the offset.
+          if (length > 0) {
+            unsigned char *old_blob;
+            blob_field->get_ptr(&old_blob);
+            unsigned char *new_blob = new (&m_blob_root) unsigned char[length];
+            if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+            memcpy(new_blob, old_blob, length);
+            blob_field->set_ptr(length, new_blob);
+          }
+        }
       }
     }
     (*field)->move_field_offset(-old_ptr);
@@ -2403,6 +2422,7 @@ int ha_federated::index_end(void) {
   DBUG_ENTER("ha_federated::index_end");
   free_result();
   active_index = MAX_KEY;
+  m_blob_root.Clear();
   DBUG_RETURN(0);
 }
 
