@@ -25,6 +25,7 @@
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_messages/group_action_message.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 Group_action_information::Group_action_information(
     bool is_local_arg, Group_action *action,
@@ -91,7 +92,8 @@ Group_action_information::~Group_action_information() {}
  miss the action start, it will fail due to the flag.
 */
 
-Group_action_coordinator::Group_action_coordinator()
+Group_action_coordinator::Group_action_coordinator(
+    ulong components_stop_timeout)
     : is_sender(false),
       action_proposed(false),
       action_running(false),
@@ -105,7 +107,8 @@ Group_action_coordinator::Group_action_coordinator()
       member_leaving_group(false),
       remote_warnings_reported(false),
       action_handler_thd_state(),
-      is_group_action_being_executed(false) {
+      is_group_action_being_executed(false),
+      stop_wait_timeout(components_stop_timeout) {
   mysql_mutex_init(key_GR_LOCK_group_action_coordinator_process,
                    &coordinator_process_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_group_action_coordinator_process,
@@ -138,6 +141,10 @@ void Group_action_coordinator::register_coordinator_observers() {
 
 void Group_action_coordinator::unregister_coordinator_observers() {
   group_events_observation_manager->unregister_group_event_observer(this);
+}
+
+void Group_action_coordinator::set_stop_wait_timeout(ulong timeout) {
+  stop_wait_timeout = timeout;
 }
 
 static void *launch_handler_thread(void *arg) {
@@ -964,6 +971,10 @@ void Group_action_coordinator::kill_transactions_and_leave() {
   bool set_read_mode = false;
   Plugin_gcs_view_modification_notifier view_change_notifier;
   view_change_notifier.start_view_modification();
+
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
+
   Gcs_operations::enum_leave_state leave_state =
       gcs_module->leave(&view_change_notifier);
 

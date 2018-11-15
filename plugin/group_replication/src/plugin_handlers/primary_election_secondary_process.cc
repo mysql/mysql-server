@@ -53,6 +53,10 @@ Primary_election_secondary_process::~Primary_election_secondary_process() {
   mysql_cond_destroy(&election_cond);
 }
 
+void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
+  stop_wait_timeout = timeout;
+}
+
 int Primary_election_secondary_process::launch_secondary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
     std::vector<Group_member_info *> *group_members_info) {
@@ -230,7 +234,7 @@ end:
     group_events_observation_manager->after_primary_election(
         primary_uuid, true, election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
-        err_msg); /* purecov: inspected */
+        err_msg, stop_wait_timeout); /* purecov: inspected */
   }
 
   stage_handler->end_stage();

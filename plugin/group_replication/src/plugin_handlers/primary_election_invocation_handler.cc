@@ -25,14 +25,22 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
-Primary_election_handler::Primary_election_handler()
+Primary_election_handler::Primary_election_handler(
+    ulong components_stop_timeout)
     : election_process_running(false) {
   mysql_mutex_init(key_GR_LOCK_primary_election_running_flag, &flag_lock,
                    MY_MUTEX_INIT_FAST);
+  primary_election_handler.set_stop_wait_timeout(components_stop_timeout);
+  secondary_election_handler.set_stop_wait_timeout(components_stop_timeout);
 }
 
 Primary_election_handler::~Primary_election_handler() {
   mysql_mutex_destroy(&flag_lock);
+}
+
+void Primary_election_handler::set_stop_wait_timeout(ulong timeout) {
+  primary_election_handler.set_stop_wait_timeout(timeout);
+  secondary_election_handler.set_stop_wait_timeout(timeout);
 }
 
 bool Primary_election_handler::is_an_election_running() {

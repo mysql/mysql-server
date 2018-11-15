@@ -100,6 +100,12 @@ class Election_member_info {
 
 bool send_message(Plugin_gcs_message *message);
 
-void kill_transactions_and_leave_on_election_error(std::string &err_msg);
+/**
+  Kill transactions and enable super_read_only mode
+  @param err_msg                  the sql error message
+  @param components_stop_timeout  the timeout when waiting on shutdown
+*/
+void kill_transactions_and_leave_on_election_error(std::string &err_msg,
+                                                   ulong stop_wait_timeout);
 
 #endif /* PRIMARY_ELECTION_UTILS_INCLUDED */

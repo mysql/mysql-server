@@ -39,8 +39,11 @@
 */
 class Primary_election_handler : public Group_transaction_listener {
  public:
-  /** Instantiate a new election handler */
-  Primary_election_handler();
+  /**
+    Instantiate a new election handler
+    @param[in] components_stop_timeout  the timeout when waiting on shutdown
+  */
+  Primary_election_handler(ulong components_stop_timeout);
 
   /** Class destructor */
   ~Primary_election_handler();
@@ -123,6 +126,13 @@ class Primary_election_handler : public Group_transaction_listener {
 
   virtual int after_commit(my_thread_id thread_id, rpl_sidno sidno,
                            rpl_gno gno);
+
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout(ulong timeout);
 
  private:
   /**

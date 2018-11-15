@@ -27,6 +27,7 @@
 
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 using std::string;
 
@@ -133,6 +134,9 @@ void Group_partition_handling::kill_transactions_and_leave() {
       break;
   }
   LogPluginErr(log_severity, errcode);
+
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, timeout_on_unreachable);
 
   /*
     If true it means:

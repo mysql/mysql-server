@@ -733,7 +733,8 @@ int initialize_plugin_and_join(
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  primary_election_handler = new Primary_election_handler();
+  primary_election_handler =
+      new Primary_election_handler(components_stop_timeout_var);
 
   if ((error = start_group_communication())) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_START_COMMUNICATION_ENGINE);
@@ -1116,48 +1117,34 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
   }
 
   if (flag_stop_async_channel) {
+    std::string stop_error_message;
     int channel_err =
         channel_stop_all(CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,
-                         components_stop_timeout_var, error_message);
+                         components_stop_timeout_var, &stop_error_message);
     if (channel_err) {
-      if (error_message != NULL) {
-        if (*error_message == NULL) {
-          char err_tmp_arr[MYSQL_ERRMSG_SIZE];
-          size_t err_len =
-              snprintf(err_tmp_arr, sizeof(err_tmp_arr),
-                       "Error stopping all replication channels while"
-                       " server was leaving the group. Got error: %d."
-                       " Please check the  error log for more details.",
-                       channel_err);
+      std::stringstream err_tmp_ss;
+      if (stop_error_message.empty()) {
+        err_tmp_ss << "Error stopping all replication channels while"
+                   << " server was leaving the group. Got error: "
+                   << channel_err
+                   << ". Please check the  error log for more details.";
+      } else {
+        err_tmp_ss << "Error stopping all replication channels while"
+                   << " server was leaving the group. ";
+        err_tmp_ss << stop_error_message;
 
-          *error_message =
-              (char *)my_malloc(PSI_NOT_INSTRUMENTED, err_len + 1, MYF(0));
-          memcpy(*error_message, err_tmp_arr, err_len + 1);
-        } else {
-          char err_tmp_arr[] =
-              "Error stopping all replication channels while"
-              " server was leaving the group. ";
-          size_t total_length = strlen(*error_message) + strlen(err_tmp_arr);
-          size_t error_length = strlen(*error_message);
-
-          if (total_length < MYSQL_ERRMSG_SIZE) {
-            LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MODULE_TERMINATE_ERROR,
-                         *error_message);
-
-            char *ptr = (char *)my_realloc(PSI_NOT_INSTRUMENTED, *error_message,
-                                           total_length + 1, MYF(0));
-
-            memmove(ptr + strlen(err_tmp_arr), ptr, error_length);
-            memcpy(ptr, err_tmp_arr, strlen(err_tmp_arr));
-            ptr[total_length] = '\0';
-            *error_message = ptr;
-          }
-        }
+        LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MODULE_TERMINATE_ERROR,
+                     stop_error_message.c_str());
       }
 
-      if (!error) {
-        error = GROUP_REPLICATION_COMMAND_FAILURE;
+      std::string err_tmp_msg = err_tmp_ss.str();
+      if (err_tmp_msg.length() + 1 < MYSQL_ERRMSG_SIZE) {
+        *error_message = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
+                                           err_tmp_msg.length() + 1, MYF(0));
+        strcpy(*error_message, err_tmp_msg.c_str());
       }
+
+      if (!error) error = GROUP_REPLICATION_COMMAND_FAILURE;
     }
   }
 
@@ -1258,7 +1245,8 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   }
 
   group_events_observation_manager = new Group_events_observation_manager();
-  group_action_coordinator = new Group_action_coordinator();
+  group_action_coordinator =
+      new Group_action_coordinator(components_stop_timeout_var);
   group_action_coordinator->register_coordinator_observers();
 
   bool const error = register_udfs();
@@ -2414,6 +2402,12 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
   if (events_handler != NULL) {
     events_handler->set_stop_wait_timeout(in_val);
+  }
+  if (group_action_coordinator != NULL) {
+    group_action_coordinator->set_stop_wait_timeout(in_val);
+  }
+  if (primary_election_handler != NULL) {
+    primary_election_handler->set_stop_wait_timeout(in_val);
   }
 
   mysql_mutex_unlock(&plugin_running_mutex);

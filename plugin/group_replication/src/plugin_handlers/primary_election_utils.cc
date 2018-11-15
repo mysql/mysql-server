@@ -23,6 +23,7 @@
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 Election_member_info::Election_member_info(const std::string uuid,
                                            const Member_version &version,
@@ -68,7 +69,8 @@ bool send_message(Plugin_gcs_message *message) {
   return false;
 }
 
-void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
+void kill_transactions_and_leave_on_election_error(std::string &err_msg,
+                                                   ulong stop_wait_timeout) {
   DBUG_ENTER("kill_transactions_and_leave_on_election_error");
 
   // Action errors might have expelled the member already
@@ -107,6 +109,9 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg) {
   view_change_notifier.start_view_modification();
   Gcs_operations::enum_leave_state leave_state =
       gcs_module->leave(&view_change_notifier);
+
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;

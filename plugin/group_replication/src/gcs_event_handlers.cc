@@ -1565,26 +1565,9 @@ bool Plugin_gcs_events_handler::is_group_running_a_primary_election() const {
 
 void Plugin_gcs_events_handler::leave_group_on_error() const {
   Gcs_operations::enum_leave_state state = gcs_module->leave(nullptr);
-  char **error_message = NULL;
 
-  int error = channel_stop_all(CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,
-                               stop_wait_timeout, error_message);
-  if (error) {
-    if (error_message != NULL && *error_message != NULL) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR,
-                   *error_message);
-      my_free(error_message);
-    } else {
-      char buff[MYSQL_ERRMSG_SIZE];
-      size_t len = 0;
-      len = snprintf(buff, sizeof(buff), "Got error: ");
-      len += snprintf((buff + len), sizeof(buff) - len, "%d", error);
-      snprintf((buff + len), sizeof(buff) - len,
-               "Please check the error log for more details.");
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_STOP_RPL_CHANNELS_ERROR,
-                   buff);
-    }
-  }
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
 
   longlong errcode = 0;
   longlong log_severity = WARNING_LEVEL;
