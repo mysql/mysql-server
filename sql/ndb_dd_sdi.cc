@@ -44,6 +44,7 @@ typedef rapidjson::PrettyWriter<dd::RJ_StringBuffer, dd::RJ_Encoding,
                                 dd::RJ_Encoding, dd::RJ_Allocator, 0>
     PrettyWriter;
 
+#ifndef DBUG_OFF
 /*
   @brief minify a JSON formatted SDI. Remove whitespace and other
   useless data.
@@ -75,6 +76,7 @@ static dd::sdi_t minify(dd::sdi_t sdi)
 
   return buf.GetString();
 }
+#endif
 
 dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
   dd::RJ_Document doc;
@@ -104,5 +106,10 @@ dd::sdi_t
 ndb_dd_sdi_serialize(THD* thd, const dd::Table& table,
                      const dd::String_type& schema_name)
 {
-  return minify(dd::serialize(thd, table, schema_name));
+#ifndef DBUG_OFF
+  // Verify that dd::serialize generates SDI in minimzed format
+  dd::sdi_t sdi = dd::serialize(thd, table, schema_name);
+  DBUG_ASSERT(minify(sdi) == sdi);
+#endif
+  return dd::serialize(thd, table, schema_name);
 }
