@@ -2,6 +2,18 @@
 -- source include/have_binlog_format_mixed_or_row.inc
 -- source include/master-slave.inc
 
+# With HASH_SCAN, the slave fails to find the row due to Bug#16029263
+# So temporarily use TABLE_SCAN until this gets fixed.
+--connection slave
+select @@global.slave_rows_search_algorithms;
+set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+set @@global.slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
+--connection master
+
 -- let $engine= NDB
 -- source extra/rpl_tests/rpl_set_null.test
---source include/rpl_end.inc
+
+-- connection slave
+set @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+-- connection master
+-- source include/rpl_end.inc
