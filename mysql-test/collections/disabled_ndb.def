@@ -131,7 +131,6 @@ ndb.ndb_fully_replicated @windows: Bug#27924016 INCORRECT DISTRIBUTION OF ROWS I
 
 # rpl_ndb suite tests
 rpl_ndb.rpl_ndb_set_null  : BUG#51100
-rpl_ndb.rpl_ndb_row_basic : BUG#26434966 FAILURE OF RPL_NDB_ROW_BASIC TEST
 
 # The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
 # which is maintained upstream and easily breaks due to the inherent
