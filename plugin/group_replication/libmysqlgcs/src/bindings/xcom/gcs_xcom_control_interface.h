@@ -617,6 +617,27 @@ class Gcs_xcom_control : public Gcs_control_interface {
   connection_descriptor *get_connection_to_node(
       std::vector<Gcs_xcom_node_address *> *peers_list);
 
+  /**
+    Send an add_node request to some initial peer from @c m_initial_peers.
+
+    @param my_addresses The addresses of this node, used to filter our own
+    address from the initial peers.
+  */
+  bool send_add_node_request(std::map<std::string, int> const &my_addresses);
+
+  /**
+    Connects to the given peer's XCom.
+
+    @param peer Peer to connect to.
+    @param my_addresses The addresses of this node, used to filter our own
+    address from the initial peers.
+    @retval {true, connection_descriptor*} If we connected successfully.
+    @retval {false, _} If we could not connect.
+  */
+  std::pair<bool, connection_descriptor *> connect_to_peer(
+      Gcs_xcom_node_address &peer,
+      std::map<std::string, int> const &my_addresses);
+
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;
   unsigned int m_gid_hash;
