@@ -299,6 +299,22 @@ class Replication_thread_api {
   */
   bool is_partial_transaction_on_relay_log();
 
+  /**
+    Interface to Channel Service Interface channel_stop_all method.
+    Stops all the running channel threads according to the given options.
+
+    @param threads_to_stop      The types of threads to be stopped
+    @param timeout              The max time in which the thread should stop
+    @param ecode                The error message code
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  static int rpl_channel_stop_all(
+      int threads_to_stop, long timeout,
+      int ecode = ER_GRP_RPL_ERROR_STOPPING_CHANNELS);
+
  private:
   ulong stop_wait_timeout;
   const char *interface_channel;

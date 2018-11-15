@@ -77,6 +77,13 @@ class Primary_election_secondary_process : public Group_event_observer {
   */
   int secondary_election_process_handler();
 
+  /**
+    Sets the component stop timeout.
+
+    @param[in]  timeout      the timeout
+  */
+  void set_stop_wait_timeout(ulong timeout);
+
  private:
   enum enum_election_read_mode_status {
     SECONDARY_ELECTION_READ_MODE_NOT_SET = 0,    // Read only mode not set
@@ -149,6 +156,9 @@ class Primary_election_secondary_process : public Group_event_observer {
 
   /** The stage handler for progress reporting */
   Plugin_stage_monitor_handler *stage_handler;
+
+  /* Component stop timeout on shutdown */
+  ulong stop_wait_timeout;
 
   // Run thread locks and conditions
 

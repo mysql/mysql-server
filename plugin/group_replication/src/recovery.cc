@@ -189,18 +189,8 @@ void Recovery_module::leave_group_on_recovery_failure() {
   Gcs_operations::enum_leave_state leave_state =
       gcs_module->leave(&view_change_notifier);
 
-  char **error_message = NULL;
-  int error = channel_stop_all(CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD,
-                               stop_wait_timeout, error_message);
-  if (error) {
-    if (error_message != NULL && *error_message != NULL) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WHILE_STOPPING_REP_CHANNEL,
-                   *error_message);
-      my_free(error_message);
-    } else {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STOP_REP_CHANNEL, error);
-    }
-  }
+  Replication_thread_api::rpl_channel_stop_all(
+      CHANNEL_APPLIER_THREAD | CHANNEL_RECEIVER_THREAD, stop_wait_timeout);
 
   longlong errcode = 0;
   enum loglevel log_severity = WARNING_LEVEL;
