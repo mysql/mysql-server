@@ -32,10 +32,14 @@ mysqld2:	###   @4='d'
 reset master;
 Show tables and events
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Drop table, and show tables and events gone
 drop table test.t1;
 Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 0
 Recreate the table
 create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
@@ -55,6 +59,8 @@ mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Drop the table, but fail to drop the event(s)
 set @save_debug = @@global.debug;
@@ -65,6 +71,8 @@ show warnings;
 Level	Code	Message
 Expect : The tables are gone, but their events still hang around
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Redo the drop command to clear MySQLD metadata
 Expect an error as the table doesn't exist in Ndb
@@ -74,6 +82,8 @@ set global debug='+d';
 set global debug=@save_debug;
 Expect : The tables are gone, but their events still hang around
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 1 : Create a table with the same tableId and same number of blobs
@@ -97,6 +107,8 @@ mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Drop the table, but fail to drop the event(s)
 set global debug='-d';
@@ -111,6 +123,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 2 : Create a table with the same tableid + name, more blobs
@@ -136,6 +150,8 @@ mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
 reset master;
 Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 4
 Drop the table, but fail to drop the event(s)
 set global debug='-d';
@@ -150,6 +166,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 4
 ----------------------------------------------------------------------
 Case 3 : Create a table with the same tableid + name, fewer blobs
@@ -169,6 +187,8 @@ mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @2='b'
 reset master;
 Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 1
 Drop the table, but fail to drop the event(s)
 set global debug='-d';
@@ -183,6 +203,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 1
 ----------------------------------------------------------------------
 Case 4 : Create a table with the same tableid + name, different numbered blobs
@@ -202,6 +224,8 @@ mysqld2:	### INSERT INTO `test`.`t1`
 mysqld2:	###   @3='c'
 reset master;
 Expecting 1 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 1
 Drop the table, but fail to drop the event(s)
 set global debug='-d';
@@ -231,6 +255,8 @@ mysqld2:	###   @2='b'
 reset master;
 drop table test.t1;
 Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 0
 Create table with 3 blob columns
 create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
@@ -250,6 +276,8 @@ mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 And drop without dropping events...
 set global debug='-d';
@@ -264,6 +292,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 5 : Create a table with same name, different tableid, same blobs 
@@ -289,6 +319,8 @@ mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Drop table and recreate to get normal setup
 Expect : Table creates without warnings and all events are as expected
@@ -312,6 +344,8 @@ mysqld2:	###   @3='c'
 mysqld2:	###   @4='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 And drop without dropping events...
 set global debug='-d';
@@ -326,6 +360,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 6 : Same name, different tableid, different numbered blobs
@@ -350,6 +386,8 @@ mysqld2:	###   @4='c'
 mysqld2:	###   @5='d'
 reset master;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 And drop without dropping events...
 set global debug='-d';
@@ -364,6 +402,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 3 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 7 : Create a table with the same tableid + name, no blobs
@@ -389,6 +429,8 @@ mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
 reset master;
 Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 Drop the table, but fail to drop any event(s)
 set global debug='-d';
@@ -403,6 +445,8 @@ ERROR 42S02: Unknown table 'test.t1'
 set global debug='+d';
 set global debug=@save_debug;
 Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 3
 ----------------------------------------------------------------------
 Case 8 : Create a table with the same tableid + name, blobs when previously no blobs
@@ -428,8 +472,12 @@ mysqld2:	###   @4='d'
 mysqld2:	###   @5='e'
 reset master;
 Expecting 4 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 4
 drop table test.t1;
 Expecting 0 BLOB events for t1    
+select count(*) from raw_binlog_events where txt like '%t1\_%';
+count(*)
 0
 drop table test.synch;
