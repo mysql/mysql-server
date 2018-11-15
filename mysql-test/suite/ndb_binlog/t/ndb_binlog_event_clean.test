@@ -1,6 +1,5 @@
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/have_case_sensitive_file_system.inc
 --echo # We are using some debug-only features in this test
 --source include/have_debug.inc
 
@@ -98,11 +97,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop table, and show tables and events gone
 
@@ -114,11 +110,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l  
+--source ndb_binlog_count_event_t1.inc
 
 --echo Recreate the table
 create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
@@ -189,11 +182,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop the event(s)
 set @save_debug = @@global.debug;
@@ -211,11 +201,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Redo the drop command to clear MySQLD metadata
 --echo Expect an error as the table doesn't exist in Ndb
@@ -232,11 +219,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 1 : Create a table with the same tableId and same number of blobs
@@ -310,11 +294,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop the event(s)
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -336,11 +317,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 2 : Create a table with the same tableid + name, more blobs
@@ -415,11 +393,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop the event(s)
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -441,11 +416,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 3 : Create a table with the same tableid + name, fewer blobs
@@ -520,11 +492,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop the event(s)
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -546,11 +515,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 4 : Create a table with the same tableid + name, different numbered blobs
@@ -624,11 +590,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 4 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 1 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop the event(s)
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -716,11 +679,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 4 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Create table with 3 blob columns
 create table test.t1 (a int primary key, b text, c text, d text) engine=ndb;
@@ -791,11 +751,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo And drop without dropping events...
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -817,11 +774,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 5 : Create a table with same name, different tableid, same blobs 
@@ -899,11 +853,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop table and recreate to get normal setup
 --echo Expect : Table creates without warnings and all events are as expected
@@ -977,11 +928,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo And drop without dropping events...
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -1003,11 +951,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 6 : Same name, different tableid, different numbered blobs
@@ -1083,11 +1028,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 6 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo And drop without dropping events...
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -1109,11 +1051,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 3 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 7 : Create a table with the same tableid + name, no blobs
@@ -1188,11 +1127,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo Drop the table, but fail to drop any event(s)
 set global debug='-d'; # Switch DEBUG/TRACING OFF
@@ -1214,11 +1150,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 --echo ----------------------------------------------------------------------
 --echo Case 8 : Create a table with the same tableid + name, blobs when previously no blobs
@@ -1293,12 +1226,8 @@ if ($SHOW_DETAIL)
   --exec echo Case 8 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 4 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
-
+--source ndb_binlog_count_event_t1.inc
 
 # Cases : 
 # 1: Same name
@@ -1322,11 +1251,8 @@ if ($SHOW_DETAIL)
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
   --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
 }
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 --echo Expecting 0 BLOB events for t1    
-# Remove whitespace
---replace_regex /^\s*\s*$/''/
---exec grep t1_ $MYSQLTEST_VARDIR/tmp.dat | wc -l
+--source ndb_binlog_count_event_t1.inc
 
 drop table test.synch;
 --remove_file $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
