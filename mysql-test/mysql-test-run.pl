@@ -872,7 +872,7 @@ sub run_test_server ($$$) {
 
                         my $exe;
                         if (defined $result->{'secondary_engine_srv_crash'}) {
-                          $exe = $ENV{'SECONDARY_ENGINE'};
+                          $exe = find_secondary_engine($bindir);
                         } else {
                           $exe = find_mysqld($basedir) || "";
                         }
