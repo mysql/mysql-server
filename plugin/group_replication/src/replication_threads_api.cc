@@ -316,7 +316,7 @@ int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
       std::stringstream err_msg_ss;
       err_msg_ss << "Got error: " << error
                  << "Please check the error log for more details.";
-      LogPluginErr(ERROR_LEVEL, ecode, err_msg_ss.str());
+      LogPluginErr(ERROR_LEVEL, ecode, err_msg_ss.str().c_str());
     }
   }
   return error;
