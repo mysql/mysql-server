@@ -71,6 +71,6 @@ void build_version(const std::string &progname, std::string *destination) {
   std::ostringstream output_buffer;
   output_buffer << progname << "  Ver " << MYSQL_SERVER_VERSION
                 << MYSQL_SERVER_SUFFIX_STR << " for " << SYSTEM_TYPE << " on "
-                << MACHINE_TYPE << " (" << MYSQL_COMPILATION_COMMENT << ")\n";
+                << MACHINE_TYPE << " (" << MYSQL_COMPILATION_COMMENT << ")";
   *destination = output_buffer.str();
 }
