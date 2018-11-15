@@ -141,10 +141,10 @@ inline size_t String::next_realloc_exp_size(size_t sz) {
 }
 
 /**
-  This function is used by the various append() member functions, to ensure
-  that append() has amortized constant cost. Once we have started to allocate
-  buffer on the heap, we increase the buffer size exponentially, rather
-  than linearly.
+  This function is used by the various append() and replace() member functions,
+  to ensure that functions have amortized constant cost.
+  Once we have started to allocate buffer on the heap, we increase the buffer
+  size exponentially, rather than linearly.
 
   @param alloc_length The requested string size in characters, excluding any
                       null terminator.
@@ -679,7 +679,7 @@ bool String::replace(size_t offset, size_t arg_length, const char *to,
               m_length - offset - arg_length);
     } else {
       if (diff) {
-        if (mem_realloc(m_length + diff)) return true;
+        if (mem_realloc_exp(m_length + diff)) return true;
         memmove(m_ptr + offset + to_length, m_ptr + offset + arg_length,
                 m_length - offset - arg_length);
       }
