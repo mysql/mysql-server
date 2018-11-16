@@ -474,6 +474,16 @@ enum enum_alter_inplace_result {
 */
 #define HA_SUPPORTS_DEFAULT_EXPRESSION (1LL << 51)
 
+/**
+  Handlers with this flag set do not support UPDATE operations.
+*/
+#define HA_UPDATE_NOT_SUPPORTED (1LL << 52)
+
+/**
+  Handlers with this flag set do not support DELETE operations.
+*/
+#define HA_DELETE_NOT_SUPPORTED (1LL << 53)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.

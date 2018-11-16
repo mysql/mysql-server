@@ -1721,4 +1721,111 @@ CREATE TABLE t2 SELECT * FROM t1;
 SELECT * FROM t2;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#28923281: UPDATE ON JSON COLUMN IN ARCHIVE ENGINE HITS AN ASSERTION
+--echo #
+CREATE TABLE t (j JSON) ENGINE=ARCHIVE;
+INSERT INTO t VALUES ('{}');
+--error ER_ILLEGAL_HA
+UPDATE t SET j = '[1]';
+SELECT * FROM t;
+DROP TABLE t;
+
+--echo #
+--echo # Verify that all UPDATE and DELETE operations on archive
+--echo # tables are rejected.
+--echo #
+CREATE TABLE archive_table (id INT, x INT) ENGINE=ARCHIVE;
+CREATE TABLE innodb_table (id INT PRIMARY KEY, x INT) ENGINE=InnoDB;
+CREATE VIEW v AS SELECT * FROM archive_table;
+
+--echo # Delete on empty tables should be rejected.
+--error ER_ILLEGAL_HA
+DELETE FROM archive_table;
+--error ER_ILLEGAL_HA
+DELETE FROM v;
+--error ER_ILLEGAL_HA
+DELETE t1, t2 FROM archive_table AS t1, innodb_table AS t2
+       WHERE t1.id = t2.id;
+--error ER_ILLEGAL_HA
+DELETE t1 FROM v AS t1, innodb_table AS t2 WHERE t1.id = t2.id;
+
+--echo # Update of empty tables should be rejected.
+--error ER_ILLEGAL_HA
+UPDATE archive_table SET x = 1000;
+--error ER_ILLEGAL_HA
+UPDATE archive_table AS t1, innodb_table AS t2
+       SET t1.x = 1000, t2.x = 2000 WHERE t1.id = t2.id;
+--error ER_ILLEGAL_HA
+UPDATE v SET x = 1000;
+--error ER_ILLEGAL_HA
+UPDATE v AS t1, innodb_table AS t2
+       SET t1.x = 1000, t2.x = 2000 WHERE t1.id = t2.id;
+
+INSERT INTO archive_table VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO innodb_table VALUES (1, 2), (3, 4), (5, 6);
+
+--echo # No-op updates should be rejected.
+--error ER_ILLEGAL_HA
+UPDATE archive_table SET x = 1 WHERE id = 1;
+--error ER_ILLEGAL_HA
+UPDATE archive_table SET x = x + 1 WHERE FALSE;
+--error ER_ILLEGAL_HA
+UPDATE archive_table AS t1, innodb_table AS t2
+       SET t1.x = 1, t2.x = 2
+       WHERE t1.id = t2.id AND t1.id = 1;
+--error ER_ILLEGAL_HA
+UPDATE v SET x = 1 WHERE id = 1;
+--error ER_ILLEGAL_HA
+UPDATE v AS t1, innodb_table AS t2
+       SET t1.x = 1, t2.x = 2
+       WHERE t1.id = t2.id AND t1.id = 1;
+
+--echo # Actual updates should be rejected.
+--error ER_ILLEGAL_HA
+UPDATE archive_table SET x = x + 1;
+--error ER_ILLEGAL_HA
+UPDATE archive_table SET x = NULL;
+--error ER_ILLEGAL_HA
+UPDATE archive_table AS t1, innodb_table AS t2
+       SET t1.x = t1.x + 1, t2.x = t2.x + 1
+       WHERE t1.id = t2.id AND t1.id = 1;
+--error ER_ILLEGAL_HA
+UPDATE v SET x = x + 1 WHERE id = 1;
+--error ER_ILLEGAL_HA
+UPDATE v AS t1, innodb_table AS t2
+       SET t1.x = t1.x + 1, t2.x = t2.x + 1
+       WHERE t1.id = t2.id AND t1.id = 1;
+
+SELECT * FROM archive_table ORDER BY id;
+SELECT * FROM innodb_table ORDER BY id;
+
+--echo # Allow multi-table updates if the archive table is only read from.
+UPDATE archive_table AS t1, innodb_table AS t2
+       SET t2.x = t2.x + 1 WHERE t1.id = t2.id;
+SELECT * FROM archive_table ORDER BY id;
+SELECT * FROM innodb_table ORDER BY id;
+
+--echo # Delete should be rejected.
+--error ER_ILLEGAL_HA
+DELETE FROM archive_table;
+--error ER_ILLEGAL_HA
+DELETE FROM v;
+--error ER_ILLEGAL_HA
+DELETE t1, t2 FROM archive_table AS t1, innodb_table AS t2
+       WHERE t1.id = t2.id;
+--error ER_ILLEGAL_HA
+DELETE t1 FROM v AS t1, innodb_table AS t2 WHERE t1.id = t2.id;
+
+SELECT * FROM archive_table ORDER BY id;
+SELECT * FROM innodb_table ORDER BY id;
+
+--echo # Delete is allowed if the archive table is only read from.
+DELETE t2 FROM archive_table AS t1, innodb_table AS t2 WHERE t1.id = t2.id;
+SELECT * FROM archive_table ORDER BY id;
+SELECT * FROM innodb_table ORDER BY id;
+
+DROP VIEW v;
+DROP TABLE archive_table, innodb_table;
+
 --source include/restore_default_binlog_format.inc

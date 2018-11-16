@@ -1413,6 +1413,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   for (TABLE_LIST *tl = select->leaf_tables; tl; tl = tl->next_leaf) {
     tl->updating = tl->map() & tables_for_update;
     if (tl->updating) {
+      // Cannot update a table if the storage engine does not support update.
+      if (tl->table->file->ha_table_flags() & HA_UPDATE_NOT_SUPPORTED) {
+        my_error(ER_ILLEGAL_HA, MYF(0), tl->table_name);
+        DBUG_RETURN(true);
+      }
+
       if ((tl->table->vfield || tl->table->gen_def_fields_ptr != nullptr) &&
           validate_gc_assignment(update_fields, update_value_list, tl->table))
         DBUG_RETURN(true); /* purecov: inspected */
