@@ -224,7 +224,7 @@ sub mtr_report_test ($) {
 
     if ($warnings) {
       mtr_report($report,
-                 "[ $retry$fail ]  Found warnings/errors in server log file!");
+                 "[ $retry$fail ]  Found warnings/errors in error log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
     } else {

@@ -209,6 +209,7 @@ our $opt_report_unstable_tests;
 our $opt_ssl;
 our $opt_suite_opt;
 our $opt_summary_report;
+our $opt_valgrind_secondary_engine;
 our $opt_vardir;
 our $opt_xml_report;
 
@@ -274,10 +275,10 @@ our $path_testlog;
 our $secondary_engine_plugin_dir;
 our $start_only;
 
-our $glob_debugger           = 0;
-our $group_replication       = 0;
-our $ndbcluster_enabled      = 0;
-our $ssl_supported           = 1;
+our $glob_debugger      = 0;
+our $group_replication  = 0;
+our $ndbcluster_enabled = 0;
+our $ssl_supported      = 1;
 
 our @share_locations;
 
@@ -1458,19 +1459,20 @@ sub command_line_setup {
     'strace-server'      => \$opt_strace_server,
 
     # Coverage, profiling etc
-    'callgrind'             => \$opt_callgrind,
-    'debug-sync-timeout=i'  => \$opt_debug_sync_timeout,
-    'gcov'                  => \$opt_gcov,
-    'gprof'                 => \$opt_gprof,
-    'helgrind'              => \$opt_helgrind,
-    'sanitize'              => \$opt_sanitize,
-    'valgrind-clients'      => \$opt_valgrind_clients,
-    'valgrind-mysqld'       => \$opt_valgrind_mysqld,
-    'valgrind-mysqltest'    => \$opt_valgrind_mysqltest,
-    'valgrind-option=s'     => \@valgrind_args,
-    'valgrind-path=s'       => \$opt_valgrind_path,
-    'valgrind|valgrind-all' => \$opt_valgrind,
-    'valgrind-options=s'    => sub {
+    'callgrind'                 => \$opt_callgrind,
+    'debug-sync-timeout=i'      => \$opt_debug_sync_timeout,
+    'gcov'                      => \$opt_gcov,
+    'gprof'                     => \$opt_gprof,
+    'helgrind'                  => \$opt_helgrind,
+    'sanitize'                  => \$opt_sanitize,
+    'valgrind-clients'          => \$opt_valgrind_clients,
+    'valgrind-mysqld'           => \$opt_valgrind_mysqld,
+    'valgrind-mysqltest'        => \$opt_valgrind_mysqltest,
+    'valgrind-option=s'         => \@valgrind_args,
+    'valgrind-path=s'           => \$opt_valgrind_path,
+    'valgrind-secondary-engine' => \$opt_valgrind_secondary_engine,
+    'valgrind|valgrind-all'     => \$opt_valgrind,
+    'valgrind-options=s'        => sub {
       my ($opt, $value) = @_;
       # Deprecated option unless it's what we know pushbuild uses
       if (option_equals($value, "--gen-suppressions=all --show-reachable=yes"))
@@ -2033,7 +2035,8 @@ sub command_line_setup {
   if (defined $mysql_version_extra &&
       $mysql_version_extra =~ /-tsan/) {
     # Turn off check testcases to save time
-    mtr_report("Turning off --check-testcases to save time when using thread sanitizer");
+    mtr_report(
+      "Turning off --check-testcases to save time when using thread sanitizer");
     $opt_check_testcases = 0;
   }
 
@@ -2900,18 +2903,26 @@ sub environment_setup {
   # for test cases
   $ENV{'VALGRIND_SERVER_TEST'} = $opt_valgrind_mysqld;
 
-  # Ask UBSAN to print stack traces, and to be fail-fast.
-  $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1,halt_on_error=1" if $opt_sanitize;
+  if ($secondary_engine_support) {
+    # Ask UBSAN to print stack traces.
+    $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1" if $opt_sanitize;
+  } else {
+    # Ask UBSAN to print stack traces, and to be fail-fast.
+    $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1,halt_on_error=1"
+      if $opt_sanitize;
+  }
 
   # Make sure LeakSanitizer exits if leaks are found
-  $ENV{'LSAN_OPTIONS'} = "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
+  $ENV{'LSAN_OPTIONS'} =
+    "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
     if $opt_sanitize;
 
   $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"
     if $opt_sanitize;
 
-  # The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
-  $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1" if $opt_sanitize;
+# The Thread Sanitizer allocator should return NULL instead of crashing on out-of-memory.
+  $ENV{'TSAN_OPTIONS'} = $ENV{'TSAN_OPTIONS'} . ",allocator_may_return_null=1"
+    if $opt_sanitize;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir = dirname($^X);
@@ -3428,7 +3439,7 @@ sub memcached_start {
   my $found_so = my_find_file(
     $bindir,
     [ "storage/ndb/memcache",    # source or build
-      "lib", "lib64",
+      "lib",       "lib64",
       "lib/mysql", "lib64/mysql"
     ],                           # install
     "ndb_engine.so",
@@ -3535,10 +3546,10 @@ sub memcached_load_metadata($) {
 
   my $sql_script = my_find_file(
     $bindir,
-    [ "share/mysql/memcache-api",    # RPM install
-      "share/mysql-8.0/memcache-api",# RPM (8.0)
-      "share/memcache-api",          # Other installs
-      "scripts"                      # Build tree
+    [ "share/mysql/memcache-api",        # RPM install
+      "share/mysql-8.0/memcache-api",    # RPM (8.0)
+      "share/memcache-api",              # Other installs
+      "scripts"                          # Build tree
     ],
     "ndb_memcache_metadata.sql",
     NOT_REQUIRED);
@@ -4593,10 +4604,10 @@ sub run_testcase ($) {
     if ($proc eq $test) {
       my $res = $test->exit_status();
 
-        if ($res == 0 and
-            $opt_warnings and
-            not defined $tinfo->{'skip_check_warnings'} and
-            check_warnings($tinfo)) {
+      if ($res == 0 and
+          $opt_warnings and
+          not defined $tinfo->{'skip_check_warnings'} and
+          check_warnings($tinfo)) {
         # Test case succeeded, but it has produced unexpected warnings,
         # continue in $res == 1
         $res = 1;
@@ -5140,6 +5151,7 @@ sub start_check_warnings ($$) {
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR} = $log_error;
   extract_warning_lines($log_error, $tinfo->{name});
+  extract_secondary_engine_warning_lines() if $secondary_engine_support;
 
   my $args;
   mtr_init_args(\$args);
