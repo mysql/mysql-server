@@ -544,6 +544,17 @@ IF(WITH_ASAN)
   ENDIF()
 ENDIF()
 
+OPTION(WITH_LSAN "Enable leak sanitizer" OFF)
+IF(WITH_LSAN)
+  MY_SANITIZER_CHECK("-fsanitize=leak"
+    TRUE WITH_LSAN_OK)
+  IF(NOT WITH_LSAN_OK)
+    MESSAGE(FATAL_ERROR "Do not know how to enable leak sanitizer")
+  ELSE()
+    SET(HAVE_LSAN 1)
+  ENDIF()
+ENDIF()
+
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
   MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"

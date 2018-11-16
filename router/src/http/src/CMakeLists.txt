@@ -71,7 +71,7 @@ ADD_EXECUTABLE(rest_cli
   rest_cli.cc)
 TARGET_LINK_LIBRARIES(rest_cli
   harness-library
-  http_client)
+  http_client ${CMAKE_THREAD_LIBS_INIT})
 
 INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}/;${LIBEVENT_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/harness/include/)

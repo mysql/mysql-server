@@ -3166,7 +3166,7 @@ static int check_enough_stack_size(int recurse_level) {
 
   THD *my_thd = current_thd;
   if (my_thd != NULL)
-    return check_stack_overrun(my_thd, STACK_MIN_SIZE * 2, &stack_top);
+    return check_stack_overrun(my_thd, STACK_MIN_SIZE * 4, &stack_top);
   return 0;
 }
 }  // extern "C"
@@ -9678,6 +9678,11 @@ static void set_server_version(void) {
   if (SERVER_VERSION_LENGTH - (end - server_version) >
       static_cast<int>(sizeof("-asan")))
     end = my_stpcpy(end, "-asan");
+#endif
+#ifdef HAVE_LSAN
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-lsan")))
+    end = my_stpcpy(end, "-lsan");
 #endif
 #ifdef HAVE_UBSAN
   if (SERVER_VERSION_LENGTH - (end - server_version) >

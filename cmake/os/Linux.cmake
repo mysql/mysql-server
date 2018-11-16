@@ -70,7 +70,11 @@ ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 # Ensure we have clean build for shared libraries
 # without unresolved symbols
 # Not supported with Sanitizers
-IF(NOT WITH_ASAN AND NOT WITH_MSAN AND NOT WITH_UBSAN AND NOT WITH_TSAN)
+IF(NOT WITH_ASAN AND
+   NOT WITH_LSAN AND
+   NOT WITH_MSAN AND
+   NOT WITH_TSAN AND
+   NOT WITH_UBSAN)
   SET(LINK_FLAG_NO_UNDEFINED "-Wl,--no-undefined")
 ENDIF()
 

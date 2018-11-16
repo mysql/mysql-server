@@ -228,6 +228,7 @@
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine ENABLED_PROFILING 1
 #cmakedefine HAVE_ASAN
+#cmakedefine HAVE_LSAN
 #cmakedefine HAVE_UBSAN
 #cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
