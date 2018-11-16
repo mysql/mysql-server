@@ -323,6 +323,7 @@ class Item_func_year final : public Item_int_func {
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool resolve_type(THD *) override {
     fix_char_length(4); /* 9999 */
+    unsigned_flag = true;
     maybe_null = true;
     return false;
   }

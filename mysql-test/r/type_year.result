@@ -353,3 +353,20 @@ y
 2155
 2155
 DROP TABLE t;
+#
+# Bug#28562930 AVG(YEAR(DATETIME_FIELD)) MAKES AN ERROR RESULT BEACUSE OF OVERFLOW
+#
+CREATE TABLE t1(id INT,
+name VARCHAR(10),
+class CHAR(10),
+date1 DATETIME);
+INSERT INTO t1 VALUES (1,'zhangsan','class1','2014-01-14 15:32:17'),
+(2,'lisi','class1','2013-12-14 10:21:27'),
+(3,'wangwu','class2','2003-05-21 08:25:14'),
+(4,'zhaoliu','class2','2001-07-19 09:35:18');
+SELECT COUNT(DISTINCT name), AVG(YEAR(date1)) AS aa, class
+FROM t1 GROUP BY class ORDER BY aa;
+COUNT(DISTINCT name)	aa	class
+2	2002.0000	class2
+2	2013.5000	class1
+DROP TABLE t1;
