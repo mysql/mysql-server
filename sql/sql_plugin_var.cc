@@ -276,9 +276,10 @@ bool sys_var_pluginvar::check_update_type(Item_result type) {
 }
 
 uchar *sys_var_pluginvar::real_value_ptr(THD *thd, enum_var_type type) {
-  DBUG_ASSERT(thd || (type == OPT_GLOBAL));
+  DBUG_ASSERT(thd || (type == OPT_GLOBAL) || (type == OPT_PERSIST));
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL) {
-    if (type == OPT_GLOBAL) thd = NULL;
+    /* scope of OPT_PERSIST is always GLOBAL */
+    if (type == OPT_GLOBAL || type == OPT_PERSIST) thd = NULL;
 
     return intern_sys_var_ptr(thd, *(int *)(plugin_var + 1), false);
   }
