@@ -152,21 +152,19 @@ call mtr.add_suppression("NDB: Failed to install table");
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_le >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 SHOW CREATE TABLE t_num;
 # The `t_datetime` table is not expected to be usable. It contains old
 # temporal types which have been removed in 8.0. The upgrade of the
 # table metadata is not supported
---error ER_NO
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t_datetime;
+SHOW WARNINGS;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---error ER_NO
+--error ER_NO_SUCH_TABLE
 SELECT * FROM t_datetime;
+SHOW WARNINGS;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
 SELECT * FROM t_string_2;
@@ -185,18 +183,16 @@ DROP TABLE t_num,t_string_1,t_string_2,t_gis;
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_data_be >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 SHOW CREATE TABLE t_num;
---error ER_NO
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t_datetime;
+SHOW WARNINGS;
 SHOW CREATE TABLE t_string_1;
 SHOW CREATE TABLE t_string_2;
 SHOW CREATE TABLE t_gis;
---error ER_NO
+--error ER_NO_SUCH_TABLE
 SELECT * FROM t_datetime;
+SHOW WARNINGS;
 SELECT t_pk,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num;
 SELECT t_pk,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1;
 SELECT * FROM t_string_2;

@@ -39,6 +39,8 @@ create table t1(id int primary key, val int)engine=ndb;
 ERROR HY000: Bad schema for mysql.ndb_replication table. Message: Unable to retrieve mysql.ndb_replication, logging and conflict r
 show warnings;
 Level	Code	Message
+Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
+Warning	1296	Failed to discover table 't1' from NDB
 Error	1625	Bad schema for mysql.ndb_replication table. Message: Unable to retrieve mysql.ndb_replication, logging and conflict r
 Error	1031	Table storage engine for 't1' doesn't have this option
 SET SESSION debug=@save_debug;

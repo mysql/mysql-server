@@ -510,11 +510,7 @@ a1 int primary key
 # take backup and drop the tables
 drop table db1.t2, db1.t1, db2.t1;
 # now try restoring only the database db2
-# restart
 # verify the tables present
-show tables from db2;
-Tables_in_db2
-t1
 show create table db2.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -523,14 +519,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table db2.t1;
 # restore particular table and check for fk problem
-# restart
 # verify the tables present
-show tables from db1;
-Tables_in_db1
-t1
-show tables from db2;
-Tables_in_db2
-t1
 show create table db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

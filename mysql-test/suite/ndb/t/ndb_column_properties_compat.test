@@ -10,10 +10,6 @@ CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 --exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 # Check for warnings of implicit conversion of COLUMN_FORMAT
 # after default has changed to DYNAMIC
 

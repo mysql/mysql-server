@@ -135,6 +135,9 @@ template bool Properties::get<bool>(const String_type &, bool *) const;
 template bool Properties::get<unsigned int>(const String_type &,
                                             unsigned int *) const;
 
+template bool Properties::get<unsigned long>(const String_type &,
+                                             unsigned long *) const;
+
 template bool Properties::get<unsigned long long>(const String_type &,
                                                   unsigned long long *) const;
 

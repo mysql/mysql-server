@@ -49,18 +49,11 @@ ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 # ndb suite tests
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
 ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_restore_undolog                 : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_parallel_undo_log               : Bug#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
 
-# Problem with restoring tables with obsolete metadata like old temporal types
-ndb.ndb_alter_table_backup              : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_dd_restore_check_tablespace_mdl : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_dd_restore_compat               : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_native_default_support          : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_wl946_pre                       : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_wl946_post                      : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
-ndb.ndb_restore_compat_downward         : Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
+# Problem with distribution of CREATE TABLE
+ndb.ndb_dd_restore_check_tablespace_mdl : Bug#28876892 SCHEMA DISTRIBUTION OF CREATE TABLE WITH DISK DATA AND RANGE PARTITIONING FAILS
 
 # Problem with ndb_index_stat tables missing from DD
 ndb.ndb_statistics0 : Bug#27543602 NDB_INDEX_STAT* TABLES ARE MISSING FROM DD AFTER AN INITIAL SYSTEM RESTART

@@ -19,13 +19,14 @@
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_le >> $NDB_TOOLS_OUTPUT 2>&1
 
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
+--disable_query_log
+call mtr.add_suppression("NDB: Table upgrade required");
+--enable_query_log
 
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
-SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
-DROP TABLE t1;
+SHOW WARNINGS;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
 
 #
 # Restore backup files (from big endian)
@@ -36,12 +37,8 @@ DROP TABLE t1;
 --exec $NDB_RESTORE -b 1 -n 1 -m -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/51_d2_be >> $NDB_TOOLS_OUTPUT 2>&1
 
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
-SELECT * FROM t1 WHERE a = 1 or a = 10 or a = 20 or a = 30 ORDER BY a;
-DROP TABLE t1;
---source suite/ndb/include/backup_restore_cleanup.inc
+SHOW WARNINGS;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT

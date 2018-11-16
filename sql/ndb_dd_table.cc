@@ -203,3 +203,39 @@ void ndb_dd_table_fix_partition_count(dd::Table* table_def,
   DBUG_ASSERT(ndb_num_partitions == table_def->partitions()->size());
   DBUG_VOID_RETURN;
 }
+
+// The key used to store the NDB table's previous mysql version in the
+// se_private_data field of DD
+static const char* previous_mysql_version_key = "previous_mysql_version";
+
+void ndb_dd_table_set_previous_mysql_version(dd::Table* table_def,
+                                             ulong previous_mysql_version)
+{
+  DBUG_ENTER("ndb_dd_table_set_previous_mysql_version");
+  DBUG_PRINT("enter", ("previous_mysql_version: %lu", previous_mysql_version));
+
+  table_def->se_private_data().set(previous_mysql_version_key,
+                                   previous_mysql_version);
+  DBUG_VOID_RETURN;
+}
+
+bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
+                                             ulong& previous_mysql_version)
+{
+  DBUG_ENTER("ndb_dd_table_get_previous_mysql_version");
+
+  if (!table_def->se_private_data().exists(previous_mysql_version_key))
+  {
+    DBUG_RETURN(false);
+  }
+
+  if (table_def->se_private_data().get(previous_mysql_version_key,
+                                       &previous_mysql_version))
+  {
+    DBUG_PRINT("error", ("Table definition didn't have a valid number for '%s'",
+                         previous_mysql_version_key));
+    DBUG_RETURN(false);
+  }
+  DBUG_PRINT("exit", ("previous_mysql_version: %lu", previous_mysql_version));
+  DBUG_RETURN(true);
+}

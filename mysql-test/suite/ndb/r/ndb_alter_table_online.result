@@ -536,7 +536,6 @@ a	b	c	d	e	f	g
 * Backup and restore tables w/ new column
 *********************************
 DROP TABLE t1;
-# restart
 ForceVarPart: 1
 DROP TABLE t1;
 *********************************

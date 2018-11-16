@@ -59,10 +59,6 @@ drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
 # checksum table tab1, tab2;
 select * from tab1 order by a;
@@ -81,13 +77,11 @@ drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db2>> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 use db2;
 # checksum table tab1, tab2;
 select * from tab1 order by a;
@@ -101,18 +95,16 @@ drop table db2.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2>> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
 # checksum table tab1, tab2;
 select * from tab1 order by a;
 select * from tab2 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 drop table db1.tab1, db1.tab2;
 
@@ -122,16 +114,16 @@ drop table db1.tab1, db1.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1>> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2,db1 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 --echo **********************************
 --echo Include only db1.tab1 and db2.tab2
@@ -140,19 +132,15 @@ show tables;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 # checksum table tab1;
 select * from tab1 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
 # checksum table tab2;
 select * from tab2 order by a;
 
@@ -166,19 +154,15 @@ drop table db1.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1,db2.tab2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
 # checksum table tab2;
 select * from tab2 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 # checksum table tab1;
 select * from tab1 order by a;
 
@@ -192,19 +176,17 @@ drop table db1.tab2, db2.tab1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id  --exclude-databases db1 --include-tables db1.tab1>> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 # checksum table tab1;
 select * from tab1 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 drop table db1.tab1;
 
@@ -215,19 +197,17 @@ drop table db1.tab1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id  --include-databases db1 --exclude-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id  --include-databases db1 --exclude_tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
 # checksum table tab2;
 select * from tab2 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 drop table db1.tab2;
 
@@ -238,19 +218,17 @@ drop table db1.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --include-tables db1.tab1 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 # checksum table tab1;
 select * from tab1 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 drop table db1.tab1;
 
@@ -261,13 +239,11 @@ drop table db1.tab1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-databases db2 --include-databases db2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 use db2;
 # checksum table tab1, tab2;
 select * from tab1 order by a;
@@ -282,16 +258,12 @@ drop table db2.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-databases db1 --include-tables db2.tab1 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+show create table tab1;
+show create table tab2;
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 # checksum table tab1;
 select * from tab1 order by a;
 
@@ -307,11 +279,15 @@ drop table db1.tab1,db1.tab2,db2.tab1;
 
 show databases like "db%";
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 --echo *********************
 --echo Exclude unknown table
@@ -319,10 +295,6 @@ show tables;
 --echo Should result in everything restored
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.unhappy_customer >> $NDB_TOOLS_OUTPUT
-
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
 
 show databases like "db%";
 
@@ -345,19 +317,16 @@ drop table db2.tab1, db2.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --include-tables db1.tab1 --include-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+show create table tab1;
 # checksum table tab2;
 select * from tab2 order by a;
 
 use db2;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 
 drop table db1.tab1, db1.tab2;
 
@@ -368,16 +337,14 @@ drop table db1.tab1, db1.tab2;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id --exclude-tables db1.tab1 --exclude-tables db1.tab2 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 use db1;
---sorted_result
-show tables;
+--error ER_NO_SUCH_TABLE
+show create table tab1;
+--error ER_NO_SUCH_TABLE
+show create table tab2;
 use db2;
---sorted_result
-show tables;
+show create table tab1;
+show create table tab2;
 
 drop table db2.tab1, db2.tab2;
 

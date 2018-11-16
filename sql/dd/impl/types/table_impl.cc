@@ -78,7 +78,7 @@ class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_se_private_data_keys = {
     // NDB keys:
-    "object_version",
+    "object_version", "previous_mysql_version",
     // InnoDB keys:
     "autoinc", "data_directory", "discard", "instant_col", "version"};
 

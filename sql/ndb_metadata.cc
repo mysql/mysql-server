@@ -365,7 +365,17 @@ bool Ndb_metadata::compare_table_def(const dd::Table* t1, const dd::Table* t2)
     {
       t2->options().get(key_storage, &t2_storage);
     }
-    ctx.compare("options.storage", t1_storage, t2_storage);
+    // There's a known bug in tables created in mysql versions <= 5.1.57 where
+    // the storage type of the table was not stored in NDB Dictionary but was
+    // present in the .frm. Thus, we accept that this is a known mismatch and
+    // skip the comparison of this attribute for tables created using earlier
+    // versions
+    ulong t1_previous_mysql_version = INT_MAX64;
+    if (!ndb_dd_table_get_previous_mysql_version(t1, t1_previous_mysql_version)
+        || t1_previous_mysql_version > 50157)
+    {
+      ctx.compare("options.storage", t1_storage, t2_storage);
+    }
   }
 
   if (check_partitioning)

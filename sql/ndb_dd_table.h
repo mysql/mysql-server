@@ -25,6 +25,8 @@
 #ifndef NDB_DD_TABLE_H
 #define NDB_DD_TABLE_H
 
+#include <my_inttypes.h>  // ulong
+
 #include "sql/dd/string_type.h"
 
 namespace dd {
@@ -99,5 +101,19 @@ bool ndb_dd_table_check_partition_count(const dd::Table* table_def,
 */
 void ndb_dd_table_fix_partition_count(dd::Table* table_def,
                                       size_t ndb_num_partitions);
+
+/*
+  Save the previous mysql version of the table. Applicable only for tables that
+  have been upgraded
+*/
+void ndb_dd_table_set_previous_mysql_version(dd::Table* table_def,
+                                             ulong previous_mysql_version);
+
+/*
+  Return the previous mysql version of the table. Returns false if
+  previous_mysql_version is not set or invalid, true on success
+*/
+bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
+                                             ulong& previous_mysql_version);
 
 #endif

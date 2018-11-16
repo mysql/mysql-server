@@ -127,9 +127,9 @@ SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c,
 --echo * Alter table with default value can fail safely
 --echo ********************************************************
 --disable_warnings
---error 1060
+--error ER_DUP_FIELDNAME
 ALTER TABLE t1 ADD COLUMN ch2 CHAR(30) DEFAULT "alter table";
---error 1067
+--error ER_INVALID_DEFAULT
 ALTER TABLE t1 ADD COLUMN ch3 CHAR(3) DEFAULT "alter table";
 INSERT INTO t1 VALUES();
 --enable_warnings
@@ -145,22 +145,13 @@ SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c,
 --echo * The tables with default values BACKUP and RESTORE test
 --echo ********************************************************
 --source include/ndb_backup.inc
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE t1, bit1;
 
 --echo ********************************************************
 --echo * Begin to restore data from backup 
 --echo ********************************************************
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -A -m  -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
-
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
-# Turn off STRICT mode since test intentionally generate warnings
-# while inserting rows without default values.
-# NOTE! one test at the end turns STRICT back on for a while
---source suite/ndb/include/turn_off_strict_sql_mode.inc
 
 --let $ndb_desc_opts= -d mysqltest t1
 --source suite/ndb/include/ndb_desc_print.inc
@@ -177,20 +168,16 @@ INSERT INTO bit1(pk, b5) VALUES(99, B'11111111');
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 --replace_column 12 CURRENT_TIMESTAMP
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE t1, bit1;
 
 
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -A -m  -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -A -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 --replace_column 1 MAX_VALUE 12 CURRENT_TIMESTAMP
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 WHERE i >= (SELECT MAX(i) FROM t1) ORDER BY i;
 
-DROP TABLE IF EXISTS t1, bit1;
+DROP TABLE t1, bit1;
 DROP DATABASE mysqltest;
 
 ###############################################################################
@@ -222,46 +209,21 @@ DROP DATABASE mysqltest;
 
 USE test;
 
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 # SHOW CREATE TABLE t1; # Disabled til bug#53539 fixed as it show junk on big-endian
 --disable_warnings
 SHOW CREATE TABLE bit1;
 --replace_column 12 CURRENT_TIMESTAMP
 --enable_warnings
+# The `t1` table is not expected to be usable. It contains old temporal
+# types which have been removed in 8.0. The upgrade of the table 
+# metadata is not supported
+--disable_query_log
+call mtr.add_suppression("NDB: Table upgrade required");
+--enable_query_log
+--error ER_NO_SUCH_TABLE
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+SHOW WARNINGS;
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
-
-# bug#53539 workaround - overwrites bad default values from frm in 
-# opposite-byte-order case.
-#
-# As there were no partition spec in the restored backup,
-# we also has to set that as part of alter table to get 
-# a partitioning independent of #LDMs
-# (Keep the 2 partitions as in the backup image)
-ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6,
-               CHANGE COLUMN f f FLOAT NOT NULL DEFAULT 6.6,
-               CHANGE COLUMN d d DOUBLE DEFAULT 8.8
-               PARTITION BY KEY () PARTITIONS 2;
-
-# Show that the MySQL defaults are now ok.
---disable_warnings
-SHOW CREATE TABLE t1;
---enable_warnings
-
-# Show that the defaults are now native
---let $ndb_desc_opts= -d test t1
---source suite/ndb/include/ndb_desc_print.inc
-
---disable_warnings
-INSERT INTO t1 VALUES();
-UPDATE t1 SET ch = "RESTORE FROM 6.3" WHERE i = 12;
-REPLACE INTO t1(i, j, ch) VALUES(20, 20, "RESTORE FROM 6.3");
---enable_warnings
---replace_column 12 CURRENT_TIMESTAMP
-SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
 
 # Show that table with MySQL, but no native defaults is still handled
 # correctly.
@@ -271,29 +233,8 @@ UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
 REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 
-# Following commented-out as it's done above due to bug#53539
-#########################################################################
-# OFFLINE ALTER OF 'OLD' TABLE WITH NO DEFAULTS TO 'NEW' TABLE 
-# WITH NATIVE DEFAULTS. (This is done above with bug#53539 workaround)
-#########################################################################
-#--echo ********************************************************************************
-#--echo * Alter table restoring from 6.3 backup to new table with native default support
-#--echo ********************************************************************************
-#--let $ndb_desc_opts= -d test t1
-#--source suite/ndb/include/ndb_desc_print.inc
-#
-#ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6;
-#
-#--let $ndb_desc_opts= -d test t1
-#--source suite/ndb/include/ndb_desc_print.inc
-
---disable_warnings
-INSERT INTO t1(i, ch) VALUES(99, "native default support");
---enable_warnings
---replace_column 12 CURRENT_TIMESTAMP
-SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
-
-DROP TABLE IF EXISTS t1, bit1;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+DROP TABLE bit1;
 --echo *************************************************************
 --echo * Test adding a unique index to a column with a default value
 --echo *************************************************************
@@ -305,7 +246,7 @@ CREATE TABLE t2(
   UNIQUE INDEX t2_unique_index(j) 
 )ENGINE=NDB PARTITION BY KEY() PARTITIONS 8;
 INSERT INTO t2 VALUES();
---error 1062
+--error ER_DUP_ENTRY
 INSERT INTO t2 VALUES();
 INSERT INTO t2 VALUES(10, 10, 10.0, 10.0);
 SELECT * FROM t2 ORDER BY i;
@@ -326,7 +267,7 @@ SELECT * FROM t2 ORDER BY i;
 --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
 
-DROP TABLE IF EXISTS t2;
+DROP TABLE t2;
 
 --echo **************************************************************
 --echo * Test not null-after-defaults example that failed previously

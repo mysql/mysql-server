@@ -132,15 +132,8 @@ create table t11 engine=myisam as select * from t11_c;
 ForceVarPart: 0
 ForceVarPart: 1
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-# restart
 ForceVarPart: 0
 ForceVarPart: 1
-select TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE
-from information_schema.columns where table_name = "t1_c";
-TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	DATA_TYPE
-test	t1_c	capgoaledatta	1	mediumint
-test	t1_c	goaledatta	2	char
-test	t1_c	maturegarbagefa	3	varchar
 select count(*) from t1;
 count(*)
 5
@@ -308,7 +301,6 @@ AUTO_INCREMENT
 ALTER TABLE t7_c
 PARTITION BY LINEAR KEY (`dardtestard`);
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-# restart
 select count(*) from t1;
 count(*)
 5
@@ -431,7 +423,6 @@ select * from t11_c) a;
 count(*)
 1
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c,t11_c;
-# restart
 select count(*) from t1;
 count(*)
 5
@@ -571,7 +562,6 @@ c1 int primary key, c2 char(10), c3 varchar(10)
 INSERT INTO t11_c VALUES(1, "aaaaa", "bbbbb"), (2, "ccccc", "ddddd"), (3, "eeeee","fffff");
 INSERT INTO t12_c VALUES(4, "ggggg", "hhhhh"), (5, "iiiii", "jjjjj"), (6, "kkkkk","lllll");
 drop table t2_c,t11_c,t12_c;
-# restart
 SELECT * FROM t11_c ORDER BY c1;
 c1	c2	c3
 1	aaaaa	bbbbb
@@ -597,7 +587,6 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-# restart
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -606,7 +595,6 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=200 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
-# restart
 drop table t1;
 create table t1 (a int, b int, c int not null, 
 primary key (a) using hash, unique(c) using hash)
@@ -724,7 +712,6 @@ use test;
 create table t1(id int primary key, val int unique) engine=ndb;
 drop table t1;
 delete from mysql.ndb_apply_status;
-# restart
 select count(1) from mysql.ndb_apply_status where server_id=0;
 count(1)
 1

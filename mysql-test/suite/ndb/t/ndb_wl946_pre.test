@@ -2,10 +2,6 @@
 --source suite/ndb/include/have_little_endian.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
---disable_warnings
-drop table if exists t1;
---enable_warnings
-
 # runs before and after wl#946 / wl#6231
 # result file is same (avoid ndb_desc if new types are possible)
 # also creates a backup used in ndb_wl946_post.test
@@ -18,9 +14,7 @@ select @@session.time_zone;
 --let $prec=
 --let $frac=
 --source ndb_wl946_create.inc
---disable_warnings
 show create table t1;
---enable_warnings
 
 --echo # test defaults
 insert into t1 (a) values (0);
@@ -40,8 +34,8 @@ select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 --echo # index queries
 --source ndb_wl946_pre_query.inc
 
---echo # check results via myisam
-alter table t1 engine=myisam;
+--echo # check results via innodb
+alter table t1 engine=innodb;
 show create table t1;
 --enable_warnings
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -53,13 +47,7 @@ drop table t1;
 --echo # restore meta from backup
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m --print-meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
---disable_warnings
 show create table t1;
---enable_warnings
 
 --echo # restore data from backup
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -74,10 +62,6 @@ drop table t1;
 --echo # restore meta from wl946_pre
 --exec $NDB_RESTORE -b 1 -n 1 -m --print-meta $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 # datetime,timestamp default wrong on solaris (probably bug#53818)
 # show create table t1;
 # ndb_restore creates old types
@@ -89,14 +73,19 @@ let $mysqld_name=mysqld.1.1;
 --exec $NDB_RESTORE -b 1 -n 2 -r $NDB_SAVED_BACKUPS/wl946_pre >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
+# The `t1` table is not expected to be usable. It contains old
+# temporal types which have been removed in 8.0. The upgrade of the
+# table metadata is not supported
+--disable_query_log
+call mtr.add_suppression("NDB: Table upgrade required");
+--enable_query_log
+--error ER_NO_SUCH_TABLE
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
-
---echo # index queries
---source ndb_wl946_pre_query.inc
+SHOW WARNINGS;
 
 set time_zone = default;
 select @@session.time_zone;
 
-drop table t1;
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

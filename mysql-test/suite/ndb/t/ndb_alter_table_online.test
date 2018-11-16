@@ -522,10 +522,6 @@ DROP TABLE t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
 source show_varpart.inc;
 
 DROP TABLE t1;

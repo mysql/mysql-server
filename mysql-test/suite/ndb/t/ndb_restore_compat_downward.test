@@ -3,11 +3,10 @@
 ######################################################################
 
 -- source include/have_ndb.inc
--- source include/have_case_sensitive_file_system.inc
--- source suite/ndb/include/backup_restore_setup.inc
-
 # This test currently requires case sensitive file system as the tables
 # are originally stored with uppercase
+-- source include/have_case_sensitive_file_system.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 #
 # Bug #18594 ndb_restore log boken in 5.1
@@ -18,10 +17,7 @@ CREATE DATABASE BANK default charset=latin1 default collate=latin1_bin;
 --exec $NDB_RESTORE -e -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/51 >> $NDB_TOOLS_OUTPUT
 USE BANK;
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
+SHOW CREATE TABLE ACCOUNT_TYPE;
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
 SELECT COUNT(*) FROM TRANSACTION;
@@ -29,11 +25,21 @@ SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
 SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
 
 # Check that force varpart is set by ndb_restore
---exec $NDB_DESC --no-defaults -d BANK GL | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK ACCOUNT | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK TRANSACTION | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
+let $show_varpart_db=BANK;
+let $show_varpart_table=GL;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=ACCOUNT;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=TRANSACTION;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=SYSTEM_VALUES;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=ACCOUNT_TYPE;
+--source show_varpart.inc
 
 #
 # verify restore of 5.0 backup
@@ -47,11 +53,21 @@ TRUNCATE SYSTEM_VALUES;
 TRUNCATE ACCOUNT_TYPE;
 
 # Check that force varpart is not changed by truncate
---exec $NDB_DESC --no-defaults -d BANK GL | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK ACCOUNT | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK TRANSACTION | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK SYSTEM_VALUES | grep ForceVarPart
---exec $NDB_DESC --no-defaults -d BANK ACCOUNT_TYPE | grep ForceVarPart
+let $show_varpart_db=BANK;
+let $show_varpart_table=GL;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=ACCOUNT;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=TRANSACTION;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=SYSTEM_VALUES;
+--source show_varpart.inc
+let $show_varpart_db=BANK;
+let $show_varpart_table=ACCOUNT_TYPE;
+--source show_varpart.inc
 
 # Restore data
 --exec $NDB_RESTORE -b 1 -n 1 -p 1 -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
@@ -66,13 +82,9 @@ SELECT * FROM mysql.ndb_apply_status WHERE server_id=0;
 --exec $NDB_RESTORE -b 2 -n 1 -m -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 2 -n 2 -p 1 -s -r $NDB_SAVED_BACKUPS/50 >> $NDB_TOOLS_OUTPUT
 
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
-
-SELECT * FROM DESCRIPTION ORDER BY USERNAME;
---exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep SHORT_VAR
---exec $NDB_DESC --no-defaults -d BANK DESCRIPTION | grep MEDIUM_VAR
+let $show_attributes_db=BANK;
+let $show_attributes_table=DESCRIPTION;
+--source show_attributes.inc
 
 # Check backup in read-packed format
 DROP TABLE GL;
@@ -83,10 +95,6 @@ DROP TABLE ACCOUNT_TYPE;
 
 --exec $NDB_RESTORE -b 1 -n 2 -m $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b 1 -n 2 -p 1 -r $NDB_SAVED_BACKUPS/packed >> $NDB_TOOLS_OUTPUT
-
-# Restart mysqld to trigger schema distribution synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
 
 SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
 SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
@@ -107,5 +115,4 @@ drop table t1;
 
 --error 0
 --exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
---source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

@@ -13276,7 +13276,8 @@ static int ndbcluster_close_connection(handlerton*, THD *thd)
            table and any related objects are installed.
 
   @note The caller does not check the return code other
-        than zero or not.
+        than zero or not. All failures are mapped to the
+        ER_NO_SUCH_TABLE error
 */
 
 static
@@ -13288,9 +13289,15 @@ int ndbcluster_discover(handlerton*, THD* thd,
   DBUG_ENTER("ndbcluster_discover");
   DBUG_PRINT("enter", ("db: %s, name: %s", db, name));
 
-  Ndb* ndb;
-  if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  Ndb* ndb = check_ndb_in_thd(thd);
+  if (ndb == nullptr)
+  {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
+                        "Failed to discover table '%s' from NDB, could not "
+                        "connect to storage engine", name);
+    DBUG_RETURN(1);
+  }
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
 
 #ifndef BUG27543602
   // Temporary workaround for Bug 27543602
@@ -13298,7 +13305,6 @@ int ndbcluster_discover(handlerton*, THD* thd,
       (strcmp("ndb_index_stat_head", name) == 0 ||
        strcmp("ndb_index_stat_sample", name) == 0))
   {
-    Thd_ndb *thd_ndb= get_thd_ndb(thd);
     thd_ndb->push_warning("The table '%s' exists but cannot be installed into "
                           "DD. The table can still be accessed using NDB tools",
                           name);
@@ -13308,13 +13314,15 @@ int ndbcluster_discover(handlerton*, THD* thd,
 
   if (ndb->setDatabaseName(db))
   {
-    ERR_RETURN(ndb->getNdbError());
+    thd_ndb->push_ndb_error_warning(ndb->getNdbError());
+    thd_ndb->push_warning("Failed to discover table '%s' from NDB", name);
+    DBUG_RETURN(1);
   }
 
   NDBDICT* dict= ndb->getDictionary();
   Ndb_table_guard ndbtab_g(dict, name);
-  const NDBTAB *tab= ndbtab_g.get_table();
-  if (!tab)
+  const NDBTAB *ndbtab= ndbtab_g.get_table();
+  if (ndbtab == nullptr)
   {
     // Could not open the table from NDB
     const NdbError err= dict->getNdbError();
@@ -13325,15 +13333,12 @@ int ndbcluster_discover(handlerton*, THD* thd,
       DBUG_RETURN(1);
     }
 
-    // Got an unexpected error, it's unknown if the table exists or
-    // not but unfortunately there is no way to return such information
-    // to the caller.
-    DBUG_PRINT("error", ("Got unexpected error when trying to open table "
-                         "from NDB, error %u", err.code));
+    thd_ndb->push_ndb_error_warning(err);
+    thd_ndb->push_warning("Failed to discover table '%s' from NDB", name);
     DBUG_RETURN(1);
   }
 
-  DBUG_PRINT("info", ("Found table '%s'", tab->getName()));
+  DBUG_PRINT("info", ("Found table '%s'", ndbtab->getName()));
 
   // Magically detect which context this function is called in by
   // checking which kind of metadata locks are held on the table name.
@@ -13361,13 +13366,15 @@ int ndbcluster_discover(handlerton*, THD* thd,
                                                            MDL_EXCLUSIVE));
 
   // Don't allow discover unless ndb_schema distribution is ready and
-  // "schema distribution synchronization" have completed(which currently
-  // can be checked using ndb_binlog_is_read_only()).
-  // The user who want to use this table simply have to wait
+  // "schema synchronization" have completed(which currently can be
+  // checked using ndb_binlog_is_read_only()). The user who wants to use
+  // this table simply has to wait
   if (!ndb_schema_dist_is_ready() ||
       ndb_binlog_is_read_only())
   {
-    // Can't discover, table is not available yet
+    // Can't discover, schema distribution is not ready
+    thd_ndb->push_warning("Failed to discover table '%s' from NDB, schema "
+                          "distribution is not ready", name);
     DBUG_RETURN(1);
   }
 
@@ -13375,54 +13382,56 @@ int ndbcluster_discover(handlerton*, THD* thd,
     Uint32 version;
     void* unpacked_data;
     Uint32 unpacked_len;
-    const int get_result =
-        tab->getExtraMetadata(version,
-                              &unpacked_data, &unpacked_len);
-    if (get_result != 0)
+    if (ndbtab->getExtraMetadata(version,
+                                 &unpacked_data, &unpacked_len) != 0)
     {
-      DBUG_PRINT("error", ("Could not get extra metadata, error: %d",
-                           get_result));
+      thd_ndb->push_warning("Failed to discover table '%s' from NDB, could not "
+                            "get extra metadata", name);
       DBUG_RETURN(1);
     }
+
+    Ndb_dd_client dd_client(thd);
 
     if (version == 1)
     {
-      // Upgrade of tables with version 1 extra metadata should have
-      // occurred much earlier during startup. Hitting this path
-      // means that something has gone wrong with upgrade of the
-      // table. It's likely the same error will occur if we attempt
-      // to upgrade again so return an error instead
-      my_printf_error(ER_NO,
-                      "Failed to install table '%s' with extra metadata version"
-                      " %d", MYF(0), name, version);
-
-      DBUG_RETURN(1); // Could not discover table
+      // Upgrade the "old" metadata and install the table into DD,
+      // don't use force_overwrite since this function would never
+      // have been called unless the table didn't exist
+      if (!dd_client.migrate_table(db, name, static_cast<const unsigned char*>
+                                   (unpacked_data), unpacked_len, false))
+      {
+        thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
+                              "not upgrade table with extra metadata version 1",
+                              name);
+        ndbtab_g.invalidate();
+        free(unpacked_data);
+        DBUG_RETURN(1);
+      }
     }
-
-    // Assign the unpacked data to sdi_t(which is string data type)
-    // then release the unpacked data
-    dd::sdi_t sdi;
-    sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
-    free(unpacked_data);
-
-    // Install the table into DD, don't use force_overwrite since
-    // this function would never have been called unless the table
-    // didn't exist
-    Ndb_dd_client dd_client(thd);
-
-    if (!dd_client.install_table(db, name, sdi,
-                                 tab->getObjectId(), tab->getObjectVersion(),
-                                 tab->getPartitionCount(), false))
+    else
     {
-      // Table existed in NDB but it could not be inserted into DD
-      DBUG_ASSERT(false);
-      DBUG_RETURN(1);
+      // Assign the unpacked data to sdi_t(which is string data type)
+      dd::sdi_t sdi;
+      sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+      // Install the table into DD, don't use force_overwrite since
+      // this function would never have been called unless the table
+      // didn't exist
+      if (!dd_client.install_table(db, name, sdi, ndbtab->getObjectId(),
+                                   ndbtab->getObjectVersion(),
+                                   ndbtab->getPartitionCount(), false))
+      {
+        // Table existed in NDB but it could not be inserted into DD
+        thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
+                              "not install table in DD", name);
+        ndbtab_g.invalidate();
+        free(unpacked_data);
+        DBUG_RETURN(1);
+      }
     }
-
     // NOTE! It might be possible to not commit the transaction
     // here, assuming the caller would then commit or rollback.
     dd_client.commit();
-
+    free(unpacked_data);
   }
 
   // Don't return any sdi in order to indicate that table definitions exists
@@ -19121,6 +19130,10 @@ ha_ndbcluster::upgrade_table(THD* thd,
     'varpart_reference' which isn't available earlier upstream
   */
   ndb_dd_table_set_row_format(dd_table, ndbtab->getForceVarPart());
+
+  // Set the previous mysql version of the table i.e. mysql version
+  // from which the table is being upgraded
+  ndb_dd_table_set_previous_mysql_version(dd_table, table->s->mysql_version);
 
   return false;
 }

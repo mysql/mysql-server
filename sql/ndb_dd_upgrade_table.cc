@@ -68,6 +68,8 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                       // mysql_real_data_home
 #include "sql/ndb_log.h"
+#include "sql/ndb_thd.h"
+#include "sql/ndb_thd_ndb.h"                  // Thd_ndb
 #include "sql/parse_file.h"                   // File_option
 #include "sql/partition_element.h"
 #include "sql/partition_info.h"               // partition_info
@@ -779,6 +781,9 @@ bool migrate_table_to_dd(THD *thd,
     else
       ndb_log_error("Table upgrade required. Please do \"REPAIR TABLE `%s`\" "
                     "or dump/reload to fix it", table_name.c_str());
+    Thd_ndb *thd_ndb = get_thd_ndb(thd);
+    thd_ndb->push_warning("Table definition contains obsolete data types such "
+                          "as old temporal or decimal types");
     DBUG_RETURN(false);
   }
 
