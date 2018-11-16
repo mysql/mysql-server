@@ -475,7 +475,6 @@ struct IO_CACHE /* Used when cacheing files */
   bool alloced_buffer{false};
 };
 
-typedef int (*qsort_cmp)(const void *, const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 /*
