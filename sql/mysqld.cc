@@ -823,7 +823,6 @@ static PSI_mutex_key key_LOCK_password_reuse_interval;
 static PSI_mutex_key key_LOCK_sql_rand;
 static PSI_mutex_key key_LOCK_log_throttle_qni;
 static PSI_mutex_key key_LOCK_reset_gtid_table;
-static PSI_mutex_key key_LOCK_offline_mode;
 static PSI_mutex_key key_LOCK_compress_gtid_table;
 static PSI_mutex_key key_LOCK_collect_instance_log;
 static PSI_mutex_key key_BINLOG_LOCK_commit;
@@ -996,7 +995,7 @@ bool lower_case_file_system = 0;
 bool opt_large_pages = 0;
 bool opt_super_large_pages = 0;
 bool opt_myisam_use_mmap = 0;
-bool offline_mode = 0;
+std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 volatile bool password_require_current = false;
@@ -1273,7 +1272,6 @@ mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_slave_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
-mysql_mutex_t LOCK_offline_mode;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
@@ -2228,7 +2226,6 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_slave_trans_dep_tracker);
   mysql_mutex_destroy(&LOCK_error_messages);
-  mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
   mysql_mutex_destroy(&LOCK_server_started);
@@ -4369,8 +4366,6 @@ static int init_thread_environment() {
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_sql_rand, &LOCK_sql_rand, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_log_throttle_qni, &LOCK_log_throttle_qni,
-                   MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_offline_mode, &LOCK_offline_mode,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_default_password_lifetime,
                    &LOCK_default_password_lifetime, MY_MUTEX_INIT_FAST);
@@ -8684,6 +8679,7 @@ static int mysql_init_variables() {
   opt_endinfo = using_udf_functions = 0;
   opt_using_transactions = 0;
   set_connection_events_loop_aborted(false);
+  set_mysqld_offline_mode(false);
   server_operational_state = SERVER_BOOTING;
   aborted_threads = 0;
   delayed_insert_threads = delayed_insert_writes = delayed_rows_in_use = 0;
@@ -10286,7 +10282,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

@@ -6017,17 +6017,23 @@ static Sys_var_bool Sys_session_track_state_change(
 
 static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
   DBUG_ENTER("handle_offline_mode");
-  if (offline_mode == true) killall_non_super_threads(thd);
+  DEBUG_SYNC(thd, "after_lock_offline_mode_acquire");
+
+  if (mysqld_offline_mode()) {
+    // Unlock the global system varaible lock as kill holds LOCK_thd_data.
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    killall_non_super_threads(thd);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+  }
+
   DBUG_RETURN(false);
 }
 
-static PolyLock_mutex PLock_offline_mode(&LOCK_offline_mode);
 static Sys_var_bool Sys_offline_mode("offline_mode",
                                      "Make the server into offline mode",
                                      GLOBAL_VAR(offline_mode),
                                      CMD_LINE(OPT_ARG), DEFAULT(false),
-                                     &PLock_offline_mode, NOT_IN_BINLOG,
-                                     ON_CHECK(0),
+                                     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
                                      ON_UPDATE(handle_offline_mode));
 
 static Sys_var_bool Sys_avoid_temporal_upgrade(

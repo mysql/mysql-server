@@ -77,5 +77,22 @@ disconnect conu4;
 DROP USER 'user1'@'localhost';
 DROP USER 'user2'@'localhost';
 DROP USER 'user3'@'localhost';
+#
+#  BUG#28761869 - LOCK_ORDER: DEADLOCK INVOLVING LOCK_OFFLINE_MODE.
+#
+connect con1, localhost, root,,;
+SET DEBUG_SYNC='after_lock_offline_mode_acquire SIGNAL lock_offline_mode_acquired WAIT_FOR lock_thd_data_acquired';
+SET GLOBAL offline_mode=ON;;
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR lock_offline_mode_acquired';
+SET DEBUG_SYNC='materialize_session_variable_array_THD_locked SIGNAL lock_thd_data_acquired';
+SHOW VARIABLES LIKE 'offline_mode';;
+connection con1;
+# reaping execution status for SET GLOBAL offline_mode=ON;
+connection default;
+Variable_name	Value
+offline_mode	ON
+disconnect con1;
+SET DEBUG_SYNC='RESET';
 # Restoring the original values.
 SET @@global.offline_mode = @global_saved_tmp;
