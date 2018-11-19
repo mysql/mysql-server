@@ -107,10 +107,12 @@ static longlong my_packed_time_get_int_part(longlong i) { return (i >> 24); }
 
 static longlong my_packed_time_make(longlong i, longlong f) {
   DBUG_ASSERT(std::abs(f) <= 0xffffffLL);
-  return (i << 24) + f;
+  return (static_cast<ulonglong>(i) << 24) + f;
 }
 
-static longlong my_packed_time_make_int(longlong i) { return (i << 24); }
+static longlong my_packed_time_make_int(longlong i) {
+  return (static_cast<ulonglong>(i) << 24);
+}
 
 /**
    Calc days in one year.
@@ -2786,3 +2788,16 @@ double double_from_datetime_packed(enum enum_field_types type,
 /**
    @} (end of defgroup MY_TIME)
 */
+
+// Non-static driver functions for unit tests
+namespace mysys_my_time {
+longlong DRV_my_packed_time_get_int_part(longlong i) {
+  return my_packed_time_get_int_part(i);
+}
+longlong DRV_my_packed_time_make(longlong i, longlong f) {
+  return my_packed_time_make(i, f);
+}
+longlong DRV_my_packed_time_make_int(longlong i) {
+  return my_packed_time_make_int(i);
+}
+}  // namespace mysys_my_time

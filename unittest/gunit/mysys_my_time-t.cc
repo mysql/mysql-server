@@ -28,6 +28,10 @@
 // Unit tests for mysys time functions
 
 namespace mysys_my_time {
+longlong DRV_my_packed_time_get_int_part(longlong i);
+longlong DRV_my_packed_time_make(longlong i, longlong f);
+longlong DRV_my_packed_time_make_int(longlong i);
+
 // Compare MYSQL_TIME structs for absolute equality. Which is
 // different from the semantics implemented by my_time_compare()
 // which considers different time_types with the same value to be
@@ -349,4 +353,61 @@ TEST(MysysMyTime, DatetimeAddInterval) {
   MYSQL_TIME ex = {2020, 3, 1, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME};
   EXPECT_EQ(true, (tr.t == ex));
 }
+
+// Test packed access functions on positive time values
+TEST(MysysMyTime, MyPackedTimeGetFracPart2) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+  EXPECT_EQ(670000LL, my_packed_time_get_frac_part(pt));
+}
+
+TEST(MysysMyTime, MyPackedTimeGetIntPart) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+
+  EXPECT_EQ(110154710779LL, DRV_my_packed_time_get_int_part(pt));
+}
+
+TEST(MysysMyTime, MyPackedTimeMake) {
+  EXPECT_EQ(17447216LL, DRV_my_packed_time_make(1LL, 670000LL));
+}
+
+TEST(MysysMyTime, MyPackedTimeMakeInt) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, false, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+
+  EXPECT_EQ(9149918308668014592LL, DRV_my_packed_time_make_int(pt));
+}
+
+// Test packed access functions on negative time values
+TEST(MysysMyTime, MyPackedTimeGetFracPartNeg) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+  EXPECT_EQ(-670000LL, my_packed_time_get_frac_part(pt));
+}
+
+TEST(MysysMyTime, MyPackedTimeGetIntPartNeg) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+
+  EXPECT_EQ(-110154710780LL, DRV_my_packed_time_get_int_part(pt));
+}
+
+TEST(MysysMyTime, MyPackedTimeMakeNeg) {
+  EXPECT_EQ(-16107216LL, DRV_my_packed_time_make(-1LL, 670000LL));
+}
+
+TEST(MysysMyTime, MyPackedTimeMakeIntNeg) {
+  const MYSQL_TIME mt = {
+      2020U, 2U, 29U, 23U, 59U, 59U, 670000, true, MYSQL_TIMESTAMP_DATETIME};
+  longlong pt = TIME_to_longlong_datetime_packed(mt);
+
+  EXPECT_EQ(-9149918308668014592LL, DRV_my_packed_time_make_int(pt));
+}
+
 }  // namespace mysys_my_time
