@@ -5108,14 +5108,16 @@ const char *Field_iterator_table_ref::get_db_name() {
   /*
     Test that TABLE_LIST::db is the same as TABLE_SHARE::db to
     ensure consistency. An exception are I_S schema tables, which
-    are inconsistent in this respect.
+    are inconsistent in this respect and any_db (used in the handler
+    interface to manage aliases).
   */
   DBUG_ASSERT(!strcmp(table_ref->db, table_ref->table->s->db.str) ||
+              table_ref->db == any_db ||
               (table_ref->schema_table &&
                is_infoschema_db(table_ref->table->s->db.str,
                                 table_ref->table->s->db.length)));
 
-  return table_ref->db;
+  return table_ref->db == any_db ? table_ref->table->s->db.str : table_ref->db;
 }
 
 GRANT_INFO *Field_iterator_table_ref::grant() {
