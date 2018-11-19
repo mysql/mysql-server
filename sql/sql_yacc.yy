@@ -13088,7 +13088,15 @@ option_value:
               MYSQL_YYABORT;
             Lex->var_list.push_back(var);
           }
-        | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
+        | '@' '@' opt_var_ident_type internal_variable_name
+          {
+            if ($4.var == trg_new_row_fake_var)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
+          equal set_expr_or_default
           {
             THD *thd= YYTHD;
             struct sys_var_with_base tmp= $4;
@@ -13098,7 +13106,7 @@ option_value:
               if (find_sys_var_null_base(thd, &tmp))
                 MYSQL_YYABORT;
             }
-            if (set_system_variable(thd, &tmp, $3, $6))
+            if (set_system_variable(thd, &tmp, $3, $7))
               MYSQL_YYABORT;
           }
         | charset old_or_new_charset_name_or_default
