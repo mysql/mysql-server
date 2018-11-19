@@ -170,11 +170,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
 
 ENDIF()
 
-IF(UNIX)
-  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.cc)
-  TARGET_LINK_LIBRARIES(resolve_stack_dump mysys mysys_ssl)
-ENDIF()
-
 # In published release builds on Solaris, we need to bundle gcc source.
 # PB2 will take care of putting it in extra/ when needed
 IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/gcc-4.8.1.tar.bz2)
