@@ -60,14 +60,14 @@ sub compare ($$) {
 sub _split_option {
   my ($option) = @_;
 
-  if ($option =~ /^--(.*)=(.*)$/) {
+  if ($option =~ /^--(.*?)=(.*)$/) {
     return ($1, $2);
   } elsif ($option =~ /^--(.*)$/) {
     return ($1, undef);
   } elsif ($option =~ /^\$(.*)$/) {
     # $VAR
     return ($1, undef);
-  } elsif ($option =~ /^(.*)=(.*)$/) {
+  } elsif ($option =~ /^(.*?)=(.*)$/) {
     return ($1, $2);
   }
 

@@ -5717,13 +5717,28 @@ sub mysqld_start ($$) {
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
   # Add any additional options from an in-test restart
-  my @all_opts = @$extra_opts;
+  my @all_opts;
   if (exists $mysqld->{'restart_opts'}) {
+    foreach my $extra_opt (@$extra_opts) {
+      next if $extra_opt eq '';
+      my ($opt_name1, $value1) = My::Options::_split_option($extra_opt);
+      my $found = 0;
+      foreach my $restart_opt (@{ $mysqld->{'restart_opts'} }) {
+	next if $restart_opt eq '';
+        my ($opt_name2, $value2) = My::Options::_split_option($restart_opt);
+        $found = 1 if (My::Options::option_equals($opt_name1, $opt_name2));
+        last if $found == 1;
+      }
+      push (@all_opts, $extra_opt) if $found == 0;
+    }
     push(@all_opts, @{ $mysqld->{'restart_opts'} });
     mtr_verbose(
        My::Options::toStr("mysqld_start restart", @{ $mysqld->{'restart_opts'} }
        ));
+  } else {
+    @all_opts = @$extra_opts;
   }
+
   mysqld_arguments($args, $mysqld, \@all_opts);
 
   if ($opt_debug) {
