@@ -1,5 +1,4 @@
 # restart
-# restart
 SHOW CREATE TABLE t_num;
 Table	Create Table
 t_num	CREATE TABLE `t_num` (
@@ -151,7 +150,6 @@ DROP DATAFILE 'datafile.dat';
 DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1
 ENGINE NDB;
-# restart
 # restart
 SHOW CREATE TABLE t_num;
 Table	Create Table

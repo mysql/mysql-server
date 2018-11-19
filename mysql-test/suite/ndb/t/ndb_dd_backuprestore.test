@@ -59,12 +59,6 @@ ENGINE =NDB;
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
-connection server2;
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
-
-connection server1;
-
 SELECT COUNT(*) FROM test.t1; 
 
 SELECT pk1, c2, c3,  hex(c4) FROM test.t1 ORDER BY pk1 LIMIT 5;
@@ -140,12 +134,6 @@ ENGINE =NDB;
 # Trigger schema synchronization to add table_space1 and log_group1 to DD
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
-
-connection server2;
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
-
-connection server1;
 
 SELECT COUNT(*) FROM test.t1;
 
@@ -283,12 +271,6 @@ ENGINE =NDB;
 # Trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
-
-connection server2;
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
-
-connection server1;
 
 --disable_warnings
 SHOW CREATE TABLE test.t1;

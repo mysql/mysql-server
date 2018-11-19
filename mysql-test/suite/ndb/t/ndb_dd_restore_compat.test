@@ -15,18 +15,6 @@ call mtr.add_suppression("NDB: Table definition contains obsolete data types");
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
---connection server2
---disable_query_log
-call mtr.add_suppression("NDB: Table upgrade required");
-call mtr.add_suppression("NDB: Failed to create entry in DD for table");
-call mtr.add_suppression("NDB: Failed to install table");
-call mtr.add_suppression("NDB: Table definition contains obsolete data types");
---enable_query_log
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
---connection server1
-
 --error ER_NO_SUCH_TABLE
 show create table t1;
 show warnings;

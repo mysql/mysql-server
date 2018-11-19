@@ -454,12 +454,6 @@ call mtr.add_suppression("NDB: Table definition contains obsolete data types");
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
---connection server2
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
---connection server1
-
 SHOW CREATE TABLE t_num;
 # The `t_datetime` table is not expected to be usable. It contains old
 # temporal types which have been removed in 8.0. The upgrade of the
@@ -508,12 +502,6 @@ ENGINE NDB;
 # Restart mysqld to trigger schema synchronization
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
-
---connection server2
-# Restart mysqld to trigger schema synchronization
-let $mysqld_name=mysqld.2.1;
---source include/restart_mysqld.inc
---connection server1
 
 SHOW CREATE TABLE t_num;
 # The `t_datetime` table is not expected to be usable. It contains old

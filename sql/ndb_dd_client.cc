@@ -909,6 +909,29 @@ Ndb_dd_client::get_tablespace(const char *tablespace_name,
 }
 
 
+bool
+Ndb_dd_client::tablespace_exists(const char* tablespace_name, bool& exists)
+{
+  const dd::Tablespace* tablespace;
+  if (m_client->acquire(tablespace_name, &tablespace))
+  {
+    // Failed to acquire the requested tablespace
+    return false;
+  }
+
+  if (tablespace == nullptr)
+  {
+    // The tablespace doesn't exist
+    exists = false;
+    return true;
+  }
+
+  // The tablespace exists
+  exists = true;
+  return true;
+}
+
+
 bool Ndb_dd_client::fetch_ndb_tablespace_names(
     std::unordered_set<std::string>& names)
 {
@@ -962,12 +985,28 @@ Ndb_dd_client::install_tablespace(const char* tablespace_name,
 {
   DBUG_ENTER("Ndb_dd_client::install_tablespace");
 
-  if (force_overwrite)
+  bool exists;
+  if (!tablespace_exists(tablespace_name, exists))
   {
-    if (!drop_tablespace(tablespace_name))
+    // Could not detect if the tablespace exists or not
+    DBUG_RETURN(false);
+  }
+
+  if (exists)
+  {
+    if (force_overwrite)
     {
-      DBUG_ASSERT(false);
-      return false;
+      if (!drop_tablespace(tablespace_name))
+      {
+        // Failed to drop tablespace
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      // Error since tablespace exists but force_overwrite not set by caller
+      // No point continuing since the subsequent store() will fail
+      DBUG_RETURN(false);
     }
   }
 
@@ -1008,12 +1047,13 @@ Ndb_dd_client::install_tablespace(const char* tablespace_name,
 
 
 bool
-Ndb_dd_client::drop_tablespace(const char* tablespace_name)
+Ndb_dd_client::drop_tablespace(const char* tablespace_name,
+                               bool fail_if_not_exists)
 
 {
   DBUG_ENTER("Ndb_dd_client::drop_tablespace");
 
-  const dd::Tablespace *existing= nullptr;
+  const dd::Tablespace *existing = nullptr;
   if (m_client->acquire(tablespace_name, &existing))
   {
     DBUG_RETURN(false);
@@ -1022,7 +1062,11 @@ Ndb_dd_client::drop_tablespace(const char* tablespace_name)
   if (existing == nullptr)
   {
     // Tablespace does not exist
-    DBUG_RETURN(false);
+    if (fail_if_not_exists)
+    {
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
   }
 
   if (m_client->drop(existing))
@@ -1042,6 +1086,30 @@ Ndb_dd_client::get_logfile_group(const char *logfile_group_name,
   {
     return false;
   }
+  return true;
+}
+
+
+bool
+Ndb_dd_client::logfile_group_exists(const char* logfile_group_name,
+                                    bool& exists)
+{
+  const dd::Tablespace* logfile_group;
+  if (m_client->acquire(logfile_group_name, &logfile_group))
+  {
+    // Failed to acquire the requested logfile group
+    return false;
+  }
+
+  if (logfile_group == nullptr)
+  {
+    // The logfile group doesn't exist
+    exists = false;
+    return true;
+  }
+
+  // The logfile group exists
+  exists = true;
   return true;
 }
 
@@ -1108,12 +1176,28 @@ Ndb_dd_client::install_logfile_group(const char* logfile_group_name,
    * logfile groups in terms of metadata structure
    */
 
-  if (force_overwrite)
+  bool exists;
+  if (!logfile_group_exists(logfile_group_name, exists))
   {
-    if (!drop_logfile_group(logfile_group_name))
+    // Could not detect if the logfile group exists or not
+    DBUG_RETURN(false);
+  }
+
+  if (exists)
+  {
+    if (force_overwrite)
     {
-      DBUG_ASSERT(false);
-      return false;
+      if (!drop_logfile_group(logfile_group_name))
+      {
+        // Failed to drop logfile group
+        DBUG_RETURN(false);
+      }
+    }
+    else
+    {
+      // Error since logfile group exists but force_overwrite not set to true by
+      // caller. No point continuing since the subsequent store() will fail
+      DBUG_RETURN(false);
     }
   }
 
@@ -1180,8 +1264,8 @@ Ndb_dd_client::install_undo_file(const char* logfile_group_name,
 }
 
 bool
-Ndb_dd_client::drop_logfile_group(const char* logfile_group_name)
-
+Ndb_dd_client::drop_logfile_group(const char* logfile_group_name,
+                                  bool fail_if_not_exists)
 {
   DBUG_ENTER("Ndb_dd_client::drop_logfile_group");
 
@@ -1194,7 +1278,7 @@ Ndb_dd_client::drop_logfile_group(const char* logfile_group_name)
    * logfile groups in terms of metadata structure
    */
 
-  const dd::Tablespace *existing= nullptr;
+  const dd::Tablespace *existing = nullptr;
   if (m_client->acquire(logfile_group_name, &existing))
   {
     DBUG_RETURN(false);
@@ -1203,7 +1287,11 @@ Ndb_dd_client::drop_logfile_group(const char* logfile_group_name)
   if (existing == nullptr)
   {
     // Logfile group does not exist
-    DBUG_RETURN(false);
+    if (fail_if_not_exists)
+    {
+      DBUG_RETURN(false);
+    }
+    DBUG_RETURN(true);
   }
 
   if (m_client->drop(existing))

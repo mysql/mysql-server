@@ -28,7 +28,6 @@ DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
 # restart
-# restart
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 500
@@ -91,7 +90,6 @@ DROP DATAFILE './table_space1/datafile.dat';
 DROP TABLESPACE table_space1;
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
-# restart
 # restart
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
@@ -319,7 +317,6 @@ DROP TABLESPACE table_space1;
 DROP TABLESPACE table_space2;
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
-# restart
 # restart
 SHOW CREATE TABLE test.t1;
 Table	Create Table

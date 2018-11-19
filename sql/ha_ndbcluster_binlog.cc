@@ -4670,8 +4670,7 @@ class Ndb_schema_event_handler {
   bool
   ndb_create_tablespace_from_engine(const char* tablespace_name,
                                     uint32 id,
-                                    uint32 version,
-                                    bool force_overwrite)
+                                    uint32 version)
   {
     DBUG_ENTER("ndb_create_tablespace_from_engine");
     DBUG_PRINT("enter", ("tablespace_name: %s, id: %u, version: %u",
@@ -4713,7 +4712,7 @@ class Ndb_schema_event_handler {
                                       data_file_names,
                                       id,
                                       version,
-                                      force_overwrite))
+                                      true /* force_overwrite */))
     {
       ndb_log_error("Failed to install tablespace '%s' in DD", tablespace_name);
       DBUG_RETURN(false);
@@ -4740,8 +4739,7 @@ class Ndb_schema_event_handler {
 
     if (!ndb_create_tablespace_from_engine(schema->name,
                                            schema->id,
-                                           schema->version,
-                                           false /* force_overwrite */))
+                                           schema->version))
     {
       ndb_log_error("Distribution of CREATE TABLESPACE '%s' failed",
                     schema->name);
@@ -4767,8 +4765,7 @@ class Ndb_schema_event_handler {
 
     if (!ndb_create_tablespace_from_engine(schema->name,
                                            schema->id,
-                                           schema->version,
-                                           true /* force_overwrite */))
+                                           schema->version))
     {
       ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
                     schema->name);
@@ -4802,7 +4799,8 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (!dd_client.drop_tablespace(schema->name))
+    if (!dd_client.drop_tablespace(schema->name,
+                                   false /* fail_if_not_exists */))
     {
       ndb_log_error("Failed to drop tablespace '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP TABLESPACE '%s' failed",
@@ -4818,8 +4816,7 @@ class Ndb_schema_event_handler {
   bool
   ndb_create_logfile_group_from_engine(const char* logfile_group_name,
                                        uint32 id,
-                                       uint32 version,
-                                       bool force_overwrite)
+                                       uint32 version)
   {
     DBUG_ENTER("ndb_create_logfile_group_from_engine");
     DBUG_PRINT("enter", ("logfile_group_name: %s, id: %u, version: %u",
@@ -4861,7 +4858,7 @@ class Ndb_schema_event_handler {
                                          undo_file_names,
                                          id,
                                          version,
-                                         force_overwrite))
+                                         true /* force_overwrite */))
     {
       ndb_log_error("Failed to install logfile group '%s' in DD",
                     logfile_group_name);
@@ -4889,8 +4886,7 @@ class Ndb_schema_event_handler {
 
     if (!ndb_create_logfile_group_from_engine(schema->name,
                                               schema->id,
-                                              schema->version,
-                                              false /* force_overwrite */))
+                                              schema->version))
     {
       ndb_log_error("Distribution of CREATE LOGFILE GROUP '%s' failed",
                     schema->name);
@@ -4916,8 +4912,7 @@ class Ndb_schema_event_handler {
 
     if (!ndb_create_logfile_group_from_engine(schema->name,
                                               schema->id,
-                                              schema->version,
-                                              true /* force_overwrite */))
+                                              schema->version))
     {
       ndb_log_error("Distribution of ALTER LOGFILE GROUP '%s' failed",
                     schema->name);
@@ -4951,7 +4946,8 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    if (!dd_client.drop_logfile_group(schema->name))
+    if (!dd_client.drop_logfile_group(schema->name,
+                                      false /* fail_if_not_exists */))
     {
       ndb_log_error("Failed to drop logfile group '%s' from DD", schema->name);
       ndb_log_error("Distribution of DROP LOGFILE GROUP '%s' failed",

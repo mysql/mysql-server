@@ -1,5 +1,4 @@
 # restart
-# restart
 show create table t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 show warnings;
