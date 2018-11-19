@@ -2110,6 +2110,8 @@ fil_node_t *Fil_shard::create_node(const char *name, page_no_t size,
 
   file.size = size;
 
+  file.flush_size = size;
+
   file.magic_n = FIL_NODE_MAGIC_N;
 
   file.init_size = size;
@@ -7727,21 +7729,34 @@ void Fil_shard::space_flush(space_id_t space_id) {
     return;
   }
 
-  if (fil_buffering_disabled(space)) {
+  bool fbd = fil_buffering_disabled(space);
+
+  if (fbd) {
     /* No need to flush. User has explicitly disabled
-    buffering. */
+    buffering. However, flush should be called if the file
+    size changes to keep OЅ metadata in sync. */
     ut_ad(!space->is_in_unflushed_spaces);
     ut_ad(space_is_flushed(space));
     ut_ad(space->n_pending_flushes == 0);
 
-#ifdef UNIV_DEBUG
+    /* Flush only if the file size changes */
+    bool no_flush = true;
     for (const auto &file : space->files) {
+#ifdef UNIV_DEBUG
       ut_ad(file.modification_counter == file.flush_counter);
       ut_ad(file.n_pending_flushes == 0);
-    }
 #endif /* UNIV_DEBUG */
+      if (file.flush_size != file.size) {
+        /* Found at least one file whose size has changed */
+        no_flush = false;
+        break;
+      }
+    }
 
-    return;
+    if (no_flush) {
+      /* Nothing to flush. Just return */
+      return;
+    }
   }
 
   /* Prevent dropping of the space while we are flushing */
@@ -7750,11 +7765,27 @@ void Fil_shard::space_flush(space_id_t space_id) {
   for (auto &file : space->files) {
     int64_t old_mod_counter = file.modification_counter;
 
-    if (old_mod_counter <= file.flush_counter) {
+    if (!file.is_open) {
       continue;
     }
 
-    ut_a(file.is_open);
+    /* Skip flushing if the file size has not changed since
+    last flush was done and the flush mode is O_DIRECT_NO_FSYNC */
+    if (fbd && (file.flush_size == file.size)) {
+      ut_ad(old_mod_counter <= file.flush_counter);
+      continue;
+    }
+
+    /* If we are here and the flush mode is O_DIRECT_NO_FSYNC, then
+    it means that the file size has changed and hence, it should be
+    flushed, irrespective of the mod_counter and flush counter values,
+    which are always same in case of O_DIRECT_NO_FSYNC to avoid flush
+    on every write operation.
+    For other flush modes, if the flush_counter is same or ahead of
+    the mod_counter, skip the flush. */
+    if (!fbd && (old_mod_counter <= file.flush_counter)) {
+      continue;
+    }
 
     switch (space->purpose) {
       case FIL_TYPE_TEMPORARY:
@@ -7804,6 +7835,8 @@ void Fil_shard::space_flush(space_id_t space_id) {
       mutex_release();
 
       os_file_flush(file.handle);
+
+      file.flush_size = file.size;
 
       mutex_acquire();
 
