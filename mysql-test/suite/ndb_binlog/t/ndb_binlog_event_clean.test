@@ -2,6 +2,7 @@
 --source include/have_binlog_format_mixed_or_row.inc
 --echo # We are using some debug-only features in this test
 --source include/have_debug.inc
+--source include/not_windows.inc
 
 --echo Explore some event weirdness
 
