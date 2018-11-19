@@ -172,8 +172,6 @@ my $valgrind_reports   = 0;
 
 my @valgrind_args;
 
-my %mysqld_logs;
-
 # Storage for changed environment variables
 my %old_env;
 my %visited_suite_names;
@@ -280,6 +278,7 @@ our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
 our $ssl_supported      = 1;
 
+our @logs;
 our @share_locations;
 
 our %gprof_dirs;
@@ -5792,7 +5791,7 @@ sub mysqld_start ($$) {
   my $output = $mysqld->value('#log-error');
 
   # Remember this log file for valgrind error report search
-  $mysqld_logs{$output} = 1 if $opt_valgrind or $opt_sanitize;
+  push(@logs, $output) if $opt_valgrind or $opt_sanitize;
 
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
@@ -6135,6 +6134,9 @@ sub start_servers($) {
     if ($mysqld->{proc}) {
       # Already started, write start of testcase to log file
       mark_log($mysqld->value('#log-error'), $tinfo);
+      # Write start of testcase to secondary engine error log file
+      mark_log($::secondary_engine_log_error, $tinfo)
+        if ($secondary_engine_support);
       # No need to install secondary engine plugin
       $mysqld->{install_secondary_engine_plugin} = 0
         if $secondary_engine_support;
@@ -6235,6 +6237,9 @@ sub start_servers($) {
       check_number_of_servers(\&mysqlds, $tinfo) if !$tinfo->{'skip'};
 
       return 0 if $tinfo->{'skip'};
+
+      # Write start of testcase to secondary engine error log file
+      mark_log($::secondary_engine_log_error, $tinfo);
 
       # Start secondary engine server.
       start_secondary_engine_server(\&valgrind_arguments);
@@ -6801,7 +6806,7 @@ sub valgrind_arguments {
 sub valgrind_exit_reports() {
   my $found_err = 0;
 
-  foreach my $log_file (keys %mysqld_logs) {
+  foreach my $log_file (@logs) {
     my @culprits      = ();
     my $valgrind_rep  = "";
     my $found_report  = 0;
