@@ -670,6 +670,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     // Skip tables that are only selected from
     if (!table_ref->updating) continue;
 
+    // Cannot delete from a non-updatable view or derived table.
     if (!table_ref->is_updatable()) {
       my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_ref->alias, "DELETE");
       DBUG_RETURN(true);
@@ -690,7 +691,14 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     // A view must be merged, and thus cannot have a TABLE
     DBUG_ASSERT(!table_ref->is_view() || table_ref->table == NULL);
 
-    for (TABLE_LIST *tr = table_ref->updatable_base_table(); tr;
+    // Cannot delete from a storage engine that does not support delete.
+    TABLE_LIST *base_table = table_ref->updatable_base_table();
+    if (base_table->table->file->ha_table_flags() & HA_DELETE_NOT_SUPPORTED) {
+      my_error(ER_ILLEGAL_HA, MYF(0), base_table->table_name);
+      DBUG_RETURN(true);
+    }
+
+    for (TABLE_LIST *tr = base_table; tr != nullptr;
          tr = tr->referencing_view) {
       tr->updating = true;
     }

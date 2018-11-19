@@ -105,6 +105,8 @@ class ha_federated : public handler {
   bool ignore_duplicates, replace_duplicates;
   bool insert_dup_update;
   DYNAMIC_STRING bulk_insert;
+  /// Memory area for BLOB data.
+  MEM_ROOT m_blob_root;
 
  private:
   /*
