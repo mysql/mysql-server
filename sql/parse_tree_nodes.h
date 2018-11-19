@@ -938,7 +938,10 @@ class PT_internal_variable_name_1d : public PT_internal_variable_name {
 class PT_internal_variable_name_2d : public PT_internal_variable_name {
   typedef PT_internal_variable_name super;
 
-  POS pos;
+ public:
+  const POS pos;
+
+ private:
   LEX_STRING ident1;
   LEX_STRING ident2;
 
@@ -1076,6 +1079,10 @@ class PT_option_value_no_option_type_sys_var
 
     THD *thd = pc->thd;
     struct sys_var_with_base tmp = name->value;
+    if (tmp.var == trg_new_row_fake_var) {
+      error(pc, down_cast<PT_internal_variable_name_2d *>(name)->pos);
+      return true;
+    }
     /* Lookup if necessary: must be a system variable. */
     if (tmp.var == NULL) {
       if (find_sys_var_null_base(thd, &tmp)) return true;
