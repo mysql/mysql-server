@@ -933,7 +933,15 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
     } else {
       if (bitmap_is_set(table->read_set, (*field)->field_index)) {
         (*field)->set_notnull();
-        (*field)->store(*row, *lengths, &my_charset_bin);
+
+        // Field_json::store expects the incoming data to be in utf8mb4_bin, so
+        // we override the character set in those cases.
+        if ((*field)->type() == MYSQL_TYPE_JSON) {
+          (*field)->store(*row, *lengths, &my_charset_utf8mb4_bin);
+        } else {
+          (*field)->store(*row, *lengths, &my_charset_bin);
+        }
+
         if ((*field)->flags & BLOB_FLAG) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
           size_t length = blob_field->get_length(blob_field->ptr);
@@ -2059,10 +2067,20 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
       else {
         bool needs_quote = (*field)->str_needs_quotes();
         where_string.append(STRING_WITH_LEN(" = "));
+
+        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
+        if (is_json) {
+          where_string.append("CAST(");
+        }
+
         (*field)->val_str(&field_value, (old_data + (*field)->offset(record)));
         if (needs_quote) where_string.append(value_quote_char);
         field_value.print(&where_string);
         if (needs_quote) where_string.append(value_quote_char);
+
+        if (is_json) {
+          where_string.append(" AS JSON)");
+        }
         field_value.length(0);
       }
       where_string.append(STRING_WITH_LEN(" AND "));
@@ -2135,10 +2153,20 @@ int ha_federated::delete_row(const uchar *) {
       } else {
         bool needs_quote = cur_field->str_needs_quotes();
         delete_string.append(STRING_WITH_LEN(" = "));
+
+        const bool is_json = (*field)->type() == MYSQL_TYPE_JSON;
+        if (is_json) {
+          delete_string.append("CAST(");
+        }
+
         cur_field->val_str(&data_string);
         if (needs_quote) delete_string.append(value_quote_char);
         data_string.print(&delete_string);
         if (needs_quote) delete_string.append(value_quote_char);
+
+        if (is_json) {
+          delete_string.append(" AS JSON)");
+        }
       }
       delete_string.append(STRING_WITH_LEN(" AND "));
     }
