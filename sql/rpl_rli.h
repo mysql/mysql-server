@@ -1314,8 +1314,10 @@ class Relay_log_info : public Rpl_info {
   /**
     Delete the existing event and set a new one.  This class is
     responsible for freeing the event, the caller should not do that.
+
+    @return 1 if an error was encountered, 0 otherwise.
   */
-  virtual void set_rli_description_event(Format_description_log_event *fdle);
+  virtual int set_rli_description_event(Format_description_log_event *fdle);
 
   /**
     Return the current Format_description_log_event.

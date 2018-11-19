@@ -6,7 +6,8 @@
 # =====
 # Begin an XA transaction and execte a DML statement so that XA state becomes
 # XA_ACTIVE. Execute the BINLOG command it should not cause any assert.
-# Execution should be successful.
+# Execution should fail and a `ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION` should
+# be expected.
 ###############################################################################
 --source include/have_log_bin.inc
 CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
@@ -18,6 +19,7 @@ XA START'','';
 --disable_warnings
 INSERT INTO t1 VALUES(10);
 --enable_warnings
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
@@ -44,12 +46,11 @@ SET @@session.pseudo_slave_mode=1;
 
 # In order to simulate dressing up as the binlog applier the current connection needs
 # to process at least one BINLOG carrying Format-Descriptor log-event.
-BEGIN;
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
-COMMIT;
 
+SET @@gtid_next = "AUTOMATIC";
 XA START 'xa_rollback';
 --disable_warnings
 INSERT INTO t1 VALUES(10);
@@ -62,12 +63,11 @@ XA ROLLBACK 'xa_rollback';
 #
 --connect(con1,localhost,root,,)
 SET @@session.pseudo_slave_mode=1;
-BEGIN;
 BINLOG '
 SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
-COMMIT;
 
+SET @@gtid_next = "AUTOMATIC";
 XA START 'xa_disconnect';
 --disable_warnings
 INSERT INTO t1 VALUES(10);

@@ -104,10 +104,8 @@ bool Rpl_applier_reader::open(const char **errmsg) {
     goto err;
 
   mysql_mutex_lock(&m_rli->data_lock);
-  if (fdle == nullptr)
-    rli->set_rli_description_event(new Format_description_log_event());
-  else
-    rli->set_rli_description_event(fdle);
+  if (fdle == nullptr) fdle = new Format_description_log_event();
+  if (rli->set_rli_description_event(fdle)) return true;
 
   /**
      group_relay_log_name may be different from the one in index file. For
