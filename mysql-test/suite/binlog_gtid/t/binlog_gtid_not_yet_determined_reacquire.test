@@ -1,0 +1,103 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test the behaviour of `GTID_NEXT` when a
+# BINLOG statement holding a `Format_description` event is executed inside
+# and/or outside a transaction.
+#
+# ==== Requirements ====
+#
+# R1. `GTID_NEXT` value should not be allowed to change when a transaction is
+#     active, even by a `BINLOG` statement holding a `Format_description` event
+#     - which is documented to change `GTID_NEXT`'s value to
+#     'NOT_YET_DETERMINED'.
+#
+# R2. If `BINLOG` statement holding a `Format_description` event outside an
+#     active transaction, `GTID_NEXT`'s value must become 'NOT_YET_DETERMINED'.
+#
+# R3. When `GTID_NEXT`'s value is 'NOT_YET_DETERMINED' and `GTID_MODE` is 'ON',
+#     running any non-innocent statement other than one that explicitly sets
+#     `GTID_NEXT`'s value to a valid value, will trigger an error -
+#     `ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON`
+#
+# ==== Implementation ====
+#
+# TC.1 `BINLOG` + `Format_description` event inside an active transaction
+# -----------------------------------------------------------------------
+# 1) Begin a transaction.
+# 2) Execute the `BINLOG` + `Format_description` event and expect an error -
+#    `ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION`.
+# 3) End the current active transaction.
+#
+# TC.2 `BINLOG` + `Format_description` event with no active transaction
+# ---------------------------------------------------------------------
+# 1) Execute the `BINLOG` + `Format_description` event.
+# 2) Check the value of `GTID_NEXT` to be 'NOT_YET_DETERMINED'.
+#
+# TC.3 `GTID_NEXT` = 'NOT_YET_DETERMINED' and try to execute a statement
+# ----------------------------------------------------------------------
+# 1) Execute a non-innocent statement that doesn't explicitly set the value of
+#    `GTID_NEXT` to a valid value and expect an error -
+#    `ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON`
+# 2) Execute a statement that explicitly sets the value of `GTID_NEXT` to a
+#    valid value.
+# 3) Execute a non-innocent statement that doesn't explicitly set the value of
+#    `GTID_NEXT` to a valid value and expect success.
+#
+# ==== References ====
+#
+# binlog_nogtid.binlog_nogitd_not_yet_determined_reacquire
+#
+# BUG#27903848 [MYSQL 8.0 GA DEBUG BUILD] ASSERTION `GTID_NEXT_TYPE ==
+# ANONYMOUS_GTID' FAILED.
+#
+
+--echo # TC.1 `BINLOG` + `Format_description` event inside an active transaction
+--echo # -----------------------------------------------------------------------
+
+# 1) Begin a transaction.
+BEGIN;
+
+# 2) Execute the `BINLOG` + `Format_description` event and expect an error -
+#    `ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION`.
+--error ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION
+BINLOG
+'3cTpWw8BAAAAeAAAAHwAAAABAAQAOC4wLjE0LWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADdxOlbEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgEyBOzV';
+
+# 3) End the current active transaction.
+COMMIT;
+
+--echo # TC.2 `BINLOG` + `Format_description` event with no active transaction
+--echo # ---------------------------------------------------------------------
+
+# 1) Execute the `BINLOG` + `Format_description` event.
+BINLOG
+'3cTpWw8BAAAAeAAAAHwAAAABAAQAOC4wLjE0LWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAADdxOlbEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgEyBOzV';
+
+# 2) Check the value of `GTID_NEXT` to be 'NOT_YET_DETERMINED'.
+--let $assert_text= Value of `GTID_NEXT` is `NOT_YET_DETERMINED`
+--let $assert_cond= "[SELECT @@GTID_NEXT]" = "NOT_YET_DETERMINED"
+--source include/assert.inc
+
+--echo # TC.3 `GTID_NEXT` = 'NOT_YET_DETERMINED' and try to execute a statement
+--echo # ----------------------------------------------------------------------
+
+# 1) Execute a non-innocent statement that doesn't explicitly set the value of
+#    `GTID_NEXT` to a valid value and expect an error -
+#    `ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON`
+--error ER_CANT_SET_GTID_NEXT_TO_ANONYMOUS_WHEN_GTID_MODE_IS_ON
+CREATE TABLE t1 (col1 INT);
+
+# 2) Execute a statement that explicitly sets the value of `GTID_NEXT` to a
+#    valid value.
+SET @@GTID_NEXT = "AUTOMATIC";
+
+# 3) Execute a non-innocent statement that doesn't explicitly set the value of
+#    `GTID_NEXT` to a valid value and expect success.
+CREATE TABLE t1 (col1 INT);
+
+--echo # Clean up.
+DROP TABLE t1;

@@ -296,7 +296,7 @@ Relay_log_info::~Relay_log_info() {
     delete sid_lock;
   }
 
-  set_rli_description_event(NULL);
+  DBUG_ASSERT(set_rli_description_event(nullptr) == 0);
   delete until_option;
   delete gtid_monitoring_info;
   DBUG_VOID_RETURN;
@@ -2020,9 +2020,11 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
 
    @param  fe Pointer to be installed into execution context
            FormatDescriptor event
+
+   @return 1 if an error was encountered, 0 otherwise.
 */
 
-void Relay_log_info::set_rli_description_event(
+int Relay_log_info::set_rli_description_event(
     Format_description_log_event *fe) {
   DBUG_ENTER("Relay_log_info::set_rli_description_event");
   DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fe);
@@ -2031,13 +2033,22 @@ void Relay_log_info::set_rli_description_event(
     ulong fe_version = adapt_to_master_version(fe);
 
     if (info_thd) {
-      // See rpl_rli_pdb.h:Slave_worker::set_rli_description_event.
-      if (!is_in_group() &&
-          (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-           info_thd->variables.gtid_next.type == UNDEFINED_GTID)) {
-        DBUG_PRINT("info",
-                   ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
-        info_thd->variables.gtid_next.set_not_yet_determined();
+      /* @see rpl_rli_pdb.h:Slave_worker::set_rli_description_event for a
+         detailed explanation on the following code block's logic. */
+      if (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+          info_thd->variables.gtid_next.type == UNDEFINED_GTID) {
+        bool in_active_multi_stmt =
+            info_thd->in_active_multi_stmt_transaction();
+
+        if (!is_in_group() && !in_active_multi_stmt) {
+          DBUG_PRINT("info",
+                     ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
+          info_thd->variables.gtid_next.set_not_yet_determined();
+        } else if (in_active_multi_stmt) {
+          my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+                   "gtid_next");
+          DBUG_RETURN(1);
+        }
       }
 
       if (is_parallel_exec() && fe_version > 0) {
@@ -2062,7 +2073,7 @@ void Relay_log_info::set_rli_description_event(
   rli_description_event = fe;
   if (rli_description_event) ++rli_description_event->atomic_usage_counter;
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 struct st_feature_version {

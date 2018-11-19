@@ -703,8 +703,10 @@ class Slave_worker : public Relay_log_info {
     Relay_log_info class.
 
     @param fdle   pointer to a new Format_description_log_event
+
+    @return 1 if an error was encountered, 0 otherwise.
   */
-  void set_rli_description_event(Format_description_log_event *fdle) {
+  int set_rli_description_event(Format_description_log_event *fdle) {
     DBUG_ENTER("Slave_worker::set_rli_description_event");
 
     if (fdle) {
@@ -712,32 +714,83 @@ class Slave_worker : public Relay_log_info {
         When the master rotates its binary log, set gtid_next to
         NOT_YET_DETERMINED.  This tells the slave thread that:
 
-        - If a Gtid_log_event is read subsequently, gtid_next will be
-          set to the given GTID (this is done in
-          gtid_pre_statement_checks()).
+        - If a Gtid_log_event is read subsequently, gtid_next will be set to the
+          given GTID (this is done in gtid_pre_statement_checks()).
 
-        - If a statement is executed before any Gtid_log_event, then
-          gtid_next is set to anonymous (this is done in
-          Gtid_log_event::do_apply_event().
+        - If a statement is executed before any Gtid_log_event, then gtid_next
+          is set to anonymous (this is done in Gtid_log_event::do_apply_event().
 
-        It is imporant to not set GTID_NEXT=NOT_YET_DETERMINED in the
-        middle of a transaction.  If that would happen when
-        GTID_MODE=ON, the next statement would fail because it
-        implicitly sets GTID_NEXT=ANONYMOUS, which is disallowed when
-        GTID_MODE=ON.  So then there would be no way to end the
-        transaction; any attempt to do so would result in this error.
-        (It is not possible for the slave threads to have
-        gtid_next.type==AUTOMATIC or UNDEFINED in the middle of a
-        transaction, but it is possible for a client thread to have
-        gtid_next.type==AUTOMATIC and issue a BINLOG statement
-        containing this Format_description_log_event.)
+        It is imporant to not set GTID_NEXT=NOT_YET_DETERMINED in the middle of
+        a transaction.  If that would happen when GTID_MODE=ON, the next
+        statement would fail because it implicitly sets GTID_NEXT=ANONYMOUS,
+        which is disallowed when GTID_MODE=ON.  So then there would be no way to
+        end the transaction; any attempt to do so would result in this error.
+
+        There are three possible states when reaching this execution flow point
+        (see further below for a more detailed explanation on each):
+
+        - **No active transaction, and not in a group**: set `gtid_next` to
+          `NOT_YET_DETERMINED`.
+
+        - **No active transaction, and in a group**: do nothing regarding
+          `gtid_next`.
+
+        - **An active transaction exists**: impossible to set `gtid_next` and no
+          reason to process the `Format_description` event so, trigger an error.
+
+        For the sake of correctness, let's defined the meaning of having a
+        transaction "active" or "in a group".
+
+        A transaction is "active" if either BEGIN was executed or autocommit=0
+        and a DML statement was executed (@see
+        THD::in_active_multi_stmt_transaction).
+
+        A transaction is "in a group" if it is applied by the replication
+        applier, and the relay log position is between Gtid_log_event and the
+        committing event (@see Relay_log_info::is_in_group).
+
+        The three different states explained further:
+
+        **No active transaction, and not in a group**: It is normal to have
+        gtid_next=automatic/undefined and have a Format_description_log_event in
+        this condition. We are outside transaction context and should set
+        gtid_next to not_yet_determined.
+
+        **No active transaction, and in a group**: Having
+        gtid_next=automatic/undefined in a group is impossible if master is 5.7
+        or later, because the group always starts with a Gtid_log_event or an
+        Anonymous_gtid_log_event, which will set gtid_next to anonymous or
+        gtid. But it is possible to have gtid_next=undefined when replicating
+        from a 5.6 master with gtid_mode=off, because it does not generate any
+        such event. And then, it is possible to have no active transaction in a
+        group if the master has logged a DDL as a User_var_log_event followed by
+        a Query_log_event. The User_var_log_event will start a group, but not
+        start an active transaction or change gtid_next. In this case, it is
+        possible that a Format_description_log_event occurs, if the group
+        (transaction) is broken on two relay logs, so that User_var_log_event
+        appears at the end of one relay log and Query_log_event at the beginning
+        of the next one. In such cases, we should not set gtid_next.
+
+        **An active transaction exists**: It is possible to have
+        gtid_next=automatic/undefined in an active transaction, only if
+        gtid_next=automatic, which is only possible in a client connection using
+        gtid_next=automatic. In this scenario, there is no reason to execute a
+        Format_description_log_event. So we generate an error.
       */
-      if (!is_in_group() &&
-          (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
-           info_thd->variables.gtid_next.type == UNDEFINED_GTID)) {
-        DBUG_PRINT("info",
-                   ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
-        info_thd->variables.gtid_next.set_not_yet_determined();
+      if (info_thd->variables.gtid_next.type == AUTOMATIC_GTID ||
+          info_thd->variables.gtid_next.type == UNDEFINED_GTID) {
+        bool in_active_multi_stmt =
+            info_thd->in_active_multi_stmt_transaction();
+
+        if (!is_in_group() && !in_active_multi_stmt) {
+          DBUG_PRINT("info",
+                     ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
+          info_thd->variables.gtid_next.set_not_yet_determined();
+        } else if (in_active_multi_stmt) {
+          my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+                   "gtid_next");
+          DBUG_RETURN(1);
+        }
       }
       adapt_to_master_version_updown(fdle->get_product_version(),
                                      get_master_server_version());
@@ -755,7 +808,7 @@ class Slave_worker : public Relay_log_info {
     }
     rli_description_event = fdle;
 
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
   }
 
   inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }

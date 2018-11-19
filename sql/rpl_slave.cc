@@ -6926,7 +6926,12 @@ err:
   rli->slave_running = 0;
   rli->atomic_is_stopping = false;
   /* Forget the relay log's format */
-  rli->set_rli_description_event(NULL);
+  if (rli->set_rli_description_event(nullptr)) {
+#ifndef DBUG_OFF
+    bool set_rli_description_event_failed = false;
+#endif
+    DBUG_ASSERT(set_rli_description_event_failed);
+  }
   /* Wake up master_pos_wait() */
   mysql_mutex_unlock(&rli->data_lock);
   DBUG_PRINT("info",

@@ -289,9 +289,14 @@ Slave_worker::~Slave_worker() {
   mysql_cond_destroy(&jobs_cond);
   mysql_cond_destroy(&logical_clock_cond);
   mysql_mutex_lock(&info_thd_lock);
-  info_thd = NULL;
+  info_thd = nullptr;
   mysql_mutex_unlock(&info_thd_lock);
-  set_rli_description_event(NULL);
+  if (set_rli_description_event(nullptr)) {
+#ifndef DBUG_OFF
+    bool set_rli_description_event_failed = false;
+#endif
+    DBUG_ASSERT(set_rli_description_event_failed);
+  }
 }
 
 /**
@@ -2457,7 +2462,8 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
     /* Adapting to possible new Format_description_log_event */
     ptr_g = rli->gaq->get_job_group(ev->mts_group_idx);
     if (ptr_g->new_fd_event) {
-      worker->set_rli_description_event(ptr_g->new_fd_event);
+      error = worker->set_rli_description_event(ptr_g->new_fd_event);
+      if (unlikely(error)) goto err;
       ptr_g->new_fd_event = NULL;
     }
 
