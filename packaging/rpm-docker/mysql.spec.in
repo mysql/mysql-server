@@ -204,7 +204,7 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqlxtest \
-         perror resolveip  resolve_stack_dump lz4_decompress \
+         perror resolve_stack_dump lz4_decompress \
          zlib_decompress mysqlrouter mysqlrouter_plugin_info ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
@@ -419,6 +419,7 @@ rm -r $(readlink var) var
 %changelog
 * Wed Nov 21 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.14-1
 - Add specific compilation comment for the server
+- Remove resolveip
 
 * Tue Aug 21 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
 - No need to ship test plugins and components in docker image
