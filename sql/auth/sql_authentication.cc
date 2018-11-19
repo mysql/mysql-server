@@ -3320,11 +3320,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     if (!thd->is_error() &&
         !(sctx->check_access(SUPER_ACL) ||
           sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first)) {
-      mysql_mutex_lock(&LOCK_offline_mode);
-      bool tmp_offline_mode = offline_mode;
-      mysql_mutex_unlock(&LOCK_offline_mode);
-
-      if (tmp_offline_mode) {
+      if (mysqld_offline_mode()) {
         my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
         DBUG_RETURN(1);
       }

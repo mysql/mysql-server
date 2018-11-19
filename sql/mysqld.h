@@ -231,7 +231,7 @@ extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern bool relay_log_purge;
 extern bool relay_log_recovery;
-extern bool offline_mode;
+extern std::atomic<bool> offline_mode;
 extern uint test_flags, select_errors, ha_open_options;
 extern uint protocol_version, mysqld_port;
 
@@ -659,7 +659,6 @@ extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_slave_skip_counter;
 extern mysql_mutex_t LOCK_slave_net_timeout;
 extern mysql_mutex_t LOCK_slave_trans_dep_tracker;
-extern mysql_mutex_t LOCK_offline_mode;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
 extern mysql_mutex_t LOCK_password_reuse_interval;
@@ -712,6 +711,7 @@ static inline void set_connection_events_loop_aborted(bool value) {
 }
 
 /**
+
   Check if --help option or --validate-config is specified.
 
   @retval false   Neither 'help' or 'validate-config' option is enabled.
@@ -721,6 +721,20 @@ static inline void set_connection_events_loop_aborted(bool value) {
 inline bool is_help_or_validate_option() {
   return (opt_help || opt_validate_config);
 }
+
+/**
+  Get mysqld offline mode.
+
+  @return a bool indicating the offline mode status of the server.
+*/
+inline bool mysqld_offline_mode() { return offline_mode.load(); }
+
+/**
+  Set offline mode with a given value
+
+  @param value true or false indicating the offline mode status of server.
+*/
+inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
 
 #ifdef _WIN32
 
