@@ -76,7 +76,7 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg,
   // Action errors might have expelled the member already
   if (Group_member_info::MEMBER_ERROR ==
       local_member_info->get_recovery_status()) {
-    return;
+    DBUG_VOID_RETURN;
   }
 
   Notification_context ctx;
