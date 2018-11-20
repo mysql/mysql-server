@@ -332,7 +332,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res = ha_commit_trans(thd, true, ignore_global_read_lock);
   } else if (tc_log)
-    tc_log->commit(thd, true);
+    res = tc_log->commit(thd, true);
 
   if (res == false)
     if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_transaction_commit(
@@ -514,7 +514,7 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock) {
     if (!thd->in_active_multi_stmt_transaction())
       trans_reset_one_shot_chistics(thd);
   } else if (tc_log)
-    tc_log->commit(thd, false);
+    res = tc_log->commit(thd, false);
   if (res == false && !thd->in_active_multi_stmt_transaction())
     if (thd->rpl_thd_ctx.session_gtids_ctx().notify_after_transaction_commit(
             thd))
