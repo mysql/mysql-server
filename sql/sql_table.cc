@@ -11062,6 +11062,13 @@ bool mysql_compare_tables(TABLE *table, Alter_info *alter_info,
     Field *field = *f_ptr;
     const Create_field *tmp_new_field = tmp_new_field_it++;
 
+    /* Check to see if both fields are alike. */
+    if (tmp_new_field->is_virtual_gcol() != field->is_virtual_gcol()) {
+      my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
+               "Exchanging partitions for non-generated columns");
+      DBUG_RETURN(false);
+    }
+
     /* Check that NULL behavior is the same. */
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
         (uint)(field->flags & NOT_NULL_FLAG))

@@ -21760,8 +21760,15 @@ void innobase_rename_vc_templ(dict_table_t *table) {
   if (is_part != NULL) {
     *is_part = '\0';
     tbnamelen = is_part - tbname;
+  } else {
+    /* This comes from ALTER TABLE ... PARTITION operations,
+    as a intermediate table. Also keep the 'main' table name. */
+    char *tmp = strstr(tbname, TMP_POSTFIX);
+    if (tmp != nullptr) {
+      *tmp = '\0';
+      tbnamelen = tmp - tbname;
+    }
   }
-
   dbnamelen =
       filename_to_tablename(dbname, t_dbname, MAX_DATABASE_NAME_LEN + 1);
   tbnamelen = filename_to_tablename(tbname, t_tbname, MAX_TABLE_NAME_LEN + 1);
