@@ -1579,6 +1579,26 @@
   ...
 }
 
+{
+  TPL leak 22
+  Memcheck:Leak
+  match-leak-kinds: possible
+  fun:malloc
+  ...
+  fun:CRYPTO_malloc
+  fun:lh_new
+  fun:int_thread_get
+  fun:int_thread_set_item
+  fun:ERR_get_state
+  fun:ERR_clear_error
+  fun:ENGINE_load_builtin_engines
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+  obj:*
+}
+
 # Workarounds for
 #
 # Bug#26116237 SYSCALL PARAM PPOLL(SIGMASK) POINTS TO UNADDRESSABLE BYTE
