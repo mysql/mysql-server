@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
 
   if (!parse_args(argc, argv)) {
     g_logger.critical("Failed to parse arguments");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -514,6 +515,7 @@ int main(int argc, char **argv) {
 
       if (!wait_for_processes_to_stop(g_config, p_clients)) {
         g_logger.critical("Failed to stop client processes");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
