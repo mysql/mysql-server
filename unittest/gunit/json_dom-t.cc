@@ -1454,4 +1454,127 @@ static void BM_JsonObjectToString(size_t num_iterations) {
 }
 BENCHMARK(BM_JsonObjectToString)
 
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with boolean elements.
+*/
+static void BM_JsonBooleanArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_boolean>(i % 2 == 0));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonBooleanArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with double elements.
+*/
+static void BM_JsonDoubleArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_double>(i));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDoubleArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with decimal elements.
+*/
+static void BM_JsonDecimalArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  for (size_t i = 0; i < 1000; ++i) {
+    my_decimal decimal;
+    EXPECT_FALSE(double2my_decimal(0, i, &decimal));
+    array->append_alias(create_dom_ptr<Json_decimal>(decimal));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDecimalArrayToString)
+
+/**
+  Tests the performance of Json_wrapper::to_string() when it's called
+  on a JSON array with date elements.
+*/
+static void BM_JsonDateArrayToString(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_array_ptr array = create_dom_ptr<Json_array>();
+  MYSQL_TIME date = {2018, 11, 20, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATE};
+  for (size_t i = 0; i < 1000; ++i) {
+    array->append_alias(create_dom_ptr<Json_datetime>(date, MYSQL_TYPE_DATE));
+  }
+  Json_wrapper wrapper(std::move(array));
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    String buf;
+    wrapper.to_string(&buf, true, "test");
+    EXPECT_LT(0U, buf.length());
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonDateArrayToString)
+
 }  // namespace json_dom_unittest

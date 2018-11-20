@@ -1148,6 +1148,18 @@ Json_dom_ptr Json_array::clone() const {
 }
 
 /**
+  Reserve space in a string buffer. If reallocation is needed,
+  increase the size of the buffer exponentially.
+
+  @param buffer the string buffer
+  @param needed the number of bytes needed
+  @return true on error, false on success
+*/
+static bool reserve(String *buffer, size_t needed) {
+  return buffer->reserve(needed, buffer->length());
+}
+
+/**
   Escape a special character in a JSON string, as described in
   #double_quote(), and append it to a buffer.
 
@@ -1220,7 +1232,7 @@ static bool escape_character(char c, String *buf) {
   @retval true on error
 */
 bool double_quote(const char *cptr, size_t length, String *buf) {
-  if (buf->reserve(length + 2, buf->length()) || buf->append('"'))
+  if (reserve(buf, length + 2) || buf->append('"'))
     return true; /* purecov: inspected */
 
   const char *const end = cptr + length;
@@ -1521,6 +1533,20 @@ static bool newline_and_indent(String *buffer, size_t level) {
 }
 
 /**
+  Append a comma to separate elements in JSON arrays and objects.
+
+  @param buffer the string buffer
+  @param pretty true if pretty printing is enabled
+  @return true on error, false on success
+*/
+static bool append_comma(String *buffer, bool pretty) {
+  // Append a comma followed by a blank space. If pretty printing is
+  // enabled, a newline will be added in front of the next element, so
+  // the blank space can be omitted.
+  return buffer->append(',') || (!pretty && buffer->append(' '));
+}
+
+/**
   Helper function which does all the heavy lifting for
   Json_wrapper::to_string(). It processes the Json_wrapper
   recursively. The depth parameter keeps track of the current nesting
@@ -1546,7 +1572,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_DATETIME:
     case enum_json_type::J_TIMESTAMP: {
       // Make sure the buffer has space for the datetime and the quotes.
-      if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
+      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
         return true; /* purecov: inspected */
       MYSQL_TIME t;
       wr.get_datetime(&t);
@@ -1566,7 +1592,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
       size_t array_len = wr.length();
       for (uint32 i = 0; i < array_len; ++i) {
-        if (i > 0 && buffer->append(pretty ? "," : ", "))
+        if (i > 0 && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
         if (pretty && newline_and_indent(buffer, depth))
@@ -1584,12 +1610,13 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_BOOLEAN:
-      if (buffer->append(wr.get_boolean() ? "true" : "false"))
+      if (wr.get_boolean() ? buffer->append(STRING_WITH_LEN("true"))
+                           : buffer->append(STRING_WITH_LEN("false")))
         return true; /* purecov: inspected */
       break;
     case enum_json_type::J_DECIMAL: {
       int length = DECIMAL_MAX_STR_LENGTH + 1;
-      if (buffer->reserve(length)) return true; /* purecov: inspected */
+      if (reserve(buffer, length)) return true;
       char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
       my_decimal m;
       if (wr.get_decimal_data(&m) || decimal2string(&m, ptr, &length, 0, 0, 0))
@@ -1598,7 +1625,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_DOUBLE: {
-      if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
+      if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true; /* purecov: inspected */
       double d = wr.get_double();
       const char *start = buffer->ptr() + buffer->length();
@@ -1615,7 +1642,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       */
       if (std::none_of(start, start + len,
                        [](char c) { return c == '.' || c == 'e'; }) &&
-          buffer->append(STRING_WITH_LEN(".0")))
+          (buffer->append('.') || buffer->append('0')))
         return true; /* purecov: inspected */
       break;
     }
@@ -1625,7 +1652,8 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       break;
     }
     case enum_json_type::J_NULL:
-      if (buffer->append("null")) return true; /* purecov: inspected */
+      if (buffer->append(STRING_WITH_LEN("null")))
+        return true; /* purecov: inspected */
       break;
     case enum_json_type::J_OBJECT: {
       if (check_json_depth(++depth)) return true;
@@ -1635,7 +1663,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       bool first = true;
       for (Json_wrapper_object_iterator iter = wr.object_iterator();
            !iter.empty(); iter.next()) {
-        if (!first && buffer->append(pretty ? "," : ", "))
+        if (!first && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
         first = false;
@@ -1647,7 +1675,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         const char *key_data = key.c_str();
         size_t key_length = key.length();
         if (print_string(buffer, true, key_data, key_length) ||
-            buffer->append(": ") ||
+            buffer->append(':') || buffer->append(' ') ||
             wrapper_to_string(iter.elt().second, buffer, true, pretty,
                               func_name, depth))
           return true; /* purecov: inspected */
@@ -1663,7 +1691,6 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_OPAQUE: {
       if (wr.get_data_length() > base64_encode_max_arg_length()) {
         /* purecov: begin inspected */
-        buffer->append("\"<data too long to decode - unexpected error>\"");
         my_error(ER_INTERNAL_ERROR, MYF(0),
                  "JSON: could not decode opaque data");
         return true;
@@ -1675,7 +1702,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
       // base64:typeXX:<binary data>
       StringBuffer<STRING_BUFFER_USUAL_SIZE> base64_buffer;
-      if (base64_buffer.append("base64:type") ||
+      if (base64_buffer.append(STRING_WITH_LEN("base64:type")) ||
           base64_buffer.append_ulonglong(wr.field_type()) ||
           base64_buffer.append(':') || base64_buffer.reserve(needed) ||
           base64_encode(wr.get_data(), wr.get_data_length(),
