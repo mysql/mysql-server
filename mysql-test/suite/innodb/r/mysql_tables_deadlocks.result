@@ -27,6 +27,9 @@ name TEXT
 SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
+AND table_name NOT IN (
+"ndb_binlog_index"
+)
 ORDER BY table_name;
 Preparing deadlock scenario for mysql.columns_priv
 ROLLBACK;
