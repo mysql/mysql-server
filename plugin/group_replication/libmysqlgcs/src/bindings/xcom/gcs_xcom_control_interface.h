@@ -335,6 +335,8 @@ class Gcs_suspicions_manager {
 */
 class Gcs_xcom_control : public Gcs_control_interface {
  public:
+  static constexpr int s_connection_attempts = 10;
+
   /**
     Gcs_xcom_control_interface constructor.
 
@@ -618,12 +620,28 @@ class Gcs_xcom_control : public Gcs_control_interface {
       std::vector<Gcs_xcom_node_address *> *peers_list);
 
   /**
-    Send an add_node request to some initial peer from @c m_initial_peers.
+    Attempts to send an add_node request to some initial peer from @c
+    m_initial_peers.
+    Performs up to @c s_connection_attempts attempts.
 
     @param my_addresses The addresses of this node, used to filter our own
     address from the initial peers.
+    @returns true if the add_node request was successfully sent, false
+    otherwise.
   */
   bool send_add_node_request(std::map<std::string, int> const &my_addresses);
+
+  /**
+    Attempts to send an add_node request to some initial peer from @c
+    m_initial_peers.
+
+    @param my_addresses The addresses of this node, used to filter our own
+    address from the initial peers.
+    @returns true if the add_node request was successfully sent, false
+    otherwise.
+  */
+  bool try_send_add_node_request_to_seeds(
+      std::map<std::string, int> const &my_addresses);
 
   /**
     Connects to the given peer's XCom.

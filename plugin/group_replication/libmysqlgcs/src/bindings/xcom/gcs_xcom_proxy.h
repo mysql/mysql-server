@@ -46,8 +46,6 @@
 */
 class Gcs_xcom_proxy {
  public:
-  const static int connection_attempts = 10;
-
   explicit Gcs_xcom_proxy() {}
 
   /**
