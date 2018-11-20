@@ -219,6 +219,7 @@ int main(int argc, char **argv) {
   MEM_ROOT alloc = MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};
   if (!parse_args(argc, argv, &alloc)) {
     g_logger.critical("Failed to parse arguments");
+    return_code = ATRT_FAILURE;
     goto end;
   }
 
@@ -523,6 +524,7 @@ int main(int argc, char **argv) {
 
       if (!wait_for_processes_to_stop(g_config, p_clients)) {
         g_logger.critical("Failed to stop client processes");
+        return_code = ATRT_FAILURE;
         goto cleanup;
       }
 
