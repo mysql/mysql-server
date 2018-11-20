@@ -51,6 +51,7 @@ wait/synch/mutex/group_rpl/LOCK_stage_monitor_handler	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_group_member_info_manager_update_lock	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_group_member_info_update_lock	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_view_modification_wait	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL

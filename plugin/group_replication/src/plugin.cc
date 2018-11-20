@@ -24,6 +24,7 @@
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -443,7 +444,7 @@ bool plugin_get_group_member_stats(
 int plugin_group_replication_start(char **) {
   DBUG_ENTER("plugin_group_replication_start");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  MUTEX_LOCK(lock, &plugin_running_mutex);
   int error = 0;
 
   std::string debug_options;
@@ -842,34 +843,36 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
     uuid = const_cast<char *>("cccccccc-cccc-cccc-cccc-cccccccccccc");
   };);
 
-  /*
-    To avoid leaving a invalid pointer on Group_member_info_manager,
-    first we update the local member information on group_member_mgr,
-    and only then we delete and update the local_member_info.
-  */
-  Group_member_info *local_member_info_tmp = new Group_member_info(
-      hostname, port, uuid, write_set_extraction_algorithm,
-      gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
-      local_member_plugin_version, gtid_assignment_block_size_var,
-      Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
-      enforce_update_everywhere_checks_var, member_weight_var,
-      gr_lower_case_table_names);
+  // Initialize or update local_member_info.
+  if (local_member_info != NULL) {
+    local_member_info->update(
+        hostname, port, uuid, write_set_extraction_algorithm,
+        gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
+        local_member_plugin_version, gtid_assignment_block_size_var,
+        Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
+        enforce_update_everywhere_checks_var, member_weight_var,
+        gr_lower_case_table_names);
+  } else {
+    local_member_info = new Group_member_info(
+        hostname, port, uuid, write_set_extraction_algorithm,
+        gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
+        local_member_plugin_version, gtid_assignment_block_size_var,
+        Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
+        enforce_update_everywhere_checks_var, member_weight_var,
+        gr_lower_case_table_names);
+  }
 
   // Update membership info of member itself
-  if (group_member_mgr != NULL) group_member_mgr->update(local_member_info_tmp);
+  if (group_member_mgr != NULL) group_member_mgr->update(local_member_info);
   // Create the membership info visible for the group
   else
-    group_member_mgr = new Group_member_info_manager(local_member_info_tmp);
-  // Update local_member_info
-  delete local_member_info;
-  local_member_info = local_member_info_tmp;
+    group_member_mgr = new Group_member_info_manager(local_member_info);
   group_member_mgr_configured = true;
 
-  LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CONF_INFO, get_server_id(),
-      (local_member_info != NULL) ? local_member_info->get_uuid().c_str()
-                                  : "NULL",
-      single_primary_mode_var ? "true" : "false", auto_increment_increment_var);
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CONF_INFO, get_server_id(),
+               local_member_info->get_uuid().c_str(),
+               single_primary_mode_var ? "true" : "false",
+               auto_increment_increment_var);
 
   DBUG_RETURN(0);
 }
@@ -972,7 +975,7 @@ int leave_group() {
 int plugin_group_replication_stop(char **error_message) {
   DBUG_ENTER("plugin_group_replication_stop");
 
-  Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  MUTEX_LOCK(lock, &plugin_running_mutex);
 
   plugin_is_stopping = true;
 

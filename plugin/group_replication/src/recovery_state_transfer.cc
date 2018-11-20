@@ -165,6 +165,7 @@ void Recovery_state_transfer::initialize_group_info() {
   DBUG_ENTER("Recovery_state_transfer::initialize_group_info");
 
   selected_donor = NULL;
+  selected_donor_hostname.clear();
   // Update the group member info
   mysql_mutex_lock(&donor_selection_lock);
   update_group_membership(false);
@@ -339,7 +340,7 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
   while (member_it != group_members->end()) {
     Group_member_info *member = *member_it;
     // is online and it's not me
-    string m_uuid = member->get_uuid();
+    string m_uuid(member->get_uuid());
     bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
     bool not_self = m_uuid.compare(member_uuid);
@@ -470,7 +471,16 @@ int Recovery_state_transfer::initialize_donor_connection() {
 
   donor_connection_interface.purge_logs(false);
 
-  char *hostname = const_cast<char *>(selected_donor->get_hostname().c_str());
+  /*
+    selected_donor->get_hostname(), from Group_member_info, returns
+    a string copy which is only valid in this stack lifespan. Since
+    the below hostname pointer will be passed all the way down to
+    recovery channel lex_mi->host, we need to keep its memory
+    attached to this object, more precisely to
+    selected_donor_hostname class member.
+  */
+  selected_donor_hostname.assign(selected_donor->get_hostname());
+  char *hostname = const_cast<char *>(selected_donor_hostname.c_str());
   uint port = selected_donor->get_port();
 
   error = donor_connection_interface.initialize_channel(

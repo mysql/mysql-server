@@ -320,6 +320,8 @@ class Recovery_state_transfer {
 
   /* The selected donor member*/
   Group_member_info *selected_donor;
+  /* The selected donor member hostname */
+  std::string selected_donor_hostname;
   /* Vector with group members info*/
   std::vector<Group_member_info *> *group_members;
   /* Member with suitable donors for use on recovery*/
