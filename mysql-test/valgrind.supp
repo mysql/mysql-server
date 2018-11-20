@@ -1609,6 +1609,28 @@
   ...
 }
 
+{
+   TPL leak 22
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:lh_new
+   fun:int_thread_get
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_clear_error
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:_ZL17plugin_initializeP13st_plugin_int
+   ...
+}
+
 # Bug #25964438  LDAP: ASAN AND VALGRIND ISSUES
 {
    LDAP_TLS_workaround1
