@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/not_valgrind.inc
 
 --echo #
 --echo # Bug#26199978 - WRONG ERROR MESSAGE FOR PARTIAL BACKUPS WITH GTID_MODE = ON
