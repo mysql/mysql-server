@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -334,6 +334,10 @@ static void do_resolve()
 
 int main(int argc, char** argv)
 {
+
+  fprintf(stderr, "Warning: resolve_stack_dump is deprecated and will be removed in a future "
+	          "version.\n");
+
   MY_INIT(argv[0]);
   parse_args(argc, argv);
   open_files();
