@@ -3586,8 +3586,9 @@ select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-01 12:00:00';
 select str_to_date('2007-10-01 12','%Y-%m-%d %H') = '2007-10-01 12:00:00';
 # succeed, but warn for "trailing garbage" (":34"):
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00';
-# invalid date (Feb 30) succeeds
-select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34';
+# invalid date (Feb 30) succeeds because date comparison fails and
+# it falls back to string comparison
+select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00';
 # 0-day for both, just works in default SQL mode.
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 # 0-day, succeed

@@ -778,12 +778,12 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time) {
   bool value;
   MYSQL_TIME_STATUS status;
-  my_time_flags_t flags = TIME_FUZZY_DATE | TIME_INVALID_DATES;
-
+  my_time_flags_t flags = TIME_FUZZY_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
     flags |= TIME_NO_ZERO_IN_DATE;
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
   if (thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
 
   if (!propagate_datetime_overflow(
           thd, &status.warnings,

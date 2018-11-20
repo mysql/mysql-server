@@ -1,0 +1,24 @@
+--echo #bug28940878
+CREATE TABLE t1(d DATE);
+INSERT INTO t1 VALUES('2011-02-20');
+
+--echo # In the default sql mode both should show warnings
+--echo #
+--echo # Note that since the date on the right is invalid, comparisons
+--echo # will be done as String in both cases now
+SELECT * FROM t1 WHERE d <= '2013-02-32';
+SELECT * FROM t1 WHERE d <= '2013-02-30';
+
+SET @old_sql_mode := @@sql_mode;
+SET @@sql_mode = 'ALLOW_INVALID_DATES';
+
+--echo # In the 'ALLOW_INVALID_DATES' sql mode only first should show warnings
+--echo # Note that since the date on the right is invalid comparisons
+--echo # will be done as String
+SELECT * FROM t1 WHERE d <= '2013-02-32';
+SELECT * FROM t1 WHERE d <= '2013-02-30';
+
+SET @@sql_mode = @old_sql_mode;
+
+DROP TABLE t1;
+

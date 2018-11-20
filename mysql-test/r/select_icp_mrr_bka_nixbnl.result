@@ -3395,6 +3395,8 @@ select * from t1 where f2 >= '2005-09-31' order by f2;
 f1	f2
 4	2005-10-01
 5	2005-12-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-31' for column 'f2' at row 1
 select * from t1 where f2 >= '2005-09-3a' order by f2;
 f1	f2
 3	2005-09-30
@@ -3407,6 +3409,8 @@ f1	f2
 1	2005-01-01
 2	2005-09-01
 3	2005-09-30
+Warnings:
+Warning	1292	Incorrect date value: '2005-09-31' for column 'f2' at row 1
 select * from t1 where f2 <= '2005-09-3a' order by f2;
 f1	f2
 1	2005-01-01
@@ -4359,9 +4363,11 @@ str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00'
 1
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34'
-select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34';
-str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34'
+select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00';
+str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00'
 1
+Warnings:
+Warning	1292	Truncated incorrect datetime value: '2007-02-30 12:34:00'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
 NULL
