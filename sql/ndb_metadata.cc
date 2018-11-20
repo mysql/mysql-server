@@ -370,7 +370,7 @@ bool Ndb_metadata::compare_table_def(const dd::Table* t1, const dd::Table* t2)
     // present in the .frm. Thus, we accept that this is a known mismatch and
     // skip the comparison of this attribute for tables created using earlier
     // versions
-    ulong t1_previous_mysql_version = INT_MAX64;
+    ulong t1_previous_mysql_version = UINT_MAX32;
     if (!ndb_dd_table_get_previous_mysql_version(t1, t1_previous_mysql_version)
         || t1_previous_mysql_version > 50157)
     {
