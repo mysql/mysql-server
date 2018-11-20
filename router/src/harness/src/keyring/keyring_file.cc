@@ -29,6 +29,7 @@
 #include <stdexcept>
 #include <system_error>
 #include "common.h"
+#include "filesystem.h"
 
 #ifdef _WIN32
 #include <aclapi.h>
@@ -40,55 +41,8 @@ constexpr const char kKeyringFileSignature[] = {'M', 'R', 'K', 'R'};
 
 #ifdef _WIN32
 
-// Smart pointers for WinAPI structures that use C-style memory management.
-using SecurityDescriptorPtr =
-    std::unique_ptr<SECURITY_DESCRIPTOR,
-                    mysql_harness::StdFreeDeleter<SECURITY_DESCRIPTOR>>;
-using SidPtr = std::unique_ptr<SID, mysql_harness::StdFreeDeleter<SID>>;
-
-/**
- * Retrieves file's DACL security descriptor.
- *
- * @param[in] file_name File name.
- *
- * @return File's DACL security descriptor.
- *
- * @throw std::exception Failed to retrieve security descriptor.
- */
-static SecurityDescriptorPtr get_security_descriptor(
-    const std::string &file_name) {
-  static constexpr SECURITY_INFORMATION kReqInfo = DACL_SECURITY_INFORMATION;
-
-  // Get the size of the descriptor.
-  DWORD sec_desc_size;
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, nullptr, 0,
-                       &sec_desc_size) == FALSE) {
-    // calling code checks for errno
-    // also multiple calls to GetLastError() erase error value
-    errno = GetLastError();
-
-    // We expect to receive `ERROR_INSUFFICIENT_BUFFER`.
-    if (errno != ERROR_INSUFFICIENT_BUFFER) {
-      throw std::system_error(errno, std::system_category(),
-                              "GetFileSecurity() failed (" + file_name +
-                                  "): " + std::to_string(errno));
-    }
-  }
-
-  SecurityDescriptorPtr sec_desc(
-      static_cast<SECURITY_DESCRIPTOR *>(std::malloc(sec_desc_size)));
-
-  if (GetFileSecurityA(file_name.c_str(), kReqInfo, sec_desc.get(),
-                       sec_desc_size, &sec_desc_size) == FALSE) {
-    errno = GetLastError();
-    throw std::system_error(errno, std::system_category(),
-                            "GetFileSecurity() failed (" + file_name +
-                                "): " + std::to_string(GetLastError()));
-  }
-
-  return sec_desc;
-}
+using mysql_harness::SecurityDescriptorPtr;
+using mysql_harness::SidPtr;
 
 /**
  * Verifies permissions of an access ACE entry.
@@ -213,7 +167,8 @@ static void check_security_descriptor_access_rights(
  */
 static void check_file_access_rights(const std::string &file_name) {
 #ifdef _WIN32
-  check_security_descriptor_access_rights(get_security_descriptor(file_name));
+  check_security_descriptor_access_rights(
+      mysql_harness::get_security_descriptor(file_name));
 #else
   struct stat status;
 

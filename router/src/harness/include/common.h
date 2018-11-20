@@ -64,13 +64,19 @@ void HARNESS_EXPORT make_file_public(const std::string &file_name);
  * users.
  *
  * On Unix, the function sets file permission mask to 600.
- * On Windows, all permissions to this file are removed for Everyone group.
+ * On Windows, all permissions to this file are removed for Everyone group,
+ * LocalService account gets read (and optionally write) access.
  *
  * @param[in] file_name File name.
+ * @param[in] read_only_for_local_service Weather the LocalService user on
+ * Windows should get only the read access (if false will grant write access
+ * too). Not used on non-Windows.
  *
  * @throw std::exception Failed to change file permissions.
  */
-void HARNESS_EXPORT make_file_private(const std::string &file_name);
+void HARNESS_EXPORT
+make_file_private(const std::string &file_name,
+                  const bool read_only_for_local_service = true);
 
 /** @brief Wrapper for thread safe function returning error string.
  *

@@ -22,10 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "config_generator.h"
+
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
 
-#include "config_generator.h"
 #include <rapidjson/rapidjson.h>
 #include "common.h"
 #include "dim.h"
@@ -548,7 +549,9 @@ void ConfigGenerator::bootstrap_system_deployment(
   for (size_t i = 0; i < config_files.size(); ++i) {
     config_files[i]->close();
     const std::string path = config_files_names[i];
-    const std::string file_desc = (i == 0) ? "configuration" : "dynamic state";
+    const bool is_static_conf = (i == 0);
+    const std::string file_desc =
+        is_static_conf ? "configuration" : "dynamic state";
 
     if (backup_config_file_if_different(path, path + ".tmp", options,
                                         &auto_clean)) {
@@ -567,7 +570,8 @@ void ConfigGenerator::bootstrap_system_deployment(
                                " file to final location");
     }
     try {
-      mysql_harness::make_file_private(path);
+      // for dynamic config file we need to grant the write access too
+      mysql_harness::make_file_private(path, /* read_only= */ is_static_conf);
     } catch (const std::system_error &e) {
 #ifdef _WIN32
       if (e.code() !=
@@ -743,6 +747,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
   for (size_t i = 0; i < config_files_names.size(); ++i) {
     auto &config_file = config_files[i];
     const auto &config_file_name = config_files_names[i];
+    const bool is_static_conf = (i == 0);
     config_file->close();
     if (backup_config_file_if_different(config_file_name,
                                         config_file_name + ".tmp", options)) {
@@ -761,7 +766,9 @@ void ConfigGenerator::bootstrap_directory_deployment(
     }
 
     try {
-      mysql_harness::make_file_private(config_file_name);
+      mysql_harness::make_file_private(
+          config_file_name,
+          /* read_only_for_local_service= */ is_static_conf);
     } catch (const std::system_error &e) {
 #ifdef _WIN32
       if (e.code() !=
