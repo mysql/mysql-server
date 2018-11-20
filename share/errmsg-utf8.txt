@@ -18755,14 +18755,17 @@ ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED
 ER_SERVER_UPGRADE_FROM_VERSION
   eng "MySQL server upgrading from version '%u' to '%u'."
 
-ER_SECONDARY_ENGINE_PLUGIN
-  eng "%s"
-
 ER_GRP_RPL_ERROR_ON_CERT_DB_INSTALL
   eng "The certification information could not be set in this server: '%s'"
 
 ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
   eng "A request to force a new group membership was issued when the member is leaving the group."
+
+ER_TRG_WRONG_ORDER
+  eng "Trigger %s.%s for table %s.%s is listed in wrong order. Please drop and recreate all triggers for the table."
+
+ER_SECONDARY_ENGINE_PLUGIN
+  eng "%s"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

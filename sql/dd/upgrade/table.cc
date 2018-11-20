@@ -94,17 +94,42 @@
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"  // trans_commit
 #include "sql/trigger.h"      // Trigger
+#include "sql/trigger_chain.h"
 #include "sql/trigger_def.h"
 #include "sql_string.h"
 #include "thr_lock.h"
 
 class Sroutine_hash_entry;
+
+bool Table_trigger_dispatcher::reorder_57_list(MEM_ROOT *mem_root,
+                                               List<Trigger> *triggers) {
+  // Iterate over the trigger list, create trigger chains, and add triggers.
+  for (auto &t : *triggers) {
+    Trigger_chain *tc =
+        create_trigger_chain(mem_root, t.get_event(), t.get_action_time());
+
+    if (!tc || tc->add_trigger(mem_root, &t)) return true;
+  }
+
+  // The individual triggers are mem_root-allocated. We can now empty the list.
+  triggers->empty();
+
+  // And then, we iterate over the chains and re-add the triggers to the list.
+  for (int i = 0; i < (int)TRG_EVENT_MAX; i++)
+    for (int j = 0; j < (int)TRG_ACTION_MAX; j++) {
+      Trigger_chain *tc = get_triggers(i, j);
+      if (tc != nullptr)
+        for (auto &t : tc->get_trigger_list())
+          triggers->push_back(&t, mem_root);
+    }
+
+  return false;
+}
+
 namespace dd {
 class Schema;
 class Table;
-}  // namespace dd
 
-namespace dd {
 namespace bootstrap {
 
 /**
@@ -1092,6 +1117,15 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
     }
     error_handler.set_log_error(true);
 
+    /*
+      At this point, we know the triggers are parseable, but they might not
+      be listed in the correct order, due to bugs in previous MySQL versions,
+      or due to manual editing. Hence, we rectify the trigger order here, in
+      the same way as the trigger dispatcher did on 5.7 when loading triggers
+      from file for a table.
+    */
+    d->reorder_57_list(thd->mem_root, &m_triggers);
+
     List_iterator<::Trigger> it(m_triggers);
     /*
       Fix the order column for the execution of Triggers with
@@ -1120,11 +1154,19 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       if (!t) break;
 
       /*
-        events of the same type and timing always go in one group according
-        to their action order.
+        Events of the same type and timing always go in one group according
+        to their action order. This order is maintained in the trigger file
+        in 5.7, and is corrected above in case of errors. Thus, at this point,
+        the order should be correct.
       */
-      assert(t->get_event() >= t_type &&
-             (t->get_event() > t_type || t->get_action_time() >= t_time));
+      if (t->get_event() < t_type ||
+          (t->get_event() == t_type && t->get_action_time() < t_time)) {
+        DBUG_ASSERT(false);
+        LogErr(ERROR_LEVEL, ER_TRG_WRONG_ORDER, t->get_db_name().str,
+               t->get_trigger_name().str, schema_name.c_str(),
+               table_name.c_str());
+        return true;
+      }
 
       // We found next trigger with same action event and same action time.
       if (t->get_event() == t_type && t->get_action_time() == t_time) {
