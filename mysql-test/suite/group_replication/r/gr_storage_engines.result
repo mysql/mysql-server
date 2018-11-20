@@ -47,15 +47,15 @@ INSERT INTO t4 (c1,c2) VALUES(1, 2);
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 INSERT INTO tn (c1) VALUES (4+10);
 UPDATE t4 SET c2= 100;
-ERROR HY000: The table does not comply with the requirements by an external plugin.
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 REPLACE INTO t4(c1) VALUES(2);
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 REPLACE INTO t4 (c1) SELECT tn.c1 FROM tn;
 ERROR HY000: The table does not comply with the requirements by an external plugin.
 UPDATE t4, tn SET t4.c1= 100, tn.c1= 100;
-ERROR HY000: The table does not comply with the requirements by an external plugin.
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 DELETE FROM t4;
-ERROR HY000: The table does not comply with the requirements by an external plugin.
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 DELETE FROM tn;
 INSERT INTO t3 (c1,c2) VALUES(1, 2);
 ERROR HY000: The table does not comply with the requirements by an external plugin.
