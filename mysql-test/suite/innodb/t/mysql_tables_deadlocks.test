@@ -42,6 +42,8 @@ DROP TABLE t1;
 # any assertion failures.
 # Make a list of names of tables to test.
 # These are the InnoDB tables visible to the end user in mysql.* database.
+# We exclude some table names from the list:
+# - ndb_binlog_index is only available on builds with NDB Cluster
 CREATE TABLE t1 (
  id INT PRIMARY KEY AUTO_INCREMENT,
  name TEXT
@@ -49,6 +51,9 @@ CREATE TABLE t1 (
 SELECT table_name AS name
 FROM information_schema.tables
 WHERE table_schema="mysql" AND engine="InnoDB"
+AND table_name NOT IN (
+ "ndb_binlog_index"
+)
 ORDER BY table_name;
 
 --let $i = 1
