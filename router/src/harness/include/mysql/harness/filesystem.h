@@ -27,9 +27,15 @@
 
 #include "harness_export.h"
 
+#include "common.h"
+
 #include <memory>
 #include <stdexcept>
 #include <string>
+
+#ifdef _WIN32
+#include <aclapi.h>
+#endif
 
 namespace mysql_harness {
 
@@ -472,6 +478,28 @@ std::string get_plugin_dir(const std::string &runtime_dir);
 
 HARNESS_EXPORT
 std::string get_tests_data_dir(const std::string &runtime_dir);
+
+#ifdef _WIN32
+
+// Smart pointers for WinAPI structures that use C-style memory management.
+using SecurityDescriptorPtr =
+    std::unique_ptr<SECURITY_DESCRIPTOR,
+                    mysql_harness::StdFreeDeleter<SECURITY_DESCRIPTOR>>;
+using SidPtr = std::unique_ptr<SID, mysql_harness::StdFreeDeleter<SID>>;
+
+/**
+ * Retrieves file's DACL security descriptor.
+ *
+ * @param[in] file_name File name.
+ *
+ * @return File's DACL security descriptor.
+ *
+ * @throw std::exception Failed to retrieve security descriptor.
+ */
+HARNESS_EXPORT SecurityDescriptorPtr
+get_security_descriptor(const std::string &file_name);
+
+#endif
 
 }  // namespace mysql_harness
 
