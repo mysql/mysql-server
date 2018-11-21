@@ -14442,7 +14442,7 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
       undo::spaces->size() == FSP_MAX_UNDO_TABLESPACES) {
     /* All available explicit undo tablespaces have been used. */
     ib::error(ER_IB_MSG_MAX_UNDO_SPACES_REACHED, alter_info->tablespace_name,
-              alter_info->data_file_name, FSP_MAX_UNDO_TABLESPACES);
+              alter_info->data_file_name, int{FSP_MAX_UNDO_TABLESPACES});
     error = HA_ERR_TABLESPACE_EXISTS;
     trx_rollback_for_mysql(trx);
     goto cleanup;
