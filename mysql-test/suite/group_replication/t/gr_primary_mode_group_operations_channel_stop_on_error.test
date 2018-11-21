@@ -109,6 +109,8 @@ SET SESSION sql_log_bin= 1;
 --echo
 --echo # 8. Cleanup
 
+RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1
 --source include/group_replication_end.inc
