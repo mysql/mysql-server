@@ -504,7 +504,7 @@ static void create_log_files_rename(
   fil_open_log_and_system_tablespace_files();
 
   /* For cloned database it is normal to resize redo logs. */
-  ib::info(ER_IB_MSG_1068, lsn);
+  ib::info(ER_IB_MSG_1068, ulonglong{lsn});
 }
 
 /** Opens a log file.
@@ -580,7 +580,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
     ulint size_mb =
         SRV_UNDO_TABLESPACE_SIZE_IN_PAGES << UNIV_PAGE_SIZE_SHIFT >> 20;
 
-    ib::info(ER_IB_MSG_1072, file_name, (ulint)size_mb);
+    ib::info(ER_IB_MSG_1072, file_name, ulonglong{size_mb});
 
     ib::info(ER_IB_MSG_1073);
 
@@ -698,7 +698,7 @@ static dberr_t srv_undo_tablespace_fixup_57(space_id_t space_id) {
   space_id_t space_num = undo::id2num(space_id);
   ut_ad(space_num == space_id);
   if (undo::is_active_truncate_log_present(space_num)) {
-    ib::info(ER_IB_MSG_1077, space_num);
+    ib::info(ER_IB_MSG_1077, ulong{space_num});
 
     if (srv_read_only_mode) {
       ib::error(ER_IB_MSG_1078);
@@ -734,7 +734,7 @@ static dberr_t srv_undo_tablespace_fixup_num(space_id_t space_num) {
     return (DB_SUCCESS);
   }
 
-  ib::info(ER_IB_MSG_1077, space_num);
+  ib::info(ER_IB_MSG_1077, ulong{space_num});
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1078);
@@ -795,7 +795,7 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
     return (DB_READ_ONLY);
   }
 
-  ib::info(ER_IB_MSG_1079, space_num);
+  ib::info(ER_IB_MSG_1079, ulong{space_num});
 
   /* It is possible for an explicit undo tablespace to have been truncated and
   recreated but not yet written with a header page when a crash occured.  In
@@ -968,7 +968,7 @@ static dberr_t srv_undo_tablespace_open_by_id(space_id_t space_id) {
   if (scanned_name.length() != 0 &&
       !Fil_path::equal(undo_space.file_name(), scanned_name.c_str())) {
     ib::error(ER_IB_MSG_FOUND_WRONG_UNDO_SPACE, undo_space.file_name(),
-              space_id, scanned_name.c_str());
+              ulong{space_id}, scanned_name.c_str());
 
     return (DB_WRONG_FILE_NAME);
   }
@@ -1014,7 +1014,7 @@ static dberr_t srv_undo_tablespace_open_by_num(space_id_t space_num) {
   if (is_default || has_implicit_name) {
     if (!has_implicit_name) {
       ib::info(ER_IB_MSG_1080, undo_space.file_name(), scanned_name.c_str(),
-               space_id);
+               ulong{space_id});
 
       return (DB_WRONG_FILE_NAME);
     }
@@ -1068,7 +1068,7 @@ static dberr_t srv_undo_tablespaces_open() {
 
       err = srv_undo_tablespace_open_by_id(space_id);
       if (err != DB_SUCCESS) {
-        ib::error(ER_IB_MSG_1084, (ulint)space_id);
+        ib::error(ER_IB_MSG_1084, ulong{space_id});
         return (err);
       }
     }
@@ -1135,7 +1135,7 @@ static dberr_t srv_undo_tablespaces_open() {
   }
 
   if (n_found_new + n_found_old) {
-    ib::info(ER_IB_MSG_1085, n_found_new + n_found_old);
+    ib::info(ER_IB_MSG_1085, ulonglong{n_found_new + n_found_old});
   }
 
   return (DB_SUCCESS);
@@ -1166,7 +1166,7 @@ static dberr_t srv_undo_tablespaces_create() {
 
     mode = srv_read_only_mode ? "read_only" : "force_recovery",
 
-    ib::warn(ER_IB_MSG_1086, mode, initial_implicit_undo_spaces);
+    ib::warn(ER_IB_MSG_1086, mode, ulonglong{initial_implicit_undo_spaces});
 
     if (initial_implicit_undo_spaces == 0) {
       ib::error(ER_IB_MSG_1087, mode);
@@ -1208,7 +1208,8 @@ static dberr_t srv_undo_tablespaces_create() {
     /* Open this new undo tablespace. */
     err = srv_undo_tablespace_open(undo_space);
     if (err != DB_SUCCESS) {
-      ib::info(ER_IB_MSG_1089, err, ut_strerr(err), undo_space.space_name());
+      ib::info(ER_IB_MSG_1089, int{err}, ut_strerr(err),
+               undo_space.space_name());
 
       break;
     }
@@ -1219,7 +1220,7 @@ static dberr_t srv_undo_tablespaces_create() {
   ulint new_spaces =
       FSP_IMPLICIT_UNDO_TABLESPACES - initial_implicit_undo_spaces;
 
-  ib::info(ER_IB_MSG_1090, new_spaces);
+  ib::info(ER_IB_MSG_1090, ulonglong{new_spaces});
 
   return (err);
 }
@@ -1249,7 +1250,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
       dberr_t err = srv_undo_tablespace_enable_encryption(space_id);
 
       if (err != DB_SUCCESS) {
-        ib::error(ER_IB_MSG_1091, (ulint)undo::id2num(space_id));
+        ib::error(ER_IB_MSG_1091, ulong{undo::id2num(space_id)});
 
         return (err);
       }
@@ -1263,7 +1264,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     if (!fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr,
                          create_new_db)) {
-      ib::error(ER_IB_MSG_1093, (ulint)undo::id2num(space_id));
+      ib::error(ER_IB_MSG_1093, ulong{undo::id2num(space_id)});
 
       mtr_commit(&mtr);
       return (DB_ERROR);
@@ -1322,7 +1323,7 @@ dberr_t srv_undo_tablespaces_upgrade() {
   }
 
   ib::info(ER_IB_MSG_1095, trx_sys_undo_spaces->size(),
-           FSP_IMPLICIT_UNDO_TABLESPACES);
+           ulong{FSP_IMPLICIT_UNDO_TABLESPACES});
 
   /* All Undo Tablespaces found in the TRX_SYS page need to be
   deleted. The new independent undo tablespaces were created in
@@ -1359,7 +1360,7 @@ are not referenced by the TRX_SYS page.
 static void srv_undo_tablespaces_downgrade() {
   ut_ad(srv_downgrade_logs);
 
-  ib::info(ER_IB_MSG_1096, undo::spaces->size());
+  ib::info(ER_IB_MSG_1096, ulonglong{undo::spaces->size()});
 
   /* All the new independent undo tablespaces that were created in
   in srv_undo_tablespaces_create() need to be deleted. */
@@ -1397,7 +1398,7 @@ dberr_t srv_undo_tablespace_create(const char *space_name,
   /* Open this new undo tablespace. */
   err = srv_undo_tablespace_open(undo_space);
   if (err != DB_SUCCESS) {
-    ib::error(ER_IB_MSG_ERROR_OPENING_NEW_UNDO_SPACE, err, space_name);
+    ib::error(ER_IB_MSG_ERROR_OPENING_NEW_UNDO_SPACE, int{err}, space_name);
     undo::spaces->x_unlock();
     goto cleanup_and_exit;
   }
@@ -1799,7 +1800,7 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
       /* Print a message every 60 seconds if we
       are waiting to clean the buffer pools */
       if (count >= 600) {
-        ib::info(ER_IB_MSG_1106, pending_io);
+        ib::info(ER_IB_MSG_1106, ulonglong{pending_io});
         count = 0;
       }
     }
@@ -2052,7 +2053,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
   the actual lower limit could very well be a little higher. */
 
   if (srv_buf_pool_size <= 5 * 1024 * 1024) {
-    ib::info(ER_IB_MSG_1133, srv_buf_pool_size / 1024 / 1024);
+    ib::info(ER_IB_MSG_1133, ulonglong{srv_buf_pool_size / 1024 / 1024});
   }
 #endif /* UNIV_DEBUG */
 
@@ -2214,7 +2215,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
       ut_a(size != (os_offset_t)-1);
 
       if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
-        ib::error(ER_IB_MSG_1137, logfilename, size);
+        ib::error(ER_IB_MSG_1137, logfilename, ulonglong{size});
         return (srv_init_abort(DB_ERROR));
       }
 
@@ -2225,7 +2226,8 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 #else
       } else if (!srv_dedicated_server && size != srv_log_file_size) {
 #endif /* UNIV_DEBUG_DEDICATED */
-        ib::error(ER_IB_MSG_1138, logfilename, size, srv_log_file_size);
+        ib::error(ER_IB_MSG_1138, logfilename, ulonglong{size},
+                  srv_log_file_size);
 
         return (srv_init_abort(DB_ERROR));
       }
@@ -2720,8 +2722,8 @@ files_checked:
 
   if (!srv_read_only_mode && !srv_sys_space.can_auto_extend_last_file() &&
       sum_of_data_file_sizes != tablespace_size_in_header) {
-    ib::error(ER_IB_MSG_1147, (ulint)tablespace_size_in_header,
-              (ulint)sum_of_data_file_sizes);
+    ib::error(ER_IB_MSG_1147, ulong{tablespace_size_in_header},
+              ulong{sum_of_data_file_sizes});
 
     if (srv_force_recovery == 0 &&
         sum_of_data_file_sizes < tablespace_size_in_header) {
@@ -2736,8 +2738,8 @@ files_checked:
 
   if (!srv_read_only_mode && srv_sys_space.can_auto_extend_last_file() &&
       sum_of_data_file_sizes < tablespace_size_in_header) {
-    ib::error(ER_IB_MSG_1149, (ulint)tablespace_size_in_header,
-              (ulint)sum_of_data_file_sizes);
+    ib::error(ER_IB_MSG_1149, ulong{tablespace_size_in_header},
+              ulong{sum_of_data_file_sizes});
 
     if (srv_force_recovery == 0) {
       ib::error(ER_IB_MSG_1150);
@@ -2746,7 +2748,8 @@ files_checked:
     }
   }
 
-  ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR, log_get_lsn(*log_sys));
+  ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR,
+           ulonglong{log_get_lsn(*log_sys)});
 
   return (DB_SUCCESS);
 }
@@ -3290,7 +3293,7 @@ void srv_shutdown() {
   shutdown_lsn = srv_shutdown_log();
 
   if (srv_conc_get_active_threads() != 0) {
-    ib::warn(ER_IB_MSG_1154, srv_conc_get_active_threads());
+    ib::warn(ER_IB_MSG_1154, ulonglong{srv_conc_get_active_threads()});
   }
 
   /* 2. Make all threads created by InnoDB to exit */
@@ -3361,7 +3364,7 @@ void srv_shutdown() {
   /* 7. Free the synchronisation infrastructure. */
   sync_check_close();
 
-  ib::info(ER_IB_MSG_1155, shutdown_lsn);
+  ib::info(ER_IB_MSG_1155, ulonglong{shutdown_lsn});
 
   srv_start_has_been_called = false;
   srv_is_being_shutdown = false;

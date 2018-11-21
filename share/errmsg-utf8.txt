@@ -15057,25 +15057,25 @@ ER_IB_MSG_271
   eng "%s"
 
 ER_IB_MSG_272
-  eng "Table flags are 0x%lx in the data dictionary but the flags in file %s  are 0x%lx!"
+  eng "Table flags are 0x%lx in the data dictionary but the flags in file %s  are 0x%llx!"
 
 ER_IB_MSG_273
   eng "Can't read encryption key from file %s!"
 
 ER_IB_MSG_274
-  eng "Cannot close file %s, because n_pending_flushes %lu"
+  eng "Cannot close file %s, because n_pending_flushes %zu"
 
 ER_IB_MSG_275
-  eng "Cannot close file %s, because modification count %llu != flush count %llu"
+  eng "Cannot close file %s, because modification count %lld != flush count %lld"
 
 ER_IB_MSG_276
   eng "Cannot close file %s, because it is in use"
 
 ER_IB_MSG_277
-  eng "Open file list len in shard %lu is %lu"
+  eng "Open file list len in shard %zu is %llu"
 
 ER_IB_MSG_278
-  eng "Tablespace %s, waiting for IO to stop for %lu seconds"
+  eng "Tablespace %s, waiting for IO to stop for %lld seconds"
 
 ER_IB_MSG_279
   eng "%s"
@@ -15093,7 +15093,7 @@ ER_IB_MSG_283
   eng "%s"
 
 ER_IB_MSG_284
-  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %lu, max allowed open files %lu."
+  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %zu, max allowed open files %zu."
 
 ER_IB_MSG_285
   eng "Max tablespace id is too high, %lu"
@@ -15105,7 +15105,7 @@ ER_IB_MSG_287
   eng "Trying to close/delete tablespace '%s' but there are %lu pending operations on it."
 
 ER_IB_MSG_288
-  eng "Trying to delete/close tablespace '%s' but there are %lu flushes and %lu pending I/O's on it."
+  eng "Trying to delete/close tablespace '%s' but there are %lu flushes and %zu pending I/O's on it."
 
 ER_IB_MSG_289
   eng "%s"
@@ -15126,7 +15126,7 @@ ER_IB_MSG_294
   eng "Cannot rename '%s' to '%s' for space ID %lu because the target file exists. Remove the target file and try again."
 
 ER_IB_MSG_295
-  eng "Cannot rename file '%s' (space id %lu) retried %lu times. There are either pending IOs or flushes or the file is being extended."
+  eng "Cannot rename file '%s' (space id %lu) retried %llu times. There are either pending IOs or flushes or the file is being extended."
 
 ER_IB_MSG_296
   eng "Cannot find space id %lu in the tablespace memory cache, though the file '%s' in a rename operation should have that ID."
@@ -15150,7 +15150,7 @@ ER_IB_MSG_302
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %lu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"
@@ -16326,10 +16326,10 @@ ER_IB_MSG_694
   eng "############### CORRUPT LOG RECORD FOUND ###############"
 
 ER_IB_MSG_695
-  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %lu Recv offset %lu, prev %lu"
+  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %llu Recv offset %zd, prev %llu"
 
 ER_IB_MSG_696
-  eng "Hex dump starting %lu bytes before and ending %lu bytes after the corrupted record:"
+  eng "Hex dump starting %llu bytes before and ending %llu bytes after the corrupted record:"
 
 ER_IB_MSG_697
   eng "Set innodb_force_recovery to ignore this error."
@@ -16338,7 +16338,7 @@ ER_IB_MSG_698
   eng "The log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
 
 ER_IB_MSG_699
-  eng "%lu pages with log records were left unprocessed!"
+  eng "%llu pages with log records were left unprocessed!"
 
 ER_IB_MSG_700
   eng "%s"
@@ -16362,7 +16362,7 @@ ER_IB_MSG_706
   eng "No valid checkpoint found (corrupted redo log). You can try --innodb-force-recovery=6 as a last resort."
 
 ER_IB_MSG_707
-  eng "Applying a batch of %lu redo log records ..."
+  eng "Applying a batch of %llu redo log records ..."
 
 ER_IB_MSG_708
   eng "%s"
@@ -16401,7 +16401,7 @@ ER_IB_MSG_719
   eng "Could not extend tablespace: %lu space name: %s to new size: %lu pages during recovery."
 
 ER_IB_MSG_720
-  eng "Log block %lu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
+  eng "Log block %llu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
 
 ER_IB_MSG_721
   eng "Recovery skipped, --innodb-read-only set!"
@@ -16458,7 +16458,7 @@ ER_IB_MSG_738
   eng "Waiting for recv_writer to finish flushing of buffer pool"
 
 ER_IB_MSG_739
-  eng "Recovery parsing buffer extended to %lu."
+  eng "Recovery parsing buffer extended to %zu."
 
 ER_IB_MSG_740
   eng "Out of memory while resizing recovery parsing buffer."
@@ -17379,16 +17379,16 @@ ER_IB_MSG_1045
   eng "%s"
 
 ER_IB_MSG_1046
-  eng "Old log sequence number %llu was greater than the new log sequence number%llu. Please submit a bug report to http://bugs.mysql.com"
+  eng "Old log sequence number %llu was greater than the new log sequence number %llu. Please submit a bug report to http://bugs.mysql.com"
 
 ER_IB_MSG_1047
-  eng "Semaphore wait has lasted > %lu seconds. We intentionally crash the server because it appears to be hung."
+  eng "Semaphore wait has lasted > %llu seconds. We intentionally crash the server because it appears to be hung."
 
 ER_IB_MSG_1048
-  eng "Waiting for %lu table(s) to be dropped"
+  eng "Waiting for %llu table(s) to be dropped"
 
 ER_IB_MSG_1049
-  eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %lu"
+  eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %llu"
 
 ER_IB_MSG_1050
   eng "Can't set undo tablespace(s) to be encrypted since --innodb_undo_tablespaces=0."
@@ -17427,10 +17427,10 @@ ER_IB_MSG_1061
   eng "Cannot create %s"
 
 ER_IB_MSG_1062
-  eng "Setting log file %s size to %lu MB"
+  eng "Setting log file %s size to %llu MB"
 
 ER_IB_MSG_1063
-  eng "Cannot set log file %s to size %lu MB"
+  eng "Cannot set log file %s to size %llu MB"
 
 ER_IB_MSG_1064
   eng "Cannot create log files in read-only mode"
@@ -17457,7 +17457,7 @@ ER_IB_MSG_1071
   eng "Creating UNDO Tablespace %s"
 
 ER_IB_MSG_1072
-  eng "Setting file %s size to %lu MB"
+  eng "Setting file %s size to %llu MB"
 
 ER_IB_MSG_1073
   eng "Physically writing the file full"
@@ -17496,10 +17496,10 @@ ER_IB_MSG_1084
   eng "Unable to open undo tablespace number %lu"
 
 ER_IB_MSG_1085
-  eng "Opened %lu existing undo tablespaces."
+  eng "Opened %llu existing undo tablespaces."
 
 ER_IB_MSG_1086
-  eng "Cannot create undo tablespaces since innodb_%s has been set. Using %lu existing undo tablespaces."
+  eng "Cannot create undo tablespaces since innodb_%s has been set. Using %llu existing undo tablespaces."
 
 ER_IB_MSG_1087
   eng "Cannot continue InnoDB startup in %s mode because there are no existing undo tablespaces found."
@@ -17511,7 +17511,7 @@ ER_IB_MSG_1089
   eng "Error %d - %s - opening newly created undo tablespace '%s'."
 
 ER_IB_MSG_1090
-  eng "Created %lu undo tablespaces."
+  eng "Created %llu undo tablespaces."
 
 ER_IB_MSG_1091
   eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring plugin is initialized correctly"
@@ -17526,10 +17526,10 @@ ER_IB_MSG_1094
   eng "Cannot delete old undo tablespaces because they contain undo logs for XA PREPARED transactions."
 
 ER_IB_MSG_1095
-  eng "Upgrading %lu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
+  eng "Upgrading %zu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
 
 ER_IB_MSG_1096
-  eng "Deleting %lu new independent undo tablespaces that we just created."
+  eng "Deleting %llu new independent undo tablespaces that we just created."
 
 ER_IB_MSG_1097
   eng "Waiting for purge to start"
@@ -17559,7 +17559,7 @@ ER_IB_MSG_1105
   eng "Plugin initialization aborted %swith error %s."
 
 ER_IB_MSG_1106
-  eng "Waiting for %lu buffer page I/Os to complete"
+  eng "Waiting for %llu buffer page I/Os to complete"
 
 ER_IB_MSG_1107
   eng "PUNCH HOLE support available"
@@ -17568,7 +17568,7 @@ ER_IB_MSG_1108
   eng "PUNCH HOLE support not available"
 
 ER_IB_MSG_1109
-  eng "Size of InnoDB's ulint is %lu but size of void* is %lu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
+  eng "Size of InnoDB's ulint is %zu but size of void* is %zu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
 
 ER_IB_MSG_1110
   eng "Database upgrade cannot be accomplished in read-only mode."
@@ -17640,7 +17640,7 @@ ER_IB_MSG_1132
   eng "Completed initialization of buffer pool"
 
 ER_IB_MSG_1133
-  eng "Small buffer pool size (%luM), the flst_validate() debug function can cause a deadlock if the buffer pool fills up."
+  eng "Small buffer pool size (%lluM), the flst_validate() debug function can cause a deadlock if the buffer pool fills up."
 
 ER_IB_MSG_1134
   eng "Could not open or create the system tablespace. If you tried to add new data files to the system tablespace, and it failed here, you should now edit innodb_data_file_path in my.cnf back to what it was, and remove the new ibdata files InnoDB created in this failed attempt. InnoDB only wrote those files full of zeros, but did not yet use them in any way. But be careful: do not remove old data files which contain your precious data!"
@@ -17703,7 +17703,7 @@ ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
 
 ER_IB_MSG_1154
-  eng "Query counter shows %lu queries still inside InnoDB at shutdown"
+  eng "Query counter shows %llu queries still inside InnoDB at shutdown"
 
 ER_IB_MSG_1155
   eng "Shutdown completed; log sequence number %llu"
@@ -18283,7 +18283,7 @@ ER_ENDING_INIT
   eng "%s (mysqld %s) initializing of server has completed"
 
 ER_IB_MSG_1272
-  eng "Cannot boot server version %lu on data directory built by version %lu. Downgrade is not supported"
+  eng "Cannot boot server version %lu on data directory built by version %llu. Downgrade is not supported"
 
 ER_SERVER_SHUTDOWN_INFO
   eng "Received SHUTDOWN from user %s. Shutting down mysqld (Version: %s)."
@@ -18340,7 +18340,7 @@ ER_SYS_VAR_NOT_FOUND
   eng "Variable name '%s' not found."
 
 ER_IB_MSG_1274
-  eng ""Some (%d) threads are still active"
+  eng "Some (%d) threads are still active"
 
 ER_IB_MSG_1275
   eng "%s"
@@ -18513,7 +18513,7 @@ ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
   eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet MADV_DONTDUMP is not supported on this platform"
 
 ER_IB_MSG_MADVISE_FAILED
-  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%x,%d,%s) failed with %s"
+  eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%p,%zu,%s) failed with %s"
 
 ER_COLUMN_CHANGE_SIZE
   eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."
@@ -18522,10 +18522,10 @@ ER_WARN_REMOVED_SQL_MODE
   eng "sql_mode=0x%08x has been removed and will be ignored"
 
 ER_IB_MSG_FAILED_TO_ALLOCATE_WAIT
-  eng "Failed to allocate memory for a pool of size %d bytes. Will wait for %d seconds for a thread to free a resource."
+  eng "Failed to allocate memory for a pool of size %zu bytes. Will wait for %zu seconds for a thread to free a resource."
 
 ER_IB_MSG_NUM_POOLS
- eng "Number of pools: %lu"
+ eng "Number of pools: %zu"
 
 ER_IB_MSG_USING_UNDO_SPACE
   eng "Using undo tablespace '%s'."

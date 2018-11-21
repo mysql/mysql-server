@@ -1694,7 +1694,7 @@ loop:
   new_lsn = log_get_lsn(*log_sys);
 
   if (new_lsn < old_lsn) {
-    ib::error(ER_IB_MSG_1046, old_lsn, new_lsn);
+    ib::error(ER_IB_MSG_1046, ulonglong{old_lsn}, ulonglong{new_lsn});
     ut_ad(0);
   }
 
@@ -1721,7 +1721,7 @@ loop:
       os_thread_eq(waiter, old_waiter)) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
-      ib::fatal(ER_IB_MSG_1047, srv_fatal_semaphore_wait_threshold);
+      ib::fatal(ER_IB_MSG_1047, ulonglong{srv_fatal_semaphore_wait_threshold});
     }
   } else {
     fatal_cnt = 0;
@@ -1927,13 +1927,13 @@ static void srv_shutdown_print_master_pending(
     *last_print_time = ut_time();
 
     if (n_tables_to_drop) {
-      ib::info(ER_IB_MSG_1048, n_tables_to_drop);
+      ib::info(ER_IB_MSG_1048, ulonglong{n_tables_to_drop});
     }
 
     /* Check change buffer merge, we only wait for change buffer
     merge if it is a slow shutdown */
     if (!srv_fast_shutdown && n_bytes_merged) {
-      ib::info(ER_IB_MSG_1049, n_bytes_merged);
+      ib::info(ER_IB_MSG_1049, ulonglong{n_bytes_merged});
     }
   }
 }
@@ -2453,7 +2453,7 @@ void srv_enable_undo_encryption_if_set() {
         if (err != DB_SUCCESS) {
           srv_undo_log_encrypt = false;
 
-          ib::error(ER_IB_MSG_1054, undo_space->space_name(), err,
+          ib::error(ER_IB_MSG_1054, undo_space->space_name(), int{err},
                     ut_strerr(err));
 
           mtr_commit(&mtr);

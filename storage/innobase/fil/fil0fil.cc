@@ -2364,7 +2364,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   /* Make sure the space_flags are the same as the header page flags. */
   if (fil_space_flags != header_fsp_flags) {
-    ib::error(ER_IB_MSG_272, space->flags, file->name, flags);
+    ib::error(ER_IB_MSG_272, ulong{space->flags}, file->name, ulonglong{flags});
     ut_error;
   }
 
@@ -2572,8 +2572,8 @@ bool Fil_shard::close_files_in_LRU(bool print_info) {
     shards. */
 
     if (file->modification_counter != file->flush_counter) {
-      ib::info(ER_IB_MSG_275, file->name, file->modification_counter,
-               file->flush_counter);
+      ib::info(ER_IB_MSG_275, file->name, longlong{file->modification_counter},
+               longlong{file->flush_counter});
     }
 
     if (file->in_use > 0) {
@@ -2592,7 +2592,8 @@ bool Fil_system::close_file_in_all_LRU(bool print_info) {
     shard->mutex_acquire();
 
     if (print_info) {
-      ib::info(ER_IB_MSG_277, shard->id(), UT_LIST_GET_LEN(shard->m_LRU));
+      ib::info(ER_IB_MSG_277, shard->id(),
+               ulonglong{UT_LIST_GET_LEN(shard->m_LRU)});
     }
 
     bool success = shard->close_files_in_LRU(print_info);
@@ -2624,7 +2625,7 @@ void Fil_shard::wait_for_io_to_stop(const fil_space_t *space) {
     if ((ut_time() - start_time) == PRINT_INTERVAL_SECS) {
       start_time = ut_time();
 
-      ib::warn(ER_IB_MSG_278, space->name, ut_time() - begin_time);
+      ib::warn(ER_IB_MSG_278, space->name, longlong{ut_time() - begin_time});
     }
 
 #ifndef UNIV_HOTBACKUP
@@ -3560,7 +3561,7 @@ previous value.
 @param[in]	max_id		Maximum known tablespace ID */
 void fil_set_max_space_id_if_bigger(space_id_t max_id) {
   if (dict_sys_t::is_reserved(max_id)) {
-    ib::fatal(ER_IB_MSG_285, (ulint)max_id);
+    ib::fatal(ER_IB_MSG_285, ulong{max_id});
   }
 
   fil_system->update_maximum_space_id(max_id);
@@ -3610,7 +3611,7 @@ inline fil_space_t *fil_space_acquire_low(space_id_t space_id, bool silent) {
 
   if (space == nullptr) {
     if (!silent) {
-      ib::warn(ER_IB_MSG_286, (ulint)space_id);
+      ib::warn(ER_IB_MSG_286, ulong{space_id});
     }
   } else if (space->stop_new_ops) {
     space = nullptr;
@@ -3666,7 +3667,7 @@ ulint Fil_shard::space_check_pending_operations(fil_space_t *space,
 
   if (space != nullptr && space->n_pending_ops > 0) {
     if (count > 5000) {
-      ib::warn(ER_IB_MSG_287, space->name, (ulint)space->n_pending_ops);
+      ib::warn(ER_IB_MSG_287, space->name, ulong{space->n_pending_ops});
     }
 
     return (count + 1);
@@ -3691,8 +3692,8 @@ ulint Fil_shard::check_pending_io(const fil_space_t *space,
 
   if (space->n_pending_flushes > 0 || file.n_pending > 0) {
     if (count > 1000) {
-      ib::warn(ER_IB_MSG_288, space->name, space->n_pending_flushes,
-               file.n_pending);
+      ib::warn(ER_IB_MSG_288, space->name, ulong{space->n_pending_flushes},
+               size_t{file.n_pending});
     }
 
     return (count + 1);
@@ -3993,7 +3994,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   if (err != DB_SUCCESS) {
     ut_a(err == DB_TABLESPACE_NOT_FOUND);
 
-    ib::error(ER_IB_MSG_290, space_id);
+    ib::error(ER_IB_MSG_290, ulong{space_id});
 
     return (err);
   }
@@ -4355,12 +4356,12 @@ dberr_t fil_discard_tablespace(space_id_t space_id) {
 
     case DB_IO_ERROR:
 
-      ib::warn(ER_IB_MSG_291, (ulint)space_id, ut_strerr(err));
+      ib::warn(ER_IB_MSG_291, ulong{space_id}, ut_strerr(err));
       break;
 
     case DB_TABLESPACE_NOT_FOUND:
 
-      ib::warn(ER_IB_MSG_292, (ulint)space_id, ut_strerr(err));
+      ib::warn(ER_IB_MSG_292, ulong{space_id}, ut_strerr(err));
       break;
 
     default:
@@ -4573,14 +4574,14 @@ dberr_t fil_rename_tablespace_check(space_id_t space_id, const char *old_path,
   os_file_type_t ftype;
 
   if (!is_discarded && os_file_status(old_path, &exists, &ftype) && !exists) {
-    ib::error(ER_IB_MSG_293, old_path, new_path, (ulint)space_id);
+    ib::error(ER_IB_MSG_293, old_path, new_path, ulong{space_id});
     return (DB_TABLESPACE_NOT_FOUND);
   }
 
   exists = false;
 
   if (!os_file_status(new_path, &exists, &ftype) || exists) {
-    ib::error(ER_IB_MSG_294, old_path, new_path, (ulint)space_id);
+    ib::error(ER_IB_MSG_294, old_path, new_path, ulong{space_id});
     return (DB_TABLESPACE_EXISTS);
   }
 
@@ -4617,7 +4618,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     ++count;
 
     if (!(count % 1000)) {
-      ib::warn(ER_IB_MSG_295, old_path, (ulint)space_id, count);
+      ib::warn(ER_IB_MSG_295, old_path, ulong{space_id}, ulonglong{count});
     }
 
     /* The name map and space ID map are in the same shard. */
@@ -4628,7 +4629,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = nullptr;);
 
     if (space == nullptr) {
-      ib::error(ER_IB_MSG_296, space_id, old_path);
+      ib::error(ER_IB_MSG_296, ulong{space_id}, old_path);
 
       mutex_release();
 
@@ -5004,7 +5005,8 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     int ret = posix_fallocate(file.m_file, 0, size * page_size.physical());
 
     if (ret != 0) {
-      ib::error(ER_IB_MSG_303, path, size * page_size.physical(), ret, REFMAN);
+      ib::error(ER_IB_MSG_303, path, ulonglong{size * page_size.physical()},
+                ret, REFMAN);
       success = false;
     } else {
       success = true;
@@ -5340,8 +5342,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
   if (validate && !old_space && !for_import) {
     if (df.server_version() > DD_SPACE_CURRENT_SRV_VERSION) {
-      ib::error(ER_IB_MSG_1272, DD_SPACE_CURRENT_SRV_VERSION,
-                df.server_version());
+      ib::error(ER_IB_MSG_1272, ulong{DD_SPACE_CURRENT_SRV_VERSION},
+                ulonglong{df.server_version()});
       /* Server version is less than the tablespace server version.
       We don't support downgrade for 8.0 server, so report error */
       return (DB_SERVER_VERSION_LOW);
@@ -5522,7 +5524,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
                   << space->id << ". Another data file called '" << file.name
                   << "' exists with the same space ID";
 #else  /* UNIV_HOTBACKUP */
-    ib::info(ER_IB_MSG_307, filename, (ulint)space->id, file.name);
+    ib::info(ER_IB_MSG_307, filename, ulong{space->id}, file.name);
 #endif /* UNIV_HOTBACKUP */
 
     space = nullptr;
