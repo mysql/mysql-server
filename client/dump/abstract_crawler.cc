@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -53,11 +53,15 @@ Mysql::Tools::Base::Abstract_program* Abstract_crawler::get_program()
 
 void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
 {
+  /*
+   Add the tasks to this list so that even if we error out,
+   cleanup is done properly.
+  */
+  m_dump_tasks_created.push_back(new_dump_task);
+
   /* in case of error stop all further processing */
   if (get_program()->get_error_code())
     return;
-
-  m_dump_tasks_created.push_back(new_dump_task);
 
   Item_processing_data* main_item_processing_data=
     this->new_task_created(new_dump_task);

@@ -10188,7 +10188,7 @@ gorder_list:
         | order_expr
           {
             $$= NEW_PTN PT_gorder_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }
@@ -10816,7 +10816,7 @@ group_list:
         | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }
@@ -10896,7 +10896,7 @@ order_list:
         | order_expr
           {
             $$= NEW_PTN PT_order_list();
-            if ($1 == NULL)
+            if ($$ == NULL)
               MYSQL_YYABORT;
             $$->push_back($1);
           }

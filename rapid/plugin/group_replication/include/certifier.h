@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,6 +198,12 @@ public:
   virtual ~Certifier();
 
   /**
+    Key used to store errors in the certification info
+    on View_change_log_event.
+  */
+  static const std::string CERTIFICATION_INFO_ERROR_NAME;
+
+  /**
     Initialize certifier.
 
     @param gtid_assignment_block_size the group gtid assignment block size
@@ -296,9 +302,9 @@ public:
     @note if concurrent access is introduce to these variables,
     locking is needed in this method
 
-    @param cert_info              certification info retrieved from recovery procedure
+    @param[in] cert_info  certification info retrieved from recovery procedure
 
-    @retval  > 0  Error during setting certfication info.
+    @retval  > 0  Error during setting certification info.
     @retval  = 0  Everything went fine.
   */
   virtual int set_certification_info(std::map<std::string, std::string> *cert_info);
