@@ -296,7 +296,12 @@ Relay_log_info::~Relay_log_info() {
     delete sid_lock;
   }
 
-  DBUG_ASSERT(set_rli_description_event(nullptr) == 0);
+  if (set_rli_description_event(nullptr)) {
+#ifndef DBUG_OFF
+    bool set_rli_description_event_failed{false};
+#endif
+    DBUG_ASSERT(set_rli_description_event_failed);
+  }
   delete until_option;
   delete gtid_monitoring_info;
   DBUG_VOID_RETURN;

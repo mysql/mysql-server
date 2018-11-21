@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_applier_reader.h"
+#include "include/mutex_lock.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -103,24 +104,31 @@ bool Rpl_applier_reader::open(const char **errmsg) {
                                   rli->get_group_relay_log_pos(), &fdle))
     goto err;
 
-  mysql_mutex_lock(&m_rli->data_lock);
-  if (fdle == nullptr) fdle = new Format_description_log_event();
-  if (rli->set_rli_description_event(fdle)) return true;
+  {  // Begin context block for `m_rli->data_lock` mutex acquisition
+    MUTEX_LOCK(lock, &m_rli->data_lock);
+    bool is_fdle_allocated_here{fdle == nullptr};
+    if (is_fdle_allocated_here) {
+      fdle = new Format_description_log_event();
+    }
+    if (rli->set_rli_description_event(fdle)) {
+      if (is_fdle_allocated_here) delete fdle;
+      return true;  // Release acquired lock on `m_rli->data_lock`
+    }
 
-  /**
-     group_relay_log_name may be different from the one in index file. For
-     example group_relay_log_name includes a full path. But the one in index
-     file has relative path. So set group_relay_log_name to the one in index
-     file. It guarantes MYSQL_BIN_LOG::purge works well.
-  */
-  rli->set_group_relay_log_name(m_linfo.log_file_name);
-  rli->set_event_relay_log_pos(rli->get_group_relay_log_pos());
-  rli->set_event_relay_log_name(rli->get_group_relay_log_name());
-  if (relay_log_purge == 0 && rli->log_space_limit > 0) {
-    rli->log_space_limit = 0;
-    LogErr(WARNING_LEVEL, ER_RELAY_LOG_SPACE_LIMIT_DISABLED);
-  }
-  mysql_mutex_unlock(&m_rli->data_lock);
+    /**
+       group_relay_log_name may be different from the one in index file. For
+       example group_relay_log_name includes a full path. But the one in index
+       file has relative path. So set group_relay_log_name to the one in index
+       file. It guarantes MYSQL_BIN_LOG::purge works well.
+    */
+    rli->set_group_relay_log_name(m_linfo.log_file_name);
+    rli->set_event_relay_log_pos(rli->get_group_relay_log_pos());
+    rli->set_event_relay_log_name(rli->get_group_relay_log_name());
+    if (relay_log_purge == 0 && rli->log_space_limit > 0) {
+      rli->log_space_limit = 0;
+      LogErr(WARNING_LEVEL, ER_RELAY_LOG_SPACE_LIMIT_DISABLED);
+    }
+  }  // Release acquired lock on `m_rli->data_lock`
 
   m_reading_active_log = m_rli->relay_log.is_active(m_linfo.log_file_name);
   ret = false;
