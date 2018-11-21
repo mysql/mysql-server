@@ -1580,7 +1580,7 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
-* Wed Nov 21 2018 Erlend Dahl <Erlend Dahl> - 8.0.14-1
+* Wed Nov 21 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.14-1
 - Add specific compilation comment for the server
 
 * Mon Aug 20 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1

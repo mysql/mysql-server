@@ -417,7 +417,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Wed Nov 21 2018 Erlend Dahl <Erlend Dahl> - 8.0.14-1
+* Wed Nov 21 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.14-1
 - Add specific compilation comment for the server
 
 * Tue Aug 21 2018 Georgi Kodinov <georgi.kodinov@oracle.com> - 8.0.13-1
