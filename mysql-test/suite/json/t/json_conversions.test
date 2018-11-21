@@ -174,9 +174,6 @@ insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_
 insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_DATA_TOO_LONG
-insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_type_year';
---error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c),j from t where c='opaque_mysql_type_blob';
@@ -223,7 +220,7 @@ insert into at(c,_tin) select concat('_tin: ',c),j from t where c='opaque_mysql_
 insert into at(c,_tin) select concat('_tin: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_tin) select concat('_tin: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c),j from t where c='opaque_mysql_type_blob';
@@ -270,7 +267,7 @@ insert into at(c,_boo) select concat('_boo: ',c),j from t where c='opaque_mysql_
 insert into at(c,_boo) select concat('_boo: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_boo) select concat('_boo: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c),j from t where c='opaque_mysql_type_blob';
@@ -318,7 +315,6 @@ insert into at(c,_sms) select concat('_sms: ',c),j from t where c='opaque_mysql_
 insert into at(c,_sms) select concat('_sms: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c),j from t where c='opaque_mysql_type_blob';
@@ -365,7 +361,6 @@ insert into at(c,_smu) select concat('_smu: ',c),j from t where c='opaque_mysql_
 insert into at(c,_smu) select concat('_smu: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c),j from t where c='opaque_mysql_type_blob';
@@ -412,7 +407,6 @@ insert into at(c,_mes) select concat('_mes: ',c),j from t where c='opaque_mysql_
 insert into at(c,_mes) select concat('_mes: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c),j from t where c='opaque_mysql_type_blob';
@@ -459,7 +453,6 @@ insert into at(c,_meu) select concat('_meu: ',c),j from t where c='opaque_mysql_
 insert into at(c,_meu) select concat('_meu: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c),j from t where c='opaque_mysql_type_blob';
@@ -506,7 +499,6 @@ insert into at(c,_ins) select concat('_ins: ',c),j from t where c='opaque_mysql_
 insert into at(c,_ins) select concat('_ins: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c),j from t where c='opaque_mysql_type_blob';
@@ -553,7 +545,6 @@ insert into at(c,_inu) select concat('_inu: ',c),j from t where c='opaque_mysql_
 insert into at(c,_inu) select concat('_inu: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c),j from t where c='opaque_mysql_type_blob';
@@ -600,7 +591,6 @@ insert into at(c,_bis) select concat('_bis: ',c),j from t where c='opaque_mysql_
 insert into at(c,_bis) select concat('_bis: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c),j from t where c='opaque_mysql_type_blob';
@@ -647,7 +637,6 @@ insert into at(c,_biu) select concat('_biu: ',c),j from t where c='opaque_mysql_
 insert into at(c,_biu) select concat('_biu: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c),j from t where c='opaque_mysql_type_blob';
@@ -693,7 +682,7 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_blob';
@@ -739,7 +728,6 @@ insert into at(c,_flo) select concat('_flo: ',c),j from t where c='opaque_mysql_
 insert into at(c,_flo) select concat('_flo: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c),j from t where c='opaque_mysql_type_blob';
@@ -785,7 +773,6 @@ insert into at(c,_dou) select concat('_dou: ',c),j from t where c='opaque_mysql_
 insert into at(c,_dou) select concat('_dou: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c),j from t where c='opaque_mysql_type_blob';
@@ -1034,7 +1021,6 @@ insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_geom';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_bit';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_year';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_blob';
@@ -1633,9 +1619,6 @@ insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t wh
 insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_DATA_TOO_LONG
-insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
---error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1682,7 +1665,7 @@ insert into at(c,_tin) select concat('_tin: ',c), json_extract(j, '$') from t wh
 insert into at(c,_tin) select concat('_tin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_tin) select concat('_tin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1729,7 +1712,7 @@ insert into at(c,_boo) select concat('_boo: ',c), json_extract(j, '$') from t wh
 insert into at(c,_boo) select concat('_boo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_boo) select concat('_boo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1777,7 +1760,6 @@ insert into at(c,_sms) select concat('_sms: ',c), json_extract(j, '$') from t wh
 insert into at(c,_sms) select concat('_sms: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1824,7 +1806,6 @@ insert into at(c,_smu) select concat('_smu: ',c), json_extract(j, '$') from t wh
 insert into at(c,_smu) select concat('_smu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1871,7 +1852,6 @@ insert into at(c,_mes) select concat('_mes: ',c), json_extract(j, '$') from t wh
 insert into at(c,_mes) select concat('_mes: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1918,7 +1898,6 @@ insert into at(c,_meu) select concat('_meu: ',c), json_extract(j, '$') from t wh
 insert into at(c,_meu) select concat('_meu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -1965,7 +1944,6 @@ insert into at(c,_ins) select concat('_ins: ',c), json_extract(j, '$') from t wh
 insert into at(c,_ins) select concat('_ins: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2012,7 +1990,6 @@ insert into at(c,_inu) select concat('_inu: ',c), json_extract(j, '$') from t wh
 insert into at(c,_inu) select concat('_inu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2059,7 +2036,6 @@ insert into at(c,_bis) select concat('_bis: ',c), json_extract(j, '$') from t wh
 insert into at(c,_bis) select concat('_bis: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2106,7 +2082,6 @@ insert into at(c,_biu) select concat('_biu: ',c), json_extract(j, '$') from t wh
 insert into at(c,_biu) select concat('_biu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2152,7 +2127,7 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2198,7 +2173,6 @@ insert into at(c,_flo) select concat('_flo: ',c), json_extract(j, '$') from t wh
 insert into at(c,_flo) select concat('_flo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2244,7 +2218,6 @@ insert into at(c,_dou) select concat('_dou: ',c), json_extract(j, '$') from t wh
 insert into at(c,_dou) select concat('_dou: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -2493,7 +2466,6 @@ insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t wh
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_blob';
@@ -3094,7 +3066,6 @@ insert into at(c,_bit) select concat('_bit: ',c), (select j from t where c='opaq
 insert into at(c,_bit) select concat('_bit: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_DATA_TOO_LONG
 insert into at(c,_bit) select concat('_bit: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3141,7 +3112,7 @@ insert into at(c,_tin) select concat('_tin: ',c), (select j from t where c='opaq
 insert into at(c,_tin) select concat('_tin: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_tin) select concat('_tin: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_tin) select concat('_tin: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3188,7 +3159,7 @@ insert into at(c,_boo) select concat('_boo: ',c), (select j from t where c='opaq
 insert into at(c,_boo) select concat('_boo: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_boo) select concat('_boo: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_boo) select concat('_boo: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3236,7 +3207,6 @@ insert into at(c,_sms) select concat('_sms: ',c), (select j from t where c='opaq
 insert into at(c,_sms) select concat('_sms: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_sms) select concat('_sms: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3283,7 +3253,6 @@ insert into at(c,_smu) select concat('_smu: ',c), (select j from t where c='opaq
 insert into at(c,_smu) select concat('_smu: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_smu) select concat('_smu: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3330,7 +3299,6 @@ insert into at(c,_mes) select concat('_mes: ',c), (select j from t where c='opaq
 insert into at(c,_mes) select concat('_mes: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_mes) select concat('_mes: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3377,7 +3345,6 @@ insert into at(c,_meu) select concat('_meu: ',c), (select j from t where c='opaq
 insert into at(c,_meu) select concat('_meu: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_meu) select concat('_meu: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3424,7 +3391,6 @@ insert into at(c,_ins) select concat('_ins: ',c), (select j from t where c='opaq
 insert into at(c,_ins) select concat('_ins: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_ins) select concat('_ins: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3471,7 +3437,6 @@ insert into at(c,_inu) select concat('_inu: ',c), (select j from t where c='opaq
 insert into at(c,_inu) select concat('_inu: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_inu) select concat('_inu: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3518,7 +3483,6 @@ insert into at(c,_bis) select concat('_bis: ',c), (select j from t where c='opaq
 insert into at(c,_bis) select concat('_bis: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_bis) select concat('_bis: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3565,7 +3529,6 @@ insert into at(c,_biu) select concat('_biu: ',c), (select j from t where c='opaq
 insert into at(c,_biu) select concat('_biu: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_biu) select concat('_biu: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3611,7 +3574,7 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaq
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
+--error ER_WARN_DATA_OUT_OF_RANGE
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3657,7 +3620,6 @@ insert into at(c,_flo) select concat('_flo: ',c), (select j from t where c='opaq
 insert into at(c,_flo) select concat('_flo: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_flo) select concat('_flo: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3703,7 +3665,6 @@ insert into at(c,_dou) select concat('_dou: ',c), (select j from t where c='opaq
 insert into at(c,_dou) select concat('_dou: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_INVALID_JSON_VALUE_FOR_CAST
 insert into at(c,_dou) select concat('_dou: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';
@@ -3952,7 +3913,6 @@ insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaq
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
---error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_blob') from t where c='opaque_mysql_type_blob';

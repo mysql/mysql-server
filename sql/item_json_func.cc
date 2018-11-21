@@ -1130,7 +1130,8 @@ static bool val_json_func_field_subselect(
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_LONGLONG: {
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR: {
       longlong i = arg->val_int();
 
       if (arg->null_value) return false;
@@ -1203,8 +1204,7 @@ static bool val_json_func_field_subselect(
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_YEAR: {
+    case MYSQL_TYPE_TINY_BLOB: {
       String *oo = arg->val_str(value);
 
       if (arg->null_value) return false;
