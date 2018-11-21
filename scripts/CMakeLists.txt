@@ -421,7 +421,7 @@ ENDIF()
 MESSAGE(STATUS "CONFIG_CLIENT_LIBS ${CONFIG_CLIENT_LIBS}")
 MESSAGE(STATUS "CONFIG_LIBS_PRIVATE ${CONFIG_LIBS_PRIVATE}")
 
-SET(mysql_config_COMPONENT COMPONENT Development)
+SET(mysql_config_COMPONENT Development)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured
@@ -447,12 +447,14 @@ IF(WIN32)
        ${CMAKE_CURRENT_BINARY_DIR}/${file}.pl ESCAPE_QUOTES @ONLY)
     INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file}.pl COMPONENT Server_Scripts)
   ENDFOREACH()
+
 ELSE()
+
   # Configure this one, for testing, but do not install it.
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_config.pl.in
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_config.pl ESCAPE_QUOTES @ONLY)
   # On Unix, most of the files end up in the bin directory
-  SET(mysql_config_COMPONENT COMPONENT Development)
+  SET(mysql_config_COMPONENT Development)
 
   IF(WITH_SYSTEMD)
     SET(BIN_SCRIPTS
