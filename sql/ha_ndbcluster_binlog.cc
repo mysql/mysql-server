@@ -24,6 +24,8 @@
 
 #include "sql/ha_ndbcluster_binlog.h"
 
+#include <unordered_map>
+
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
@@ -2962,17 +2964,66 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
 
  */
 class Ndb_schema_dist_data {
-  static const uint max_ndb_nodes= 256; /* multiple of 32 */
-  uchar m_data_node_id_list[max_ndb_nodes];
+  uint m_own_nodeid;
+
+  // Keeps track of subscribers as reported by one data node
+  class Node_subscribers {
+    MY_BITMAP m_bitmap;
+
+   public:
+    Node_subscribers(const Node_subscribers &) = delete;
+    Node_subscribers() = delete;
+    Node_subscribers(uint max_subscribers) {
+      // Initialize the bitmap
+      bitmap_init(&m_bitmap, nullptr, max_subscribers, false);
+
+      // Assume that all bits are cleared by bitmap_init()
+      DBUG_ASSERT(bitmap_is_clear_all(&m_bitmap));
+    }
+    ~Node_subscribers() { bitmap_free(&m_bitmap); }
+    void clear_all() { bitmap_clear_all(&m_bitmap); }
+    void set(uint subscriber_node_id) {
+      bitmap_set_bit(&m_bitmap, subscriber_node_id);
+    }
+    void clear(uint subscriber_node_id) {
+      bitmap_clear_bit(&m_bitmap, subscriber_node_id);
+    }
+    // Add subscribers for this node to other MY_BITMAP
+    void add_to_bitmap(MY_BITMAP *subscribers) const {
+      bitmap_union(subscribers, &m_bitmap);
+    }
+    std::string to_string() const {
+      return ndb_bitmap_to_hex_string(&m_bitmap);
+    }
+  };
   /*
-    The subscribers to ndb_schema are tracked separately for each
-    data node. This avoids the need to know which data nodes are
-    connected.
-    An api counts as subscribed as soon as one of the data nodes
-    report it as subscibed.
+    List keeping track of the subscribers to ndb_schema. It contains one
+    Node_subscribers per data node, this avoids the need to know which data
+    nodes are connected.
   */
-  MY_BITMAP *subscriber_bitmap;
-  unsigned m_num_bitmaps;
+  std::unordered_map<uint, Node_subscribers*> m_subscriber_bitmaps;
+
+  /**
+    @brief Find node subscribers for given data node
+    @param data_node_id Nodeid of data node
+    @return Pointer to node subscribers or nullptr
+   */
+  Node_subscribers *find_node_subscribers(uint data_node_id) const {
+    const auto it = m_subscriber_bitmaps.find(data_node_id);
+    if (it == m_subscriber_bitmaps.end()) {
+      // Unexpected data node id received, this may be caused by data node added
+      // without restarting this MySQL Server or node id otherwise out of
+      // range for current configuration. Handle the situation gracefully and
+      // just print error message to the log.
+      ndb_log_error("Could not find node subscribers for data node %d",
+                    data_node_id);
+      ndb_log_error("Restart this MySQL Server to adapt to configuration");
+      return nullptr;
+    }
+    Node_subscribers *subscriber_bitmap = it->second;
+    ndbcluster::ndbrequire(subscriber_bitmap);
+    return subscriber_bitmap;
+  }
 
   // Holds the new key for a table to be renamed
   struct NDB_SHARE_KEY* m_prepared_rename_key;
@@ -2984,63 +3035,29 @@ class Ndb_schema_dist_data {
 public:
   Ndb_schema_dist_data(const Ndb_schema_dist_data&); // Not implemented
   Ndb_schema_dist_data() :
-    subscriber_bitmap(NULL),
-    m_num_bitmaps(0),
     m_prepared_rename_key(NULL)
   {}
 
-  void init(Ndb_cluster_connection* cluster_connection)
-  {
-    const uint own_nodeid = cluster_connection->node_id();
+  void init(Ndb_cluster_connection *cluster_connection, uint max_subscribers) {
+    m_own_nodeid = cluster_connection->node_id();
 
-    // Initialize "m_data_node_id_list" which maps from nodeid to index in
-    // subscriber bitmaps array. The mapping array is only used when
-    // the NDB binlog thread handles events on the mysql.ndb_schema table
-    uint node_id, i= 0;
+    // Add one subscriber bitmap per data node in the current configuration
+    unsigned node_id;
     Ndb_cluster_connection_node_iter node_iter;
-    memset((void *)m_data_node_id_list, 0xFFFF, sizeof(m_data_node_id_list));
-    while ((node_id= cluster_connection->get_next_node(node_iter)))
-      m_data_node_id_list[node_id]= i++;
-
-    {
-      // Create array of bitmaps for keeping track of subscribed nodes
-      unsigned no_nodes= cluster_connection->no_db_nodes();
-      subscriber_bitmap= (MY_BITMAP*)my_malloc(PSI_INSTRUMENT_ME,
-                                               no_nodes * sizeof(MY_BITMAP),
-                                               MYF(MY_WME));
-      for (unsigned i= 0; i < no_nodes; i++)
-      {
-        bitmap_init(&subscriber_bitmap[i],
-                    (Uint32*)my_malloc(PSI_INSTRUMENT_ME,
-                                       max_ndb_nodes/8, MYF(MY_WME)),
-                    max_ndb_nodes, false);
-        DBUG_ASSERT(bitmap_is_clear_all(&subscriber_bitmap[i]));
-        bitmap_set_bit(&subscriber_bitmap[i], own_nodeid); //'self' is always active
-      }
-      // Remember the number of bitmaps allocated
-      m_num_bitmaps = no_nodes;
+    while ((node_id = cluster_connection->get_next_node(node_iter))) {
+      m_subscriber_bitmaps.emplace(node_id,
+                                   new Node_subscribers(max_subscribers));
     }
   }
 
   void release(void)
   {
-    if (!m_num_bitmaps)
-    {
-      // Allow release without init(), happens when binlog thread
-      // is terminated before connection to cluster has been made
-      // NOTE! Should be possible to use static memory for the arrays
-      return;
+    // Release the subscriber bitmaps
+    for (const auto it : m_subscriber_bitmaps) {
+      Node_subscribers *subscriber_bitmap = it.second;
+      delete subscriber_bitmap;
     }
-
-    for (unsigned i= 0; i < m_num_bitmaps; i++)
-    {
-      // Free memory allocated for the bitmap
-      // allocated by my_malloc() and passed as "buf" to bitmap_init()
-      bitmap_free(&subscriber_bitmap[i]);
-    }
-    // Free memory allocated for the bitmap array
-    my_free(subscriber_bitmap);
-    m_num_bitmaps = 0;
+    m_subscriber_bitmaps.clear();
 
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
@@ -3055,59 +3072,70 @@ public:
 
   void report_data_node_failure(unsigned data_node_id)
   {
-    uint8 idx= map2subscriber_bitmap_index(data_node_id);
-    bitmap_clear_all(&subscriber_bitmap[idx]);
-    DBUG_PRINT("info",("Data node %u failure", data_node_id));
+    ndb_log_verbose(1, "Data node %d failed", data_node_id);
 
-    ndb_log_verbose(1,
-                    "Data node: %d failed, subscriber bitmask %x%08x",
-                    data_node_id,
-                    subscriber_bitmap[idx].bitmap[1],
-                    subscriber_bitmap[idx].bitmap[0]);
+    Node_subscribers *subscribers = find_node_subscribers(data_node_id);
+    if (subscribers){
+
+      subscribers->clear_all();
+
+      ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
+                      subscribers->to_string().c_str());
+    }
 
     check_wakeup_clients();
   }
 
   void report_subscribe(unsigned data_node_id, unsigned subscriber_node_id)
   {
-    uint8 idx= map2subscriber_bitmap_index(data_node_id);
-    DBUG_ASSERT(subscriber_node_id != 0);
-    bitmap_set_bit(&subscriber_bitmap[idx], subscriber_node_id);
-    DBUG_PRINT("info",("Data node %u reported node %u subscribed ",
-                       data_node_id, subscriber_node_id));
-    ndb_log_verbose(1,
-                    "Data node: %d reports subscribe from node %d, "
-                    "subscriber bitmask %x%08x",
-                    data_node_id, subscriber_node_id,
-                    subscriber_bitmap[idx].bitmap[1],
-                    subscriber_bitmap[idx].bitmap[0]);
+    ndb_log_verbose(1, "Data node %d reports subscribe from node %d",
+                    data_node_id, subscriber_node_id);
+    ndbcluster::ndbrequire(subscriber_node_id != 0);
+
+    Node_subscribers* subscribers = find_node_subscribers(data_node_id);
+    if (subscribers){
+
+      subscribers->set(subscriber_node_id);
+
+      ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
+                      subscribers->to_string().c_str());
+    }
 
     //No 'wakeup_clients' now, as *adding* subscribers didn't complete anything
   }
 
   void report_unsubscribe(unsigned data_node_id, unsigned subscriber_node_id)
   {
-    uint8 idx= map2subscriber_bitmap_index(data_node_id);
-    DBUG_ASSERT(subscriber_node_id != 0);
-    bitmap_clear_bit(&subscriber_bitmap[idx], subscriber_node_id);
-    DBUG_PRINT("info",("Data node %u reported node %u unsubscribed ",
-                       data_node_id, subscriber_node_id));
-    ndb_log_verbose(1,
-                    "Data node: %d reports unsubscribe from node %d, "
-                    "subscriber bitmask %x%08x",
-                    data_node_id, subscriber_node_id,
-                    subscriber_bitmap[idx].bitmap[1],
-                    subscriber_bitmap[idx].bitmap[0]);
+    ndb_log_verbose(1, "Data node %d reports unsubscribe from node %d",
+                    data_node_id, subscriber_node_id);
+    ndbcluster::ndbrequire(subscriber_node_id != 0);
+
+    Node_subscribers* subscribers = find_node_subscribers(data_node_id);
+    if (subscribers){
+
+      subscribers->clear(subscriber_node_id);
+
+      ndb_log_verbose(19, "Subscribers[%d]: %s", data_node_id,
+                      subscribers->to_string().c_str());
+    }
 
     check_wakeup_clients();
   }
 
-  void get_subscriber_bitmask(MY_BITMAP* servers) const
-  {
-    for (unsigned i= 0; i < m_num_bitmaps; i++)
-    {
-      bitmap_union(servers, &subscriber_bitmap[i]);
+  /**
+     @brief Build bitmask of current subscribers to ndb_schema.
+     @note A node counts as subscribed as soon as any data node report it as
+     subscribed.
+     @param subscriber_bitmask Pointer to MY_BITMAP to fill with current
+     subscribers
+  */
+  void get_subscriber_bitmask(MY_BITMAP *subscriber_bitmask) const {
+    for (const auto it : m_subscriber_bitmaps) {
+      Node_subscribers *subscribers = it.second;
+      subscribers->add_to_bitmap(subscriber_bitmask);
     }
+    // Set own node as always active
+    bitmap_set_bit(subscriber_bitmask, m_own_nodeid);
   }
 
   void save_prepared_rename_key(NDB_SHARE_KEY* key)
@@ -3133,18 +3161,6 @@ public:
   }
 
 private:
-
-  // Map from nodeid to position in subscriber bitmaps array
-  uint8 map2subscriber_bitmap_index(uint data_node_id) const
-  {
-    DBUG_ASSERT(data_node_id <
-                (sizeof(m_data_node_id_list)/sizeof(m_data_node_id_list[0])));
-    const uint8 bitmap_index = m_data_node_id_list[data_node_id];
-    DBUG_ASSERT(bitmap_index != 0xFF);
-    DBUG_ASSERT(bitmap_index < m_num_bitmaps);
-    return bitmap_index;
-  }
-
   void check_wakeup_clients() const
   {
     // Build bitmask of current participants
@@ -7967,7 +7983,9 @@ restart_cluster_failure:
     thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
   }
 
-  schema_dist_data.init(g_ndb_cluster_connection);
+  // NOTE! The initialization should be changed to dynamically lookup number of
+  // subscribers in current configuration
+  schema_dist_data.init(g_ndb_cluster_connection, MAX_NODES);
 
   {
     log_verbose(1, "Wait for first event");
