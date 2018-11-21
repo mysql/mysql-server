@@ -10443,6 +10443,44 @@ static bool dd_part_has_datadir(const dd::Partition *dd_part) {
               dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]));
 }
 
+/** Adjust data directory for exchange parition. Special handling of
+dict_table_t::data_dir_path is necessary if DATA DIRECTORY is specified. For
+exaple if DATA DIRECTORY Is '/tmp', the data directory for nomral table is
+'/tmp/t1', while for partition is '/tmp'. So rename, the postfix table name 't1'
+should either be truncated or appended.
+@param[in] partition name
+@param[in] swap table_name */
+void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
+                                       dict_table_t *table_s) {
+  ut_ad(table_s->n_ref_count == 1);
+  ut_ad(table_p->n_ref_count == 1);
+  if (table_s->data_dir_path != nullptr) {
+    std::string str(table_s->data_dir_path);
+    /* new_name contains database/name but we require name */
+    const char *name = strchr(table_s->name.m_name, '/') + 1;
+    str.append(name);
+
+    uint old_size = mem_heap_get_size(table_s->heap);
+
+    table_s->data_dir_path = mem_heap_strdup(table_s->heap, str.c_str());
+
+    uint new_size = mem_heap_get_size(table_s->heap);
+    mutex_enter(&dict_sys->mutex);
+    dict_sys->size += new_size - old_size;
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  if (table_p->data_dir_path != nullptr) {
+    std::string str(table_p->data_dir_path);
+    size_t found = str.find_last_of("/\\");
+
+    ut_ad(found != std::string::npos);
+    found++;
+
+    table_p->data_dir_path[found] = '\0';
+  }
+}
+
 /** Exchange partition.
 Low-level primitive which implementation is provided here.
 @param[in]	part_table_path		data file path of the partitioned table
@@ -10495,14 +10533,6 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   }
   ut_ad(dd_part != nullptr);
 
-  /* According to current restriction, all options should be equal
-  between partition and table. And DATA DIRECTORY and INDEX DIRECTORY
-  should not be set */
-  if (dd_part_has_datadir(dd_part) ||
-      swap_table->options().exists(data_file_name_key)) {
-    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "DATA DIRECTORY");
-    DBUG_RETURN(true);
-  }
   if (dd_part->options().exists(index_file_name_key) ||
       swap_table->options().exists(index_file_name_key)) {
     ut_ad(0);
@@ -10556,6 +10586,13 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
                                                      swap_table, swap_table);
   if (error != 0) {
     goto func_exit;
+  }
+
+  if (dd_part_has_datadir(dd_part) ||
+      swap_table->options().exists(data_file_name_key)) {
+    /* after above swaping swap is now partition table and part is now normal
+     * table */
+    exchange_partition_adjust_datadir(thd, swap, part);
   }
 
   /* Swap the se_private_data and options between indexes.

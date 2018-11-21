@@ -4252,8 +4252,6 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
     option_diffs[errors++] = "MAX_ROWS";
   if (part_elem->part_min_rows != table_create_info->min_rows)
     option_diffs[errors++] = "MIN_ROWS";
-  if (part_elem->data_file_name || table_create_info->data_file_name)
-    option_diffs[errors++] = "DATA DIRECTORY";
   if (part_elem->index_file_name || table_create_info->index_file_name)
     option_diffs[errors++] = "INDEX DIRECTORY";
 
