@@ -781,17 +781,6 @@ err:
                           super_read_only_mode);
     }
 
-    /*
-      Abort right away if the exit state action was set to ABORT_SERVER (and we
-      are starting GROUP_REPLICATION on boot).
-    */
-    if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
-        start_group_replication_at_boot_var) {
-      abort_plugin_process(
-          "Fatal error during execution of Group Replication group joining "
-          "process");
-    }
-
     DBUG_ASSERT(transactions_latch->empty());
     // Inform the transaction observer that we won't apply any further backlog
     // (because we are erroring out).
