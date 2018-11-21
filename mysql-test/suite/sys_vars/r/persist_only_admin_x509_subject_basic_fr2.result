@@ -104,3 +104,10 @@ SET PERSIST_ONLY version_compile_zlib = DEFAULT;
 ERROR HY000: Variable 'version_compile_zlib' is a non persistent read only variable
 # Cleanup
 RESET PERSIST;
+#
+# BUG#28589736: PID_FILE OPTION MUST NOT HAVE DEFAULT VALUE AS NULL
+#
+SET PERSIST_ONLY pid_file = DEFAULT;
+include/assert_grep.inc [Check mysqld-auto.cnf for "pid_file" value]
+# Cleanup
+RESET PERSIST;
