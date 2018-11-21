@@ -10448,8 +10448,9 @@ dict_table_t::data_dir_path is necessary if DATA DIRECTORY is specified. For
 exaple if DATA DIRECTORY Is '/tmp', the data directory for nomral table is
 '/tmp/t1', while for partition is '/tmp'. So rename, the postfix table name 't1'
 should either be truncated or appended.
-@param[in] partition name
-@param[in] swap table_name */
+@param[in] thd the session
+@param[in] table_p partiton table
+@param[in] table_s  swap table*/
 void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
                                        dict_table_t *table_s) {
   ut_ad(table_s->n_ref_count == 1);
