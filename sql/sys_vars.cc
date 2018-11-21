@@ -2949,7 +2949,7 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
 static Sys_var_charptr Sys_pid_file(
     "pid_file", "Pid file used by safe_mysqld",
     READ_ONLY NON_PERSIST GLOBAL_VAR(pidfile_name_ptr), CMD_LINE(REQUIRED_ARG),
-    IN_FS_CHARSET, DEFAULT(0));
+    IN_FS_CHARSET, DEFAULT(pidfile_name));
 
 static Sys_var_charptr Sys_plugin_dir(
     "plugin_dir", "Directory for plugins",
