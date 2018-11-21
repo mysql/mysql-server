@@ -209,32 +209,32 @@ our $opt_report_unstable_tests;
 our $opt_ssl;
 our $opt_suite_opt;
 our $opt_summary_report;
-our $opt_valgrind_secondary_engine;
 our $opt_vardir;
 our $opt_xml_report;
 
-our $opt_big_test         = 0;
-our $opt_check_testcases  = 1;
-our $opt_clean_vardir     = $ENV{'MTR_CLEAN_VARDIR'};
-our $opt_ctest            = env_or_val(MTR_UNIT_TESTS => -1);
-our $opt_fast             = 0;
-our $opt_gcov_err         = "mysql-test-gcov.err";
-our $opt_gcov_exe         = "gcov";
-our $opt_gcov_msg         = "mysql-test-gcov.msg";
-our $opt_mem              = $ENV{'MTR_MEM'} ? 1 : 0;
-our $opt_only_big_test    = 0;
-our $opt_parallel         = $ENV{MTR_PARALLEL};
-our $opt_quiet            = $ENV{'MTR_QUIET'} || 0;
-our $opt_repeat           = 1;
-our $opt_report_times     = 0;
-our $opt_resfile          = $ENV{'MTR_RESULT_FILE'} || 0;
-our $opt_test_progress    = 1;
-our $opt_sanitize         = 0;
-our $opt_shutdown_timeout = $ENV{MTR_SHUTDOWN_TIMEOUT} || 20;    # seconds
-our $opt_start_timeout    = $ENV{MTR_START_TIMEOUT} || 180;      # seconds
-our $opt_user             = "root";
-our $opt_valgrind         = 0;
-our $opt_verbose          = 0;
+our $opt_big_test                  = 0;
+our $opt_check_testcases           = 1;
+our $opt_clean_vardir              = $ENV{'MTR_CLEAN_VARDIR'};
+our $opt_ctest                     = env_or_val(MTR_UNIT_TESTS => -1);
+our $opt_fast                      = 0;
+our $opt_gcov_err                  = "mysql-test-gcov.err";
+our $opt_gcov_exe                  = "gcov";
+our $opt_gcov_msg                  = "mysql-test-gcov.msg";
+our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
+our $opt_only_big_test             = 0;
+our $opt_parallel                  = $ENV{MTR_PARALLEL};
+our $opt_quiet                     = $ENV{'MTR_QUIET'} || 0;
+our $opt_repeat                    = 1;
+our $opt_report_times              = 0;
+our $opt_resfile                   = $ENV{'MTR_RESULT_FILE'} || 0;
+our $opt_test_progress             = 1;
+our $opt_sanitize                  = 0;
+our $opt_shutdown_timeout          = $ENV{MTR_SHUTDOWN_TIMEOUT} || 20; # seconds
+our $opt_start_timeout             = $ENV{MTR_START_TIMEOUT} || 180;   # seconds
+our $opt_user                      = "root";
+our $opt_valgrind                  = 0;
+our $opt_valgrind_secondary_engine = 0;
+our $opt_verbose                   = 0;
 # Visual Studio produces executables in different sub-directories
 # based on the configuration used to build them. To make life easier,
 # an environment variable or command-line option may be specified to
@@ -1963,7 +1963,8 @@ sub command_line_setup {
     $opt_valgrind_mysqld = 1;
     # Enable this when mysqlpump and mysqlbinlog are fixed.
     # $opt_valgrind_clients = 1;
-    $opt_valgrind_mysqltest = 1;
+    $opt_valgrind_mysqltest        = 1;
+    $opt_valgrind_secondary_engine = 1;
 
     # Increase the timeouts when running with valgrind
     $opt_testcase_timeout   *= 10;
@@ -1979,6 +1980,8 @@ sub command_line_setup {
   } elsif ($opt_valgrind_mysqltest) {
     mtr_report("Turning on valgrind for mysqltest and mysql_client_test only");
     $opt_valgrind = 1;
+  } elsif ($opt_valgrind_secondary_engine) {
+    mtr_report("Turning on valgrind for secondary engine server(s) only.");
   }
 
   if ($opt_callgrind) {
