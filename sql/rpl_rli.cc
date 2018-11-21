@@ -30,6 +30,7 @@
 #include "debug_sync.h"
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
+#include "mutex_lock.h"            // Mutex_lock
 
 #include <algorithm>
 using std::min;
@@ -399,6 +400,7 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
   DBUG_ENTER("add_relay_log");
+  mysql_mutex_assert_owner(&rli->log_space_lock);
   if (!mysql_file_stat(key_file_relaylog,
                        linfo->log_file_name, &s, MYF(0)))
   {
@@ -418,6 +420,7 @@ int Relay_log_info::count_relay_log_space()
 {
   LOG_INFO flinfo;
   DBUG_ENTER("Relay_log_info::count_relay_log_space");
+  Mutex_lock lock(&log_space_lock);
   log_space_total= 0;
   if (relay_log.find_log_pos(&flinfo, NullS, 1))
   {
@@ -2426,7 +2429,7 @@ void Relay_log_info::end_info()
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);
-  relay_log.harvest_bytes_written(&log_space_total);
+  relay_log.harvest_bytes_written(this, true/*need_log_space_lock=true*/);
   /*
     Delete the slave's temporary tables from memory.
     In the future there will be other actions than this, to ensure persistance
