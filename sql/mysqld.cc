@@ -8952,7 +8952,7 @@ bool mysqld_get_one_option(int optid,
         LogErr(WARNING_LEVEL, ER_THE_USER_ABIDES, argument, mysqld_user);
       break;
     case 's':
-      if (argument[0] == '0') {
+      if (argument && argument[0] == '0') {
         LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_NO_REPLACEMENT,
                "Disabling symbolic links using --skip-symbolic-links"
                " (or equivalent) is the default. Consider not using"
