@@ -3530,6 +3530,16 @@ class Field_string : public Field_longstr {
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *, String *) override;
+  /**
+     Get the C-string value, without using String class.
+     @returns The C-string value of this field.
+  */
+  LEX_CSTRING val_str_quick() const {
+    const char *string = pointer_cast<const char *>(ptr);
+    return {string,
+            field_charset->cset->lengthsp(field_charset, string, field_length)};
+  }
+
   my_decimal *val_decimal(my_decimal *) override;
   int cmp(const uchar *, const uchar *) override;
   size_t make_sort_key(uchar *buff, size_t length) override;
