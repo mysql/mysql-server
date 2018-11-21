@@ -293,8 +293,9 @@ class Composite_pk : public Object_key {
 
 class Composite_char_key : public Object_key {
  public:
-  Composite_char_key(int index_no, uint first_column_no, String_type first_name,
-                     uint second_column_no, String_type second_name)
+  Composite_char_key(int index_no, uint first_column_no,
+                     const String_type &first_name, uint second_column_no,
+                     const String_type &second_name)
       : m_index_no(index_no),
         m_first_column_no(first_column_no),
         m_first_name(first_name),
@@ -321,10 +322,10 @@ class Composite_char_key : public Object_key {
 class Composite_4char_key : public Object_key {
  public:
   Composite_4char_key(int index_no, uint first_column_no,
-                      String_type first_name, uint second_column_no,
-                      String_type second_name, uint third_column_no,
-                      String_type third_name, uint fourth_column_no,
-                      String_type fourth_name)
+                      const String_type &first_name, uint second_column_no,
+                      const String_type &second_name, uint third_column_no,
+                      const String_type &third_name, uint fourth_column_no,
+                      const String_type &fourth_name)
       : m_index_no(index_no),
         m_first_column_no(first_column_no),
         m_first_name(first_name),

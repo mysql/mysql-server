@@ -165,9 +165,9 @@ class Abstract_table_impl : public Entity_object_impl,
 
   Column *get_column(Object_id column_id);
 
-  const Column *get_column(const String_type name) const;
+  const Column *get_column(const String_type &name) const;
 
-  Column *get_column(const String_type name);
+  Column *get_column(const String_type &name);
 
   // Fix "inherits ... via dominance" warnings
   virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }

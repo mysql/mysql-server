@@ -93,7 +93,8 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *tm, MYSQL_TIME *dt);
 
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
-                                  ErrConvString val, timestamp_type time_type,
+                                  const ErrConvString &val,
+                                  timestamp_type time_type,
                                   const char *field_name);
 
 const char *get_date_time_format_str(const Known_date_time_format *format,

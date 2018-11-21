@@ -4581,7 +4581,7 @@ my_decimal *Field_temporal::val_decimal(my_decimal *decimal_value) {
 
   @note STRICT mode can convert warnings to error.
 */
-bool Field_temporal::set_warnings(ErrConvString str, int warnings) {
+bool Field_temporal::set_warnings(const ErrConvString &str, int warnings) {
   bool truncate_incremented = false;
   timestamp_type ts_type = field_type_to_timestamp_type(type());
 
@@ -9800,8 +9800,8 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
     for current thread.
 */
 bool Field_temporal::set_datetime_warning(
-    Sql_condition::enum_severity_level level, uint code, ErrConvString val,
-    timestamp_type ts_type, int truncate_increment) {
+    Sql_condition::enum_severity_level level, uint code,
+    const ErrConvString &val, timestamp_type ts_type, int truncate_increment) {
   THD *thd = table ? table->in_use : current_thd;
   if ((!thd->lex->is_ignore() &&
        ((thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) ||

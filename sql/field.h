@@ -2686,7 +2686,7 @@ class Field_temporal : public Field {
     @retval false  Function reported warning
     @retval true   Function reported error
   */
-  bool set_warnings(ErrConvString str, int warnings)
+  bool set_warnings(const ErrConvString &str, int warnings)
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
@@ -2725,7 +2725,7 @@ class Field_temporal : public Field {
     @retval true   Function reported error
   */
   bool set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
-                            ErrConvString val, timestamp_type ts_type,
+                            const ErrConvString &val, timestamp_type ts_type,
                             int truncate_increment)
       MY_ATTRIBUTE((warn_unused_result));
 

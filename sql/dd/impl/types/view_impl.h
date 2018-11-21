@@ -259,10 +259,10 @@ class View_impl : public Abstract_table_impl, public View {
   virtual Column_collection *columns() {
     return Abstract_table_impl::columns();
   }
-  const Column *get_column(const String_type name) const {
+  const Column *get_column(const String_type &name) const {
     return Abstract_table_impl::get_column(name);
   }
-  Column *get_column(const String_type name) {
+  Column *get_column(const String_type &name) {
     return Abstract_table_impl::get_column(name);
   }
   virtual enum_hidden_type hidden() const {

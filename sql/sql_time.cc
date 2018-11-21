@@ -678,7 +678,8 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec) {
  */
 bool make_truncated_value_warning(THD *thd,
                                   Sql_condition::enum_severity_level level,
-                                  ErrConvString val, timestamp_type time_type,
+                                  const ErrConvString &val,
+                                  timestamp_type time_type,
                                   const char *field_name) {
   char warn_buff[MYSQL_ERRMSG_SIZE];
   const char *type_str;

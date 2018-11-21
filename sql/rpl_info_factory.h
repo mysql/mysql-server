@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +105,8 @@ class Rpl_info_factory {
                                 Rpl_info_handler **handler_src,
                                 Rpl_info_handler **handler_dest,
                                 const char **msg);
-  static bool init_repositories(const struct_table_data table_data,
-                                const struct_file_data file_data, uint option,
+  static bool init_repositories(const struct_table_data &table_data,
+                                const struct_file_data &file_data, uint option,
                                 Rpl_info_handler **handler_src,
                                 Rpl_info_handler **handler_dest,
                                 const char **msg);
@@ -122,8 +122,8 @@ class Rpl_info_factory {
                                 Rpl_info_handler **handler_dst,
                                 const char **msg);
   static bool scan_repositories(uint *found_instances, uint *found_rep_option,
-                                const struct_table_data table_data,
-                                const struct_file_data file_data,
+                                const struct_table_data &table_data,
+                                const struct_file_data &file_data,
                                 const char **msg);
   static bool load_channel_names_from_repository(
       std::vector<std::string> &channel_list, uint mi_instances,

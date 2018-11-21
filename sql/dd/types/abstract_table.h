@@ -171,7 +171,7 @@ class Abstract_table : virtual public Entity_object {
 
   virtual Column_collection *columns() = 0;
 
-  virtual const Column *get_column(const String_type name) const = 0;
+  virtual const Column *get_column(const String_type &name) const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

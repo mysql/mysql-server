@@ -90,7 +90,7 @@ class Charset_impl : public Entity_object_impl, public Charset {
 
   virtual const String_type &comment() const { return m_comment; }
 
-  virtual void set_comment(String_type comment) { m_comment = comment; }
+  virtual void set_comment(const String_type &comment) { m_comment = comment; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }

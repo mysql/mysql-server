@@ -447,10 +447,10 @@ class Table_impl : public Abstract_table_impl, virtual public Table {
   Column *get_column(Object_id column_id) {
     return Abstract_table_impl::get_column(column_id);
   }
-  const Column *get_column(const String_type name) const {
+  const Column *get_column(const String_type &name) const {
     return Abstract_table_impl::get_column(name);
   }
-  Column *get_column(const String_type name) {
+  Column *get_column(const String_type &name) {
     return Abstract_table_impl::get_column(name);
   }
   virtual bool update_aux_key(Aux_key *key) const {

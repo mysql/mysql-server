@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     @return void.
   */
   virtual void add_field(int field_number, const String_type &field_name,
-                         const String_type field_definition,
+                         const String_type &field_definition,
                          bool add_quotes = false) {
     // Make sure the field_number and field_name are not added twise.
     DBUG_ASSERT(m_field_numbers.find(field_name) == m_field_numbers.end() &&

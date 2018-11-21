@@ -825,8 +825,8 @@ bool Rpl_info_factory::init_repositories(Rpl_info *info,
   @retval false No error
   @retval true  Failure
 */
-bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
-                                         const struct_file_data file_data,
+bool Rpl_info_factory::init_repositories(const struct_table_data &table_data,
+                                         const struct_file_data &file_data,
                                          uint rep_option,
                                          Rpl_info_handler **handler_src,
                                          Rpl_info_handler **handler_dest,
@@ -878,8 +878,8 @@ err:
 
 bool Rpl_info_factory::scan_repositories(uint *found_instances,
                                          uint *found_rep_option,
-                                         const struct_table_data table_data,
-                                         const struct_file_data file_data,
+                                         const struct_table_data &table_data,
+                                         const struct_file_data &file_data,
                                          const char **msg) {
   bool error = false;
   uint file_instances = 0;
