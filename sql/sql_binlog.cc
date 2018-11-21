@@ -64,9 +64,13 @@ static int check_event_type(int type, Relay_log_info *rli) {
         We need a preliminary FD event in order to parse the FD event,
         if we don't already have one.
       */
-      if (!fd_event)
-        return rli->set_rli_description_event(
-            new Format_description_log_event());
+      if (!fd_event) {
+        fd_event = new Format_description_log_event();
+        if (rli->set_rli_description_event(fd_event)) {
+          delete fd_event;
+          return 1;
+        }
+      }
 
       /* It is always allowed to execute FD events. */
       return 0;

@@ -5218,8 +5218,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli) {
 
   if (!ret) {
     /* Save the information describing this binlog */
-    DBUG_RETURN(
-        const_cast<Relay_log_info *>(rli)->set_rli_description_event(this));
+    ret = const_cast<Relay_log_info *>(rli)->set_rli_description_event(this);
   }
 
   DBUG_RETURN(ret);
