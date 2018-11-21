@@ -5241,7 +5241,8 @@ row_rename_table_for_mysql(
 	pars_info_t*	info			= NULL;
 	int		retry;
 	bool		aux_fts_rename		= false;
-
+	bool		is_new_part;
+	bool		is_old_part;
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
@@ -5280,6 +5281,12 @@ row_rename_table_for_mysql(
 	table = dict_table_open_on_name(old_name, dict_locked, FALSE,
 					DICT_ERR_IGNORE_NONE);
 
+	is_old_part = strstr((char*)old_name, "#p#") ||
+	              strstr((char*)old_name, "#P");
+
+	is_new_part = strstr((char*)new_name, "#p#") ||
+	              strstr((char*)new_name, "#P");
+
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
 		goto funct_exit;
@@ -5312,6 +5319,45 @@ row_rename_table_for_mysql(
 			goto funct_exit;
 		}
 	}
+
+        /* To exchange a normal table(t1) with partition table (p1), the
+           rename logic is something like: 1) t1 -> tmp table 2) p1-> t1
+           3) tmp -> p1. And special handling of dict_table_t::data_dir_path
+           is necessary if DATA DIRECTORY is specified.
+           For example if DATA DIRECTORY Is '/tmp', the data directory for
+           nomral table is '/tmp/t1', while for partition is '/tmp'. So during
+           above rename step 2) and 3), the postfix table name 't1' should
+           either be truncated or appended.*/
+        if (old_is_tmp && is_new_part && table->data_dir_path != NULL) {
+		std::string str(table->data_dir_path);
+		size_t found = str.find_last_of("/\\");
+
+		ut_ad(found != std::string::npos);
+		found++;
+
+		table->data_dir_path[found] = '\0';
+
+        } else if (is_old_part && !is_new_part &&
+                   table->data_dir_path != NULL && !new_is_tmp) {
+
+		uint old_size = mem_heap_get_size(table->heap);
+
+		std::string str(table->data_dir_path);
+
+		/* new_name contains database/name but we require name */
+                const char *name = strchr(new_name, '/') + 1;
+
+                str.append(name);
+
+		table->data_dir_path =
+		    mem_heap_strdup(table->heap, str.c_str());
+
+		uint new_size = mem_heap_get_size(table->heap);
+
+		ut_ad(mutex_own(&dict_sys->mutex));
+
+		dict_sys->size += new_size - old_size;
+        }
 
 	/* Is a foreign key check running on this table? */
 	for (retry = 0; retry < 100
