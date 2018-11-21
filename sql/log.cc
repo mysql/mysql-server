@@ -556,11 +556,11 @@ bool File_query_log::open() {
                  "%s, Version: %s (%s). "
 #if defined(_WIN32)
                  "started with:\nTCP Port: %d, Named Pipe: %s\n",
-                 my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                 my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
                  mysqld_port, mysqld_unix_port
 #else
                  "started with:\nTcp port: %d  Unix socket: %s\n",
-                 my_progname, server_version, MYSQL_COMPILATION_COMMENT,
+                 my_progname, server_version, MYSQL_COMPILATION_COMMENT_SERVER,
                  mysqld_port, mysqld_unix_port
 #endif
         );

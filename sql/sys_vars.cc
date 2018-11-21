@@ -4548,7 +4548,7 @@ static char *server_version_comment_ptr;
 static Sys_var_charptr Sys_version_comment(
     "version_comment", "version_comment",
     READ_ONLY NON_PERSIST GLOBAL_VAR(server_version_comment_ptr), NO_CMD_LINE,
-    IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT));
+    IN_SYSTEM_CHARSET, DEFAULT(MYSQL_COMPILATION_COMMENT_SERVER));
 
 static char *server_version_compile_machine_ptr;
 static Sys_var_charptr Sys_version_compile_machine(

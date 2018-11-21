@@ -156,6 +156,9 @@ ENDIF()
 IF(NOT COMPILATION_COMMENT)
   SET(COMPILATION_COMMENT "Source distribution")
 ENDIF()
+IF(NOT COMPILATION_COMMENT_SERVER)
+  SET(COMPILATION_COMMENT_SERVER ${COMPILATION_COMMENT})
+ENDIF()
 
 # Get the sys schema version from the mysql_sys_schema.sql file
 # however if compiling without performance schema, always use version 1.0.0
