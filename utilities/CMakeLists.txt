@@ -101,17 +101,6 @@ ADD_DEPENDENCIES(perror GenError)
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
 SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
-MYSQL_ADD_EXECUTABLE(resolveip resolveip.cc)
-TARGET_LINK_LIBRARIES(resolveip mysys mysys_ssl)
-SET_TARGET_PROPERTIES(resolveip PROPERTIES LINKER_LANGUAGE CXX)
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-  INCLUDE(CheckFunctionExists)
-  INCLUDE(CheckLibraryExists)
-  MY_SEARCH_LIBS(inet_aton  "nsl;socket;resolv" SOLARIS_NSL)
-  TARGET_LINK_LIBRARIES(resolveip ${SOLARIS_NSL})
-ENDIF()
-
-
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
   TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY} mysys)
@@ -179,11 +168,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(ibd2sdi GenError)
 
-ENDIF()
-
-IF(UNIX)
-  MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.cc)
-  TARGET_LINK_LIBRARIES(resolve_stack_dump mysys mysys_ssl)
 ENDIF()
 
 # In published release builds on Solaris, we need to bundle gcc source.
