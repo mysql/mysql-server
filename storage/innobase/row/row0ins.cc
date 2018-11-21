@@ -1768,6 +1768,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   trx = thr_get_trx(thr);
 
+  if (trx->check_foreigns == FALSE) {
+    return (DB_SUCCESS);
+  }
   DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
                       "foreign_constraint_check_for_ins");
 
