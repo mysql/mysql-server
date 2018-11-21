@@ -3406,6 +3406,7 @@ String *Item_load_file::val_str(String *str) {
   File file;
   MY_STAT stat_info;
   char path[FN_REFLEN];
+  uchar buf[4096];
   DBUG_ENTER("load_file");
 
   if (!(file_name = args[0]->val_str(str)) ||
@@ -3418,29 +3419,43 @@ String *Item_load_file::val_str(String *str) {
   /* Read only allowed from within dir specified by secure_file_priv */
   if (!is_secure_file_path(path)) goto err;
 
-  if (!mysql_file_stat(key_file_loadfile, path, &stat_info, MYF(0))) goto err;
-
-  if (!(stat_info.st_mode & S_IROTH)) {
-    /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
-    goto err;
-  }
-  if (stat_info.st_size > (long)current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    goto err;
-  }
-  if (tmp_value.alloc(stat_info.st_size)) goto err;
   if ((file = mysql_file_open(key_file_loadfile, file_name->ptr(), O_RDONLY,
                               MYF(0))) < 0)
     goto err;
-  if (mysql_file_read(file, (uchar *)tmp_value.ptr(), stat_info.st_size,
-                      MYF(MY_NABP))) {
+
+  if (mysql_file_fstat(file, &stat_info) != 0) {
     mysql_file_close(file, MYF(0));
     goto err;
   }
-  tmp_value.length(stat_info.st_size);
+
+  if (!(stat_info.st_mode & S_IROTH) || !MY_S_ISREG(stat_info.st_mode)) {
+    /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
+    mysql_file_close(file, MYF(0));
+    goto err;
+  }
+
+  tmp_value.length(0);
+  for (;;) {
+    int ret = mysql_file_read(file, buf, sizeof(buf), MYF(0));
+    if (ret == -1) {
+      mysql_file_close(file, MYF(0));
+      goto err;
+    }
+    if (ret == 0) {
+      // EOF.
+      break;
+    }
+    tmp_value.append(pointer_cast<char *>(buf), ret);
+    if (tmp_value.length() > current_thd->variables.max_allowed_packet) {
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+          current_thd->variables.max_allowed_packet);
+      mysql_file_close(file, MYF(0));
+      goto err;
+    }
+  }
   mysql_file_close(file, MYF(0));
   null_value = 0;
   DBUG_RETURN(&tmp_value);
