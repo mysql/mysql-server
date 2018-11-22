@@ -66,6 +66,7 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_stage_monitor_handler,
     key_GR_LOCK_synchronized_queue,
     key_GR_LOCK_trx_unlocking,
+    key_GR_LOCK_group_member_info_manager_update_lock,
     key_GR_LOCK_view_modification_wait,
     key_GR_LOCK_wait_ticket,
     key_GR_LOCK_write_lock_protection;
@@ -252,6 +253,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_primary_election_validation_notification,
      "LOCK_primary_election_validation_notification", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_primary_promotion_policy, "LOCK_primary_promotion_policy",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_recovery, "LOCK_recovery", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_LOCK_recovery_donor_selection, "LOCK_recovery_donor_selection",
@@ -271,6 +274,9 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_trx_unlocking, "LOCK_transaction_unblocking",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_group_member_info_manager_update_lock,
+     "LOCK_group_member_info_manager_update_lock", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
     {&key_GR_LOCK_view_modification_wait, "LOCK_view_modification_wait",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_wait_ticket, "LOCK_wait_ticket", PSI_FLAG_SINGLETON, 0,
@@ -347,6 +353,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_COND_plugin_online, "COND_plugin_online", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_COND_primary_promotion_policy, "COND_primary_promotion_policy",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 };
 
 static PSI_thread_info all_group_replication_psi_thread_keys[] = {

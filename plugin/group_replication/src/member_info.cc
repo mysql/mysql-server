@@ -27,7 +27,6 @@
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin_constants.h"
-#include "plugin/group_replication/include/plugin_psi.h"
 
 using std::map;
 using std::string;
@@ -537,11 +536,11 @@ bool Group_member_info::has_greater_weight(Group_member_info *other) {
 }
 
 Group_member_info_manager::Group_member_info_manager(
-    Group_member_info *local_member_info) {
+    Group_member_info *local_member_info, PSI_mutex_key psi_mutex_key) {
   members = new map<string, Group_member_info *>();
   this->local_member_info = local_member_info;
 
-  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &update_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
 
   add(local_member_info);
 }
