@@ -119,6 +119,7 @@ When one supplies long data for a placeholder:
 #include "sql_query_rewrite.h"
 
 #include <algorithm>
+#include <limits>
 using std::max;
 using std::min;
 
@@ -1107,15 +1108,13 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
   user_var_entry *entry;
   LEX_STRING *varname;
   List_iterator<LEX_STRING> var_it(varnames);
-  String buf;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
   const String *val;
   size_t length= 0;
 
   DBUG_ENTER("insert_params_from_vars");
 
-  if (with_log && query->copy(m_query_string.str,
-                              m_query_string.length, default_charset_info))
-    DBUG_RETURN(1);
+  if (with_log) query->reserve(m_query_string.length + 32 * param_count);
 
   /* Protects thd->user_vars */
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1142,17 +1141,33 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       if (param->convert_str_value(thd))
         goto error;
 
-      if (query->replace(param->pos_in_query+length, 1, *val))
+     size_t num_bytes = param->pos_in_query - length;
+     if (query->length() + num_bytes + val->length() >
+          std::numeric_limits<uint32>::max())
         goto error;
-      length+= val->length()-1;
+
+     if (query->append(m_query_string.str + length, num_bytes) ||
+          query->append(*val))
+        goto error;
+
+      length = param->pos_in_query + 1;
     }
     else
     {
-      if (param->set_from_user_var(thd, entry) ||
-          param->convert_str_value(thd))
+      if (param->set_from_user_var(thd, entry))
         goto error;
+
+       if (entry)
+         length+= entry->length();
+
+       if (length > std::numeric_limits<uint32>::max() ||
+           param->convert_str_value(thd))
+         goto error;
     }
   }
+  // If logging, take care of tail.
+  if (with_log)
+    query->append(m_query_string.str + length, m_query_string.length - length);
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   DBUG_RETURN(0);
