@@ -62,6 +62,7 @@ privilege_result user_has_gr_admin_privilege() {
             STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
       } else {
         /* purecov: begin inspected */
+        mysql_plugin_registry_release(plugin_registry);
         goto end;
         /* purecov: end */
       }
