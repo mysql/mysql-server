@@ -473,6 +473,19 @@ bool Gcs_xcom_control::send_add_node_request(
     std::map<std::string, int> const &my_addresses) {
   bool add_node_accepted = false;
 
+  // Go through the seed list s_connection_attempts times.
+  for (int attempt_nr = 0;
+       !add_node_accepted && attempt_nr < s_connection_attempts; attempt_nr++) {
+    add_node_accepted = try_send_add_node_request_to_seeds(my_addresses);
+  }
+
+  return add_node_accepted;
+}
+
+bool Gcs_xcom_control::try_send_add_node_request_to_seeds(
+    std::map<std::string, int> const &my_addresses) {
+  bool add_node_accepted = false;
+
   // Until the add_node is successfully sent, for each peer...
   for (auto it = m_initial_peers.begin();
        !add_node_accepted && it != m_initial_peers.end(); it++) {
@@ -518,43 +531,38 @@ std::pair<bool, connection_descriptor *> Gcs_xcom_control::connect_to_peer(
     Gcs_xcom_node_address &peer,
     std::map<std::string, int> const &my_addresses) {
   bool connected = false;
+  auto port = peer.get_member_port();
+  auto &addr = peer.get_member_ip();
   connection_descriptor *con = nullptr;
 
-  // Try to connect to the peer.
-  for (int n = 0; !connected && n < Gcs_xcom_proxy::connection_attempts; n++) {
-    // Skip own address if configured in the peer list.
-    if (skip_own_peer_address(my_addresses,
-                              m_local_node_address->get_member_port(),
-                              peer.get_member_ip(), peer.get_member_port())) {
-      MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
-      break;
-    }
-
-    auto port = peer.get_member_port();
-    auto &addr = peer.get_member_ip();
-
-    MYSQL_GCS_LOG_TRACE(
-        "Client local port %d xcom_client_open_connection to %s:%d",
-        m_local_node_address->get_member_port(), addr.c_str(), port);
-
-    con = m_xcom_proxy->xcom_client_open_connection(addr, port);
-    if (con == nullptr) {
-      // Could not connect to the peer.
-      MYSQL_GCS_LOG_ERROR("Error on opening a connection to "
-                          << addr << ":" << port << " on local port: "
-                          << m_local_node_address->get_member_port() << ".");
-      // Go to next attempt.
-      continue;
-    }
-    if (m_socket_util->disable_nagle_in_socket(con->fd) < 0) {
-      m_xcom_proxy->xcom_client_close_connection(con);
-      // Go to next attempt.
-      continue;
-    }
-
-    connected = true;
+  // Skip own address if configured in the peer list.
+  if (skip_own_peer_address(
+          my_addresses, m_local_node_address->get_member_port(), addr, port)) {
+    MYSQL_GCS_LOG_TRACE("::join():: Skipping own address.")
+    goto end;
   }
 
+  MYSQL_GCS_LOG_TRACE(
+      "Client local port %d xcom_client_open_connection to %s:%d",
+      m_local_node_address->get_member_port(), addr.c_str(), port);
+
+  con = m_xcom_proxy->xcom_client_open_connection(addr, port);
+  if (con == nullptr) {
+    // Could not connect to the peer.
+    MYSQL_GCS_LOG_ERROR("Error on opening a connection to "
+                        << addr << ":" << port << " on local port: "
+                        << m_local_node_address->get_member_port() << ".");
+    goto end;
+  }
+  if (m_socket_util->disable_nagle_in_socket(con->fd) < 0) {
+    // Could not disable Nagle algorithm.
+    m_xcom_proxy->xcom_client_close_connection(con);
+    goto end;
+  }
+
+  connected = true;
+
+end:
   return {connected, con};
 }
 
