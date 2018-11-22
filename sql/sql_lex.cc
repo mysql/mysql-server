@@ -616,18 +616,10 @@ SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
   @param curr_select current query specification
   @param distinct True if part of UNION DISTINCT query
 
-  @param check_syntax This function is called from both new and legacy
-  code. New code uses the actual parse tree for checking syntax before
-  creating SELECT_LEX'es (good), while legacy code checks the SELECT_LEX
-  structures later on to see what syntax they seem to be generated from
-  (bad). When all parser rules have been converted, this parameter will always
-  be false, and can be removed.
-
   @return new query specification if successful, NULL if an error occurred.
 */
 
-SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct,
-                                 bool check_syntax) {
+SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct) {
   DBUG_TRACE;
 
   DBUG_ASSERT(unit != NULL && select_lex != NULL);
@@ -642,18 +634,6 @@ SELECT_LEX *LEX::new_union_query(SELECT_LEX *curr_select, bool distinct,
   if (outer_most && result) {
     my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
     return NULL;
-  }
-
-  if (check_syntax) {
-    if (curr_select->order_list.first && !curr_select->braces) {
-      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-      return NULL;
-    }
-
-    if (curr_select->explicit_limit && !curr_select->braces) {
-      my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
-      return NULL;
-    }
   }
 
   SELECT_LEX *const select = new_empty_query_block();
@@ -2098,7 +2078,6 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       nest_level(0),
       inner_sum_func_list(NULL),
       with_wild(0),
-      braces(false),
       having_fix_field(false),
       group_fix_field(false),
       explicit_limit(false),
@@ -2467,11 +2446,6 @@ void SELECT_LEX::invalidate() {
   link_prev = NULL;
 }
 
-bool SELECT_LEX::set_braces(bool value) {
-  braces = value;
-  return 0;
-}
-
 bool SELECT_LEX::setup_base_ref_items(THD *thd) {
   uint order_group_num = order_list.elements + group_list.elements;
 
@@ -2543,9 +2517,7 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
       else if (union_distinct == sl)
         union_all = true;
     }
-    if (sl->braces) str->append('(');
     sl->print(thd, str, query_type);
-    if (sl->braces) str->append(')');
   }
   if (fake_select_lex) {
     if (fake_select_lex->order_list.elements) {

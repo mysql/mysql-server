@@ -2531,13 +2531,13 @@ union all
 create procedure proc_1() show create view v1;
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create view v1; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2548,13 +2548,13 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create view v1";
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop view v1;
 drop table t1;

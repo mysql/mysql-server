@@ -4070,7 +4070,7 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
   }
 
   if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
-      this != master_unit()->fake_select_lex && !(braces && explicit_limit)) {
+      this != master_unit()->fake_select_lex && !explicit_limit) {
     // Part of UNION which requires global ordering may skip local order
     empty_order_list(this);
     return false;

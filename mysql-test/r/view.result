@@ -5921,19 +5921,19 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 # columns in select2.
 SHOW CREATE VIEW v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`)	utf8mb4	utf8mb4_0900_ai_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select 'BUG#14117018' AS `col1` union all select '' AS `Name_exp_2`	utf8mb4	utf8mb4_0900_ai_ci
 # Name for the field item in select2 & select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select2 & select3.
 SHOW CREATE VIEW v3;
 View	Create View	character_set_client	collation_connection
-v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `Name_exp_2`) union all (select '' AS `Name_exp_3`)	utf8mb4	utf8mb4_0900_ai_ci
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select 'BUG#14117018' AS `col1` union all select '' AS `Name_exp_2` union all select '' AS `Name_exp_3`	utf8mb4	utf8mb4_0900_ai_ci
 # Name for the field item in select3 is set with this fix.
 # Without this fix, name would not have set for the
 # columns in select3.
 SHOW CREATE VIEW v4;
 View	Create View	character_set_client	collation_connection
-v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS (select 'BUG#14117018' AS `col1`) union all (select '' AS `col2`) union all (select '' AS `Name_exp_3`)	utf8mb4	utf8mb4_0900_ai_ci
+v4	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v4` AS select 'BUG#14117018' AS `col1` union all select '' AS `col2` union all select '' AS `Name_exp_3`	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1, v2, v3, v4;
 # Bug#20087932 Assert fail in Join_tab_compare_straight::operator()
 CREATE TABLE t1 (

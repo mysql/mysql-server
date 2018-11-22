@@ -9033,8 +9033,6 @@ query_expression_body:
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
 
-            $1->set_parentheses();
-
             $$= NEW_PTN PT_union($1, @1, $3, $4);
           }
         | query_expression_body UNION_SYM union_option query_expression_parens
@@ -9059,8 +9057,6 @@ query_expression_body:
             if ($4->is_union())
               YYTHD->syntax_error_at(@4);
 
-            $1->set_parentheses();
-
             PT_nested_query_expression *nested_qe=
               NEW_PTN PT_nested_query_expression($4);
             $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
@@ -9070,23 +9066,7 @@ query_expression_body:
 
 query_expression_parens:
           '(' query_expression_parens ')' { $$= $2; }
-        | '(' query_expression ')'
-          {
-            /*
-              We don't call set_parentheses() on a query expression here. It
-              makes no difference to the contextualization phase whether a
-              query expression was within parentheses unless it is used in
-              conjunction with UNION. Therefore set_parentheses() is called
-              only in the rules producing UNION syntax.
-
-              The need for set_parentheses() is purely to support legacy parse
-              rules, and we are gradually moving away from them and using the
-              query_expression_body to define UNION syntax. When this move is
-              complete, we will not need set_parentheses() any more, and the
-              contextualize() phase can be greatly simplified.
-            */
-            $$= $2;
-          }
+        | '(' query_expression ')' { $$= $2; }
         ;
 
 query_primary:
@@ -11558,10 +11538,6 @@ alter_order_item:
             $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;
-
-/*
-   Order by statement in select
-*/
 
 opt_order_clause:
           /* empty */ { $$= NULL; }

@@ -1156,7 +1156,7 @@ class SELECT_LEX {
     has 3 wildcards.
   */
   uint with_wild;
-  bool braces;  ///< SELECT ... UNION (SELECT ... ) <- this braces
+
   /// true when having fix field called in processing of this query block
   bool having_fix_field;
   /// true when GROUP BY fix field called in processing of this query block
@@ -1312,7 +1312,6 @@ class SELECT_LEX {
 
   void invalidate();
 
-  bool set_braces(bool value);
   uint get_in_sum_expr() const { return in_sum_expr; }
 
   bool add_item_to_list(Item *item);
@@ -3448,8 +3447,7 @@ struct LEX : public Query_tables_list {
   SELECT_LEX *new_query(SELECT_LEX *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct,
-                              bool check_syntax = true);
+  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();

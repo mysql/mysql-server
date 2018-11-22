@@ -283,11 +283,10 @@ bool JOIN::optimize() {
     /*
       Calculate found rows if
       - LIMIT is set, and
-      - Query block is not equipped with "braces". In this case, each
-        query block must be calculated fully and the limit is applied on
-        the final UNION evaluation.
+      - This is not a UNION query. If is, each query block must be calculated
+        fully, and the limit is then applied on the final UNION evaluation.
     */
-    calc_found_rows = m_select_limit != HA_POS_ERROR && !select_lex->braces;
+    calc_found_rows = m_select_limit != HA_POS_ERROR && !unit->is_union();
   }
   if (having_cond || calc_found_rows) m_select_limit = HA_POS_ERROR;
 

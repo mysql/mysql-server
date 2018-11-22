@@ -176,58 +176,17 @@ bool PT_group::contextualize(Parse_context *pc) {
 bool PT_order::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  THD *thd = pc->thd;
-  LEX *lex = thd->lex;
-  SELECT_LEX_UNIT *const unit = pc->select->master_unit();
-  const bool braces = pc->select->braces;
-
-  if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex) {
-    /*
-      A query of the of the form (SELECT ...) ORDER BY order_list is
-      executed in the same way as the query
-      SELECT ... ORDER BY order_list
-      unless the SELECT construct contains ORDER BY or LIMIT clauses.
-      Otherwise we create a fake SELECT_LEX if it has not been created
-      yet.
-    */
-    SELECT_LEX *first_sl = unit->first_select();
-    if (!unit->is_union() &&
-        (first_sl->order_list.elements || first_sl->select_limit)) {
-      if (unit->add_fake_select_lex(lex->thd)) return true;
-      pc->select = unit->fake_select_lex;
-    }
-  }
-
-  bool context_is_pushed = false;
-  if (pc->select->parsing_place == CTX_NONE) {
-    if (unit->is_union() && !braces) {
-      /*
-        At this point we don't know yet whether this is the last
-        select in union or not, but we move ORDER BY to
-        fake_select_lex anyway. If there would be one more select
-        in union mysql_new_select will correctly throw error.
-      */
-      pc->select = unit->fake_select_lex;
-      lex->push_context(&pc->select->context);
-      context_is_pushed = true;
-    }
-    /*
-      To preserve correct markup for the case
-       SELECT group_concat(... ORDER BY (subquery))
-      we do not change parsing_place if it's not NONE.
-    */
-    pc->select->parsing_place = CTX_ORDER_BY;
-  }
+  pc->select->parsing_place = CTX_ORDER_BY;
+  pc->thd->where = "global ORDER clause";
 
   if (order_list->contextualize(pc)) return true;
-
-  if (context_is_pushed) lex->pop_context();
-
   pc->select->order_list = order_list->value;
 
   // Reset parsing place only for ORDER BY
   if (pc->select->parsing_place == CTX_ORDER_BY)
     pc->select->parsing_place = CTX_NONE;
+
+  pc->thd->where = THD::DEFAULT_WHERE;
   return false;
 }
 
@@ -979,6 +938,37 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   return false;
 }
 
+bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
+  /*
+    Quick reject test. We don't need to do anything if there are no limit
+    or order by clauses.
+  */
+  if (m_order == nullptr && m_limit == nullptr) return false;
+
+  if (m_body->can_absorb_order_and_limit()) {
+    if (contextualize_safe(pc, m_order, m_limit)) return true;
+  } else {
+    auto lex = pc->thd->lex;
+    DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
+    auto unit = pc->select->master_unit();
+    if (unit->fake_select_lex == nullptr && unit->add_fake_select_lex(lex->thd))
+      return true;
+
+    auto orig_select_lex = pc->select;
+    pc->select = unit->fake_select_lex;
+    lex->push_context(&pc->select->context);
+    DBUG_ASSERT(pc->select->parsing_place == CTX_NONE);
+
+    bool res = contextualize_safe(pc, m_order, m_limit);
+
+    lex->pop_context();
+    pc->select = orig_select_lex;
+
+    if (res) return true;
+  }
+  return false;
+}
+
 bool PT_table_factor_function::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_expr->itemize(pc, &m_expr)) return true;
 
@@ -1084,47 +1074,16 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc) {
   return false;
 }
 
-/**
-  A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
-  representing the left-hand side of the union is built ("contextualized",)
-  then the right hand side, and lastly the "fake" SELECT_LEX is built and made
-  the "current" one. Only then can the order and limit clauses be
-  contextualized, because they are attached to the fake SELECT_LEX. This is a
-  bit unnatural, as these clauses belong to the surrounding `<query
-  expression>`, not the `<query expression body>` which is the union (and
-  represented by this class). For this reason, the PT_query_expression is
-  expected to call `set_containing_qe(this)` on this object, so that during
-  this contextualize() call, a call to contextualize_order_and_limit() can be
-  made at just the right time.
-*/
 bool PT_union::contextualize(Parse_context *pc) {
-  THD *thd = pc->thd;
-
   if (PT_query_expression_body::contextualize(pc)) return true;
 
   if (m_lhs->contextualize(pc)) return true;
 
-  pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+  pc->select = pc->thd->lex->new_union_query(pc->select, m_is_distinct);
 
   if (pc->select == NULL || m_rhs->contextualize(pc)) return true;
 
-  SELECT_LEX_UNIT *unit = pc->select->master_unit();
-  if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
-    return true;
-
-  SELECT_LEX *select_lex = pc->select;
-  pc->select = unit->fake_select_lex;
-  pc->select->no_table_names_allowed = true;
-
-  if (m_containing_qe != NULL &&
-      m_containing_qe->contextualize_order_and_limit(pc))
-    return true;
-
-  pc->select->no_table_names_allowed = false;
-  pc->select = select_lex;
-
   pc->thd->lex->pop_context();
-
   return false;
 }
 

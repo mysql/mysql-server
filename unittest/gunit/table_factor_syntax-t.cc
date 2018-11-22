@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,6 @@ TEST_F(TableFactorSyntaxTest, Union) {
   check_query_block(first_inner_block, 1, "t1");
   check_query_block(second_inner_block, 2, "t2");
 
-  EXPECT_FALSE(block->braces);
   EXPECT_EQ(nullptr, block->outer_select());
 }
 

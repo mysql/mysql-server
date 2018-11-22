@@ -181,16 +181,24 @@ class PT_table_ddl_stmt_base : public Parse_tree_root {
 
 inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() {}
 
-/**
-  Convenience function that calls Parse_tree_node::contextualize() on the node
-  if it's non-NULL.
-*/
-template <class Context, class Node>
-bool contextualize_safe(Context *pc, Node *node) {
-  if (node == NULL) return false;
+namespace {
 
+template <typename Context, typename Node>
+bool contextualize_safe(Context *pc, Node node) {
+  if (node == nullptr) return false;
   return node->contextualize(pc);
 }
+
+/**
+  Convenience function that calls Parse_tree_node::contextualize() on each of
+  the nodes that are non-NULL, stopping when a call returns true.
+*/
+template <typename Context, typename Node, typename... Nodes>
+bool contextualize_safe(Context *pc, Node node, Nodes... nodes) {
+  return contextualize_safe(pc, node) || contextualize_safe(pc, nodes...);
+}
+
+}  // namespace
 
 /**
   Parse context for the table DDL (ALTER TABLE and CREATE TABLE) nodes.
@@ -435,13 +443,8 @@ class PT_limit_clause : public Parse_tree_node {
   PT_limit_clause(const Limit_options &limit_options_arg)
       : limit_options(limit_options_arg) {}
 
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
-
-    if (pc->select->master_unit()->is_union() && !pc->select->braces) {
-      pc->select = pc->select->master_unit()->fake_select_lex;
-      DBUG_ASSERT(pc->select != NULL);
-    }
 
     if (limit_options.is_offset_first && limit_options.opt_offset != NULL &&
         limit_options.opt_offset->itemize(pc, &limit_options.opt_offset))
@@ -918,7 +921,46 @@ class PT_locking_clause_list : public Parse_tree_node {
 class PT_query_expression_body : public Parse_tree_node {
  public:
   virtual bool is_union() const = 0;
-  virtual void set_containing_qe(PT_query_expression *) {}
+
+  /**
+    True if this query expression can absorb an extraneous order by/limit
+    clause. The `ORDER BY`/`LIMIT` syntax is mostly consistestent, i.e. a
+    trailing clause may not refer to the tables in the `<query primary>`, with
+    one glaring exception:
+
+        (...( SELECT ... )...) ORDER BY ...
+
+    If the nested query expression doesn't contain `ORDER BY`, the statement
+    is interpreted as if the `ORDER BY` was absorbed by the innermost query
+    expression, i.e.:
+
+        (...( SELECT ... ORDER BY ... )...)
+
+    There is no rewriting of the parse tree nor AST happening here, the
+    transformation is done by the contextualizer (see
+    PT_query_expression::contextualize_order_and_limit), which interprets the
+    parse tree, and builds the AST according to this interpretation. This
+    interpretation is governed by the following rule: An `ORDER BY` can be
+    absorbed if none the nested query expressions contains an `ORDER BY` *or*
+    `LIMIT`. The rule is complex, so here are some examples for illustration:
+
+    In these cases the `ORDER BY` *is* absorbed:
+
+        ( SELECT * FROM t1 ) ORDER BY t1.a;
+        (( SELECT * FROM t1 )) ORDER BY t1.a;
+
+    In these cases the ORDER BY is *not* absorbed:
+
+        ( SELECT * FROM t1 ORDER BY 1 ) ORDER BY t1.a;
+        (( SELECT * FROM t1 ) ORDER BY 1 ) ORDER BY t1.a;
+        ( SELECT * FROM t1 LIMIT 1 ) ORDER BY t1.a;
+        (( SELECT * FROM t1 ) LIMIT 1 ) ORDER BY t1.a;
+
+    The same happens with `LIMIT`, obviously, but the optimizer is freeer to
+    choose when to apply the limit, and there are name no resolution issues
+    involved.
+  */
+  virtual bool can_absorb_order_and_limit() const = 0;
   virtual bool has_into_clause() const = 0;
 };
 
@@ -1762,6 +1804,7 @@ class PT_query_primary : public Parse_tree_node {
  public:
   virtual bool has_into_clause() const = 0;
   virtual bool is_union() const = 0;
+  virtual bool can_absorb_order_and_limit() const = 0;
 };
 
 class PT_query_specification : public PT_query_primary {
@@ -1821,14 +1864,16 @@ class PT_query_specification : public PT_query_primary {
     from_clause.init_empty_const();
   }
 
-  virtual bool contextualize(Parse_context *pc);
+  bool contextualize(Parse_context *pc) override;
 
-  virtual bool has_into_clause() const { return opt_into1 != NULL; }
+  bool has_into_clause() const override { return opt_into1 != nullptr; }
 
-  virtual bool is_union() const { return false; }
+  bool is_union() const override { return false; }
+
+  bool can_absorb_order_and_limit() const override { return true; }
 };
 
-class PT_query_expression : public Parse_tree_node {
+class PT_query_expression final : public Parse_tree_node {
  public:
   PT_query_expression(PT_with_clause *with_clause,
                       PT_query_expression_body *body, PT_order *order,
@@ -1839,7 +1884,6 @@ class PT_query_expression : public Parse_tree_node {
         m_order(order),
         m_limit(limit),
         m_locking_clauses(locking_clauses),
-        m_parentheses(false),
         m_with_clause(with_clause) {}
 
   PT_query_expression(PT_query_expression_body *body, PT_order *order,
@@ -1854,91 +1898,46 @@ class PT_query_expression : public Parse_tree_node {
     if (contextualize_safe(pc, m_with_clause))
       return true; /* purecov: inspected */
 
-    pc->select->set_braces(m_parentheses || pc->select->braces);
-    m_body->set_containing_qe(this);
-
     if (Parse_tree_node::contextualize(pc) || m_body->contextualize(pc))
       return true;
 
-    if (!contextualized && contextualize_order_and_limit(pc)) return true;
+    if (contextualize_order_and_limit(pc)) return true;
 
     if (contextualize_safe(pc, m_locking_clauses)) return true;
 
     return false;
   }
 
+  /// Called by the Bison parser.
   PT_query_expression_body *body() { return m_body; }
 
-  bool has_order() const { return m_order != NULL; }
-
-  bool has_limit() const { return m_limit != NULL; }
-
+  /// Called by the Bison parser.
   bool is_union() const { return m_body->is_union(); }
 
+  /// Called by the Bison parser.
   bool has_into_clause() const { return m_body->has_into_clause(); }
 
-  /**
-    Callback for deeper nested query expressions. It's mandatory for any
-    derived class to call this member function during contextualize.
-  */
-  bool contextualize_order_and_limit(Parse_context *pc) {
-    contextualized = true;
-
-    /*
-      We temporarily switch off 'braces' for contextualization of the limit
-      and order clauses if this query expression is a
-      union. PT_order::contextualize() and PT_limit_clause::contextualize()
-      are still used by legacy code where 'braces' is used to communicate
-      nesting information. It's not possible to express the difference between
-
-      (SELECT ... UNION SELECT ...) ORDER BY ... LIMIT ...
-
-      and
-
-      SELECT ... UNION (SELECT ... ORDER BY ... LIMIT ...)
-
-      in the SELECT_LEX structure. In other words, this structure does not
-      know the difference between a surrounding union and a local
-      union. Fortunately, the information is implicit in the parse tree
-      structure: is_union() is true if this query expression is a union, but
-      not true if it's nested within a union.
-    */
-    bool braces = pc->select->braces;
-    if (is_union()) pc->select->braces = false;
-    pc->thd->where = "global ORDER clause";
-    bool res =
-        contextualize_safe(pc, m_order) || contextualize_safe(pc, m_limit);
-    pc->select->braces = braces;
-    if (res) return true;
-
-    pc->thd->where = THD::DEFAULT_WHERE;
-    return false;
-  }
-
-  void set_parentheses() { m_parentheses = true; }
-
-  bool has_parentheses() { return m_parentheses; }
-
-  void remove_parentheses() { m_parentheses = false; }
-
-  /**
-    Called by the parser when it has decided that this query expression may
-    not contain order or limit clauses because it is part of a union. For
-    historical reasons, these clauses are not allowed in non-last branches of
-    union expressions.
-  */
-  void ban_order_and_limit() const {
-    if (m_order != NULL) my_error(ER_WRONG_USAGE, MYF(0), "UNION", "ORDER BY");
-    if (m_limit != NULL) my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
+  bool can_absorb_order_and_limit() const {
+    return !m_body->is_union() && m_order == nullptr && m_limit == nullptr;
   }
 
  private:
+  /**
+    Contextualizes the order and limit clauses, re-interpreting them according
+    to the rules. If the `<query expression body>` can absorb the clauses,
+    they are simply contextualized into the current SELECT_LEX. If not, we
+    have to create the "fake" SELECT_LEX unless there is one already
+    (SELECT_LEX_UNIT::new_union_query() is known to do this.)
+
+    @see PT_query_expression::can_absorb_order_and_limit()
+  */
+  bool contextualize_order_and_limit(Parse_context *pc);
+
   bool contextualized;
   PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
   PT_locking_clause_list *m_locking_clauses;
-  bool m_parentheses;
   PT_with_clause *m_with_clause;
 };
 
@@ -1996,10 +1995,6 @@ class PT_subquery : public Parse_tree_node {
     return false;
   }
 
-  void remove_parentheses() { qe->remove_parentheses(); }
-
-  bool is_union() { return qe->is_union(); }
-
   SELECT_LEX *value() { return select_lex; }
 };
 
@@ -2008,17 +2003,21 @@ class PT_query_expression_body_primary : public PT_query_expression_body {
   PT_query_expression_body_primary(PT_query_primary *query_primary)
       : m_query_primary(query_primary) {}
 
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (PT_query_expression_body::contextualize(pc) ||
         m_query_primary->contextualize(pc))
       return true;
     return false;
   }
 
-  virtual bool is_union() const { return m_query_primary->is_union(); }
+  bool is_union() const override { return m_query_primary->is_union(); }
 
-  virtual bool has_into_clause() const {
+  bool has_into_clause() const override {
     return m_query_primary->has_into_clause();
+  }
+
+  bool can_absorb_order_and_limit() const override {
+    return m_query_primary->can_absorb_order_and_limit();
   }
 
  private:
@@ -2032,20 +2031,17 @@ class PT_union : public PT_query_expression_body {
       : m_lhs(lhs),
         m_lhs_pos(lhs_pos),
         m_is_distinct(is_distinct),
-        m_rhs(rhs),
-        m_containing_qe(NULL) {}
+        m_rhs(rhs) {}
 
-  virtual void set_containing_qe(PT_query_expression *qe) {
-    m_containing_qe = qe;
-  }
+  bool contextualize(Parse_context *pc) override;
 
-  virtual bool contextualize(Parse_context *pc);
+  bool is_union() const override { return true; }
 
-  virtual bool is_union() const { return true; }
-
-  virtual bool has_into_clause() const {
+  bool has_into_clause() const override {
     return m_lhs->has_into_clause() || m_rhs->has_into_clause();
   }
+
+  bool can_absorb_order_and_limit() const override { return false; }
 
  private:
   PT_query_expression *m_lhs;
@@ -2053,7 +2049,6 @@ class PT_union : public PT_query_expression_body {
   bool m_is_distinct;
   PT_query_primary *m_rhs;
   PT_into_destination *m_into;
-  PT_query_expression *m_containing_qe;
 };
 
 class PT_nested_query_expression : public PT_query_primary {
@@ -2062,18 +2057,21 @@ class PT_nested_query_expression : public PT_query_primary {
  public:
   PT_nested_query_expression(PT_query_expression *qe) : m_qe(qe) {}
 
-  virtual bool contextualize(Parse_context *pc) {
+  bool contextualize(Parse_context *pc) override {
     if (super::contextualize(pc)) return true;
 
-    pc->select->set_braces(true);
     bool result = m_qe->contextualize(pc);
 
     return result;
   }
 
-  bool is_union() const { return m_qe->is_union(); }
+  bool is_union() const override { return m_qe->is_union(); }
 
-  bool has_into_clause() const { return m_qe->has_into_clause(); }
+  bool has_into_clause() const override { return m_qe->has_into_clause(); }
+
+  bool can_absorb_order_and_limit() const override {
+    return m_qe->can_absorb_order_and_limit();
+  }
 
  private:
   PT_query_expression *m_qe;
