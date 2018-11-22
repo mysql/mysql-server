@@ -224,7 +224,7 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
   {
     first_region[i] = (i < ZONE_COUNT - 1)
                       ? zone_bound[i]
-                      : (first_region[0] + space_regions);
+                      : MIN(first_region[0] + space_regions, max_regions);
     first_region[i] -= ((page_count[i] +
 #ifdef NDBD_RANDOM_START_PAGE
                          m_random_start_page_id +
