@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -869,7 +869,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen)
 
   operationRecPtr.p->hashValue = LHBits32(signal->hashValue);
   operationRecPtr.p->tupkeylen = signal->keyLen;
-  operationRecPtr.p->xfrmtupkeylen = signal->keyLen;
+  operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen = signal->keyLen;
   operationRecPtr.p->transId1 = signal->transId1;
   operationRecPtr.p->transId2 = signal->transId2;
 
@@ -1246,6 +1246,39 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
        */
       return;
     }
+
+    if (!same && (opbits & Operationrec::OP_ELEMENT_DISAPPEARED))
+    {
+      jam();
+      /* This is the case described in Bug#19031389 with
+       * T1: READ1, T1: READ2, T1:DELETE
+       * T2: READ3
+       * where out-of-order commits have left us with
+       * T1: READ1, T1: READ2
+       * T2: READ3
+       * and then a commit of T1: READ1 or T1: READ2
+       * causes us to consider whether to allow T2: READ3 to run
+       *
+       * The check above (!same_trans && (prev is EX || next is EX))
+       * does not catch this case as the LOCK_MODE and ACC_LOCK_MODE
+       * of the READ ops is not set as they were prepared *before* the
+       * DELETE
+       *
+       * In general it might be nice if a transaction having a
+       * mix of SH and EX locks were treated as all EX until it
+       * fully commits
+       *
+       * However in the case of INS/UPD we are not (yet) aware of problems
+       *
+       * For DELETE, the problem is that allowing T2: READ3 to start (and
+       * then immediately fail), messes up the reference counting for the
+       * delete
+       * So instead of that, lets not let it start until after the deleting
+       * transaction is fully committed @ ACC
+       *
+       */
+      return;
+    }
     
     /**
      * same trans and X-lock
@@ -1334,17 +1367,7 @@ checkop:
   nextbits &= nextbits & ~(Uint32)Operationrec::OP_STATE_MASK;
   nextbits |= Operationrec::OP_STATE_RUNNING;
 
-  /*
-   * bug#19031389
-   * Consider transactions such as read-0,read-1,read-2,delete-3.
-   * Read-N commits come from TC while delete-3 commit comes from
-   * backup replica.  In MT kernel delete-3 commit can come first.
-   * Then at read-0 commit there is no ZDELETE left.  But all
-   * ops in parallel queue have been marked OP_ELEMENT_DISAPPEARED.
-   * So also check for that bit.
-   */
-  if (lastop == ZDELETE ||
-      (lastOp.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED))
+  if (lastop == ZDELETE)
   {
     jam();
     if (nextop != ZINSERT && nextop != ZWRITE)
@@ -1442,7 +1465,7 @@ Dbacc::xfrmKeyData(AccKeyReq* signal)
   Uint32 len = xfrm_key(table, src, dst, sizeof(dst) >> 2, keyPartLen);
   ndbrequire(len); // 0 means error
   memcpy(src, dst, len << 2);
-  operationRecPtr.p->xfrmtupkeylen = len;
+  operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen = len;
 }
 
 void 
@@ -3310,8 +3333,10 @@ Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr)
 	  {
             Uint32 len = readTablePk(localkey1, localkey2, tgeElementHeader,
 				     lockOwnerPtr);
-            found = (len == operationRecPtr.p->xfrmtupkeylen) &&
+            found =
+              (len == operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
+
           } else {
             jam();
             found = (localkey1 == Tkeydata[0] && localkey2 == Tkeydata[1]);
@@ -3361,54 +3386,104 @@ error:
   return ~0;
 }//Dbacc::getElement()
 
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/*                                                                           */
-/*       END OF GET_ELEMENT MODULE                                           */
-/*                                                                           */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/*                                                                           */
-/*       MODULE:         DELETE                                              */
-/*                                                                           */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* ------------------------------------------------------------------------- */
-/* COMMITDELETE                                                              */
-/*         INPUT: OPERATION_REC_PTR, PTR TO AN OPERATION RECORD.             */
-/*                FRAGRECPTR, PTR TO A FRAGMENT RECORD                       */
-/*                                                                           */
-/*         OUTPUT:                                                           */
-/*                NONE                                                       */
-/*         DESCRIPTION: DELETE OPERATIONS WILL BE COMPLETED AT THE 
- *         COMMIT OF TRANSACTION. THIS SUBROUTINE SEARCHS FOR ELEMENT AND 
- *         DELETES IT. IT DOES SO BY REPLACING IT WITH THE LAST 
- *         ELEMENT IN THE BUCKET. IF THE DELETED ELEMENT IS ALSO THE LAST 
- *         ELEMENT THEN IT IS ONLY NECESSARY TO REMOVE THE ELEMENT
- * ------------------------------------------------------------------------- */
+/**
+ * report_pending_dealloc
+ *
+ * ACC indicates to LQH that it expects LQH to deallocate
+ * the TUPle at some point after all the reported operations
+ * have completed and the deallocation is allowed.
+ *
+ * opPtrP       Ptr to operation involved in dealloc
+ * countOpPtrP  Ptr to operation tracking delete reference count
+ *               (can be same as opPtrP)
+ */
 void
-Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
+Dbacc::report_pending_dealloc(Signal* signal,
+                              Operationrec* opPtrP,
+                              const Operationrec* countOpPtrP)
 {
   Uint32 localKey1 = opPtrP->localdata[0];
   Uint32 localKey2 = opPtrP->localdata[1];
   Uint32 opbits = opPtrP->m_op_bits;
   Uint32 userptr= opPtrP->userptr;
-  Uint32 scanInd = 
-    ((opbits & Operationrec::OP_MASK) == ZSCAN_OP) || 
-    (opbits & Operationrec::OP_LOCK_REQ);
-  
+  const bool scanInd = (((opbits & Operationrec::OP_MASK) == ZSCAN_OP) ||
+                        (opbits & Operationrec::OP_LOCK_REQ));
+
   if (! Local_key::isInvalid(localKey1, localKey2))
   {
+    if (scanInd)
+    {
+      jam();
+      /**
+       * Scan operation holding a lock on a key whose tuple
+       * is being deallocated.
+       * If this is the last operation to commit on the key
+       * then it will notify LQH when the dealloc is
+       * triggered.
+       * To make that possible, we store the deleting
+       * operation's userptr in the scan op record.
+       */
+      ndbrequire(opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef == 0);
+      opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef =
+          countOpPtrP->userptr + 1;
+      return;
+    }
+    ndbrequire(countOpPtrP->userptr != RNIL);
+
+    /**
+     * Inform LQH of operation involved in transaction
+     * which is deallocating a tuple.
+     * Also pass the LQH reference of the refcount operation
+     */
     signal->theData[0] = fragrecptr.p->myfid;
     signal->theData[1] = fragrecptr.p->myTableId;
     signal->theData[2] = localKey1;
     signal->theData[3] = localKey2;
     signal->theData[4] = userptr;
-    signal->theData[5] = scanInd;
+    signal->theData[5] = countOpPtrP->userptr;
+    EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
+    jamEntry();
+  }
+}
+
+/**
+ * trigger_dealloc
+ *
+ * ACC is now done with the TUPle storage, so inform LQH
+ * that it can go ahead with deallocation when it is able
+ */
+void
+Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
+{
+  Uint32 localKey1 = opPtrP->localdata[0];
+  Uint32 localKey2 = opPtrP->localdata[1];
+  Uint32 opbits = opPtrP->m_op_bits;
+  Uint32 userptr= opPtrP->userptr;
+  const bool scanInd =
+    ((opbits & Operationrec::OP_MASK) == ZSCAN_OP) || 
+    (opbits & Operationrec::OP_LOCK_REQ);
+  
+  if (! Local_key::isInvalid(localKey1, localKey2))
+  {
+    if (scanInd)
+    {
+      jam();
+      /**
+       * Operation triggering deallocation is a scan operation
+       * We must use a reference to the LQH deallocation operation
+       * stored on the scan operation in report_pending_dealloc()
+       * to inform LQH that the deallocation is triggered.
+       */
+      ndbrequire(opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef != 0);
+      userptr = opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef - 1;
+    }
+    /* Inform LQH that deallocation can go ahead */
+    signal->theData[0] = fragrecptr.p->myfid;
+    signal->theData[1] = fragrecptr.p->myTableId;
+    signal->theData[2] = localKey1;
+    signal->theData[3] = localKey2;
+    signal->theData[4] = userptr;
+    signal->theData[5] = RNIL;
     EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
     jamEntry();
   }
@@ -3417,7 +3492,7 @@ Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
 void Dbacc::commitdelete(Signal* signal)
 {
   jam();
-  report_dealloc(signal, operationRecPtr.p);
+  trigger_dealloc(signal, operationRecPtr.p);
   
   getdirindex();
   tlastPageindex = tgdiPageindex;
@@ -4161,7 +4236,7 @@ void Dbacc::abortOperation(Signal* signal)
 }
 
 void
-Dbacc::commitDeleteCheck()
+Dbacc::commitDeleteCheck(Signal* signal)
 {
   OperationrecPtr opPtr;
   OperationrecPtr lastOpPtr;
@@ -4230,8 +4305,10 @@ Dbacc::commitDeleteCheck()
     opPtr.p->m_op_bits |= Operationrec::OP_COMMIT_DELETE_CHECK;
     if (elementDeleted) {
       jam();
+      /* All pending dealloc operations are marked and reported to LQH */
       opPtr.p->m_op_bits |= elementDeleted;
       opPtr.p->hashValue = hashValue;
+      report_pending_dealloc(signal, opPtr.p, deleteOpPtr.p);
     }//if
     opPtr.i = opPtr.p->prevParallelQue;
     if (opPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER) {
@@ -4268,7 +4345,7 @@ void Dbacc::commitOperation(Signal* signal)
         a scan operation only means that the scan is continuing and the scan
         lock is released.
     */
-    commitDeleteCheck();
+    commitDeleteCheck(signal);
     opbits = operationRecPtr.p->m_op_bits;
   }//if
 
@@ -4511,7 +4588,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
 	{
 	  jam();
-	  report_dealloc(signal, opPtr.p);
+          trigger_dealloc(signal, opPtr.p);
 	  newOwner.p->localdata[0] = ~(Uint32)0;
 	  newOwner.p->localdata[1] = ~(Uint32)0;
 	}
@@ -4560,7 +4637,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
-      report_dealloc(signal, opPtr.p);
+      trigger_dealloc(signal, opPtr.p);
       newOwner.p->localdata[0] = ~(Uint32)0;
       newOwner.p->localdata[1] = ~(Uint32)0;
     }
@@ -6947,7 +7024,8 @@ void Dbacc::initScanOpRec(Signal* signal)
   }
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-  operationRecPtr.p->xfrmtupkeylen = 0; // not used
+  operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen = 0; // not used
+
 }//Dbacc::initScanOpRec()
 
 /* --------------------------------------------------------------------------------- */
