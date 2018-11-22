@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -564,7 +564,11 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  Uint32 xfrmtupkeylen;
+  union
+  {
+    Uint32 xfrmtupkeylen;
+    Uint32 m_scanOpDeleteCountOpRef;
+  } m_key_or_scan_info;
   Uint32 userblockref;
   Uint16 scanBits;
   LHBits16 reducedHashValue;
@@ -707,9 +711,12 @@ private:
   // Statement blocks
   void ACCKEY_error(Uint32 fromWhere);
 
-  void commitDeleteCheck();
-  void report_dealloc(Signal* signal, const Operationrec* opPtrP);
-  
+  void commitDeleteCheck(Signal* signal);
+  void report_pending_dealloc(Signal* signal,
+                              Operationrec* opPtrP,
+                              const Operationrec* countOpPtrP);
+  void trigger_dealloc(Signal* signal, const Operationrec* opPtrP);
+
   typedef void * RootfragmentrecPtr;
   void initRootFragPageZero(FragmentrecPtr, Page8Ptr);
   void initFragAdd(Signal*, FragmentrecPtr);
