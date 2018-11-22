@@ -10495,6 +10495,9 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   Create_field *new_field;
   uint candidate_key_count = 0;
   Alter_info *alter_info = ha_alter_info->alter_info;
+  Prealloced_array<Field *, 1> gcols_with_unchanged_expr(PSI_INSTRUMENT_ME);
+  // Names of columns which default might have changed.
+  Prealloced_array<const char *, 1> cols_with_default_change(PSI_INSTRUMENT_ME);
   DBUG_ENTER("fill_alter_inplace_info");
 
   /* Allocate result buffers. */
@@ -10639,6 +10642,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
           else
             ha_alter_info->handler_flags |=
                 Alter_inplace_info::ALTER_STORED_GCOL_EXPR;
+        } else {
+          gcols_with_unchanged_expr.push_back(field);
         }
       }
 
@@ -10702,6 +10707,13 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       if (new_field->column_format() != field->column_format())
         ha_alter_info->handler_flags |=
             Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
+
+      /*
+        Columns which were mentioned in CHANGE/MODIFY COLUMN clause might
+        have changed their default, add their name to corresponding array.
+      */
+      if (new_field->change)
+        cols_with_default_change.push_back(new_field->change);
     } else {
       /*
         Field is not present in new version of table and therefore was dropped.
@@ -10739,6 +10751,50 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
                 (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
                  Alter_inplace_info::ADD_STORED_BASE_COLUMN |
                  Alter_inplace_info::ADD_STORED_GENERATED_COLUMN));
+  }
+
+  /*
+    Add columns mentioned in SET/DROP DEFAULT clause to array of column names
+    which might have changed default.
+  */
+  for (const Alter_column *alter : alter_info->alter_list) {
+    if (alter->change_type() == Alter_column::Type::SET_DEFAULT ||
+        alter->change_type() == Alter_column::Type::DROP_DEFAULT) {
+      cols_with_default_change.push_back(alter->name);
+    }
+  }
+
+  /*
+    Detect cases when we have generated columns that depend on the DEFAULT
+    function on a column and column default might have changed.
+    Storage engine might be unable to do such operation inplace as indexes
+    or value of stored generated columns might become invalid and require
+    re-evaluation by SQL-layer.
+  */
+  for (Field *vfield : gcols_with_unchanged_expr) {
+    for (const char *col_name : cols_with_default_change) {
+      if (vfield->gcol_info->expr_item->walk(
+              &Item::check_gcol_depend_default_processor, Item::WALK_POSTFIX,
+              reinterpret_cast<uchar *>(const_cast<char *>(col_name)))) {
+        if (vfield->is_virtual_gcol())
+          ha_alter_info->handler_flags |=
+              Alter_inplace_info::VIRTUAL_GCOL_REEVAL;
+        else
+          ha_alter_info->handler_flags |=
+              Alter_inplace_info::STORED_GCOL_REEVAL;
+        break;
+      }
+    }
+    /*
+      Stop our search early if flags indicating re-evaluation of both
+      virtual and stored generated columns are already set.
+    */
+    if ((ha_alter_info->handler_flags &
+         (Alter_inplace_info::VIRTUAL_GCOL_REEVAL |
+          Alter_inplace_info::STORED_GCOL_REEVAL)) ==
+        (Alter_inplace_info::VIRTUAL_GCOL_REEVAL |
+         Alter_inplace_info::STORED_GCOL_REEVAL))
+      break;
   }
 
   /*
@@ -11268,22 +11324,6 @@ static bool is_inplace_alter_impossible(TABLE *table,
     See BUG#6236.
   */
   if (!table->s->mysql_version) DBUG_RETURN(true);
-
-  /*
-    If default value is changed and the table includes or will include
-    generated columns that depend on the DEFAULT function, we cannot
-    do the operation inplace as indexes or value of stored generated
-    columns might become invalid.
-  */
-  if ((alter_info->flags & Alter_info::ALTER_CHANGE_COLUMN_DEFAULT) &&
-      table->has_gcol()) {
-    for (Field **vfield = table->vfield; *vfield; vfield++) {
-      if ((*vfield)->gcol_info->expr_item->walk(
-              &Item::check_gcol_depend_default_processor, Item::WALK_POSTFIX,
-              NULL))
-        DBUG_RETURN(true);
-    }
-  }
 
   /*
     If we are changing the SRID modifier of a column, we must do a COPY.
@@ -12734,22 +12774,22 @@ static bool transfer_preexisting_foreign_keys(
 }
 
 /// Set column default, drop default or rename column name.
-static bool alter_column_name_or_default(Alter_info *alter_info,
-                                         Create_field *def) {
+static bool alter_column_name_or_default(
+    Prealloced_array<const Alter_column *, 1> *alter_list, Create_field *def) {
   DBUG_ENTER("alter_column_name_or_default");
 
   // Check if ALTER TABLE has requested of such a change.
   size_t i = 0;
   const Alter_column *alter = nullptr;
-  while (i < alter_info->alter_list.size()) {
-    alter = alter_info->alter_list[i];
+  while (i < alter_list->size()) {
+    alter = (*alter_list)[i];
     if (!my_strcasecmp(system_charset_info, def->field_name, alter->name))
       break;
     i++;
   }
 
   // Nothing changed.
-  if (i == alter_info->alter_list.size()) DBUG_RETURN(false);
+  if (i == alter_list->size()) DBUG_RETURN(false);
 
   // Setup the field.
   switch (alter->change_type()) {
@@ -12811,7 +12851,7 @@ static bool alter_column_name_or_default(Alter_info *alter_info,
   }
 
   // Remove the element from to be altered column list.
-  alter_info->alter_list.erase(i);
+  alter_list->erase(i);
 
   DBUG_RETURN(false);
 }
@@ -12885,6 +12925,15 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   Prealloced_array<const Alter_index_visibility *, 1> index_visibility_list(
       PSI_INSTRUMENT_ME, alter_info->alter_index_visibility_list.cbegin(),
       alter_info->alter_index_visibility_list.cend());
+
+  /*
+    Alter_info::alter_list is used by fill_alter_inplace_info() call as well.
+    So this function works on its copy rather than original list.
+  */
+  Prealloced_array<const Alter_column *, 1> alter_list(
+      PSI_INSTRUMENT_ME, alter_info->alter_list.cbegin(),
+      alter_info->alter_list.cend());
+
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
@@ -13022,7 +13071,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       new_create_list.push_back(def);
 
       // Change the column default OR rename just the column name.
-      if (alter_column_name_or_default(alter_info, def)) DBUG_RETURN(true);
+      if (alter_column_name_or_default(&alter_list, def)) DBUG_RETURN(true);
     }
   }
   def_it.rewind();
@@ -13127,8 +13176,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       }
     }
   }
-  if (alter_info->alter_list.size() > 0) {
-    my_error(ER_BAD_FIELD_ERROR, MYF(0), alter_info->alter_list[0]->name,
+  if (alter_list.size() > 0) {
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), alter_list[0]->name,
              table->s->table_name.str);
     DBUG_RETURN(true);
   }

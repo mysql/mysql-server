@@ -2310,11 +2310,17 @@ class Item : public Parse_tree_node {
   virtual bool check_function_as_value_generator(uchar *args);
 
   /**
-    Check if a generated expression depends on DEFAULT function.
+    Check if a generated expression depends on DEFAULT function with
+    specific column name as argument.
 
-    @returns false if the function is not DEFAULT(), otherwise true.
+    @param[in] args Name of column used as DEFAULT function argument.
+
+    @returns false if the function is not DEFAULT(args), otherwise true.
   */
-  virtual bool check_gcol_depend_default_processor(uchar *) { return false; }
+  virtual bool check_gcol_depend_default_processor(
+      uchar *args MY_ATTRIBUTE((unused))) {
+    return false;
+  }
 
   /*
     For SP local variable returns pointer to Item representing its
@@ -5297,7 +5303,10 @@ class Item_default_value final : public Item_field {
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
 
-  bool check_gcol_depend_default_processor(uchar *) override { return true; }
+  bool check_gcol_depend_default_processor(uchar *args) override {
+    return !my_strcasecmp(system_charset_info, field_name,
+                          reinterpret_cast<char *>(args));
+  }
 
   Item *transform(Item_transformer transformer, uchar *args) override;
 };
