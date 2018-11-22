@@ -94,6 +94,34 @@ const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
 
 #ifdef USE_DO_VIRTUAL_ALLOC
 
+/*
+ * To verify that the maximum of 16383 regions can be reserved without failure
+ * in do_virtual_alloc define NDB_TEST_128TB_VIRTUAL_MEMORY, data node should
+ * exit early with exit status 0, anything else is an error.
+ * Look for NdbMem printouts in data node log.
+ *
+ * Also see Bug#28961597.
+ */
+#define NDB_TEST_128TB_VIRTUAL_MEMORY
+#ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
+
+static inline int
+log_and_fake_success(const char func[], int line,
+                     const char msg[], void* p, size_t s)
+{
+  ndbout_c("DEBUG: %s: %u: %s: p %p: len %zu",
+           func, line, msg, p, s);
+  return 0;
+}
+
+#define NdbMem_ReserveSpace(x,y) \
+  log_and_fake_success(__func__, __LINE__, "NdbMem_ReserveSpace", (x), (y))
+
+#define NdbMem_PopulateSpace(x,y) \
+  log_and_fake_success(__func__, __LINE__, "NdbMem_PopulateSpace", (x), (y))
+
+#endif
+
 bool
 Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                                    InitChunk chunks[ZONE_COUNT],
@@ -232,16 +260,19 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                               m_random_start_page_id;
 #endif
     const Uint32 last_page = first_page + chunks[i].m_cnt - 1;
-    require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
     ndbout_c("%s: Populated space with pages %u to %u at %p.",
              __func__,
              first_page,
              last_page,
              chunks[i].m_ptr);
+    require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
   }
   *base_address = space - first_region[0] * 8 * Uint64(32768);
   if (watchCounter)
     *watchCounter = 9;
+#ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
+  exit(0); // No memory mapped only faking no meaning to continue.
+#endif
   return true;
 }
 #endif
