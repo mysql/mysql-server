@@ -85,3 +85,16 @@ SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 DROP FUNCTION f1;
 disconnect con1;
+
+--echo #
+--echo # Bug#28864244 : DATA DICTIONARY ASSERT IN MEB.UNICODE.
+--echo #
+SET NAMES utf8;
+SET DEBUG='+d,simulate_lctn_two_case_for_schema_case_compare';
+CREATE DATABASE `tèst-db`;
+--echo #Without fix, assert condition to check schema name case fails for following
+--echo #statement.
+CREATE PROCEDURE `tèst-db`.test() SELECT 1;
+DROP DATABASE `tèst-db`;
+SET DEBUG='-d,simulate_lctn_two_case_for_schema_case_compare';
+SET NAMES default;

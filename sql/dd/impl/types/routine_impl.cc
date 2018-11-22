@@ -38,6 +38,7 @@
 #include "sql/dd/impl/tables/schemata.h"       // Schemata::name_collation
 #include "sql/dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/parameter_impl.h"  // Parameter_impl
+#include "sql/dd/impl/utils.h"                 // is_string_in_lowercase
 #include "sql/dd/string_type.h"                // dd::String_type
 #include "sql/dd/types/parameter.h"
 #include "sql/dd/types/weak_object.h"
@@ -284,13 +285,16 @@ void Routine::create_mdl_key(enum_routine_type type,
                              const String_type &name, MDL_key *mdl_key) {
 #ifndef DEBUG_OFF
   // Make sure schema name is lowercased when lower_case_table_names == 2.
-  if (lower_case_table_names == 2) {
-    for (const char *c = schema_name.c_str(); *c; c++) {
-      DBUG_ASSERT(!my_isupper(tables::Schemata::name_collation(),
-                              static_cast<uchar>(*c)));
-    }
-  }
+  if (lower_case_table_names == 2)
+    DBUG_ASSERT(is_string_in_lowercase(schema_name,
+                                       tables::Schemata::name_collation()));
+  DBUG_EXECUTE_IF("simulate_lctn_two_case_for_schema_case_compare", {
+    DBUG_ASSERT(
+        (lower_case_table_names == 2) ||
+        is_string_in_lowercase(schema_name, &my_charset_utf8_tolower_ci));
+  });
 #endif
+
   /*
     Normalize the routine name so that key comparison for case and accent
     insensitive routine names yields the correct result.
