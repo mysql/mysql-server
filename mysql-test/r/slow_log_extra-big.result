@@ -1,4 +1,5 @@
 SET @my_slow_logname = @@global.slow_query_log_file;
+SET @my_lqt = @@global.long_query_time;
 SET GLOBAL slow_query_log_file= '.../my_extra_big.log';
 SET SESSION long_query_time = 20;
 SET GLOBAL long_query_time = 0;
@@ -21,8 +22,8 @@ SELECT COUNT(*) FROM big_table_slow WHERE id<100;
 COUNT(*)
 49
 # Cleanup
+SET GLOBAL long_query_time=@my_lqt;
 SET GLOBAL slow_query_log_file = @my_slow_logname;
-SET GLOBAL long_query_time=1;
 DROP TABLE big_table_slow;
 #
 # This is a hack to check the log result.

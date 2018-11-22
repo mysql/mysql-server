@@ -11,6 +11,7 @@
 --source include/count_sessions.inc
 
 SET @my_slow_logname = @@global.slow_query_log_file;
+SET @my_lqt = @@global.long_query_time;
 
 --replace_result $MYSQL_TMP_DIR ...
 eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_extra_big.log';
@@ -54,9 +55,17 @@ SELECT COUNT(*) FROM big_table_slow WHERE id<100;
 --echo # Cleanup
 
 connection default;
-SET GLOBAL slow_query_log_file = @my_slow_logname;
 
-SET GLOBAL long_query_time=1;
+# wait for queries to complete
+let $wait_condition=
+  SELECT COUNT(*)=2 FROM performance_schema.threads WHERE name="thread/sql/one_connection" AND processlist_command="Sleep";
+--source include/wait_condition.inc
+
+# make sure we add no more log lines
+SET GLOBAL long_query_time=@my_lqt;
+
+# change back to original log file
+SET GLOBAL slow_query_log_file = @my_slow_logname;
 
 disconnect con1;
 disconnect con;
