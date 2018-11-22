@@ -44,6 +44,7 @@
 #include "my_sys.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/member_version.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/services/notification/notification.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 
@@ -729,7 +730,10 @@ class Group_member_info_manager_interface {
  */
 class Group_member_info_manager : public Group_member_info_manager_interface {
  public:
-  Group_member_info_manager(Group_member_info *local_member_info);
+  Group_member_info_manager(
+      Group_member_info *local_member_info,
+      PSI_mutex_key psi_mutex_key =
+          key_GR_LOCK_group_member_info_manager_update_lock);
 
   virtual ~Group_member_info_manager();
 

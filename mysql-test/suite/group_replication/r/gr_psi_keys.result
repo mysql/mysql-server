@@ -40,6 +40,7 @@ wait/synch/mutex/group_rpl/LOCK_primary_election_primary_process_run	YES	YES	sin
 wait/synch/mutex/group_rpl/LOCK_primary_election_running_flag	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_secondary_process_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_validation_notification	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_primary_promotion_policy	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery_donor_selection	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_recovery_module_run	YES	YES	singleton	0	NULL
@@ -49,6 +50,7 @@ wait/synch/mutex/group_rpl/LOCK_session_thread_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_stage_monitor_handler	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_synchronized_queue	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_group_member_info_manager_update_lock	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_view_modification_wait	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_wait_ticket	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_write_lock_protection	YES	YES	singleton	0	NULL
@@ -92,6 +94,7 @@ wait/synch/cond/group_rpl/COND_primary_election_secondary_process_run	YES	YES	si
 wait/synch/cond/group_rpl/COND_primary_election_validation_notification	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_plugin_online	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_primary_promotion_policy	YES	YES	singleton	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: applying buffered transactions	YES	YES	progress	0	NULL
