@@ -927,4 +927,6 @@ void charset_uninit() {
   cs_name_pri_num_map = nullptr;
   delete cs_name_bin_num_map;
   cs_name_bin_num_map = nullptr;
+
+  new (&charsets_initialized) std::once_flag;
 }
