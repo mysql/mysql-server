@@ -102,7 +102,7 @@ const Uint32 Ndbd_mem_manager::zone_bound[ZONE_COUNT] =
  *
  * Also see Bug#28961597.
  */
-#define NDB_TEST_128TB_VIRTUAL_MEMORY
+//#define NDB_TEST_128TB_VIRTUAL_MEMORY
 #ifdef NDB_TEST_128TB_VIRTUAL_MEMORY
 
 static inline int
