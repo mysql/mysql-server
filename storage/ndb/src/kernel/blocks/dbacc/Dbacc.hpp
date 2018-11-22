@@ -709,7 +709,11 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  Uint32 xfrmtupkeylen;
+  union
+  {
+    Uint32 xfrmtupkeylen;
+    Uint32 m_scanOpDeleteCountOpRef;
+  } m_key_or_scan_info;
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
@@ -866,9 +870,12 @@ private:
   void execDBINFO_SCANREQ(Signal *signal);
 
   // Statement blocks
-  void commitDeleteCheck() const;
-  void report_dealloc(Signal* signal, const Operationrec* opPtrP);
-  
+  void commitDeleteCheck(Signal* signal);
+  void report_pending_dealloc(Signal* signal,
+                              Operationrec* opPtrP,
+                              const Operationrec* countOpPtrP);
+  void trigger_dealloc(Signal* signal, const Operationrec* opPtrP);
+
   typedef void * RootfragmentrecPtr;
   void initRootFragPageZero(FragmentrecPtr, Page8Ptr) const;
   void initFragAdd(Signal*, FragmentrecPtr) const;

@@ -2373,7 +2373,32 @@ public:
     Uint8 tcNodeFailrec;
     Uint8 m_disk_table;
     Uint8 m_use_rowid;
-    Uint8 m_dealloc;
+    enum dealloc_states {
+      /*
+       * Example set of dealloc ops:
+       *
+       *  Counting op (C)
+       *  m_dealloc_state = DA_DEALLOC_COUNT
+       *  m_dealloc_ref_count= 4
+       *
+       *  Other op (A)
+       *  m_dealloc_state = DA_DEALLOC_REFERENCE
+       *  m_dealloc_op_id = C
+       *
+       *  Other op (B)
+       *  m_dealloc_state = DA_DEALLOC_REFERENCE
+       *  m_dealloc_op_id = C
+       *
+       *  Other op (D)
+       *  m_dealloc_state = DA_DEALLOC_REFERENCE
+       *  m_dealloc_op_id = C
+       */
+      DA_IDLE,                    // No deallocation
+      DA_DEALLOC_COUNT,           // Counting op live, counting references
+      DA_DEALLOC_COUNT_ZOMBIE,    // Counting op zombie, counting references
+      DA_DEALLOC_REFERENCE        // !Counting op, refers to counting op
+    };
+    Uint8 m_dealloc_state;
     Uint8 m_fire_trig_pass;
     Uint8 m_committed_log_space;
     enum op_flags {
@@ -2387,6 +2412,14 @@ public:
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
+    union {
+      // op count, m_dealloc_state = DA_DEALLOC_COUNT[_ZOMBIE]
+      Uint32 m_dealloc_ref_count;
+      // reference to counting op, m_dealloc_state = DA_DEALLOC_REFERENCE
+      Uint32 m_dealloc_op_id;
+      // unused, m_dealloc_state = DA_IDLE
+      Uint32 m_unused;
+    } m_dealloc_data;
     SectionReader::PosInfo scanKeyInfoPos;
     Local_key m_row_id;
 
@@ -2839,7 +2872,7 @@ private:
   void releaseActiveCopy(Signal* signal);
   void releaseAddfragrec(Signal* signal);
   void releaseFragrec();
-  void releaseOprec(Signal* signal, TcConnectionrec*);
+  void releaseOprec(Signal* signal, TcConnectionrecPtr);
   void releasePageRef(Signal* signal);
   void releaseMmPages(Signal* signal);
   void releasePrPages(Signal* signal);
@@ -3188,6 +3221,13 @@ private:
   void checkLcpFragWatchdog(Signal* signal);
   const char* lcpStateString(LcpStatusConf::LcpState);
   
+  /**
+   * TUPle deallocation ref counting
+   */
+  void incrDeallocRefCount(Signal* signal, Uint32 opPtrI, Uint32 countOpPtrI);
+  Uint32 decrDeallocRefCount(Signal* signal, Uint32 opPtrI);
+  void handleDeallocOp(Signal* signal, TcConnectionrecPtr regTcPtr);
+
   Dbtup* c_tup;
   Dbtux* c_tux;
   Dbacc* c_acc;
