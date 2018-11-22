@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -711,7 +711,11 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  Uint32 xfrmtupkeylen;
+  union
+  {
+    Uint32 xfrmtupkeylen;
+    Uint32 m_scanOpDeleteCountOpRef;
+  } m_key_or_scan_info;
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
@@ -868,9 +872,12 @@ private:
   void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
-  void commitDeleteCheck() const;
-  void report_dealloc(Signal* signal, const Operationrec* opPtrP);
-  
+  void commitDeleteCheck(Signal* signal);
+  void report_pending_dealloc(Signal* signal,
+                              Operationrec* opPtrP,
+                              const Operationrec* countOpPtrP);
+  void trigger_dealloc(Signal* signal, const Operationrec* opPtrP);
+
   typedef void * RootfragmentrecPtr;
   void initRootFragPageZero(FragmentrecPtr, Page8Ptr) const;
   void initFragAdd(Signal*, FragmentrecPtr) const;
