@@ -301,6 +301,8 @@ ALTER TABLE func
 
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
+SET @old_sql_require_primary_key = @@session.sql_require_primary_key;
+SET @@session.sql_require_primary_key = 0;
 ALTER TABLE general_log
   MODIFY event_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   MODIFY user_host MEDIUMTEXT NOT NULL,
@@ -332,6 +334,7 @@ ALTER TABLE slow_log
   MODIFY thread_id BIGINT(21) UNSIGNED NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
+SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
 ALTER TABLE plugin
   MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
   MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',

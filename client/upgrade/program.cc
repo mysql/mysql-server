@@ -83,6 +83,14 @@ using std::string;
 using std::stringstream;
 using std::vector;
 
+static inline std::string rtrim(std::string s) {
+  s.erase(std::find_if(s.rbegin(), s.rend(),
+                       [](int ch) { return !std::isspace(ch); })
+              .base(),
+          s.end());
+  return s;
+}
+
 enum exit_codes {
   EXIT_INIT_ERROR = 1,
   EXIT_ALREADY_UPGRADED = 2,
@@ -651,6 +659,9 @@ class Program : public Base::Abstract_connection_program {
 
       result = runner.run_query(*query_ptr);
       if (result != 0) {
+        stringstream ss;
+        ss << "Error executing SQL statement: " << *query_ptr;
+        this->print_error(EXIT_UPGRADING_QUERIES_ERROR, rtrim(ss.str()));
         return result;
       }
     }
@@ -683,6 +694,9 @@ class Program : public Base::Abstract_connection_program {
          query_ptr++) {
       result = runner.run_query(*query_ptr);
       if (result != 0) {
+        stringstream ss;
+        ss << "Error executing SQL statement: " << *query_ptr;
+        this->print_error(EXIT_UPGRADING_QUERIES_ERROR, rtrim(ss.str()));
         return result;
       }
     }
@@ -711,6 +725,9 @@ class Program : public Base::Abstract_connection_program {
     for (query_ptr = &mysql_sys_schema[0]; *query_ptr != NULL; query_ptr++) {
       result = runner.run_query(*query_ptr);
       if (result != 0) {
+        stringstream ss;
+        ss << "Error executing SQL statement: " << *query_ptr;
+        this->print_error(EXIT_UPGRADING_QUERIES_ERROR, rtrim(ss.str()));
         return result;
       }
     }
