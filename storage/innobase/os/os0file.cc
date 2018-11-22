@@ -845,7 +845,7 @@ static bool os_file_handle_error_no_exit(const char *name,
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
-                                   ulint offset, ulint len);
+                                   os_offset_t offset, ulint len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
@@ -1018,8 +1018,7 @@ class AIOHandler {
     ut_a(slot->offset > 0);
     ut_a(slot->type.is_read() || !slot->skip_punch_hole);
     return (os_file_io_complete(slot->type, slot->file.m_file, slot->buf, NULL,
-                                slot->original_len,
-                                static_cast<ulint>(slot->offset), slot->len));
+                                slot->original_len, slot->offset, slot->len));
   }
 
  private:
@@ -1653,12 +1652,13 @@ void os_file_read_string(FILE *file, char *str, ulint size) {
 @param[in,out]	buf		Buffer to transform
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
+@param[in]	offset		file offset from the start where to read
 @param[in]	len		Used buffer length for write and output
                                 buf len for read
 @return DB_SUCCESS or error code */
 static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
                                    byte *buf, byte *scratch, ulint src_len,
-                                   ulint offset, ulint len) {
+                                   os_offset_t offset, ulint len) {
   dberr_t ret = DB_SUCCESS;
 
   /* We never compress/decompress the first page */
@@ -2189,16 +2189,16 @@ dberr_t LinuxAIOHandler::resubmit(Slot *slot) {
   slot->n_bytes = 0;
   slot->io_already_done = false;
 
+  /* make sure that slot->offset fits in off_t */
+  ut_ad(sizeof(off_t) >= sizeof(os_offset_t));
   struct iocb *iocb = &slot->control;
   if (slot->type.is_read()) {
-    io_prep_pread(iocb, slot->file.m_file, slot->ptr, slot->len,
-                  static_cast<off_t>(slot->offset));
+    io_prep_pread(iocb, slot->file.m_file, slot->ptr, slot->len, slot->offset);
 
   } else {
     ut_a(slot->type.is_write());
 
-    io_prep_pwrite(iocb, slot->file.m_file, slot->ptr, slot->len,
-                   static_cast<off_t>(slot->offset));
+    io_prep_pwrite(iocb, slot->file.m_file, slot->ptr, slot->len, slot->offset);
   }
   iocb->data = slot;
 
@@ -4908,9 +4908,8 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
       bytes_returned += n_bytes;
 
       if (offset > 0 && (type.is_compressed() || type.is_read())) {
-        *err =
-            os_file_io_complete(type, file, reinterpret_cast<byte *>(buf), NULL,
-                                original_n, static_cast<ulint>(offset), n);
+        *err = os_file_io_complete(type, file, reinterpret_cast<byte *>(buf),
+                                   NULL, original_n, offset, n);
       } else {
         *err = DB_SUCCESS;
       }
