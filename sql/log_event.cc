@@ -3529,7 +3529,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     start += 2;
   }
 
-  if (thd) {
+  if (thd && need_sql_require_primary_key) {
     *start++ = Q_SQL_REQUIRE_PRIMARY_KEY;
     *start++ = thd->variables.sql_require_primary_key;
   }
@@ -3597,6 +3597,22 @@ inline bool is_sql_command_atomic_ddl(const LEX *lex) {
          (lex->sql_command == SQLCOM_CREATE_TABLE &&
           !(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)) ||
          (lex->sql_command == SQLCOM_DROP_TABLE && !lex->drop_temporary);
+}
+
+/**
+  Returns whether or not the statement held by the `LEX` object parameter
+  requires `Q_SQL_REQUIRE_PRIMARY_KEY` to be logged together with the statement.
+ */
+static bool is_sql_require_primary_key_needed(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  switch (cmd) {
+    case SQLCOM_CREATE_TABLE:
+    case SQLCOM_ALTER_TABLE:
+      return true;
+    default:
+      break;
+  }
+  return false;
 }
 
 bool is_atomic_ddl(THD *thd, bool using_trans_arg) {
@@ -3940,6 +3956,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 
     if (thd->rli_slave) thd->rli_slave->ddl_not_atomic = true;
   }
+
+  need_sql_require_primary_key = is_sql_require_primary_key_needed(lex);
 
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);

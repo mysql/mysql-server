@@ -1405,6 +1405,11 @@ class Query_log_event : public virtual binary_log::Query_event,
   bool is_query_prefix_match(const char *pattern, uint p_len) {
     return !strncmp(query, pattern, p_len);
   }
+
+ private:
+  /** Whether or not the statement represented by this event requires
+      `Q_SQL_REQUIRE_PRIMARY_KEY` to be logged along aside. */
+  bool need_sql_require_primary_key{false};
 };
 
 /**

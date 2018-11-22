@@ -1,0 +1,183 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test how `Q_SQL_REQUIRE_PRIMARY_KEY` is being
+# logged within a `Query_log` event.
+#
+# ==== Requirements ====
+#
+# R1. `Q_SQL_REQUIRE_PRIMARY_KEY` should only be logged for `Query_log` events
+#     holding `CREATE TABLE` or `ALTER TABLE` statements.
+#
+# ==== Implementation ====
+#
+# TC1. Check `CREATE TABLE` has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+# ------------------------------------------------------------------
+# 1) Set `sql_require_primary_key` to 0.
+# 2) Create a table with no primary key and check the flag is set to 0.
+# 3) Set `sql_require_primary_key` to 1.
+# 4) Create a table with a primary key and check the flag is set to 1.
+#
+# TC2. Check DML `INSERT`, `UPDATE` and `DELETE` do not have the flag set
+# -----------------------------------------------------------------------
+# 1) Execute `INSERT` for both tables and check that the flag is not set for
+#    both statements.
+# 2) Execute `UPDATE` for both tables and check that the flag is not set for
+#    both statements.
+# 3) Execute `DELETE` for both tables and check that the flag is not set for
+#    both statements.
+#
+# TC3. Check `ALTER TABLE` has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+# ------------------------------------------------------------------
+# 1) Set `sql_require_primary_key` to 0.
+# 2) Alter the table with no primary key and check the flag is set to 0.
+# 3) Set `sql_require_primary_key` to 1.
+# 4) Alter the table with a primary key and check the flag is set to 1.
+#
+# TC4. Check `DROP TABLE` do not has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+# -----------------------------------------------------------------------
+# 1) Set `sql_require_primary_key` to 0.
+# 2) Drop the table with no primary key and check that the flag is not set.
+# 3) Set `sql_require_primary_key` to 1.
+# 4) Drop the table with a primary key and check that the flag is not set.
+#
+# ==== References ====
+#
+# BUG#28524803 'SET @@SESSION.SQL_REQUIRE_PRIMARY_KEY=1' IS ADDED FOR DMLS IN
+#              MYSQLBINLOG O/P
+#
+
+# Asserts the expected count of `SET @@SESSION.sql_require_primary_key` for a
+# given sql_expression
+#
+--write_file $MYSQL_TMP_DIR/assert_count_flag_occurences.inc END_OF_PROCEDURE
+  if ($target_sql_expression == '')
+  {
+    --die !!!ERROR IN TEST: you must set $target_sql_expression
+  }
+  if ($expected_statements_match_count == '')
+  {
+    --die !!!ERROR IN TEST: you must set $expected_statements_match_count
+  }
+  if ($assert_success_text == '')
+  {
+    --die !!!ERROR IN TEST: you must set $assert_success_text
+  }
+
+  --let $before_include = $include_silent
+  --let $include_silent = 1
+  --source include/save_binlog_position.inc
+  --let $include_silent = $before_include
+  --let $assert_binlog_file = `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/mysqlbinlog_set_require_primary_key_', UUID(), '.binlog')`
+
+  --eval $target_sql_expression
+
+  --exec $MYSQL_BINLOG --start-position=$binlog_position --force-if-open -vv $binlog_fullpath > $assert_binlog_file
+
+  --let $assert_select = sql_require_primary_key=$require_primary_key_target_value[^;]*;
+  --let $assert_file = $assert_binlog_file
+  --let $assert_text = $assert_success_text
+  --let $assert_count = $expected_statements_match_count
+  --source include/assert_grep.inc
+
+  --remove_file $assert_binlog_file
+END_OF_PROCEDURE
+
+FLUSH BINARY LOGS;
+
+--echo #
+--echo # TC1. Check `CREATE TABLE` has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+--echo # ------------------------------------------------------------------
+
+# 1) Set `sql_require_primary_key` to 0.
+SET @@session.sql_require_primary_key=0;
+
+# 2) Create a table with no primary key and check the flag is set to 0.
+--let $target_sql_expression = CREATE TABLE tnopk (col1 INT, col2 INT)
+--let $require_primary_key_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE TABLE' with no PK has 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `sql_require_primary_key` to 1.
+SET @@session.sql_require_primary_key=1;
+
+# 4) Create a table with a primary key and check the flag is set to 1.
+--let $target_sql_expression = CREATE TABLE tpk (col1 INT PRIMARY KEY, col2 INT)
+--let $require_primary_key_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'CREATE TABLE' with PK has 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+--echo #
+--echo # TC2. Check DML `INSERT`, `UPDATE` and `DELETE` do not have the flag set
+--echo # -----------------------------------------------------------------------
+
+# 1) Execute `INSERT` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = INSERT INTO tnopk VALUES (1, 0), (2, 0); INSERT INTO tpk VALUES (1, 0), (2, 0)
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'INSERT' statements do not have 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 2) Execute `UPDATE` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = UPDATE tnopk SET col2 = 1 WHERE col1 = 1; UPDATE tpk SET col2 = 1 WHERE col1 = 1
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'UPDATE' statements do not have 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Execute `DELETE` for both tables and check that the flag is not set for
+#    both statements.
+--let $target_sql_expression = DELETE FROM tnopk where col1 = 2; DELETE FROM tpk where col1 = 2
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DELETE' statements do not have 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+--echo #
+--echo # TC3. Check `ALTER TABLE` has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+--echo # ------------------------------------------------------------------
+
+# 1) Set `sql_require_primary_key` to 0.
+SET @@session.sql_require_primary_key=0;
+
+# 2) Alter the table with no primary key and check the flag is set to 0.
+--let $target_sql_expression = ALTER TABLE tnopk ADD COLUMN (col3 INT)
+--let $require_primary_key_target_value = 0
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER TABLE' in table with no PK has 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set and with value '0'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `sql_require_primary_key` to 1.
+SET @@session.sql_require_primary_key=1;
+
+# 4) Alter the table with a primary key and check the flag is set to 1.
+--let $target_sql_expression = ALTER TABLE tpk ADD COLUMN (col3 INT)
+--let $require_primary_key_target_value = 1
+--let $expected_statements_match_count = 1
+--let $assert_success_text = 'ALTER TABLE' in table with PK has 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set and with value '1'
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+--echo #
+--echo # TC4. Check `DROP TABLE` do not has `Q_SQL_REQUIRE_PRIMARY_KEY` flag set
+--echo # -----------------------------------------------------------------------
+
+# 1) Set `sql_require_primary_key` to 0.
+SET @@session.sql_require_primary_key=0;
+
+# 2) Drop the table with no primary key and check that the flag is not set.
+--let $target_sql_expression = DROP TABLE tnopk
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DROP TABLE' statements, of table with no PK, do not have 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# 3) Set `sql_require_primary_key` to 1.
+SET @@session.sql_require_primary_key=1;
+
+# 4) Drop the table with a primary key and check that the flag is not set.
+--let $target_sql_expression = DROP TABLE tpk
+--let $expected_statements_match_count = 0
+--let $assert_success_text = 'DROP TABLE' statements, of table with PK, do not have 'Q_SQL_REQUIRE_PRIMARY_KEY' flag set
+--source $MYSQL_TMP_DIR/assert_count_flag_occurences.inc
+
+# Clean up
+--remove_file $MYSQL_TMP_DIR/assert_count_flag_occurences.inc

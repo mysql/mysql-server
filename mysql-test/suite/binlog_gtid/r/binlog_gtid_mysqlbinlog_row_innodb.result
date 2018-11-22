@@ -2448,7 +2448,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -2551,7 +2550,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -2654,7 +2652,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -2838,7 +2835,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3021,7 +3017,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3204,7 +3199,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3387,7 +3381,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3570,7 +3563,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3673,7 +3665,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3776,7 +3767,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -3879,7 +3869,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4109,7 +4098,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4176,7 +4164,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4261,7 +4248,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4569,7 +4555,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4636,7 +4621,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4703,7 +4687,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -4769,7 +4752,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 ANALYZE TABLE t1
 /*!*/;
 # at #
@@ -4783,7 +4765,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 ANALYZE TABLE t2
 /*!*/;
 # at #
@@ -4797,7 +4778,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 ANALYZE TABLE t3
 /*!*/;
 # at #
@@ -4812,7 +4792,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -5004,7 +4983,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
@@ -5219,7 +5197,6 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 # at #
 # # server id #  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=#/*!*/;
-/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 BEGIN
 /*!*/;
 # at #
