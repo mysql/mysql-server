@@ -1813,8 +1813,6 @@ Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
 
 bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
   if (super::contextualize(pc) || m_field_def->contextualize(pc)) return true;
-  if (m_field_def->default_value)
-    pc->alter_info->flags |= Alter_info::ALTER_CHANGE_COLUMN_DEFAULT;
   pc->alter_info->flags |= m_field_def->alter_info_flags;
   return pc->alter_info->add_field(
       pc->thd, &m_new_name, m_field_def->type, m_field_def->length,

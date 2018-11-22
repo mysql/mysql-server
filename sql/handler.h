@@ -2623,6 +2623,18 @@ class Alter_inplace_info {
   static const HA_ALTER_FLAGS ALTER_COLUMN_INDEX_LENGTH = 1ULL << 43;
 
   /**
+    Change to one of columns on which virtual generated column depends,
+    so its values require re-evaluation.
+  */
+  static const HA_ALTER_FLAGS VIRTUAL_GCOL_REEVAL = 1ULL << 44;
+
+  /**
+    Change to one of columns on which stored generated column depends,
+    so its values require re-evaluation.
+  */
+  static const HA_ALTER_FLAGS STORED_GCOL_REEVAL = 1ULL << 45;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
