@@ -56,3 +56,17 @@ ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# Bug#28864244 : DATA DICTIONARY ASSERT IN MEB.UNICODE.
+#
+SET NAMES utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+SET DEBUG='+d,simulate_lctn_two_case_for_schema_case_compare';
+CREATE DATABASE `tèst-db`;
+#Without fix, assert condition to check schema name case fails for following
+#statement.
+CREATE PROCEDURE `tèst-db`.test() SELECT 1;
+DROP DATABASE `tèst-db`;
+SET DEBUG='-d,simulate_lctn_two_case_for_schema_case_compare';
+SET NAMES default;

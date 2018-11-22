@@ -24,7 +24,10 @@
 
 #include <string>
 
+#include "m_ctype.h"  // CHARSET_INFO
+#include "m_string.h"
 #include "my_time.h"            // TIME_to_ulonglong_datetime
+#include "mysql_com.h"          // NAME_LEN
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/stateless_allocator.h"
 
@@ -139,4 +142,16 @@ ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch) {
   my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, seconds_since_epoch);
   return TIME_to_ulonglong_datetime(curtime);
 }
+
+///////////////////////////////////////////////////////////////////////////
+
+bool is_string_in_lowercase(const String_type &str, const CHARSET_INFO *cs) {
+  char lowercase_str_buf[NAME_LEN + 1];
+  my_stpcpy(lowercase_str_buf, str.c_str());
+  my_casedn_str(cs, lowercase_str_buf);
+  return (memcmp(str.c_str(), lowercase_str_buf, str.length()) == 0);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 }  // namespace dd

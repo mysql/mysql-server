@@ -35,6 +35,7 @@
 #include "sql/dd/impl/tables/events.h"     // Events
 #include "sql/dd/impl/tables/schemata.h"   // Schemata::name_collation
 #include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/utils.h"             // is_string_in_lowercase
 #include "sql/dd/string_type.h"            // dd::String_type
 #include "sql/dd/types/weak_object.h"
 
@@ -297,12 +298,9 @@ void Event::create_mdl_key(const String_type &schema_name,
                            const String_type &name, MDL_key *mdl_key) {
 #ifndef DEBUG_OFF
   // Make sure schema name is lowercased when lower_case_table_names == 2.
-  if (lower_case_table_names == 2) {
-    for (const char *c = schema_name.c_str(); *c; c++) {
-      DBUG_ASSERT(!my_isupper(tables::Schemata::name_collation(),
-                              static_cast<uchar>(*c)));
-    }
-  }
+  if (lower_case_table_names == 2)
+    DBUG_ASSERT(is_string_in_lowercase(schema_name,
+                                       tables::Schemata::name_collation()));
 #endif
 
   /*

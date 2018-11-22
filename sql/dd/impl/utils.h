@@ -26,6 +26,8 @@
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/tztime.h"          // my_time_t
 
+struct CHARSET_INFO;
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -127,6 +129,21 @@ bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
    @return time value converted to datetime ulonglong
  */
 ulonglong my_time_t_to_ull_datetime(my_time_t seconds_since_epoch);
+
+///////////////////////////////////////////////////////////////////////////
+
+/**
+  Method to verify if string is in lowercase.
+
+  @param   str       String to verify.
+  @param   cs        Character set.
+
+  @retval  true    If string is in lowercase.
+  @retval  false   Otherwise.
+*/
+bool is_string_in_lowercase(const String_type &str, const CHARSET_INFO *cs);
+
+///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd
 
