@@ -4524,7 +4524,7 @@ json_type(cast(ts as json))
 TIMESTAMP
 select json_type(cast(y as json)) from t1;
 json_type(cast(y as json))
-OPAQUE
+UNSIGNED INTEGER
 select json_type(cast(ti as json)) from t1;
 json_type(cast(ti as json))
 INTEGER
@@ -4611,7 +4611,7 @@ cast(ts as json)
 "2014-11-25 18:00:00.000000"
 select cast(y as json) from t1;
 cast(y as json)
-"base64:type13:MTk5OQ=="
+1999
 select cast(ti as json) from t1;
 cast(ti as json)
 127
@@ -5786,6 +5786,8 @@ a
 127
 254
 255
+1998
+1999
 32766
 32767
 65534
@@ -5826,8 +5828,6 @@ a
 "2013-11-25 18:00:00.000000"
 "2014-11-25 17:00:00.000000"
 "2014-11-25 18:00:00.000000"
-"base64:type13:MTk5OA=="
-"base64:type13:MTk5OQ=="
 "base64:type16:ABU="
 "base64:type16:ABc="
 "base64:type252:MTAwMDFhYmNkZg=="
