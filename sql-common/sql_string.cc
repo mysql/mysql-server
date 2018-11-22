@@ -89,7 +89,8 @@ bool String::real_alloc(size_t length) {
    new buffer is smaller than the currently allocated buffer (if one exists),
    no allocation occured.
 
-   @retval true An error occured when attempting to allocate memory.
+   @retval true An error occured when attempting to allocate memory or memory
+   allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
   size_t len = ALIGN_SIZE(alloc_length + 1);
@@ -104,8 +105,11 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     m_alloced_length = 0;
   }
 
-  if (m_alloced_length < len) {
-    // Available bytes are not enough.
+  if (m_alloced_length < len) {  // Available bytes are not enough
+  // Signal an error if len exceeds uint32 max on 64-bit word platform.
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+    if (len > std::numeric_limits<uint32>::max()) return true;
+#endif
     char *new_ptr;
     if (m_is_alloced) {
       if (!(new_ptr = static_cast<char *>(
@@ -120,10 +124,6 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
     } else
       return true;  // Signal error
     m_ptr = new_ptr;
-    // Assert on debug build if len exceeds uint32 max on 64-bit word platform.
-#if defined(__WORDSIZE) && (__WORDSIZE == 64)
-    DBUG_ASSERT(len <= std::numeric_limits<uint32>::max());
-#endif
     m_alloced_length = static_cast<uint32>(len);
   }
   m_ptr[alloc_length] = 0;  // This make other funcs shorter

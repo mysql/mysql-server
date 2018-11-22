@@ -905,7 +905,12 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING> &varnames,
 
       length = param->pos_in_query + 1;
     } else {
-      if (param->set_from_user_var(thd, entry) || param->convert_str_value(thd))
+      if (param->set_from_user_var(thd, entry)) goto error;
+
+      if (entry) length += entry->length();
+
+      if (length > std::numeric_limits<uint32>::max() ||
+          param->convert_str_value(thd))
         goto error;
     }
     param->sync_clones();
