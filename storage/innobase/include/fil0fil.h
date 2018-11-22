@@ -146,6 +146,10 @@ struct fil_node_t {
   if space->id == 0 */
   page_no_t size;
 
+  /** Size of the file when last flushed, used to force the flush when file
+  grows to keep the filesystem metadata synced when using O_DIRECT_NO_FSYNC */
+  page_no_t flush_size;
+
   /** initial size of the file in database pages;
   FIL_IBD_FILE_INITIAL_SIZE by default */
   page_no_t init_size;
