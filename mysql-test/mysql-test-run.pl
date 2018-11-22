@@ -192,6 +192,7 @@ our $opt_debugger;
 our $opt_force;
 our $opt_gcov;
 our $opt_gdb;
+our $opt_gdb_secondary_engine;
 our $opt_gprof;
 our $opt_lldb;
 our $opt_manual_boot_gdb;
@@ -1176,8 +1177,8 @@ sub run_worker ($) {
       mark_time_used('restart');
     } elsif ($line eq 'BYE') {
       mtr_report("Server said BYE");
-      stop_all_servers($opt_shutdown_timeout);
       stop_secondary_engine_server() if $secondary_engine_support;
+      stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
 
       my $valgrind_reports = 0;
@@ -1198,8 +1199,8 @@ sub run_worker ($) {
     }
   }
 
-  stop_all_servers();
   stop_secondary_engine_server() if $secondary_engine_support;
+  stop_all_servers();
 
   exit(1);
 }
@@ -1429,33 +1430,34 @@ sub command_line_setup {
     'secondary-engine'     => \$opt_secondary_engine,
 
     # Debugging
-    'boot-dbx'           => \$opt_boot_dbx,
-    'boot-ddd'           => \$opt_boot_ddd,
-    'boot-gdb'           => \$opt_boot_gdb,
-    'client-dbx'         => \$opt_client_dbx,
-    'client-ddd'         => \$opt_client_ddd,
-    'client-debugger=s'  => \$opt_client_debugger,
-    'client-gdb'         => \$opt_client_gdb,
-    'client-lldb'        => \$opt_client_lldb,
-    'dbx'                => \$opt_dbx,
-    'ddd'                => \$opt_ddd,
-    'debug'              => \$opt_debug,
-    'debug-common'       => \$opt_debug_common,
-    'debug-server'       => \$opt_debug_server,
-    'debugger=s'         => \$opt_debugger,
-    'gdb'                => \$opt_gdb,
-    'lldb'               => \$opt_lldb,
-    'manual-boot-gdb'    => \$opt_manual_boot_gdb,
-    'manual-dbx'         => \$opt_manual_dbx,
-    'manual-ddd'         => \$opt_manual_ddd,
-    'manual-debug'       => \$opt_manual_debug,
-    'manual-gdb'         => \$opt_manual_gdb,
-    'manual-lldb'        => \$opt_manual_lldb,
-    'max-save-core=i'    => \$opt_max_save_core,
-    'max-save-datadir=i' => \$opt_max_save_datadir,
-    'max-test-fail=i'    => \$opt_max_test_fail,
-    'strace-client'      => \$opt_strace_client,
-    'strace-server'      => \$opt_strace_server,
+    'boot-dbx'             => \$opt_boot_dbx,
+    'boot-ddd'             => \$opt_boot_ddd,
+    'boot-gdb'             => \$opt_boot_gdb,
+    'client-dbx'           => \$opt_client_dbx,
+    'client-ddd'           => \$opt_client_ddd,
+    'client-debugger=s'    => \$opt_client_debugger,
+    'client-gdb'           => \$opt_client_gdb,
+    'client-lldb'          => \$opt_client_lldb,
+    'dbx'                  => \$opt_dbx,
+    'ddd'                  => \$opt_ddd,
+    'debug'                => \$opt_debug,
+    'debug-common'         => \$opt_debug_common,
+    'debug-server'         => \$opt_debug_server,
+    'debugger=s'           => \$opt_debugger,
+    'gdb'                  => \$opt_gdb,
+    'gdb-secondary-engine' => \$opt_gdb_secondary_engine,
+    'lldb'                 => \$opt_lldb,
+    'manual-boot-gdb'      => \$opt_manual_boot_gdb,
+    'manual-dbx'           => \$opt_manual_dbx,
+    'manual-ddd'           => \$opt_manual_ddd,
+    'manual-debug'         => \$opt_manual_debug,
+    'manual-gdb'           => \$opt_manual_gdb,
+    'manual-lldb'          => \$opt_manual_lldb,
+    'max-save-core=i'      => \$opt_max_save_core,
+    'max-save-datadir=i'   => \$opt_max_save_datadir,
+    'max-test-fail=i'      => \$opt_max_test_fail,
+    'strace-client'        => \$opt_strace_client,
+    'strace-server'        => \$opt_strace_server,
 
     # Coverage, profiling etc
     'callgrind'                 => \$opt_callgrind,
@@ -1866,18 +1868,19 @@ sub command_line_setup {
 
   # Check debug related options
   if ($opt_gdb ||
-      $opt_client_gdb      ||
-      $opt_ddd             ||
-      $opt_client_ddd      ||
-      $opt_manual_gdb      ||
-      $opt_manual_lldb     ||
-      $opt_manual_ddd      ||
-      $opt_manual_debug    ||
-      $opt_dbx             ||
-      $opt_client_dbx      ||
-      $opt_manual_dbx      ||
-      $opt_debugger        ||
-      $opt_client_debugger ||
+      $opt_gdb_secondary_engine ||
+      $opt_client_gdb           ||
+      $opt_ddd                  ||
+      $opt_client_ddd           ||
+      $opt_manual_gdb           ||
+      $opt_manual_lldb          ||
+      $opt_manual_ddd           ||
+      $opt_manual_debug         ||
+      $opt_dbx                  ||
+      $opt_client_dbx           ||
+      $opt_manual_dbx           ||
+      $opt_debugger             ||
+      $opt_client_debugger      ||
       $opt_manual_boot_gdb) {
     # Indicate that we are using debugger
     $glob_debugger = 1;
@@ -4414,8 +4417,8 @@ sub run_testcase ($) {
   if (!using_extern()) {
     my @restart = servers_need_restart($tinfo);
     if (@restart != 0) {
-      stop_servers($tinfo, @restart);
       stop_secondary_engine_server() if $secondary_engine_support;
+      stop_servers($tinfo, @restart);
     }
 
     if (started(all_servers()) == 0) {
@@ -5335,7 +5338,8 @@ sub check_expected_crash_and_restart($$) {
         mysqld_start($mysqld, $mysqld->{'started_opts'});
 
         # Start secondary engine server.
-        start_secondary_engine_server(\&valgrind_arguments)
+        start_secondary_engine_server(\&gdb_arguments, \&mysqlds, \&run_query,
+                                      \&valgrind_arguments)
           if $secondary_engine_support;
 
         load_table_contents(\&run_query, $mysqld, $tinfo)
@@ -6242,7 +6246,8 @@ sub start_servers($) {
       mark_log($::secondary_engine_log_error, $tinfo);
 
       # Start secondary engine server.
-      start_secondary_engine_server(\&valgrind_arguments);
+      start_secondary_engine_server(\&gdb_arguments, \&mysqlds, \&run_query,
+                                    \&valgrind_arguments);
     }
 
     # Save this test case information, so next can examine it
@@ -6301,6 +6306,9 @@ sub start_servers($) {
   if ($secondary_engine_support) {
     # Install secondary engine plugin on all running mysqld servers.
     install_secondary_engine_plugin(\&mysqlds, \&run_query, $tinfo);
+    if (defined $tinfo->{'result'} and $tinfo->{'result'} eq 'MTR_RES_FAILED') {
+      return 1;
+    }
   }
 
   return 0;
