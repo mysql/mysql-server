@@ -495,6 +495,12 @@ class Window {
     the end bound. Each item is Item_func_lt/gt.
   */
   Item_func *m_comparators[WBT_VALUE_FOLLOWING + 1][2];
+  /**
+    Each item has inverse operation of the corresponding
+    comparator in m_comparators. Determines if comparison
+    should continue with next field in order by list.
+  */
+  Item_func *m_inverse_comparators[WBT_VALUE_FOLLOWING + 1][2];
 
  protected:
   /**
