@@ -22,7 +22,7 @@ host	%
 user	user2
 plugin	caching_sha2_password
 CREATE USER user9@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 
 CREATE USER user10@localhost
 IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$ABCDEFGHIJKLMNOPQRSTabcdefgh01234567ijklmnop89012345ABCDEFGH678';
