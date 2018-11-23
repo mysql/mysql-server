@@ -4405,8 +4405,10 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
       tbl.s= share;
       table_list.table= &tbl;
       table_list.set_view_query((LEX*) share->is_view);
+      mysql_mutex_unlock(&LOCK_open);
       res= schema_table->process_table(thd, &table_list, table,
                                        res, db_name, table_name);
+      mysql_mutex_lock(&LOCK_open);
       closefrm(&tbl, 0);
       free_root(&tbl.mem_root, MYF(0));
       my_free((void *) tbl.alias);
