@@ -1380,6 +1380,11 @@ This is called during CREATE UNDO TABLESPACE.
 @return DB_SUCCESS or error code */
 dberr_t srv_undo_tablespace_create(const char *space_name,
                                    const char *file_name, space_id_t space_id) {
+  if (srv_undo_log_encrypt && Encryption::check_keyring() == false) {
+    my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+    return (DB_ERROR);
+  }
+
   /* We need to x_lock the undo::spaces list until after this
   is created and added to it. */
   undo::spaces->x_lock();
@@ -1423,8 +1428,15 @@ dberr_t srv_undo_tablespace_create(const char *space_name,
   }
 
 cleanup_and_exit:
-  srv_undo_tablespaces_mark_construction_done();
+  /* If UNDO tablespace couldn't initialize completely, remove it from
+  undo tablespace list */
+  if (err != DB_SUCCESS) {
+    undo::spaces->x_lock();
+    undo::spaces->drop(undo_space);
+    undo::spaces->x_unlock();
+  }
 
+  srv_undo_tablespaces_mark_construction_done();
   return (err);
 }
 

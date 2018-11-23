@@ -4673,6 +4673,13 @@ static int innodb_init(void *p) {
 #ifdef _WIN32
   if (ut_win_init_time()) DBUG_RETURN(innodb_init_abort());
 #endif /* _WIN32 */
+
+  /* Make sure keyring plugin is loaded if UNDO logs are intended to be
+  encrypted*/
+  if (srv_undo_log_encrypt && Encryption::check_keyring() == false) {
+    DBUG_RETURN(innodb_init_abort());
+  }
+
   DBUG_RETURN(0);
 }
 
