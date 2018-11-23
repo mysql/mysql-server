@@ -157,6 +157,10 @@ extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
+#ifdef _WIN32
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
+extern char *named_pipe_full_access_group;
+#endif
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
 extern char* opt_secure_backup_file_priv;
@@ -925,7 +929,8 @@ enum options_mysqld
   OPT_KEYRING_MIGRATION_HOST,
   OPT_KEYRING_MIGRATION_PASSWORD,
   OPT_KEYRING_MIGRATION_SOCKET,
-  OPT_KEYRING_MIGRATION_PORT
+  OPT_KEYRING_MIGRATION_PORT,
+  OPT_NAMED_PIPE_FULL_ACCESS_GROUP
 };
 
 
@@ -998,5 +1003,9 @@ static inline THD *_current_thd(void)
 #define current_thd _current_thd()
 
 #define ER(X)         ER_THD(current_thd,X)
+
+#ifdef _WIN32
+bool update_named_pipe_full_access_group(const char *new_group_name);
+#endif
 
 #endif /* MYSQLD_INCLUDED */

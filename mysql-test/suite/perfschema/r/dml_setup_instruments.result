@@ -16,7 +16,9 @@ wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_compress_gtid_table	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
-  and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
+  and name not in (
+'wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock',
+'wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group')
 order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/rwlock/sql/Binlog_relay_IO_delegate::lock	YES	YES
