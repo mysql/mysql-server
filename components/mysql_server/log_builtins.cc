@@ -105,6 +105,35 @@ static mysql_rwlock_t THR_LOCK_log_stack;
 static mysql_mutex_t THR_LOCK_log_syseventlog;
 
 /**
+  Make sure only one instance of the buffered "writer" runs at a time.
+
+  In normal operation, the log-event will be created dynamically, then
+  it will be fed through the pipeline, and then it will be released.
+  Since the event is allocated in the caller, we can be sure it won't
+  go away wholesale during processing, and since the event is local to
+  the caller, no other thread will tangle with it. It is therefore safe
+  in those cases not to wrap a lock around the event.
+  (The log-pipeline will still grab a shared lock, THR_LOCK_log_stack,
+  to protect the pipeline (not the event) and the log-services cache from
+  being changed while the pipeline is being applied.
+  Likewise, log-services may protect their resources (file-writers will
+  usually take a lock to serialize their writes; the built-in filter will
+  take a lock on its rule-set as that is shared between concurrent
+  threads running the filter, and so on).
+  None of these are intended to protect the event itself though.
+
+  In buffered mode on the other hand, we copy each log-event (the
+  original of which, see above, is owned by the caller and local
+  to the thread, and therefore safe without locking) to a global
+  buffer / backlog. As this backlog can be added to by all threads,
+  it must be protected by a lock (once we have fully initialized
+  the subsystem with log_builtins_init() and support multi-threaded
+  mode anyway, as indicated by log_builtins_inited being true, see
+  below). This is that lock.
+*/
+static mysql_mutex_t THR_LOCK_log_buffered;
+
+/**
   Subsystem initialized and ready to use?
 */
 static bool log_builtins_inited = false;
@@ -146,12 +175,18 @@ static log_line_buffer **log_line_buffer_tail = &log_line_buffer_start;
 static ulonglong log_buffering_timeout = 0;
 
 /// If after this many seconds we're still buffering, flush!
+#ifndef LOG_BUFFERING_TIMEOUT_AFTER
 #define LOG_BUFFERING_TIMEOUT_AFTER (60)
+#endif
 /// And thereafter, if after this many more seconds still buffering, flush
 /// again!
+#ifndef LOG_BUFFERING_TIMEOUT_EVERY
 #define LOG_BUFFERING_TIMEOUT_EVERY (10)
+#endif
 /// Function returns microseconds, we want seconds
+#ifndef LOG_BUFFERING_TIME_SCALE
 #define LOG_BUFFERING_TIME_SCALE 1000000
+#endif
 
 /// Only flush on time-out when buffer contains errors
 static int log_buffering_flushworthy = false;
@@ -1346,11 +1381,13 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
   /*
     Don't let the submitter free the keys/values; we'll do it later when
     the buffer is flushed and then de-allocated!
+    (No lock needed for copy as the target-event is still private to this
+    function, and the source-event is alloc'd in the caller.)
   */
   log_line_duplicate(&llb->ll, ll);
 
   /*
-    Remember that an error event was buffered.
+    Remember when an error event was buffered.
     If buffered logging times out and the buffer contains an error,
     we force a premature flush so the user will know what's going on.
   */
@@ -1369,6 +1406,8 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
   }
 
   // insert the new last event into the buffer (a singly linked list of events)
+  if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
+
   *log_line_buffer_tail = llb;
   log_line_buffer_tail = &(llb->next);
 
@@ -1410,25 +1449,54 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
         now + (LOG_BUFFERING_TIMEOUT_EVERY * LOG_BUFFERING_TIME_SCALE);
   }
 
+  if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+
   return count;
 }
 
 /**
-  Release all buffered log-events (discard_error_log_messages()),
-  optionally after running them through the error log stack first
-  (flush_error_log_messages()). Must be safe to call repeatedly
-  (with subsequent calls only outputting any events added after
-  the previous flush).
+  Process all buffered log-events.
+
+  LOG_BUFFER_DISCARD_ONLY simply releases all buffered log-events
+  (used when called from discard_error_log_messages()).
+
+  LOG_BUFFER_PROCESS_AND_DISCARD sends the events through the
+  configured error log stack first before discarding them.
+  (used when called from flush_error_log_messages()).
+  Must remain safe to call repeatedly (with subsequent calls only
+  outputting any events added after the previous flush).
+
+  LOG_BUFFER_REPORT_AND_KEEP is used to show incremental status
+  updates when the start-up takes unusually long. When that happens,
+  we "report" the intermediate state using the built-in sink
+  (as that's the only one we available to us at the time), and
+  "keep" the events around. That way if log sinks other that the
+  built-in one are configured, we can flush all of the buffered
+  events there once initialization completes.
+  (used when log_sink_buffer() detects a time-out, see also:
+  LOG_BUFFERING_TIMEOUT_AFTER, LOG_BUFFERING_TIMEOUT_EVERY)
 
   @param  mode  LOG_BUFFER_DISCARD_ONLY (to just
                 throw away the buffered events), or
                 LOG_BUFFER_PROCESS_AND_DISCARD to
                 filter/print them first, or
                 LOG_BUFFER_REPORT_AND_KEEP to print
-                an intermediate report on time-out
+                an intermediate report on time-out.
+
+                To use LOG_BUFFER_REPORT_AND_KEEP in a
+                multi-threaded environment, the caller
+                needs to hold THR_LOCK_log_buffered
+                while calling this; for the other modes,
+                this function will acquire and release the
+                lock as needed.
 */
 void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
-  log_line_buffer *llp = log_line_buffer_start;
+  log_line_buffer *llp;
+
+  if (log_builtins_inited && (mode != LOG_BUFFER_REPORT_AND_KEEP))
+    mysql_mutex_lock(&THR_LOCK_log_buffered);
+
+  llp = log_line_buffer_start;
 
   while (llp != nullptr) {
     if (mode != LOG_BUFFER_DISCARD_ONLY) {
@@ -1498,12 +1566,12 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
           llp = llp->next;  // go to next element, keep head/tail pointers same
           continue;         // skip the free()-ing
 
-        } else {
+        } else {  // LOG_BUFFER_PROCESS_AND_DISCARD
           if (log_filter_builtin_rules != nullptr)
             log_builtins_filter_run(log_filter_builtin_rules, &llp->ll);
           log_sink_trad(nullptr, &llp->ll);
         }
-      } else {
+      } else {                      // !LOG_SERVICE_BUFFER
         log_line_submit(&llp->ll);  // frees keys + values
         goto kv_freed;
       }
@@ -1516,8 +1584,10 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
     llp = log_line_buffer_start;
   }
 
-  if (mode != LOG_BUFFER_REPORT_AND_KEEP)
+  if (mode != LOG_BUFFER_REPORT_AND_KEEP) {
     log_line_buffer_tail = &log_line_buffer_start;  // reset tail pointer
+    if (log_builtins_inited) mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  }
 }
 
 /**
@@ -1688,9 +1758,9 @@ int log_line_submit(log_line *ll) {
 
     /*
       We were called before even the buffered sink (and our locks)
-      were set up. This usually means that something went catastrophically
-      wrong, so we'll make sure the information (e.g. cause of failure)
-      isn't lost.
+      were set up. This usually means that something went
+      catastrophically wrong, so we'll make sure the information
+      (e.g. cause of failure) isn't lost.
     */
     if (!log_builtins_inited)
       log_sink_buffer(nullptr, ll);
@@ -2272,6 +2342,7 @@ done:
 int log_builtins_exit() {
   if (!log_builtins_inited) return -1;
 
+  mysql_mutex_lock(&THR_LOCK_log_buffered);
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
 
@@ -2287,11 +2358,19 @@ int log_builtins_exit() {
   mysql_mutex_unlock(&THR_LOCK_log_syseventlog);
   mysql_mutex_destroy(&THR_LOCK_log_syseventlog);
 
+  mysql_mutex_unlock(&THR_LOCK_log_buffered);
+  mysql_mutex_destroy(&THR_LOCK_log_buffered);
+
   return 0;
 }
 
 /**
   Initialize the structured logging subsystem.
+
+  Since we're initializing various locks here, we must call this late enough
+  so this is clean, but early enough so it still happens while we're running
+  single-threaded -- this specifically also means we must call it before we
+  start plug-ins / storage engines / external components!
 
   @retval  0  no errors
   @retval -1  couldn't initialize stack lock
@@ -2299,6 +2378,7 @@ int log_builtins_exit() {
   @retval -3  couldn't set up service hash
   @retval -4  couldn't initialize syseventlog lock
   @retval -5  couldn't set service pipeline
+  @retval -6  couldn't initialize buffered logging lock
 */
 int log_builtins_init() {
   int rr = 0;
@@ -2313,6 +2393,11 @@ int log_builtins_init() {
   if (mysql_mutex_init(0, &THR_LOCK_log_syseventlog, MY_MUTEX_INIT_FAST)) {
     mysql_rwlock_destroy(&THR_LOCK_log_stack);
     return -4;
+  }
+
+  if (mysql_mutex_init(0, &THR_LOCK_log_buffered, MY_MUTEX_INIT_FAST)) {
+    rr = -6;
+    goto fail;
   }
 
   mysql_rwlock_wrlock(&THR_LOCK_log_stack);
@@ -2340,6 +2425,7 @@ int log_builtins_init() {
     }
   }
 
+fail:
   mysql_rwlock_destroy(&THR_LOCK_log_stack); /* purecov: begin inspected */
   mysql_mutex_destroy(&THR_LOCK_log_syseventlog);
 
