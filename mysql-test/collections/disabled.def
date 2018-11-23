@@ -13,6 +13,9 @@
 # audit_null
 audit_null.audit_plugin_bugs : BUG#28080637 2018-05-31 Anitha Test fails consistently
 
+# auth_sec
+auth_sec.openssl_without_fips: Bug #28812609 2018-11-23 Erlend Test fails all over
+
 # binlog suite tests
 binlog.binlog_xa_commit_failure : BUG#27588706 2018-02-23 Erlend Test has never worked correctly.
 
