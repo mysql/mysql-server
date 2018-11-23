@@ -719,13 +719,13 @@ SET GLOBAL innodb_default_row_format=default;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (a int unsigned auto_increment primary key, b varchar(64))
 ENGINE = InnoDB
-DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir/';
+DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t2 (a int unsigned auto_increment primary key, b varchar(64))
 ENGINE = InnoDB
 PARTITION BY LIST (a)
-(PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = '$MYSQL_TMP_DIR/p1_dir/',
- PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = '$MYSQL_TMP_DIR/p2_dir/');
+(PARTITION p1 VALUES IN (1,3,5,7,9) DATA DIRECTORY = '$MYSQL_TMP_DIR/p1_dir',
+ PARTITION p2 VALUES IN (0,2,4,6,8) DATA DIRECTORY = '$MYSQL_TMP_DIR/p2_dir');
 INSERT INTO t1 VALUES (1, "t1"), (5, "t1");
 INSERT INTO t2 VALUES (3, "p1"), (4, "p2"), (7, "p1"), (8, "p2");
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -733,19 +733,25 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 SELECT * FROM t1;
 SELECT * FROM t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
@@ -762,23 +768,26 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 DROP TABLE t1, t2;
 --echo # exchage partition with data dir and range
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (a int unsigned auto_increment primary key, b varchar(64))
 ENGINE = InnoDB
-DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir/';
+DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t2 (a int unsigned auto_increment primary key, b varchar(64))
 ENGINE = InnoDB
 PARTITION BY range (a)
-(PARTITION p1 VALUES less than (10) DATA DIRECTORY = '$MYSQL_TMP_DIR/p1_dir/',
- PARTITION p2 VALUES less than (20) DATA DIRECTORY = '$MYSQL_TMP_DIR/p2_dir/');
+(PARTITION p1 VALUES less than (10) DATA DIRECTORY = '$MYSQL_TMP_DIR/p1_dir',
+ PARTITION p2 VALUES less than (20) DATA DIRECTORY = '$MYSQL_TMP_DIR/p2_dir');
 INSERT INTO t1 VALUES (1, "t1"), (5, "t1");
 INSERT INTO t2 VALUES (3, "p1"), (4, "p2"), (17, "p1"), (12, "p2");
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -786,19 +795,25 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 SELECT * FROM t1;
 SELECT * FROM t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
@@ -815,10 +830,13 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from p1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p1_dir/test
 --echo # List files from p2_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/p2_dir/test
 DROP table t1,t2;
 --rmdir $mysql_tmp_dir/t1_dir/test
@@ -835,7 +853,7 @@ DROP table t1,t2;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t1 (id INT, purchased DATE)
 ENGINE = InnoDB
-DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir/';
+DATA DIRECTORY = '$MYSQL_TMP_DIR/t1_dir';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE t2 (id INT, purchased DATE)
 PARTITION BY RANGE( YEAR(purchased) )
@@ -855,19 +873,25 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from sp0_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp0_dir/test
 --echo # List files from sp3_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp3_dir/test
 ALTER TABLE t2 EXCHANGE PARTITION s0 WITH TABLE t1;
 SELECT * FROM t1;
 SELECT * FROM t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from sp0_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp0_dir/test
 --echo # List files from sp3_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp3_dir/test
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
@@ -879,10 +903,13 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from sp0_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp0_dir/test
 --echo # List files from sp3_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp3_dir/test
 delete from t1;
 insert into t1 values(3,'1997-05-8 '),(4,'1997-05-16');
@@ -890,10 +917,13 @@ ALTER TABLE t2 EXCHANGE PARTITION s3 WITH TABLE t1;
 SELECT * FROM t1;
 SELECT * FROM t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from sp0_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp0_dir/test
 --echo # List files from sp3_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp3_dir/test
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
@@ -905,10 +935,13 @@ SHOW CREATE TABLE t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t2;
 --echo # List files from t1_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/t1_dir/test
 --echo # List files from sp0_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp0_dir/test
 --echo # List files from sp3_dir/test
+--replace_result #p# #P# #sp# #SP#
 --list_files $MYSQL_TMP_DIR/sp3_dir/test
 DROP table t1,t2;
 --rmdir $mysql_tmp_dir/t1_dir/test
