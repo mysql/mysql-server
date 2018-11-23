@@ -409,6 +409,7 @@ SET(SERVER_TESTS
   json_path
   locking_clause_syntax
   locking_service
+  log_timestamp
   log_throttle
   make_sortkey
   mdl_sync
