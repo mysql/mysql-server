@@ -364,8 +364,8 @@ bool Window::setup_range_expressions(THD *thd) {
             cmp_arg = value;
           }
 
-          Item_func *new_cmp;
-          Item_func *new_inverse_cmp;
+          Item_bool_func2 *new_cmp;
+          Item_bool_func2 *new_inverse_cmp;
           if ((border == m_frame->m_from) ? asc : !asc) {
             new_cmp = new Item_func_lt(nr, cmp_arg);
             /*
@@ -381,6 +381,16 @@ bool Window::setup_range_expressions(THD *thd) {
             new_inverse_cmp = new Item_func_lt(nr, cmp_arg);
           }
 
+          if (nr->result_type() == STRING_RESULT && !nr->is_temporal() &&
+              nr->data_type() != MYSQL_TYPE_JSON) {
+            /*
+              ORDER BY in window clause should work like plain ORDER BY,
+              ie.e. compare only the first max_sort_length bytes:
+            */
+            auto max_length = thd->variables.max_sort_length;
+            new_cmp->set_max_str_length(max_length);
+            new_inverse_cmp->set_max_str_length(max_length);
+          }
           cmp = new Item_cond_or(new_cmp, cmp);
           if (cmp == nullptr) return true;
           inv_cmp = new Item_cond_or(new_inverse_cmp, inv_cmp);
@@ -629,7 +639,6 @@ bool Window::before_or_after_frame(bool before) {
     */
     Item *to_update = func->arguments()[1];
     if (border_type == WBT_CURRENT_ROW) {
-      to_update = func->arguments()[1];
     } else {
       DBUG_ASSERT(i == 1);
       Item_func *addop = down_cast<Item_func *>(func->arguments()[1]);

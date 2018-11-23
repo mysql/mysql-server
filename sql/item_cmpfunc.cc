@@ -1435,7 +1435,18 @@ int Arg_comparator::compare_string() {
   if ((res1 = (*a)->val_str(&value1))) {
     if ((res2 = (*b)->val_str(&value2))) {
       if (set_null) owner->null_value = 0;
-      return sortcmp(res1, res2, cmp_collation.collation);
+      auto orig_len1 = res1->length(), orig_len2 = res2->length();
+      if (m_max_str_length >
+          0) {  // Truncate to imposed maximum length, before comparing
+        if (orig_len1 > m_max_str_length) res1->length(m_max_str_length);
+        if (orig_len2 > m_max_str_length) res2->length(m_max_str_length);
+      }
+      // Compare
+      auto rc = sortcmp(res1, res2, cmp_collation.collation);
+      // Restore true lengths
+      res1->length(orig_len1);
+      res2->length(orig_len2);
+      return rc;
     }
   }
   if (set_null) owner->null_value = 1;
@@ -1458,12 +1469,22 @@ int Arg_comparator::compare_binary_string() {
   if ((res1 = (*a)->val_str(&value1))) {
     if ((res2 = (*b)->val_str(&value2))) {
       if (set_null) owner->null_value = 0;
-      size_t res1_length = res1->length();
-      size_t res2_length = res2->length();
-      size_t min_length = min(res1_length, res2_length);
+      auto orig_len1 = res1->length();
+      auto orig_len2 = res2->length();
+      auto new_len1 = orig_len1, new_len2 = orig_len2;
+      if (m_max_str_length > 0) {
+        if (orig_len1 > m_max_str_length)
+          res1->length(new_len1 = m_max_str_length);
+        if (orig_len2 > m_max_str_length)
+          res2->length(new_len2 = m_max_str_length);
+      }
+      size_t min_length = min(new_len1, new_len2);
       int cmp =
           min_length == 0 ? 0 : memcmp(res1->ptr(), res2->ptr(), min_length);
-      return cmp ? cmp : (int)(res1_length - res2_length);
+      auto rc = cmp ? cmp : (int)(new_len1 - new_len2);
+      res1->length(orig_len1);
+      res2->length(orig_len2);
+      return rc;
     }
   }
   if (set_null) owner->null_value = 1;

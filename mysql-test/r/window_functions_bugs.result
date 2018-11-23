@@ -961,3 +961,46 @@ SUM(a) OVER w
 3981
 1995
 DROP TABLE t;
+# Bug#27816506 WINDOW FUNC; ASSERTION FAILED:
+#              CURRENT_ROW > PREV_LAST_ROWNO_IN_FRAME && LOWER_L
+#
+SET @savmode=@@SESSION.SQL_MODE;
+SET SESSION SQL_MODE='';
+CREATE TABLE t(
+a TEXT CHARACTER SET CP1251
+GENERATED ALWAYS AS (LPAD(1,10621933,10)) VIRTUAL,
+b BLOB
+GENERATED ALWAYS AS (LPAD(1,10621933,10)) VIRTUAL
+) ENGINE=INNODB;
+INSERT INTO t VALUES (), ();
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'a' at row 2
+Warning	1265	Data truncated for column 'b' at row 2
+SET @f =
+(
+SELECT NTILE(39) OVER w1 FROM t
+WINDOW w1 AS(ORDER BY a)
+);
+ERROR 21000: Subquery returns more than 1 row
+PREPARE stmt FROM 'SELECT NTILE(39) OVER w1 FROM t
+WINDOW w1 AS(ORDER BY a)';
+EXECUTE stmt;
+NTILE(39) OVER w1
+1
+2
+SET @f =
+(
+SELECT NTILE(39) OVER w1 FROM t
+WINDOW w1 AS(ORDER BY b)
+);
+ERROR 21000: Subquery returns more than 1 row
+PREPARE stmt FROM 'SELECT NTILE(39) OVER w1 FROM t
+WINDOW w1 AS(ORDER BY b)';
+EXECUTE stmt;
+NTILE(39) OVER w1
+1
+2
+DROP TABLE t;
+SET SESSION SQL_MODE=@savmode;
