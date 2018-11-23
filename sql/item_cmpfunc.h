@@ -93,6 +93,12 @@ class Arg_comparator {
   */
   Json_scalar_holder *json_scalar;
 
+  /**
+     When comparing strings, compare at most these many bytes.
+     A value of zero means "no limit".
+  */
+  size_t m_max_str_length{0};
+
  public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
@@ -126,6 +132,11 @@ class Arg_comparator {
   bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
                     bool set_null_arg);
 
+  /**
+     When comparing strings, compare at most max_length bytes.
+     @param max_length how much to compare
+  */
+  void set_max_str_length(size_t max_length) { m_max_str_length = max_length; }
   inline int compare() { return (this->*func)(); }
 
   int compare_string();         // compare args[0] & args[1]
@@ -447,6 +458,13 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   bool resolve_type(THD *) override;
   bool set_cmp_func() {
     return cmp.set_cmp_func(this, tmp_arg, tmp_arg + 1, true);
+  }
+  /**
+     When comparing strings, compare at most max_length bytes.
+     @param max_length how much to compare
+  */
+  void set_max_str_length(size_t max_length) {
+    return cmp.set_max_str_length(max_length);
   }
   optimize_type select_optimize() const override { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
