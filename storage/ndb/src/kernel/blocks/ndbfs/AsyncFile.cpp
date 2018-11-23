@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 
 AsyncFile::AsyncFile(SimulatedBlock& fs) :
   theFileName(),
+  m_thread_bound(false),
   m_fs(fs)
 {
   m_thread = 0;
@@ -50,6 +51,7 @@ AsyncFile::attach(AsyncIoThread* thr)
   ndbout_c("%p:%s attach to %p (m_thread: %p)", this, theFileName.c_str(), thr,
              m_thread);
 #endif
+  assert(m_thread_bound);
   assert(m_thread == 0);
   m_thread = thr;
 }
@@ -60,6 +62,7 @@ AsyncFile::detach(AsyncIoThread* thr)
 #if 0
   ndbout_c("%p:%s detach from %p", this, theFileName.c_str(), thr);
 #endif
+  assert(m_thread_bound);
   assert(m_thread == thr);
   m_thread = 0;
 }
