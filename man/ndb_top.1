@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -135,7 +135,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.338.\ \&Command\-line options for the ndb_top program
+.B Table\ \&22.345.\ \&Command\-line options for the ndb_top program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -171,7 +171,7 @@ T}:T{
 Show ASCII graphs in color; use --skip-colors to disable
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -182,7 +182,7 @@ T}:T{
 Display data using graphs; use --skip-graphs to disable
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -193,7 +193,7 @@ T}:T{
 Show program usage information
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -204,7 +204,7 @@ T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -215,7 +215,7 @@ T}:T{
 Show measured load by thread
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -226,7 +226,7 @@ T}:T{
 Watch node having this node ID
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -237,7 +237,7 @@ T}:T{
 Show load measured by operating system
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -248,7 +248,7 @@ T}:T{
 Connect using this password
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 .PP
 REMOVED: NDB 7.6.4
 T}
@@ -261,7 +261,7 @@ T}:T{
 Connect using this password
 T}:T{
 .PP
-ADDED: NDB 7.6.6
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -276,7 +276,7 @@ T}:T{
 Port number to use when connecting to MySQL Server
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -287,7 +287,7 @@ T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -298,7 +298,7 @@ T}:T{
 Socket file to use for connection.
 T}:T{
 .PP
-ADDED: NDB 7.6.6
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -309,7 +309,7 @@ T}:T{
 Sort threads by usage; use --skip-sort to disable
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -324,7 +324,7 @@ T}:T{
 Display data using text
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -335,7 +335,7 @@ T}:T{
 Connect as this MySQL user
 T}:T{
 .PP
-ADDED: NDB 7.6.3
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
@@ -373,7 +373,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -381,14 +380,9 @@ T}:T{
 --color
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -423,7 +417,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -431,14 +424,9 @@ T}:T{
 --graph
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -475,7 +463,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -483,14 +470,9 @@ T}:T{
 --help
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -523,7 +505,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -531,14 +512,9 @@ T}:T{
 --host[=name]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -571,7 +547,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -579,14 +554,9 @@ T}:T{
 --measured-load
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -621,7 +591,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -629,14 +598,9 @@ T}:T{
 --node-id[=#]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
 T{
 \fBDefault Value\fR
@@ -669,7 +633,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -677,14 +640,9 @@ T}:T{
 --os-load
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -719,8 +677,6 @@ T}
 .T&
 l l
 l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -728,19 +684,9 @@ T}:T{
 --passwd[=password]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
-\fBRemoved\fR
-T}:T{
-5.7.20-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -777,7 +723,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -785,14 +730,9 @@ T}:T{
 --password[=password]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.22-ndb-7.6.6
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -831,7 +771,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -839,14 +778,9 @@ T}:T{
 --port[=#]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
 T{
 \fBDefault Value\fR
@@ -886,7 +820,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -894,14 +827,9 @@ T}:T{
 --sleep-time[=seconds]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
 T{
 \fBDefault Value\fR
@@ -934,7 +862,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -942,14 +869,9 @@ T}:T{
 --socket
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.22-ndb-7.6.6
-T}
-T{
 \fBType\fR
 T}:T{
-path name
+Path name
 T}
 T{
 \fBDefault Value\fR
@@ -984,7 +906,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -992,14 +913,9 @@ T}:T{
 --sort
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1036,7 +952,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -1044,14 +959,9 @@ T}:T{
 --text
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1092,7 +1002,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -1100,14 +1009,9 @@ T}:T{
 --user[=name]
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.3
-T}
-T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1129,7 +1033,7 @@ data node under a moderate load\&. Here, the program has been invoked using
 \fB\-x\fR
 to provide both text and graph output:
 .PP
-\fBFigure\ \&21.17.\ \&ndb_top Running in Terminal\fR
+\fBFigure\ \&22.25.\ \&ndb_top Running in Terminal\fR
 .sp
 .RS 4
 [IMAGE]\&\s-2\u[1]\d\s+2

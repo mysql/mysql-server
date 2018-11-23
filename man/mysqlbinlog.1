@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/15/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -613,6 +613,9 @@ Section\ \&6.3.10, \(lqPluggable Authentication\(rq\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -632,6 +635,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -660,6 +666,9 @@ also reads the
 and
 [mysqlbinlog_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -684,7 +693,7 @@ SET sql_log_bin = 0
 statement in its output to disable binary logging of the remaining output\&. Manipulating the session value of the
 sql_log_bin
 system variable is a restricted operation, so this option requires that you have privileges sufficient to set restricted session variables\&. See
-Section\ \&5.1.8.1, \(lqSystem Variable Privileges\(rq\&.
+Section\ \&5.1.9.1, \(lqSystem Variable Privileges\(rq\&.
 .RE
 .sp
 .RS 4
@@ -869,6 +878,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -894,6 +906,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -982,6 +997,9 @@ The TCP/IP port number to use for connecting to a remote server\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1217,6 +1235,33 @@ option, there remain no updates that match
 \fB\-\-server\-id=\fR\fB\fIid\fR\fR
 .sp
 Display only those events created by the server having the given server ID\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-server\-id\-bits=\fR\fB\fIN\fR\fR
+.sp
+Use only the first
+\fIN\fR
+bits of the
+server_id
+to identify the server\&. If the binary log was written by a
+\fBmysqld\fR
+with server\-id\-bits set to less than 32 and user data stored in the most significant bit, running
+\fBmysqlbinlog\fR
+with
+\fB\-\-server\-id\-bits\fR
+set to 32 enables this data to be seen\&.
+.sp
+This option is supported only by the version of
+\fBmysqlbinlog\fR
+supplied with the NDB Cluster distribution, or built with NDB Cluster support\&.
 .RE
 .sp
 .RS 4
@@ -1925,7 +1970,7 @@ The hex output consists of comment lines beginning with
 .RS 4
 .\}
 .nf
-/*!40019 SET @@session\&.max_insert_delayed_threads=0*/;
+/*!40019 SET @@SESSION\&.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 # at 4
 #051024 17:24:13 server id 1  end_log_pos 98

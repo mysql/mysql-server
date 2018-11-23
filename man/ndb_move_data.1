@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_move_data\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MOVE_DATA\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_MOVE_DATA\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -58,7 +58,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.327.\ \&Command\-line options for the ndb_move_data program
+.B Table\ \&22.334.\ \&Command\-line options for the ndb_move_data program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -87,7 +87,7 @@ T}:T{
 Dump core on permanent error (debug option)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -96,7 +96,7 @@ T}:T{
 Directory where character sets are
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -107,7 +107,7 @@ T}:T{
 Name of the database in which the table is found
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -116,7 +116,7 @@ T}:T{
 Drop source table after all rows have been moved
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -125,7 +125,7 @@ T}:T{
 Insert random temporary errors (testing option)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -134,7 +134,7 @@ T}:T{
 Ignore extra columns in source or target table
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -145,7 +145,7 @@ T}:T{
 Allow attribute data to be truncated when converted to a smaller type
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -156,7 +156,7 @@ T}:T{
 Allow attribute data to be converted to a larger type
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -166,7 +166,7 @@ Specify tries on temporary errors. Format is x[,y[,z]] where x=max tries
               (0=no limit), y=min delay (ms), z=max delay (ms)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -175,7 +175,7 @@ T}:T{
 Enable verbose messages
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
@@ -209,7 +209,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -250,7 +250,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -292,7 +292,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -333,7 +333,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -374,7 +374,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -415,7 +415,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -457,7 +457,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -499,7 +499,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -540,7 +540,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -581,7 +581,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR

@@ -2,12 +2,12 @@
 .\"     Title: \fBperror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/15/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBPERROR\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBPERROR\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-perror \- explain error codes
+perror \- display MySQL error message information
 .SH "SYNOPSIS"
 .HP \w'\fBperror\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIerrorcode\fR\fR\fB\ \&.\&.\&.\fR\ 'u
 \fBperror [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIerrorcode\fR\fR\fB \&.\&.\&.\fR
@@ -66,7 +66,8 @@ ER_WRONG_VALUE_FOR_VAR\&.
 .\}
 .nf
 shell> \fBperror 1231\fR
-MySQL error code MY\-001231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq can\*(Aqt be set to the value of \*(Aq%\-\&.200s\*(Aq
+MySQL error code MY\-001231 (ER_WRONG_VALUE_FOR_VAR): Variable \*(Aq%\-\&.64s\*(Aq
+can\*(Aqt be set to the value of \*(Aq%\-\&.200s\*(Aq
 .fi
 .if n \{\
 .RE
@@ -90,21 +91,9 @@ MySQL error code MY\-000013: Can\*(Aqt get stat of \*(Aq%s\*(Aq (OS errno %d \- 
 .RE
 .\}
 .PP
-To obtain the error message for a MySQL Cluster error code, invoke
-\fBperror\fR
-with the
-\fB\-\-ndb\fR
-option:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBperror \-\-ndb \fR\fB\fIerrorcode\fR\fR
-.fi
-.if n \{\
-.RE
-.\}
+To obtain the error message for a MySQL Cluster error code, use the
+\fBndb_perror\fR
+utility\&.
 .PP
 The meaning of system error messages may be dependent on your operating system\&. A given error code may mean different things on different operating systems\&.
 .PP
@@ -138,6 +127,10 @@ Display a help message and exit\&.
 \fB\-\-ndb\fR
 .sp
 Print the error message for a MySQL Cluster error code\&.
+.sp
+This option was removed in MySQL 8\&.0\&.13\&. Use the
+\fBndb_perror\fR
+utility instead\&.
 .RE
 .sp
 .RS 4
