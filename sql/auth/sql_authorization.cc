@@ -2392,13 +2392,14 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->lex->sql_command = backup.sql_command;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   if ((ret = open_grant_tables(thd, tables, &transactional_tables))) {
     thd->lex->restore_backup_query_tables_list(&backup);
     DBUG_RETURN(ret != 1); /* purecov: deadcode */
+  }
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
   }
 
   MEM_ROOT *old_root = thd->mem_root;
@@ -2576,10 +2577,6 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2589,6 +2586,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   MEM_ROOT *old_root = thd->mem_root;
   thd->mem_root = &memex;
@@ -2716,12 +2718,13 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
   LEX_USER *role = 0;
   bool transactional_tables;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1); /* purecov: deadcode */
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   table = tables[ACL_TABLES::TABLE_ROLE_EDGES].table;
 
@@ -2837,12 +2840,13 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
   bool transactional_tables;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1); /* purecov: deadcode */
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   table = tables[6].table;
 
@@ -2940,10 +2944,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2953,6 +2953,11 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   /* go through users in user_list */
   grant_version++;
@@ -4528,10 +4533,6 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
   DBUG_ENTER("mysql_revoke_all");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -4541,6 +4542,11 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   TABLE *dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
   LEX_USER *lex_user, *tmp_lex_user;
@@ -4660,13 +4666,14 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
 
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
+
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   /* Be sure to pop this before exiting this scope! */
   thd->push_internal_handler(&error_handler);
@@ -5722,10 +5729,6 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   LEX_USER *role = nullptr;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The binlog state will be cleared here to
@@ -5737,6 +5740,11 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   TABLE *table = open_default_role_table(thd);
   if (!table) {
     my_error(ER_OPEN_ROLE_TABLES, MYF(MY_WME));
+    DBUG_RETURN(true);
+  }
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
 

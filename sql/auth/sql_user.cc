@@ -1312,10 +1312,6 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
     DBUG_RETURN(true);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1326,6 +1322,11 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
 
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(ret != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   table = tables[ACL_TABLES::TABLE_USER].table;
 
@@ -1868,10 +1869,6 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   DBUG_ENTER("mysql_create_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1883,6 +1880,11 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   /* CREATE USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   while ((tmp_user_name = user_list++)) {
     bool history_check_done = false;
@@ -2073,10 +2075,6 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   std::vector<Role_id> mandatory_roles;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2088,6 +2086,11 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   /* DROP USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   get_mandatory_roles(&mandatory_roles);
   while ((user = user_list++) != 0) {
@@ -2213,6 +2216,8 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
         DBUG_RETURN(true);
       }
     }
+    // We have to unlock ACL cache before taking table locks
+    acl_cache_lock.unlock();
   }
 
   /*
@@ -2226,6 +2231,11 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
   /* RENAME USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   while ((tmp_user_from = user_list++)) {
     if (!(user_from = get_current_user(thd, tmp_user_from))) {
@@ -2346,10 +2356,6 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   DBUG_ENTER("mysql_alter_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) {
-    DBUG_RETURN(true);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2360,6 +2366,11 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
     DBUG_RETURN(result != 1);
+
+  if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
 
   is_privileged_user = is_privileged_user_for_credential_change(thd);
 

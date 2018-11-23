@@ -1893,7 +1893,7 @@ static bool is_expected_or_transient_error(THD *thd) {
     true   Failure
 */
 
-bool acl_reload(THD *thd, bool locked) {
+bool acl_reload(THD *thd) {
   TABLE_LIST tables[6];
 
   MEM_ROOT old_mem;
@@ -1908,8 +1908,6 @@ bool acl_reload(THD *thd, bool locked) {
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   User_to_dynamic_privileges_map *old_dyn_priv_map;
   DBUG_ENTER("acl_reload");
-
-  if (!locked && !acl_cache_lock.lock()) DBUG_RETURN(1);
 
   // Interchange the global role cache ptrs with the local role cache ptrs.
   auto swap_role_cache = [&]() {
@@ -1983,6 +1981,8 @@ bool acl_reload(THD *thd, bool locked) {
     }
     goto end;
   }
+
+  if (!acl_cache_lock.lock()) goto end;
 
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
@@ -2367,7 +2367,6 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
   @brief Reload information about table and column level privileges if possible
 
   @param thd    Current thread
-  @param locked Status of ACL_CACHE MDL lock
 
   Locked tables are checked by acl_reload() and doesn't have to be checked
   in this call.
@@ -2379,7 +2378,7 @@ static bool grant_reload_procs_priv(TABLE_LIST *table) {
     @retval true  Error
 */
 
-bool grant_reload(THD *thd, bool locked) {
+bool grant_reload(THD *thd) {
   TABLE_LIST tables[3];
   MEM_ROOT old_mem;
   bool return_val = 1;
@@ -2389,8 +2388,6 @@ bool grant_reload(THD *thd, bool locked) {
 
   /* Don't do anything if running with --skip-grant-tables */
   if (!initialized) DBUG_RETURN(0);
-
-  if (!locked && !acl_cache_lock.lock()) DBUG_RETURN(1);
 
   /*
     Acquiring strong MDL lock allows to avoid deadlock and timeout errors
@@ -2418,6 +2415,8 @@ bool grant_reload(THD *thd, bool locked) {
     }
     goto end;
   }
+
+  if (!acl_cache_lock.lock()) goto end;
 
   {
     unique_ptr<
@@ -3349,23 +3348,17 @@ volatile uint32 global_password_reuse_interval = 0;
   Reload all ACL caches
 
   @param [in] thd       THD handle
-  @param [in] locked    default value true that indicates
-                        acl cache is locked, false otherwise.
-
   @returns Status of reloading ACL caches
     @retval false Success
     @retval true Error
 */
 
-bool reload_acl_caches(THD *thd, bool locked /*= true*/) {
+bool reload_acl_caches(THD *thd) {
   bool retval = true;
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   DBUG_ENTER("reload_acl_caches");
 
-  if (!locked && !acl_cache_lock.lock()) goto end;
-
   if (check_engine_type_for_acl_table(thd) || check_acl_tables_intact(thd) ||
-      acl_reload(thd, true) || grant_reload(thd, true)) {
+      acl_reload(thd) || grant_reload(thd)) {
     goto end;
   }
   retval = false;
