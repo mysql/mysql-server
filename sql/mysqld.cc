@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -302,6 +302,7 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
 #if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
 static PSI_thread_key key_thread_handle_con_namedpipes;
 static PSI_cond_key key_COND_handler_count;
+static PSI_rwlock_key key_rwlock_LOCK_named_pipe_full_access_group;
 #endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 
 #if defined(HAVE_SMEM) && !defined(EMBEDDED_LIBRARY)
@@ -904,10 +905,13 @@ static	 NTService  Service;	      ///< Service object for WinNT
 #endif /* __WIN__ */
 
 #ifdef _WIN32
+#include <Aclapi.h>
+#include "named_pipe.h"
 static char pipe_name[512];
-static SECURITY_ATTRIBUTES saPipeSecurity;
-static SECURITY_DESCRIPTOR sdPipeDescriptor;
+static SECURITY_ATTRIBUTES *psaPipeSecurity;
 static HANDLE hPipe = INVALID_HANDLE_VALUE;
+mysql_rwlock_t LOCK_named_pipe_full_access_group;
+char *named_pipe_full_access_group;
 #endif
 
 #ifndef EMBEDDED_LIBRARY
@@ -1612,6 +1616,9 @@ static void clean_up_mutexes()
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
+#ifdef _WIN32
+  mysql_rwlock_destroy(&LOCK_named_pipe_full_access_group);
+#endif
 }
 #endif /*EMBEDDED_LIBRARY*/
 
@@ -1986,45 +1993,17 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
-	     mysqld_unix_port, NullS);
-    bzero((char*) &saPipeSecurity, sizeof(saPipeSecurity));
-    bzero((char*) &sdPipeDescriptor, sizeof(sdPipeDescriptor));
-    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
-				      SECURITY_DESCRIPTOR_REVISION))
+    hPipe= create_server_named_pipe(&psaPipeSecurity,
+                global_system_variables.net_buffer_length,
+                mysqld_unix_port,
+                pipe_name,
+                sizeof(pipe_name)-1,
+                named_pipe_full_access_group);
+    if (hPipe == INVALID_HANDLE_VALUE)
     {
-      sql_perror("Can't start server : Initialize security descriptor");
+      sql_print_error("Can't start server: failed to create named pipe");
       unireg_abort(1);
     }
-    if (!SetSecurityDescriptorDacl(&sdPipeDescriptor, TRUE, NULL, FALSE))
-    {
-      sql_perror("Can't start server : Set security descriptor");
-      unireg_abort(1);
-    }
-    saPipeSecurity.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
-    saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe= CreateNamedPipe(pipe_name,
-				PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
-				PIPE_TYPE_BYTE |
-				PIPE_READMODE_BYTE |
-				PIPE_WAIT,
-				PIPE_UNLIMITED_INSTANCES,
-				(int) global_system_variables.net_buffer_length,
-				(int) global_system_variables.net_buffer_length,
-				NMPWAIT_USE_DEFAULT_WAIT,
-				&saPipeSecurity)) == INVALID_HANDLE_VALUE)
-      {
-	LPVOID lpMsgBuf;
-	int error=GetLastError();
-	FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		      FORMAT_MESSAGE_FROM_SYSTEM,
-		      NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		      (LPTSTR) &lpMsgBuf, 0, NULL );
-	sql_perror((char *)lpMsgBuf);
-	LocalFree(lpMsgBuf);
-	unireg_abort(1);
-      }
   }
 #endif
 
@@ -4233,6 +4212,8 @@ static void handle_connections_methods()
   mysql_mutex_lock(&LOCK_thread_count);
   mysql_cond_init(key_COND_handler_count, &COND_handler_count, NULL);
   handler_count=0;
+  mysql_rwlock_init(key_rwlock_LOCK_named_pipe_full_access_group,
+                    &LOCK_named_pipe_full_access_group);
   if (hPipe != INVALID_HANDLE_VALUE)
   {
     handler_count++;
@@ -4600,7 +4581,6 @@ int mysqld_main(int argc, char **argv)
     if (reopen_fstreams(log_error_file, stdout, stderr))
       unireg_abort(1);
     setbuf(stderr, NULL);
-    FreeConsole();				// Remove window
   }
 #endif
 
@@ -5473,6 +5453,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
   HANDLE hConnectedPipe;
   OVERLAPPED connectOverlapped= {0};
   THD *thd;
+  TCHAR last_error_msg[256];
   my_thread_init();
   DBUG_ENTER("handle_connections_namedpipes");
   connectOverlapped.hEvent= CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -5502,41 +5483,53 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
     if (!fConnected)
     {
       CloseHandle(hPipe);
-      if ((hPipe= CreateNamedPipe(pipe_name,
-                                  PIPE_ACCESS_DUPLEX |
-                                  FILE_FLAG_OVERLAPPED,
-                                  PIPE_TYPE_BYTE |
-                                  PIPE_READMODE_BYTE |
-                                  PIPE_WAIT,
-                                  PIPE_UNLIMITED_INSTANCES,
-                                  (int) global_system_variables.
-                                  net_buffer_length,
-                                  (int) global_system_variables.
-                                  net_buffer_length,
-                                  NMPWAIT_USE_DEFAULT_WAIT,
-                                  &saPipeSecurity)) ==
-	  INVALID_HANDLE_VALUE)
+      mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
+      hPipe= CreateNamedPipe(pipe_name,
+                             PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
+                               WRITE_DAC,
+                             PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                             PIPE_UNLIMITED_INSTANCES,
+                             (int) global_system_variables.
+                             net_buffer_length,
+                             (int) global_system_variables.
+                             net_buffer_length,
+                             NMPWAIT_USE_DEFAULT_WAIT,
+                             psaPipeSecurity);
+      mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
+      if (hPipe == INVALID_HANDLE_VALUE)
       {
-	sql_perror("Can't create new named pipe!");
-	break;					// Abort
+        DWORD last_error_num= GetLastError();
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+                        FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                      NULL, last_error_num,
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                      sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+        sql_print_error("Can't create new named pipe: %s", last_error_msg);
+        break;					// Abort
       }
     }
     hConnectedPipe = hPipe;
     /* create new pipe for new connection */
-    if ((hPipe = CreateNamedPipe(pipe_name,
-                 PIPE_ACCESS_DUPLEX |
-                 FILE_FLAG_OVERLAPPED,
-				 PIPE_TYPE_BYTE |
-				 PIPE_READMODE_BYTE |
-				 PIPE_WAIT,
-				 PIPE_UNLIMITED_INSTANCES,
-				 (int) global_system_variables.net_buffer_length,
-				 (int) global_system_variables.net_buffer_length,
-				 NMPWAIT_USE_DEFAULT_WAIT,
-				 &saPipeSecurity)) ==
-	INVALID_HANDLE_VALUE)
+    mysql_rwlock_rdlock(&LOCK_named_pipe_full_access_group);
+    hPipe= CreateNamedPipe(pipe_name,
+                            PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
+                              WRITE_DAC,
+			                      PIPE_TYPE_BYTE |PIPE_READMODE_BYTE | PIPE_WAIT,
+			                      PIPE_UNLIMITED_INSTANCES,
+			                      (int) global_system_variables.net_buffer_length,
+			                      (int) global_system_variables.net_buffer_length,
+			                      NMPWAIT_USE_DEFAULT_WAIT,
+			                      psaPipeSecurity);
+    mysql_rwlock_unlock(&LOCK_named_pipe_full_access_group);
+    if (hPipe == INVALID_HANDLE_VALUE)
     {
-      sql_perror("Can't create new named pipe!");
+      DWORD last_error_num = GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+                      FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("Can't create new named pipe: %s", last_error_msg);
       hPipe=hConnectedPipe;
       continue;					// We have to try again
     }
@@ -7293,6 +7286,16 @@ mysqld_get_one_option(int optid,
     max_long_data_size_used= true;
     WARN_DEPRECATED(NULL, 5, 6, "--max_long_data_size", "'--max_allowed_packet'");
     break;
+    case OPT_NAMED_PIPE_FULL_ACCESS_GROUP:
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+      if (!is_valid_named_pipe_full_access_group(argument))
+      {
+        sql_print_error("Invalid value for named_pipe_full_access_group.");
+        return 1;
+      }
+#endif  /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
+      break;
+
   }
   return 0;
 }
@@ -8234,7 +8237,10 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0}
+  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+  { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_GLOBAL},
+#endif /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */
 };
 
 #ifdef HAVE_MMAP
@@ -8400,3 +8406,67 @@ void init_server_psi_keys(void)
 
 #endif /* HAVE_PSI_INTERFACE */
 
+#if (defined(_WIN32) || defined(HAVE_SMEM)) && !defined(EMBEDDED_LIBRARY)
+// update_named_pipe_full_access_group returns false on success, true on failure
+bool update_named_pipe_full_access_group(const char *new_group_name)
+{
+  SECURITY_ATTRIBUTES *p_new_sa= NULL;
+  const char *perror= NULL;
+  TCHAR last_error_msg[256];
+
+  // Set up security attributes to provide full access to the owner
+  // and minimal read/write access to others.
+  if (my_security_attr_create(&p_new_sa, &perror, NAMED_PIPE_OWNER_PERMISSIONS,
+                              NAMED_PIPE_EVERYONE_PERMISSIONS) != 0)
+  {
+    sql_print_error("my_security_attr_create: %s", perror);
+    return true;
+  }
+  if (new_group_name && new_group_name[0] != '\0')
+  {
+    if (my_security_attr_add_rights_to_group(
+            p_new_sa, new_group_name,
+            NAMED_PIPE_FULL_ACCESS_GROUP_PERMISSIONS))
+    {
+      sql_print_error("my_security_attr_add_rights_to_group failed for group: %s",
+                      new_group_name);
+      return false;
+    }
+  }
+
+  psaPipeSecurity= p_new_sa;
+
+  // Set the DACL for the existing "listener" named pipe instance...
+  if (hPipe != INVALID_HANDLE_VALUE)
+  {
+    PACL pdacl= NULL;
+    BOOL dacl_present_in_descriptor= FALSE;
+    BOOL dacl_defaulted= FALSE;
+    if (!GetSecurityDescriptorDacl(p_new_sa->lpSecurityDescriptor,
+                                   &dacl_present_in_descriptor, &pdacl,
+                                   &dacl_defaulted) ||
+        !dacl_present_in_descriptor)
+    {
+      DWORD last_error_num= GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("GetSecurityDescriptorDacl failed: %s", last_error_msg);
+      return true;
+    }
+    DWORD res=
+        SetSecurityInfo(hPipe, SE_KERNEL_OBJECT,
+                        DACL_SECURITY_INFORMATION, NULL, NULL, pdacl, NULL);
+    if (res != ERROR_SUCCESS)
+    {
+      char num_buff[20];
+      int10_to_str(res, num_buff, 10);
+      sql_print_error("SetSecurityInfo failed to update DACL on named pipe: %s", num_buff);
+      return true;
+    }
+  }
+  return false;
+}
+
+#endif  /* _WIN32 || HAVE_SMEM && !EMBEDDED_LIBRARY */

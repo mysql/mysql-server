@@ -5,7 +5,8 @@ count(*) > 0
 1
 update performance_schema.setup_instruments set enabled='NO'
   where name like "wait/synch/rwlock/sql/%"
-  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+"wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 select count(*) > 0 from performance_schema.events_waits_current;
 count(*) > 0
 1
@@ -18,12 +19,14 @@ select thread_id from performance_schema.events_waits_current;
 insert into test.t2
 select name from performance_schema.setup_instruments
 where name like "wait/synch/rwlock/sql/%"
-    and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+    and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+"wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 drop table test.t1;
 drop table test.t2;
 update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/rwlock/sql/%"
-  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+"wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN

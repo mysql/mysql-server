@@ -25,7 +25,9 @@ select * from performance_schema.setup_instruments
 
 select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Rwlock/sql/%'
-  and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
+  and name not in (
+  'wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock',
+  'wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group')
   order by name limit 10;
 
 # COND_handler_count is dependent on the build (Windows only)
