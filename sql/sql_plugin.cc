@@ -281,7 +281,8 @@ public:
                     st_mysql_sys_var *plugin_var_arg)
     :sys_var(chain, name_arg, plugin_var_arg->comment,
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
-             (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
+             (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0) |
+             (plugin_var_arg->flags & PLUGIN_VAR_INVISIBLE ? INVISIBLE : 0),
              0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
              VARIABLE_NOT_IN_BINLOG,
              (plugin_var_arg->flags & PLUGIN_VAR_NODEFAULT) ?
