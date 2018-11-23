@@ -1455,12 +1455,18 @@ int log_builtins_error_stack_flush();
 /**
   Initialize the structured logging subsystem.
 
+  Since we're initializing various locks here, we must call this late enough
+  so this is clean, but early enough so it still happens while we're running
+  single-threaded -- this specifically also means we must call it before we
+  start plug-ins / storage engines / external components!
+
   @retval  0  no errors
   @retval -1  couldn't initialize stack lock
   @retval -2  couldn't initialize built-in default filter
   @retval -3  couldn't set up service hash
   @retval -4  couldn't initialize syseventlog lock
   @retval -5  couldn't set service pipeline
+  @retval -6  couldn't initialize buffered logging lock
 */
 int log_builtins_init();
 
