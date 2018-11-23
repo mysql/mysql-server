@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -59,7 +59,7 @@ or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-Section\ \&21.2.1, \(lqThe NDB Cluster Auto-Installer\(rq\&.
+\m[blue]\fBThe NDB Cluster Auto\-Installer (NDB 7\&.5)\fR\m[]\&\s-2\u[1]\d\s+2\&.
 Usage.PP
 All platforms:
 .sp
@@ -92,7 +92,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.335.\ \&Command\-line options for the ndb_setup\&.py program
+.B Table\ \&22.342.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -114,6 +114,7 @@ l l l
 l l l
 l l l
 l l l
+l l l
 l l l.
 T{
 .PP
@@ -124,7 +125,7 @@ T}:T{
 Page that the web browser opens when starting.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -136,7 +137,7 @@ File containing list of client certificates allowed to connect to the
               server
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -148,7 +149,7 @@ File containing X509 certificate that identifies the server. (Default:
               cfg.pem)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -160,7 +161,7 @@ Python logging module debug level. One of DEBUG, INFO, WARNING
               (default), ERROR, or CRITICAL.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -171,7 +172,7 @@ T}:T{
 Print help message
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -182,7 +183,7 @@ T}:T{
 Specify file containing private key (if not included in --cert-file)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -193,7 +194,7 @@ T}:T{
 Do not open the start page in a browser, merely start the tool
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -204,7 +205,7 @@ T}:T{
 Specify the port used by the web server
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -215,7 +216,7 @@ T}:T{
 Log requests to this file. Use '-' to force logging to stderr instead.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -226,7 +227,18 @@ T}:T{
 The name of the server to connect with
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
+T}
+T{
+.PP
+--use-http,
+.PP
+-H
+T}:T{
+Use unencrypted (HTTP) client/server connection
+T}:T{
+.PP
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -237,7 +249,7 @@ T}:T{
 Use encrypted (HTTPS) client/server connection
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
@@ -272,7 +284,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -315,7 +327,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -357,12 +369,12 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
 T}:T{
-cfg.pem
+/usr/share/mysql/mcc/cfg.pem
 T}
 .TE
 .sp 1
@@ -401,7 +413,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-enumeration
+Enumeration
 T}
 T{
 \fBDefault Value\fR
@@ -494,7 +506,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -568,7 +580,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -624,7 +636,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-file name
+File name
 T}
 T{
 \fBDefault Value\fR
@@ -679,7 +691,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -690,6 +702,36 @@ T}
 .sp 1
 Specify the host name or IP address for the browser to use when connecting\&. The default is
 localhost\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-use\-http\fR,
+\fB\-H\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--use-http
+T}
+.TE
+.sp 1
+Make the browser use HTTP to connect with the server\&. This means that the connection is unencrypted and not secured in any way\&.
 .RE
 .sp
 .RS 4
@@ -732,6 +774,12 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
+.SH "NOTES"
+.IP " 1." 4
+The NDB Cluster Auto-Installer (NDB 7.5)
+.RS 4
+\%http://dev.mysql.com/doc/refman/5.7/en/mysql-cluster-install-auto.html
+.RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,
 which may already be installed locally and which is also available

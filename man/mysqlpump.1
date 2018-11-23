@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/15/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -756,6 +756,9 @@ With parallelism enabled, it is possible for output from different databases to 
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -775,6 +778,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -803,6 +809,9 @@ also reads the
 and
 [mysqlpump_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1162,6 +1171,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1254,6 +1266,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1355,6 +1370,9 @@ The TCP/IP port number to use for the connection\&.
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1511,7 +1529,7 @@ statement, use
 \fB\-\-set\-gtid\-purged=\fR\fB\fIvalue\fR\fR
 .sp
 This option enables control over global transaction ID (GTID) information written to the dump file, by indicating whether to add a
-SET @@global\&.gtid_purged
+SET @@GLOBAL\&.gtid_purged
 statement to the output\&. This option may also cause a statement to be written to the output that disables binary logging while the dump file is being reloaded\&.
 .sp
 The following table shows the permitted option values\&. The default value is
@@ -1661,7 +1679,7 @@ DEFINER
 and
 SQL SECURITY
 values\&. See
-Section\ \&23.6, \(lqAccess Control for Stored Programs and Views\(rq\&.
+Section\ \&24.6, \(lqAccess Control for Stored Programs and Views\(rq\&.
 .RE
 .sp
 .RS 4

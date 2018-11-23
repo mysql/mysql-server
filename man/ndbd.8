@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.314.\ \&Command\-line options for the ndbd program
+.B Table\ \&22.321.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -84,7 +84,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -94,7 +94,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -104,7 +104,7 @@ Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -114,7 +114,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -125,7 +125,7 @@ T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -135,7 +135,7 @@ Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -145,7 +145,7 @@ Perform initial start of ndbd, including cleaning the file system.
               Consult the documentation before using this option
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -154,7 +154,7 @@ T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -164,7 +164,7 @@ Used to install the data node process as a Windows service. Does not
               apply on non-Windows platforms.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -175,7 +175,7 @@ Control size of log buffer. For use when debugging with many log
               operations.
 T}:T{
 .PP
-ADDED: NDB 7.6.6
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -187,7 +187,7 @@ Don't start ndbd immediately; ndbd waits for command to start from
               ndb_mgmd
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -196,7 +196,7 @@ T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -206,7 +206,7 @@ Do not wait for these data nodes to start (takes comma-separated list of
               node IDs). Also requires --ndb-nodeid to be used.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -216,7 +216,7 @@ Used to remove a data node process that was previously installed as a
               Windows service. Does not apply on non-Windows platforms.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -228,7 +228,7 @@ Causes the data log to write extra debugging information to the node
               log.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
@@ -282,7 +282,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -332,7 +332,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -391,7 +391,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -446,7 +446,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -504,7 +504,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -557,7 +557,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -610,7 +610,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -735,7 +735,7 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 NDB Cluster Disk Data files (see
-Section\ \&21.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&22.5.13, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .RE
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -775,7 +775,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -859,7 +859,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -919,7 +919,6 @@ l l
 l l
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -927,14 +926,9 @@ T}:T{
 --logbuffer-size=#
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.22-ndb-7.6.6
-T}
-T{
 \fBType\fR
 T}:T{
-integer
+Integer
 T}
 T{
 \fBDefault Value\fR
@@ -985,7 +979,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1039,7 +1033,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1055,7 +1049,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&21.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&22.5.2, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -1087,7 +1081,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1147,7 +1141,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -1179,7 +1173,7 @@ option has no effect on non\-Windows platforms\&.
 .sp
 Causes extra debug output to be written to the node log\&.
 .sp
-In NDB 7\&.6\&.4 and later, you can also use
+You can also use
 NODELOG DEBUG ON
 and
 NODELOG DEBUG OFF
@@ -1349,10 +1343,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
+Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
 Options Common to NDB Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&21.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&22.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1375,8 +1369,8 @@ process can consume up to 2 CPUs if permitted to do so\&.
 .PP
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
-processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.7 in a production setting\&. See
-Section\ \&21.1.6, \(lqKnown Limitations of NDB Cluster\(rq\&.
+processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.0 in a production setting\&. See
+Section\ \&22.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

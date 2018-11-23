@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.340.\ \&Command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&22.347.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -141,7 +141,7 @@ T}:T{
 Directory where character sets are installed
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -150,7 +150,7 @@ T}:T{
 Set the number of times to retry a connection before giving up
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -159,7 +159,7 @@ T}:T{
 Time to wait between attempts to contact a management server, in seconds
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -168,7 +168,7 @@ T}:T{
 Write core on errors (defaults to TRUE in debug builds)
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -178,7 +178,7 @@ Enable output from debug calls. Can be used only for versions compiled
               with debugging enabled
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -187,7 +187,7 @@ T}:T{
 Read this file after global option files are read
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -196,7 +196,7 @@ T}:T{
 Read default options from this file
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -205,7 +205,7 @@ T}:T{
 Also read groups with names ending in this suffix
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -218,7 +218,7 @@ T}:T{
 Display help message and exit
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -227,7 +227,7 @@ T}:T{
 Read this path from the login file
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -243,7 +243,7 @@ Set connection string for connecting to ndb_mgmd. Syntax:
               my.cnf.
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -252,7 +252,7 @@ T}:T{
 Set the host (and port, if desired) for connecting to management server
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -261,7 +261,7 @@ T}:T{
 Set node id for this node
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -270,7 +270,7 @@ T}:T{
 Select nodes for transactions in a more optimal way
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -279,7 +279,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -288,7 +288,7 @@ T}:T{
 Print the program argument list and exit
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -299,16 +299,16 @@ T}:T{
 Output version information and exit
 T}:T{
 .PP
-All MySQL 5.7 based releases
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
 .PP
 For options specific to individual NDB Cluster programs, see
-Section\ \&21.4, \(lqNDB Cluster Programs\(rq\&.
+Section\ \&22.4, \(lqNDB Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&21.3.3.9.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
+Section\ \&22.3.3.9.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
 options relating to NDB Cluster\&.
 .sp
@@ -341,7 +341,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-directory name
+Directory name
 T}
 T{
 \fBDefault Value\fR
@@ -383,7 +383,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -446,9 +446,6 @@ l l
 l l
 l l
 l l
-l l
-l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -456,19 +453,9 @@ T}:T{
 --connect-retry-delay=#
 T}
 T{
-\fBType\fR (>= 5.7.10-ndb-7.5.0)
-T}:T{
-numeric
-T}
-T{
 \fBType\fR
 T}:T{
-numeric
-T}
-T{
-\fBDefault Value\fR (>= 5.7.10-ndb-7.5.0)
-T}:T{
-5
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -476,7 +463,7 @@ T}:T{
 5
 T}
 T{
-\fBMinimum Value\fR (>= 5.7.10-ndb-7.5.0)
+\fBMinimum Value\fR
 T}:T{
 1
 T}
@@ -484,11 +471,6 @@ T{
 \fBMinimum Value\fR
 T}:T{
 0
-T}
-T{
-\fBMaximum Value\fR (>= 5.7.10-ndb-7.5.0)
-T}:T{
-4294967295
 T}
 T{
 \fBMaximum Value\fR
@@ -530,7 +512,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -583,7 +565,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -626,7 +608,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -636,6 +618,9 @@ T}
 .TE
 .sp 1
 Read this file after global option files are read\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -667,7 +652,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -677,6 +662,9 @@ T}
 .TE
 .sp 1
 Read default options from this file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -708,7 +696,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -718,6 +706,9 @@ T}
 .TE
 .sp 1
 Also read groups with names ending in this suffix\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -783,7 +774,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -793,6 +784,9 @@ T}
 .TE
 .sp 1
 Read this path from the login file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -829,7 +823,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -851,7 +845,7 @@ shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186
 .\}
 .sp
 For more information, see
-Section\ \&21.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
+Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
 .RE
 .sp
 .RS 4
@@ -883,7 +877,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-string
+String
 T}
 T{
 \fBDefault Value\fR
@@ -926,7 +920,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-numeric
+Numeric
 T}
 T{
 \fBDefault Value\fR
@@ -937,7 +931,7 @@ T}
 .sp 1
 Sets this node\*(Aqs NDB Cluster node ID\&.
 \fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the NDB Cluster software version\fR\&. See
-Section\ \&21.1.6.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
+Section\ \&22.1.7.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -969,7 +963,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -979,6 +973,9 @@ T}
 .TE
 .sp 1
 Do not read default options from any option file other than login file\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1010,7 +1007,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1051,7 +1048,7 @@ T}
 T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -1061,6 +1058,9 @@ T}
 .TE
 .sp 1
 Print the program argument list and exit\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1093,7 +1093,7 @@ T}
 Prints the NDB Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the NDB Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of NDB Cluster\&.
 .sp
 See
-Section\ \&21.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
+Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
 .RE
 .SH "COPYRIGHT"
 .br

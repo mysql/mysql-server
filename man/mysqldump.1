@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/15/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -321,7 +321,7 @@ InnoDB
 backups with minimal disruption; it can also back up tables from
 MyISAM
 and other storage engines; and it provides a number of convenient options to accommodate different backup scenarios\&. See
-Section\ \&29.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
+Section\ \&30.2, \(lqMySQL Enterprise Backup Overview\(rq\&.
 .RE
 .PP
 \fBmysqldump\fR
@@ -503,6 +503,9 @@ is an option group containing options that specify which MySQL server to connect
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -852,6 +855,9 @@ These options are used to control which option files to read\&.
 Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -871,6 +877,9 @@ is interpreted relative to the current directory if given as a relative path nam
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
 \&.mylogin\&.cnf\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -899,6 +908,9 @@ also reads the
 and
 [mysqldump_other]
 groups\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -924,6 +936,9 @@ is created by the
 \fBmysql_config_editor\fR
 utility\&. See
 \fBmysql_config_editor\fR(1)\&.)
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 .sp
 .RS 4
@@ -937,6 +952,9 @@ utility\&. See
 \fB\-\-print\-defaults\fR
 .sp
 Print the program name and all options that it gets from option files\&.
+.sp
+For additional information about this and other option\-file options, see
+Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .RE
 DDL Options.PP
 Usage scenarios for
@@ -1014,7 +1032,7 @@ statement\&.
 Adds to a table dump all SQL statements needed to create any tablespaces used by an
 NDB
 table\&. This information is not otherwise included in the output from
-\fBmysqldump\fR\&. This option is currently relevant only to NDB Cluster tables, which are not supported in MySQL 8\&.0\&.
+\fBmysqldump\fR\&. This option is currently relevant only to NDB Cluster tables\&.
 .RE
 .sp
 .RS 4
@@ -1596,7 +1614,7 @@ and causes it to be ignored if both options are used\&.
 \fB\-\-set\-gtid\-purged=\fR\fB\fIvalue\fR\fR
 .sp
 This option enables control over global transaction ID (GTID) information written to the dump file, by indicating whether to add a
-SET @@global\&.gtid_purged
+SET @@GLOBAL\&.gtid_purged
 statement to the output\&. This option may also cause a statement to be written to the output that disables binary logging while the dump file is being reloaded\&.
 .sp
 The following table shows the permitted option values\&. The default value is
@@ -1740,7 +1758,7 @@ options\&.
 .sp
 Produce output that is more compatible with other database systems or with older MySQL servers\&. The only permitted value for this option is
 ansi, which has the same meaning as the corresponding option for setting the server SQL mode\&. See
-Section\ \&5.1.10, \(lqServer SQL Modes\(rq\&.
+Section\ \&5.1.11, \(lqServer SQL Modes\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2944,6 +2962,11 @@ does not dump
 InnoDB
 CREATE TABLESPACE
 statements\&.
+.PP
+\fBmysqldump\fR
+does not dump the NDB Cluster
+ndbinfo
+information database\&.
 .PP
 \fBmysqldump\fR
 includes statements to recreate the

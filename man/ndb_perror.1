@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_perror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 06/07/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
-.\"    Source: MySQL 5.7
+.\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_PERROR\FR" "1" "06/07/2018" "MySQL 5\&.7" "MySQL Database System"
+.TH "\FBNDB_PERROR\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_perror \- Obtain NDB error message information
+ndb_perror \- obtain NDB error message information
 .SH "SYNOPSIS"
 .HP \w'\fBndb_perror\ \fR\fB\fIoptions\fR\fR\ 'u
 \fBndb_perror \fR\fB\fIoptions\fR\fR
@@ -122,7 +122,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&21.328.\ \&Command\-line options for the ndb_perror program
+.B Table\ \&22.335.\ \&Command\-line options for the ndb_perror program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -148,7 +148,7 @@ T}:T{
 Display help text
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -158,7 +158,7 @@ For compatibility with applications depending on old versions of perror;
               does nothing
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -169,7 +169,7 @@ T}:T{
 Show error message only
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -180,7 +180,7 @@ T}:T{
 Print program version information and exit
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+All NDB 8.0 releases
 T}
 T{
 .PP
@@ -191,7 +191,7 @@ T}:T{
 Verbose output; disable with --silent
 T}:T{
 .PP
-ADDED: NDB 7.6.4
+All NDB 8.0 releases
 T}
 .TE
 .sp 1
@@ -218,7 +218,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -226,14 +225,9 @@ T}:T{
 --help
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -265,7 +259,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -273,14 +266,9 @@ T}:T{
 --ndb
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -319,7 +307,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -327,14 +314,9 @@ T}:T{
 --silent
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -367,7 +349,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -375,14 +356,9 @@ T}:T{
 --version
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR
@@ -415,7 +391,6 @@ T}
 .T&
 l l
 l l
-l l
 l l.
 T{
 \fBCommand-Line Format\fR
@@ -423,14 +398,9 @@ T}:T{
 --verbose
 T}
 T{
-\fBIntroduced\fR
-T}:T{
-5.7.19-ndb-7.6.4
-T}
-T{
 \fBType\fR
 T}:T{
-boolean
+Boolean
 T}
 T{
 \fBDefault Value\fR

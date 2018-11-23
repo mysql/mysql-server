@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldumpslow\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 10/15/2018
+.\"      Date: 11/23/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMPSLOW\FR" "1" "10/15/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMPSLOW\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -37,7 +37,7 @@ mysqldumpslow \- Summarize slow query log files
 The MySQL slow query log contains information about queries that take a long time to execute (see
 Section\ \&5.4.5, \(lqThe Slow Query Log\(rq)\&.
 \fBmysqldumpslow\fR
-parses MySQL slow query log files and prints a summary of their contents\&.
+parses MySQL slow query log files and summarizes their contents\&.
 .PP
 Normally,
 \fBmysqldumpslow\fR
@@ -47,11 +47,11 @@ these values to
 N
 and
 \*(AqS\*(Aq
-when displaying summary output\&. The
+when displaying summary output\&. To modify value abstracting behavior, use the
 \fB\-a\fR
 and
 \fB\-n\fR
-options can be used to modify value abstracting behavior\&.
+options\&.
 .PP
 Invoke
 \fBmysqldumpslow\fR
@@ -62,6 +62,25 @@ like this:
 .\}
 .nf
 shell> \fBmysqldumpslow [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB \&.\&.\&.]\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example of usage:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBmysqldumpslow\fR
+Reading mysql slow query log from /usr/local/mysql/data/mysqld80\-slow\&.log
+Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1
+Count: 3  Time=2\&.53s (7s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t2 select * from t1 limit N
+Count: 3  Time=2\&.13s (6s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
+ insert into t1 select * from t1
 .fi
 .if n \{\
 .RE
@@ -294,25 +313,6 @@ queries in the output\&.
 .sp
 Verbose mode\&. Print more information about what the program does\&.
 .RE
-.PP
-Example of usage:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBmysqldumpslow\fR
-Reading mysql slow query log from /usr/local/mysql/data/mysqld51\-apple\-slow\&.log
-Count: 1  Time=4\&.32s (4s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
- insert into t2 select * from t1
-Count: 3  Time=2\&.53s (7s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
- insert into t2 select * from t1 limit N
-Count: 3  Time=2\&.13s (6s)  Lock=0\&.00s (0s)  Rows=0\&.0 (0), root[root]@localhost
- insert into t1 select * from t1
-.fi
-.if n \{\
-.RE
-.\}
 .SH "COPYRIGHT"
 .br
 .PP
