@@ -2460,7 +2460,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "2K",
+    "0", // "2K",
     "0",
     STR_VALUE(MAX_INT_RNIL)
   },
@@ -2473,7 +2473,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "1000",
+    "0", // "1000",
     "0",
     STR_VALUE(MAX_INT_RNIL)
   },
@@ -2486,8 +2486,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "8k",
-    "32",
+    "0", // "8k",
+    "0",
     STR_VALUE(MAX_INT_RNIL)
   },
 
@@ -2499,8 +2499,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    0,
-    "32",
+    "0",
+    "0",
     STR_VALUE(MAX_INT_RNIL)
   },
 
@@ -2512,8 +2512,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "1024",
-    "32",
+    "0", // "1024",
+    "0",
     STR_VALUE(MAX_INT_RNIL)
   },
 
@@ -2525,8 +2525,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "64",
-    "2",
+    "0", // "64",
+    "0",
     "500"
   },
 
@@ -2538,8 +2538,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "256K",
-    "256",
+    "0", // "256K",
+    "0",
     STR_VALUE(MAX_INT_RNIL)
   },
 
