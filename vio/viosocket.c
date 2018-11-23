@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -860,17 +860,20 @@ my_bool vio_is_connected_pipe(Vio *vio)
 
 int vio_close_pipe(Vio * vio)
 {
-  int r;
+  int r= FALSE;
   DBUG_ENTER("vio_close_pipe");
 
-  CancelIo(vio->hPipe);
-  CloseHandle(vio->pipe_overlapped.hEvent);
-  DisconnectNamedPipe(vio->hPipe);
-  r= CloseHandle(vio->hPipe);
-  if (r)
+  if (vio->type != VIO_CLOSED)
   {
-    DBUG_PRINT("vio_error", ("close() failed, error: %d",GetLastError()));
-    /* FIXME: error handling (not critical for MySQL) */
+    CancelIo(vio->hPipe);
+    CloseHandle(vio->pipe_overlapped.hEvent);
+    DisconnectNamedPipe(vio->hPipe);
+    r= CloseHandle(vio->hPipe);
+    if (!r)
+    {
+      DBUG_PRINT("vio_error", ("close() failed, error: %d",GetLastError()));
+      /* FIXME: error handling (not critical for MySQL) */
+    }
   }
   vio->type= VIO_CLOSED;
   vio->sd=   -1;
