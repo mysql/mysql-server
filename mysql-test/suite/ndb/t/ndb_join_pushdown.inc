@@ -407,6 +407,24 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 where t1.a=2 and t1.b=2;
 
+## Bug#28898811 INCORRECTLY REJECT JOIN TO BE PUSHED DOWN
+##
+## Tables not beings considered in the join pushdown analysis,
+## e.g. a table not being a ndb table, where also incorrectly
+## excluded as a table which could be referred in the join conditions
+## from a pushed child table (on .. t3.b = t1.b <-, below)
+##
+explain
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
+--sorted_result
+select *
+from t1_myisam as t1
+join t1 as t2 on t2.a = t1.c
+join t1 as t3 on t3.a = t2.b and t3.b = t1.b;
+
 connection ddl;
 drop table t1_myisam;
 

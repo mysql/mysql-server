@@ -327,8 +327,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan &plan)
 
     // Fill in table for maping internal <-> external table enumeration
     for (uint i = 0; i < count; i++) {
-      if (m_tables[i].m_maybe_pushable) {
-        const AQP::Table_access *const table = m_plan.get_table_access(i);
+      const AQP::Table_access *const table = m_plan.get_table_access(i);
+      if (table->get_table() && table->get_table()->pos_in_table_list) {
         const uint external = table->get_table()->pos_in_table_list->tableno();
         DBUG_ASSERT(external < MAX_TABLES);
 
