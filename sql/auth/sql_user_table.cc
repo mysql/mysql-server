@@ -638,7 +638,7 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
       acquire MDL on privilege tables after the release_transactional_locks()
       and before acl_reload/grant_reload() below.
     */
-    reload_acl_caches(thd, true);
+    reload_acl_caches(thd);
   } else if (notify_htons) {
     acl_notify_htons(thd, thd->query().str, thd->query().length);
   }

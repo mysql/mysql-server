@@ -686,7 +686,7 @@ void acl_free(bool end = false);
 bool check_engine_type_for_acl_table(THD *thd);
 bool grant_init(bool skip_grant_tables);
 void grant_free(void);
-bool reload_acl_caches(THD *thd, bool locked = false);
+bool reload_acl_caches(THD *thd);
 ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
               const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);

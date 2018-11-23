@@ -154,8 +154,8 @@ void acl_insert_db(const char *user, const char *host, const char *db,
 bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
                        bool expired);
 void clear_and_init_db_cache();
-bool acl_reload(THD *thd, bool locked = false);
-bool grant_reload(THD *thd, bool locked = false);
+bool acl_reload(THD *thd);
+bool grant_reload(THD *thd);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
 
