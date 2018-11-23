@@ -1308,13 +1308,13 @@ void init_variable_default_paths() {
   }
 #else
   char *env = getenv("MYSQL_HOME");
-  uint length = (env ? strlen(env) : 0);
-  if (length && (env[length - 1] != '/')) {
-    env[length] = '/';
-    env[length + 1] = '\0';
+  std::string mysql_home(env == nullptr ? "" : env);
+  if (!mysql_home.empty()) {
+    if (mysql_home.back() != '/') {
+      mysql_home.push_back('/');
+    }
+    default_paths[mysql_home + "my.cnf"] = enum_variable_source::SERVER;
   }
-  if (length)
-    default_paths[string(env) + "my.cnf"] = enum_variable_source::SERVER;
 
   char buffer[FN_REFLEN] = "~/";
   unpack_filename(buffer, buffer);
