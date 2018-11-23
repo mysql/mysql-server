@@ -2411,3 +2411,17 @@ void undo::Tablespaces::drop(Tablespace *undo_space) {
     }
   }
 }
+
+/** Drop an existing explicit undo::Tablespace.
+@param[in]	undo_space	reference to undo space */
+void undo::Tablespaces::drop(Tablespace &ref_undo_space) {
+  ut_ad(is_reserved(ref_undo_space.id()));
+
+  for (auto it = m_spaces.begin(); it != m_spaces.end(); it++) {
+    if ((*it)->id() == ref_undo_space.id()) {
+      UT_DELETE(*it);
+      m_spaces.erase(it);
+      break;
+    }
+  }
+}
