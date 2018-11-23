@@ -177,3 +177,6 @@ cmd: testBlobs
 args: -bug 28746560 -skip p -loop 10
 max-time: 180
 
+cmd: testLimits
+args: -n NdbfsBulkOpen T1
+max-time: 360

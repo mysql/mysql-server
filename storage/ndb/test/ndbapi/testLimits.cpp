@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016 Oracle and/or its affiliates.  All rights reserved
+/* Copyright (c) 2008, 2018 Oracle and/or its affiliates.  All rights reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
     trans->close();                                   \
     return NDBT_FAILED; }
 
+#define CHECK(v) if (!(v)) {                      \
+    ndbout << "Error at line " << __LINE__ <<         \
+      endl;                                           \
+    return NDBT_FAILED; }
 
 /* Setup memory as a long Varchar with 2 bytes of
  * length information
@@ -1364,6 +1368,49 @@ int testSlowDihFileWrites(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int testNdbfsBulkOpen(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  g_err << "Getting all nodes to create + open a number of files in parallel"
+        << endl;
+  int dumpArg = 667;
+  CHECK(restarter.dumpStateAllNodes(&dumpArg, 1) == 0);
+
+  ndbout_c("Giving time for the open to complete");
+  NdbSleep_MilliSleep(30*1000);
+
+  ndbout_c("Crash DB nodes that have not completed opening files");
+  dumpArg = 668;
+  CHECK(restarter.dumpStateAllNodes(&dumpArg, 1) == 0);
+
+  g_err << "Checking any data node crashed" << endl;
+  uint num_nodes = restarter.getNumDbNodes();
+  int *dead_nodes = new int[num_nodes];
+  for (uint i = 0; i < num_nodes; ++i)
+  {
+    dead_nodes[i] = 0;
+  }
+  int dead_node = restarter.checkClusterAlive(dead_nodes, num_nodes);
+  if (dead_node != 0)
+  {
+    g_err << "Data node " << dead_node << " crashed" << endl;
+  }
+  CHECK(dead_node == 0);
+
+  g_err << "Restarting nodes to get rid of error insertion effects"
+        << endl;
+  // restartAll(initial=true) doesn't remove CMVMI either
+  CHECK(restarter.restartAll() == 0);
+  const int timeout = 300;
+  CHECK(restarter.waitClusterStarted(timeout) == 0);
+  Ndb* pNdb = GETNDB(step);
+  CHECK(pNdb->waitUntilReady(timeout) == 0);
+  CHK_NDB_READY(pNdb);
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testLimits);
 
@@ -1393,6 +1440,11 @@ TESTCASE("SlowDihFileWrites",
   STEP(testWorker);
   STEP(testSlowDihFileWrites);
   FINALIZER(drop100Tables);
+}
+TESTCASE("NdbfsBulkOpen",
+         "Test behaviour of NdbFs bulk file open")
+{
+  INITIALIZER(testNdbfsBulkOpen);
 }
 
 NDBT_TESTSUITE_END(testLimits);

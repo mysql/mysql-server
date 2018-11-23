@@ -43,6 +43,10 @@
 #include <signaldata/NodeStateSignalData.hpp>
 #include <signaldata/GetConfig.hpp>
 
+#ifdef ERROR_INSERT
+#include <signaldata/FsOpenReq.hpp>
+#endif
+
 #include <EventLogger.hpp>
 #include <TimeQueue.hpp>
 
@@ -128,6 +132,11 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_ALLOC_MEM_CONF, &Cmvmi::execALLOC_MEM_CONF);
 
   addRecSignal(GSN_GET_CONFIG_REQ, &Cmvmi::execGET_CONFIG_REQ);
+
+#ifdef ERROR_INSERT
+  addRecSignal(GSN_FSOPENCONF, &Cmvmi::execFSOPENCONF);
+  addRecSignal(GSN_FSCLOSECONF, &Cmvmi::execFSCLOSECONF);
+#endif
 
   subscriberPool.setSize(5);
   c_syncReqPool.setSize(5);
@@ -2034,7 +2043,102 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(NDBFS_REF, GSN_ALLOC_MEM_REQ, signal,
                AllocMemReq::SignalLength, JBB);
   }
+
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == 667)
+  {
+    jam();
+    Uint32 numFiles = 100;
+    if (signal->getLength() == 2)
+    {
+      jam();
+      numFiles = signal->theData[1];
+    }
+
+    /* Send a number of concurrent file open requests
+     * for 'bound' files to NdbFS to test that it
+     * copes
+     * None are closed before all are open
+     */
+    g_remaining_responses = numFiles;
+
+    g_eventLogger->info("CMVMI : Bulk open %u files",
+                        numFiles);
+    FsOpenReq* openReq = (FsOpenReq*) &signal->theData[0];
+    openReq->userReference = reference();
+    openReq->userPointer = 0;
+    openReq->fileNumber[0] = ~Uint32(0);
+    openReq->fileNumber[1] = ~Uint32(0);
+    openReq->fileNumber[2] = 0;
+    openReq->fileNumber[3] =
+      1 << 24 |
+      1 << 16 |
+      255 << 8 |
+      255;
+    openReq->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE;
+
+    for (Uint32 i=0; i < numFiles; i++)
+    {
+      jam();
+      openReq->fileNumber[2] = i;
+      sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB);
+    }
+    g_eventLogger->info("CMVMI : %u requests sent",
+                        numFiles);
+  }
+
+  if (signal->theData[0] == 668)
+  {
+    jam();
+
+    g_eventLogger->info("CMVMI : missing responses %u",
+                        g_remaining_responses);
+    /* Check that all files were opened */
+    ndbrequire(g_remaining_responses == 0);
+  }
+#endif // ERROR_INSERT
+
 }//Cmvmi::execDUMP_STATE_ORD()
+
+#ifdef ERROR_INSERT
+void
+Cmvmi::execFSOPENCONF(Signal* signal)
+{
+  jam();
+  if (signal->header.theSendersBlockRef != reference())
+  {
+    jam();
+    g_remaining_responses--;
+    g_eventLogger->info("Waiting for %u responses",
+                        g_remaining_responses);
+  }
+
+  if (g_remaining_responses > 0)
+  {
+    // We don't close any files until all are open
+    jam();
+    g_eventLogger->info("CMVMI delaying CONF");
+    sendSignalWithDelay(reference(), GSN_FSOPENCONF, signal, 300, signal->getLength());
+  }
+  else
+  {
+    signal->theData[0] = signal->theData[1];
+    signal->theData[1] = reference();
+    signal->theData[2] = 0;
+    signal->theData[3] = 1; // Remove the file on close"
+    signal->theData[4] = 0;
+    sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 5, JBB);
+  }
+
+}
+
+void
+Cmvmi::execFSCLOSECONF(Signal* signal)
+{
+  jam();
+}
+
+#endif // ERROR_INSERT
 
 void
 Cmvmi::execALLOC_MEM_REF(Signal* signal)
