@@ -200,7 +200,9 @@ extern uint slave_rows_last_search_algorithm_used;
 extern ulong mts_parallel_option;
 #ifdef _WIN32
 extern bool opt_enable_named_pipe;
+extern char *named_pipe_full_access_group;
 extern bool opt_enable_shared_memory;
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern char *opt_secure_file_priv;
@@ -729,6 +731,7 @@ inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
 
 bool is_windows_service();
 NTService *get_win_service_ptr();
+bool update_named_pipe_full_access_group(const char *new_group_name);
 
 #endif
 

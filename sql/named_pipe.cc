@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,155 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <AclAPI.h>
+#include <accctrl.h>
 #include <errno.h>
 
 #include <mysql/components/services/log_builtins.h>
-#include "log.h"
 #include "my_config.h"
+#include "my_sys.h"
 #include "mysqld_error.h"
-#include "named_pipe.h"
+#include "sql/log.h"
+#include "sql/mysqld.h"
+#include "sql/named_pipe.h"
+
+bool is_existing_windows_group_name(const char *group_name) {
+  // First, let's get a SID for the given group name...
+  BYTE soughtSID[SECURITY_MAX_SID_SIZE] = {0};
+  DWORD size_sid = SECURITY_MAX_SID_SIZE;
+  char referencedDomainName[MAX_PATH];
+  DWORD size_referencedDomainName = MAX_PATH;
+  SID_NAME_USE sid_name_use;
+
+  if (!LookupAccountName(nullptr, group_name, soughtSID, &size_sid,
+                         referencedDomainName, &size_referencedDomainName,
+                         &sid_name_use)) {
+    return false;
+  }
+
+  // sid_name_use is SidTypeAlias when group_name is a local group
+  if (sid_name_use != SidTypeAlias && sid_name_use != SidTypeWellKnownGroup) {
+    return false;
+  }
+  return true;
+}
+
+bool is_valid_named_pipe_full_access_group(const char *group_name) {
+  if (!group_name || group_name[0] == '\0' ||
+      is_existing_windows_group_name(group_name)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+// return false on success, true on failure.
+bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
+                                          const char *group_name,
+                                          DWORD group_rights) {
+  TCHAR last_error_msg[256];
+  // First, let's get a SID for the given group name...
+  BYTE soughtSID[SECURITY_MAX_SID_SIZE] = {0};
+  DWORD size_sid = SECURITY_MAX_SID_SIZE;
+  char referencedDomainName[MAX_PATH];
+  DWORD size_referencedDomainName = MAX_PATH;
+  SID_NAME_USE sid_name_use;
+
+  if (!LookupAccountName(nullptr, group_name, soughtSID, &size_sid,
+                         referencedDomainName, &size_referencedDomainName,
+                         &sid_name_use)) {
+    DWORD last_error_num = GetLastError();
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, last_error_num,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "LookupAccountName failed", last_error_msg);
+    return true;
+  }
+
+  // sid_name_use is SidTypeAlias when group_name is a local group
+  if (sid_name_use != SidTypeAlias && sid_name_use != SidTypeWellKnownGroup) {
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "LookupAccountName failed", "unexpected sid_name_use");
+    return true;
+  }
+
+  PACL pNewDACL = NULL;
+  PACL pOldDACL = NULL;
+  BOOL dacl_present_in_descriptor = FALSE;
+  BOOL dacl_defaulted = FALSE;
+  if (!GetSecurityDescriptorDacl(psa->lpSecurityDescriptor,
+                                 &dacl_present_in_descriptor, &pOldDACL,
+                                 &dacl_defaulted) ||
+      !dacl_present_in_descriptor) {
+    DWORD last_error_num = GetLastError();
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, last_error_num,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "GetSecurityDescriptorDacl failed", last_error_msg);
+    return true;
+  }
+
+  // Just because GetSecurityDescriptorDacl succeeded doesn't mean we're out of
+  // the woods: a NULL value for pOldDACL is a bad/unexpected thing, as is
+  // dacl_defaulted == TRUE
+  if (pOldDACL == nullptr || dacl_defaulted) {
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "Invalid DACL on named pipe",
+                (pOldDACL == nullptr) ? "NULL DACL" : "Defaulted DACL");
+    return true;
+  }
+
+  EXPLICIT_ACCESS ea;
+  // Initialize an EXPLICIT_ACCESS structure for the new ACE.
+
+  ZeroMemory(&ea, sizeof(EXPLICIT_ACCESS));
+  ea.grfAccessPermissions = group_rights;
+  ea.grfAccessMode = SET_ACCESS;
+  ea.grfInheritance = NO_INHERITANCE;
+  ea.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea.Trustee.ptstrName = (LPSTR)soughtSID;
+
+  // Create a new ACL that merges the new ACE
+  // into the existing DACL.
+  DWORD dwRes = SetEntriesInAcl(1, &ea, pOldDACL, &pNewDACL);
+  if (ERROR_SUCCESS != dwRes) {
+    char num_buff[20];
+    int10_to_str(dwRes, num_buff, 10);
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "SetEntriesInAcl to add group permissions failed", num_buff);
+    return true;
+  }
+
+  // Apply the new DACL to the existing security descriptor...
+  if (!SetSecurityDescriptorDacl(psa->lpSecurityDescriptor, TRUE, pNewDACL,
+                                 FALSE)) {
+    DWORD last_error_num = GetLastError();
+    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                  NULL, last_error_num,
+                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "SetSecurityDescriptorDacl failed", last_error_msg);
+    return true;
+  }
+
+  return false;
+}
 
 /**
   Creates an instance of a named pipe and returns a handle.
 
   @param sec_attr    Security attributes for the pipe.
-  @param sec_descr   Security descriptor for the pipe.
   @param buffer_size Number of bytes to reserve for input and output buffers.
   @param name        The name of the pipe.
   @param name_buf    Output argument: null-terminated concatenation of
@@ -44,55 +180,58 @@
   @note  The entire pipe name string can be up to 256 characters long.
          Pipe names are not case sensitive.
  */
-HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
-                                SECURITY_DESCRIPTOR *sec_descr,
+HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES **ppsec_attr,
                                 DWORD buffer_size, const char *name,
-                                char *name_buf, size_t buflen) {
+                                char *name_buf, size_t buflen,
+                                const char *full_access_group_name) {
   HANDLE ret_handle = INVALID_HANDLE_VALUE;
+  TCHAR last_error_msg[256];
 
   strxnmov(name_buf, buflen - 1, "\\\\.\\pipe\\", name, NullS);
-  memset(sec_attr, 0, sizeof(SECURITY_ATTRIBUTES));
-  memset(sec_descr, 0, sizeof(SECURITY_DESCRIPTOR));
-  if (!InitializeSecurityDescriptor(sec_descr, SECURITY_DESCRIPTOR_REVISION)) {
+  const char *perror = nullptr;
+  // Set up security for the named pipe to provide full access to the owner
+  // and minimal read/write access to others.
+  if (my_security_attr_create(ppsec_attr, &perror, NAMED_PIPE_OWNER_PERMISSIONS,
+                              NAMED_PIPE_EVERYONE_PERMISSIONS) != 0) {
     log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                LOG_ITEM_LOG_LOOKUP,
-                ER_NPIPE_FAILED_TO_INIT_SECURITY_DESCRIPTOR, strerror(errno));
-    return INVALID_HANDLE_VALUE;
+                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE,
+                "my_security_attr_create", perror);
+    return ret_handle;
   }
-  if (!SetSecurityDescriptorDacl(sec_descr, true, NULL, false)) {
-    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                LOG_ITEM_LOG_LOOKUP, ER_NPIPE_FAILED_TO_SET_SECURITY_DESCRIPTOR,
-                strerror(errno));
-    return INVALID_HANDLE_VALUE;
+
+  if (full_access_group_name && full_access_group_name[0] != '\0') {
+    if (my_security_attr_add_rights_to_group(
+            *ppsec_attr, full_access_group_name,
+            NAMED_PIPE_FULL_ACCESS_GROUP_PERMISSIONS)) {
+      return ret_handle;
+    }
   }
-  sec_attr->nLength = sizeof(SECURITY_ATTRIBUTES);
-  sec_attr->lpSecurityDescriptor = sec_descr;
-  sec_attr->bInheritHandle = false;
+
   ret_handle = CreateNamedPipe(
       name_buf,
-      PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+      PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED |
+          FILE_FLAG_FIRST_PIPE_INSTANCE | WRITE_DAC,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, PIPE_UNLIMITED_INSTANCES,
-      buffer_size, buffer_size, NMPWAIT_USE_DEFAULT_WAIT, sec_attr);
+      buffer_size, buffer_size, NMPWAIT_USE_DEFAULT_WAIT, *ppsec_attr);
 
   if (ret_handle == INVALID_HANDLE_VALUE) {
-    int error = GetLastError();
+    DWORD last_error_num = GetLastError();
 
-    if (error == ERROR_ACCESS_DENIED) {
+    if (last_error_num == ERROR_ACCESS_DENIED) {
       log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_LOG_LOOKUP, ER_NPIPE_PIPE_ALREADY_IN_USE, name);
     } else {
-      LPVOID msg_buff = NULL;
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
+                        FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      char num_buff[20];
+      int10_to_str(last_error_num, num_buff, 10);
 
-      FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-                    NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                    (LPTSTR)&msg_buff, 0, NULL);
-
-      if (msg_buff != NULL) {
-        log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                    LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE, (char *)msg_buff,
-                    strerror(errno));
-        LocalFree(msg_buff);
-      }
+      log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
+                  LOG_ITEM_LOG_LOOKUP, ER_NPIPE_CANT_CREATE, last_error_msg,
+                  num_buff);
     }
   }
 

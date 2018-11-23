@@ -130,6 +130,9 @@
 #include "sql/xa.h"
 #include "template_utils.h"  // pointer_cast
 #include "thr_lock.h"
+#ifdef _WIN32
+#include "sql/named_pipe.h"
+#endif
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
@@ -2647,6 +2650,33 @@ static Sys_var_bool Sys_named_pipe("named_pipe", "Enable the named pipe (NT)",
                                    READ_ONLY NON_PERSIST
                                        GLOBAL_VAR(opt_enable_named_pipe),
                                    CMD_LINE(OPT_ARG), DEFAULT(false));
+
+static PolyLock_rwlock PLock_named_pipe_full_access_group(
+    &LOCK_named_pipe_full_access_group);
+static bool check_named_pipe_full_access_group(sys_var *self, THD *thd,
+                                               set_var *var) {
+  if (!var->value) return false;  // DEFAULT is ok
+
+  if (!is_valid_named_pipe_full_access_group(
+          var->save_result.string_value.str)) {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str,
+             var->save_result.string_value.str);
+    return true;
+  }
+  return false;
+}
+static bool fix_named_pipe_full_access_group(sys_var *, THD *, enum_var_type) {
+  return update_named_pipe_full_access_group(named_pipe_full_access_group);
+}
+static Sys_var_charptr Sys_named_pipe_full_access_group(
+    "named_pipe_full_access_group",
+    "Name of Windows group granted full access to the named pipe",
+    GLOBAL_VAR(named_pipe_full_access_group),
+    CMD_LINE(REQUIRED_ARG, OPT_NAMED_PIPE_FULL_ACCESS_GROUP), IN_FS_CHARSET,
+    DEFAULT(DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP),
+    &PLock_named_pipe_full_access_group, NOT_IN_BINLOG,
+    ON_CHECK(check_named_pipe_full_access_group),
+    ON_UPDATE(fix_named_pipe_full_access_group));
 #endif
 
 static bool check_net_buffer_length(sys_var *self, THD *thd, set_var *var) {

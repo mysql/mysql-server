@@ -856,6 +856,7 @@ static PSI_thread_key key_thread_handle_con_sockets;
 static PSI_mutex_key key_LOCK_handler_count;
 static PSI_cond_key key_COND_handler_count;
 static PSI_thread_key key_thread_handle_shutdown_restart;
+static PSI_rwlock_key key_rwlock_LOCK_named_pipe_full_access_group;
 #else
 static PSI_mutex_key key_LOCK_socket_listener_active;
 static PSI_cond_key key_COND_socket_listener_active;
@@ -1439,8 +1440,11 @@ void substitute_progpath(char **argv) {
 static Connection_acceptor<Mysqld_socket_listener> *mysqld_socket_acceptor =
     NULL;
 #ifdef _WIN32
+static Named_pipe_listener *named_pipe_listener = NULL;
 Connection_acceptor<Named_pipe_listener> *named_pipe_acceptor = NULL;
 Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor = NULL;
+mysql_rwlock_t LOCK_named_pipe_full_access_group;
+char *named_pipe_full_access_group;
 #endif
 
 Checkable_rwlock *global_sid_lock = NULL;
@@ -2240,6 +2244,7 @@ static void clean_up_mutexes() {
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
   mysql_mutex_destroy(&LOCK_handler_count);
+  mysql_rwlock_destroy(&LOCK_named_pipe_full_access_group);
 #endif
 #ifndef _WIN32
   mysql_cond_destroy(&COND_socket_listener_active);
@@ -2528,8 +2533,7 @@ static bool network_init(void) {
   if (opt_enable_named_pipe) {
     std::string pipe_name = mysqld_unix_port ? mysqld_unix_port : "";
 
-    Named_pipe_listener *named_pipe_listener =
-        new (std::nothrow) Named_pipe_listener(&pipe_name);
+    named_pipe_listener = new (std::nothrow) Named_pipe_listener(&pipe_name);
     if (named_pipe_listener == NULL) return true;
 
     named_pipe_acceptor = new (std::nothrow)
@@ -4393,6 +4397,8 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_handler_count, &LOCK_handler_count,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_handler_count, &COND_handler_count);
+  mysql_rwlock_init(key_rwlock_LOCK_named_pipe_full_access_group,
+                    &LOCK_named_pipe_full_access_group);
 #else
   mysql_mutex_init(key_LOCK_socket_listener_active,
                    &LOCK_socket_listener_active, MY_MUTEX_INIT_FAST);
@@ -9368,7 +9374,15 @@ bool mysqld_get_one_option(int optid,
       if (wrong_value != NULL)
         LogErr(WARNING_LEVEL, ER_INVALID_VALUE_FOR_ENFORCE_GTID_CONSISTENCY,
                wrong_value);
-    }
+    } break;
+    case OPT_NAMED_PIPE_FULL_ACCESS_GROUP:
+#ifdef _WIN32
+      if (!is_valid_named_pipe_full_access_group(argument)) {
+        LogErr(ERROR_LEVEL, ER_INVALID_NAMED_PIPE_FULL_ACCESS_GROUP);
+        return 1;
+      }
+#endif  // _WIN32
+      break;
   }
   return 0;
 }
@@ -10323,7 +10337,12 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_receiver_sid_lock, "gtid_retrieved", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_rpl_filter_lock, "rpl_filter_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_channel_to_filter_lock, "channel_to_filter_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_rwlock_resource_group_mgr_map_lock, "Resource_group_mgr::m_map_rwlock", 0, 0, PSI_DOCUMENT_ME}
+  { &key_rwlock_resource_group_mgr_map_lock, "Resource_group_mgr::m_map_rwlock", 0, 0, PSI_DOCUMENT_ME},
+#ifdef _WIN32
+  { &key_rwlock_LOCK_named_pipe_full_access_group, "LOCK_named_pipe_full_access_group", PSI_FLAG_SINGLETON, 0,
+     "This lock protects named pipe security attributes, preventing their "
+     "simultaneous application and modification."},
+#endif // _WIN32
 };
 /* clang-format on */
 
@@ -10902,3 +10921,15 @@ bool drop_native_table_for_pfs(const char *schema_name,
   DBUG_ASSERT(thd);
   return do_drop_native_table_for_pfs(thd, schema_name, table_name);
 }
+
+#ifdef _WIN32
+// update_named_pipe_full_access_group returns false on success, true on failure
+bool update_named_pipe_full_access_group(const char *new_group_name) {
+  if (named_pipe_acceptor) {
+    return named_pipe_listener->update_named_pipe_full_access_group(
+        new_group_name);
+  }
+  return true;
+}
+
+#endif  // _WIN32
