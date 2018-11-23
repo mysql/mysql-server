@@ -487,6 +487,9 @@ The following options may be given as the first argument:
  NULLS_EQUAL (emulate 4.0 behavior), and NULLS_IGNORED
  --myisam-use-mmap   Use memory mapping for reading and writing MyISAM tables
  --named-pipe        Enable the named pipe (NT)
+ --named-pipe-full-access-group=name 
+ Name of Windows group granted full access to the named
+ pipe
  --net-buffer-length=# 
  Buffer length for TCP/IP and socket communication
  --net-read-timeout=# 
@@ -1184,6 +1187,7 @@ myisam-sort-buffer-size 8388608
 myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
 named-pipe FALSE
+named-pipe-full-access-group everyone
 net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10
