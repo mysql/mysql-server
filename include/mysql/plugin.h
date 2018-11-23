@@ -185,12 +185,14 @@ struct MYSQL_XID {
 #define PLUGIN_VAR_NOPERSIST                \
   0x10000 /* SET PERSIST_ONLY is prohibited \
              for read only variables */
+
 /**
   There can be some variables which needs to be set before plugin is loaded but
   not after plugin is loaded. ex: GR specific variables. Below flag must be set
   for these kind of variables.
 */
 #define PLUGIN_VAR_PERSIST_AS_READ_ONLY 0x20000
+#define PLUGIN_VAR_INVISIBLE 0x40000 /* Variable should not be shown */
 
 struct SYS_VAR;
 struct st_mysql_value;
@@ -240,7 +242,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
   (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_NOCMDOPT |   \
    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG |   \
    PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
-   PLUGIN_VAR_PERSIST_AS_READ_ONLY)
+   PLUGIN_VAR_PERSIST_AS_READ_ONLY | PLUGIN_VAR_INVISIBLE)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

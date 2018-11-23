@@ -235,6 +235,7 @@ class sys_var_pluginvar : public sys_var {
             chain, name_arg, plugin_var_arg->comment,
             (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
                 (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0) |
+                (plugin_var_arg->flags & PLUGIN_VAR_INVISIBLE ? INVISIBLE : 0) |
                 (plugin_var_arg->flags & PLUGIN_VAR_PERSIST_AS_READ_ONLY
                      ? PERSIST_AS_READ_ONLY
                      : 0),
