@@ -1860,16 +1860,24 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
   else if (mode == 1) {
     localtime_r(&seconds, &my_tm);
 
-#ifdef __FreeBSD__
+#ifdef HAVE_TM_GMTOFF
     /*
       The field tm_gmtoff is the offset (in seconds) of the time represented
       from UTC, with positive values indicating east of the Prime Meridian.
+      Originally a BSDism, this is also supported in glibc, so this should
+      cover the majority of our platforms.
     */
     long tim = -my_tm.tm_gmtoff;
-#elif defined(_WIN32)
-    long tim = _timezone;
 #else
-    long tim = timezone;  // seconds West of UTC.
+    /*
+      Work this out "manually".
+    */
+    struct tm my_gm;
+    long tim, gm;
+    gmtime_r(&seconds, &my_gm);
+    gm = (my_gm.tm_sec + 60 * (my_gm.tm_min + 60 * my_gm.tm_hour));
+    tim = (my_tm.tm_sec + 60 * (my_tm.tm_min + 60 * my_tm.tm_hour));
+    tim = gm - tim;
 #endif
     char dir = '-';
 
