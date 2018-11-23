@@ -52,6 +52,14 @@ public:
   void clear_buffer(Uint32 &rg, Ptr<GlobalPage> & ptr, Uint32 & cnt);
 
   AsyncIoThread* getThread() const { return m_thread;}
+  bool thread_bound() const
+  {
+    return m_thread_bound;
+  }
+  void set_thread_bound(bool value)
+  {
+    m_thread_bound = value;
+  }
 
   virtual Uint32 get_fileinfo() const { return 0; }
 private:
@@ -102,6 +110,8 @@ private:
   void detach(AsyncIoThread* thr);
 
   AsyncIoThread* m_thread; // For bound files
+  // Whether this file is one that will be/is bound to a thread
+  bool m_thread_bound;
 
 protected:
   size_t m_write_wo_sync;  // Writes wo/ sync

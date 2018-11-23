@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,23 @@ private:
 
   Uint32 m_bound_threads_cnt;
   Uint32 m_unbounds_threads_cnt;
+
+  /**
+   * Maintaining active bound threads count in NdbFS from *before* a
+   * request is queued (getIdleFile()) until *after* it is
+   * completed (pushIdleFile()) means that idle threads which have
+   * completed requests are not available for further requests until
+   * NdbFS has received and processed their responses.
+
+   * This lag should be fairly short as a wakeup socket is used to
+   * wake NdbFs when a response is available.
+
+   * Any existing code relying on threads more 'quickly' becoming
+   * available for new requests is timing based and therefore likely
+   * to be unreliable.
+   */
   Uint32 m_active_bound_threads_cnt;
-  void cnt_active_bound(int val);
+
 public:
   const BaseString& get_base_path(Uint32 no) const;
 };

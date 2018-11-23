@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,6 +74,13 @@ private:
   void execALLOC_MEM_CONF(Signal*);
 
   void execGET_CONFIG_REQ(Signal*);
+
+#ifdef ERROR_INSERT
+  Uint32 g_remaining_responses;
+  /* Testing */
+  void execFSOPENCONF(Signal*);
+  void execFSCLOSECONF(Signal*);
+#endif
 
   char theErrorMessage[256];
   void sendSTTORRY(Signal* signal);
