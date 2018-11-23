@@ -689,7 +689,7 @@ class Tablespaces {
   void drop(Tablespace *undo_space);
 
   /** Drop an existing explicit undo::Tablespace.
-  @param[in]	undo_space	reference to undo space */
+  @param[in]	ref_undo_space	reference to undo space */
   void drop(Tablespace &ref_undo_space);
 
   /** Check if the given space_id is in the vector.
