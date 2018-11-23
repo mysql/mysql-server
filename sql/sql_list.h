@@ -405,7 +405,7 @@ class base_list_iterator {
   {
     return &current->info;
   }
-  inline bool is_last(void) { return el == &list->last_ref()->next; }
+  inline bool is_last(void) { return el == list->last; }
   inline bool is_before_first() const { return current == NULL; }
   bool prepend(void *a, MEM_ROOT *mem_root) {
     if (list->push_front(a, mem_root)) return true;

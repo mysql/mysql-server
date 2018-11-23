@@ -263,6 +263,8 @@ bool Window::setup_range_expressions(THD *thd) {
 
   for (auto border : {m_frame->m_from, m_frame->m_to}) {
     Item_func *cmp = nullptr, **cmp_ptr = nullptr /* to silence warning */;
+    Item_func *inv_cmp = nullptr,
+              **inv_cmp_ptr = nullptr /* to silence warning */;
     enum_window_border_type border_type = border->m_border_type;
     switch (border_type) {
       case WBT_UNBOUNDED_PRECEDING:
@@ -299,22 +301,17 @@ bool Window::setup_range_expressions(THD *thd) {
       case WBT_CURRENT_ROW: {
         /*
           We compute lower than (LT) as
-
-                   OR
-                  /  \
-           oe-1 LT ?  OR
-                     /  \
-              oe-2 LT ?   OR
-                            :
-                            OR
-                           /   \
-                  oe-n LT ?   false
+          oe-1 < ? OR (!(oe1 > ?) AND
+          (oe-2 < ? OR (!(oe-2 > ?) AND
+            .....
+             (oe-N < ?))));
 
           WBT_VALUE_PRECEDING and WBT_VALUE_FOLLOWING requires the tree to have
           exactly one oe-1 LT (for the one ORDER BY expession allowed for such
           queries).
         */
         cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
+        inv_cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
 
         // Build OR tree from bottom up, so left most expression ends up on top
         for (int i = o->value.elements - 1; i >= 0; i--) {
@@ -368,23 +365,41 @@ bool Window::setup_range_expressions(THD *thd) {
           }
 
           Item_func *new_cmp;
-          if ((border == m_frame->m_from) ? asc : !asc)
+          Item_func *new_inverse_cmp;
+          if ((border == m_frame->m_from) ? asc : !asc) {
             new_cmp = new Item_func_lt(nr, cmp_arg);
-          else
+            /*
+              Inverse the above comparison operator to check if comparison has
+              to be continued using the next element in the order by list. We
+              continue to the next element in the list when the current elements
+              are found to be equal.
+            */
+            new_inverse_cmp = new Item_func_gt(nr, cmp_arg);
+          } else {
             new_cmp = new Item_func_gt(nr, cmp_arg);
+            // See explanation in the if block
+            new_inverse_cmp = new Item_func_lt(nr, cmp_arg);
+          }
 
           cmp = new Item_cond_or(new_cmp, cmp);
           if (cmp == nullptr) return true;
+          inv_cmp = new Item_cond_or(new_inverse_cmp, inv_cmp);
+          if (inv_cmp == nullptr) return true;
         }
 
         cmp_ptr = &m_comparators[border_type][border == m_frame->m_to];
         *cmp_ptr = cmp;
+        inv_cmp_ptr =
+            &m_inverse_comparators[border_type][border == m_frame->m_to];
+        *inv_cmp_ptr = inv_cmp;
 
         break;
       }
     }
 
     if (cmp != nullptr && cmp->fix_fields(thd, (Item **)cmp_ptr)) return true;
+    if (inv_cmp != nullptr && inv_cmp->fix_fields(thd, (Item **)inv_cmp_ptr))
+      return true;
   }
 
   return false;
@@ -545,12 +560,16 @@ bool Window::before_or_after_frame(bool before) {
 
   List_iterator<Cached_item> li(m_order_by_items);
   Cached_item *cur_row;
-  uint i = 0;
+  uint i = 0, j = 0;
   Item_func *comparator = m_comparators[border_type][!before];
+  Item_func *inv_comparator = m_inverse_comparators[border_type][!before];
   DBUG_ASSERT(comparator->functype() == Item_func::COND_OR_FUNC);
+  DBUG_ASSERT(inv_comparator->functype() == Item_func::COND_OR_FUNC);
 
   // fix_items will have flattened the OR tree into a single multi-arg OR
   List<Item> &args = *down_cast<Item_cond_or *>(comparator)->argument_list();
+  List<Item> &inv_args =
+      *down_cast<Item_cond_or *>(inv_comparator)->argument_list();
   const PT_order_list *eff_ob = effective_order_by();
   const SQL_I_List<ORDER> order = eff_ob->value;
   ORDER *o_expr = order.first;
@@ -576,6 +595,7 @@ bool Window::before_or_after_frame(bool before) {
         before ? asc : !asc;
 
     Item_func *func = down_cast<Item_func *>(args[i++]);
+    Item_func *inv_func = down_cast<Item_func *>(inv_args[j++]);
 
     if (cur_row->null_value)  // Current row is NULL
     {
@@ -618,6 +638,21 @@ bool Window::before_or_after_frame(bool before) {
 
     cur_row->copy_to_Item_cache(down_cast<Item_cache *>(to_update));
     if (func->val_int()) return true;
+    /*
+      Continue with the comparison for the next element in order by list
+      only when the current elements are found to be equal.
+      For Ex:
+      If we want to know if (2,x) is before (1,y): 2<1 is false, and 2>1
+      is true, so we exit below with a "no" reply.
+      If we want to know if (2,x) is before (2,y): 2<2 is false, and 2>2
+      is false, so they are equal and we compare x with y.
+      If only one element: if we want to know if x is before y: knowing
+      if x<y is true is enough; in that case we return "yes"; in other
+      cases, we know that x>=y is true and can return "no" without more
+      testing.
+    */
+    if (!li.is_last())
+      if (inv_func->val_int()) return false;
   }
   return false;
 }
