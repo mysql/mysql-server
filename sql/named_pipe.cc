@@ -168,12 +168,16 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
 /**
   Creates an instance of a named pipe and returns a handle.
 
-  @param sec_attr    Security attributes for the pipe.
+  @param ppsec_attr  Output argument: on exit, points to the security
+                     attributes for the pipe.
   @param buffer_size Number of bytes to reserve for input and output buffers.
   @param name        The name of the pipe.
   @param name_buf    Output argument: null-terminated concatenation of
                      "\\.\pipe\" and name.
   @param buflen      The size of name_buff.
+  @param full_access_group_name The name of the local Windows group whose
+                                members will have full access to the named
+                                pipe.
 
   @returns           Pipe handle, or INVALID_HANDLE_VALUE in case of error.
 
