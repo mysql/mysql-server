@@ -654,6 +654,9 @@ The following options may be given as the first argument:
  authenticated accounts to be mapped to proxy users when
  the server option check_proxy_users is enabled.
  --named-pipe        Enable the named pipe (NT)
+ --named-pipe-full-access-group=name 
+ Name of Windows group granted full access to the named
+ pipe
  --net-buffer-length=# 
  Buffer length for TCP/IP and socket communication
  --net-read-timeout=# 
@@ -1518,6 +1521,7 @@ myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
 mysql-native-password-proxy-users FALSE
 named-pipe FALSE
+named-pipe-full-access-group everyone
 net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10

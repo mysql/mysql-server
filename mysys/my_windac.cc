@@ -207,6 +207,21 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa) {
   if (sa) {
     My_security_attr *attr =
         (My_security_attr *)(((char *)sa) + ALIGN_SIZE(sizeof(*sa)));
+
+    PACL dacl_from_descriptor = nullptr;
+    BOOL dacl_present_in_descriptor = FALSE;
+    BOOL dacl_defaulted = FALSE;
+    // If the DACL in the descriptor is not the same as that in the
+    // My_security_attr, it will have been created by a call to SetEntriesInAcl
+    // and thus must be freed by a call to LocalFree.
+    if (GetSecurityDescriptorDacl(sa->lpSecurityDescriptor,
+                                  &dacl_present_in_descriptor,
+                                  &dacl_from_descriptor, &dacl_defaulted) &&
+        dacl_present_in_descriptor && !dacl_defaulted &&
+        attr->dacl != dacl_from_descriptor) {
+      LocalFree(dacl_from_descriptor);
+    }
+
     FreeSid(attr->everyone_sid);
     my_free(attr->dacl);
     my_free(sa);

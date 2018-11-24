@@ -96,14 +96,16 @@ bool vio_is_connected_pipe(Vio *vio) {
 }
 
 int vio_shutdown_pipe(Vio *vio) {
-  BOOL ret;
+  BOOL ret = FALSE;
   DBUG_ENTER("vio_shutdown_pipe");
 
-  CancelIo(vio->hPipe);
-  CloseHandle(vio->overlapped.hEvent);
-  FlushFileBuffers(vio->hPipe);
-  DisconnectNamedPipe(vio->hPipe);
-  ret = CloseHandle(vio->hPipe);
+  if (vio->inactive == false) {
+    CancelIo(vio->hPipe);
+    CloseHandle(vio->overlapped.hEvent);
+    FlushFileBuffers(vio->hPipe);
+    DisconnectNamedPipe(vio->hPipe);
+    ret = CloseHandle(vio->hPipe);
+  }
 
   vio->inactive = true;
   vio->hPipe = NULL;
