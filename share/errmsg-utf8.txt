@@ -18764,6 +18764,87 @@ ER_GRP_RPL_FORCE_MEMBERS_WHEN_LEAVING
 ER_TRG_WRONG_ORDER
   eng "Trigger %s.%s for table %s.%s is listed in wrong order. Please drop and recreate all triggers for the table."
 
+ER_SECONDARY_ENGINE_PLUGIN
+  eng "%s"
+
+ER_LDAP_AUTH_GRP_SEARCH_NOT_SPECIAL_HDL
+  eng "Special handling for group search, {GA} not found"
+
+ER_LDAP_AUTH_GRP_USER_OBJECT_HAS_GROUP_INFO
+  eng "User group retrieval: User object has group information"
+
+ER_LDAP_AUTH_GRP_INFO_FOUND_IN_MANY_OBJECTS
+  eng "Group information found in multiple user objects. Search filter configuration is incorrect."
+
+ER_LDAP_AUTH_GRP_INCORRECT_ATTRIBUTE
+  eng "User group retrieval: no group attribute found. Incorrect group search attribute. "
+
+ER_LDAP_AUTH_GRP_NULL_ATTRIBUTE_VALUE
+  eng "User group retrieval: Group attribute values is NULL. "
+
+ER_LDAP_AUTH_GRP_DN_PARSING_FAILED
+  eng "User group retrieval: parsing DN failed. "
+
+ER_LDAP_AUTH_GRP_OBJECT_HAS_USER_INFO
+  eng "User group retrieval: Group object has user information"
+
+ER_LDAP_AUTH_LDAPS
+  eng "Reserved port for ldaps using ldaps"
+
+ER_LDAP_MAPPING_GET_USER_PROXY
+  eng "Get user proxy"
+
+ER_LDAP_MAPPING_USER_DONT_BELONG_GROUP
+  eng "Get user proxy: User doesn't belongs to any group, user name will be treated as authenticated user."
+
+ER_LDAP_MAPPING_INFO
+  eng "Get user proxy: configured mapping info: %s"
+
+ER_LDAP_MAPPING_EMPTY_MAPPING
+  eng "Get user proxy: User doesn't have group mapping information, First LDAP group will be treated as authenticated user."
+
+ER_LDAP_MAPPING_PROCESS_MAPPING
+  eng "Process group proxy mapping"
+
+ER_LDAP_MAPPING_CHECK_DELIMI_QUOTE
+  eng "Check delimiter after quote"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER
+  eng "Processing delimiter"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_EQUAL_NOT_FOUND
+  eng "Processing delimiter, separator = not found, resetting position"
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_TRY_COMMA
+  eng ""Processing delimiter, failed to get data for = separator try for separator ,.""
+
+ER_LDAP_MAPPING_PROCESS_DELIMITER_COMMA_NOT_FOUND
+  eng "Processing delimiter, separator , not found, resetting position"
+
+ER_LDAP_MAPPING_NO_SEPEARATOR_END_OF_GROUP
+  eng "Processing delimiter: No mapping separator is found, end of group information"
+
+ER_LDAP_MAPPING_GETTING_NEXT_MAPPING
+  eng "Getting next mapping information"
+
+ER_LDAP_MAPPING_PARSING_CURRENT_STATE
+  eng "Parsing mapping, current state: %d  delimiter char: %c "
+
+ER_LDAP_MAPPING_PARSING_MAPPING_INFO
+  eng "Parsing mapping info, LDAP group: %s MySQL proxy: %s"
+
+ER_LDAP_MAPPING_PARSING_ERROR
+  eng "Mapping parsing error"
+
+ER_LDAP_MAPPING_TRIMMING_SPACES
+  eng "Trimming left spaces"
+
+ER_LDAP_MAPPING_IS_QUOTE
+  eng "Checking if current characters is quote"
+
+ER_LDAP_MAPPING_NON_DESIRED_STATE
+  eng "Not desired state or un-defined states."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
