@@ -2833,23 +2833,6 @@ static double *mysql_sys_var_double(THD *thd, int offset) {
   return (double *)intern_sys_var_ptr(thd, offset, true);
 }
 
-/*
-  Initialize variables within THD.
-
-  @param THD Session THD pointer.
-*/
-static void plugin_thd_init_variables(THD *thd) {
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
-
-  thd->variables = global_system_variables;
-  thd->variables.table_plugin = NULL;
-  thd->variables.temp_table_plugin = NULL;
-
-  thd->variables.dynamic_variables_version = 0;
-  thd->variables.dynamic_variables_size = 0;
-  thd->variables.dynamic_variables_ptr = 0;
-}
-
 void plugin_thdvar_init(THD *thd, bool enable_plugins) {
   plugin_ref old_table_plugin = thd->variables.table_plugin;
   plugin_ref old_temp_table_plugin = thd->variables.temp_table_plugin;
@@ -2859,28 +2842,26 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins) {
   thd->variables.temp_table_plugin = NULL;
   cleanup_variables(thd, &thd->variables);
 
-  if (!enable_plugins) {
-    mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  thd->variables = global_system_variables;
+  thd->variables.table_plugin = NULL;
+  thd->variables.temp_table_plugin = NULL;
 
-    plugin_thd_init_variables(thd);
+  thd->variables.dynamic_variables_version = 0;
+  thd->variables.dynamic_variables_size = 0;
+  thd->variables.dynamic_variables_ptr = 0;
 
-    mysql_mutex_unlock(&LOCK_global_system_variables);
-  } else {
+  if (enable_plugins) {
     mysql_mutex_lock(&LOCK_plugin);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-    plugin_thd_init_variables(thd);
-
     thd->variables.table_plugin =
         my_intern_plugin_lock(NULL, global_system_variables.table_plugin);
     intern_plugin_unlock(NULL, old_table_plugin);
     thd->variables.temp_table_plugin =
         my_intern_plugin_lock(NULL, global_system_variables.temp_table_plugin);
     intern_plugin_unlock(NULL, old_temp_table_plugin);
-
-    mysql_mutex_unlock(&LOCK_global_system_variables);
     mysql_mutex_unlock(&LOCK_plugin);
   }
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Initialize all Sys_var_charptr variables here. */
 
