@@ -67,6 +67,10 @@ count(*)
 Warnings:
 Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '2009-02-30' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '2009-04-31' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '2009-06-31' for column 'c2' at row 1
+Warning	1292	Incorrect date value: '2009-09-31' for column 'c2' at row 1
 Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
 UPDATE t1 SET c2='2009-11-31' WHERE c2='2001-01-16';
 ERROR 22007: Incorrect date value: '2009-11-31' for column 'c2' at row 1
