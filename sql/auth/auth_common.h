@@ -673,7 +673,8 @@ bool change_password(THD *thd, LEX_USER *user, char *password,
 bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
                        bool is_role);
 bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists);
-bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists);
+bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
+                     bool drop_role);
 bool mysql_rename_user(THD *thd, List<LEX_USER> &list);
 
 /* sql_auth_cache */

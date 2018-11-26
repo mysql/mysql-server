@@ -3660,7 +3660,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
           check_global_access(thd, CREATE_USER_ACL))
         break;
       /* Conditionally writes to binlog */
-      if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists)))
+      if (!(res = mysql_drop_user(thd, lex->users_list, lex->drop_if_exists,
+                                  false)))
         my_ok(thd);
 
       break;

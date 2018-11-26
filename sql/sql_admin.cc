@@ -1862,9 +1862,22 @@ bool Sql_cmd_create_role::execute(THD *thd) {
 
 bool Sql_cmd_drop_role::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_drop_role::execute");
+  /*
+    We want to do extra checks (if user login is disabled) when golding a
+    using DROP_ROLE privilege.
+    To do that we record if CREATE USER was granted.
+    Then if one of DROP ROLE or CREATE USER was granted (the original
+    requirement) and CREATE USER was not granted we know that it was DROP ROLE
+    that caused the check to pass.
+
+    Thus we raise the flag (drop_role) in this case.
+  */
+  bool on_create_user_priv =
+      thd->security_context()->check_access(CREATE_USER_ACL, true);
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
-  if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors))
+  if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors,
+                      !on_create_user_priv))
     DBUG_RETURN(true);
   my_ok(thd);
   DBUG_RETURN(false);
