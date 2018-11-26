@@ -444,7 +444,14 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_runas = proc.m_host->m_user;
   proc.m_proc.m_ulimit = "c:unlimited";
   proc.m_proc.m_env.assfmt("MYSQL_BASE_DIR=%s", g_prefix0);
-  proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
+
+  BaseString mysql_home(" MYSQL_HOME=");
+  mysql_home.append(g_basedir);
+  if (mysql_home.c_str()[mysql_home.length() - 1] != '/') {
+    mysql_home.append("/");
+  }
+  proc.m_proc.m_env.append(mysql_home);
+
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
 
