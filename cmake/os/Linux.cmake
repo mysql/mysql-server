@@ -27,6 +27,10 @@ INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
 
+IF(EXISTS "/etc/SuSE-release")
+  SET(LINUX_SUSE 1)
+ENDIF()
+
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
