@@ -75,10 +75,9 @@ a	b
 6	6
 7	7
 8	8
-SELECT PARTITION_NAME, TABLE_ROWS > 0
-FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't1';
-PARTITION_NAME	TABLE_ROWS > 0
+# Check that data in fully replicated table t1 is present in
+# all 4 partitions i.e p0-p3 should have a 1 in the 'has_rows' column.
+PARTITION_NAME	has_rows
 p0	1
 p1	1
 p2	1

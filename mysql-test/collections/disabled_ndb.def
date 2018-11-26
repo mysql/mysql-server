@@ -120,10 +120,6 @@ ndb.ndb_addnode_restart @darwin: Bug#27307793 IDENTIFIERS AND LOWER_CASE_TABLE_N
 
 ndb.ndb_addnode_restart2: Bug#27165918 NDB_ADDNODE_RESTART2 TEST FAIL
 
-# Problem with distribution of rows in fully replicated tables where the
-# distribution is not as expected. This occurs only on Windows platforms
-ndb.ndb_fully_replicated @windows: Bug#27924016 INCORRECT DISTRIBUTION OF ROWS IN FULLY REPLICATED TABLES ON WINDOWS
-
 # The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
 # which is maintained upstream and easily breaks due to the inherent
 # difference in binlog ouput depending on who's creating the binlog.
