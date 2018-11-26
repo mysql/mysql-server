@@ -65,7 +65,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_PRIMARY, in_primary_mode,
         has_enforces_update_everywhere_checks, member_weight,
-        lower_case_table_names);
+        lower_case_table_names, PSI_NOT_INSTRUMENTED);
     local_node->update_gtid_sets(executed_gtid, retrieved_gtid);
   }
 
@@ -82,7 +82,8 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
   vector<uchar> *encoded = new vector<uchar>();
   local_node->encode(encoded);
 
-  Group_member_info decoded_local_node(&encoded->front(), encoded->size());
+  Group_member_info decoded_local_node(&encoded->front(), encoded->size(),
+                                       PSI_NOT_INSTRUMENTED);
 
   ASSERT_EQ(local_node->get_port(), decoded_local_node.get_port());
   ASSERT_EQ(local_node->get_hostname(), decoded_local_node.get_hostname());
@@ -135,7 +136,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_SECONDARY, in_primary_mode,
         has_enforces_update_everywhere_checks, member_weight,
-        lower_case_table_names);
+        lower_case_table_names, PSI_NOT_INSTRUMENTED);
 
     cluster_member_mgr =
         new Group_member_info_manager(local_node, PSI_NOT_INSTRUMENTED);
@@ -177,7 +178,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
-      lower_case_table_names);
+      lower_case_table_names, PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -321,7 +322,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
-      lower_case_table_names);
+      lower_case_table_names, PSI_NOT_INSTRUMENTED);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);

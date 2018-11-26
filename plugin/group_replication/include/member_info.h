@@ -183,6 +183,7 @@ class Group_member_info : public Plugin_gcs_message {
     check
     @param[in] member_weight_arg                      member_weight
     @param[in] lower_case_table_names_arg             lower case table names
+    @param[in] psi_mutex_key_arg                      mutex key
    */
   Group_member_info(char *hostname_arg, uint port_arg, char *uuid_arg,
                     int write_set_extraction_algorithm,
@@ -193,7 +194,9 @@ class Group_member_info : public Plugin_gcs_message {
                     Group_member_info::Group_member_role role_arg,
                     bool in_single_primary_mode,
                     bool has_enforces_update_everywhere_checks,
-                    uint member_weight_arg, uint lower_case_table_names_arg);
+                    uint member_weight_arg, uint lower_case_table_names_arg,
+                    PSI_mutex_key psi_mutex_key_arg =
+                        key_GR_LOCK_group_member_info_update_lock);
 
   /**
     Copy constructor
@@ -207,8 +210,11 @@ class Group_member_info : public Plugin_gcs_message {
    *
    * @param[in] data raw data
    * @param[in] len raw data length
+   * @param[in] psi_mutex_key_arg                      mutex key
    */
-  Group_member_info(const uchar *data, size_t len);
+  Group_member_info(const uchar *data, size_t len,
+                    PSI_mutex_key psi_mutex_key_arg =
+                        key_GR_LOCK_group_member_info_update_lock);
 
   /**
     Destructor
@@ -216,9 +222,42 @@ class Group_member_info : public Plugin_gcs_message {
   virtual ~Group_member_info();
 
   /**
+    Update Group_member_info.
+
+    @param[in] hostname_arg                           member hostname
+    @param[in] port_arg                               member port
+    @param[in] uuid_arg                               member uuid
+    @param[in] write_set_extraction_algorithm         write set extraction
+    algorithm
+    @param[in] gcs_member_id_arg                      member GCS member
+    identifier
+    @param[in] status_arg                             member Recovery status
+    @param[in] member_version_arg                     member version
+    @param[in] gtid_assignment_block_size_arg         member gtid assignment
+    block size
+    @param[in] role_arg                               member role within the
+    group
+    @param[in] in_single_primary_mode                 is member in single mode
+    @param[in] has_enforces_update_everywhere_checks  has member enforce update
+    check
+    @param[in] member_weight_arg                      member_weight
+    @param[in] lower_case_table_names_arg             lower case table names
+   */
+  void update(char *hostname_arg, uint port_arg, char *uuid_arg,
+              int write_set_extraction_algorithm,
+              const std::string &gcs_member_id_arg,
+              Group_member_info::Group_member_status status_arg,
+              Member_version &member_version_arg,
+              ulonglong gtid_assignment_block_size_arg,
+              Group_member_info::Group_member_role role_arg,
+              bool in_single_primary_mode,
+              bool has_enforces_update_everywhere_checks,
+              uint member_weight_arg, uint lower_case_table_names_arg);
+
+  /**
     @return the member hostname
    */
-  const std::string &get_hostname();
+  std::string get_hostname();
 
   /**
     @return the member port
@@ -228,12 +267,12 @@ class Group_member_info : public Plugin_gcs_message {
   /**
     @return the member uuid
    */
-  const std::string &get_uuid();
+  std::string get_uuid();
 
   /**
     @return the member identifier in the GCS layer
    */
-  const Gcs_member_identifier &get_gcs_member_id();
+  Gcs_member_identifier get_gcs_member_id();
 
   /**
     @return the member recovery status
@@ -253,17 +292,17 @@ class Group_member_info : public Plugin_gcs_message {
   /**
     @return the member plugin version
    */
-  const Member_version &get_member_version();
+  Member_version get_member_version();
 
   /**
     @return the member GTID_EXECUTED set
    */
-  const std::string &get_gtid_executed();
+  std::string get_gtid_executed();
 
   /**
     @return the member GTID_RETRIEVED set for the applier channel
   */
-  const std::string &get_gtid_retrieved();
+  std::string get_gtid_retrieved();
 
   /**
     @return the member algorithm for extracting write sets
@@ -297,7 +336,7 @@ class Group_member_info : public Plugin_gcs_message {
   /**
     @return the global-variable lower case table names value
   */
-  uint get_lower_case_table_names() const;
+  uint get_lower_case_table_names();
 
   /**
     @return the member state of system variable
@@ -460,6 +499,21 @@ class Group_member_info : public Plugin_gcs_message {
   void decode_payload(const unsigned char *buffer, const unsigned char *);
 
  private:
+  /**
+    Internal method without concurrency control.
+
+    @return the member state of system variable
+            group_replication_single_primary_mode
+  */
+  bool in_primary_mode_internal();
+
+  /**
+    Return true if server uuid is lower than other member server uuid
+    Internal method without concurrency control.
+   */
+  bool has_lower_uuid_internal(Group_member_info *other);
+
+  mysql_mutex_t update_lock;
   std::string hostname;
   uint port;
   std::string uuid;
@@ -478,6 +532,8 @@ class Group_member_info : public Plugin_gcs_message {
   uint lower_case_table_names;
   bool group_action_running;
   bool primary_election_running;
+  // Allow use copy constructor on unit tests.
+  PSI_mutex_key psi_mutex_key;
 };
 
 /*

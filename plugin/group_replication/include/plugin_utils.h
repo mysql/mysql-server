@@ -528,24 +528,6 @@ class Wait_ticket {
   bool waiting;
 };
 
-class Mutex_autolock {
- public:
-  Mutex_autolock(mysql_mutex_t *arg) : ptr_mutex(arg) {
-    DBUG_ENTER("Mutex_autolock::Mutex_autolock");
-
-    DBUG_ASSERT(arg != NULL);
-
-    mysql_mutex_lock(ptr_mutex);
-    DBUG_VOID_RETURN;
-  }
-  ~Mutex_autolock() { mysql_mutex_unlock(ptr_mutex); }
-
- private:
-  mysql_mutex_t *ptr_mutex;
-  Mutex_autolock(Mutex_autolock const &);  // no copies permitted
-  void operator=(Mutex_autolock const &);
-};
-
 class Shared_writelock {
  public:
   Shared_writelock(Checkable_rwlock *arg)

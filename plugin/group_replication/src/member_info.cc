@@ -24,8 +24,10 @@
 
 #include <stddef.h>
 
+#include "mutex_lock.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
+
 #include "plugin/group_replication/include/plugin_constants.h"
 
 using std::map;
@@ -41,7 +43,7 @@ Group_member_info::Group_member_info(
     ulonglong gtid_assignment_block_size_arg,
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
-    uint lower_case_table_names_arg)
+    uint lower_case_table_names_arg, PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -56,7 +58,9 @@ Group_member_info::Group_member_info(
       member_weight(member_weight_arg),
       lower_case_table_names(lower_case_table_names_arg),
       group_action_running(false),
-      primary_election_running(false) {
+      primary_election_running(false),
+      psi_mutex_key(psi_mutex_key_arg) {
+  mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   gcs_member_id = new Gcs_member_identifier(gcs_member_id_arg);
   member_version = new Member_version(member_version_arg.get_version());
 
@@ -86,28 +90,81 @@ Group_member_info::Group_member_info(Group_member_info &other)
       member_weight(other.get_member_weight()),
       lower_case_table_names(other.get_lower_case_table_names()),
       group_action_running(other.is_group_action_running()),
-      primary_election_running(other.is_primary_election_running()) {
+      primary_election_running(other.is_primary_election_running()),
+      psi_mutex_key(other.psi_mutex_key) {
+  mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   gcs_member_id =
       new Gcs_member_identifier(other.get_gcs_member_id().get_member_id());
   member_version = new Member_version(other.get_member_version().get_version());
 }
 
-Group_member_info::Group_member_info(const uchar *data, size_t len)
+Group_member_info::Group_member_info(const uchar *data, size_t len,
+                                     PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       gcs_member_id(NULL),
       member_version(NULL),
       unreachable(false),
       lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES),
       group_action_running(false),
-      primary_election_running(false) {
+      primary_election_running(false),
+      psi_mutex_key(psi_mutex_key_arg) {
+  mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   decode(data, len);
 }
 
 Group_member_info::~Group_member_info() {
+  mysql_mutex_destroy(&update_lock);
   delete gcs_member_id;
   delete member_version;
 }
 
+void Group_member_info::update(
+    char *hostname_arg, uint port_arg, char *uuid_arg,
+    int write_set_extraction_algorithm_arg,
+    const std::string &gcs_member_id_arg,
+    Group_member_info::Group_member_status status_arg,
+    Member_version &member_version_arg,
+    ulonglong gtid_assignment_block_size_arg,
+    Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
+    bool has_enforces_update_everywhere_checks, uint member_weight_arg,
+    uint lower_case_table_names_arg) {
+  MUTEX_LOCK(lock, &update_lock);
+
+  hostname.assign(hostname_arg);
+  port = port_arg;
+  uuid.assign(uuid_arg);
+  status = status_arg;
+  write_set_extraction_algorithm = write_set_extraction_algorithm_arg;
+  gtid_assignment_block_size = gtid_assignment_block_size_arg;
+  unreachable = false;
+  role = role_arg;
+  conflict_detection_enable = !in_single_primary_mode;
+  member_weight = member_weight_arg;
+  lower_case_table_names = lower_case_table_names_arg;
+  group_action_running = false;
+  primary_election_running = false;
+
+  executed_gtid_set.clear();
+  retrieved_gtid_set.clear();
+
+  delete gcs_member_id;
+  gcs_member_id = new Gcs_member_identifier(gcs_member_id_arg);
+  delete member_version;
+  member_version = new Member_version(member_version_arg.get_version());
+
+  configuration_flags = 0;
+  /* Handle single_primary_mode */
+  if (in_single_primary_mode) configuration_flags |= CNF_SINGLE_PRIMARY_MODE_F;
+  /* Handle enforce_update_everywhere_checks */
+  if (has_enforces_update_everywhere_checks)
+    configuration_flags |= CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
+}
+
+/*
+  This method does not need to acquire update_lock because it is
+  always invoked on a copy of a Group_member_info, that is, it is
+  never invoked on local_member_info variable.
+*/
 void Group_member_info::encode_payload(
     std::vector<unsigned char> *buffer) const {
   DBUG_ENTER("Group_member_info::encode_payload");
@@ -192,6 +249,7 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
+  MUTEX_LOCK(lock, &update_lock);
 
   decode_payload_item_string(&slider, &payload_item_type, &hostname,
                              &payload_item_length);
@@ -300,29 +358,42 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
   DBUG_VOID_RETURN;
 }
 
-const string &Group_member_info::get_hostname() { return hostname; }
+string Group_member_info::get_hostname() {
+  MUTEX_LOCK(lock, &update_lock);
+  return hostname;
+}
 
-uint Group_member_info::get_port() { return port; }
+uint Group_member_info::get_port() {
+  MUTEX_LOCK(lock, &update_lock);
+  return port;
+}
 
-const string &Group_member_info::get_uuid() { return uuid; }
+string Group_member_info::get_uuid() {
+  MUTEX_LOCK(lock, &update_lock);
+  return uuid;
+}
 
 Group_member_info::Group_member_status
 Group_member_info::get_recovery_status() {
+  MUTEX_LOCK(lock, &update_lock);
   return status;
 }
 
 Group_member_info::Group_member_role Group_member_info::get_role() {
+  MUTEX_LOCK(lock, &update_lock);
   return role;
 }
 
 const char *Group_member_info::get_member_role_string() {
+  MUTEX_LOCK(lock, &update_lock);
   /*
    Member role is only displayed when the member belongs to the group
    and it is reachable.
   */
   if (status != MEMBER_ONLINE && status != MEMBER_IN_RECOVERY) return "";
 
-  if (!in_primary_mode() || role == Group_member_info::MEMBER_ROLE_PRIMARY)
+  if (!in_primary_mode_internal() ||
+      role == Group_member_info::MEMBER_ROLE_PRIMARY)
     return "PRIMARY";
   else if (role == Group_member_info::MEMBER_ROLE_SECONDARY)
     return "SECONDARY";
@@ -330,49 +401,60 @@ const char *Group_member_info::get_member_role_string() {
     return "";
 }
 
-const Gcs_member_identifier &Group_member_info::get_gcs_member_id() {
+Gcs_member_identifier Group_member_info::get_gcs_member_id() {
+  MUTEX_LOCK(lock, &update_lock);
   return *gcs_member_id;
 }
 
 void Group_member_info::update_recovery_status(Group_member_status new_status) {
+  MUTEX_LOCK(lock, &update_lock);
   status = new_status;
 }
 
 void Group_member_info::update_gtid_sets(std::string &executed_gtids,
                                          std::string &retrieved_gtids) {
+  MUTEX_LOCK(lock, &update_lock);
   executed_gtid_set.assign(executed_gtids);
   retrieved_gtid_set.assign(retrieved_gtids);
 }
 
 void Group_member_info::set_role(Group_member_role new_role) {
+  MUTEX_LOCK(lock, &update_lock);
   role = new_role;
 }
 
-const Member_version &Group_member_info::get_member_version() {
+Member_version Group_member_info::get_member_version() {
+  MUTEX_LOCK(lock, &update_lock);
   return *member_version;
 }
 
-const std::string &Group_member_info::get_gtid_executed() {
+std::string Group_member_info::get_gtid_executed() {
+  MUTEX_LOCK(lock, &update_lock);
   return executed_gtid_set;
 }
 
-const std::string &Group_member_info::get_gtid_retrieved() {
+std::string Group_member_info::get_gtid_retrieved() {
+  MUTEX_LOCK(lock, &update_lock);
   return retrieved_gtid_set;
 }
 
 uint Group_member_info::get_write_set_extraction_algorithm() {
+  MUTEX_LOCK(lock, &update_lock);
   return write_set_extraction_algorithm;
 }
 
 ulonglong Group_member_info::get_gtid_assignment_block_size() {
+  MUTEX_LOCK(lock, &update_lock);
   return gtid_assignment_block_size;
 }
 
 uint32 Group_member_info::get_configuration_flags() {
+  MUTEX_LOCK(lock, &update_lock);
   return configuration_flags;
 }
 
 void Group_member_info::set_primary_mode_flag(bool set_primary_mode) {
+  MUTEX_LOCK(lock, &update_lock);
   if (set_primary_mode && !(configuration_flags & CNF_SINGLE_PRIMARY_MODE_F)) {
     configuration_flags |= CNF_SINGLE_PRIMARY_MODE_F;
   } else if (!set_primary_mode &&
@@ -383,6 +465,7 @@ void Group_member_info::set_primary_mode_flag(bool set_primary_mode) {
 
 void Group_member_info::set_enforces_update_everywhere_checks_flag(
     bool enforce_everywhere_checks) {
+  MUTEX_LOCK(lock, &update_lock);
   if (enforce_everywhere_checks &&
       !(configuration_flags & CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F)) {
     configuration_flags |= CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
@@ -392,60 +475,88 @@ void Group_member_info::set_enforces_update_everywhere_checks_flag(
   }
 }
 
+bool Group_member_info::in_primary_mode_internal() {
+  return configuration_flags & CNF_SINGLE_PRIMARY_MODE_F;
+}
+
 bool Group_member_info::in_primary_mode() {
-  return get_configuration_flags() & CNF_SINGLE_PRIMARY_MODE_F;
+  MUTEX_LOCK(lock, &update_lock);
+  return in_primary_mode_internal();
 }
 
 bool Group_member_info::has_enforces_update_everywhere_checks() {
-  return get_configuration_flags() & CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
+  MUTEX_LOCK(lock, &update_lock);
+  return configuration_flags & CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
 }
 
-uint Group_member_info::get_lower_case_table_names() const {
+uint Group_member_info::get_lower_case_table_names() {
+  MUTEX_LOCK(lock, &update_lock);
   return lower_case_table_names;
 }
 
-bool Group_member_info::is_unreachable() { return unreachable; }
+bool Group_member_info::is_unreachable() {
+  MUTEX_LOCK(lock, &update_lock);
+  return unreachable;
+}
 
-void Group_member_info::set_unreachable() { unreachable = true; }
+void Group_member_info::set_unreachable() {
+  MUTEX_LOCK(lock, &update_lock);
+  unreachable = true;
+}
 
-void Group_member_info::set_reachable() { unreachable = false; }
+void Group_member_info::set_reachable() {
+  MUTEX_LOCK(lock, &update_lock);
+  unreachable = false;
+}
 
 void Group_member_info::enable_conflict_detection() {
+  MUTEX_LOCK(lock, &update_lock);
   conflict_detection_enable = true;
 }
 
 void Group_member_info::disable_conflict_detection() {
+  MUTEX_LOCK(lock, &update_lock);
   conflict_detection_enable = false;
 }
 
 bool Group_member_info::is_conflict_detection_enabled() {
+  MUTEX_LOCK(lock, &update_lock);
   return conflict_detection_enable;
 }
 
 void Group_member_info::set_member_weight(uint new_member_weight) {
+  MUTEX_LOCK(lock, &update_lock);
   member_weight = new_member_weight;
 }
 
-uint Group_member_info::get_member_weight() { return member_weight; }
+uint Group_member_info::get_member_weight() {
+  MUTEX_LOCK(lock, &update_lock);
+  return member_weight;
+}
 
 bool Group_member_info::is_group_action_running() {
+  MUTEX_LOCK(lock, &update_lock);
   return group_action_running;
 }
 
 void Group_member_info::set_is_group_action_running(bool is_running) {
+  MUTEX_LOCK(lock, &update_lock);
   group_action_running = is_running;
 }
 
 bool Group_member_info::is_primary_election_running() {
+  MUTEX_LOCK(lock, &update_lock);
   return primary_election_running;
 }
 
 void Group_member_info::set_is_primary_election_running(bool is_running) {
+  MUTEX_LOCK(lock, &update_lock);
   primary_election_running = is_running;
 }
 
 bool Group_member_info::operator==(Group_member_info &other) {
-  return this->get_uuid().compare(other.get_uuid()) == 0;
+  MUTEX_LOCK(lock, &update_lock);
+  return uuid.compare(other.get_uuid()) == 0;
 }
 
 const char *Group_member_info::get_member_status_string(
@@ -517,20 +628,27 @@ bool Group_member_info::comparator_group_member_weight(Group_member_info *m1,
 }
 
 bool Group_member_info::has_greater_version(Group_member_info *other) {
+  MUTEX_LOCK(lock, &update_lock);
   if (*member_version > *(other->member_version)) return true;
 
   return false;
 }
 
+bool Group_member_info::has_lower_uuid_internal(Group_member_info *other) {
+  return uuid.compare(other->get_uuid()) < 0;
+}
+
 bool Group_member_info::has_lower_uuid(Group_member_info *other) {
-  return this->get_uuid().compare(other->get_uuid()) < 0;
+  MUTEX_LOCK(lock, &update_lock);
+  return has_lower_uuid_internal(other);
 }
 
 bool Group_member_info::has_greater_weight(Group_member_info *other) {
-  if (this->get_member_weight() > other->get_member_weight()) return true;
+  MUTEX_LOCK(lock, &update_lock);
+  if (member_weight > other->get_member_weight()) return true;
 
-  if (this->get_member_weight() == other->get_member_weight())
-    return has_lower_uuid(other);
+  if (member_weight == other->get_member_weight())
+    return has_lower_uuid_internal(other);
 
   return false;
 }
@@ -1094,7 +1212,14 @@ void Group_member_info_manager_message::decode_payload(
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
     Group_member_info *member =
-        new Group_member_info(slider, payload_item_length);
+        new Group_member_info(slider,
+                              payload_item_length
+#ifdef DISABLE_PSI_MUTEX
+                              // Allow use this method on unit tests.
+                              ,
+                              PSI_NOT_INSTRUMENTED
+#endif
+        );
     members->push_back(member);
     slider += payload_item_length;
   }
