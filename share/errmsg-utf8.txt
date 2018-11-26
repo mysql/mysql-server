@@ -4975,7 +4975,7 @@ ER_SLAVE_IGNORED_SSL_PARAMS
         jpn "このMySQLスレーブはSSLサポートを含めてコンパイルされていないので、CHANGE MASTER のSSLパラメータは無視されました。今後SSLサポートを持つMySQLスレーブを起動する際に利用されます。"
         por "SSL parâmetros em CHANGE MASTER são ignorados porque este escravo MySQL foi compilado sem o SSL suporte. Os mesmos podem ser usados mais tarde quando o escravo MySQL com SSL seja iniciado."
         spa "Parametros SSL en CHANGE MASTER son ignorados porque este slave MySQL fue compilado sin soporte SSL; pueden ser usados despues cuando el slave MySQL con SSL sea inicializado"
-ER_SERVER_IS_IN_SECURE_AUTH_MODE  
+OBSOLETE_ER_SERVER_IS_IN_SECURE_AUTH_MODE
         eng "Server is running in --secure-auth mode, but '%s'@'%s' has a password in the old format; please change the password to the new format"
         ger "Server läuft im Modus --secure-auth, aber '%s'@'%s' hat ein Passwort im alten Format. Bitte Passwort ins neue Format ändern"
         jpn "サーバーは --secure-auth モードで稼働しています。しかし '%s'@'%s' は古い形式のパスワードを使用しています。新しい形式のパスワードに変更してください。"
@@ -6884,7 +6884,7 @@ ER_FK_DUP_NAME
 	eng "Duplicate foreign key constraint name '%s'"
 
 ER_PASSWORD_FORMAT
-  eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
+  eng "The password hash doesn't have the expected format."
 
 ER_FK_COLUMN_CANNOT_DROP
         eng "Cannot drop column '%-.192s': needed in a foreign key constraint '%-.192s'"
@@ -9008,7 +9008,7 @@ ER_INNODB_MANDATORY
 OBSOLETE_ER_INNODB_CANNOT_BE_IGNORED
   eng "ignore-builtin-innodb is ignored and will be removed in future releases."
 
-ER_OLD_PASSWORDS_NO_MIDDLE_GROUND
+OBSOLETE_ER_OLD_PASSWORDS_NO_MIDDLE_GROUND
   eng "Invalid old_passwords mode: 1. Valid values are 2 and 0"
 
 ER_VERBOSE_REQUIRES_HELP

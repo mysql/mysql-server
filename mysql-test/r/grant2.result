@@ -135,7 +135,7 @@ create user 'mysqltest_1';
 ERROR HY000: Operation CREATE USER failed for 'mysqltest_1'@'%'
 create user 'mysqltest_2' identified by 'Mysqltest-2';
 create user 'mysqltest_3' identified with 'caching_sha2_password' as 'fffffffffffffffffffffffffffffffffffffffff';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+ERROR HY000: The password hash doesn't have the expected format.
 grant select on *.* to 'mysqltest_2';
 grant insert on test.* to 'mysqltest_2';
 grant update on test.t1 to 'mysqltest_2';
