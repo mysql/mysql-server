@@ -179,3 +179,4 @@ drop table test.t1;
 
 --echo compare current DBTUP resource usage w/usage before test to check for leaks
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all dump 4001" >> $NDB_TOOLS_OUTPUT
+--remove_file $NDB_TOOLS_OUTPUT
