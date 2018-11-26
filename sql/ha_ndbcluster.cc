@@ -16185,7 +16185,7 @@ ha_ndbcluster::number_of_pushed_joins() const
 }
 
 const TABLE*
-ha_ndbcluster::root_of_pushed_join() const //member_of_...
+ha_ndbcluster::member_of_pushed_join() const
 {
   if (m_pushed_join_member == NULL)
     return NULL;

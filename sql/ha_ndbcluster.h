@@ -399,7 +399,7 @@ private:
 public:
   int assign_pushed_join(const ndb_pushed_join* pushed_join);
   uint number_of_pushed_joins() const override;
-  const TABLE* root_of_pushed_join() const override;
+  const TABLE* member_of_pushed_join() const override;
   const TABLE* parent_of_pushed_join() const override;
 
   int index_read_pushed(uchar *buf, const uchar *key,

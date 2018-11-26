@@ -5131,7 +5131,7 @@ class handler {
     If this handler instance is part of a pushed join sequence
     returned TABLE instance being root of the pushed query?
   */
-  virtual const TABLE *root_of_pushed_join() const { return NULL; }
+  virtual const TABLE *member_of_pushed_join() const { return NULL; }
 
   /**
     If this handler instance is a child in a pushed join sequence

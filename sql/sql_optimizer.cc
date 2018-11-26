@@ -715,57 +715,7 @@ int JOIN::optimize() {
 
   // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
   // pushed joins(see below) are still allowed to change the QEP_TABs
-
-  /*
-    Push joins to handlerton(s)
-
-    The handlerton(s) will inspect the QEP through the
-    AQP (Abstract Query Plan) and extract from it whatever
-    it might implement of pushed execution.
-
-    It is the responsibility of the handler:
-     - to store any information it need for later
-       execution of pushed queries.
-     - to call appropriate AQP functions which modifies the
-       QEP to use the special 'linked' read functions
-       for those parts of the join which have been pushed.
-
-    Currently pushed joins are only implemented by NDB.
-
-    It only make sense to try pushing if > 1 non-const tables.
-  */
-  if (!plan_is_single_table() && !plan_is_const()) {
-    const AQP::Join_plan plan(this);
-    if (ha_make_pushed_joins(thd, &plan)) DBUG_RETURN(1);
-  }
-
-  /*
-    If enabled by optimizer settings, and implemented by handler,
-    (parts of) the table condition may be pushed down to the
-    SE-engine for evaluation.
-  */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    for (uint i = const_tables; i < tables; i++) {
-      if (!qep_tab[i].is_inner_table_of_outer_join()) {
-        const join_type jt = qep_tab[i].type();
-        if ((jt == JT_EQ_REF || jt == JT_CONST || jt == JT_SYSTEM) &&
-            !qep_tab[i].table()->file->root_of_pushed_join()) {
-          /*
-            It is of limited value to push a condition to a single row
-            access method, so we skip cond_push() for these.
-            The exception is if we are member of a pushed join, where
-            execution of entire join branches may be eliminated.
-          */
-          continue;
-        }
-        const Item *cond = qep_tab[i].condition();
-        if (cond != nullptr) {
-          const Item *remainder = qep_tab[i].table()->file->cond_push(cond);
-          qep_tab[i].set_condition(const_cast<Item *>(remainder));
-	}
-      }
-    }
-  }
+  if (push_to_engines()) DBUG_RETURN(1);
 
   /*
     If we decided to not sort after all, update the cost of the JOIN.
@@ -814,6 +764,67 @@ setup_subq_exit:
   }
 
   set_plan_state(ZERO_RESULT);
+  DBUG_RETURN(0);
+}
+
+/**
+  Push (parts of) the query execution down to the storage engines if they
+  can provide faster execution of the query, or part of it.
+
+  @return 1 in case of error, 0 otherwise.
+*/
+int JOIN::push_to_engines() {
+  DBUG_ENTER("JOIN::push_to_engines");
+  /*
+    Push joins to handlerton(s)
+
+    The handlerton(s) will inspect the QEP through the
+    AQP (Abstract Query Plan) and extract from it whatever
+    it might implement of pushed execution.
+
+    It is the responsibility of the handler:
+     - to store any information it need for later
+       execution of pushed queries.
+     - to call appropriate AQP functions which modifies the
+       QEP to use the special 'linked' read functions
+       for those parts of the join which have been pushed.
+
+    Currently pushed joins are only implemented by NDB.
+
+    It only make sense to try pushing if > 1 non-const tables.
+  */
+  if (!plan_is_single_table() && !plan_is_const()) {
+    const AQP::Join_plan plan(this);
+    if (ha_make_pushed_joins(thd, &plan)) DBUG_RETURN(1);
+  }
+
+  /*
+    If enabled by optimizer settings, and implemented by handler,
+    (parts of) the table condition may be pushed down to the
+    SE-engine for evaluation.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    for (uint i = const_tables; i < tables; i++) {
+      if (!qep_tab[i].is_inner_table_of_outer_join()) {
+        const join_type jt = qep_tab[i].type();
+        if ((jt == JT_EQ_REF || jt == JT_CONST || jt == JT_SYSTEM) &&
+            !qep_tab[i].table()->file->member_of_pushed_join()) {
+          /*
+            It is of limited value to push a condition to a single row
+            access method, so we skip cond_push() for these.
+            The exception is if we are member of a pushed join, where
+            execution of entire join branches may be eliminated.
+          */
+          continue;
+        }
+        const Item *cond = qep_tab[i].condition();
+        if (cond != nullptr) {
+          const Item *remainder = qep_tab[i].table()->file->cond_push(cond);
+          qep_tab[i].set_condition(const_cast<Item *>(remainder));
+        }
+      }
+    }
+  }
   DBUG_RETURN(0);
 }
 
@@ -2317,7 +2328,7 @@ fix_ICP:
 
   if (changed_key >= 0) {
     // switching to another index
-    // Should be no pushed conditions at this point
+    // Should be no pushed index conditions at this point
     DBUG_ASSERT(!table->file->pushed_idx_cond);
     if (unlikely(trace->is_started())) {
       trace_change_index.add_utf8("index", table->key_info[changed_key].name);

@@ -890,6 +890,14 @@ class JOIN {
     }
   }
 
+  /**
+    Handle offloading of query parts to the underlying engines, when
+    such is supported by their implementation.
+
+    @returns 0 if success, 1 if error
+  */
+  int push_to_engines();
+
  private:
   bool optimized;  ///< flag to avoid double optimization in EXPLAIN
   bool executed;   ///< Set by exec(), reset by reset()

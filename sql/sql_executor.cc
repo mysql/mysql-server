@@ -3096,7 +3096,7 @@ void QEP_TAB::set_pushed_table_access_method(void) {
   /**
     Setup modified access function for children of pushed joins.
   */
-  const TABLE *pushed_root = table()->file->root_of_pushed_join();
+  const TABLE *pushed_root = table()->file->member_of_pushed_join();
   if (pushed_root && pushed_root != table()) {
     /**
       Is child of a pushed join operation:

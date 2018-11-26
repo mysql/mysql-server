@@ -900,7 +900,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
       return true; /* purecov: inspected */
   }
 
-  const TABLE *pushed_root = table->file->root_of_pushed_join();
+  const TABLE *pushed_root = table->file->member_of_pushed_join();
   if (pushed_root && select_lex->join &&
       select_lex->join->get_plan_state() == JOIN::PLAN_READY) {
     char buf[128];
@@ -909,7 +909,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     for (QEP_TAB *prev = select_lex->join->qep_tab; prev <= tab; prev++) {
       if (prev->table() == NULL) continue;
 
-      const TABLE *prev_root = prev->table()->file->root_of_pushed_join();
+      const TABLE *prev_root = prev->table()->file->member_of_pushed_join();
       if (prev_root == prev->table()) {
         pushed_id++;
         if (prev_root == pushed_root) break;
