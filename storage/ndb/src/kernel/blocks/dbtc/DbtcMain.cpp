@@ -16980,6 +16980,30 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 5, JBB);
     return;
   }
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (arg == DumpStateOrd::TcSetTransientPoolMaxSize)
+  {
+    jam();
+    if (signal->getLength() < 3)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    const Uint32 new_size = signal->theData[2];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->setMaxSize(new_size);
+  }
+  if (arg == DumpStateOrd::TcResetTransientPoolMaxSize)
+  {
+    jam();
+    if(signal->getLength() < 2)
+      return;
+    const Uint32 pool_index = signal->theData[1];
+    if (pool_index >= c_transient_pool_count)
+      return;
+    c_transient_pools[pool_index]->resetMaxSize();
+  }
+#endif
 }//Dbtc::execDUMP_STATE_ORD()
 
 void Dbtc::execDBINFO_SCANREQ(Signal *signal)

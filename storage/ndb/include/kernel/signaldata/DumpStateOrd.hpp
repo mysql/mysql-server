@@ -152,6 +152,8 @@ public:
     TcDumpOneTcConnectRec = 2516,
     TcDumpSetOfTcConnectRec = 2517,
     TcDumpPoolLevels = 2555,
+    TcSetTransientPoolMaxSize = 2556,
+    TcResetTransientPoolMaxSize = 2557,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,
