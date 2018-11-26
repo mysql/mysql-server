@@ -54,6 +54,10 @@ class ComposedSlotPool
             Uint32* min_recs,
             Uint32 max_recs,
             const Pool_context& pool_ctx);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  void resetMaxSize();
+  void setMaxSize(Uint32 max_recs);
+#endif
   bool startup(Uint32 slot_size);
   bool getValidPtr(Ptr<Slot>& p, Uint32 magic, Uint32 slot_size) const;
   bool getValidPtr_pool2(Ptr<Slot>& p, Uint32 magic, Uint32 slot_size) const;
@@ -70,7 +74,7 @@ class ComposedSlotPool
   Uint32 fromPool2(Uint32 i) const;
 
   Pool1 m_pool1;
-#ifndef COMPOSED_SLOT_POOL_NO_MAX_COUNT
+#if !defined(COMPOSED_SLOT_POOL_NO_MAX_COUNT) || defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 m_max_count;
 #endif
   Uint32 m_use_count;
@@ -79,19 +83,28 @@ class ComposedSlotPool
   Pool2 m_pool2;
   Uint32 m_slot_size;
   Uint32 m_pool1_startup_count;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  Uint32 m_orig_max_count;
+#endif
 };
 
 template <typename Pool1, typename Pool2>
 inline ComposedSlotPool<Pool1, Pool2>::ComposedSlotPool()
     :
-#ifndef COMPOSED_SLOT_POOL_NO_MAX_COUNT
+#if !defined(COMPOSED_SLOT_POOL_NO_MAX_COUNT)
       m_max_count(0),
+#elif defined(VM_TRACE) || defined(ERROR_INSERT)
+      m_max_count(RNIL),
 #endif
       m_use_count(0),
       m_used_high(0),
       m_shrink_level(0),
       m_slot_size(0),
       m_pool1_startup_count(0)
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+      ,
+      m_orig_max_count(m_max_count)
+#endif
 {
 }
 
@@ -167,14 +180,19 @@ template <typename Pool1, typename Pool2>
 inline bool ComposedSlotPool<Pool1, Pool2>::seize(Ptr<Slot>& p,
                                                   Uint32 slot_size)
 {
-#ifndef COMPOSED_SLOT_POOL_NO_MAX_COUNT
+#if !defined(COMPOSED_SLOT_POOL_NO_MAX_COUNT) || defined(VM_TRACE) || defined(ERROR_INSERT)
   const Uint32 max_count = m_max_count;
 #endif
   const Uint32 use_count = m_use_count;
   const Uint32 new_use_count = use_count + 1;
   const Uint32 used_high = m_used_high;
-#ifndef COMPOSED_SLOT_POOL_NO_MAX_COUNT
+#if !defined(COMPOSED_SLOT_POOL_NO_MAX_COUNT)
   if (unlikely(use_count == max_count))
+  {
+    return false;
+  }
+#elif defined(VM_TRACE) || defined(ERROR_INSERT)
+  if (unlikely(use_count >= max_count))
   {
     return false;
   }
@@ -228,11 +246,16 @@ template <typename Pool1, typename Pool2>
 inline void ComposedSlotPool<Pool1, Pool2>::init(Uint32 type_id,
                                                  unsigned int slot_size,
                                                  Uint32* min_recs,
-                                                 Uint32 /* max_recs */,
+                                                 Uint32 max_recs,
                                                  const Pool_context& pool_ctx)
 {
-#ifndef COMPOSED_SLOT_POOL_NO_MAX_COUNT
+#if !defined(COMPOSED_SLOT_POOL_NO_MAX_COUNT)
   m_max_count = max_recs;
+#else
+  (void) max_recs;
+#endif
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  m_orig_max_count = m_max_count;
 #endif
   const Uint32 req_recs = *min_recs;
   Uint32 pool1_recs = req_recs;
@@ -250,6 +273,20 @@ inline bool ComposedSlotPool<Pool1, Pool2>::startup(Uint32 slot_size)
 {
   return m_pool1.startup(&m_pool1_startup_count, slot_size);
 }
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+template <typename Pool1, typename Pool2>
+inline void ComposedSlotPool<Pool1, Pool2>::resetMaxSize()
+{
+  m_max_count = m_orig_max_count;
+}
+
+template <typename Pool1, typename Pool2>
+inline void ComposedSlotPool<Pool1, Pool2>::setMaxSize(Uint32 max_recs)
+{
+  m_max_count = max_recs;
+}
+#endif
 
 template <typename Pool1, typename Pool2>
 inline bool ComposedSlotPool<Pool1, Pool2>::getValidPtr(

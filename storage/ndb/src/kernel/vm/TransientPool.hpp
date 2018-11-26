@@ -36,6 +36,10 @@ class TransientPool
 public:
   typedef T Type;
   void init(Uint32 type_id, const Pool_context &pool_ctx, Uint32 min_recs, Uint32 max_recs);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  void resetMaxSize();
+  void setMaxSize(Uint32 max_recs);
+#endif
   bool startup();
 
   bool seize(Ptr<T> &p);
@@ -168,6 +172,20 @@ inline Uint32 TransientPool<T, Slot_size>::getUncheckedPtrs(Uint32* from, Ptr<T>
   Ptr<SlotType>* slots = reinterpret_cast<Ptr<SlotType>*>(ptrs);
   return SlotPool::getUncheckedPtrs(from, slots, cnt, Slot_size);
 }
+
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+template<typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::resetMaxSize()
+{
+  SlotPool::resetMaxSize();
+}
+
+template<typename T, Uint32 Slot_size>
+inline void TransientPool<T, Slot_size>::setMaxSize(Uint32 max_recs)
+{
+  SlotPool::setMaxSize(max_recs);
+}
+#endif
 
 #undef JAM_FILE_ID
 
