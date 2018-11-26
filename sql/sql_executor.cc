@@ -3283,7 +3283,7 @@ enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab) {
   */
   if (copy_fields(&join->tmp_table_param, thd)) return NESTED_LOOP_ERROR;
 
-  if (having_is_true(join->having_cond)) {
+  if (having_is_true(join->having_cond) && join->should_send_current_row()) {
     if (join->select_lex->query_result()->send_data(thd, *join->fields))
       return NESTED_LOOP_ERROR;
     join->send_records++;
