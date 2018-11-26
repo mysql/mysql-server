@@ -49,11 +49,13 @@ SHOW WARNINGS;
 # Start by creating a logfile group
 ##################################
 
-set default_storage_engine=ndb;
+# Note : This logfile group is used by
+# most of the tests in this file
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
-UNDO_BUFFER_SIZE = 1M;
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
 
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
@@ -64,7 +66,6 @@ ENGINE=NDB;
 # Create a tablespace connected to the logfile group
 ###################################################
 
-set default_storage_engine=myisam;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
@@ -88,9 +89,7 @@ TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB
 PARTITION BY KEY() PARTITIONS 8;
 
---disable_warnings
 SHOW CREATE TABLE t1;
---enable_warnings
 
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
@@ -262,12 +261,28 @@ ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
 TABLESPACE ts1 STORAGE DISK;
 
+#
+# Drop tablespace and datafiles
+#
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile02.dat';
+DROP TABLESPACE ts1;
+
+
+--echo #
+--echo # Bug #21699 DROP last DATAFILE from TABLESPACE even though there are still tables in it
+--echo #
+
+--echo # Create the tablespace
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1
 initial_size 12M
 engine ndb;
 
+--echo # Create tables on the tablespace
 CREATE TABLE City (
    ID int(11) NOT NULL AUTO_INCREMENT,
    Name char(35) NOT NULL,
@@ -283,6 +298,7 @@ create table t1 (a int primary key, b int)
 engine = ndbcluster tablespace ts2 storage disk;
 insert into t1 values (1,1);
 
+--echo # Attempting to drop the datafile should fail now
 --error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
@@ -294,23 +310,33 @@ drop table t1;
 alter tablespace ts2
 drop datafile 'datafile2_1.dat';
 
-#It will give error messages: NoDatafile in tablespace
+--echo # Inserting into the table should now fail with error : NoDatafile in tablespace
 --error ER_GET_ERRMSG
 insert
 into City (Name,CountryCode,District,Population)
 values ('BeiJing','CN','Beijing',2000);
 
+--echo # Dropping tablsepace before dropping table should fail
 --error ER_TABLESPACE_IS_NOT_EMPTY
 drop tablespace ts2;
 
+--echo # Cleanup
 drop table City;
 
 drop tablespace ts2;
 
-############################
-# Test update of mm/dd part
-############################
+--echo ###########################
+--echo # Test update of mm/dd part
+--echo ###########################
 
+--echo # Create the tablespaces
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+ENGINE NDB;
+
+--echo # Create the tables with mm/dd parts and run tests
 CREATE TABLE t1 (a INT PRIMARY KEY, b CHAR(4) NOT NULL, c CHAR(4) NOT NULL, KEY(b)) TABLESPACE ts1 STORAGE DISK ENGINE = NDB;
 INSERT INTO t1 VALUES (1,'1','1'), (2,'2','2'), (3,'3','3');
 BEGIN;
@@ -403,15 +429,29 @@ SELECT * from t1 ORDER BY 1;
 
 DROP TABLE t1;
 
-########################
-# Test for blobs...
-########################
+--echo # Cleanup tablespace
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
 
+--echo ########################
+--echo # Test for blobs...
+--echo ########################
+
+--echo # Create the tablespace
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 12M
+ENGINE NDB;
+
+--echo # Create a table with blob column on it
 CREATE TABLE t1 (
   a INT NOT NULL PRIMARY KEY,
   b TEXT NOT NULL
 ) TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
 
+--echo # Generate the blob values to be inserted
 # b1 length 2000+256 (blob part aligned)
 #########################################
 set @x0 = '01234567012345670123456701234567';
@@ -429,6 +469,7 @@ set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 set @b2 = concat(@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2,@b2);
 
+--echo # Run the tests
 INSERT INTO t1 VALUES(1,@b1);
 INSERT INTO t1 VALUES(2,@b2);
 SELECT a,length(b),substr(b,1+2*900,2) FROM t1 WHERE a=1;
@@ -444,10 +485,24 @@ SELECT a,length(b),substr(b,1+4*900,2) FROM t1 WHERE a=2;
 DELETE FROM t1 WHERE a=1;
 DELETE FROM t1 WHERE a=2;
 SELECT COUNT(*) FROM t1;
-DROP TABLE t1;
 
-# bug#20612 INS-DEL bug (not pgman bug)
-# found via disk data assert but is not pgman or disk data related
+--echo # Cleanup
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts1;
+
+--echo #
+--echo # Bug#20612 INS-DEL bug in TUP (not pgman bug)
+--echo # found via disk data assert but is not pgman or disk data related
+--echo #
+
+--echo #Setup - Create tablespaces and table
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+ENGINE NDB;
 
 CREATE TABLE t1 (
   a int NOT NULL,
@@ -456,6 +511,7 @@ CREATE TABLE t1 (
 )
 TABLESPACE ts1 STORAGE DISK ENGINE=NDBCLUSTER;
 
+--echo # Run the tests
 set autocommit = 0;
 insert into t1 values(0,'x');
 insert into t1 values(1,'x');
@@ -477,24 +533,48 @@ rollback;
 
 set autocommit = 1;
 
-
+--echo # Cleanup
 drop table t1;
-#############################
-# Customer posted order by test case
-# Org in ndb_dd_advance.test
-#############################
+alter tablespace ts1
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 
-create table test.t1 (f1 varchar(50) primary key, f2 text,f3 int) 
+--echo #############################
+--echo # Customer posted order by test case
+--echo # Org in ndb_dd_advance.test
+--echo #############################
+
+--echo # Setup
+create tablespace ts1
+add datafile 'datafile.dat'
+use logfile group lg1
+initial_size 4M
+engine ndb;
+create table t1 (f1 varchar(50) primary key, f2 text,f3 int) 
 TABLESPACE ts1 STORAGE DISK engine=NDB;
-insert into test.t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
-insert into test.t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
-select * from test.t1 order by f1;
-select f1,f2 from test.t1 order by f2;
-select f2 from test.t1 order by f2;
-select f1,f2 from test.t1 order by f1;
-drop table test.t1;
+--echo # Run the tests
+insert into t1 (f1,f2,f3)VALUES("111111","aaaaaa",1);
+insert into t1 (f1,f2,f3)VALUES("222222","bbbbbb",2);
+select * from t1 order by f1;
+select f1,f2 from t1 order by f2;
+select f2 from t1 order by f2;
+select f1,f2 from t1 order by f1;
+--echo # Cleanup
+drop table t1;
+alter tablespace ts1
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 
-# bug#34118 hash index trigger and do not update any disk attr
+--echo #
+--echo # bug#34118 hash index trigger and do not update any disk attr
+--echo #
+
+--echo # Setup - Create tablespace, table and fill it
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 4M
+ENGINE NDB;
 CREATE TABLE t1 (
 id int unsigned NOT NULL,
 c1 int unsigned NOT NULL,
@@ -502,25 +582,21 @@ c2 int DEFAULT NULL,
 PRIMARY KEY using hash (id),
 UNIQUE KEY c1 using hash (c1))
 TABLESPACE ts1 STORAGE DISK ENGINE=ndbcluster;
-
 insert into t1 values(1, 1, 3);
 insert into t1 values(2, 2, 3);
+
+--echo # Confirm that the update fails
 --error ER_DUP_KEY
 update t1 set c1 = 1 where id = 2;
+
+--echo # Cleanup
 drop table t1;
 
-###################
-# Test Cleanup
-###################
-
-ALTER TABLESPACE ts1 
+ALTER TABLESPACE ts1
 DROP DATAFILE 'datafile.dat';
-
-ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat';
-
 DROP TABLESPACE ts1;
 
+--echo # Also drop the logfile group lg1 created at the start of this file
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 
