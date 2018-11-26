@@ -3678,7 +3678,7 @@ from t1, t2
 where t2.a = t1.b
 and t1.a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using pushed condition (`test`.`t1`.`b` is not null)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
 Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
@@ -3713,7 +3713,7 @@ from t1, t2
 where t1.a = t2.b
 and t2.a = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using pushed condition (`test`.`t2`.`b` is not null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
 Warnings:
 Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
@@ -5279,7 +5279,7 @@ on table3.u = table1.u
 where table2.pk = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
-1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,ix2	PRIMARY	4	const	1	100.00	Using pushed condition (`test`.`table2`.`a` is not null)
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY,ix2	PRIMARY	4	const	1	100.00	Using where
 1	SIMPLE	table3	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix2	ix2	9	test.table2.a,test.table1.u	1	100.00	NULL
 Warnings:
 Note	1003	Can't push table 'table2' as child of 'table1', their dependency is 'const'

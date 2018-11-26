@@ -747,6 +747,17 @@ int JOIN::optimize() {
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     for (uint i = const_tables; i < tables; i++) {
       if (!qep_tab[i].is_inner_table_of_outer_join()) {
+        const join_type jt = qep_tab[i].type();
+        if ((jt == JT_EQ_REF || jt == JT_CONST || jt == JT_SYSTEM) &&
+            !qep_tab[i].table()->file->root_of_pushed_join()) {
+          /*
+            It is of limited value to push a condition to a single row
+            access method, so we skip cond_push() for these.
+            The exception is if we are member of a pushed join, where
+            execution of entire join branches may be eliminated.
+          */
+          continue;
+        }
         const Item *cond = qep_tab[i].condition();
         if (cond != nullptr) {
           const Item *remainder = qep_tab[i].table()->file->cond_push(cond);
