@@ -29,7 +29,7 @@
 
 #include <string.h>
 
-#define COPYRIGHT_NOTICE_CURRENT_YEAR "2018"
+#define COPYRIGHT_NOTICE_CURRENT_YEAR "2019"
 
 /*
   This define specifies copyright notice which is displayed by every MySQL
