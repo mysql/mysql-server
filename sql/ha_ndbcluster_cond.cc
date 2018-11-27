@@ -66,9 +66,9 @@ typedef enum ndb_func_type {
 } NDB_FUNC_TYPE;
 
 typedef union ndb_item_qualification {
-  Item::Type value_type;
-  enum_field_types field_type; // Instead of Item::FIELD_ITEM
-  NDB_FUNC_TYPE function_type; // Instead of Item::FUNC_ITEM
+  Item::Type value_type;       // NDB_VALUE
+  enum_field_types field_type; // NDB_FIELD, instead of Item::FIELD_ITEM
+  NDB_FUNC_TYPE function_type; // NDB_FUNCTION, instead of Item::FUNC_ITEM
 } NDB_ITEM_QUALIFICATION;
 
 typedef struct ndb_item_field_value {
@@ -77,9 +77,9 @@ typedef struct ndb_item_field_value {
 } NDB_ITEM_FIELD_VALUE;
 
 typedef union ndb_item_value {
-  const Item *item;
-  NDB_ITEM_FIELD_VALUE *field_value;
-  uint arg_count;
+  const Item *item;                     // NDB_VALUE
+  NDB_ITEM_FIELD_VALUE *field_value;    // NDB_FIELD
+  uint arg_count;                       // NDB_FUNCTION
 } NDB_ITEM_VALUE;
 
 struct negated_function_mapping
@@ -128,34 +128,19 @@ class Ndb_item
 {
 public:
   Ndb_item(NDB_ITEM_TYPE item_type) : type(item_type) {}
+  // A Ndb_Item where an Item expression defines the value (a const)
   Ndb_item(NDB_ITEM_TYPE item_type,
            NDB_ITEM_QUALIFICATION item_qualification,
            const Item *item_value)
     : type(item_type), qualification(item_qualification)
   {
-    switch(item_type) {
-    case(NDB_VALUE):
-      value.item= item_value;
-      break;
-    case(NDB_FIELD): {
-      NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
-      Item_field *field_item= (Item_field *) item_value;
-      field_value->field= field_item->field;
-      field_value->column_no= -1; // Will be fetched at scan filter generation
-      value.field_value= field_value;
-      break;
-    }
-    case(NDB_FUNCTION):
-      value.item= item_value;
-      value.arg_count= ((Item_func *) item_value)->argument_count();
-      break;
-    case(NDB_END_COND):
-      break;
-    }
+    DBUG_ASSERT(item_type == NDB_VALUE);
+    value.item= item_value;
   }
+  // A Ndb_Item reffering a Field from 'this' table
   Ndb_item(Field *field, int column_no) : type(NDB_FIELD)
   {
-    NDB_ITEM_FIELD_VALUE *field_value= new NDB_ITEM_FIELD_VALUE();
+    NDB_ITEM_FIELD_VALUE *field_value= new (*THR_MALLOC) NDB_ITEM_FIELD_VALUE();
     qualification.field_type= field->real_type();
     field_value->field= field;
     field_value->column_no= column_no;
@@ -165,7 +150,6 @@ public:
     : type(NDB_FUNCTION)
   {
     qualification.function_type= item_func_to_ndb_func(func_type);
-    value.item= item_value;
     value.arg_count= ((Item_func *) item_value)->argument_count();
   }
   Ndb_item(Item_func::Functype func_type, uint no_args)
@@ -177,10 +161,10 @@ public:
   ~Ndb_item()
   {
     if (type == NDB_FIELD)
-      {
-        delete value.field_value;
-        value.field_value= NULL;
-      }
+    {
+      destroy(value.field_value);
+      value.field_value= NULL;
+    }
   }
 
   uint32 pack_length()
@@ -206,6 +190,7 @@ public:
 
   int argument_count()
   {
+    DBUG_ASSERT(type == NDB_FUNCTION);
     return value.arg_count;
   }
 
@@ -219,11 +204,8 @@ public:
       break;
     case(NDB_FIELD):
       return (char*) value.field_value->field->ptr;
-    case(NDB_FUNCTION):
-      if(qualification.value_type == Item::STRING_ITEM && value.item->type() == Item::STRING_ITEM)
-        // const_cast is safe for Item_string.
-        return const_cast<Item*>(value.item)->val_str(nullptr)->ptr();
     default:
+      DBUG_ASSERT(false);
       break;
     }
 
@@ -250,6 +232,7 @@ public:
 
   bool is_const_func()
   {
+    DBUG_ASSERT(this->type == NDB_VALUE);
     const Item *item= value.item;
 
     if (item->type() == Item::FUNC_ITEM)
@@ -263,6 +246,7 @@ public:
 
   bool is_cached()
   {
+    DBUG_ASSERT(this->type == NDB_VALUE);
     const Item *item= value.item;
 
     return (item->type() == Item::CACHE_ITEM);
@@ -331,7 +315,7 @@ public:
     return  neg_map[i].neg_fun;
   }
 
-  NDB_ITEM_TYPE type;
+  const NDB_ITEM_TYPE type;
   NDB_ITEM_QUALIFICATION qualification;
  private:
   NDB_ITEM_VALUE value;
@@ -730,9 +714,8 @@ class Ndb_cond_traverse_context
     expect_stack.expect_no_length();
   }
 
-
-  TABLE* table;
-  const NdbDictionary::Table *ndb_table;
+  TABLE* const table;
+  const NdbDictionary::Table* const ndb_table;
   bool supported;
   Ndb_cond_stack* cond_stack;
   Ndb_cond* cond_ptr;
