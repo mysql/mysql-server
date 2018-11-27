@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -606,6 +606,10 @@ extern int32 thread_running;
 extern my_atomic_rwlock_t thread_running_lock;
 extern my_atomic_rwlock_t slave_open_temp_tables_lock;
 extern my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
+#ifdef _WIN32
+extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
+extern char *named_pipe_full_access_group;
+#endif
 
 extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
@@ -682,7 +686,8 @@ enum options_mysqld
   OPT_CREATE_OLD_TEMPORALS,
 #endif
   OPT_AVOID_TEMPORAL_UPGRADE,
-  OPT_SHOW_OLD_TEMPORALS
+  OPT_SHOW_OLD_TEMPORALS,
+  OPT_NAMED_PIPE_FULL_ACCESS_GROUP
 };
 
 
@@ -785,5 +790,9 @@ inline THD *_current_thd(void)
 #define current_thd _current_thd()
 
 extern const char *MY_BIND_ALL_ADDRESSES;
+
+#ifdef _WIN32
+bool update_named_pipe_full_access_group(const char *new_group_name);
+#endif
 
 #endif /* MYSQLD_INCLUDED */

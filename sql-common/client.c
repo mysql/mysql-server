@@ -317,7 +317,8 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
   for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
   {
     if ((hPipe = CreateFile(pipe_name,
-			    GENERIC_READ | GENERIC_WRITE,
+          FILE_READ_ATTRIBUTES | FILE_READ_DATA |
+            FILE_WRITE_ATTRIBUTES | FILE_WRITE_DATA,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,

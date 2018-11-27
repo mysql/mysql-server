@@ -1,0 +1,15 @@
+--source include/windows.inc
+--source include/not_embedded.inc
+#
+# only global
+#
+select @@global.named_pipe_full_access_group;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.named_pipe_full_access_group;
+show global variables like 'named_pipe_full_access_group';
+show session variables like 'named_pipe_full_access_group';
+--disable_warnings
+select * from information_schema.global_variables where variable_name='named_pipe_full_access_group';
+select * from information_schema.session_variables where variable_name='named_pipe_full_access_group';
+--enable_warnings
+
