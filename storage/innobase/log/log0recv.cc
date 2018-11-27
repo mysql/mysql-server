@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -4484,7 +4484,6 @@ recv_reset_log_files_for_backup(
 	ulint		i;
 	ulint		log_dir_len;
 	char		name[5000];
-	static const char ib_logfile_basename[] = "ib_logfile";
 
 	log_dir_len = strlen(log_dir);
 	/* full path name of ib_logfile consists of log dir path + basename
