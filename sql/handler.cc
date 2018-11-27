@@ -8630,3 +8630,35 @@ void handler::ha_set_primary_handler(handler *primary_handler) {
   DBUG_ASSERT(primary_handler->table->s->has_secondary());
   m_primary_handler = primary_handler;
 }
+
+/**
+  Checks if the database name is reserved word used by SE by invoking
+  the handlerton method.
+
+  @param  ununsed       thread handler which is unused.
+  @param  plugin        SE plugin.
+  @param  name          Database name.
+
+  @retval true          If the name is reserved word.
+  @retval false         If the name is not reserved word.
+*/
+static bool is_reserved_db_name_handlerton(THD *, plugin_ref plugin,
+                                           void *name) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->is_reserved_db_name)
+    return (hton->is_reserved_db_name(hton, (const char *)name));
+  return false;
+}
+
+/**
+   Check if the database name is reserved word used by SE.
+
+   @param  name    Database name.
+
+   @retval true    If the name is a reserved word.
+   @retval false   If the name is not a reserved word.
+*/
+bool ha_check_reserved_db_name(const char *name) {
+  return (plugin_foreach(NULL, is_reserved_db_name_handlerton,
+                         MYSQL_STORAGE_ENGINE_PLUGIN, (char *)name));
+}

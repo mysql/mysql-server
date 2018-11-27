@@ -2010,6 +2010,8 @@ typedef bool (*check_fk_column_compat_t)(
     const Ha_fk_column_type *child_column_type,
     const Ha_fk_column_type *parent_column_type, bool check_charsets);
 
+typedef bool (*is_reserved_db_name_t)(handlerton *hton, const char *name);
+
 /**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
@@ -2094,6 +2096,7 @@ struct handlerton {
   dict_recover_t dict_recover;
   dict_get_server_version_t dict_get_server_version;
   dict_set_server_version_t dict_set_server_version;
+  is_reserved_db_name_t is_reserved_db_name;
 
   /** Global handler flags. */
   uint32 flags;
@@ -6248,6 +6251,7 @@ int ha_create_table(THD *thd, const char *path, const char *db,
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias,
                     const dd::Table *table_def, bool generate_warning);
+bool ha_check_reserved_db_name(const char *name);
 
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
