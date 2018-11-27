@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,14 +103,16 @@ my_bool vio_is_connected_pipe(Vio *vio)
 
 int vio_shutdown_pipe(Vio *vio)
 {
-  BOOL ret;
+  BOOL ret= FALSE;
   DBUG_ENTER("vio_shutdown_pipe");
 
-  CancelIo(vio->hPipe);
-  CloseHandle(vio->overlapped.hEvent);
-  DisconnectNamedPipe(vio->hPipe);
-  ret= CloseHandle(vio->hPipe);
-
+  if (vio->inactive == FALSE)
+  {
+    CancelIo(vio->hPipe);
+    CloseHandle(vio->overlapped.hEvent);
+    DisconnectNamedPipe(vio->hPipe);
+    ret= CloseHandle(vio->hPipe);
+  }
   vio->inactive= TRUE;
   vio->hPipe= NULL;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
