@@ -600,6 +600,18 @@ readArguments(Ndb_opts & opts, char*** pargv)
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
+  if (ga_nodeId == 0)
+  {
+    err << "Backup file node ID not specified, please provide --nodeid" << endl;
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
+  if (ga_backupId == 0)
+  {
+    err << "Backup ID not specified, please provide --backupid" << endl;
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
+
+
   for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
     opt_nodegroup_map[i].curr_index = 0;
 
