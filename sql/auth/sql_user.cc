@@ -850,15 +850,6 @@ bool set_and_validate_user_attributes(
   /* copy password expire attributes to individual user */
   Str->alter_status = thd->lex->alter_password;
 
-  if (command == SQLCOM_GRANT || command == SQLCOM_REVOKE) {
-    what_to_set.m_what = NONE_ATTR;
-    if (command == SQLCOM_GRANT && !user_exists) {
-      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
-      return true;
-    }
-    return false;
-  }
-
   mysql_mutex_lock(&LOCK_password_history);
   Str->alter_status.password_history_length =
       Str->alter_status.use_default_password_history
@@ -963,6 +954,20 @@ bool set_and_validate_user_attributes(
         }
         break;
       }
+      /*
+        We need to fill in the elements of the LEX_USER structure even for GRANT
+        and REVOKE.
+      */
+      case SQLCOM_GRANT:
+        /* fall through */
+      case SQLCOM_REVOKE:
+        what_to_set.m_what = NONE_ATTR;
+        Str->plugin = acl_user->plugin;
+        Str->auth.str = acl_user->credentials[PRIMARY_CRED].m_auth_string.str;
+        Str->auth.length =
+            acl_user->credentials[PRIMARY_CRED].m_auth_string.length;
+        break;
+
       default: {
         /*
           If we are here, authentication related information can be provided
@@ -1019,6 +1024,11 @@ bool set_and_validate_user_attributes(
     /* set default plugin for new users if not specified */
     if (!Str->uses_identified_with_clause)
       Str->plugin = default_auth_plugin_name;
+
+    if (command == SQLCOM_GRANT) {
+      my_error(ER_CANT_CREATE_USER_WITH_GRANT, MYF(0));
+      return true;
+    }
   }
 
   optimize_plugin_compare_by_pointer(&Str->plugin);
@@ -1159,7 +1169,8 @@ bool set_and_validate_user_attributes(
   }
 
   /* Check iff the REPLACE clause is specified correctly for the user */
-  if (validate_password_require_current(thd, Str, acl_user, auth,
+  if ((what_to_set.m_what & PLUGIN_ATTR) &&
+      validate_password_require_current(thd, Str, acl_user, auth,
                                         is_privileged_user, user_exists)) {
     plugin_unlock(0, plugin);
     what_to_set.m_what = NONE_ATTR;
