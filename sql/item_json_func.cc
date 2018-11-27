@@ -533,10 +533,9 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       return false;
     }
 
-    for (auto c_oi = containee_wr.object_iterator(); !c_oi.empty();
+    for (Json_wrapper_object_iterator c_oi(containee_wr); !c_oi.empty();
          c_oi.next()) {
-      auto c_elt = c_oi.elt();
-      auto d_wr = doc_wrapper.lookup(c_elt.first);
+      Json_wrapper d_wr = doc_wrapper.lookup(c_oi.key());
 
       if (d_wr.type() == enum_json_type::J_ERROR) {
         // No match for this key. Give up.
@@ -545,7 +544,7 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       }
 
       // key is the same, now compare values
-      if (contains_wr(thd, d_wr, c_elt.second, result))
+      if (contains_wr(thd, d_wr, c_oi.value(), result))
         return true; /* purecov: inspected */
 
       if (!*result) {
@@ -1606,9 +1605,10 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     // and return them as a JSON array.
     Json_array_ptr res(new (std::nothrow) Json_array());
     if (res == nullptr) return error_json(); /* purecov: inspected */
-    for (Json_wrapper_object_iterator i(wrapper.object_iterator()); !i.empty();
-         i.next()) {
-      if (res->append_alias(new (std::nothrow) Json_string(i.elt().first)))
+    for (Json_wrapper_object_iterator i(wrapper); !i.empty(); i.next()) {
+      const MYSQL_LEX_CSTRING key = i.key();
+      if (res->append_alias(new (std::nothrow)
+                                Json_string(key.str, key.length)))
         return error_json(); /* purecov: inspected */
     }
     *wr = Json_wrapper(std::move(res));
@@ -2560,12 +2560,12 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 
     case enum_json_type::J_OBJECT: {
       const size_t path_length = path->length();
-      for (Json_wrapper_object_iterator jwot(wrapper.object_iterator());
-           !jwot.empty(); jwot.next()) {
-        std::pair<const std::string, Json_wrapper> pair = jwot.elt();
+      for (Json_wrapper_object_iterator jwot(wrapper); !jwot.empty();
+           jwot.next()) {
         // recurse with the member added to the path
-        if (Json_path_leg(pair.first).to_string(path) ||
-            find_matches(pair.second, path, matches, duplicates, one_match,
+        const MYSQL_LEX_CSTRING key = jwot.key();
+        if (Json_path_leg(key.str, key.length).to_string(path) ||
+            find_matches(jwot.value(), path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;              /* purecov: inspected */
         path->length(path_length);  // restore the path
