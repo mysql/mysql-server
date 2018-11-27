@@ -10,7 +10,8 @@ select count(*) > 0 from performance_schema.setup_instruments;
 # to ensure the expected output in the binlog is predictable.
 update performance_schema.setup_instruments set enabled='NO'
   where name like "wait/synch/rwlock/sql/%"
-  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+  "wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 
 select count(*) > 0 from performance_schema.events_waits_current;
 
@@ -28,14 +29,16 @@ insert into test.t1
 insert into test.t2
   select name from performance_schema.setup_instruments
     where name like "wait/synch/rwlock/sql/%"
-    and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+    and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+    "wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 
 drop table test.t1;
 drop table test.t2;
 
 update performance_schema.setup_instruments set enabled='YES'
   where name like "wait/synch/rwlock/sql/%"
-  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock");
+  and name not in ("wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock",
+  "wait/synch/rwlock/sql/LOCK_named_pipe_full_access_group");
 
 --source include/show_binlog_events.inc
 

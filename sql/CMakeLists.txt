@@ -83,6 +83,11 @@ SET (SQL_SOURCE
                ${CONF_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
+IF(WIN32)
+  LIST(APPEND SQL_SOURCE named_pipe.cc)
+ENDIF()
+
+
 # These files have unused result errors, so we skip Werror
 CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
 IF(HAVE_WERROR_FLAG)

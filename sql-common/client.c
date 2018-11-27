@@ -429,12 +429,13 @@ HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
   for (i=0 ; i < 100 ; i++)			/* Don't retry forever */
   {
     if ((hPipe = CreateFile(pipe_name,
-			    GENERIC_READ | GENERIC_WRITE,
-			    0,
-			    NULL,
-			    OPEN_EXISTING,
-			    FILE_FLAG_OVERLAPPED,
-			    NULL )) != INVALID_HANDLE_VALUE)
+                            FILE_READ_ATTRIBUTES | FILE_READ_DATA |
+                              FILE_WRITE_ATTRIBUTES | FILE_WRITE_DATA,
+                            0,
+                            NULL,
+                            OPEN_EXISTING,
+                            FILE_FLAG_OVERLAPPED,
+                            NULL )) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
     {
