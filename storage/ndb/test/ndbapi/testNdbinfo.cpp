@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,6 +148,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
     int last_rows;
+    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != nullptr);
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
@@ -159,11 +160,17 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
         ctx->stopTest();
         return NDBT_FAILED;
       }
-      // Check that the number of rows is same as last round on same table
+      // Check if the number of rows is as expected:
+      // Expected scenario 1: Same number of rows as last round (or)
+      // Expected scenario 2: Same or increased number of rows for tables which
+      //                      might be still getting filled.
       if (l > 0 &&
-          last_rows != rows)
+          (rows != last_rows &&
+           !(rows_may_increase && rows > last_rows)))
       {
-        g_err << "Got different number of rows this round, expected: "
+        g_err << "Got different number of rows this round, table: "
+          << table->getName() << ", expected: "
+          << ((rows_may_increase)?"equal to or more than ":"")
           << last_rows << ", got: " << rows << endl;
         ndbinfo.closeTable(table);
         ctx->stopTest();
@@ -178,19 +185,6 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
   // Should never come here
   require(false);
   return NDBT_FAILED;
-}
-
-
-int runScanAllUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
-  int i = 0;
-  while (ctx->isTestStopped() == false) {
-    g_info << i << ": ";
-    if (runScanAll(ctx,  step) != NDBT_OK){
-      return NDBT_FAILED;
-    }
-    i++;
-  }
-  return NDBT_OK;
 }
 
 
@@ -547,13 +541,16 @@ TESTCASE("Ndbinfo10",
 }
 TESTCASE("ScanAll",
          "Scan all colums of all table known to NdbInfo"
-         "check that number of rows returned are constant"){
+         "check that number of rows returned are as expected."
+         "Either they should be same across multiple iterations or"
+         "should increasing if in case the table is still getting filled."){
   STEPS(runScanAll, 1);
 }
 TESTCASE("ScanAll10",
          "Scan all columns of all table known to NdbInfo from "
-         "10 parallel threads, check that number of rows returned "
-         "are constant"){
+         "10 parallel threads, check that number of rows returned are as"
+         "expected. Either they should be same across multiple iterations or"
+         "should increasing if in case the table is still getting filled."){
   STEPS(runScanAll, 10);
 }
 TESTCASE("ScanStop",
