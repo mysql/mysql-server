@@ -1860,11 +1860,19 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (trans_cannot_safely_rollback(thd))
   {
     String log_query;
-    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append("`") ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-        log_query.append("`"))
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")))
       DBUG_RETURN(1);
+    else
+    {
+      /*
+        Before writing identifier to the binlog, make sure to
+        quote the identifier properly so as to prevent any SQL
+        injection on the slave.
+      */
+      append_identifier(thd, &log_query, thd->lex->ident.str,
+                        thd->lex->ident.length);
+    }
+
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
     Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
                           TRUE, FALSE, TRUE, errcode);
@@ -1979,7 +1987,7 @@ static int log_in_use(const char* log_name)
     if ((linfo = (*it)->current_linfo))
     {
       mysql_mutex_lock(&linfo->lock);
-      if(!memcmp(log_name, linfo->log_file_name, log_name_len))
+      if(!strncmp(log_name, linfo->log_file_name, log_name_len))
       {
         thread_count++;
         sql_print_warning("file %s was not purged because it was being read"
@@ -3520,6 +3528,9 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
   int error= 0;
   File fd= -1;
   DBUG_ENTER("MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file");
+  int failure_trials= MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  bool file_rename_status= false, file_delete_status= false;
+  THD *thd= current_thd;
 
   if (need_lock_index)
     mysql_mutex_lock(&LOCK_index);
@@ -3543,8 +3554,41 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
 
       goto recoverable_err;
     }
-    if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0) ||
-        mysql_file_delete(key_file_binlog_index, index_file_name, MYF(MY_WME)))
+
+    /*
+      Sometimes an outsider can lock index files for temporary viewing
+      purpose. For eg: MEB locks binlog.index/relaylog.index to view
+      the content of the file. During that small period of time, deletion
+      of the file is not possible on some platforms(Eg: Windows)
+      Server should retry the delete operation for few times instead of panicking
+      immediately.
+    */
+    while ((file_delete_status == false) && (failure_trials > 0))
+    {
+      if (DBUG_EVALUATE_IF("force_index_file_delete_failure", 1, 0)) break;
+
+      DBUG_EXECUTE_IF("simulate_index_file_delete_failure",
+                  {
+                    /* This simulation causes the delete to fail */
+                    static char first_char= index_file_name[0];
+                    index_file_name[0]= 0;
+                    sql_print_information("Retrying delete");
+                    if (failure_trials == 1)
+                      index_file_name[0]= first_char;
+                  };);
+      file_delete_status = !(mysql_file_delete(key_file_binlog_index,
+                                               index_file_name, MYF(MY_WME)));
+      --failure_trials;
+      if (!file_delete_status)
+      {
+        my_sleep(1000);
+        /* Clear the error before retrying. */
+        if (failure_trials > 0)
+          thd->clear_error();
+      }
+    }
+
+    if (!file_delete_status)
     {
       error= -1;
       sql_print_error("While rebuilding index file %s: "
@@ -3563,7 +3607,38 @@ int MYSQL_BIN_LOG::move_crash_safe_index_file_to_index_file(bool need_lock_index
   }
 
   DBUG_EXECUTE_IF("crash_create_before_rename_index_file", DBUG_SUICIDE(););
-  if (my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)))
+  /*
+    Sometimes an outsider can lock index files for temporary viewing
+    purpose. For eg: MEB locks binlog.index/relaylog.index to view
+    the content of the file. During that small period of time, rename
+    of the file is not possible on some platforms(Eg: Windows)
+    Server should retry the rename operation for few times instead of panicking
+    immediately.
+  */
+  failure_trials = MYSQL_BIN_LOG::MAX_RETRIES_FOR_DELETE_RENAME_FAILURE;
+  while ((file_rename_status == false) && (failure_trials > 0))
+  {
+    DBUG_EXECUTE_IF("simulate_crash_safe_index_file_rename_failure",
+                {
+                  /* This simulation causes the rename to fail */
+                  static char first_char= index_file_name[0];
+                  index_file_name[0]= 0;
+                  sql_print_information("Retrying rename");
+                  if (failure_trials == 1)
+                    index_file_name[0]= first_char;
+                };);
+    file_rename_status =
+        !(my_rename(crash_safe_index_file_name, index_file_name, MYF(MY_WME)));
+    --failure_trials;
+    if (!file_rename_status)
+    {
+      my_sleep(1000);
+      /* Clear the error before retrying. */
+      if (failure_trials > 0)
+        thd->clear_error();
+    }
+  }
+  if (!file_rename_status)
   {
     error= -1;
     sql_print_error("While rebuilding index file %s: "
@@ -3834,7 +3909,7 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
     // if the log entry matches, null string matching anything
     if (!log_name ||
        (log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
-        !memcmp(full_fname, full_log_name, log_name_len)))
+        !strncmp(full_fname, full_log_name, log_name_len)))
     {
       DBUG_PRINT("info", ("Found log file entry"));
       full_fname[fname_len-1]= 0;                      // remove last \n
@@ -4768,6 +4843,13 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         DBUG_PRINT("info",("purging %s",log_info.log_file_name));
         if (!mysql_file_delete(key_file_binlog, log_info.log_file_name, MYF(0)))
         {
+          DBUG_EXECUTE_IF("wait_in_purge_index_entry",
+                          {
+                              const char action[] = "now SIGNAL in_purge_index_entry WAIT_FOR go_ahead_sql";
+                              DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                              DBUG_SET("-d,wait_in_purge_index_entry");
+                          };);
+
           if (decrease_log_space)
             *decrease_log_space-= s.st_size;
         }
@@ -6337,6 +6419,24 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
   DBUG_VOID_RETURN;
 }
 
+void MYSQL_BIN_LOG::harvest_bytes_written(Relay_log_info* rli, bool need_log_space_lock)
+{
+#ifndef DBUG_OFF
+  char buf1[22],buf2[22];
+#endif
+  DBUG_ENTER("harvest_bytes_written");
+  if (need_log_space_lock)
+    mysql_mutex_lock(&rli->log_space_lock);
+  else
+    mysql_mutex_assert_owner(&rli->log_space_lock);
+  rli->log_space_total+= bytes_written;
+  DBUG_PRINT("info",("relay_log_space: %s  bytes_written: %s",
+        llstr(rli->log_space_total,buf1), llstr(bytes_written,buf2)));
+  bytes_written=0;
+  if (need_log_space_lock)
+    mysql_mutex_unlock(&rli->log_space_lock);
+  DBUG_VOID_RETURN;
+}
 
 void MYSQL_BIN_LOG::set_max_size(ulong max_size_arg)
 {

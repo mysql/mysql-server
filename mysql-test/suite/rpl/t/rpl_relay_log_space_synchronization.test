@@ -1,0 +1,64 @@
+# === Purpose ===
+#
+# This test verifies that SQL and IO threads update the
+# rli->relay_log_space_total variable in a synchronized manner.
+#
+# === Implementation ===
+#
+# 1. On Slave, make the SQL thread to purge relay logs and halt
+#    the SQL thread in MYSQL_BIN_LOG::purge_index_entry function
+#    using debug sync utility.
+# 2. Do a DML on master so that IO thread calls queue_event and
+#    updates rli->relay_log_space_total.
+# 3. Verify that IO thread is waiting rli->log_space_lock until it is released
+#    by SQL thread.
+#
+# === References ===
+#
+# Bug#26997096 RELAY_LOG_SPACE IS INACCURATE AND LEAKS
+
+# This test case is binlog_format agnostic
+--source include/have_binlog_format_row.inc
+# This test case uses debug_sync
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+
+CREATE TABLE t1 (i INT);
+
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+SET GLOBAL debug='+d,wait_in_purge_index_entry';
+
+# Create a new relay log so the START SLAVE SQL_THREAD tries
+# to purge the old relay logs and hits the debug point.
+FLUSH LOCAL RELAY LOGS;
+START SLAVE SQL_THREAD;
+SET DEBUG_SYNC="now WAIT_FOR in_purge_index_entry";
+
+# Do a DML on master so that IO thread calls queue_event and
+# updates rli->relay_log_space_total.
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+--source include/rpl_connection_slave.inc
+
+# Wait until IO thread tries to take a log_space_lock.
+--let $io_thread_id = `SELECT THREAD_ID FROM performance_schema.threads WHERE NAME like '%slave_io%'`
+--let $wait_condition= SELECT EVENT_NAME= 'wait/synch/mutex/sql/Relay_log_info::log_space_lock' FROM performance_schema.events_waits_current WHERE THREAD_ID=$io_thread_id
+--source include/wait_condition.inc
+
+# Since SQL thread has taken the rli->log_space_lock, IO thread should wait until
+# the lock is released. Assert that IO thread is waiting for rli->log_space_lock.
+--let $assert_text= IO Thread is waiting for Relay_log_info::log_space_lock.
+--let $assert_cond= "[SELECT EVENT_NAME FROM performance_schema.events_waits_current WHERE THREAD_ID=$io_thread_id]" = "wait/synch/mutex/sql/Relay_log_info::log_space_lock"
+--source include/assert.inc
+
+SET DEBUG_SYNC="now SIGNAL go_ahead_sql";
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+SET GLOBAL debug='-d,wait_in_purge_index_entry';
+SET DEBUG_SYNC="RESET";
+--source include/rpl_end.inc
