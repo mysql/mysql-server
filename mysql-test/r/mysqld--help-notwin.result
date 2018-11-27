@@ -1510,7 +1510,7 @@ performance-schema-max-mutex-classes 210
 performance-schema-max-mutex-instances -1
 performance-schema-max-prepared-statements-instances -1
 performance-schema-max-program-instances -1
-performance-schema-max-rwlock-classes 40
+performance-schema-max-rwlock-classes 50
 performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
