@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -566,6 +566,12 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   Ha_global_schema_lock_guard global_schema_lock(thd);
   (void)global_schema_lock.lock();
  #endif
+
+  if (ha_check_reserved_db_name(db))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db);
+    DBUG_RETURN(-1);
+  }
 
   if (lock_schema_name(thd, db))
     DBUG_RETURN(-1);
