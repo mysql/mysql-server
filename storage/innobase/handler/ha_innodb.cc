@@ -1280,7 +1280,11 @@ static xa_status_code innobase_rollback_by_xid(
     handlerton *hton, /*!< in: InnoDB handlerton */
     XID *xid);        /*!< in: X/Open XA transaction
                       identification */
-
+/** Checks if the filename name is reserved in InnoDB.
+@return true if the name is reserved */
+static bool innobase_check_reserved_file_name(
+    handlerton *hton,  /*!< in: handlerton of Innodb */
+    const char *name); /*!< in: Name of the database */
 /** Check tablespace name validity.
 @param[in]     ts_cmd  whether this is tablespace DDL or not
 @param[in]     name    name to check
@@ -4556,6 +4560,7 @@ static int innodb_init(void *p) {
       HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS;
 
   innobase_hton->check_fk_column_compat = innodb_check_fk_column_compat;
+  innobase_hton->is_reserved_db_name = innobase_check_reserved_file_name;
 
   ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -22453,4 +22458,32 @@ static bool innodb_check_fk_column_compat(
       cmp_cols_are_equal(&dict_child_col, &dict_parent_col, check_charsets));
 }
 
+/** Checks if the file name is reserved in InnoDB. Currently
+redo log files(ib_logfile*) is reserved.
+
+@param[in]     hton       Handlerton of InnoDB.
+@param[in]     name       Name of the database.
+
+@retval        true       Name is reserved.
+@retval        false      Name is not reserved.
+*/
+static bool innobase_check_reserved_file_name(
+    handlerton *hton, /*!< in: handlerton of Innodb */
+    const char *name) /*!< in: Name of the database */
+{
+  CHARSET_INFO *ci = system_charset_info;
+  size_t logname_size = strlen(ib_logfile_basename);
+
+  /* Name is smaller than reserved name */
+  if (strlen(name) < logname_size) {
+    return (false);
+  }
+  /* Do case insensitive comparison for name. */
+  for (uint i = 0; i < logname_size; i++) {
+    if (my_tolower(ci, name[i]) != ib_logfile_basename[i]) {
+      return (false);
+    }
+  }
+  return (true);
+}
 #endif /* !UNIV_HOTBACKUP */
