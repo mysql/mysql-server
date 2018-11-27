@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,8 +260,14 @@ class Value {
 
   Value element(size_t pos) const;
   Value key(size_t pos) const;
-  Value lookup(const std::string &key) const;
-  size_t lookup_index(const std::string &key) const;
+  Value lookup(const char *key, size_t length) const;
+  Value lookup(const std::string &key) const {
+    return lookup(key.c_str(), key.length());
+  }
+  size_t lookup_index(const char *key, size_t length) const;
+  size_t lookup_index(const std::string &key) const {
+    return lookup_index(key.c_str(), key.length());
+  }
   bool is_backed_by(const String *str) const;
   bool raw_binary(const THD *thd, String *buf) const;
   bool get_free_space(const THD *thd, size_t *space) const;

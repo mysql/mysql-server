@@ -724,14 +724,12 @@ Json_dom_ptr Json_dom::parse(const THD *thd, const json_binary::Value &v) {
     return nullptr; /* purecov: inspected */
   return dom;
 }
-#endif  // ifdef MYSQL_SERVER
 
 /// Get string data as std::string from a json_binary::Value.
 static std::string get_string_data(const json_binary::Value &v) {
   return std::string(v.get_data(), v.get_data_length());
 }
 
-#ifdef MYSQL_SERVER
 /**
   Create a DOM template for the provided json_binary::Value.
 
@@ -963,16 +961,27 @@ bool Json_object::consume(Json_object_ptr other) {
   return false;
 }
 
-Json_dom *Json_object::get(const std::string &key) const {
-  const Json_object_map::const_iterator iter = m_map.find(key);
+template <typename Key>
+static Json_dom *json_object_get(const Json_dom *object MY_ATTRIBUTE((unused)),
+                                 const Json_object_map &map, const Key &key) {
+  const Json_object_map::const_iterator iter = map.find(key);
 
-  if (iter != m_map.end()) {
-    DBUG_ASSERT(iter->second->parent() == this);
+  if (iter != map.end()) {
+    DBUG_ASSERT(iter->second->parent() == object);
     return iter->second.get();
   }
 
   return nullptr;
 }
+
+Json_dom *Json_object::get(const std::string &key) const {
+  return json_object_get(this, m_map, key);
+}
+
+Json_dom *Json_object::get(const MYSQL_LEX_CSTRING &key) const {
+  return json_object_get(this, m_map, key);
+}
+
 #endif  // ifdef MYSQL_SERVER
 
 bool Json_object::remove(const std::string &key) {
@@ -1067,14 +1076,30 @@ bool Json_object::merge_patch(Json_object_ptr patch) {
   Otherwise, key1 is not less than key2.
 
   @param key1 the first key to compare
+  @param length1 the length of the first key
   @param key2 the second key to compare
+  @param length2 the length of the second key
   @return true if key1 is considered less than key2, false otherwise
 */
+static bool json_key_less(const char *key1, size_t length1, const char *key2,
+                          size_t length2) {
+  if (length1 != length2) return length1 < length2;
+  return memcmp(key1, key2, length1) < 0;
+}
+
 bool Json_key_comparator::operator()(const std::string &key1,
                                      const std::string &key2) const {
-  if (key1.length() != key2.length()) return key1.length() < key2.length();
+  return json_key_less(key1.data(), key1.length(), key2.data(), key2.length());
+}
 
-  return memcmp(key1.data(), key2.data(), key1.length()) < 0;
+bool Json_key_comparator::operator()(const MYSQL_LEX_CSTRING &key1,
+                                     const std::string &key2) const {
+  return json_key_less(key1.str, key1.length, key2.data(), key2.length());
+}
+
+bool Json_key_comparator::operator()(const std::string &key1,
+                                     const MYSQL_LEX_CSTRING &key2) const {
+  return json_key_less(key1.data(), key1.length(), key2.str, key2.length);
 }
 
 Json_array::Json_array()
@@ -1351,41 +1376,34 @@ Json_dom_ptr Json_opaque::clone() const {
 }
 
 Json_wrapper_object_iterator::Json_wrapper_object_iterator(
-    const Json_object *obj)
-    : m_is_dom(true),
-      m_iter(obj->begin()),
-      m_end(obj->end()),
-      m_element_count(-1) {}
-
-Json_wrapper_object_iterator::Json_wrapper_object_iterator(
-    const json_binary::Value *value)
-    : m_is_dom(false), m_element_count(value->element_count()), m_value(value) {
-  m_curr_element = 0;
-}
-
-bool Json_wrapper_object_iterator::empty() const {
-  return m_is_dom ? (m_iter == m_end) : (m_curr_element >= m_element_count);
-}
-
-void Json_wrapper_object_iterator::next() {
-  if (m_is_dom) {
-    m_iter++;
+    const Json_wrapper &wrapper) {
+  DBUG_ASSERT(wrapper.type() == enum_json_type::J_OBJECT);
+  if (wrapper.is_dom()) {
+    m_value = nullptr;
+    auto object = down_cast<const Json_object *>(wrapper.get_dom());
+    m_iter = object->begin();
+    m_end = object->end();
   } else {
-    ++m_curr_element;
+    m_value = &wrapper.get_binary_value();
+    m_current_element_index = 0;
   }
 }
 
-std::pair<const std::string, Json_wrapper> Json_wrapper_object_iterator::elt()
-    const {
-  if (m_is_dom) {
-    Json_wrapper wr(m_iter->second.get());
+MYSQL_LEX_CSTRING Json_wrapper_object_iterator::key() const {
+  if (is_dom()) return {m_iter->first.c_str(), m_iter->first.length()};
+  const json_binary::Value key = m_value->key(m_current_element_index);
+  return {key.get_data(), key.get_data_length()};
+}
+
+Json_wrapper Json_wrapper_object_iterator::value() const {
+  if (is_dom()) {
+    Json_wrapper wrapper(m_iter->second.get());
     // DOM possibly owned by object and we don't want to make a clone
-    wr.set_alias();
-    return std::make_pair(m_iter->first, wr);
+    wrapper.set_alias();
+    return wrapper;
   }
 
-  return std::make_pair(get_string_data(m_value->key(m_curr_element)),
-                        Json_wrapper(m_value->element(m_curr_element)));
+  return Json_wrapper(m_value->element(m_current_element_index));
 }
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value)
@@ -1661,8 +1679,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (buffer->append('{')) return true; /* purecov: inspected */
 
       bool first = true;
-      for (Json_wrapper_object_iterator iter = wr.object_iterator();
-           !iter.empty(); iter.next()) {
+      for (Json_wrapper_object_iterator iter(wr); !iter.empty(); iter.next()) {
         if (!first && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
@@ -1671,13 +1688,11 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (pretty && newline_and_indent(buffer, depth))
           return true; /* purecov: inspected */
 
-        const std::string &key = iter.elt().first;
-        const char *key_data = key.c_str();
-        size_t key_length = key.length();
-        if (print_string(buffer, true, key_data, key_length) ||
+        const MYSQL_LEX_CSTRING key = iter.key();
+        if (print_string(buffer, true, key.str, key.length) ||
             buffer->append(':') || buffer->append(' ') ||
-            wrapper_to_string(iter.elt().second, buffer, true, pretty,
-                              func_name, depth))
+            wrapper_to_string(iter.value(), buffer, true, pretty, func_name,
+                              depth))
           return true; /* purecov: inspected */
       }
 
@@ -1823,19 +1838,8 @@ enum_field_types Json_wrapper::field_type() const {
   return m_value.field_type();
 }
 
-Json_wrapper_object_iterator Json_wrapper::object_iterator() const {
-  DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
-
-  if (m_is_dom) {
-    const Json_object *o = down_cast<const Json_object *>(m_dom_value);
-    return Json_wrapper_object_iterator(o);
-  }
-
-  return Json_wrapper_object_iterator(&m_value);
-}
-
 #ifdef MYSQL_SERVER
-Json_wrapper Json_wrapper::lookup(const std::string &key) const {
+Json_wrapper Json_wrapper::lookup(const MYSQL_LEX_CSTRING &key) const {
   DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
   if (m_is_dom) {
     const Json_object *object = down_cast<const Json_object *>(m_dom_value);
@@ -1844,7 +1848,7 @@ Json_wrapper Json_wrapper::lookup(const std::string &key) const {
     return wr;
   }
 
-  return Json_wrapper(m_value.lookup(key));
+  return Json_wrapper(m_value.lookup(key.str, key.length));
 }
 #endif  // ifdef MYSQL_SERVER
 
@@ -2560,19 +2564,19 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
           Otherwise, compare each key/value pair in the two objects.
           Return on the first difference that is found.
         */
-        Json_wrapper_object_iterator it1 = object_iterator();
-        Json_wrapper_object_iterator it2 = other.object_iterator();
+        Json_wrapper_object_iterator it1(*this);
+        Json_wrapper_object_iterator it2(other);
         while (!it1.empty()) {
-          const std::pair<const std::string, Json_wrapper> elt1 = it1.elt();
-          const std::pair<const std::string, Json_wrapper> elt2 = it2.elt();
+          const MYSQL_LEX_CSTRING key1 = it1.key();
+          const MYSQL_LEX_CSTRING key2 = it2.key();
 
           // Compare the keys of the two members.
-          cmp = compare_json_strings(elt1.first.data(), elt1.first.size(),
-                                     elt2.first.data(), elt2.first.size());
+          cmp = compare_json_strings(key1.str, key1.length, key2.str,
+                                     key2.length);
           if (cmp != 0) return cmp;
 
           // Compare the values of the two members.
-          cmp = elt1.second.compare(elt2.second);
+          cmp = it1.value().compare(it2.value());
           if (cmp != 0) return cmp;
 
           it1.next();
@@ -3368,7 +3372,7 @@ size_t Json_wrapper::make_sort_key(uchar *to, size_t to_length) const {
   return key.pos();
 }
 
-ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) {
+ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) const {
   Wrapper_hash_key hash_key(hash_val);
   switch (type()) {
     case enum_json_type::J_NULL:
@@ -3397,12 +3401,11 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) {
       break;
     case enum_json_type::J_OBJECT: {
       hash_key.add_character(JSON_KEY_OBJECT);
-      for (Json_wrapper_object_iterator it(object_iterator()); !it.empty();
-           it.next()) {
-        std::pair<const std::string, Json_wrapper> pair = it.elt();
-        hash_key.add_string(pair.first.c_str(), pair.first.length());
+      for (Json_wrapper_object_iterator it(*this); !it.empty(); it.next()) {
+        const MYSQL_LEX_CSTRING key = it.key();
+        hash_key.add_string(key.str, key.length);
         ulonglong t = hash_key.get_crc();
-        hash_key.add_integer(pair.second.make_hash_key(&t));
+        hash_key.add_integer(it.value().make_hash_key(&t));
       }
       break;
     }

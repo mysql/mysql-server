@@ -831,28 +831,28 @@ err:
   @return 0 Success
   @return 1 Failure
 */
-bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
+bool Persisted_variables_cache::extract_variables_from_json(const Json_dom *dom,
                                                             bool is_read_only) {
-  Json_wrapper_object_iterator var_iter(down_cast<Json_object *>(dom));
-  while (!var_iter.empty()) {
-    string var_name, var_value, var_user, var_host;
+  if (dom->json_type() != enum_json_type::J_OBJECT) goto err;
+  for (auto &var_iter : *down_cast<const Json_object *>(dom)) {
+    string var_value, var_user, var_host;
     ulonglong timestamp = 0;
     bool is_null = false;
-    Json_dom *dom_obj;
 
-    var_name = var_iter.elt().first;
+    const string &var_name = var_iter.first;
+    if (var_iter.second->json_type() != enum_json_type::J_OBJECT) goto err;
+    const Json_object *dom_obj =
+        down_cast<const Json_object *>(var_iter.second.get());
 
     /**
       Static variables by themselves is represented as a json object with key
       "mysql_server_static_options" as parent element.
     */
     if (var_name == "mysql_server_static_options") {
-      if (extract_variables_from_json(var_iter.elt().second.to_dom(NULL), true))
-        return 1;
-      var_iter.next();
+      if (extract_variables_from_json(dom_obj, true)) return 1;
       continue;
     }
-    dom_obj = var_iter.elt().second.to_dom(NULL);
+
     /**
       Every Json object which represents Variable information must have only
       2 elements which is
@@ -865,73 +865,59 @@ bool Persisted_variables_cache::extract_variables_from_json(Json_dom *dom,
         }
       }
     */
-    if (dom_obj->depth() != 3 && ((Json_object *)dom_obj)->cardinality() != 2)
-      goto err;
+    if (dom_obj->depth() != 3 && dom_obj->cardinality() != 2) goto err;
 
-    Json_wrapper_object_iterator var_properties_iter(
-        down_cast<Json_object *>(dom_obj));
+    Json_object::const_iterator var_properties_iter = dom_obj->begin();
     /* extract variable value */
-    if (var_properties_iter.elt().second.is_dom()) {
-      if (var_properties_iter.elt().first != "Value") goto err;
+    if (var_properties_iter->first != "Value") goto err;
 
-      dom_obj = var_properties_iter.elt().second.to_dom(NULL);
-      if (dom_obj->depth() != 1 && ((Json_object *)dom_obj)->cardinality() != 1)
-        goto err;
-
-      /* if value is not in string form or null throw error. */
-      if (dom_obj->json_type() == enum_json_type::J_STRING) {
-        Json_string *value = down_cast<Json_string *>(dom_obj);
-        var_value = value->value();
-      } else if (dom_obj->json_type() == enum_json_type::J_NULL) {
-        var_value = "";
-        is_null = true;
-      } else
-        goto err;
+    const Json_dom *value = var_properties_iter->second.get();
+    /* if value is not in string form or null throw error. */
+    if (value->json_type() == enum_json_type::J_STRING) {
+      var_value = down_cast<const Json_string *>(value)->value();
+    } else if (value->json_type() == enum_json_type::J_NULL) {
+      var_value = "";
+      is_null = true;
+    } else {
+      goto err;
     }
-    var_properties_iter.next();
+
+    ++var_properties_iter;
     /* extract metadata */
-    if (var_properties_iter.elt().second.is_dom()) {
-      if (var_properties_iter.elt().first != "Metadata") goto err;
+    if (var_properties_iter->first != "Metadata") goto err;
 
-      dom_obj = var_properties_iter.elt().second.to_dom(NULL);
-      if (dom_obj->depth() != 1 && ((Json_object *)dom_obj)->cardinality() != 3)
+    if (var_properties_iter->second->json_type() != enum_json_type::J_OBJECT)
+      goto err;
+    dom_obj = down_cast<const Json_object *>(var_properties_iter->second.get());
+    if (dom_obj->depth() != 1 && dom_obj->cardinality() != 3) goto err;
+
+    for (auto &metadata_iter : *dom_obj) {
+      const string &metadata_type = metadata_iter.first;
+      const Json_dom *metadata_value = metadata_iter.second.get();
+      if (metadata_type == "Timestamp") {
+        if (metadata_value->json_type() != enum_json_type::J_UINT) goto err;
+        const Json_uint *i = down_cast<const Json_uint *>(metadata_value);
+        timestamp = i->value();
+      } else if (metadata_type == "User" || metadata_type == "Host") {
+        if (metadata_value->json_type() != enum_json_type::J_STRING) goto err;
+        const Json_string *i = down_cast<const Json_string *>(metadata_value);
+        if (metadata_type == "User")
+          var_user = i->value();
+        else
+          var_host = i->value();
+      } else {
         goto err;
-
-      Json_wrapper_object_iterator metadata_iter(
-          down_cast<Json_object *>(dom_obj));
-      while (!metadata_iter.empty()) {
-        string metadata_type = metadata_iter.elt().first;
-        if (metadata_iter.elt().second.is_dom()) {
-          dom_obj = metadata_iter.elt().second.to_dom(NULL);
-          if (metadata_type == "Timestamp") {
-            if (dom_obj->json_type() != enum_json_type::J_UINT) goto err;
-
-            Json_uint *i = down_cast<Json_uint *>(dom_obj);
-            timestamp = i->value();
-          } else if (metadata_type == "User" || metadata_type == "Host") {
-            if (dom_obj->json_type() != enum_json_type::J_STRING) goto err;
-
-            Json_string *i = down_cast<Json_string *>(dom_obj);
-            if (metadata_type == "User")
-              var_user = i->value();
-            else
-              var_host = i->value();
-          } else
-            goto err;
-        }
-        metadata_iter.next();
       }
-      st_persist_var persist_var(var_name, var_value, timestamp, var_user,
-                                 var_host, is_null);
-      lock();
-      assert_lock_owner();
-      if (is_read_only)
-        m_persist_ro_variables[var_name] = persist_var;
-      else
-        m_persist_variables.push_back(persist_var);
-      unlock();
     }
-    var_iter.next();
+    st_persist_var persist_var(var_name, var_value, timestamp, var_user,
+                               var_host, is_null);
+    lock();
+    assert_lock_owner();
+    if (is_read_only)
+      m_persist_ro_variables[var_name] = persist_var;
+    else
+      m_persist_variables.push_back(persist_var);
+    unlock();
   }
   return 0;
 
@@ -981,14 +967,14 @@ int Persisted_variables_cache::read_persist_file() {
     return 1;
   }
   Json_object *json_obj = down_cast<Json_object *>(json.get());
-  Json_wrapper_object_iterator iter(down_cast<Json_object *>(json_obj));
-  if (iter.elt().first != "Version") {
+  Json_object::const_iterator iter = json_obj->begin();
+  if (iter->first != "Version") {
     LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
            "Persisted config file corrupted.");
     return 1;
   }
   /* Check file version */
-  Json_dom *dom_obj = iter.elt().second.to_dom(NULL);
+  Json_dom *dom_obj = iter->second.get();
   if (dom_obj->json_type() != enum_json_type::J_INT) {
     LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
            "Persisted config file version invalid.");
@@ -1000,13 +986,13 @@ int Persisted_variables_cache::read_persist_file() {
            "Persisted config file version invalid.");
     return 1;
   }
-  iter.next();
-  if (iter.elt().first != "mysql_server") {
+  ++iter;
+  if (iter->first != "mysql_server") {
     LogErr(ERROR_LEVEL, ER_CONFIG_OPTION_WITHOUT_GROUP);
     return 1;
   }
   /* Extract key/value pair and populate in a global hash map */
-  if (extract_variables_from_json(iter.elt().second.to_dom(NULL))) return 1;
+  if (extract_variables_from_json(iter->second.get())) return 1;
   return 0;
 }
 

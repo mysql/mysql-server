@@ -154,7 +154,8 @@ class Persisted_variables_cache {
                                        std::string host, bool is_null,
                                        String *dest);
   /* Helper function to extract variables from json formatted string */
-  bool extract_variables_from_json(Json_dom *dom, bool is_read_only = false);
+  bool extract_variables_from_json(const Json_dom *dom,
+                                   bool is_read_only = false);
 
  private:
   /* Helper functions for file IO */
