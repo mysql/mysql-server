@@ -1577,4 +1577,76 @@ static void BM_JsonDateArrayToString(size_t num_iterations) {
 }
 BENCHMARK(BM_JsonDateArrayToString)
 
+/**
+  Tests the performance of Json_wrapper_object_iterator when iterating
+  over a JSON object in the DOM representation.
+*/
+static void BM_JsonWrapperObjectIteratorDOM(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_object object;
+  for (size_t i = 0; i < 1000; ++i) {
+    object.add_alias("JSON object member number " + std::to_string(i),
+                     create_dom_ptr<Json_null>());
+  }
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    for (Json_wrapper_object_iterator it(&object); !it.empty(); it.next()) {
+      std::pair<const std::string, Json_wrapper> element = it.elt();
+      EXPECT_FALSE(element.first.empty());
+      EXPECT_EQ(enum_json_type::J_NULL, element.second.type());
+    }
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonWrapperObjectIteratorDOM)
+
+/**
+  Tests the performance of Json_wrapper_object_iterator when iterating
+  over a JSON object in the binary representation.
+*/
+static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  Json_object dom_object;
+  for (size_t i = 0; i < 1000; ++i) {
+    dom_object.add_alias("JSON object member number " + std::to_string(i),
+                         create_dom_ptr<Json_null>());
+  }
+
+  String serialized_object;
+  EXPECT_FALSE(json_binary::serialize(initializer.thd(), &dom_object,
+                                      &serialized_object));
+  json_binary::Value binary_object = json_binary::parse_binary(
+      serialized_object.ptr(), serialized_object.length());
+  EXPECT_EQ(json_binary::Value::OBJECT, binary_object.type());
+
+  StartBenchmarkTiming();
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    for (Json_wrapper_object_iterator it(&binary_object); !it.empty();
+         it.next()) {
+      std::pair<const std::string, Json_wrapper> element = it.elt();
+      EXPECT_FALSE(element.first.empty());
+      EXPECT_EQ(enum_json_type::J_NULL, element.second.type());
+    }
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_JsonWrapperObjectIteratorBinary)
+
 }  // namespace json_dom_unittest
