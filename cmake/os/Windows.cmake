@@ -48,9 +48,10 @@ INCLUDE(${CMAKE_BINARY_DIR}/win/configure.data OPTIONAL)
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
-# We require at least Visual Studio 2017 (aka 15.0) which has version nr 1910.
-IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1910)
-  MESSAGE(FATAL_ERROR "Visual Studio 2017 or newer is required!")
+# We require at least Visual Studio 2017 (aka 15.8) which has version nr 1910.
+IF(NOT FORCE_UNSUPPORTED_COMPILER AND MSVC_VERSION LESS 1915)
+  MESSAGE(FATAL_ERROR
+    "Visual Studio 2017 update 15.8 or newer is required!")
 ENDIF()
 
 # OS display name (version_compile_os etc).
