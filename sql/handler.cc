@@ -8635,7 +8635,6 @@ void handler::ha_set_primary_handler(handler *primary_handler) {
   Checks if the database name is reserved word used by SE by invoking
   the handlerton method.
 
-  @param  ununsed       thread handler which is unused.
   @param  plugin        SE plugin.
   @param  name          Database name.
 
