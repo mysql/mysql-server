@@ -22,7 +22,6 @@ include/rpl_reconnect.inc
 [connection server2]
 
 # 5. Cleanup
-SET @@GLOBAL.DEBUG= '-d,group_replication_group_action_start_msg_error';
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
