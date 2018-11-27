@@ -1593,13 +1593,15 @@ static void BM_JsonWrapperObjectIteratorDOM(size_t num_iterations) {
                      create_dom_ptr<Json_null>());
   }
 
+  Json_wrapper wrapper(&object);
+  wrapper.set_alias();
+
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    for (Json_wrapper_object_iterator it(&object); !it.empty(); it.next()) {
-      std::pair<const std::string, Json_wrapper> element = it.elt();
-      EXPECT_FALSE(element.first.empty());
-      EXPECT_EQ(enum_json_type::J_NULL, element.second.type());
+    for (Json_wrapper_object_iterator it(wrapper); !it.empty(); it.next()) {
+      EXPECT_NE(0U, it.key().length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.value().type());
     }
   }
 
@@ -1628,18 +1630,16 @@ static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
   String serialized_object;
   EXPECT_FALSE(json_binary::serialize(initializer.thd(), &dom_object,
                                       &serialized_object));
-  json_binary::Value binary_object = json_binary::parse_binary(
-      serialized_object.ptr(), serialized_object.length());
-  EXPECT_EQ(json_binary::Value::OBJECT, binary_object.type());
+  Json_wrapper wrapper(json_binary::parse_binary(serialized_object.ptr(),
+                                                 serialized_object.length()));
+  EXPECT_EQ(enum_json_type::J_OBJECT, wrapper.type());
 
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    for (Json_wrapper_object_iterator it(&binary_object); !it.empty();
-         it.next()) {
-      std::pair<const std::string, Json_wrapper> element = it.elt();
-      EXPECT_FALSE(element.first.empty());
-      EXPECT_EQ(enum_json_type::J_NULL, element.second.type());
+    for (Json_wrapper_object_iterator it(wrapper); !it.empty(); it.next()) {
+      EXPECT_NE(0U, it.key().length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.value().type());
     }
   }
 
