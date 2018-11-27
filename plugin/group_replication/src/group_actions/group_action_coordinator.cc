@@ -58,6 +58,8 @@ Group_action_information::~Group_action_information() {}
      to true.
   2) It is deleted under the coordinator_process_lock on terminate_action or
      awake_coordinator_on_error
+     If it was proposed locally the code proposing the action will delete the
+     object on coordinate_action_execution.
   3) All accesses are under the execution of the said action on the thread, or
      on the coordination or stop methods, were we use the
      coordinator_process_lock
@@ -501,6 +503,11 @@ bool Group_action_coordinator::handle_action_start_message(
    method
   */
   if (nullptr == action_info->executing_action) {
+    if (!is_message_sender) {
+      delete action_info->execution_message_area;
+      delete action_info;
+      action_info = nullptr;
+    }
     abort_plugin_process(
         "Fatal error during a Group Replication configuration change: This "
         "member received an unknown action for execution.");

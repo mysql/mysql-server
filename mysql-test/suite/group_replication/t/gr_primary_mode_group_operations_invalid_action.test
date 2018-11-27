@@ -59,7 +59,7 @@ SELECT group_replication_switch_to_single_primary_mode();
 --echo
 --echo # 5. Cleanup
 
-SET @@GLOBAL.DEBUG= '-d,group_replication_group_action_start_msg_error';
+# No need for a debug flag cleanup after restart
 
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("A configuration change was killed in this member. The member will now leave the group as its configuration may have diverged.");
