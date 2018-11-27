@@ -243,6 +243,11 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     DBUG_RETURN(true);
   }
 
+  if (ha_check_reserved_db_name(db)) {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db);
+    DBUG_RETURN(true);
+  }
+
   /*
     When creating the schema, we must lock the schema name without case (for
     correct MDL locking) when l_c_t_n == 2.
