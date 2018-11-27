@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -598,6 +598,18 @@ readArguments(int *pargc, char*** pargv)
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
+  if (ga_nodeId == 0)
+  {
+    err << "Backup file node ID not specified, please provide --nodeid" << endl;
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
+  if (ga_backupId == 0)
+  {
+    err << "Backup ID not specified, please provide --backupid" << endl;
+    exit(NDBT_ProgramExit(NDBT_WRONGARGS));
+  }
+
+
   for (i = 0; i < MAX_NODE_GROUP_MAPS; i++)
     opt_nodegroup_map[i].curr_index = 0;
 
