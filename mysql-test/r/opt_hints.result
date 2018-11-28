@@ -102,21 +102,21 @@ EXPLAIN SELECT  f2 FROM
 (SELECT f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using index condition
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1 f3_idx) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1` `f3_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
 EXPLAIN SELECT /*+ NO_ICP(t3@qb1) */ f2 FROM
 (SELECT /*+ QB_NAME(QB1) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`QB1`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
 # Expected warning for f1_idx key, unresolved name.
@@ -124,7 +124,7 @@ EXPLAIN SELECT f2 FROM
 (SELECT /*+ NO_ICP(t3 f3_idx, f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using where
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using where
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
 Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f3_idx`) NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))
@@ -133,7 +133,7 @@ EXPLAIN SELECT f2 FROM
 (SELECT /*+ NO_ICP(t3 f1_idx, f2_idx) */ f2, f3, f1 FROM t3 WHERE f1 > 2 AND f3 = 'poiu') AS TD
 WHERE TD.f1 > 2 AND TD.f3 = 'poiu';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ref	PRIMARY,f2_idx,f3_idx	f3_idx	35	const	16	96.43	Using index condition
+1	SIMPLE	t3	NULL	range	PRIMARY,f2_idx,f3_idx	f3_idx	39	NULL	16	100.00	Using index condition
 Warnings:
 Warning	3128	Unresolved name `t3`@`select#2` `f1_idx` for NO_ICP hint
 Note	1003	/* select#1 */ select /*+ NO_ICP(`t3`@`select#2` `f2_idx`) */ `test`.`t3`.`f2` AS `f2` from `test`.`t3` where ((`test`.`t3`.`f3` = 'poiu') and (`test`.`t3`.`f1` > 2) and (`test`.`t3`.`f1` > 2))

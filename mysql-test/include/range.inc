@@ -2544,3 +2544,150 @@ SET optimizer_trace="enabled=off";
 
 DROP PROCEDURE p;
 DROP TABLE t1, transactions;
+
+--echo #
+--echo # Bug #28086754: OPTIMIZER SKIP THE RANG SCAN ON SECOND COLUMN IN A
+--echo #                 COMPOSITE INDEX
+--echo #
+
+CREATE TABLE test_ref (
+   a INT PRIMARY KEY,
+   b VARCHAR(20),
+   c VARCHAR(20) DEFAULT NULL,
+   d VARCHAR(3) DEFAULT NULL,
+   id INT DEFAULT NULL,
+   KEY idx1 (id, c),
+   KEY idx2 (id, d)) ENGINE=INNODB ;
+
+--disable_query_log
+INSERT INTO test_ref VALUES
+(   27699, 'D007', 'gheennse', 'S',    7),
+(   34876, 'D003', 'gheennse', 'S',    3),
+(   70714, 'D007', 'gheennse', 'S',    7),
+(   71945, 'D005', 'gheennse', 'S',    5),
+(   95929, 'D003', 'gheennse', 'D',    3),
+(  129342, 'D002', 'gheennse', 'S',    2),
+(  146471, 'D003', 'gheennse', 'S',    3),
+(  186302, 'D003', 'gheennse', 'S',    3),
+(  248098, 'D003', 'gheennse', 'S',    3),
+(  308317, 'D003', 'gheennse', 'D',    3),
+(  317360, 'D005', 'gheennse', 'D',    5),
+(  444176, 'D003', 'gheennse', 'A',    3),
+(  460871, 'D003', 'gheennse', 'D',    3),
+(  462396, 'D002', 'gheennse', 'S',    2),
+(  477701, 'D007', 'gheennse', 'D',    7),
+(  503689, 'D003', 'gheennse', 'S',    3),
+(  505492, 'D003', 'gheennse', 'DD',   3),
+(  516238, 'D003', 'gheennse', 'S',    3),
+(  534333, 'D002', 'gheennse', 'D',    2),
+(  565439, 'D007', 'gheennse', 'D',    7),
+(  577221, 'D002', 'gheennse', 'S',    2),
+(  633762, 'D002', 'gheennse', 'S',    2),
+(  670506, 'D002', 'gheennse', 'D',    2),
+(  676921, 'D007', 'gheennse', 'D',    7),
+(  680607, 'D002', 'gheennse', 'D',    2),
+(  694397, 'D003', 'gheennse', 'S',    3),
+(  714547, 'D003', 'gheennse', 'S',    3),
+(  717856, 'D003', 'gheennse', 'D',    3),
+(  808061, 'D003', 'gheennse', 'S',    3),
+(  864526, 'D003', 'gheennse', 'S',    3),
+(  890043, 'D007', 'gheennse', 'S',    7),
+(  910633, 'D003', 'gheennse', 'S',    3),
+(  948201, 'D002', 'gheennse', 'S',    2),
+(  949220, 'D005', 'gheennse', 'S',    5),
+(  960404, 'D003', 'gheennse', 'S',    3),
+( 1092448, 'D007', 'gheennse', 'D',    7),
+( 1104681, 'D002', 'gheennse', 'S',    2),
+( 1123559, 'D003', 'gheennse', 'S',    3),
+( 1129004, 'D003', 'gheennse', 'S',    3),
+( 1158830, 'D005', 'gheennse', 'D',    5),
+( 1181872, 'D003', 'gheennse', 'S',    3),
+( 1244160, 'D005', 'gheennse', 'S',    5),
+( 1248290, 'D005', 'gheennse', 'D',    5),
+( 1271990, 'D005', 'gheennse', 'S',    5),
+( 1292696, 'D003', 'gheennse', 'S',    3),
+( 1334421, 'D002', 'gheennse', 'S',    2),
+( 1386182, 'D007', 'gheennse', 'S',    7),
+( 1432466, 'D007', 'gheennse', 'D',    7),
+( 1604224, 'D003', 'gheennse', 'S',    3),
+( 1635704, 'D007', 'gheennse', 'S',    7),
+( 1762832, 'D003', 'gheennse', 'D',    3),
+( 1770649, 'D003', 'gheennse', 'S',    3),
+( 1770299, 'D003', 'gheennse', 'S',    3),
+( 1770399, 'D003', 'gheennse', 'S',    3),
+( 1896320, 'D005', 'gheennse', 'S',    5),
+( 1946091, 'D007', 'gheennse', 'S',    7),
+( 1955807, 'D007', 'gheennse', 'S',    7),
+( 1981281, 'D002', 'gheennse', 'D',    2),
+( 1984746, 'D002', 'gheennse', 'S',    2),
+( 2011617, 'D002', 'gheennse', 'S',    2),
+( 2021745, 'D005', 'gheennse', 'D',    5),
+( 2058339, 'D002', 'cheennse', 'D',    2),
+( 2088903, 'D002', 'cheennse', 'S',    2),
+( 2170936, 'D003', 'cheennse', 'S',    3),
+( 2191014, 'D007', 'cheennse', 'S',    7),
+( 2359396, 'D003', 'cheennse', 'D',    3),
+( 2392181, 'D003', 'cheennse', 'D',    3),
+( 2509548, 'D002', 'cheennse', 'D',    2),
+( 2524317, 'D002', 'cheennse', 'S',    2),
+( 2532146, 'D003', 'cheennse', 'S',    3),
+( 2554387, 'D003', 'cheennse', 'S',    3),
+( 2615723, 'D003', 'cheennse', 'D',    3),
+( 2769368, 'D007', 'cheennse', 'S',    7),
+( 2788698, 'D002', 'cheennse', 'D',    2),
+( 2900141, 'D003', 'cheennse', 'D',    3),
+( 2916874, 'D003', 'cheennse', 'S',    3),
+( 2917505, 'D005', 'cheennse', 'D',    5),
+( 3049543, 'D007', 'cheennse', 'D',    7),
+( 3054225, 'D005', 'cheennse', 'S',    5),
+( 3127100, 'D005', 'cheennse', 'S',    5),
+( 3231967, 'D003', 'cheennse', 'DD',   3),
+( 3239080, 'D005', 'cheennse', 'DD',   5),
+( 3245821, 'D003', 'cheennse', 'DD',   3),
+( 3492641, 'D003', 'cheennse', 'DD',   3),
+( 3502099, 'D003', 'cheennse', 'S',    3),
+( 3502400, 'D005', 'cheennse', 'DD',   5),
+( 3652408, 'D003', 'cheennse', 'DD',   3),
+( 3671827, 'D003', 'cheennse', 'S',    3),
+( 3739085, 'D007', 'cheennse', 'S',    7),
+( 3856727, 'D007', 'cheennse', 'S',    7),
+( 3871123, 'D003', 'cheennse', 'S',    3),
+( 3955047, 'D002', 'cheennse', 'DD',   2),
+( 3995249, 'D003', 'cheennse', 'S',    3),
+( 3996816, 'D002', 'cheennse', 'S',    2),
+( 4037006, 'D003', 'cheennse', 'S',    3),
+( 4040042, 'D003', 'cheennse', 'S',    3),
+( 4126972, 'D003', 'cheennse', 'S',    3),
+( 4163290, 'D005', 'cheennse', 'DD',   5),
+( 4170771, 'D002', 'cheennse', 'DD',   2),
+( 4209586, 'D003', 'cheennse', 'S',    3),
+( 4267486, 'D003', 'cheennse', 'S',    3),
+( 4317590, 'D005', 'cheennse', 'S',    5),
+( 4318938, 'D002', 'cheennse', 'S',    2),
+( 4363730, 'D007', 'cheennse', 'D',    7),
+( 4455095, 'D005', 'cheennse', 'S',    5);
+--enable_query_log
+ANALYZE TABLE test_ref;
+
+let query1=
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+
+# test with descending order
+let query2=
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+LIMIT 1;
+
+eval EXPLAIN $query1;
+eval $query1;
+
+eval EXPLAIN $query2;
+eval $query2;
+
+DROP TABLE test_ref;

@@ -827,7 +827,7 @@ os_file_io_complete(
 	byte*		buf,
 	byte*		scratch,
 	ulint		src_len,
-	ulint		offset,
+	os_offset_t	offset,
 	ulint		len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
@@ -971,8 +971,7 @@ public:
 		return(os_file_io_complete(
 				slot->type, slot->file.m_file, slot->buf,
 				NULL, slot->original_len,
-				static_cast<ulint>(slot->offset),
-				slot->len));
+				slot->offset, slot->len));
 	}
 
 private:
@@ -1692,7 +1691,7 @@ os_file_io_complete(
 	byte*		buf,
 	byte*		scratch,
 	ulint		src_len,
-	ulint		offset,
+	os_offset_t	offset,
 	ulint		len)
 {
 	/* We never compress/decompress the first page */
@@ -2347,6 +2346,9 @@ LinuxAIOHandler::resubmit(Slot* slot)
 	slot->n_bytes = 0;
 	slot->io_already_done = false;
 
+	/* make sure that slot->offset fits in off_t */
+	ut_ad(sizeof(off_t) >= sizeof(os_offset_t));
+
 	struct iocb*	iocb = &slot->control;
 	if (slot->type.is_read()) {
 		io_prep_pread(
@@ -2354,7 +2356,7 @@ LinuxAIOHandler::resubmit(Slot* slot)
 			slot->file.m_file,
 			slot->ptr,
 			slot->len,
-			static_cast<off_t>(slot->offset));
+			slot->offset);
 
 	} else {
 
@@ -2365,7 +2367,7 @@ LinuxAIOHandler::resubmit(Slot* slot)
 			slot->file.m_file,
 			slot->ptr,
 			slot->len,
-			static_cast<off_t>(slot->offset));
+			slot->offset);
 	}
 
 	iocb->data = slot;
@@ -5443,8 +5445,7 @@ os_file_io(
 				*err = os_file_io_complete(
 					type, file,
 					reinterpret_cast<byte*>(buf),
-					NULL, original_n,
-					static_cast<ulint>(offset), n);
+					NULL, original_n, offset, n);
 			} else {
 
 				*err = DB_SUCCESS;

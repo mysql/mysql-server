@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "sql_string.h"
 
 #include <algorithm>
+#include <limits>
 
 using std::min;
 using std::max;
@@ -88,7 +89,8 @@ bool String::real_alloc(size_t length)
    new buffer is smaller than the currently allocated buffer (if one exists),
    no allocation occured.
 
-   @retval true An error occured when attempting to allocate memory.
+   @retval true An error occured when attempting to allocate memory or memory
+   allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
 {
@@ -106,9 +108,13 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
     m_alloced_length= 0;
   }
 
-  if (m_alloced_length < len)
+  if (m_alloced_length < len)     // Available bytes are not enough
   {
-    // Available bytes are not enough.
+    // Signal an error if len exceeds uint32 max on 64-bit word platform.
+#if defined(__WORDSIZE) && (__WORDSIZE == 64)
+    if (len > std::numeric_limits<uint32>::max())
+      return true;
+#endif
     char *new_ptr;
     if (m_is_alloced)
     {

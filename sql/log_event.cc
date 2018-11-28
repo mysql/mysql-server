@@ -7513,7 +7513,9 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->m_sql_cmd= new Sql_cmd_xa_commit(&xid, XA_ONE_PHASE);
     error= thd->lex->m_sql_cmd->execute(thd);
   }
-  error|= mysql_bin_log.gtid_end_transaction(thd);
+
+  if (!error)
+    error = mysql_bin_log.gtid_end_transaction(thd);
 
   return error;
 }
@@ -14299,19 +14301,23 @@ bool View_change_log_event::write_data_map(IO_CACHE* file,
 /*
   Updates the certification info map.
 */
-void
-View_change_log_event::set_certification_info(std::map<std::string, std::string> *info)
-{
+void View_change_log_event::set_certification_info(
+    std::map<std::string, std::string> *info, size_t *event_size) {
   DBUG_ENTER("View_change_log_event::set_certification_database_snapshot");
   certification_info.clear();
 
+  *event_size = Binary_log_event::VIEW_CHANGE_HEADER_LEN;
   std::map<std::string, std::string>::iterator it;
   for(it= info->begin(); it != info->end(); ++it)
   {
     std::string key= it->first;
     std::string value= it->second;
     certification_info[key]= value;
+    *event_size += it->first.length() + it->second.length();
   }
+  *event_size +=
+      (ENCODED_CERT_INFO_KEY_SIZE_LEN + ENCODED_CERT_INFO_VALUE_LEN) *
+      certification_info.size();
 
   DBUG_VOID_RETURN;
 }

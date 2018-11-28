@@ -1,0 +1,51 @@
+# ==== Purpose ====
+#
+# Test verifies that server shutdown doesn't hang when
+#
+# * Gtid's are enabled.
+# * AUTOCOMMIT=0
+# * super_read_only=ON
+#
+# ==== Implementation ====
+#
+# Do some operations on master like CREATE/INSERT so that GTIDs are generated.
+# Shutdown and restart the server.
+# Shutdown should not hang.
+# Upon restart verify the content of 'gtid_executed' table.
+#
+# ==== References ====
+#
+# Bug#28183718: CANNOT SHUTDOWN MYSQLD WHEN LAST BINLOG HAS
+# GTIDS TO SAVE AND AUTOCOMMIT=0
+#
+
+--source include/have_gtid.inc
+
+# For reseting mysql.gtid_executed table
+RESET MASTER;
+
+CREATE TABLE t (f INT PRIMARY KEY) ENGINE=INNODB;
+
+INSERT INTO t VALUES (10);
+
+SET GLOBAL autocommit= 0;
+SET GLOBAL super_read_only= ON;
+
+--source include/restart_mysqld.inc
+
+--let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+--echo #
+--echo # Verify that we can get correct gtid sets after server restarts
+--echo #
+--let $assert_text= committed gtid set is MASTER_UUID:1-2
+--let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$master_uuid:1-2"
+--source include/assert.inc
+
+--replace_result $master_uuid MASTER_UUID
+SELECT * FROM mysql.gtid_executed;
+
+DROP TABLE t;
+
+# Cleanup
+RESET MASTER;

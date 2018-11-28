@@ -1,0 +1,106 @@
+# ==== Requirements ====
+#
+# R1. When using replication filter together with XA transactions, output an
+#     error message when some statement gets filtered within the active XA
+#     transaction.
+#
+# ==== Implementation ====
+#
+# With default setup:
+# 1) Create a table that gets filtered out by the added filter
+# 2) Add a replication filter to the slave node
+# 3) Start an XA transaction and execute a statement that is filtered out by
+#    replication filter
+# 4) Ensure that the error message get logged to the slave error log file.
+#
+# ==== References ====
+#
+# BUG#27442477: ASSERT `THD->GET_HA_DATA...HAS_STATE(XID_STATE::XA_ACTIVE))' AT HANDLER.CC:1396
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+--let $gtid_mode_value= `SELECT @@GLOBAL.GTID_MODE = "ON"`
+
+--source include/rpl_connection_master.inc
+#
+# 1) Create a table that gets filtered out by the added filter
+#
+CREATE TABLE t1 (a INT);
+--source include/sync_slave_sql_with_master.inc
+
+#
+# 2) Add a replication filter to the slave node
+#
+--source include/stop_slave_sql.inc
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
+CALL mtr.add_suppression(".*The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave.*");
+CHANGE REPLICATION FILTER Replicate_Ignore_Table=(test.t1);
+--source include/start_slave_sql.inc
+
+#
+# 3) Start an XA transaction and execute a statement that is filtered out by
+#    replication filter
+#
+--source include/rpl_connection_master.inc
+XA START '1'; INSERT INTO t1 VALUES (1); XA END '1'; XA PREPARE '1';
+XA COMMIT '1';
+--let $gtid_executed_master= `SELECT @@GLOBAL.GTID_EXECUTED`
+
+#
+# Wait for the ER_XA_REPLICATION_FILTERS error to be thrown
+#
+--source include/rpl_connection_slave.inc
+--let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
+--source include/wait_for_slave_sql_error.inc
+
+#
+# Retry the transaction
+#
+START SLAVE SQL_THREAD;
+--let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
+--source include/wait_for_slave_sql_error.inc
+
+#
+# If GTID_MODE is ON, test that are missing GTID
+#
+if ($gtid_mode_value == 1)
+{
+  --let $gtid_executed_slave= `SELECT @@GLOBAL.GTID_EXECUTED`
+  --let $gtid_missing_slave= `SELECT GTID_SUBTRACT('$gtid_executed_master', '$gtid_executed_slave')`
+  --disable_result_log
+  --let $include_silent= 1
+  --let $assert_text= slave has missing GTIDs
+  --let $assert_cond= "$gtid_missing_slave" != ""
+  --source include/assert.inc
+  --let $include_silent=
+  --enable_result_log
+}
+
+#
+# Clear replication filters in order for the transaction to succeed.
+#
+CHANGE REPLICATION FILTER Replicate_Ignore_Table=();
+--let $slave_sql_errno=
+--source include/start_slave_sql.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $count = `SELECT COUNT(1) FROM test.t1;`
+--let $assert_text = table 'test.t1' record count must be 1
+--let $assert_cond = $count = 1
+--source include/assert.inc
+
+#
+# 4) Ensure that the error message get logged to the slave error log file.
+#
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after= CURRENT_TEST: rpl:rpl_xa_with_filters_error_msg
+--let $assert_match= The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave
+--let $assert_select= Slave SQL
+--let $assert_text= Found error message regarding usage of replication filters with XA transactions
+--source include/assert_grep.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

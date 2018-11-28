@@ -690,18 +690,7 @@ public:
   {
     bytes_written = 0;
   }
-  void harvest_bytes_written(ulonglong* counter)
-  {
-#ifndef DBUG_OFF
-    char buf1[22],buf2[22];
-#endif
-    DBUG_ENTER("harvest_bytes_written");
-    (*counter)+=bytes_written;
-    DBUG_PRINT("info",("counter: %s  bytes_written: %s", llstr(*counter,buf1),
-		       llstr(bytes_written,buf2)));
-    bytes_written=0;
-    DBUG_VOID_RETURN;
-  }
+  void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
   void signal_update()
   {
@@ -728,10 +717,10 @@ public:
     }
   }
 
-  void update_binlog_end_pos(my_off_t pos)
+  void update_binlog_end_pos(const char *file, my_off_t pos)
   {
     lock_binlog_end_pos();
-    if (pos > binlog_end_pos)
+    if (is_active(file) && pos > binlog_end_pos)
       binlog_end_pos= pos;
     signal_update();
     unlock_binlog_end_pos();
@@ -886,7 +875,7 @@ public:
   inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
-
+  static const int MAX_RETRIES_FOR_DELETE_RENAME_FAILURE = 5;
   /*
     It is called by the threads(e.g. dump thread) which want to read
     hot log without LOCK_log protection.
@@ -932,6 +921,26 @@ typedef struct st_load_file_info
 } LOAD_FILE_INFO;
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
+
+/**
+  Check if the the transaction is empty.
+
+  @param thd The client thread that executed the current statement.
+
+  @retval true No changes found in any storage engine
+  @retval false Otherwise.
+
+**/
+bool is_transaction_empty(THD* thd);
+/**
+  Check if the transaction has no rw flag set for any of the storage engines.
+
+  @param thd The client thread that executed the current statement.
+  @param trx_scope The transaction scope to look into.
+
+  @retval the number of engines which have actual changes.
+ */
+int check_trx_rw_engines(THD *thd, Transaction_ctx::enum_trx_scope trx_scope);
 
 /**
   Check if at least one of transacaction and statement binlog caches contains

@@ -4440,11 +4440,17 @@ public:
   char* get_view_id() { return view_id; }
 
   /**
-    Sets the certification info
+     Sets the certification info in the event
 
-    @param db the database
-  */
-  void set_certification_info(std::map<std::string, std::string> *info);
+     @note size is calculated on this method as the size of the data
+     might render the log even invalid. Also due to its size doing it
+     here avoid looping over the data multiple times.
+
+     @param[in] info    certification info to be written
+     @param[out] event_size  the event size after this operation
+   */
+  void set_certification_info(std::map<std::string, std::string> *info,
+                              size_t *event_size);
 
   /**
     Returns the certification info
