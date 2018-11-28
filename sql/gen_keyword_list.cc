@@ -23,6 +23,7 @@
 
 #include <unicode/errorcode.h>
 #include <unicode/regex.h>
+#include <unicode/unistr.h>
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -31,6 +32,9 @@
 
 #include "lex.h"                       // symbols[]
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
+using icu::RegexMatcher;
+using icu::UnicodeString;
 
 bool icu_error(const UErrorCode &status) {
   if (!U_FAILURE(status)) {
