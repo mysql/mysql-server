@@ -105,6 +105,11 @@ INSERT INTO t1 VALUES (1);
 
 --connection server1
 
+# Wait that performance schema update LAST_APPLIED_TRANSACTION to
+# APPLYING_TRANSACTION* columns be 0
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name="group_replication_applier" AND LAST_APPLIED_TRANSACTION="$group_replication_group_name:4"
+--source include/wait_condition.inc
+
 --echo #group_replication_recovery channel configuration
 --query_vertical SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery"
 
