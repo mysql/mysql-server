@@ -148,7 +148,7 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
     int last_rows;
-    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != nullptr);
+    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != NULL);
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
