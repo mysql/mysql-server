@@ -1824,8 +1824,10 @@ static Exit_status safe_connect() {
     return ERROR_STOP;
   }
 
-  SSL_SET_OPTIONS(mysql);
-
+  if (SSL_SET_OPTIONS(mysql)) {
+    error("%s", SSL_SET_OPTIONS_ERROR);
+    return ERROR_STOP;
+  }
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
 

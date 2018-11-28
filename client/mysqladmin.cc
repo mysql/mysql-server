@@ -402,7 +402,10 @@ int main(int argc, char *argv[]) {
     uint tmp = opt_connect_timeout;
     mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&tmp);
   }
-  SSL_SET_OPTIONS(&mysql);
+  if (SSL_SET_OPTIONS(&mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    return EXIT_FAILURE;
+  }
   if (opt_protocol)
     mysql_options(&mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 #if defined(_WIN32)

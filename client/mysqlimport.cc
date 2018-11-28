@@ -416,7 +416,10 @@ static MYSQL *db_connect(char *host, char *database, char *user, char *passwd) {
   if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
   if (opt_local_file)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_file);
-  SSL_SET_OPTIONS(mysql);
+  if (SSL_SET_OPTIONS(mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    return 0;
+  }
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);

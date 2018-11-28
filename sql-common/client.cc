@@ -5630,9 +5630,9 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
       if (set_fips_mode(mysql->options.extension->ssl_fips_mode,
                         ssl_err_string) != 1) {
         DBUG_PRINT("error", ("fips mode set error %s:", ssl_err_string));
-        my_printf_error(CR_SSL_FIPS_MODE_ERR,
-                        "Set Fips mode ON/STRICT failed, detail: '%s'.", MYF(0),
-                        ssl_err_string);
+        set_mysql_extended_error(
+            mysql, CR_SSL_FIPS_MODE_ERR, unknown_sqlstate,
+            "Set Fips mode ON/STRICT failed, detail: '%s'.", ssl_err_string);
         DBUG_RETURN(1);
       }
 #endif  // defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
