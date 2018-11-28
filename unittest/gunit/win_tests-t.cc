@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,8 +62,7 @@ protected:
     }
   }
 
-  SECURITY_ATTRIBUTES m_sec_attr;
-  SECURITY_DESCRIPTOR m_sec_descr;
+  SECURITY_ATTRIBUTES *mp_sec_attr;
   char                m_pipe_name[256];
   HANDLE              m_pipe_handle;
   std::string         m_name;
@@ -75,8 +74,7 @@ TEST_F(NamedPipeTest, CreatePipe)
 {
   char exp_pipe_name[256];
 
-  m_pipe_handle= create_server_named_pipe(&m_sec_attr,
-                                          &m_sec_descr,
+  m_pipe_handle= create_server_named_pipe(&mp_sec_attr,
                                           1024,
                                           m_name.c_str(),
                                           m_pipe_name,
@@ -93,16 +91,14 @@ TEST_F(NamedPipeTest, CreatePipe)
 // Verify that we fail if we try to create the same named pipe twice.
 TEST_F(NamedPipeTest, CreatePipeTwice)
 {
-  m_pipe_handle= create_server_named_pipe(&m_sec_attr,
-                                          &m_sec_descr,
+  m_pipe_handle= create_server_named_pipe(&mp_sec_attr,
                                           1024,
                                           m_name.c_str(),
                                           m_pipe_name,
                                           sizeof(m_pipe_name));
   EXPECT_NE(INVALID_HANDLE_VALUE, m_pipe_handle);
 
-  HANDLE handle= create_server_named_pipe(&m_sec_attr,
-                                          &m_sec_descr,
+  HANDLE handle= create_server_named_pipe(&mp_sec_attr,
                                           1024,
                                           m_name.c_str(),
                                           m_pipe_name,

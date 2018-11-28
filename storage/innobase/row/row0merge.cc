@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3739,12 +3739,12 @@ row_merge_file_create_low(
 	file APIs, add instrumentation to register with
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
-        char *filepath = NULL;
-        filepath =
-            fil_make_filepath(path, "Innodb Merge Temp File", NO_EXT, false);
+	Datafile df;
+	df.make_filepath(path, "Innodb Merge Temp File", NO_EXT);
+
         PSI_file_locker_state	state;
         locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-            &state, innodb_temp_file_key.m_value, PSI_FILE_OPEN, filepath,
+            &state, innodb_temp_file_key.m_value, PSI_FILE_OPEN, df.filepath(),
             &locker);
         if (locker != NULL) {
 		PSI_FILE_CALL(start_file_open_wait)(locker,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -315,6 +315,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -509,6 +510,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all)
   param.server_id= thd->server_id;
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -527,6 +529,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   TRANS_PARAM_ZERO(param);
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
@@ -551,6 +554,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
   TRANS_PARAM_ZERO(param);
   param.server_uuid= server_uuid;
   param.thread_id= thd->thread_id();
+  param.rpl_channel_type = thd->rpl_thd_ctx.get_rpl_channel_type();
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

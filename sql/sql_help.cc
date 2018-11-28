@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -608,7 +608,7 @@ bool prepare_simple_select(THD *thd, Item *cond,
   const bool impossible=
     test_quick_select(thd, keys_to_use, 0, HA_POS_ERROR, false,
                       ORDER::ORDER_NOT_RELEVANT, tab, cond,
-                      &needed_reg_dummy, &qck) < 0;
+                      &needed_reg_dummy, &qck, tab->table()->force_index) < 0;
   tab->set_quick(qck);
 
   return impossible || (tab->quick() && tab->quick()->reset());

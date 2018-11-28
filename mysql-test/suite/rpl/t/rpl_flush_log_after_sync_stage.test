@@ -1,0 +1,53 @@
+#
+# ==== Purpose ====
+#
+# Test verifies that when binlog rotation occurs before updating
+# MYSQL_BIN_LOG::binlog_end_pos in SYNC stage of binlog group commit, receiver
+# thread doesn't stop with an error. Receiver thread's execution should be
+# fine.
+#
+# ==== Implementation ====
+#
+# 1. Have sync_binlog= 1.
+# 2. Hold master's binlog sender thread during sync stage of binlog group
+#    commit just before updating the binary log end position.
+# 3. Execute FLUSH LOGS in another session so that binary log gets rotated.
+# 4. Allow the sync operation to proceed further in master connection.
+# 5. Slave should be in sync with master. It should not error out.
+#
+# ==== References ====
+#
+# Bug #22252394   SLAVE I/O THREAD MAY STOP WHEN BINLOG ROTATES
+#
+#
+--source include/have_debug_sync.inc
+# Testing it in one mode is enough
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+SET @save_sync_binlog = @@GLOBAL.sync_binlog;
+SET GLOBAL sync_binlog = 1;
+
+# Block the session before binlog end position is updated during sync stage.
+SET DEBUG_SYNC = 'before_sync_binlog_file SIGNAL parked_in_sync WAIT_FOR continue';
+
+send CREATE TABLE t1(c1 INT);
+
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+SET DEBUG_SYNC = "now WAIT_FOR parked_in_sync";
+FLUSH LOGS;
+SET DEBUG_SYNC = "now SIGNAL continue";
+
+--source include/rpl_connection_master.inc
+--reap
+INSERT INTO t1 VALUES (10);
+--source include/sync_slave_sql_with_master.inc
+--let diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL sync_binlog = @save_sync_binlog;
+DROP TABLE t1;
+--source include/rpl_end.inc

@@ -798,8 +798,13 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
   else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));
-  else
-  {
+  else if (thd->slave_thread &&
+           is_transaction_empty(
+               thd)) // No changes in none of the storage engine
+                     // means, filtered statements in the slave
+    my_error(ER_XA_REPLICATION_FILTERS,
+             MYF(0)); // Empty XA transactions not allowed
+  else {
     /*
       Acquire metadata lock which will ensure that XA PREPARE is blocked
       by active FLUSH TABLES WITH READ LOCK (and vice versa PREPARE in

@@ -491,6 +491,8 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": false,
@@ -669,6 +671,8 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": false,

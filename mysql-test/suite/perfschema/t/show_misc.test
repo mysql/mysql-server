@@ -75,6 +75,21 @@ UNLOCK TABLES;
 
 DROP TABLE test.t1;
 
+
+--echo
+--echo ================================================================================
+--echo Bug#28515475 BOGUS DATA WHEN ORDERING RESULTS FROM VARIABLES_BY_THREAD 
+--echo ================================================================================
+--echo Verify the results from "WHERE variable_name IN(...)", particularly for those
+--echo variables that are listed after the deprecated variable gtid_executed.
+--echo The ORDER BY also forces an additional code path through rnd_pos().
+--echo
+
+SELECT variable_name FROM performance_schema.variables_by_thread
+  WHERE variable_name IN ('interactive_timeout','net_read_timeout','net_write_timeout','wait_timeout')
+  ORDER BY variable_name; 
+
+
 --echo
 --echo ================================================================================
 --echo CLEAN UP

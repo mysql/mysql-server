@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,25 +105,41 @@ extern bool server_id_supplied;
 /*
   MUTEXES in replication:
 
-  channel_map lock: This is to lock the Multisource datastructure (channel_map).
-  Generally it used to retrieve an mi from channel_map.It is used to SERIALIZE ALL
-  administrative commands of replication: START SLAVE, STOP SLAVE, CHANGE
-  MASTER, RESET SLAVE, end_slave() (when mysqld stops) [init_slave() does not
-  need it it's called early]. Any of these commands holds the mutex from the
-  start till the end. This thus protects us against a handful of deadlocks
-  (consider start_slave_thread() which, when starting the I/O thread, releases
-  mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock).
+  m_channel_map_lock: This rwlock is used to protect the multi source
+  replication data structure (channel_map). Any operation reading contents
+  from the channel_map should hold the rdlock during the operation. Any
+  operation changing the channel_map (either adding/removing channels to/from
+  the channel_map) should hold the wrlock during the operation.
+  [init_slave() does not need it it's called early].
+
+  In Master_info: m_channel_lock
+  It is used to SERIALIZE ALL administrative commands of replication: START
+  SLAVE, STOP SLAVE, CHANGE MASTER, RESET SLAVE, delete_slave_info_objects
+  (when mysqld stops)
+
+  This thus protects us against a handful of deadlocks, being the know ones
+  around lock_slave_threads and the mixed order they are acquired in some
+  operations:
+
+   + consider start_slave_thread() which, when starting the I/O thread,
+     releases mi->run_lock, keeps rli->run_lock, and tries to re-acquire
+     mi->run_lock.
+
+   + Same applies to stop_slave() where a stop of the I/O thread will
+     mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock.
+     For the SQL thread, the order is the opposite.
 
   In Master_info: run_lock, data_lock
   run_lock protects all information about the run state: slave_running, thd
   and the existence of the I/O thread (to stop/start it, you need this mutex).
+  Check the above m_channel_lock about locking order.
   data_lock protects some moving members of the struct: counters (log name,
   position) and relay log (MYSQL_BIN_LOG object).
 
   In Relay_log_info: run_lock, data_lock
-  see Master_info
-  However, note that run_lock does not protect
-  Relay_log_info.run_state; that is protected by data_lock.
+  see Master_info, also the above m_channel_lock about locking order.
+  However, note that run_lock does not protect Relay_log_info.run_state;
+  that is protected by data_lock.
 
   In MYSQL_BIN_LOG: LOCK_log, LOCK_index of the binlog and the relay log
   LOCK_log: when you write to it. LOCK_index: when you create/delete a binlog
@@ -146,13 +162,13 @@ extern bool server_id_supplied;
 
     stop_slave:
       channel_map lock,
-      ( mi.run_lock, thd.LOCK_thd_data
+      ( mi.channel_wrlock, mi.run_lock, thd.LOCK_thd_data
       | rli.run_lock, thd.LOCK_thd_data
       | relay.LOCK_log
       )
 
     start_slave:
-      mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
 
     reset_logs:
       THD::LOCK_thd_data, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
@@ -166,7 +182,7 @@ extern bool server_id_supplied;
       binlog.LOCK_index, global_sid_lock->wrlock, LOCK_reset_gtid_table
 
     reset_slave:
-      mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
       THD::LOCK_thd_data, relay.LOCK_log, relay.LOCK_index,
       global_sid_lock->wrlock
 
@@ -212,7 +228,7 @@ extern bool server_id_supplied;
       )
 
     change_master:
-      mi.run_lock, rli.run_lock, (init_relay_log_pos) rli.data_lock,
+      mi.channel_wrlock, mi.run_lock, rli.run_lock, (init_relay_log_pos) rli.data_lock,
       relay.log_lock
 
     Sys_var_gtid_mode::global_update:
@@ -396,13 +412,24 @@ void end_slave(); /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
 void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
+/**
+  This method locks both (in this order)
+    mi->run_lock
+    rli->run_lock
+
+  @param mi The associated master info object
+
+  @note this method shall be invoked while locking mi->m_channel_lock
+  for writes. This is due to the mixed order in which these locks are released
+  and acquired in such method as the slave threads start and stop methods.
+*/
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
 void set_slave_thread_options(THD* thd);
 void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli);
 int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
-int rotate_relay_log(Master_info* mi);
+int rotate_relay_log(Master_info* mi, bool need_log_space_lock);
 bool queue_event(Master_info* mi,const char* buf, ulong event_len);
 
 extern "C" void *handle_slave_io(void *arg);

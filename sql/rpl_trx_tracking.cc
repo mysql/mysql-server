@@ -154,6 +154,7 @@ Commit_order_trx_dependency_tracker::rotate()
 void
 Commit_order_trx_dependency_tracker::update_max_committed(int64 sequence_number)
 {
+  mysql_mutex_assert_owner(&LOCK_slave_trans_dep_tracker);
   m_max_committed_transaction.set_if_greater(sequence_number);
 }
 
