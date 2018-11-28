@@ -1468,12 +1468,34 @@ public:
    @returns  false for success, true for error
  */
  bool contains_records(THD *thd, bool *retval);
+private:
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
+
+public:
   /**
     Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
     to false for all such fields in this table.
   */
   void blobs_need_not_keep_old_value();
+
+  /**
+    Set the variable should_binlog_drop_if_temp_flag, so that
+    the logging of temporary tables can be decided.
+
+    @param should_binlog  the value to set flag should_binlog_drop_if_temp_flag
+  */
+  void set_binlog_drop_if_temp(bool should_binlog);
+
+  /**
+    @return whether should_binlog_drop_if_temp_flag flag is
+            set or not
+  */
+  bool should_binlog_drop_if_temp(void) const;
 };
 
 

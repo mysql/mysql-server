@@ -1,0 +1,91 @@
+# ==== Purpose ====
+#
+# Test verifies that there is no deadlock when following commands are executed
+# in parallel.
+#
+# SHOW BINARY LOGS
+#
+# SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE
+# 'binlog_transaction_dependency_tracking'
+#
+# PURGE BINARY LOGS BEFORE $date;
+#
+# ==== Implementation ====
+#
+# With the help of DEBUG_SYNC operations simulate the deadlock environment.
+#
+# 1) PURGE LOGS BEFORE date
+#    Owns: MYSQL_BIN_LOG::LOCK_index
+#    Waits for: THD::LOCK_thd_data
+#
+# 2) select query on performance_schema.session_variables table
+#    Owns: THD::LOCK_thd_data
+#    Waits for: MYSQL_BIN_LOG::LOCK_log
+#
+# 3) SHOW BINARY LOGS
+#    Owns: MYSQL_BIN_LOG::LOCK_log
+#    Waits for: MYSQL_BIN_LOG::LOCK_index
+#
+# ==== References ====
+#
+# Bug#28511326: DEADLOCK DURING PURGE_LOGS_BEFORE_DATE
+
+--source include/have_debug_sync.inc
+--source include/have_log_bin.inc
+--source include/have_perfschema.inc
+
+--echo #
+--echo # Bug 92108: Deadlock by concurrent SHOW BINLOGS,
+--echo # performance_schema.session_variables query, and binlog purge
+--echo #
+
+RESET MASTER;
+FLUSH LOGS;
+--enable_connect_log
+--connect(con1,localhost,root,,)
+
+SET DEBUG_SYNC="purge_logs_after_lock_index_before_thread_count SIGNAL purge_ready WAIT_FOR finish_purge";
+
+--send PURGE BINARY LOGS BEFORE '2038-01-19'
+
+--connect(con2,localhost,root,,)
+
+SET DEBUG_SYNC="materialize_session_variable_array_THD_locked SIGNAL pfs_ready WAIT_FOR finish_pfs";
+
+--send SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking';
+
+--connect(con3,localhost,root,,)
+
+SET DEBUG_SYNC="show_binlogs_after_lock_log_before_lock_index SIGNAL show_ready WAIT_FOR finish_show";
+
+--send SHOW BINARY LOGS
+
+--connection default
+
+SET DEBUG_SYNC="now WAIT_FOR purge_ready";
+SET DEBUG_SYNC="now WAIT_FOR pfs_ready";
+SET DEBUG_SYNC="now WAIT_FOR show_ready";
+
+SET DEBUG_SYNC="now SIGNAL finish_purge";
+SET DEBUG_SYNC="now SIGNAL finish_pfs";
+SET DEBUG_SYNC="now SIGNAL finish_show";
+
+--connection con1
+replace_regex /\.[\\\/]master/master/;
+reap;
+--disconnect con1
+
+--connection con2
+reap;
+--disconnect con2
+
+--connection con3
+--disable_result_log
+reap;
+--enable_result_log
+--disconnect con3
+
+--connection default
+
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log

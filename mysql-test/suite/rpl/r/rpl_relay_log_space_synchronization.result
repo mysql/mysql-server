@@ -1,0 +1,23 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (i INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+SET GLOBAL debug='+d,wait_in_purge_index_entry';
+FLUSH LOCAL RELAY LOGS;
+START SLAVE SQL_THREAD;
+SET DEBUG_SYNC="now WAIT_FOR in_purge_index_entry";
+[connection master]
+INSERT INTO t1 VALUES (1);
+[connection slave]
+include/assert.inc [IO Thread is waiting for Relay_log_info::log_space_lock.]
+SET DEBUG_SYNC="now SIGNAL go_ahead_sql";
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL debug='-d,wait_in_purge_index_entry';
+SET DEBUG_SYNC="RESET";
+include/rpl_end.inc

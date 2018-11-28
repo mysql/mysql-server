@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -150,6 +150,16 @@ void Object_queue::read_object(Item_processing_data* item_to_process)
 
 void Object_queue::stop_queue()
 {
+  /*
+    In case of error we stop all the running queues. Make sure the
+    cleanup of the items is done properly.
+  */
+  while (m_items_ready_for_processing.size() > 0)
+  {
+    Item_processing_data * item_to_process= m_items_ready_for_processing.front();
+    m_items_ready_for_processing.pop();
+    this->object_processing_ends(item_to_process);
+  }
   m_is_queue_running= false;
 }
 

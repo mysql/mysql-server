@@ -19,7 +19,8 @@
 #include "my_global.h"
 #include "my_thread_local.h"          // my_thread_id
 #include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
-#include "handler.h"                  // enum_tx_isolation
+#include "handler.h"  // enum_tx_isolation
+#include "rpl_context.h"  // enum_rpl_channel_type
 
 typedef struct st_mysql MYSQL;
 typedef struct st_io_cache IO_CACHE;
@@ -155,6 +156,8 @@ typedef struct Trans_param {
    */
   Trans_context_info trans_ctx_info;
 
+  /** Replication channel info associated to this transaction/THD */
+  enum_rpl_channel_type rpl_channel_type;
 } Trans_param;
 
 /**

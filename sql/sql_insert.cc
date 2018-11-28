@@ -2613,7 +2613,17 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       table_field= ((Item_field *) item)->field;
       break;
     default:
-      table_field= NULL;
+      {
+        /*
+         If the expression is of temporal type having date and non-nullable,
+         a zero date is generated. If in strict mode, then zero date is
+         invalid. For such cases no default is generated.
+       */
+        table_field= NULL;
+        if (tmp_table_field->is_temporal_with_date() &&
+            thd->is_strict_mode() && !item->maybe_null)
+          tmp_table_field->flags|= NO_DEFAULT_VALUE_FLAG;
+      }
     }
 
     DBUG_ASSERT(tmp_table_field->gcol_info== NULL && tmp_table_field->stored_in_db);
@@ -2804,6 +2814,10 @@ int Query_result_create::prepare2()
         return error;
 
       TABLE const *const table = *tables;
+      create_table->table->set_binlog_drop_if_temp(
+        !thd->is_current_stmt_binlog_disabled()
+        && !thd->is_current_stmt_binlog_format_row());
+
       if (thd->is_current_stmt_binlog_format_row()  &&
           !table->s->tmp_table)
       {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -259,6 +259,11 @@ struct fil_node_t {
 	the possible last incomplete megabyte may be ignored
 	if space->id == 0 */
 	ulint		size;
+
+	/** Size of the file when last flushed, used to force the flush when file
+	grows to keep the filesystem metadata synced when using O_DIRECT_NO_FSYNC */
+	ulint		flush_size;
+
 	/** initial size of the file in database pages;
 	FIL_IBD_FILE_INITIAL_SIZE by default */
 	ulint		init_size;

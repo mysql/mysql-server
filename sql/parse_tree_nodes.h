@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,11 +87,15 @@ public:
     lex->pop_context();
     pc->select->n_child_sum_items += child->n_sum_items;
     /*
-      A subselect can add fields to an outer select. Reserve space for
-      them.
+      A subquery (and all the subsequent query blocks in a UNION) can add
+      columns to an outer query block. Reserve space for them.
     */
-    pc->select->select_n_where_fields+= child->select_n_where_fields;
-    pc->select->select_n_having_items+= child->select_n_having_items;
+    for (SELECT_LEX *temp = child; temp != NULL;
+         temp = temp->next_select())
+    {
+      pc->select->select_n_where_fields+= temp->select_n_where_fields;
+      pc->select->select_n_having_items+= temp->select_n_having_items;
+    }
     value= query_expression_body->value;
     return false;
   }
@@ -1180,7 +1184,9 @@ class PT_internal_variable_name_2d : public PT_internal_variable_name
 {
   typedef PT_internal_variable_name super;
 
-  POS pos;
+public:
+  const POS pos;
+private:
   LEX_STRING ident1;
   LEX_STRING ident2;
 
@@ -1349,6 +1355,11 @@ public:
 
     THD *thd= pc->thd;
     struct sys_var_with_base tmp= name->value;
+    if (tmp.var == trg_new_row_fake_var)
+    {
+      error(pc, down_cast<PT_internal_variable_name_2d *>(name)->pos);
+      return true;
+    }
     /* Lookup if necessary: must be a system variable. */
     if (tmp.var == NULL)
     {

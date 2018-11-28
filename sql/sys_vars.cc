@@ -61,6 +61,9 @@
 #include "transaction.h"                 // trans_commit_stmt
 #include "rpl_write_set_handler.h"       // transaction_write_set_hashing_algorithms
 #include "rpl_group_replication.h"       // is_group_replication_running
+#ifdef _WIN32
+#include "named_pipe.h"
+#endif
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -1104,6 +1107,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
 
   if (mi != NULL)
   {
+    mi->channel_wrlock();
     lock_slave_threads(mi);
     init_thread_mask(&running, mi, FALSE);
     if(!running)
@@ -1153,6 +1157,7 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
       my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0),mi->get_channel());
     }
     unlock_slave_threads(mi);
+    mi->channel_unlock();
   }
   channel_map.unlock();
 #endif
@@ -2538,7 +2543,39 @@ static Sys_var_mybool Sys_named_pipe(
        "named_pipe", "Enable the named pipe (NT)",
        READ_ONLY GLOBAL_VAR(opt_enable_named_pipe), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
-#endif
+#ifndef EMBEDDED_LIBRARY
+
+static PolyLock_rwlock PLock_named_pipe_full_access_group(
+  &LOCK_named_pipe_full_access_group);
+static bool check_named_pipe_full_access_group(sys_var *self, THD *thd,
+  set_var *var)
+{
+  if (!var->value) return false;  // DEFAULT is ok
+
+  if (!is_valid_named_pipe_full_access_group(
+    var->save_result.string_value.str))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), self->name.str,
+      var->save_result.string_value.str);
+    return true;
+  }
+  return false;
+}
+static bool fix_named_pipe_full_access_group(sys_var *, THD *, enum_var_type) {
+  return update_named_pipe_full_access_group(named_pipe_full_access_group);
+}
+static Sys_var_charptr Sys_named_pipe_full_access_group(
+  "named_pipe_full_access_group",
+  "Name of Windows group granted full access to the named pipe",
+  GLOBAL_VAR(named_pipe_full_access_group),
+  CMD_LINE(REQUIRED_ARG, OPT_NAMED_PIPE_FULL_ACCESS_GROUP), IN_FS_CHARSET,
+  DEFAULT(DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP),
+  &PLock_named_pipe_full_access_group, NOT_IN_BINLOG,
+  ON_CHECK(check_named_pipe_full_access_group),
+  ON_UPDATE(fix_named_pipe_full_access_group));
+
+#endif /* EMBEDDED_LIBRARY */
+#endif /* _WIN32 */
 
 
 static bool 
@@ -3585,22 +3622,8 @@ static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd
   return false;
 }
 
-void PolyLock_lock_log::rdlock()
-{
-  mysql_mutex_lock(mysql_bin_log.get_log_lock());
-}
-
-void PolyLock_lock_log::wrlock()
-{
-  mysql_mutex_lock(mysql_bin_log.get_log_lock());
-}
-
-void PolyLock_lock_log::unlock()
-{
-  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
-}
-
-static PolyLock_lock_log PLock_log;
+static PolyLock_mutex
+PLock_slave_trans_dep_tracker(&LOCK_slave_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[]=
        {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
 static Sys_var_enum Binlog_transaction_dependency_tracking(
@@ -3611,7 +3634,8 @@ static Sys_var_enum Binlog_transaction_dependency_tracking(
        "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
        GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
        CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
-       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_log,
+       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER),
+       &PLock_slave_trans_dep_tracker,
        NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
        ON_UPDATE(update_binlog_transaction_dependency_tracking));
 static Sys_var_ulong Binlog_transaction_dependency_history_size(
@@ -3619,7 +3643,7 @@ static Sys_var_ulong Binlog_transaction_dependency_history_size(
        "Maximum number of rows to keep in the writeset history.",
        GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
        CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
-       BLOCK_SIZE(1), &PLock_log, NOT_IN_BINLOG, ON_CHECK(NULL),
+       BLOCK_SIZE(1), &PLock_slave_trans_dep_tracker, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
 
 static Sys_var_mybool Sys_slave_preserve_commit_order(

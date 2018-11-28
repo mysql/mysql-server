@@ -3085,6 +3085,8 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 {
                                   "reconsidering_access_paths_for_index_ordering": {
                                     "clause": "ORDER BY",
+                                    "steps": [
+                                    ] /* steps */,
                                     "index_order_summary": {
                                       "table": "`t1`",
                                       "index_provides_order": true,
@@ -3464,6 +3466,8 @@ EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
+              "steps": [
+              ] /* steps */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,

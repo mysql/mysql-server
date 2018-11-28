@@ -26,7 +26,7 @@
 /**
   Static name of Group Replication plugin.
 */
-LEX_CSTRING group_replication_plugin_name= {
+LEX_CSTRING group_replication_plugin_name_str= {
   C_STRING_WITH_LEN("group_replication")
 };
 
@@ -47,7 +47,7 @@ bool is_group_replication_plugin_loaded()
   bool result= false;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -63,7 +63,7 @@ int group_replication_start()
   int result= 1;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -101,7 +101,7 @@ int group_replication_stop()
   int result= 1;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -124,7 +124,7 @@ bool is_group_replication_running()
   bool result= false;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -143,7 +143,7 @@ int set_group_replication_retrieved_certification_info(View_change_log_event *vi
   int result= 1;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -163,7 +163,7 @@ bool get_group_replication_connection_status_info(
   bool result= true;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -184,7 +184,7 @@ bool get_group_replication_group_members_info(
   bool result= true;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -204,7 +204,7 @@ bool get_group_replication_group_member_stats_info(
   bool result= true;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -223,7 +223,7 @@ unsigned int get_group_replication_members_number_info()
   unsigned int result= 0;
 
   plugin_ref plugin= my_plugin_lock_by_name(0,
-                                            group_replication_plugin_name,
+                                            group_replication_plugin_name_str,
                                             MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != NULL)
   {
@@ -401,4 +401,8 @@ void global_thd_manager_add_thd(THD *thd)
 void global_thd_manager_remove_thd(THD *thd)
 {
   Global_THD_manager::get_instance()->remove_thd(thd);
+}
+
+unsigned long get_slave_max_allowed_packet() {
+  return slave_max_allowed_packet;
 }
