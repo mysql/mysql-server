@@ -192,24 +192,35 @@ extern Uint32 ErrorMaxSegmentsToSeize;
 void
 Dbtc::updateBuddyTimer(ApiConnectRecordPtr apiPtr)
 {
-  if (apiPtr.p->buddyPtr != RNIL) {
-    jamDebug();
-    ApiConnectRecordPtr buddyApiPtr;
-    buddyApiPtr.i = apiPtr.p->buddyPtr;
-    c_apiConnectRecordPool.getPtr(buddyApiPtr);
-    if (getApiConTimer(buddyApiPtr) != 0)
-    {
-      if ((apiPtr.p->transid[0] == buddyApiPtr.p->transid[0]) &&
-          (apiPtr.p->transid[1] == buddyApiPtr.p->transid[1])) {
-        jam();
-        setApiConTimer(buddyApiPtr, ctcTimer, __LINE__);
-      } else {
-        jam();
-        // Not a buddy anymore since not the same transid
-        apiPtr.p->buddyPtr = RNIL;
-      }//if
-    }//if
-  }//if
+  jam();
+  ApiConnectRecordPtr buddyApiPtr;
+  buddyApiPtr.i = apiPtr.p->buddyPtr;
+
+  if (unlikely(buddyApiPtr.i == RNIL))
+  {
+    jam();
+    return;
+  }
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(buddyApiPtr)))
+  {
+    jam();
+    apiPtr.p->buddyPtr = RNIL;
+  }
+  if (unlikely(getApiConTimer(buddyApiPtr) == 0))
+  {
+    jam();
+    return;
+  }
+  if (unlikely((apiPtr.p->transid[0] != buddyApiPtr.p->transid[0]) ||
+               (apiPtr.p->transid[1] != buddyApiPtr.p->transid[1])))
+  {
+    jam();
+    // Not a buddy anymore since not the same transid
+    apiPtr.p->buddyPtr = RNIL;
+    return;
+  }
+
+  setApiConTimer(buddyApiPtr, ctcTimer, __LINE__);
 }
 
 static
@@ -276,9 +287,9 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
+    ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
     tcConnectptr.i = Tdata1;
-    tcConnectRecord.getPtr(tcConnectptr);
+    ndbrequire(tcConnectRecord.getValidPtr(tcConnectptr));
     commit020Lab(signal, apiConnectptr);
     return;
   }
@@ -5240,18 +5251,25 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
 
     TcIndexOperationPtr indexOpPtr;
     indexOpPtr.i = truncatedTransIdAI->connectPtr;
-    TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-    indexOpPtr.p = indexOp;
-    if (indexOp == NULL) {
+    if (unlikely(indexOpPtr.i == RNIL ||
+                 !c_theIndexOperationPool.getValidPtr(indexOpPtr)))
+    {
       jam();
-      // Missing index operation - ignore
+      // Missing or invalid index operation - ignore
       break;
     }
+    TcIndexOperation* indexOp = indexOpPtr.p;
 
     /* No more TransIdAI will arrive, abort */
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = indexOp->connectionIndex;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
+    if (unlikely(apiConnectptr.i == RNIL ||
+                 !c_apiConnectRecordPool.getValidPtr(apiConnectptr)))
+    {
+      jam();
+      // Missing or invalid api connection - ignore
+      break;
+    }
 
     terrorCode = ZGET_DATAREC_ERROR;
     abortErrorLab(signal, apiConnectptr);
@@ -6723,7 +6741,11 @@ void Dbtc::execCOMMITTED(Signal* signal)
     warningReport(signal, 4);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(localApiConnectptr);
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(localApiConnectptr)))
+  {
+    warningReport(signal, 5);
+    return;
+  }
   UintR Tcounter = localApiConnectptr.p->counter - 1;
   ConnectionState TapiConnectstate = localApiConnectptr.p->apiConnectstate;
   UintR Tdata1 = localApiConnectptr.p->transid[0] - signal->theData[1];
@@ -7380,7 +7402,11 @@ Dbtc::execFIRE_TRIG_CONF(Signal* signal)
     warningReport(signal, 28);
     return;
   }//if
-  c_apiConnectRecordPool.getPtr(regApiPtr);
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(regApiPtr)))
+  {
+    warningReport(signal, 28);
+    return;
+  }
 
   Uint32 Tlqhkeyreqrec = regApiPtr.p->lqhkeyreqrec;
   Uint32 TapiConnectstate = regApiPtr.p->apiConnectstate;
@@ -7882,7 +7908,11 @@ void Dbtc::execLQHKEYREF(Signal* signal)
     {
       ApiConnectRecordPtr apiConnectptr;
       Uint32 save = apiConnectptr.i = regTcPtr->apiConnect;
-      c_apiConnectRecordPool.getPtr(apiConnectptr);
+      if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+      {
+	warningReport(signal, 25);
+	return;
+      }
       ApiConnectRecord * const regApiPtr = apiConnectptr.p;
       compare_transid1 = regApiPtr->transid[0] ^ lqhKeyRef->transId1;
       compare_transid2 = regApiPtr->transid[1] ^ lqhKeyRef->transId2;
@@ -8448,7 +8478,11 @@ void Dbtc::execTC_HBREP(Signal* signal)
   jamEntry();
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcHbRep->apiConnectPtr;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+  {
+    jam();
+    return;
+  }
 
   if (likely(apiConnectptr.p->transid[0] == tcHbRep->transId1 &&
              apiConnectptr.p->transid[1] == tcHbRep->transId2))
@@ -9884,7 +9918,11 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
   jamEntry();
 
   scanFragptr.i = signal->theData[0];  
-  c_scan_frag_pool.getPtr(scanFragptr);
+  if (unlikely(!c_scan_frag_pool.getValidPtr(scanFragptr)))
+  {
+    return;
+  }
+
   switch (scanFragptr.p->scanFragState){
   case ScanFragRec::LQH_ACTIVE:
     break;
@@ -9903,10 +9941,10 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-
-  if (!(apiConnectptr.p->transid[0] == signal->theData[1] &&
-	apiConnectptr.p->transid[1] == signal->theData[2])){
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+      !(apiConnectptr.p->transid[0] == signal->theData[1] &&
+	apiConnectptr.p->transid[1] == signal->theData[2]))
+  {
     jam();
     /**
      * Send signal back to sender so that the crash occurs there
@@ -11874,8 +11912,9 @@ void Dbtc::execABORTCONF(Signal* signal)
   }
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-  if (apiConnectptr.p->apiConnectstate != CS_WAIT_ABORT_CONF) {
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.p->apiConnectstate != CS_WAIT_ABORT_CONF))
+  {
     warningReport(signal, 17);
     return;
   }//if
@@ -12012,8 +12051,9 @@ void Dbtc::execCOMMITCONF(Signal* signal)
   }//if
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-  if (apiConnectptr.p->apiConnectstate != CS_WAIT_COMMIT_CONF) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+      apiConnectptr.p->apiConnectstate != CS_WAIT_COMMIT_CONF)
+  {
     warningReport(signal, 9);
     return;
   }//if
@@ -12159,8 +12199,9 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
   }//if
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-  if (apiConnectptr.p->apiConnectstate != CS_WAIT_COMPLETE_CONF) {
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+      apiConnectptr.p->apiConnectstate != CS_WAIT_COMPLETE_CONF)
+  {
     warningReport(signal, 13);
     return;
   }//if
@@ -13100,8 +13141,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if (buddyPtr != RNIL) {
     ApiConnectRecordPtr buddyApiPtr;
     buddyApiPtr.i = buddyPtr;
-    c_apiConnectRecordPool.getPtr(buddyApiPtr);
-    if (likely((transid1 == buddyApiPtr.p->transid[0]) &&
+    if (likely(c_apiConnectRecordPool.getValidPtr(buddyApiPtr)) &&
+        likely((transid1 == buddyApiPtr.p->transid[0]) &&
 	       (transid2 == buddyApiPtr.p->transid[1])))
     {
       jam();
@@ -14325,15 +14366,27 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   const Uint32 errCode = ref->errorCode;
 
   scanFragptr.i = ref->senderData;
-  c_scan_frag_pool.getPtr(scanFragptr);
+  if (!c_scan_frag_pool.getValidPtr(scanFragptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
 
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  scanRecordPool.getPtr(scanptr);
+  if (!scanRecordPool.getValidPtr(scanptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
 
   Uint32 transid1 = apiConnectptr.p->transid[0] ^ ref->transId1;
   Uint32 transid2 = apiConnectptr.p->transid[1] ^ ref->transId2;
@@ -14425,15 +14478,27 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   const Uint32 status = conf->fragmentCompleted;
 
   scanFragptr.i = conf->senderData;
-  c_scan_frag_pool.getPtr(scanFragptr);
+  if (!c_scan_frag_pool.getValidPtr(scanFragptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
   
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  scanRecordPool.getPtr(scanptr);
+  if (!scanRecordPool.getValidPtr(scanptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
   
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
+  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr))
+  {
+    jam();
+    systemErrorLab(signal, __LINE__);
+  }
 
   transid1 = apiConnectptr.p->transid[0] ^ conf->transId1;
   transid2 = apiConnectptr.p->transid[1] ^ conf->transId2;
@@ -14636,7 +14701,23 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   setApiConTimer(apiConnectptr, 0, __LINE__);
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
-  scanRecordPool.getPtr(scanptr);
+  if (!scanRecordPool.getValidPtr(scanptr) || scanptr.i == RNIL)
+  {
+    // How can this happen?
+    // Assert to catch if path is tested, remove if hit and analyzed.
+    ndbassert(false);
+    releaseSections(handle);
+    ScanTabRef * ref = (ScanTabRef*)&signal->theData[0];
+    ref->apiConnectPtr = apiConnectptr.p->ndbapiConnect;
+    ref->transId1 = transid1;
+    ref->transId2 = transid2;
+    ref->errorCode  = ZSTATE_ERROR;
+    ref->closeNeeded = 0;
+    sendSignal(signal->senderBlockRef(), GSN_SCAN_TABREF, 
+	       signal, ScanTabRef::SignalLength, JBB);
+    return;
+  }
+
   ScanRecord* scanP = scanptr.p;
 
   /* Copy ReceiverIds to working space past end of signal
@@ -18079,11 +18160,21 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   
   /* Get triggering operation record */
   opPtr.i = fireOrd->getConnectionPtr();
-  tcConnectRecord.getPtr(opPtr);
-  
+
   /* Get transaction record */
-  transPtr.i = opPtr.p->apiConnect;
-  if (unlikely(transPtr.i == RNIL))
+  if (likely(tcConnectRecord.getValidPtr(opPtr)))
+  {
+    /* Get transaction record */
+    transPtr.i = opPtr.p->apiConnect;
+  }
+  else
+  {
+    transPtr.i = RNIL;
+    opPtr.setNull();
+  }
+
+  if (unlikely(transPtr.i == RNIL) ||
+      unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr)))
   {
     /* Looks like the connect record was released
      * Treat as a bad transid
@@ -18092,8 +18183,6 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   }
   else
   {
-    c_apiConnectRecordPool.getPtr(transPtr);
-    
     /* Check if signal's trans id and operation's transid are aligned */
     transIdOk = (! sigContainsTransId) |
       (! ((fireOrd->m_transId1 ^ transPtr.p->transid[0]) |
@@ -18640,7 +18729,6 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   }//if
   ApiConnectRecord * const regApiPtr = transPtr.p;
   TcIndexOperationPtr indexOpPtr;
-  TcIndexOperation* indexOp;
 
   if (compare_transid(regApiPtr->transid, indxKeyInfo->transId) == false)
   {
@@ -18654,10 +18742,10 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
     return;
   }
 
-  if ((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
+  indexOpPtr.i = regApiPtr->accumulatingIndexOp;
+  if (indexOpPtr.i != RNIL && c_theIndexOperationPool.getValidPtr(indexOpPtr))
   {
-    indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-
+    TcIndexOperation* indexOp = indexOpPtr.p;
     ndbassert( indexOp->pendingKeyInfo > 0 );
 
     if (saveINDXKEYINFO(signal,
@@ -18690,7 +18778,6 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   }//if
   ApiConnectRecord * const regApiPtr = transPtr.p;
   TcIndexOperationPtr indexOpPtr;
-  TcIndexOperation* indexOp;
 
   if (compare_transid(regApiPtr->transid, indxAttrInfo->transId) == false)
   {
@@ -18704,10 +18791,10 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
     return;
   }
 
-  if ((indexOpPtr.i = regApiPtr->accumulatingIndexOp) != RNIL)
+  indexOpPtr.i = regApiPtr->accumulatingIndexOp;
+  if (indexOpPtr.i != RNIL && c_theIndexOperationPool.getValidPtr(indexOpPtr))
   {
-    indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-
+    TcIndexOperation* indexOp = indexOpPtr.p;
     ndbassert( indexOp->pendingAttrInfo > 0 );
 
     if (saveINDXATTRINFO(signal,
@@ -18718,9 +18805,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
       jam();
       /* All KI + AI received, process */
       readIndexTable(signal, transPtr, indexOp, 0);
-      return;
     }
-    return;
   }
 }
 
@@ -18996,24 +19081,32 @@ void Dbtc::execTCKEYCONF(Signal* signal)
 
   jamEntry();
   indexOpPtr.i = tcKeyConf->apiConnectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
+  if (unlikely(!c_theIndexOperationPool.getValidPtr(indexOpPtr) ||
+               indexOpPtr.i == RNIL))
+  {
+    jam();
+    // Missing or invalid index operation
+    return;
+  }
+
+  TcIndexOperation* const indexOp = indexOpPtr.p;
 
   /**
    * Check on TCKEYCONF whether the the transaction was committed
    */
   ndbassert(TcKeyConf::getCommitFlag(tcKeyConf->confInfo) == false);
 
-  indexOpPtr.p = indexOp;
-  if (!indexOp) {
+  ApiConnectRecordPtr apiConnectptr;
+  apiConnectptr.i = indexOp->connectionIndex;
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.i == RNIL))
+  {
     jam();
-    // Missing index operation
+    // Missing or invalid api connection for index operation
     return;
   }
-  const UintR TconnectIndex = indexOp->connectionIndex;
-  ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(TconnectIndex);
-  ApiConnectRecordPtr apiConnectptr;
-  apiConnectptr.p = regApiPtr;
-  apiConnectptr.i = TconnectIndex;
+  ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {
     jam();
@@ -19065,16 +19158,13 @@ void Dbtc::execTCKEYREF(Signal* signal)
 
   jamEntry();
   indexOpPtr.i = tcKeyRef->connectPtr;
-  TcIndexOperation* indexOp = c_theIndexOperationPool.getPtr(indexOpPtr.i);
-  indexOpPtr.p = indexOp;
-  if (!indexOp) {
+  if (!c_theIndexOperationPool.getValidPtr(indexOpPtr) || indexOpPtr.i == RNIL)
+  {
     jam();    
-    // Missing index operation
+    // Missing or invalid index operation
     return;
   }
-  const UintR TconnectIndex = indexOp->connectionIndex;
-  ApiConnectRecord * const regApiPtr = c_apiConnectRecordPool.getPtr(TconnectIndex);
-
+  TcIndexOperation * const indexOp = indexOpPtr.p;
   switch(indexOp->indexOpState) {
   case(IOS_NOOP): {
     jam();    
@@ -19087,6 +19177,16 @@ void Dbtc::execTCKEYREF(Signal* signal)
     jam();    
     // Send TCINDXREF 
     
+    ApiConnectRecordPtr apiConnectptr;
+    apiConnectptr.i = indexOp->connectionIndex;
+    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.i == RNIL)
+    {
+      jam();    
+      // Invalid index operation, no valid api connection.
+      return;
+    }
+    ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+
     TcKeyReq * const tcIndxReq = &indexOp->tcIndxReq;
     TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
     
@@ -20787,11 +20887,23 @@ Dbtc::execKEYINFO20(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->clientOpPtr;
-  tcConnectRecord.getPtr(tcPtr);
+  if (unlikely(!tcConnectRecord.getValidPtr(tcPtr)))
+  {
+    jam();
+    // Assert to catch code coverage, remove when reached and analysed
+    ndbassert(false);
+    return;
+  }
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(scanApiConnectPtr);
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(scanApiConnectPtr)))
+  {
+    jam();
+    // Assert to catch code coverage, remove when reached and analysed
+    ndbassert(false);
+    return;
+  }
 
   if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
          transId[1] == scanApiConnectPtr.p->transid[1]))
@@ -20811,9 +20923,8 @@ Dbtc::execKEYINFO20(Signal* signal)
   Uint32 orgTransPtrI = tcPtr.p->nextTcFailHash;
   ApiConnectRecordPtr transPtr;
   transPtr.i = orgTransPtrI;
-  c_apiConnectRecordPool.getPtr(transPtr);
-
-  if (unlikely(! (transId[0] == transPtr.p->transid[0] &&
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr)) ||
+      unlikely(! (transId[0] == transPtr.p->transid[0] &&
                   transId[1] == transPtr.p->transid[1] &&
                   transPtr.p->apiConnectstate != CS_ABORTING)))
   {
@@ -20962,11 +21073,23 @@ Dbtc::execSCAN_TABCONF(Signal* signal)
 
   TcConnectRecordPtr tcPtr;
   tcPtr.i = conf->apiConnectPtr;
-  tcConnectRecord.getPtr(tcPtr);
+  if (unlikely(!tcConnectRecord.getValidPtr(tcPtr)))
+  {
+    jam();
+    // Assert to catch code coverage, remove when reached and analysed
+    ndbassert(false);
+    return;
+  }
 
   ApiConnectRecordPtr scanApiConnectPtr;
   scanApiConnectPtr.i = tcPtr.p->apiConnect;
-  c_apiConnectRecordPool.getPtr(scanApiConnectPtr);
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(scanApiConnectPtr)))
+  {
+    jam();
+    // Assert to catch code coverage, remove when reached and analysed
+    ndbassert(false);
+    return;
+  }
 
   if (! (transId[0] == scanApiConnectPtr.p->transid[0] &&
          transId[1] == scanApiConnectPtr.p->transid[1]))
