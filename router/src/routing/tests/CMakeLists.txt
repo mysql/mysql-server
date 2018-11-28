@@ -40,7 +40,7 @@ TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
                       mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
-TARGET_INCLUDE_DIRECTORIES(routing PRIVATE ${include_dirs})
+TARGET_INCLUDE_DIRECTORIES(routing_tests PRIVATE ${include_dirs})
 
 
 ADD_LIBRARY(routing_plugin_tests STATIC ${ROUTING_PLUGIN_SOURCE_FILES})
@@ -50,7 +50,7 @@ SET_TARGET_PROPERTIES(routing_plugin_tests PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 TARGET_INCLUDE_DIRECTORIES(routing_plugin_tests PRIVATE ${include_dirs})
 
-TARGET_COMPILE_DEFINITIONS(routing_plugin_tests PRIVATE -Drouting_DEFINE_STATIC=1)
+TARGET_COMPILE_DEFINITIONS(routing_plugin_tests PUBLIC -Drouting_DEFINE_STATIC=1)
 
 IF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   TARGET_LINK_LIBRARIES(routing_tests -lnsl -lsocket)

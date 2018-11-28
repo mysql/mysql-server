@@ -70,6 +70,11 @@ class METADATA_API ClusterMetadata : public MetaData {
                   int connection_attempts, std::chrono::milliseconds ttl,
                   const mysqlrouter::SSLOptions &ssl_options);
 
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit ClusterMetadata(const ClusterMetadata &) = delete;
+  ClusterMetadata &operator=(const ClusterMetadata &) = delete;
+
   /** @brief Destructor
    *
    * Disconnect and release the connection to the metadata node.

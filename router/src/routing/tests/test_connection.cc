@@ -63,6 +63,12 @@ class MockProtocol : public BaseProtocol {
   }
 };
 
+#ifdef _WIN32
+using socket_t = SOCKET;
+#else
+using socket_t = int;
+#endif
+
 class TestRoutingConnection : public testing::Test {
  public:
   void SetUp() override {
@@ -90,9 +96,9 @@ class TestRoutingConnection : public testing::Test {
   size_t thread_stack_size_ = 1000;
 
   // connection
-  int client_socket_;
+  socket_t client_socket_;
   sockaddr_storage client_addr_;
-  int server_socket_;
+  socket_t server_socket_;
   mysql_harness::TCPAddress server_address_;
 
   mysql_harness::Path bind_named_socket;

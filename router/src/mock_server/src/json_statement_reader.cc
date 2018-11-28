@@ -152,7 +152,7 @@ struct QueriesJsonReader::Pimpl {
   static void validate_json_against_schema(const JsonSchemaDocument &schema,
                                            const JsonDocument &json);
 
-  std::unique_ptr<Response> read_result_info(const JsonValue &stmt);
+  std::unique_ptr<ResultsetResponse> read_result_info(const JsonValue &stmt);
   std::unique_ptr<Response> read_ok_info(const JsonValue &stmt);
   std::unique_ptr<Response> read_error_info(const JsonValue &stmt);
 };
@@ -482,7 +482,7 @@ std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
   return std::chrono::microseconds(0);
 }
 
-std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(
+std::unique_ptr<ResultsetResponse> QueriesJsonReader::Pimpl::read_result_info(
     const JsonValue &stmt) {
   // only asserting as this should have been checked before if we got here
   assert(stmt.HasMember("result"));
@@ -553,11 +553,7 @@ std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_result_info(
     }
   }
 
-#ifdef __SUNPRO_CC
-  return std::move(response);
-#else
   return response;
-#endif
 }
 
 std::unique_ptr<Response> QueriesJsonReader::Pimpl::read_ok_info(

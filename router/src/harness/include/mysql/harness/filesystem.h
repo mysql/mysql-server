@@ -383,6 +383,7 @@ class HARNESS_EXPORT Directory : public Path {
   Directory(const Path &path);  // NOLINT(runtime/explicit)
 
   Directory(const Directory &) = default;
+  Directory &operator=(const Directory &) = default;
   ~Directory();
 
   /**

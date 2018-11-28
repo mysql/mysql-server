@@ -110,6 +110,10 @@ class HARNESS_EXPORT MySQLRouterThread {
    */
   ~MySQLRouterThread();
 
+  // disable copy assignment
+  MySQLRouterThread &operator=(const MySQLRouterThread &) = delete;
+  explicit MySQLRouterThread(const MySQLRouterThread &) = delete;
+
  private:
   /** @brief handle to the thread */
   mysql_harness::mysql_router_thread_handle thread_handle_;

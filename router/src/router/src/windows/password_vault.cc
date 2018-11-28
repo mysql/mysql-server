@@ -125,7 +125,7 @@ void PasswordVault::load_passwords() {
                           &buf_decrypted)) {
     DWORD code = GetLastError();
     throw std::runtime_error(mysqlrouter::string_format(
-        "Error when decrypting the vault at '%s' with code '%d'",
+        "Error when decrypting the vault at '%s' with code '%lu'",
         vault_path.c_str(), code));
   }
 
@@ -165,7 +165,7 @@ void PasswordVault::store_passwords() {
                         CRYPTPROTECT_LOCAL_MACHINE, &buf_encrypted)) {
     DWORD code = GetLastError();
     throw std::runtime_error(mysqlrouter::string_format(
-        "Error when encrypting the vault with code '%d'", code));
+        "Error when encrypting the vault with code '%lu'", code));
   }
 
   const std::string vault_path = get_vault_path();
