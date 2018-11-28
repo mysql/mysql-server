@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
 
 int thread_priority() { return getpriority(PRIO_PROCESS, my_thread_os_id()); }
 
-int thread_priority(my_thread_os_id_t thread_id) {
+int thread_priority(my_thread_os_id_t) {
   DBUG_ASSERT(0);
   LogErr(WARNING_LEVEL, ER_RES_GRP_GET_THREAD_PRIO_NOT_SUPPORTED, "FreeBSD");
   return 0;
@@ -123,13 +123,25 @@ bool set_thread_priority(int priority) {
   return set_thread_priority(priority, my_thread_os_id());
 }
 
-bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
+bool set_thread_priority(int, my_thread_os_id_t) {
   DBUG_ENTER("set_thread_priority");
   // Thread priority setting unsupported in FreeBSD.
   DBUG_RETURN(false);
 }
 
-uint32_t num_vcpus() {
+uint32_t num_vcpus_using_affinity() {
+  uint32_t num_vcpus = 0;
+
+#ifdef HAVE_PTHREAD_GETAFFINITY_NP
+  cpuset_t set;
+
+  if (pthread_getaffinity_np(pthread_self(), sizeof(set), &set) == 0)
+    num_vcpus = CPU_COUNT(&set);
+#endif  // HAVE_PTHREAD_GETAFFINITY_NP
+  return num_vcpus;
+}
+
+uint32_t num_vcpus_using_config() {
   cpu_id_t num_vcpus = 0;
   size_t num_vcpus_size = sizeof(cpu_id_t);
   if (sysctlbyname("hw.ncpu", &num_vcpus, &num_vcpus_size, nullptr, 0) != 0) {

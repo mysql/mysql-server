@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,12 @@ bool set_thread_priority(int, my_thread_os_id_t) {
   return true;
 }
 
-uint32_t num_vcpus() {
+uint32_t num_vcpus_using_affinity() {
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+uint32_t num_vcpus_using_config() {
   DBUG_ASSERT(0);
   return 0;
 }

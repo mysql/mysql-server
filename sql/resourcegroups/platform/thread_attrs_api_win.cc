@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,21 @@ bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
   DBUG_RETURN(res == FALSE);
 }
 
-uint32_t num_vcpus() {
+uint32_t num_vcpus_using_affinity() {
+  uint32_t num_vcpus = 0;
+
+  DWORD_PTR process_affinity_mask;
+  DWORD_PTR system_affinity_mask;
+
+  if (GetProcessAffinityMask(GetCurrentProcess(), &process_affinity_mask,
+                             &system_affinity_mask)) {
+    for (num_vcpus = 0; process_affinity_mask != 0; process_affinity_mask >>= 1)
+      if (process_affinity_mask & 1) num_vcpus++;
+  }
+  return num_vcpus;
+}  // namespace platform
+
+uint32_t num_vcpus_using_config() {
   cpu_id_t num_vcpus = 0;
 
   SYSTEM_INFO si;

@@ -119,6 +119,7 @@
 #cmakedefine HAVE_POSIX_MEMALIGN 1
 #cmakedefine HAVE_PREAD 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
+#cmakedefine HAVE_PTHREAD_GETAFFINITY_NP 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SIGACTION 1
