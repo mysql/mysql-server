@@ -88,7 +88,11 @@ void Mysql_connection_options::Ssl_options::fips_mode_option_callback(
       find_type_or_exit(argument, &ssl_fips_mode_typelib, "ssl-fips-mode") - 1;
 }
 
-void Mysql_connection_options::Ssl_options::apply_for_connection(
+bool Mysql_connection_options::Ssl_options::apply_for_connection(
     MYSQL *connection) {
-  SSL_SET_OPTIONS(connection);
+  if (SSL_SET_OPTIONS(connection)) {
+    std::cerr << SSL_SET_OPTIONS_ERROR;
+    return 1;
+  }
+  return 0;
 }

@@ -29,6 +29,16 @@ while (-e $filetodelete) {
 }
 EOF
 
+--echo #
+--echo # Bug #27809371: CLIENTS DO NOT EXIT FOR INVALID --SSL-FIPS-MODE SETTINGS
+--echo #
+
+--echo ##Test: Start the MySQL clients with SSL FIPS mode ON, MySQL clients will abort.
+--error 1
+--exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --ssl-fips-mode=ON -e "SHOW VARIABLES LIKE 'ssl_fips%';"
+--error 2
+--exec $MYSQL_DUMP --databases test --ssl-fips-mode=ON
+
 --echo ##Test: Set the variable SSL FIPS mode to ON, since OS doesn't support it. operation will throw error.
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT -e "SET @@global.ssl_fips_mode = 'ON';"

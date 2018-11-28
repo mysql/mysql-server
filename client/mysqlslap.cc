@@ -338,7 +338,10 @@ int main(int argc, char **argv) {
   }
   mysql_init(&mysql);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
-  SSL_SET_OPTIONS(&mysql);
+  if (SSL_SET_OPTIONS(&mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    return EXIT_FAILURE;
+  }
   if (opt_protocol)
     mysql_options(&mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 #if defined(_WIN32)

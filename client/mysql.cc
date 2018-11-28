@@ -297,7 +297,7 @@ static int com_nopager(String *str, char *), com_pager(String *str, char *),
 #endif
 
 static int read_and_execute(bool interactive);
-static void init_connection_options(MYSQL *mysql);
+static bool init_connection_options(MYSQL *mysql);
 static int sql_connect(char *host, char *database, char *user, char *password,
                        uint silent);
 static const char *server_version_string(MYSQL *mysql);
@@ -4368,8 +4368,11 @@ static int sql_real_connect(char *host, char *database, char *user,
   }
 
   mysql_init(&mysql);
-  init_connection_options(&mysql);
-
+  if (init_connection_options(&mysql)) {
+    (void)put_error(&mysql);
+    (void)fflush(stdout);
+    return ignore_errors ? -1 : 1;
+  }
 #ifdef _WIN32
   uint cnv_errors;
   String converted_database, converted_user;
@@ -4447,7 +4450,7 @@ static int sql_real_connect(char *host, char *database, char *user,
 }
 
 /* Initialize options for the given connection handle. */
-static void init_connection_options(MYSQL *mysql) {
+static bool init_connection_options(MYSQL *mysql) {
   bool handle_expired = (opt_connect_expired_password || !status.batch);
 
   if (opt_init_command)
@@ -4465,8 +4468,10 @@ static void init_connection_options(MYSQL *mysql) {
   if (using_opt_local_infile)
     mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char *)&opt_local_infile);
 
-  SSL_SET_OPTIONS(mysql);
-
+  if (SSL_SET_OPTIONS(mysql)) {
+    tee_fprintf(stdout, "%s", SSL_SET_OPTIONS_ERROR);
+    return 1;
+  }
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 
@@ -4504,6 +4509,8 @@ static void init_connection_options(MYSQL *mysql) {
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
+
+  return 0;
 }
 
 static int sql_connect(char *host, char *database, char *user, char *password,

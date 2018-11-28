@@ -130,7 +130,8 @@ MYSQL *Mysql_connection_options::create_connection() {
   MYSQL *connection = mysql_init(NULL);
   if (this->m_compress) mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
 
-  this->m_ssl_options_provider.apply_for_connection(connection);
+  if (this->m_ssl_options_provider.apply_for_connection(connection))
+    return NULL;
 
   if (this->m_protocol)
     mysql_options(connection, MYSQL_OPT_PROTOCOL, (char *)&this->m_protocol);

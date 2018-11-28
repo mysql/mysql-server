@@ -1444,7 +1444,10 @@ static int connect_to_db(char *host, char *user, char *passwd) {
   verbose_msg("-- Connecting to %s...\n", host ? host : "localhost");
   mysql_init(&mysql_connection);
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
-  SSL_SET_OPTIONS(&mysql_connection);
+  if (SSL_SET_OPTIONS(&mysql_connection)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    DBUG_RETURN(1);
+  }
   if (opt_protocol)
     mysql_options(&mysql_connection, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr)

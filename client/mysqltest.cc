@@ -6359,7 +6359,7 @@ static void do_connect(struct st_command *command) {
   /* keep the compiler happy about con_ssl */
   con_ssl = con_ssl ? true : false;
 #endif
-  SSL_SET_OPTIONS(&con_slot->mysql);
+  if (SSL_SET_OPTIONS(&con_slot->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(HAVE_OPENSSL)
   opt_ssl_mode = save_opt_ssl_mode;
 #endif
@@ -9253,8 +9253,7 @@ int main(int argc, char **argv) {
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
-  SSL_SET_OPTIONS(&con->mysql);
-
+  if (SSL_SET_OPTIONS(&con->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
 #if defined(_WIN32)
   if (shared_memory_base_name)
     mysql_options(&con->mysql, MYSQL_SHARED_MEMORY_BASE_NAME,

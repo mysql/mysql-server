@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,10 @@ int main(int argc, char **argv) {
   }
   mysql_init(&mysql);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
-  SSL_SET_OPTIONS(&mysql);
+  if (SSL_SET_OPTIONS(&mysql)) {
+    fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    exit(1);
+  }
   if (opt_protocol)
     mysql_options(&mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr) mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
