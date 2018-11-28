@@ -475,9 +475,39 @@ SHOW BINARY LOGS;
 --source include/restart_mysqld.inc
 -- source include/show_binary_logs.inc
 DROP TABLE t1;
+eval SET SESSION debug="$old";
 -- echo # Test case11: Ends
 
+
+--echo # Test case12: Bug#25839610 ABORT OCCUR DURING SLAVE BACKUP
+--echo #              WHEN RELAY LOG INDEX IS LOCK
+--echo # This test verifies that serveral retries are performed
+--echo # if there is a failure while deleting/renaming index files.
+
+--disable_warnings
+SET SESSION debug="+d,simulate_index_file_delete_failure";
+SET SESSION debug="+d,simulate_crash_safe_index_file_rename_failure";
+FLUSH LOGS;
+
+# Check that delete retry is present in the error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_index
+--let $assert_count = 5
+--let $assert_select = Retrying delete
+--let $assert_text = Retried for delete.
+--source include/assert_grep.inc
+
+# Check that rename retry is present in the error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: binlog.binlog_index
+--let $assert_count = 5
+--let $assert_select = Retrying rename
+--let $assert_text = Retried for rename.
+--source include/assert_grep.inc
+--enable_warnings
 eval SET SESSION debug="$old";
+--echo # Test case12: Ends
+
 eval SET GLOBAL binlog_error_action= $saved_binlog_error_action;
 
 # Reset Master deletes all binary log files listed in the index file, resets

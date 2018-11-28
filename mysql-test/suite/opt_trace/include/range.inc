@@ -304,12 +304,6 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo
 drop table t1;
 
---echo #
---echo # Tracing of when test_if_skip_sort_order() switches to another
---echo # index and we abandon ICP,
---echo # see "disabling_pushed_condition_on_old_index" in trace.
---echo #
-
 CREATE TABLE t1 (
   c1 VARCHAR(2) NOT NULL,
   i1 INTEGER NOT NULL,

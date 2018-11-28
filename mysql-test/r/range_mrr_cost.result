@@ -1361,7 +1361,7 @@ Z
 In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	a	a	5	const	502	33.33	Using where
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	502	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where ((`test`.`t2`.`a` = 1000) and (`test`.`t2`.`b` < 11))
 drop table t1, t2;
@@ -3687,4 +3687,52 @@ SELECT @trace RLIKE "uses_more_keyparts";
 SET optimizer_trace="enabled=off";
 DROP PROCEDURE p;
 DROP TABLE t1, transactions;
+#
+# Bug #28086754: OPTIMIZER SKIP THE RANG SCAN ON SECOND COLUMN IN A
+#                 COMPOSITE INDEX
+#
+CREATE TABLE test_ref (
+a INT PRIMARY KEY,
+b VARCHAR(20),
+c VARCHAR(20) DEFAULT NULL,
+d VARCHAR(3) DEFAULT NULL,
+id INT DEFAULT NULL,
+KEY idx1 (id, c),
+KEY idx2 (id, d)) ENGINE=INNODB ;
+ANALYZE TABLE test_ref;
+Table	Op	Msg_type	Msg_text
+test.test_ref	analyze	status	OK
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c
+LIMIT 1;
+a	b	c	d	id
+34876	D003	gheennse	S	3
+EXPLAIN SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	test_ref	NULL	range	idx1,idx2	idx1	28	NULL	27	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`test_ref`.`a` AS `a`,`test`.`test_ref`.`b` AS `b`,`test`.`test_ref`.`c` AS `c`,`test`.`test_ref`.`d` AS `d`,`test`.`test_ref`.`id` AS `id` from `test`.`test_ref` where ((`test`.`test_ref`.`id` = 3) and (`test`.`test_ref`.`c` like 'gh%')) order by `test`.`test_ref`.`c` desc limit 1
+SELECT *
+FROM test_ref
+WHERE id=3 AND c LIKE 'gh%'
+ORDER BY c DESC
+LIMIT 1;
+a	b	c	d	id
+1770649	D003	gheennse	S	3
+DROP TABLE test_ref;
 set optimizer_switch=default;

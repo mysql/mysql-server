@@ -604,6 +604,8 @@ fil_node_create_low(
 
 	node->size = size;
 
+	node->flush_size = size;
+
 	node->magic_n = FIL_NODE_MAGIC_N;
 
 	node->init_size = size;
@@ -5921,26 +5923,37 @@ fil_flush(
 		return;
 	}
 
-	if (fil_buffering_disabled(space)) {
+	bool fbd = fil_buffering_disabled(space);
+	if (fbd) {
 
 		/* No need to flush. User has explicitly disabled
-		buffering. */
+		buffering. However, flush should be called if the file
+                size changes to keep OS metadata in sync. */
 		ut_ad(!space->is_in_unflushed_spaces);
 		ut_ad(fil_space_is_flushed(space));
 		ut_ad(space->n_pending_flushes == 0);
 
-#ifdef UNIV_DEBUG
+		/* Flush only if the file size changes */
+		bool no_flush = true;
 		for (node = UT_LIST_GET_FIRST(space->chain);
 		     node != NULL;
 		     node = UT_LIST_GET_NEXT(chain, node)) {
+#ifdef UNIV_DEBUG
 			ut_ad(node->modification_counter
 			      == node->flush_counter);
 			ut_ad(node->n_pending_flushes == 0);
-		}
 #endif /* UNIV_DEBUG */
+			if (node->flush_size != node->size) {
+				/* Found at least one file whose size has changed */
+				no_flush = false;
+				break;
+			}
+		}
 
-		mutex_exit(&fil_system->mutex);
-		return;
+		if (no_flush) {
+			mutex_exit(&fil_system->mutex);
+			return;
+		}
 	}
 
 	space->n_pending_flushes++;	/*!< prevent dropping of the space while
@@ -5951,11 +5964,26 @@ fil_flush(
 
 		int64_t	old_mod_counter = node->modification_counter;
 
-		if (old_mod_counter <= node->flush_counter) {
+		if (!node->is_open) {
 			continue;
 		}
 
-		ut_a(node->is_open);
+		/* Skip flushing if the file size has not changed since
+		last flush was done and the flush mode is O_DIRECT_NO_FSYNC */
+		if (fbd && (node->flush_size == node->size)) {
+			continue;
+		}
+
+		/* If we are here and the flush mode is O_DIRECT_NO_FSYNC, then
+		it means that the file size has changed and hence, it shold be
+		flushed, irrespective of the mod_counter and flush counter values,
+		which are always same in case of O_DIRECT_NO_FSYNC to avoid flush
+		on every write operation.
+		For other flush modes, if the flush_counter is same or ahead of
+		the mode_counter, skip the flush. */
+		if (!fbd && (old_mod_counter <= node->flush_counter)) {
+			continue;
+		}
 
 		switch (space->purpose) {
 		case FIL_TYPE_TEMPORARY:
@@ -6007,6 +6035,8 @@ retry:
 		mutex_exit(&fil_system->mutex);
 
 		os_file_flush(file);
+
+		node->flush_size = node->size;
 
 		mutex_enter(&fil_system->mutex);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ void table_global_variables
 ::make_row(const System_variable *system_var)
 {
   m_row_exists= false;
-  if (system_var->is_null())
+  if (system_var->is_null() || system_var->is_ignored())
     return;
   m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
   m_row.m_variable_value.make_row(system_var);

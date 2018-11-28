@@ -16,6 +16,7 @@
 # [--let $rpl_skip_sync= 1]
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
+# [--let $no_extra_info= 0]
 # --source include/rpl_set_gtid_mode.inc
 #
 # Parameters:
@@ -42,6 +43,12 @@
 #
 #   $rpl_debug=1
 #     See include/rpl_init.inc
+#
+#   $no_extra_info=0
+#     Do not print the mode and server after the include file name. This option
+#     allows to easly support tests that may invoke with dynamic parameter
+#     values.
+#
 
 # Get the new gtid_mode
 --let $_rsgm_new_mode= $rpl_gtid_mode
@@ -75,7 +82,17 @@ if ($_rsgm_server_list == '')
   }
 }
 
---let $include_filename= rpl_set_gtid_mode.inc [$_rsgm_new_mode on servers $_rsgm_server_list]
+--let $_rsgm_mute= $no_extra_info
+if ($_rsgm_mute == '')
+{
+  --let $_rsgm_mute= 0
+}
+
+--let $include_filename= rpl_set_gtid_mode.inc
+if ($_rsgm_mute == 0)
+{
+  --let $include_filename= rpl_set_gtid_mode.inc [$_rsgm_new_mode on servers $_rsgm_server_list]
+}
 --source include/begin_include_file.inc
 
 if ($rpl_inited)
