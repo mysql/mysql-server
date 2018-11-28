@@ -3778,30 +3778,27 @@ bool SELECT_LEX::change_func_or_wf_group_ref(THD *thd, Item *func,
     Item *const real_item = item->real_item();
     bool found_in_group = false;
 
-    if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM ||
-        (!wf && is_grouping_func)) {
-      for (ORDER *group = group_list.first; group; group = group->next) {
-        if (real_item->eq((*group->item)->real_item(), 0)) {
-          Item *new_item;
-          if (!(new_item = new Item_ref(&context, group->item, 0,
-                                        item->item_name.ptr())))
-            return true; /* purecov: inspected */
+    for (ORDER *group = group_list.first; group; group = group->next) {
+      if (real_item->eq((*group->item)->real_item(), 0)) {
+        Item *new_item;
+        if (!(new_item = new Item_ref(&context, group->item, 0,
+                                      item->item_name.ptr())))
+          return true; /* purecov: inspected */
 
-          if (wf) {
-            window_func->set_arg(i, thd, new_item);
-          } else {
-            func_item->replace_argument(thd, args + i, new_item);
-            found_in_group = true;
-          }
-
-          arg_changed = true;
-          break;
+        if (wf) {
+          window_func->set_arg(i, thd, new_item);
+        } else {
+          func_item->replace_argument(thd, args + i, new_item);
+          found_in_group = true;
         }
+
+        arg_changed = true;
+        break;
       }
-      if (!wf && is_grouping_func && !found_in_group) {
-        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i + 1));
-        return true;
-      }
+    }
+    if (is_grouping_func && !found_in_group) {
+      my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i + 1));
+      return true;
     }
     if (real_item->type() == Item::FUNC_ITEM) {
       if (change_func_or_wf_group_ref(thd, real_item, &arg_changed))

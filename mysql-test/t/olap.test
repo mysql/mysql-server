@@ -1016,3 +1016,17 @@ SELECT a + COUNT(*) OVER () FROM t GROUP BY a WITH ROLLUP;
 SELECT a, b, a + SUM(a) OVER () FROM t GROUP BY a,b WITH ROLLUP;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#28836345 ROLLUP EXPRESSION'S NULL ROWS GIVE WRONG VALUE WHEN INVOLVED IN OTHER EXPRESSION
+--echo #
+CREATE TABLE t1 (a int, b int);
+INSERT INTO t1 VALUES
+  (1,4),
+  (2,2), (2,2),
+  (4,1), (4,1), (4,1), (4,1),
+  (2,1), (2,1);
+SET SQL_MODE=""; # safe: (a+1) IS NULL is functionally dependent on (a+1)
+SELECT (a+1) IS NULL, GROUPING(a+1) FROM t1 GROUP BY a+1 WITH ROLLUP;
+
+DROP TABLE t1;
