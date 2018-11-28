@@ -12,6 +12,7 @@ SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%'
 NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/mutex/group_rpl/LOCK_applier_module_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_applier_module_suspend	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_autorejoin_module	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_certifier_broadcast_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_certifier_broadcast_dispatcher_run	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_certification_info	YES	YES	singleton	0	NULL
@@ -32,6 +33,7 @@ wait/synch/mutex/group_rpl/LOCK_multi_primary_action_notification	YES	YES	single
 wait/synch/mutex/group_rpl/LOCK_pipeline_continuation	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_flow_control	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_pipeline_stats_transactions_waiting_apply	YES	YES	singleton	0	NULL
+wait/synch/mutex/group_rpl/LOCK_plugin_modules_termination	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_running	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_primary_election_action_phase	YES	YES	singleton	0	NULL
@@ -96,6 +98,8 @@ wait/synch/cond/group_rpl/COND_primary_election_validation_notification	YES	YES	
 wait/synch/cond/group_rpl/COND_write_lock_protection	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_plugin_online	YES	YES	singleton	0	NULL
 wait/synch/cond/group_rpl/COND_primary_promotion_policy	YES	YES	singleton	0	NULL
+wait/synch/cond/group_rpl/COND_autorejoin_module	YES	YES	singleton	0	NULL
+stage/group_rpl/Undergoing auto-rejoin procedure	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting for pending transactions to finish	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: waiting on another member step completion	YES	YES	progress	0	NULL
 stage/group_rpl/Multi-primary Switch: applying buffered transactions	YES	YES	progress	0	NULL

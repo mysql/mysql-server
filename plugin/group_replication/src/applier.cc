@@ -793,9 +793,20 @@ void Applier_module::kill_pending_transactions(
     of the START GROUP_REPLICATION command). We must not abort if the command
     fails. set_read_mode indicates that we were part of a group and as such our
     START GROUP_REPLICATION command already executed in the past.
+
+    Also, we will only consider group_replication_exit_state_action if the
+    auto-rejoin process is not enabled. If it is enabled, GR will first attempt
+    to auto-rejoin.
+
+    Also, we should only consider group_replication_exit_state_action if we are
+    not supposed to continue the auto-rejoin process. In this case, we shouldn't
+    continue the auto-rejoin process if it isn't enabled or if it is but we
+    have arrived here due to an applier error, and not due to a member expel.
   */
+  bool should_continue_autorejoin = is_autorejoin_enabled() && !applier_error;
   if (set_read_mode &&
-      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
+      !should_continue_autorejoin) {
     abort_plugin_process("Fatal error during execution of Group Replication");
   }
 

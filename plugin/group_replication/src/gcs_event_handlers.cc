@@ -29,6 +29,7 @@
 
 #include <mysql/components/services/log_builtins.h>
 #include "my_dbug.h"
+#include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/gcs_event_handlers.h"
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
@@ -620,8 +621,10 @@ void Plugin_gcs_events_handler::on_view_changed(
   }
 
   // An early error on the applier can render the join invalid
-  if (is_joining && local_member_info->get_recovery_status() ==
-                        Group_member_info::MEMBER_ERROR) {
+  if (is_joining &&
+      local_member_info->get_recovery_status() ==
+          Group_member_info::MEMBER_ERROR &&
+      !autorejoin_module->is_autorejoin_ongoing()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_EXIT_PLUGIN_ERROR);
     gcs_module->notify_of_view_change_cancellation(
         GROUP_REPLICATION_CONFIGURATION_ERROR);
@@ -782,6 +785,12 @@ bool Plugin_gcs_events_handler::was_member_expelled_from_group(
     if (!error)
       applier_module->kill_pending_transactions(
           true, true, Gcs_operations::ALREADY_LEFT, nullptr);
+
+    // If we have the auto-rejoin process enabled, now is the time to run it!
+    if (is_autorejoin_enabled()) {
+      autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
+                                          get_rejoin_timeout());
+    }
   }
 
   DBUG_RETURN(result);
@@ -1176,6 +1185,22 @@ sending:
   delete sql_command_interface;
 
   std::vector<uchar> data;
+
+  /*
+    When a member is auto-rejoining, it starts in the ERROR state. Normally
+    the member would only change to the RECOVERY state when it was OFFLINE,
+    but we want the member to be in ERROR state when an auto-rejoin occurs,
+    so we force the change from ERROR to RECOVERY when the member is
+    undergoing an auto-rejoin procedure.
+    We do that change on the data exchange just before the view install, so
+    that when all members do receive the view on which this member joins
+    all do see the correct RECOVERY state.
+  */
+  if (autorejoin_module->is_autorejoin_ongoing()) {
+    group_member_mgr->update_member_status(
+        local_member_info->get_uuid(), Group_member_info::MEMBER_IN_RECOVERY,
+        m_notification_ctx);
+  }
 
   // alert joiners that an action or election is running
   local_member_info->set_is_group_action_running(

@@ -1,0 +1,101 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+####
+# 0) The test requires three servers.
+####
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Could not rejoin the member to the group after");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+include/gr_autorejoin_monitoring.inc
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+include/start_group_replication.inc
+
+#####
+# 1) Expel one of the members.
+#####
+
+[connection server1]
+SET GLOBAL group_replication_autorejoin_tries = 3;
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+
+####
+# 2) Verify that the expelled member will try to rejoin the group the
+# number of it is configured in group_replication_autorejoin_tries
+# sysvar.
+####
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+include/assert.inc [Auto-rejoin should be running]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+include/assert.inc [We should have attempted 1 rejoins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+include/assert.inc [We should have attempted 2 rejoins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+include/assert.inc [super_read_only should be enabled]
+include/assert.inc [We should have attempted 3 rejoins]
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+####
+# 6) Verify that, with group_replication_exit_state_action set to
+# ABORT_SERVER, the expelled member will be aborted.
+####
+
+include/rpl_reconnect.inc
+include/assert_grep.inc [GR reported expected abort]
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+
+####
+# 4) Manually rejoin the server to the group.
+####
+
+[connection server1]
+SET @@global.group_replication_group_seeds = "GROUP_SEEDS_SERVER";
+SET @@global.group_replication_local_address = "LOCAL_ADDRESS_SERVER";
+include/start_group_replication.inc
+include/gr_wait_for_member_state.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server3]
+include/rpl_gr_wait_for_number_of_members.inc
+
+####
+# 5) Cleanup.
+####
+
+[connection server1]
+include/gr_end_autorejoin_monitoring.inc
+include/group_replication_end.inc

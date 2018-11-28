@@ -25,6 +25,7 @@ ADD_SUBDIRECTORY(libmysqlgcs)
 SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
   src/auto_increment.cc
+  src/autorejoin.cc
   src/certifier.cc
   src/consistency_manager.cc
   src/delayed_plugin_initialization.cc

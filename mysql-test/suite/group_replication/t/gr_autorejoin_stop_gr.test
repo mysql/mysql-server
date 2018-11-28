@@ -1,0 +1,183 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that it is possible to stop the plugin while an
+# auto-rejoin process is running.
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Provoke a member expel.
+# 2) Stop the plugin while the auto-rejoin is running on the expelled member.
+# 3) Verify that the auto-rejoin process should stop immediately.
+# 4) Verify that the expelled member left the group.
+# 5) Set the group_replication_exit_state_action on that member to ABORT_SERVER
+#    and restart the plugin.
+# 6) Expel that member again.
+# 7) Stop the plugin while the auto-rejoin is running on that member.
+# 8) Verify that it didn't abort and that it left the group.
+# 9) Cleanup.
+#
+################################################################################
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/linux.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed, probably because it has not been delivered yet.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+SET sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+--echo
+--echo ####
+--echo # 1) Provoke a member expel.
+--echo ####
+--echo
+# Save the local address so we can restore it later
+--let $local_address_server = `SELECT @@GLOBAL.group_replication_local_address`
+
+# First, enable auto-rejoin
+SET GLOBAL group_replication_autorejoin_tries = 2016;
+
+# Enable debug sync point before rejoin(), so we can manually trigger a failure
+SET @debug_saved = @@GLOBAL.DEBUG;
+
+# Mess up the local address so we trigger a join failure
+SET GLOBAL group_replication_local_address = "128.0.0.1:3306";
+
+# Force expel on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+# Wait until auto-rejoin starts
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = TRUE
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo ####
+--echo # 2) Stop the plugin while the auto-rejoin is running on the expelled
+--echo # member.
+--echo ####
+--echo
+--source include/stop_group_replication.inc
+
+--echo
+--echo ####
+--echo # 3) Verify that the auto-rejoin process should stop immediately.
+--echo ####
+--echo
+--let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
+--source include/wait_condition_or_abort.inc
+
+--echo
+--echo ####
+--echo # 4) Verify that the expelled member left the group.
+--echo ####
+--echo
+# Verify the view on server 2
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $assert_text = Member 1 should not be in the group
+--let $assert_cond = COUNT(*) = 0 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$member_id"
+--source include/assert.inc
+
+# Then on server 3
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $assert_text = Member 1 should not be in the group
+--let $assert_cond = COUNT(*) = 0 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$member_id"
+--source include/assert.inc
+
+--echo
+--echo ####
+--echo # 5) Set the group_replication_exit_state_action on that member to
+--echo # ABORT_SERVER and restart the plugin.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+--replace_result $local_address_server LOCAL_ADDRESS_SERVER
+--eval SET GLOBAL group_replication_local_address = "$local_address_server"
+
+# Restart the plugin
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 6) Expel that member again.
+--echo ####
+--echo
+# Mess up the local address so we trigger a join failure
+SET GLOBAL group_replication_local_address = "128.0.0.1:3306";
+
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_long_retry';
+SET @@GLOBAL.DEBUG='-d,group_replication_stop_before_rejoin';
+
+# Expel member again
+--source include/gr_expel_member_from_group.inc
+
+--echo
+--echo ####
+--echo # 7) Stop the plugin while the auto-rejoin is running on that member.
+--echo ####
+--echo
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+--source include/stop_group_replication.inc
+
+--echo
+--echo ####
+--echo # 8) Verify that it didn't abort and that it left the group.
+--echo ####
+--echo
+# Should be in OFFLINE state
+--let $group_replication_member_state= OFFLINE
+--let $group_replication_member_id= $member_id
+--source include/gr_wait_for_member_state.inc
+
+# Reset GR
+--replace_result $local_address_server LOCAL_ADDRESS_SERVER
+--eval SET GLOBAL group_replication_local_address = "$local_address_server"
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 9) Cleanup.
+--echo ####
+--echo
+SET @@GLOBAL.DEBUG = @debug_saved;
+SET GLOBAL group_replication_autorejoin_tries = default;
+SET GLOBAL group_replication_exit_state_action = @saved_exit_state_action;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc

@@ -306,6 +306,14 @@ class Gcs_operations {
    */
   static const std::string &get_gcs_engine();
 
+  /**
+    Returns a flag indicating whether or not the component is initialized.
+
+    @retval true if the component is initialized.
+    @retval false otherwise.
+  */
+  bool is_initialized();
+
  private:
   /**
     Internal function that configures the debug options that shall be used by

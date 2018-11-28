@@ -78,9 +78,10 @@ SET @@GLOBAL.group_replication_communication_protocol_join= default;
 --let $saved_gr_replication_consistency_s = `SELECT @@SESSION.group_replication_consistency;`
 --let $saved_gr_communication_max_message_size = `SELECT @@GLOBAL.group_replication_communication_max_message_size;`
 --let $saved_gr_communication_protocol_join = `SELECT @@GLOBAL.group_replication_communication_protocol_join;`
+--let $saved_gr_autorejoin_tries = `SELECT @@GLOBAL.group_replication_autorejoin_tries;`
 
 # Total number of GR variables.
---let $total_gr_vars= 49
+--let $total_gr_vars= 50
 
 --echo #
 --echo # Test Unit#1
@@ -142,6 +143,7 @@ SET @@GLOBAL.group_replication_member_expel_timeout= default;
 SET @@GLOBAL.group_replication_consistency= default;
 SET @@GLOBAL.group_replication_communication_max_message_size= default;
 SET @@GLOBAL.group_replication_communication_protocol_join= default;
+SET @@GLOBAL.group_replication_autorejoin_tries= default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -328,6 +330,10 @@ SET @@SESSION.group_replication_consistency= default;
 # group_replication_communication_protocol_join
 --let $assert_text= Default group_replication_communication_protocol_join is ""(EMPTY)
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_communication_protocol_join]" = ""
+
+#group_replication_autorejoin_tries
+--let $assert_text= Default group_replication_autorejoin_tries is 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_autorejoin_tries]" = 0
 --source include/assert.inc
 
 --echo #
@@ -374,6 +380,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_exit_state_action= $saved_gr_exit_state_action
 --eval SET @@GLOBAL.group_replication_member_expel_timeout= $saved_gr_member_expel_timeout
 --eval SET @@GLOBAL.group_replication_consistency= "$saved_gr_replication_consistency_g"
+--eval SET @@GLOBAL.group_replication_autorejoin_tries= $saved_gr_autorejoin_tries
 --eval SET @@SESSION.group_replication_consistency= "$saved_gr_replication_consistency_s"
 --eval SET @@GLOBAL.group_replication_communication_max_message_size= $saved_gr_communication_max_message_size
 --eval SET @@GLOBAL.group_replication_communication_protocol_join= "$saved_gr_communication_protocol_join";

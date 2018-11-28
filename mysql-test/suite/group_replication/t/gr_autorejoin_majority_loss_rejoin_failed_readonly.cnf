@@ -1,0 +1,14 @@
+!include ../my.cnf
+
+[mysqld.1]
+local-infile=       true
+group_replication_unreachable_majority_timeout= 10
+
+[mysqld.2]
+
+[mysqld.3]
+report-port=        @mysqld.3.port
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

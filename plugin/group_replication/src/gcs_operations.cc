@@ -668,3 +668,10 @@ std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
 }
 
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }
+
+bool Gcs_operations::is_initialized() {
+  gcs_operations_lock->rdlock();
+  bool ret = nullptr != gcs_interface;
+  gcs_operations_lock->unlock();
+  return ret;
+}

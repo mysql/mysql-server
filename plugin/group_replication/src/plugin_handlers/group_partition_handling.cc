@@ -25,6 +25,7 @@
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/group_replication_priv.h>
 
+#include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
@@ -155,10 +156,6 @@ void Group_partition_handling::kill_transactions_and_leave() {
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
 
-  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
-    abort_plugin_process("Fatal error during execution of Group Replication");
-  }
-
   DBUG_VOID_RETURN;
 }
 
@@ -285,6 +282,18 @@ int Group_partition_handling::partition_thread_handler() {
   if (!partition_handling_aborted) {
     partition_handling_terminated = true;
     kill_transactions_and_leave();
+
+    /*
+      Auto-rejoin should be attempted in the case of a leave due to loss of
+      majority (if the auto-rejoin process is enabled).
+    */
+    if (is_autorejoin_enabled()) {
+      autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
+                                          get_rejoin_timeout());
+      // Else we proceed according to group_replication_exit_state_action.
+    } else if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+      abort_plugin_process("Fatal error during execution of Group Replication");
+    }
   }
 
   mysql_mutex_lock(&run_lock);

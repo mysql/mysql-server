@@ -1,0 +1,167 @@
+################################################################################
+#
+# The auto-rejoin process is a mechanism that allows a server that left the
+# group due to flaky network (either on his side or on the other members) to
+# try to join again up to group_replication_autorejoin_tries number of times.
+#
+# This test shall verify that upon a majority loss, if auto-rejoin is enabled,
+# the member of the partitioned group will try to join the group up to
+# group_replication_autorejoin_tries number of times. It will also verify that,
+# if it fails to join the group after the number of times are depleted, it will
+# react accordingly to group_replication_exit_state_action.
+#
+# Test:
+# 0) The test requires three servers.
+# 1) Provoke a majority loss.
+# 2) Verify that the member in the partitioned group will try to rejoin the
+#    group the number of times it is configured in
+#    group_replication_autorejoin_tries sysvar.
+# 3) Verify that, with group_replication_exit_state_action set to ABORT_SERVER,
+#    the member will be aborted.
+# 4) Cleanup.
+#
+################################################################################
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+#
+# We manually start the group because we need to set the rejoin timeout before
+# the START GROUP_REPLICATION command.
+#
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count = 3
+--source include/group_replication.inc
+
+--echo
+--echo ####
+--echo # 0) The test requires three servers.
+--echo ####
+--echo
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This member could not reach a majority of the members for more than 10 seconds. The member will now leave the group as instructed by the group_replication_unreachable_majority_timeout option.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Could not rejoin the member to the group after");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("Unable to read the server value for the super_read_only variable");
+SET SESSION sql_log_bin = 1;
+
+--source include/gr_autorejoin_monitoring.inc
+
+# Enable debug var that instantly fails the rejoin (so we don't have to wait for
+# 5 minutes...)
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
+SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name = server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ####
+--echo # 1) Provoke a majority loss.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+# First, enable auto-rejoin
+SET GLOBAL group_replication_autorejoin_tries = 3;
+
+# Provoke a majority loss on member 1
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+
+# Inform MTR that we are expecting an abort and that it should wait before
+# restarting the aborting member
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Provoke another majority loss
+--source include/gr_provoke_majority_loss.inc
+
+--echo
+--echo ####
+--echo # 2) Verify that the member in the partitioned group will try to rejoin
+--echo # the group the number of it is configured in
+--echo # group_replication_autorejoin_tries sysvar.
+--echo ####
+--echo
+# Signal the process so that it can continue the rejoin loop
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
+
+# Verify that it is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+--source include/assert.inc
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";
+
+--let $tries = 1
+while ($tries <= 3)
+{
+  SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+
+  # Verify that it is currently running
+  --let $assert_text = Auto-rejoin should be running
+  --let $assert_cond = [SELECT IS_AUTOREJOIN_RUNNING()] = TRUE
+  --source include/assert.inc
+
+  --let $assert_text= super_read_only should be enabled
+  --let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+  --source include/assert.inc
+
+  --let $assert_text = We should have attempted $tries rejoins
+  --let $assert_cond = [SELECT GET_NUMBER_RETRIES()] = $tries
+  --source include/assert.inc
+
+  SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+  --inc $tries
+}
+
+# Wait until the connection is dropped
+--source include/wait_until_disconnected.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--let $rpl_server_number = 1
+--source include/rpl_reconnect.inc
+
+--echo
+--echo ####
+--echo # 3) Verify that, with group_replication_exit_state_action set to
+--echo # ABORT_SERVER, the member will be aborted.
+--echo ####
+--echo
+# Verify in the log file that the server aborted
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_autorejoin_majority_loss
+--let $assert_text = GR reported expected abort
+--let $assert_select = The plugin encountered a critical error and will abort
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo ####
+--echo # 4) Cleanup.
+--echo ####
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG = @debug_saved;
+--source include/gr_end_autorejoin_monitoring.inc
+--source include/group_replication_end.inc
+

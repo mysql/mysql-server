@@ -29,6 +29,7 @@
 /* clang-format off */
 PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_applier_module_suspend,
+    key_GR_LOCK_autorejoin_module,
     key_GR_LOCK_cert_broadcast_run,
     key_GR_LOCK_cert_broadcast_dispatcher_run,
     key_GR_LOCK_certification_info,
@@ -49,6 +50,7 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_pipeline_continuation,
     key_GR_LOCK_pipeline_stats_flow_control,
     key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
+    key_GR_LOCK_plugin_modules_termination,
     key_GR_LOCK_plugin_online, key_GR_LOCK_plugin_running,
     key_GR_LOCK_primary_election_action_phase,
     key_GR_LOCK_primary_election_action_notification,
@@ -75,6 +77,7 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
 PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
     key_GR_COND_applier_module_wait,
+    key_GR_COND_autorejoin_module,
     key_GR_COND_cert_broadcast_dispatcher_run,
     key_GR_COND_cert_broadcast_run,
     key_GR_COND_count_down_latch,
@@ -104,6 +107,7 @@ PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_write_lock_protection;
 
 PSI_thread_key key_GR_THD_applier_module_receiver,
+    key_GR_THD_autorejoin,
     key_GR_THD_cert_broadcast,
     key_GR_THD_delayed_init,
     key_GR_THD_group_action_coordinator,
@@ -128,6 +132,9 @@ PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
 
 #ifdef HAVE_PSI_INTERFACE
 
+PSI_stage_info info_GR_STAGE_autorejoin = {
+    0, "Undergoing auto-rejoin procedure", PSI_FLAG_STAGE_PROGRESS,
+    PSI_DOCUMENT_ME};
 PSI_stage_info info_GR_STAGE_multi_primary_mode_switch_pending_transactions = {
     0, "Multi-primary Switch: waiting for pending transactions to finish",
     PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
@@ -183,6 +190,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_applier_module_suspend, "LOCK_applier_module_suspend",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_autorejoin_module, "LOCK_autorejoin_module",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_cert_broadcast_run, "LOCK_certifier_broadcast_run",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_cert_broadcast_dispatcher_run,
@@ -232,6 +241,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
     {&key_GR_LOCK_pipeline_stats_transactions_waiting_apply,
      "LOCK_pipeline_stats_transactions_waiting_apply", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_plugin_modules_termination, "LOCK_plugin_modules_termination",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_plugin_online, "LOCK_plugin_online", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_LOCK_plugin_running, "LOCK_plugin_running", PSI_FLAG_SINGLETON, 0,
@@ -359,7 +370,8 @@ static PSI_cond_info all_group_replication_psi_condition_keys[] = {
      PSI_DOCUMENT_ME},
     {&key_GR_COND_primary_promotion_policy, "COND_primary_promotion_policy",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-};
+    {&key_GR_COND_autorejoin_module, "COND_autorejoin_module",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_applier_module_receiver, "THD_applier_module_receiver",
@@ -381,6 +393,8 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_group_partition_handler, "THD_group_partition_handler",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_THD_autorejoin, "THD_autorejoin", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
@@ -415,6 +429,7 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_stage_info *all_group_replication_stages_keys[] = {
+    &info_GR_STAGE_autorejoin,
     &info_GR_STAGE_multi_primary_mode_switch_pending_transactions,
     &info_GR_STAGE_multi_primary_mode_switch_step_completion,
     &info_GR_STAGE_multi_primary_mode_switch_buffered_transactions,
