@@ -41,7 +41,7 @@
 SET(BOOST_PACKAGE_NAME "boost_1_67_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "http://dl.bintray.com/boostorg/release/1.67.0/source/${BOOST_TARBALL}"
+  "https://dl.bintray.com/boostorg/release/1.67.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
