@@ -110,6 +110,10 @@ ADD_HARNESS_PLUGIN(http_server
   REQUIRES router_lib;http_common;http_auth_realm;${LIBRT};${LIBEVENT_OPENSSL}
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
+TARGET_INCLUDE_DIRECTORIES(http_server
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../include/)
+
 
 ADD_LIBRARY(http_client
   SHARED
@@ -143,17 +147,20 @@ SET_PATH_TO_SSL(http_client ${CMAKE_BINARY_DIR}/library_output_directory)
 
 
 IF(WIN32)
-  ADD_CUSTOM_COMMAND(TARGET http_client POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/http_client.dll"
-    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/http_client.dll"
-   )
+  # unit-tests link against http_server.dll
+  FUNCTION(COPY_TARGET_FOR_UNITTEST tgt)
+    ADD_CUSTOM_COMMAND(TARGET ${tgt} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      $<TARGET_FILE:${tgt}>
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/$<TARGET_FILE_NAME:${tgt}>"
+    )
+  ENDFUNCTION()
 
-   ADD_CUSTOM_COMMAND(TARGET http_common POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/mysqlrouter_http.dll"
-    "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/mysqlrouter_http.dll"
-   )
+  COPY_TARGET_FOR_UNITTEST(http_common)
+  COPY_TARGET_FOR_UNITTEST(http_client)
+  COPY_TARGET_FOR_UNITTEST(http_server)
+  COPY_TARGET_FOR_UNITTEST(http_auth_realm)
+  COPY_TARGET_FOR_UNITTEST(http_auth_backend)
 ENDIF()
 
 ADD_EXECUTABLE(rest_cli
