@@ -1027,12 +1027,11 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
 
   /* Get the dd tablespace */
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
-                                                           &dd_space)) {
+                                                           &dd_space) ||
+      dd_space == nullptr) {
     ut_ad(false);
     DBUG_RETURN(DB_ERROR);
   }
-
-  ut_a(dd_space != nullptr);
 
   MDL_ticket *src_ticket = nullptr;
   if (dd_tablespace_get_mdl(dd_space->name().c_str(), &src_ticket)) {
@@ -3115,9 +3114,10 @@ bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
 @retval true    On failure */
 bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
                         dd::Object_id dd_space_id) {
-  dd::Tablespace *dd_space;
+  dd::Tablespace *dd_space = nullptr;
 
-  if (dd_client->acquire_uncached_uncommitted(dd_space_id, &dd_space)) {
+  if (dd_client->acquire_uncached_uncommitted(dd_space_id, &dd_space) ||
+      dd_space == nullptr) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
              " InnoDB can't get tablespace object"
              " for space ",
@@ -3499,7 +3499,7 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
 /** Get tablespace name of dd::Table
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_table	dd table object
-@return the tablespace name. */
+@return the tablespace name or nullptr if failed */
 template <typename Table>
 const char *dd_table_get_space_name(const Table *dd_table) {
   dd::Tablespace *dd_space = nullptr;
@@ -3515,12 +3515,12 @@ const char *dd_table_get_space_name(const Table *dd_table) {
   dd::Object_id dd_space_id = (*dd_table->indexes().begin())->tablespace_id();
 
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
-                                                           &dd_space)) {
+                                                           &dd_space) ||
+      dd_space == nullptr) {
     ut_ad(false);
     DBUG_RETURN(nullptr);
   }
 
-  ut_a(dd_space != nullptr);
   space_name = dd_space->name().c_str();
 
   DBUG_RETURN(space_name);
@@ -3533,7 +3533,7 @@ for a given space_id.
 @param[in]	table		dict table
 @param[in]	dd_table	dd table obj
 @return First filepath (caller must invoke ut_free() on it)
-@retval NULL if no mysql.tablespace_datafilesentry was found. */
+@retval nullptr if no mysql.tablespace_datafiles entry was found. */
 template <typename Table>
 char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
                         Table *dd_table) {
@@ -3574,7 +3574,8 @@ char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
 
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
                                                            &dd_space)) {
-    ut_a(false);
+    ut_ad(false);
+    return (nullptr);
   }
 
   if (dd_space != nullptr) {
@@ -3796,7 +3797,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 @param[in]	table		dict table
 @param[in]	dd_table	dd table obj
 @return First filepath (caller must invoke ut_free() on it)
-@retval NULL if no mysql.tablespace_datafilesentry was found. */
+@retval nullptr if no mysql.tablespace_datafiles entry was found. */
 template <typename Table>
 char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
                         Table *dd_table) {
@@ -3836,11 +3837,11 @@ char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
   }
 
   if (client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
-                                                           &dd_space)) {
-    ut_a(false);
+                                                           &dd_space) ||
+      dd_space == nullptr) {
+    ut_ad(false);
+    return (nullptr);
   }
-
-  ut_a(dd_space != nullptr);
 
   return (mem_heap_strdup(heap, dd_space->name().c_str()));
 }
@@ -4007,7 +4008,8 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       sid = dict_sys_t::s_temp_space_id;
     } else {
       if (client->acquire_uncached_uncommitted<dd::Tablespace>(index_space_id,
-                                                               &index_space)) {
+                                                               &index_space) ||
+          index_space == nullptr) {
         my_error(ER_TABLESPACE_MISSING, MYF(0), m_table->name.m_name);
         fail = true;
         break;
@@ -6041,11 +6043,11 @@ bool dd_is_table_in_encrypted_tablespace(const dict_table_t *table) {
     THD *thd = current_thd;
     dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
-    dd::Tablespace *dd_space;
+    dd::Tablespace *dd_space = nullptr;
 
     if (!client->acquire_uncached_uncommitted<dd::Tablespace>(
-            table->dd_space_id, &dd_space)) {
-      ut_ad(dd_space);
+            table->dd_space_id, &dd_space) &&
+        dd_space != nullptr) {
       uint32 flags;
       dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
                                       &flags);
