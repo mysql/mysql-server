@@ -661,7 +661,7 @@ handle_new_error:
         trx_rollback_to_savepoint(trx, NULL);
         break;
       }
-      /* fall through */
+    /* fall through */
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -783,11 +783,11 @@ row_prebuilt_t *row_create_prebuilt(
 
   ref_len = dict_index_get_n_unique(clust_index);
 
-  /* Maximum size of the buffer needed for conversion of INTs from
-  little endian format to big endian format in an index. An index
-  can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
-  Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
-  Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
+/* Maximum size of the buffer needed for conversion of INTs from
+little endian format to big endian format in an index. An index
+can have maximum 16 columns (MAX_REF_PARTS) in it. Therfore
+Max size for PK: 16 * 8 bytes (BIGINT's size) = 128 bytes
+Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
 #define MAX_SRCH_KEY_VAL_BUFFER 2 * (8 * MAX_REF_PARTS)
 
 #define PREBUILT_HEAP_INITIAL_SIZE                                          \
@@ -1577,7 +1577,6 @@ run_again:
       goto run_again;
     }
 
-    node->duplicate = NULL;
     trx->op_info = "";
 
     if (blob_heap != NULL) {
@@ -1586,8 +1585,6 @@ run_again:
 
     return (err);
   }
-
-  node->duplicate = NULL;
 
   if (dict_table_has_fts_index(table)) {
     doc_id_t doc_id;

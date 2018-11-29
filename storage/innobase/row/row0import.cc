@@ -2191,7 +2191,7 @@ static void row_import_discard_changes(
 
   ut_a(err != DB_SUCCESS);
 
-  prebuilt->trx->error_info = NULL;
+  prebuilt->trx->error_index = NULL;
 
   ib::info(ER_IB_MSG_945) << "Discarding tablespace of table "
                           << prebuilt->table->name << ": " << ut_strerr(err);

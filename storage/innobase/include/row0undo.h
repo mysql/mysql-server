@@ -43,12 +43,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0types.h"
 #include "univ.i"
 
+/** Converts an implict lock on the record to explict in case of partial
+ rollback.
+@param[in]	cursor		cursor to record
+@param[in]	node		undo node */
+void row_convert_impl_to_expl_if_needed(btr_cur_t *cursor, undo_node_t *node);
+
 /** Creates a row undo node to a query graph.
- @return own: undo node */
-undo_node_t *row_undo_node_create(
-    trx_t *trx,        /*!< in: transaction */
-    que_thr_t *parent, /*!< in: parent node, i.e., a thr node */
-    mem_heap_t *heap); /*!< in: memory heap where created */
+@param[in]	trx		 transaction
+@param[in]	parent		 parent node, i.e., a thr node
+@param[in]	heap		 memory heap where created
+@param[in]	partial_rollback true if partial rollback
+@return		undo node */
+undo_node_t *row_undo_node_create(trx_t *trx, que_thr_t *parent,
+                                  mem_heap_t *heap, bool partial_rollback);
+
 /** Looks for the clustered index record when node has the row reference.
  The pcur in node is used in the search. If found, stores the row to node,
  and stores the position of pcur, and detaches it. The pcur must be closed
@@ -120,6 +129,7 @@ struct undo_node_t {
   mem_heap_t *heap;         /*!< memory heap used as auxiliary storage for
                             row; this must be emptied after undo is tried
                             on a row */
+  bool partial;             /*!< true if partial rollback */
 };
 
 #include "row0undo.ic"

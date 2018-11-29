@@ -118,6 +118,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     mem_heap_free(heap);
   }
 
+  row_convert_impl_to_expl_if_needed(btr_cur, node);
+
   if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
     err = DB_SUCCESS;
     goto func_exit;
@@ -158,15 +160,18 @@ func_exit:
 }
 
 /** Removes a secondary index entry if found.
- @return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec_low(
-    ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-                         depending on whether we wish optimistic or
-                         pessimistic descent down the index tree */
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in: index entry to remove */
-    que_thr_t *thr)      /*!< in: query thread */
-{
+@param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+                        depending on whether we wish optimistic or
+                        pessimistic descent down the index tree
+@param[in]	index	index
+@param[in]	entry	index entry to remove
+@param[in]	thr	query thread
+@param[in]	node	undo node
+@return DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_ins_remove_sec_low(ulint mode, dict_index_t *index,
+                                dtuple_t *entry, que_thr_t *thr,
+                                undo_node_t *node) {
   btr_pcur_t pcur;
   btr_cur_t *btr_cur;
   dberr_t err = DB_SUCCESS;
@@ -227,6 +232,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec_low(
 
   btr_cur = btr_pcur_get_btr_cur(&pcur);
 
+  row_convert_impl_to_expl_if_needed(btr_cur, node);
+
   if (modify_leaf) {
     err = btr_cur_optimistic_delete(btr_cur, 0, &mtr) ? DB_SUCCESS : DB_FAIL;
   } else {
@@ -247,27 +254,29 @@ func_exit_no_pcur:
 
 /** Removes a secondary index entry from the index if found. Tries first
  optimistic, then pessimistic descent down the tree.
- @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@param[in]	index	index
+@param[in]	entry	index entry to insert
+@param[in]	thr	query thread
+@param[in]	node	undo node
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_undo_ins_remove_sec(dict_index_t *index, /*!< in: index */
-                            dtuple_t *entry, /*!< in: index entry to insert */
-                            que_thr_t *thr)  /*!< in: query thread */
-{
+    row_undo_ins_remove_sec(dict_index_t *index, dtuple_t *entry,
+                            que_thr_t *thr, undo_node_t *node) {
   dberr_t err;
   ulint n_tries = 0;
 
   /* Try first optimistic descent to the B-tree */
 
-  err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
+  err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr, node);
 
   if (err == DB_SUCCESS) {
     return (err);
   }
 
-  /* Try then pessimistic descent to the B-tree */
+/* Try then pessimistic descent to the B-tree */
 retry:
   err = row_undo_ins_remove_sec_low(BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
-                                    index, entry, thr);
+                                    index, entry, thr, node);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -378,7 +387,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       assume that the secondary index record does
       not exist. */
     } else {
-      err = row_undo_ins_remove_sec(index, entry, thr);
+      err = row_undo_ins_remove_sec(index, entry, thr, node);
 
       if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
         goto func_exit;

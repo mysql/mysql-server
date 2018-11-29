@@ -459,9 +459,10 @@ void lock_report_trx_id_insanity(
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
     trx_id_t max_trx_id);      /*!< in: trx_sys_get_max_trx_id() */
+
 /** Prints info of locks for all transactions.
- @return false if not able to obtain lock mutex and exits without
- printing info */
+@return false if not able to obtain lock mutex and exits without
+printing info */
 bool lock_print_info_summary(
     FILE *file,   /*!< in: file where to print */
     ibool nowait) /*!< in: whether to wait for the lock mutex */
@@ -749,6 +750,21 @@ struct lock_sys_t {
   uint64_t m_seq;
 #endif /* UNIV_DEBUG */
 };
+
+/*********************************************************************/ /**
+This function is kind of wrapper to lock_rec_convert_impl_to_expl_for_trx()
+function with functionailty added to facilitate lock conversion from implicit
+to explicit for partial rollback cases
+@param[in]	block		buffer block of rec
+@param[in]	rec		user record on page
+@param[in]	index		index of record
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in,out]	trx		active transaction
+@param[in]	heap_no		rec heap number to lock */
+void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
+                                          const rec_t *rec, dict_index_t *index,
+                                          const ulint *offsets, trx_t *trx,
+                                          ulint heap_no);
 
 /** Removes a record lock request, waiting or granted, from the queue. */
 void lock_rec_discard(lock_t *in_lock); /*!< in: record lock object: all
