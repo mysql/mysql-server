@@ -138,6 +138,8 @@ ELSE()
   SET (DEB_REMOVEPATTERN "com.in")
 ENDIF()
 
+# Build with default ssl. May be overridden if we don't support default ssl version
+SET (DEB_CONTROL_BDEPS_SSL ",libssl-dev")
 # Generate debug symbol packages (this is done automatically in Debian9+)
 SET (DEB_RULES_STRIP_DEFAULT
 "
@@ -256,6 +258,8 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_CONTROL_DBGSYM "")
   SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "cosmic")
+  # Ubuntu 18.10 has OpenSSL 1.1.1, which we don't support yet
+  SET (DEB_CONTROL_BDEPS_SSL ",libssl1.0-dev")
   SET (DEB_PLATFORMRELEASE "ubuntu18.10")
   SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
   SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
