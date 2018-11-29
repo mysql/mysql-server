@@ -291,12 +291,9 @@ static void option_deprecation_warning(MYSQL_THD thd, const char* name)
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
                         name);
   }
-  else
-  {
-    log_message(MY_WARNING_LEVEL,
-                ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                name);
-  }
+  log_message(MY_WARNING_LEVEL,
+              ER_DEFAULT(ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+              name);
 }
 
 /*
