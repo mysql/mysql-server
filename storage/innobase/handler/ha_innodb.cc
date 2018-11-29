@@ -12837,7 +12837,7 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
     dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
-    if (dd_drop_tablespace(client, thd, dd_space_id) != 0) {
+    if (dd_drop_tablespace(client, thd, dd_space_id)) {
       error = DB_ERROR;
     }
   }
