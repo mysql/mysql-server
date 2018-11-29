@@ -3328,6 +3328,14 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
         old_vers = cached_old_vers;
 
         if (old_vers != nullptr) {
+          DBUG_EXECUTE_IF("innodb_cached_old_vers_offsets", {
+            rec_offs_make_valid(old_vers, clust_index, *offsets);
+            if (!lob::rec_check_lobref_space_id(clust_index, old_vers,
+                                                *offsets)) {
+              DBUG_SUICIDE();
+            }
+          });
+
           /* The offsets need not be same for the latest version of
           clust_rec and its old version old_vers.  Re-calculate the offsets
           for old_vers. */
