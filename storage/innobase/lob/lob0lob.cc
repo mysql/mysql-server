@@ -635,6 +635,7 @@ byte *btr_rec_copy_externally_stored_field_func(
     bool is_sdi,
 #endif /* UNIV_DEBUG */
     mem_heap_t *heap) {
+
   ulint local_len;
   const byte *data;
 
@@ -656,14 +657,18 @@ byte *btr_rec_copy_externally_stored_field_func(
 
   ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
+#ifdef UNIV_DEBUG
+  /* Verify if the LOB reference is sane. */
+  space_id_t space_id = ref.space_id();
+  ut_ad(space_id == 0 || space_id == index->space);
+#endif /* UNIV_DEBUG */
+
   if (ref.is_null()) {
     /* The externally stored field was not written yet.
     This record should only be seen by
     trx_rollback_or_clean_all_recovered() or any
     TRX_ISO_READ_UNCOMMITTED transactions. */
 
-    lob::ref_mem_t ref_mem;
-    ref.parse(ref_mem);
     return (NULL);
   }
 
@@ -907,6 +912,8 @@ byte *btr_copy_externally_stored_field_func(
   /* Currently a BLOB cannot be bigger than 4 GB; we
   leave the 4 upper bytes in the length field unused */
 
+  const byte *field_ref = data + local_len;
+
   extern_len = mach_read_from_4(data + local_len + BTR_EXTERN_LEN + 4);
 
   buf = (byte *)mem_heap_alloc(heap, local_len + extern_len);
@@ -921,7 +928,18 @@ byte *btr_copy_externally_stored_field_func(
 
   rctx.m_index = (dict_index_t *)index;
 
-  if (ref_t::is_being_modified(data + local_len)) {
+  if (ref_t::is_being_modified(field_ref)) {
+#ifdef UNIV_DEBUG
+    /* Check the sanity of the LOB reference. */
+    if (ref_t::is_null_relaxed(field_ref) ||
+        ref_t::space_id(field_ref) == index->space) {
+      /* Valid scenario.  Do nothing. */
+    } else {
+      bool lob_ref_is_corrupt = false;
+      ut_ad(lob_ref_is_corrupt);
+    }
+#endif /* UNIV_DEBUG */
+
     /* This is applicable only for READ UNCOMMITTED transactions because they
     don't take transaction locks. */
     ut_ad(trx == nullptr || trx->is_read_uncommitted());
@@ -1279,6 +1297,17 @@ std::ostream &ref_t::print(std::ostream &out) const {
   return (out);
 }
 
+#ifdef UNIV_DEBUG
+bool ref_t::check_space_id(dict_index_t *index) const {
+  space_id_t idx_space_id = index->space;
+  space_id_t ref_space_id = space_id();
+
+  bool lob_ref_valid = (ref_space_id == 0 || idx_space_id == ref_space_id);
+  ut_ad(lob_ref_valid);
+  return (lob_ref_valid);
+}
+#endif /* UNIV_DEBUG */
+
 /** Acquire an x-latch on the index page containing the clustered
 index record, in the given mini transaction context.
 @param[in]	mtr	the mini-transaction context. */
@@ -1300,5 +1329,44 @@ void DeleteContext::x_latch_rec_page(mtr_t *mtr) {
 
   ut_ad(block != nullptr);
 }
+
+#ifdef UNIV_DEBUG
+bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
+                               const ulint *offsets) {
+  /* Make it more robust.  If rec pointer is null, don't do anything. */
+  if (rec == nullptr) {
+    return (true);
+  }
+
+  ut_ad(index->is_clustered());
+  ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+  const ulint n = rec_offs_n_fields(offsets);
+
+  for (ulint i = 0; i < n; i++) {
+    ulint len;
+
+    if (rec_offs_nth_default(offsets, i)) {
+      continue;
+    }
+
+    byte *data = rec_get_nth_field(rec, offsets, i, &len);
+
+    if (len == UNIV_SQL_NULL) {
+      continue;
+    }
+
+    if (rec_offs_nth_extern(offsets, i)) {
+      ulint local_len = len - BTR_EXTERN_FIELD_REF_SIZE;
+      ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+      byte *field_ref = data + local_len;
+      ref_t ref(field_ref);
+      ut_ad(ref.check_space_id(index));
+    }
+  }
+  return (true);
+}
+#endif /* UNIV_DEBUG */
 
 }  // namespace lob

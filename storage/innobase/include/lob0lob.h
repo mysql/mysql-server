@@ -268,6 +268,24 @@ struct ref_t {
   @return true if field reference is made of zeroes, false otherwise. */
   bool is_null() const { return (memcmp(field_ref_zero, m_ref, SIZE) == 0); }
 
+#ifdef UNIV_DEBUG
+  /** Check if the LOB reference is null (all zeroes) except the "is being
+  modified" bit.
+  @param[in]    ref   the LOB reference.
+  @return true if the LOB reference is null (all zeros) except the "is being
+  modified" bit, false otherwise. */
+  static bool is_null_relaxed(const byte *ref) {
+    return (is_null(ref) || memcmp(field_ref_almost_zero, ref, SIZE) == 0);
+  }
+
+  /** Check if the LOB reference is null (all zeroes).
+  @param[in]    ref   the LOB reference.
+  @return true if the LOB reference is null (all zeros), false otherwise. */
+  static bool is_null(const byte *ref) {
+    return (memcmp(field_ref_zero, ref, SIZE) == 0);
+  }
+#endif /* UNIV_DEBUG */
+
   /** Set the ownership flag in the blob reference.
   @param[in]	owner	whether to own or disown.  if owner, unset
                           the owner flag.
@@ -348,6 +366,15 @@ struct ref_t {
     const ulint byte_val = mach_read_from_1(m_ref + BTR_EXTERN_LEN);
     return (byte_val & BTR_EXTERN_INHERITED_FLAG);
   }
+
+#ifdef UNIV_DEBUG
+  /** Read the space id from the given blob reference.
+  @param[in]   ref   the blob reference.
+  @return the space id */
+  static space_id_t space_id(const byte *ref) {
+    return (mach_read_from_4(ref));
+  }
+#endif /* UNIV_DEBUG */
 
   /** Read the space id from the blob reference.
   @return the space id */
@@ -438,6 +465,12 @@ struct ref_t {
     ut_ad(block != NULL);
     return (true);
   }
+
+  /** Check if the space_id in the LOB reference is equal to the
+  space_id of the index to which it belongs.
+  @param[in]  index  the index to which LOB belongs.
+  @return true if space is valid in LOB reference, false otherwise. */
+  bool check_space_id(dict_index_t *index) const;
 #endif /* UNIV_DEBUG */
 
   /** Check if the LOB can be partially updated. This is done by loading
@@ -1521,6 +1554,17 @@ id to the given import trx id.
 @param[in]	field_ref	the lob reference.
 @param[in]	trx_id		the import trx id. */
 void import(const dict_index_t *index, byte *field_ref, trx_id_t trx_id);
+
+#ifdef UNIV_DEBUG
+/** Check if all the LOB references in the given clustered index record has
+valid space_id in it.
+@param[in]    index   the index to which the LOB belongs.
+@param[in]    rec     the clust_rec in which the LOB references are checked.
+@param[in]    offsets the field offets of the given rec.
+@return true if LOB references have valid space_id, false otherwise. */
+bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
+                               const ulint *offsets);
+#endif /* UNIV_DEBUG */
 
 }  // namespace lob
 
