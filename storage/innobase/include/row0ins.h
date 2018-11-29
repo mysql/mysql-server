@@ -192,10 +192,6 @@ struct ins_node_t {
   entry_list and sys fields are stored here;
   if this is NULL, entry list should be created
   and buffers for sys fields in row allocated */
-  dict_index_t *duplicate;
-  /* This is the first index that reported
-  DB_DUPLICATE_KEY.  Used in the case of REPLACE
-  or INSERT ... ON DUPLICATE UPDATE. */
   ulint magic_n;
 };
 

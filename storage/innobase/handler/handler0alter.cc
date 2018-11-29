@@ -4793,7 +4793,7 @@ error_handling:
 
 error_handled:
 
-  ctx->prebuilt->trx->error_info = NULL;
+  ctx->prebuilt->trx->error_index = NULL;
   ctx->trx->error_state = DB_SUCCESS;
 
   if (!dict_locked) {
@@ -4899,7 +4899,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreign_key_index(
                                           ha_alter_info->index_add_buffer,
                                           ha_alter_info->index_add_count)) {
       /* Index cannot be dropped. */
-      trx->error_info = index;
+      trx->error_index = index;
       return (true);
     }
   }
@@ -4928,7 +4928,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreign_key_index(
                                           ha_alter_info->index_add_buffer,
                                           ha_alter_info->index_add_count)) {
       /* Index cannot be dropped. */
-      trx->error_info = index;
+      trx->error_index = index;
       return (true);
     }
   }
@@ -5466,7 +5466,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
                                            col_names, m_prebuilt->trx, drop_fk,
                                            n_drop_fk)) {
         row_mysql_unlock_data_dictionary(m_prebuilt->trx);
-        m_prebuilt->trx->error_info = index;
+        m_prebuilt->trx->error_index = index;
         print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
         goto err_exit;
       }
@@ -5994,7 +5994,7 @@ oom:
 
   /* prebuilt->table->n_ref_count can be anything here, given
   that we hold at most a shared lock on the table. */
-  m_prebuilt->trx->error_info = NULL;
+  m_prebuilt->trx->error_index = NULL;
   ctx->trx->error_state = DB_SUCCESS;
 
   DBUG_RETURN(true);

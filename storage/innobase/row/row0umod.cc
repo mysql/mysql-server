@@ -214,6 +214,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
   ut_ad(rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
                              dict_table_is_comp(node->table)));
 
+  row_convert_impl_to_expl_if_needed(btr_cur, node);
+
   if (mode == BTR_MODIFY_LEAF) {
     err = btr_cur_optimistic_delete(btr_cur, 0, mtr) ? DB_SUCCESS : DB_FAIL;
   } else {
@@ -478,6 +480,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                      " on rollback update.";
       }
     }
+
+    row_convert_impl_to_expl_if_needed(btr_cur, node);
 
     if (modify_leaf) {
       success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);

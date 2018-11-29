@@ -5818,6 +5818,15 @@ static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
   }
 }
 
+void lock_rec_convert_active_impl_to_expl(const buf_block_t *block,
+                                          const rec_t *rec, dict_index_t *index,
+                                          const ulint *offsets, trx_t *trx,
+                                          ulint heap_no) {
+  trx_reference(trx, true);
+  lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets, trx,
+                                        heap_no);
+}
+
 /** Checks if locks of other transactions prevent an immediate modify (update,
  delete mark, or delete unmark) of a clustered index record. If they do,
  first tests if the query thread should anyway be suspended for some

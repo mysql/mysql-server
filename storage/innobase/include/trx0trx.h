@@ -81,9 +81,10 @@ void trx_set_detailed_error_from_file(
     trx_t *trx,  /*!< in: transaction struct */
     FILE *file); /*!< in: file to read message from */
 /** Retrieves the error_info field from a trx.
- @return the error info */
+ @return the error index */
 UNIV_INLINE
-const dict_index_t *trx_get_error_info(const trx_t *trx); /*!< in: trx object */
+const dict_index_t *trx_get_error_index(
+    const trx_t *trx); /*!< in: trx object */
 /** Creates a transaction object for MySQL.
  @return own: transaction object */
 trx_t *trx_allocate_for_mysql(void);
@@ -1007,24 +1008,24 @@ struct trx_t {
   trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
   /*------------------------------*/
-  dberr_t error_state;            /*!< 0 if no error, otherwise error
-                                  number; NOTE That ONLY the thread
-                                  doing the transaction is allowed to
-                                  set this field: this is NOT protected
-                                  by any mutex */
-  const dict_index_t *error_info; /*!< if the error number indicates a
-                                  duplicate key error, a pointer to
-                                  the problematic index is stored here */
-  ulint error_key_num;            /*!< if the index creation fails to a
-                                  duplicate key error, a mysql key
-                                  number of that index is stored here */
-  sess_t *sess;                   /*!< session of the trx, NULL if none */
-  que_t *graph;                   /*!< query currently run in the session,
-                                  or NULL if none; NOTE that the query
-                                  belongs to the session, and it can
-                                  survive over a transaction commit, if
-                                  it is a stored procedure with a COMMIT
-                                  WORK statement, for instance */
+  dberr_t error_state;             /*!< 0 if no error, otherwise error
+                                   number; NOTE That ONLY the thread
+                                   doing the transaction is allowed to
+                                   set this field: this is NOT protected
+                                   by any mutex */
+  const dict_index_t *error_index; /*!< if the error number indicates a
+                                   duplicate key error, a pointer to
+                                   the problematic index is stored here */
+  ulint error_key_num;             /*!< if the index creation fails to a
+                                   duplicate key error, a mysql key
+                                   number of that index is stored here */
+  sess_t *sess;                    /*!< session of the trx, NULL if none */
+  que_t *graph;                    /*!< query currently run in the session,
+                                   or NULL if none; NOTE that the query
+                                   belongs to the session, and it can
+                                   survive over a transaction commit, if
+                                   it is a stored procedure with a COMMIT
+                                   WORK statement, for instance */
   /*------------------------------*/
   UT_LIST_BASE_NODE_T(trx_named_savept_t)
   trx_savepoints; /*!< savepoints set with SAVEPOINT ...,

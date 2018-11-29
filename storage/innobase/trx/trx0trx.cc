@@ -203,6 +203,8 @@ static void trx_init(trx_t *trx) {
 
   trx->lock.table_cached = 0;
 
+  trx->error_index = nullptr;
+
   /* During asynchronous rollback, we should reset forced rollback flag
   only after rollback is complete to avoid race with the thread owning
   the transaction. */
