@@ -716,7 +716,7 @@ select count(1) from mysql.ndb_apply_status where server_id=0;
 count(1)
 1
 drop table t1;
-Backup Id = 9
+Backup Id = the_backup_id
 Backup file node ID not specified, please provide --nodeid
 
 NDBT_ProgramExit: 2 - Wrong arguments

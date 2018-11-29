@@ -681,6 +681,7 @@ delete from mysql.ndb_apply_status;
 
 select count(1) from mysql.ndb_apply_status where server_id=0;
 drop table t1;
+--replace_regex /Backup Id = [0-9]+/Backup Id = the_backup_id/
 --error 2
 --exec $NDB_RESTORE -b $the_backup_id --ndb-nodeid=200 -r $NDB_BACKUPS-$the_backup_id 2>&1
 --error 2
