@@ -124,7 +124,7 @@ public:
     UpdateTriggerId    = 23,
     DeleteTriggerId    = 24,
     CustomTriggerId    = 25,
-
+    FrmLen             = 26,
     FrmData            = 27,
 
     TableTemporaryFlag = 28,  //Default not Temporary

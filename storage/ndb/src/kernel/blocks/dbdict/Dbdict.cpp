@@ -1019,6 +1019,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
 
   ConstRope frm(c_rope_pool, tablePtr.p->frmData);
+  w.add(DictTabInfo::FrmLen, frm.size());        // for pre-8.0 recipients
   w.addKey(DictTabInfo::FrmData, SimpleProperties::BinaryValue, frm.size());
   ndbrequire(packRopeData(w, frm));
 
