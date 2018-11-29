@@ -1447,6 +1447,276 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
   return CreateWeedoutIterator(thd, move(iterator), sjtbl);
 }
 
+enum class Substructure { NONE, OUTER_JOIN, SEMIJOIN, WEEDOUT };
+
+/**
+  Given a range of tables (where we assume that we've already handled
+  first_idx..(this_idx-1) as inner joins), figure out whether this is a
+  semijoin, an outer join or a weedout. In general, the outermost structure
+  wins; if we are in one of the rare cases where there are e.g. coincident
+  outer- and semijoins, we do various forms of conflict resolution:
+
+   - Unhandled weedouts will add elements to unhandled_duplicates
+     (to be handled at the top level of the query).
+   - Unhandled semijoins will set add_limit_1 to true, which means a
+     LIMIT 1 iterator should be added.
+
+  If not returning NONE, substructure_end will also be filled with where this
+  sub-join ends (exclusive).
+ */
+static Substructure FindSubstructure(
+    QEP_TAB *qep_tabs, const plan_idx first_idx, const plan_idx this_idx,
+    const plan_idx last_idx, CallingContext calling_context, bool *add_limit_1,
+    plan_idx *substructure_end, vector<QEP_TAB *> *unhandled_duplicates) {
+  QEP_TAB *qep_tab = &qep_tabs[this_idx];
+  bool is_outer_join =
+      qep_tab->last_inner() != NO_PLAN_IDX && qep_tab->last_inner() < last_idx;
+  plan_idx outer_join_end =
+      qep_tab->last_inner() + 1;  // Only valid if is_outer_join.
+
+  // See if this table marks the end of the left side of a semijoin.
+  bool is_semijoin = false;
+  plan_idx semijoin_end = NO_PLAN_IDX;
+  for (plan_idx j = this_idx; j < last_idx; ++j) {
+    if (qep_tabs[j].firstmatch_return == this_idx - 1) {
+      is_semijoin = true;
+      semijoin_end = j + 1;
+      break;
+    }
+  }
+
+  // Outer joins (or semijoins) wrapping a weedout is tricky,
+  // especially in edge cases. If we have an outer join wrapping
+  // a weedout, the outer join needs to be processed first.
+  // But the weedout wins if it's strictly larger than the outer join.
+  // However, a problem occurs if the weedout wraps two consecutive
+  // outer joins (which can happen if the join optimizer interleaves
+  // tables from different weedouts and needs to combine them into
+  // one larger weedout). E.g., consider a join order such as
+  //
+  //   a LEFT JOIN (b,c) LEFT JOIN (d,e)
+  //
+  // where there is _also_ a weedout wrapping all four tables [b,e].
+  // (Presumably, there were originally two weedouts b+e and c+d,
+  // but due to reordering, they were combined into one.)
+  // In this case, we have a non-hierarchical situation since the
+  // (a,(b,c)) join only partially overlaps with the [b,e] weedout.
+  //
+  // We solve these non-hierarchical cases by punting them upwards;
+  // we signal that they are simply not done by adding them to
+  // unhandled_duplicates, and then drop the weedout. The top level
+  // will then add a final weedout after all joins. In some cases,
+  // it is possible to push the weedout further down than this,
+  // but these cases are so marginal that it's not worth it.
+
+  // See if this table starts a weedout operation.
+  bool is_weedout = false;
+  plan_idx weedout_end = NO_PLAN_IDX;
+  if (qep_tab->starts_weedout() &&
+      !(calling_context == DIRECTLY_UNDER_WEEDOUT && this_idx == first_idx)) {
+    for (plan_idx j = this_idx; j < last_idx; ++j) {
+      if (qep_tabs[j].check_weed_out_table == qep_tab->flush_weedout_table) {
+        weedout_end = j + 1;
+        break;
+      }
+    }
+    if (weedout_end != NO_PLAN_IDX) {
+      is_weedout = true;
+    }
+  }
+
+  if (weedout_end > last_idx) {
+    // See comment above.
+    MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
+                            weedout_end, unhandled_duplicates);
+    is_weedout = false;
+  }
+
+  if (is_outer_join && is_weedout) {
+    if (outer_join_end >= weedout_end) {
+      // Weedout will be handled at a lower recursion level.
+      is_weedout = false;
+    } else {
+      // See comment above.
+      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
+                              weedout_end, unhandled_duplicates);
+      is_weedout = false;
+    }
+  }
+  if (is_semijoin && is_weedout) {
+    if (semijoin_end >= weedout_end) {
+      // Weedout will be handled at a lower recursion level.
+      is_weedout = false;
+    } else {
+      // See comment above.
+      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, this_idx,
+                              weedout_end, unhandled_duplicates);
+      is_weedout = false;
+    }
+  }
+
+  // Occasionally, a subslice may be designated as the right side of both a
+  // semijoin _and_ an outer join. This is a fairly odd construction,
+  // as it means exactly one row is generated no matter what (negating the
+  // point of a semijoin in the first place), and typically happens as the
+  // result of the join optimizer reordering tables that have no real bearing
+  // on the query, such as ... WHERE t1 IN ( t2.i FROM t2 LEFT JOIN t3 )
+  // with the ordering t2, t1, t3 (t3 will now be in such a situation).
+  //
+  // Nominally, these tables should be optimized away, but this is not the
+  // right place for that, so we solve it by adding a LIMIT 1 and then
+  // treating the slice as a normal outer join.
+  *add_limit_1 = false;
+  if (is_semijoin && is_outer_join && semijoin_end == outer_join_end) {
+    *add_limit_1 = true;
+    is_semijoin = false;
+  }
+
+  // We may have detected both a semijoin and an outer join starting at
+  // this table. Decide which one is the outermost that is not already
+  // processed, so that we recurse in the right order.
+  if (calling_context == DIRECTLY_UNDER_SEMIJOIN && this_idx == first_idx &&
+      semijoin_end == last_idx) {
+    is_semijoin = false;
+  } else if (calling_context == DIRECTLY_UNDER_OUTER_JOIN &&
+             this_idx == first_idx && outer_join_end == last_idx) {
+    is_outer_join = false;
+  }
+  if (is_semijoin && is_outer_join) {
+    if (outer_join_end > semijoin_end) {
+      is_semijoin = false;
+    } else if (semijoin_end > outer_join_end) {
+      is_outer_join = false;
+    } else {
+      DBUG_ASSERT(false);
+    }
+  }
+
+  DBUG_ASSERT(is_semijoin + is_outer_join + is_weedout <= 1);
+
+  if (is_semijoin) {
+    *substructure_end = semijoin_end;
+    return Substructure::SEMIJOIN;
+  } else if (is_outer_join) {
+    *substructure_end = outer_join_end;
+    return Substructure::OUTER_JOIN;
+  } else if (is_weedout) {
+    *substructure_end = weedout_end;
+    return Substructure::WEEDOUT;
+  } else {
+    *substructure_end = NO_PLAN_IDX;  // Not used.
+    return Substructure::NONE;
+  }
+}
+
+/// @cond Doxygen_is_confused
+static unique_ptr_destroy_only<RowIterator> ConnectJoins(
+    plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
+    CallingContext calling_context,
+    vector<PendingCondition> *pending_conditions,
+    vector<PendingInvalidator> *pending_invalidators,
+    vector<QEP_TAB *> *unhandled_duplicates);
+/// @endcond
+
+/**
+  Get the RowIterator used for scanning the given table, with any required
+  materialization operations done first.
+ */
+unique_ptr_destroy_only<RowIterator> GetTableIterator(
+    THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs,
+    vector<PendingCondition> *pending_conditions,
+    vector<PendingInvalidator> *pending_invalidators,
+    vector<QEP_TAB *> *unhandled_duplicates) {
+  unique_ptr_destroy_only<RowIterator> table_iterator;
+  if (qep_tab->materialize_table == join_materialize_derived) {
+    JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
+    ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
+                       &subjoin->tmp_table_param);
+
+    bool rematerialize = qep_tab->rematerialize;
+    if (qep_tab->join()->select_lex->uncacheable &&
+        qep_tab->table_ref->common_table_expr() == nullptr) {
+      // If the query is uncacheable, we need to rematerialize it each and
+      // every time it's read. In particular, this can happen for LATERAL
+      // tables.
+      //
+      // For (lateral) CTEs, we don't need this check, as we already
+      // explicitly clear CTEs when we start executing the query block where
+      // it is defined (clear_corr_ctes(), called whenever we start a query
+      // block or materialize a table, takes care of this). In fact,
+      // rematerializing every time is actively harmful, as it would risk
+      // clearing out a temporary table that an outer query block is still
+      // scanning.
+      rematerialize = true;
+    }
+
+    bool copy_fields_and_items_in_materialize = !subjoin->streaming_aggregation;
+    table_iterator.reset(new (thd->mem_root) MaterializeIterator(
+        thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
+        qep_tab->table(), move(qep_tab->read_record.iterator),
+        qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
+        /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
+        subjoin->tmp_table_param.end_write_records));
+
+    if (!rematerialize) {
+      MaterializeIterator *materialize =
+          down_cast<MaterializeIterator *>(table_iterator.get());
+      if (qep_tab->invalidators != nullptr) {
+        for (const CacheInvalidatorIterator *iterator :
+             *qep_tab->invalidators) {
+          materialize->AddInvalidator(iterator);
+        }
+      }
+    }
+  } else if (qep_tab->materialize_table == join_materialize_table_function) {
+    table_iterator.reset(new (thd->mem_root) MaterializedTableFunctionIterator(
+        thd, qep_tab->table_ref->table_function, qep_tab->table(),
+        move(qep_tab->read_record.iterator)));
+  } else if (qep_tab->materialize_table == join_materialize_semijoin) {
+    Semijoin_mat_exec *sjm = qep_tab->sj_mat_exec();
+
+    // create_tmp_table() has already filled sjm->table_param.items_to_copy.
+    // However, the structures there are not used by
+    // join_materialize_semijoin, and don't have e.g. result fields set up
+    // correctly, so we just clear it and create our own.
+    sjm->table_param.items_to_copy = nullptr;
+    ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
+                       qep_tab->table()->visible_field_ptr(),
+                       &sjm->table_param);
+
+    int join_start = sjm->inner_table_index;
+    int join_end = join_start + sjm->table_count;
+    unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+        join_start, join_end, qep_tabs, thd, TOP_LEVEL, pending_conditions,
+        pending_invalidators, unhandled_duplicates);
+
+    bool copy_fields_and_items_in_materialize =
+        true;  // We never have aggregation within semijoins.
+    table_iterator.reset(new (thd->mem_root) MaterializeIterator(
+        thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
+        move(qep_tab->read_record.iterator), /*cte=*/nullptr,
+        qep_tab->join()->select_lex, qep_tab->join(),
+        /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
+        qep_tab->rematerialize, sjm->table_param.end_write_records));
+
+#ifndef DBUG_OFF
+    // Make sure we clear this table out when the join is reset,
+    // since its contents may depend on outer expressions.
+    bool found = false;
+    for (TABLE &sj_tmp_tab : qep_tab->join()->sj_tmp_tables) {
+      if (&sj_tmp_tab == qep_tab->table()) {
+        found = true;
+        break;
+      }
+    }
+    DBUG_ASSERT(found);
+#endif
+  } else {
+    table_iterator = move(qep_tab->read_record.iterator);
+  }
+  return table_iterator;
+}
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
@@ -1498,7 +1768,6 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIteratorForTables(
   tables.
   @param[out] unhandled_duplicates list of tables we should have deduplicated
     using duplicate weedout, but could not; append-only.
-weedout]
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
@@ -1535,147 +1804,31 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   //    the sub-join recursively, and thus move it past the end of said
   //    sub-join.
   for (plan_idx i = first_idx; i < last_idx;) {
+    bool add_limit_1;
+    plan_idx substructure_end;
+    Substructure substructure =
+        FindSubstructure(qep_tabs, first_idx, i, last_idx, calling_context,
+                         &add_limit_1, &substructure_end, unhandled_duplicates);
+
     QEP_TAB *qep_tab = &qep_tabs[i];
-
-    bool is_outer_join = qep_tab->last_inner() != NO_PLAN_IDX &&
-                         qep_tab->last_inner() < last_idx;
-    plan_idx outer_join_end =
-        qep_tab->last_inner() + 1;  // Only valid if is_outer_join.
-
-    // See if this table marks the end of the left side of a semijoin.
-    bool is_semijoin = false;
-    plan_idx semijoin_end = NO_PLAN_IDX;
-    for (plan_idx j = i; j < last_idx; ++j) {
-      if (qep_tabs[j].firstmatch_return == i - 1) {
-        is_semijoin = true;
-        semijoin_end = j + 1;
-        break;
-      }
-    }
-
-    // Outer joins (or semijoins) wrapping a weedout is tricky,
-    // especially in edge cases. If we have an outer join wrapping
-    // a weedout, the outer join needs to be processed first.
-    // But the weedout wins if it's strictly larger than the outer join.
-    // However, a problem occurs if the weedout wraps two consecutive
-    // outer joins (which can happen if the join optimizer interleaves
-    // tables from different weedouts and needs to combine them into
-    // one larger weedout). E.g., consider a join order such as
-    //
-    //   a LEFT JOIN (b,c) LEFT JOIN (d,e)
-    //
-    // where there is _also_ a weedout wrapping all four tables [b,e].
-    // (Presumably, there were originally two weedouts b+e and c+d,
-    // but due to reordering, they were combined into one.)
-    // In this case, we have a non-hierarchical situation since the
-    // (a,(b,c)) join only partially overlaps with the [b,e] weedout.
-    //
-    // We solve these non-hierarchical cases by punting them upwards;
-    // we signal that they are simply not done by adding them to
-    // unhandled_duplicates, and then drop the weedout. The top level
-    // will then add a final weedout after all joins. In some cases,
-    // it is possible to push the weedout further down than this,
-    // but these cases are so marginal that it's not worth it.
-
-    // See if this table starts a weedout operation.
-    bool is_weedout = false;
-    plan_idx weedout_end = NO_PLAN_IDX;
-    if (qep_tab->starts_weedout() &&
-        !(calling_context == DIRECTLY_UNDER_WEEDOUT && i == first_idx)) {
-      for (plan_idx j = i; j < last_idx; ++j) {
-        if (qep_tabs[j].check_weed_out_table == qep_tab->flush_weedout_table) {
-          weedout_end = j + 1;
-          break;
-        }
-      }
-      if (weedout_end != NO_PLAN_IDX) {
-        is_weedout = true;
-      }
-    }
-
-    if (weedout_end > last_idx) {
-      // See comment above.
-      MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
-                              weedout_end, unhandled_duplicates);
-      is_weedout = false;
-    }
-
-    if (is_outer_join && is_weedout) {
-      if (outer_join_end >= weedout_end) {
-        // Weedout will be handled at a lower recursion level.
-        is_weedout = false;
-      } else {
-        // See comment above.
-        MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
-                                weedout_end, unhandled_duplicates);
-      }
-    }
-    if (is_semijoin && is_weedout) {
-      if (semijoin_end >= weedout_end) {
-        // Weedout will be handled at a lower recursion level.
-        is_weedout = false;
-      } else {
-        // See comment above.
-        MarkUnhandledDuplicates(qep_tabs, qep_tab->flush_weedout_table, i,
-                                weedout_end, unhandled_duplicates);
-      }
-    }
-
-    // Occasionally, a subslice may be designated as the right side of both a
-    // semijoin _and_ an outer join. This is a fairly odd construction,
-    // as it means exactly one row is generated no matter what (negating the
-    // point of a semijoin in the first place), and typically happens as the
-    // result of the join optimizer reordering tables that have no real bearing
-    // on the query, such as ... WHERE t1 IN ( t2.i FROM t2 LEFT JOIN t3 )
-    // with the ordering t2, t1, t3 (t3 will now be in such a situation).
-    //
-    // Nominally, these tables should be optimized away, but this is not the
-    // right place for that, so we solve it by adding a LIMIT 1 and then
-    // treating the slice as a normal outer join.
-    bool add_limit_1 = false;
-    if (is_semijoin && is_outer_join && semijoin_end == outer_join_end) {
-      add_limit_1 = true;
-      is_semijoin = false;
-    }
-
-    // We may have detected both a semijoin and an outer join starting at
-    // this table. Decide which one is the outermost that is not already
-    // processed, so that we recurse in the right order.
-    if (calling_context == DIRECTLY_UNDER_SEMIJOIN && i == first_idx &&
-        semijoin_end == last_idx) {
-      is_semijoin = false;
-    } else if (calling_context == DIRECTLY_UNDER_OUTER_JOIN && i == first_idx &&
-               outer_join_end == last_idx) {
-      is_outer_join = false;
-    }
-    if (is_semijoin && is_outer_join) {
-      if (outer_join_end > semijoin_end) {
-        is_semijoin = false;
-      } else if (semijoin_end > outer_join_end) {
-        is_outer_join = false;
-      } else {
-        DBUG_ASSERT(false);
-      }
-    }
-
-    if (is_outer_join || is_semijoin) {
+    if (substructure == Substructure::OUTER_JOIN ||
+        substructure == Substructure::SEMIJOIN) {
       // Outer or semijoin, consisting of a subtree (possibly of only one
       // table), so we send the entire subtree down to a recursive invocation
       // and then join the returned root into our existing tree.
-      const plan_idx join_end = is_semijoin ? semijoin_end : outer_join_end;
       unique_ptr_destroy_only<RowIterator> subtree_iterator;
       vector<PendingCondition> subtree_pending_conditions;
       vector<PendingInvalidator> subtree_pending_invalidators;
-      if (is_semijoin) {
+      if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
         subtree_iterator = ConnectJoins(
-            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
+            i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
             pending_conditions, pending_invalidators, unhandled_duplicates);
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
         subtree_iterator = ConnectJoins(
-            i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
+            i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
             pending_conditions, pending_invalidators, unhandled_duplicates);
 
         // Pick out any conditions that should be directly above this join
@@ -1704,22 +1857,23 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // We can check the WHERE predicates on this table right away
         // after the join (and similarly, set up invalidators).
         subtree_iterator =
-            ConnectJoins(i, join_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
-                         &subtree_pending_conditions,
+            ConnectJoins(i, substructure_end, qep_tabs, thd,
+                         DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
                          &subtree_pending_invalidators, unhandled_duplicates);
       }
 
       JoinType join_type;
       if (qep_tab->table()->reginfo.not_exists_optimize) {
-        // Similar to the comment below (see case #3), we can only enable
-        // anti-join optimizations if we are not already on the right (inner)
-        // side of another outer join. Otherwise, we would cause the higher-up
-        // outer join to create NULL rows where there should be none.
-        DBUG_ASSERT(!is_semijoin);
+        // Similar to the comment on SplitConditions (see case #3), we can only
+        // enable anti-join optimizations if we are not already on the right
+        // (inner) side of another outer join. Otherwise, we would cause the
+        // higher-up outer join to create NULL rows where there should be none.
+        DBUG_ASSERT(substructure != Substructure::SEMIJOIN);
         join_type =
             (pending_conditions == nullptr) ? JoinType::ANTI : JoinType::OUTER;
       } else {
-        join_type = is_semijoin ? JoinType::SEMI : JoinType::OUTER;
+        join_type = substructure == Substructure::SEMIJOIN ? JoinType::SEMI
+                                                           : JoinType::OUTER;
       }
 
       // If the entire slice is a semijoin (e.g. because we are semijoined
@@ -1729,7 +1883,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // If the entire slice is an outer join, we've solved that in a more
       // roundabout way; see is_top_level_outer_join above.
       if (iterator == nullptr) {
-        DBUG_ASSERT(is_semijoin);
+        DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         add_limit_1 = true;
       }
 
@@ -1749,20 +1903,21 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         DBUG_ASSERT(iterator != nullptr);
 
         KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
-        if (is_semijoin) {
+        if (substructure == Substructure::SEMIJOIN) {
           iterator.reset(new (thd->mem_root)
                              NestedLoopSemiJoinWithDuplicateRemovalIterator(
                                  thd, move(iterator), move(subtree_iterator),
                                  prev_qep_tab->table(), key,
                                  prev_qep_tab->loosescan_key_len));
         } else {
-          // Even if is_semijoin is false now, it was originally true
-          // (LooseScan against multiple tables always puts the non-first
-          // tables in FirstMatch), it was just overridden by is_outer_join.
-          // In this case, we put duplicate removal after the join (and any
-          // associated filtering), which is the safe option -- and in this
-          // case, it's no slower, since we'll be having a LIMIT 1 inserted
-          // anyway.
+          // We were originally in a semijoin, even if it didn't win in
+          // FindSubstructure (LooseScan against multiple tables always puts
+          // the non-first tables in FirstMatch), it was just overridden by
+          // the outer join. In this case, we put duplicate removal after the
+          // join (and any associated filtering), which is the safe option --
+          // and in this case, it's no slower, since we'll be having a LIMIT 1
+          // inserted anyway.
+          DBUG_ASSERT(substructure == Substructure::OUTER_JOIN);
           remove_duplicates_loose_scan = true;
 
           iterator.reset(new (thd->mem_root) NestedLoopIterator(
@@ -1770,7 +1925,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
               pfs_batch_mode));
         }
       } else if (iterator == nullptr) {
-        DBUG_ASSERT(is_semijoin);
+        DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
       } else {
         iterator.reset(new (thd->mem_root) NestedLoopIterator(
@@ -1798,11 +1953,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
       }
 
-      i = join_end;
+      i = substructure_end;
       continue;
-    } else if (is_weedout) {
+    } else if (substructure == Substructure::WEEDOUT) {
       unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
-          i, weedout_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
+          i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
           pending_conditions, pending_invalidators, unhandled_duplicates);
       subtree_iterator = CreateWeedoutIterator(thd, move(subtree_iterator),
                                                qep_tab->flush_weedout_table);
@@ -1815,99 +1970,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             /*pfs_batch_mode=*/false));
       }
 
-      i = weedout_end;
+      i = substructure_end;
       continue;
     }
 
-    unique_ptr_destroy_only<RowIterator> table_iterator;
-    if (qep_tab->materialize_table == join_materialize_derived) {
-      JOIN *subjoin = qep_tab->table_ref->derived_unit()->first_select()->join;
-      ConvertItemsToCopy(subjoin->fields, qep_tab->table()->visible_field_ptr(),
-                         &subjoin->tmp_table_param);
-
-      bool rematerialize = qep_tab->rematerialize;
-      if (qep_tab->join()->select_lex->uncacheable &&
-          qep_tab->table_ref->common_table_expr() == nullptr) {
-        // If the query is uncacheable, we need to rematerialize it each and
-        // every time it's read. In particular, this can happen for LATERAL
-        // tables.
-        //
-        // For (lateral) CTEs, we don't need this check, as we already
-        // explicitly clear CTEs when we start executing the query block where
-        // it is defined (clear_corr_ctes(), called whenever we start a query
-        // block or materialize a table, takes care of this). In fact,
-        // rematerializing every time is actively harmful, as it would risk
-        // clearing out a temporary table that an outer query block is still
-        // scanning.
-        rematerialize = true;
-      }
-
-      bool copy_fields_and_items_in_materialize =
-          !subjoin->streaming_aggregation;
-      table_iterator.reset(new (thd->mem_root) MaterializeIterator(
-          thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
-          qep_tab->table(), move(qep_tab->read_record.iterator),
-          qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
-          subjoin->tmp_table_param.end_write_records));
-
-      if (!rematerialize) {
-        MaterializeIterator *materialize =
-            down_cast<MaterializeIterator *>(table_iterator.get());
-        if (qep_tab->invalidators != nullptr) {
-          for (const CacheInvalidatorIterator *iterator :
-               *qep_tab->invalidators) {
-            materialize->AddInvalidator(iterator);
-          }
-        }
-      }
-    } else if (qep_tab->materialize_table == join_materialize_table_function) {
-      table_iterator.reset(
-          new (thd->mem_root) MaterializedTableFunctionIterator(
-              thd, qep_tab->table_ref->table_function, qep_tab->table(),
-              move(qep_tab->read_record.iterator)));
-    } else if (qep_tab->materialize_table == join_materialize_semijoin) {
-      Semijoin_mat_exec *sjm = qep_tab->sj_mat_exec();
-
-      // create_tmp_table() has already filled sjm->table_param.items_to_copy.
-      // However, the structures there are not used by
-      // join_materialize_semijoin, and don't have e.g. result fields set up
-      // correctly, so we just clear it and create our own.
-      sjm->table_param.items_to_copy = nullptr;
-      ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
-                         qep_tab->table()->visible_field_ptr(),
-                         &sjm->table_param);
-
-      int join_start = sjm->inner_table_index;
-      int join_end = join_start + sjm->table_count;
-      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
-          join_start, join_end, qep_tabs, thd, TOP_LEVEL, pending_conditions,
-          pending_invalidators, unhandled_duplicates);
-
-      bool copy_fields_and_items_in_materialize =
-          true;  // We never have aggregation within semijoins.
-      table_iterator.reset(new (thd->mem_root) MaterializeIterator(
-          thd, move(subtree_iterator), &sjm->table_param, qep_tab->table(),
-          move(qep_tab->read_record.iterator), /*cte=*/nullptr,
-          qep_tab->join()->select_lex, qep_tab->join(),
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
-          qep_tab->rematerialize, sjm->table_param.end_write_records));
-
-#ifndef DBUG_OFF
-      // Make sure we clear this table out when the join is reset,
-      // since its contents may depend on outer expressions.
-      bool found = false;
-      for (TABLE &sj_tmp_tab : qep_tab->join()->sj_tmp_tables) {
-        if (&sj_tmp_tab == qep_tab->table()) {
-          found = true;
-          break;
-        }
-      }
-      DBUG_ASSERT(found);
-#endif
-    } else {
-      table_iterator = move(qep_tab->read_record.iterator);
-    }
+    unique_ptr_destroy_only<RowIterator> table_iterator =
+        GetTableIterator(thd, qep_tab, qep_tabs, pending_conditions,
+                         pending_invalidators, unhandled_duplicates);
 
     vector<Item *> predicates_below_join;
     vector<PendingCondition> predicates_above_join;
@@ -1933,8 +2002,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     if (qep_tab->lateral_derived_tables_depend_on_me) {
       if (pending_invalidators != nullptr) {
-        pending_invalidators->push_back(PendingInvalidator{
-            qep_tab, /*table_index_to_attach_to=*/i});  // FIXME
+        pending_invalidators->push_back(
+            PendingInvalidator{qep_tab, /*table_index_to_attach_to=*/i});
       } else {
         table_iterator =
             CreateInvalidatorIterator(thd, qep_tab, move(table_iterator));
