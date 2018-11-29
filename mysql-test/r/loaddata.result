@@ -230,12 +230,12 @@ insert into t2 values(1),(2);
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
 Warning	1261	Row 2 doesn't contain data for all columns
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
 delete from t1;
 Warnings:
 Warning	1261	Row 1 doesn't contain data for all columns
@@ -244,8 +244,7 @@ select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 f1
 1
 2
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'f2' at row 1
+SET sql_mode = @previous_sql_mode;
 drop table t1,t2;
 CREATE TABLE t1 (c1 INT, c2 TIMESTAMP, c3 REAL, c4 DOUBLE);
 INSERT INTO t1 (c1, c2, c3, c4) VALUES (10, '1970-02-01 01:02:03', 1.1E-100, 1.1E+100);

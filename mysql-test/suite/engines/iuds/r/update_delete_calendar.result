@@ -62,23 +62,14 @@ ERROR 22007: Incorrect date value: '2009-06-31' for column 'c2' at row 1
 UPDATE t1 SET c2='2009-09-31' WHERE c2='2001-01-15';
 ERROR 22007: Incorrect date value: '2009-09-31' for column 'c2' at row 1
 SELECT count(*) FROM t1 WHERE c2='10:45:15' OR c2='2009-01-32' OR c2='2009-02-30' OR c2='2009-04-31' OR c2='2009-06-31' OR c2='2009-09-31' /* returns 0 */;
-count(*)
-0
-Warnings:
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-02-30' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-04-31' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-06-31' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-09-31' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
+ERROR HY000: Incorrect DATE value: '10:45:15'
 UPDATE t1 SET c2='2009-11-31' WHERE c2='2001-01-16';
 ERROR 22007: Incorrect date value: '2009-11-31' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c2='0000-00-00';
-c1	c2	c3
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 SET SQL_MODE=ALLOW_INVALID_DATES;
+SELECT * FROM t1 WHERE c2='0000-00-00';
+c1	c2	c3
 INSERT INTO t1 VALUES('2001-01-27','2001-01-28',19);
 UPDATE t1 SET c1='2009-04-31',c2='2009-02-30' WHERE c3=19;
 SELECT c1,c2,day(c1),day(c2) FROM t1 WHERE c3=19;
@@ -90,9 +81,7 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 INSERT INTO t1 VALUES('2001-01-18','2001-01-18',14);
 SET SQL_MODE=TRADITIONAL;
 SELECT * FROM t1 WHERE c2='0000-00-00';
-c1	c2	c3
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 UPDATE t1 SET c2='0000-00-00' WHERE c2='2001-01-18';
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -101,10 +90,7 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 UPDATE t1 SET c2='2001-01-18' WHERE c2='0000-00-00' AND c1='2001-01-17';
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SELECT * FROM t1 WHERE c1='0000-00-00' OR c2='0000-00-00';
-c1	c2	c3
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 VALUES('2001-01-19','2001-01-20',15);
@@ -132,10 +118,7 @@ UPDATE IGNORE t1 SET c1=NULL WHERE c2='2001-01-24';
 Warnings:
 Warning	1048	Column 'c1' cannot be null
 SELECT * FROM t1 WHERE c1='0000-00-00';
-c1	c2	c3
-0000-00-00	2001-01-24	17
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c1' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 TRUNCATE TABLE t1;
 CREATE TABLE t2(c1 DATE NOT NULL PRIMARY KEY, c2 DATE, c3 INT);
 INSERT INTO t1 VALUES('2001-01-02','2001-01-01',1),('2001-01-03','2001-01-02',2);
@@ -728,33 +711,17 @@ ERROR 22007: Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at 
 UPDATE t1 SET c2='2001-01-11 23:59:60' WHERE c1='2001-01-11';
 ERROR 22007: Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
 SELECT count(*) FROM t1 WHERE c1='2001-01-09 24:59:59' AND c2='2009-01-10 23:60:59';
-count(*)
-0
-Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
+ERROR HY000: Incorrect DATETIME value: '2001-01-09 24:59:59'
 SELECT count(*) FROM t1 WHERE c2='2001-01-11 23:59:60' /* returns 0 */;
-count(*)
-0
-Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
+ERROR HY000: Incorrect DATETIME value: '2001-01-11 23:59:60'
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
-c1	c2	c3
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warnings:
+ERROR HY000: Incorrect DATETIME value: '0000-00-00 00:00:00'
 INSERT INTO t1 VALUES('2001-01-17','0000-00-00 00:00:00',8);
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 INSERT INTO t1 VALUES('2001-01-18','2001-01-18 07:35',9);
 SET SQL_MODE=TRADITIONAL;
 SELECT * FROM t1 WHERE c2='0000-00-00 00:00:00';
-c1	c2	c3
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
+ERROR HY000: Incorrect DATETIME value: '0000-00-00 00:00:00'
 UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -762,11 +729,10 @@ UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 UPDATE t1 SET c2='2001-01-17 12:34:00' WHERE c2='0000-00-00 00:00:00' AND c1='2001-01-17';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warnings:
+SET @@SQL_MODE=@OLD_SQL_MODE;
 SELECT * FROM t1 WHERE c2='2001-01-17 12:34:00';
 c1	c2	c3
 INSERT INTO t1 VALUES('2001-01-21 05:43:43','2001-01-22 06:53:53',10);
@@ -788,11 +754,11 @@ ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2='2001-01-24 03:33';
 Warnings:
 Warning	1048	Column 'c1' cannot be null
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00';
 c1	c2	c3
 0000-00-00 00:00:00	2001-01-24 03:33:00	11
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warnings:
+SET @@SQL_MODE=@OLD_SQL_MODE;
 TRUNCATE TABLE t1;
 CREATE TABLE t2(c1 DATETIME NOT NULL PRIMARY KEY, c2 DATETIME, c3 INT);
 INSERT INTO t1 VALUES('2001-01-02 2:30:45','2001-01-01 1:30',1),('2001-01-03 3:30','2001-01-02 2:30:45',2);
@@ -1327,35 +1293,42 @@ c1	c2	c3
 2001-01-06 01:00:30	2001-01-10 00:00:00	4
 2001-01-08 00:00:00	2001-01-10 00:00:00	5
 INSERT INTO t1 VALUES('2001-01-09','2001-01-10',6),('2001-01-11','2001-01-12',7);
+SELECT * FROM t1 ORDER BY c3;
+c1	c2	c3
+2001-01-01 00:00:00	2010-01-01 14:12:33	1
+2009-01-01 01:02:03	2009-01-03 00:00:00	2
+2009-02-26 01:01:01	2009-02-25 12:20:13	3
+2001-01-06 01:00:30	2001-01-10 00:00:00	4
+2001-01-08 00:00:00	2001-01-10 00:00:00	5
+2001-01-09 00:00:00	2001-01-10 00:00:00	6
+2001-01-11 00:00:00	2001-01-12 00:00:00	7
 UPDATE t1 SET c1='2001-01-09 24:59:59',c2='2009-01-10 23:60:59' WHERE c1='2001-01-09';
 ERROR 22007: Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
 UPDATE t1 SET c1='2001-01-11 23:59:59',c2='2001-01-11 23:59:60' WHERE c1='2001-01-11';
 ERROR 22007: Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-SELECT count(*) FROM t1 WHERE c1='2001-01-09 24:59:59' AND c2='2009-01-10 23:60:59';
-count(*)
-0
-Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-SELECT count(*) FROM t1 WHERE c1='2001-01-11 23:59:59' AND c2='2001-01-11 23:59:60';
-count(*)
-0
-Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
+SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warnings:
+2001-01-01 00:00:00	2010-01-01 14:12:33	1
+2009-01-01 01:02:03	2009-01-03 00:00:00	2
+2009-02-26 01:01:01	2009-02-25 12:20:13	3
+2001-01-06 01:00:30	2001-01-10 00:00:00	4
+2001-01-08 00:00:00	2001-01-10 00:00:00	5
+2001-01-09 00:00:00	2001-01-10 00:00:00	6
+2001-01-11 00:00:00	2001-01-12 00:00:00	7
 INSERT INTO t1 VALUES('2001-01-17','0000-00-00 00:00:00',8);
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 INSERT INTO t1 VALUES('2001-01-18','2001-01-18 07:35',9);
 SET SQL_MODE=TRADITIONAL;
-SELECT * FROM t1 WHERE c2='0000-00-00 00:00:00';
+SELECT * FROM t1;
 c1	c2	c3
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
+2001-01-01 00:00:00	2010-01-01 14:12:33	1
+2001-01-06 01:00:30	2001-01-10 00:00:00	4
+2001-01-08 00:00:00	2001-01-10 00:00:00	5
+2001-01-09 00:00:00	2001-01-10 00:00:00	6
+2001-01-11 00:00:00	2001-01-12 00:00:00	7
+2001-01-18 00:00:00	2001-01-18 07:35:00	9
+2009-01-01 01:02:03	2009-01-03 00:00:00	2
+2009-02-26 01:01:01	2009-02-25 12:20:13	3
 UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -1363,11 +1336,16 @@ UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-1
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 UPDATE t1 SET c1='2001-01-17 12:34:00',c2='2001-01-17 12:34:00' WHERE c2='0000-00-00 00:00:00' AND c1='2001-01-17';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
+SELECT * FROM t1;
 c1	c2	c3
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warnings:
+2001-01-01 00:00:00	2010-01-01 14:12:33	1
+2001-01-06 01:00:30	2001-01-10 00:00:00	4
+2001-01-08 00:00:00	2001-01-10 00:00:00	5
+2001-01-09 00:00:00	2001-01-10 00:00:00	6
+2001-01-11 00:00:00	2001-01-12 00:00:00	7
+2001-01-18 00:00:00	2001-01-18 07:35:00	9
+2009-01-01 01:02:03	2009-01-03 00:00:00	2
+2009-02-26 01:01:01	2009-02-25 12:20:13	3
 SELECT * FROM t1 WHERE c1='2001-01-17 12:34:00' AND c2='2001-01-17 12:34:00';
 c1	c2	c3
 INSERT INTO t1 VALUES('2001-01-21 05:43:43','2001-01-22 06:53:53',10);

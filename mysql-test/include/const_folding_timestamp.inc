@@ -3,6 +3,7 @@ eval INSERT INTO $table_name VALUES ($min_ts), ($ca_now), ($max_ts);
 eval ANALYZE TABLE $table_name;
 eval SELECT * FROM $table_name;
 let $colname=t;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 --echo
 --echo 1. String literals
@@ -16,8 +17,6 @@ let $constant='2038-01-19 06:14:07.999999';
 --source include/const_folding_cmp_ops.inc
 let $constant='2038-01-19 06:14:08.000000';
 --source include/const_folding_cmp_ops.inc
-let $constant='12038-01-19 06:14:08.000000';
---source include/const_folding_cmp_ops.inc
 let $constant='1970-01-01 00:00:01';
 --source include/const_folding_cmp_ops.inc
 let $constant='1970-01-01 03:00:00.999999';
@@ -26,21 +25,9 @@ let $constant='1970-01-01 03:00:00.999999';
 --echo Zero date?
 let $constant='0000-00-00 00:00:00';
 --source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = '';
---source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = DEFAULT;
 
 --echo Zero in date
 let $constant='2018-00-03 00:00:00';
---source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = '';
---source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = DEFAULT;
-
---echo Strangely, this does not give an error nor warning, and does
---echo comparison using internal datetime comparison (pre-folding), so
---echo we do the same.
-let $constant='2018-02-31 00:00:00';
 --source include/const_folding_cmp_ops.inc
 
 --echo

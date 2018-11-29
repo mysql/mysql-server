@@ -844,6 +844,8 @@ DROP TABLE t1;
 #
 # Setup so the start is at partition pX and end is at p1
 # Pruning does handle 'bad' dates differently.
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 CREATE TABLE t1
 (a INT NOT NULL AUTO_INCREMENT,
  b DATETIME,
@@ -859,6 +861,7 @@ ALTER TABLE t1 REMOVE PARTITIONING;
 }
 SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
 DROP TABLE t1;
+SET sql_mode = @previous_sql_mode;
 
 # Check if we can infer from condition on partition fields that
 # no records will match.

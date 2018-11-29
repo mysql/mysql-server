@@ -198,6 +198,8 @@ disable_query_log;
 eval select * into outfile '$MYSQLTEST_VARDIR/tmp/t2' from t2;
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' ignore into table t1;
 enable_query_log;
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
 remove_file $MYSQLTEST_VARDIR/tmp/t2;
 delete from t1;
@@ -209,6 +211,7 @@ eval load data infile '$MYSQLTEST_VARDIR/tmp/t2' ignore into table t1
 FIELDS TERMINATED BY '' OPTIONALLY ENCLOSED BY '' LINES TERMINATED BY '\r\n';
 enable_query_log;
 select f1 from t1 where f2 <> '0000-00-00 00:00:00' order by f1;
+SET sql_mode = @previous_sql_mode;
 remove_file $MYSQLTEST_VARDIR/tmp/t2;
 drop table t1,t2;
 

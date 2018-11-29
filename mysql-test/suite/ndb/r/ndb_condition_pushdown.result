@@ -2826,62 +2826,29 @@ ushort	date_field
 # Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.
 # Seems to be unpredictable which value is actually stored for an
 # out of range value. Anyway the result was not as expected.
+# This was made obsolete when we started rejecting invalid dates
 set @@optimizer_switch = 'engine_condition_pushdown=off';
 explain
 select * from t1 where date_field < '9999-99-99';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` < '9999-99-99')
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 select * from t1 where date_field < '9999-99-99';
-ushort	date_field
-65535	1901-01-01
-65535	1902-02-02
-65535	1903-03-03
-65535	1904-04-04
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 explain
 select * from t1 where date_field > '9999-99-99';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` > '9999-99-99')
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 select * from t1 where date_field > '9999-99-99';
-ushort	date_field
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain
 select * from t1 where date_field < '9999-99-99';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`date_field` < '9999-99-99')
-Warnings:
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` < '9999-99-99')
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 select * from t1 where date_field < '9999-99-99';
-ushort	date_field
-65535	1901-01-01
-65535	1902-02-02
-65535	1903-03-03
-65535	1904-04-04
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 explain
 select * from t1 where date_field > '9999-99-99';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`date_field` > '9999-99-99')
-Warnings:
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` > '9999-99-99')
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 select * from t1 where date_field > '9999-99-99';
-ushort	date_field
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
-Warnings:
+ERROR HY000: Incorrect DATE value: '9999-99-99'
 #
 # Bug#29058732 CONDITION PUSHDOWN INCORRECTLY REJECTED FOR TEMPORAL DATA TYPES
 # Condition pushdown incorrectly depended on whether the date_field was

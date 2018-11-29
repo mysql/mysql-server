@@ -3234,7 +3234,7 @@ ORDER *simple_remove_const(ORDER *order, Item *where) {
 static bool test_if_equality_guarantees_uniqueness(Item *l, Item *r) {
   return r->const_item() &&
          /* elements must be compared as dates */
-         (Arg_comparator::can_compare_as_dates(l, r, 0) ||
+         (Arg_comparator::can_compare_as_dates(l, r) ||
           /* or of the same result type */
           (r->result_type() == l->result_type() &&
            /* and must have the same collation if compared as strings */
