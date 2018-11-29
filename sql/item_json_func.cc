@@ -533,9 +533,8 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       return false;
     }
 
-    for (Json_wrapper_object_iterator c_oi(containee_wr); !c_oi.empty();
-         c_oi.next()) {
-      Json_wrapper d_wr = doc_wrapper.lookup(c_oi.key());
+    for (const auto &c_oi : Json_object_wrapper(containee_wr)) {
+      Json_wrapper d_wr = doc_wrapper.lookup(c_oi.first);
 
       if (d_wr.type() == enum_json_type::J_ERROR) {
         // No match for this key. Give up.
@@ -544,7 +543,7 @@ static bool contains_wr(const THD *thd, const Json_wrapper &doc_wrapper,
       }
 
       // key is the same, now compare values
-      if (contains_wr(thd, d_wr, c_oi.value(), result))
+      if (contains_wr(thd, d_wr, c_oi.second, result))
         return true; /* purecov: inspected */
 
       if (!*result) {
@@ -1603,8 +1602,8 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     // and return them as a JSON array.
     Json_array_ptr res(new (std::nothrow) Json_array());
     if (res == nullptr) return error_json(); /* purecov: inspected */
-    for (Json_wrapper_object_iterator i(wrapper); !i.empty(); i.next()) {
-      const MYSQL_LEX_CSTRING key = i.key();
+    for (const auto &i : Json_object_wrapper(wrapper)) {
+      const MYSQL_LEX_CSTRING &key = i.first;
       if (res->append_alias(new (std::nothrow)
                                 Json_string(key.str, key.length)))
         return error_json(); /* purecov: inspected */
@@ -2558,12 +2557,11 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 
     case enum_json_type::J_OBJECT: {
       const size_t path_length = path->length();
-      for (Json_wrapper_object_iterator jwot(wrapper); !jwot.empty();
-           jwot.next()) {
+      for (const auto &jwot : Json_object_wrapper(wrapper)) {
         // recurse with the member added to the path
-        const MYSQL_LEX_CSTRING key = jwot.key();
+        const MYSQL_LEX_CSTRING &key = jwot.first;
         if (Json_path_leg(key.str, key.length).to_string(path) ||
-            find_matches(jwot.value(), path, matches, duplicates, one_match,
+            find_matches(jwot.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;              /* purecov: inspected */
         path->length(path_length);  // restore the path

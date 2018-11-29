@@ -1376,34 +1376,36 @@ Json_dom_ptr Json_opaque::clone() const {
 }
 
 Json_wrapper_object_iterator::Json_wrapper_object_iterator(
-    const Json_wrapper &wrapper) {
+    const Json_wrapper &wrapper, bool begin) {
   DBUG_ASSERT(wrapper.type() == enum_json_type::J_OBJECT);
   if (wrapper.is_dom()) {
-    m_value = nullptr;
+    m_binary_value = nullptr;
     auto object = down_cast<const Json_object *>(wrapper.get_dom());
-    m_iter = object->begin();
-    m_end = object->end();
+    m_iter = begin ? object->begin() : object->end();
   } else {
-    m_value = &wrapper.get_binary_value();
-    m_current_element_index = 0;
+    m_binary_value = &wrapper.get_binary_value();
+    m_current_element_index = begin ? 0 : m_binary_value->element_count();
   }
 }
 
-MYSQL_LEX_CSTRING Json_wrapper_object_iterator::key() const {
-  if (is_dom()) return {m_iter->first.c_str(), m_iter->first.length()};
-  const json_binary::Value key = m_value->key(m_current_element_index);
-  return {key.get_data(), key.get_data_length()};
-}
-
-Json_wrapper Json_wrapper_object_iterator::value() const {
+void Json_wrapper_object_iterator::initialize_current_member() {
   if (is_dom()) {
-    Json_wrapper wrapper(m_iter->second.get());
+    m_current_member.first = {m_iter->first.c_str(), m_iter->first.length()};
+    // The previous member is either empty or an alias, so there is nothing that
+    // needs destruction. Just construct a new wrapper in its place.
+    new (&m_current_member.second) Json_wrapper(m_iter->second.get());
     // DOM possibly owned by object and we don't want to make a clone
-    wrapper.set_alias();
-    return wrapper;
+    m_current_member.second.set_alias();
+  } else {
+    DBUG_ASSERT(m_current_element_index < m_binary_value->element_count());
+    json_binary::Value key = m_binary_value->key(m_current_element_index);
+    m_current_member.first = {key.get_data(), key.get_data_length()};
+    // There is no DOM to destruct in the previous member when iterating over a
+    // binary value, so just construct a new wrapper in its place.
+    new (&m_current_member.second)
+        Json_wrapper(m_binary_value->element(m_current_element_index));
   }
-
-  return Json_wrapper(m_value->element(m_current_element_index));
+  m_current_member_initialized = true;
 }
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value)
@@ -1679,7 +1681,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (buffer->append('{')) return true; /* purecov: inspected */
 
       bool first = true;
-      for (Json_wrapper_object_iterator iter(wr); !iter.empty(); iter.next()) {
+      for (const auto &iter : Json_object_wrapper(wr)) {
         if (!first && append_comma(buffer, pretty))
           return true; /* purecov: inspected */
 
@@ -1688,10 +1690,10 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         if (pretty && newline_and_indent(buffer, depth))
           return true; /* purecov: inspected */
 
-        const MYSQL_LEX_CSTRING key = iter.key();
+        const MYSQL_LEX_CSTRING &key = iter.first;
         if (print_string(buffer, true, key.str, key.length) ||
             buffer->append(':') || buffer->append(' ') ||
-            wrapper_to_string(iter.value(), buffer, true, pretty, func_name,
+            wrapper_to_string(iter.second, buffer, true, pretty, func_name,
                               depth))
           return true; /* purecov: inspected */
       }
@@ -2564,11 +2566,13 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
           Otherwise, compare each key/value pair in the two objects.
           Return on the first difference that is found.
         */
-        Json_wrapper_object_iterator it1(*this);
-        Json_wrapper_object_iterator it2(other);
-        while (!it1.empty()) {
-          const MYSQL_LEX_CSTRING key1 = it1.key();
-          const MYSQL_LEX_CSTRING key2 = it2.key();
+        Json_object_wrapper this_object(*this);
+        Json_object_wrapper other_object(other);
+        Json_object_wrapper::const_iterator it1 = this_object.begin();
+        Json_object_wrapper::const_iterator it2 = other_object.begin();
+        for (; it1 != this_object.end(); ++it1, ++it2) {
+          const MYSQL_LEX_CSTRING &key1 = it1->first;
+          const MYSQL_LEX_CSTRING &key2 = it2->first;
 
           // Compare the keys of the two members.
           cmp = compare_json_strings(key1.str, key1.length, key2.str,
@@ -2576,15 +2580,12 @@ int Json_wrapper::compare(const Json_wrapper &other) const {
           if (cmp != 0) return cmp;
 
           // Compare the values of the two members.
-          cmp = it1.value().compare(it2.value());
+          cmp = it1->second.compare(it2->second);
           if (cmp != 0) return cmp;
-
-          it1.next();
-          it2.next();
         }
 
-        DBUG_ASSERT(it1.empty());
-        DBUG_ASSERT(it2.empty());
+        DBUG_ASSERT(it1 == this_object.end());
+        DBUG_ASSERT(it2 == other_object.end());
 
         // No differences found. The two objects must be equal.
         return 0;
@@ -3401,11 +3402,11 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val) const {
       break;
     case enum_json_type::J_OBJECT: {
       hash_key.add_character(JSON_KEY_OBJECT);
-      for (Json_wrapper_object_iterator it(*this); !it.empty(); it.next()) {
-        const MYSQL_LEX_CSTRING key = it.key();
+      for (const auto &it : Json_object_wrapper(*this)) {
+        const MYSQL_LEX_CSTRING &key = it.first;
         hash_key.add_string(key.str, key.length);
         ulonglong t = hash_key.get_crc();
-        hash_key.add_integer(it.value().make_hash_key(&t));
+        hash_key.add_integer(it.second.make_hash_key(&t));
       }
       break;
     }

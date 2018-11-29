@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>  // unique_ptr
 #include <new>
@@ -83,8 +84,8 @@ using Json_object_ptr = std::unique_ptr<Json_object>;
   building a DOM unless we really need one.
 
   The file defines two sets of classes: a) The Json_dom hierarchy and
-  b) Json_wrapper and its companion class Json_wrapper_object_iterator.
-  For both sets, arrays are traversed using an operator[].
+  b) Json_wrapper and its companion classes Json_wrapper_object_iterator and
+  Json_object_wrapper. For both sets, arrays are traversed using an operator[].
 */
 
 /**
@@ -1704,48 +1705,98 @@ class Json_wrapper {
 */
 class Json_wrapper_object_iterator {
  public:
+  // Type aliases required by ForwardIterator.
+  using value_type = std::pair<MYSQL_LEX_CSTRING, Json_wrapper>;
+  using reference = const value_type &;
+  using pointer = const value_type *;
+  using difference_type = ptrdiff_t;
+  using iterator_category = std::forward_iterator_tag;
+
   /**
     Creates an iterator that iterates over all members of the given
     Json_wrapper, if it wraps a JSON object. If the wrapper does not wrap a JSON
     object, the result is undefined.
-  */
-  explicit Json_wrapper_object_iterator(const Json_wrapper &wrapper);
 
-  /// Returns true if there are no more elements.
-  bool empty() const {
-    return is_dom() ? (m_iter == m_end)
-                    : (m_current_element_index == m_value->element_count());
-  }
+    @param wrapper the Json_wrapper to iterate over
+    @param begin   true to construct an iterator that points to the first member
+                   of the object, false to construct a past-the-end iterator
+  */
+  Json_wrapper_object_iterator(const Json_wrapper &wrapper, bool begin);
+
+  /// Forward iterators must be default constructible.
+  Json_wrapper_object_iterator() = default;
 
   /// Advances the iterator to the next element.
-  void next() {
+  Json_wrapper_object_iterator &operator++() {
     if (is_dom())
       ++m_iter;
     else
       ++m_current_element_index;
+    m_current_member_initialized = false;
+    return *this;
   }
 
-  /// Gets the key of the current element.
-  MYSQL_LEX_CSTRING key() const;
+  /**
+    Advances the iterator to the next element and returns an iterator that
+    points to the current element (post-increment operator).
+  */
+  Json_wrapper_object_iterator operator++(int) {
+    Json_wrapper_object_iterator copy = *this;
+    ++(*this);
+    return copy;
+  }
 
-  /// Gets the value of the current element.
-  Json_wrapper value() const;
+  /// Checks two iterators for equality.
+  bool operator==(const Json_wrapper_object_iterator &other) const {
+    return is_dom() ? m_iter == other.m_iter
+                    : m_current_element_index == other.m_current_element_index;
+  }
+
+  /// Checks two iterators for inequality.
+  bool operator!=(const Json_wrapper_object_iterator &other) const {
+    return !(*this == other);
+  }
+
+  pointer operator->() {
+    if (!m_current_member_initialized) initialize_current_member();
+    return &m_current_member;
+  }
+
+  reference operator*() { return *this->operator->(); }
 
  private:
-  /**
-    The binary value to iterate over, or nullptr when iterating over a Json_dom.
-  */
-  const json_binary::Value *m_value;
-
-  // only used for Json_dom
-  Json_object::const_iterator m_iter;
-  Json_object::const_iterator m_end;
-
-  // only used for json_binary::Value
+  /// Pair holding the key and value of the member pointed to by the iterator.
+  value_type m_current_member;
+  /// True if #m_current_member is initialized.
+  bool m_current_member_initialized{false};
+  /// The binary JSON object being iterated over, or nullptr for DOMs.
+  const json_binary::Value *m_binary_value;
+  /// The index of the current member in the binary JSON object.
   size_t m_current_element_index;
+  /// Iterator pointing to the current member in the JSON DOM object.
+  Json_object::const_iterator m_iter;
+  /// Returns true if iterating over a DOM.
+  bool is_dom() const { return m_binary_value == nullptr; }
+  /// Fill #m_current_member with the key and value of the current member.
+  void initialize_current_member();
+};
 
-  /// Is this an iterator over a Json_dom?
-  bool is_dom() const { return m_value == nullptr; }
+/**
+  A wrapper over a JSON object which provides an interface that can be iterated
+  over with a for-each loop.
+*/
+class Json_object_wrapper {
+ public:
+  using const_iterator = Json_wrapper_object_iterator;
+  explicit Json_object_wrapper(const Json_wrapper &wrapper)
+      : m_wrapper(wrapper) {}
+  const_iterator cbegin() const { return const_iterator(m_wrapper, true); }
+  const_iterator cend() const { return const_iterator(m_wrapper, false); }
+  const_iterator begin() const { return cbegin(); }
+  const_iterator end() const { return cend(); }
+
+ private:
+  const Json_wrapper &m_wrapper;
 };
 
 /**

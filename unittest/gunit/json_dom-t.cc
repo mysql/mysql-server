@@ -1599,9 +1599,9 @@ static void BM_JsonWrapperObjectIteratorDOM(size_t num_iterations) {
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    for (Json_wrapper_object_iterator it(wrapper); !it.empty(); it.next()) {
-      EXPECT_NE(0U, it.key().length);
-      EXPECT_EQ(enum_json_type::J_NULL, it.value().type());
+    for (const auto &it : Json_object_wrapper(wrapper)) {
+      EXPECT_NE(0U, it.first.length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.second.type());
     }
   }
 
@@ -1637,9 +1637,9 @@ static void BM_JsonWrapperObjectIteratorBinary(size_t num_iterations) {
   StartBenchmarkTiming();
 
   for (size_t i = 0; i < num_iterations; ++i) {
-    for (Json_wrapper_object_iterator it(wrapper); !it.empty(); it.next()) {
-      EXPECT_NE(0U, it.key().length);
-      EXPECT_EQ(enum_json_type::J_NULL, it.value().type());
+    for (const auto &it : Json_object_wrapper(wrapper)) {
+      EXPECT_NE(0U, it.first.length);
+      EXPECT_EQ(enum_json_type::J_NULL, it.second.type());
     }
   }
 
