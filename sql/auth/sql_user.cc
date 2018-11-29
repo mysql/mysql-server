@@ -1494,6 +1494,7 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
   @param drop       If user_from is to be dropped.
   @param user_from  The the user to be searched/dropped/renamed.
   @param user_to    The new name for the user if to be renamed, NULL otherwise.
+  @param on_drop_role_priv  true enabled by the DROP ROLE privilege
 
   @note
     Scan through all elements in an in-memory grant structure and apply
@@ -1515,7 +1516,8 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
 */
 
 static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
-                               LEX_USER *user_from, LEX_USER *user_to) {
+                               LEX_USER *user_from, LEX_USER *user_to,
+                               bool on_drop_role_priv) {
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info", ("scan struct: %u  search: '%s'@'%s'", struct_no,
                       user_from->user.str, user_from->host.str));
@@ -1540,6 +1542,14 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         if (!matches(acl_user->user, acl_user->host.get_host())) continue;
 
         if (drop) {
+          // if we're dropping roles and the account is not locked (not a role)
+          // bail off
+          if (on_drop_role_priv && !acl_user->account_locked) {
+            char command[128];
+            get_privilege_desc(command, sizeof(command), CREATE_USER_ACL);
+            my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
+            DBUG_RETURN(-1);
+          }
           acl_users->erase(idx);
           rebuild_cached_acl_users_for_name();
           /*
@@ -1653,6 +1663,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     @param  user_from           The the user to be searched/dropped/renamed.
     @param  user_to             The new name for the user if to be renamed,
                                 NULL otherwise.
+    @param  on_drop_role_priv   Enabled via the DROP ROLE privilege
 
   @note
     Go through all grant tables and in-memory grant structures and apply
@@ -1668,7 +1679,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
 */
 
 static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
-                             LEX_USER *user_from, LEX_USER *user_to) {
+                             LEX_USER *user_from, LEX_USER *user_to,
+                             bool on_drop_role_priv) {
   int result = 0;
   int found;
   int ret;
@@ -1700,7 +1712,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     DBUG_RETURN(-1);
   } else {
     /* Handle user array. */
-    if ((ret = handle_grant_struct(USER_ACL, drop, user_from, user_to) > 0) ||
+    if ((ret = handle_grant_struct(USER_ACL, drop, user_from, user_to,
+                                   on_drop_role_priv)) > 0 ||
         found) {
       result = 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
@@ -1718,7 +1731,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     DBUG_RETURN(-1);
   } else {
     /* Handle db array. */
-    if ((((ret = handle_grant_struct(DB_ACL, drop, user_from, user_to) > 0) &&
+    if ((((ret = handle_grant_struct(DB_ACL, drop, user_from, user_to,
+                                     on_drop_role_priv)) > 0 &&
           !result) ||
          found) &&
         !result) {
@@ -1744,7 +1758,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   } else {
     /* Handle procs array. */
     if ((((ret = handle_grant_struct(PROC_PRIVILEGES_HASH, drop, user_from,
-                                     user_to) > 0) &&
+                                     user_to, on_drop_role_priv)) > 0 &&
           !result) ||
          found) &&
         !result) {
@@ -1757,7 +1771,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     }
     /* Handle funcs array. */
     if ((((ret = handle_grant_struct(FUNC_PRIVILEGES_HASH, drop, user_from,
-                                     user_to) > 0) &&
+                                     user_to, on_drop_role_priv)) > 0 &&
           !result) ||
          found) &&
         !result) {
@@ -1800,7 +1814,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     } else {
       /* Handle columns hash. */
       if ((((ret = handle_grant_struct(COLUMN_PRIVILEGES_HASH, drop, user_from,
-                                       user_to) > 0) &&
+                                       user_to, on_drop_role_priv)) > 0 &&
             !result) ||
            found) &&
           !result)
@@ -1829,8 +1843,8 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
       DBUG_RETURN(-1);
     } else {
       /* Handle proxies_priv array. */
-      if (((ret = handle_grant_struct(PROXY_USERS_ACL, drop, user_from,
-                                      user_to) > 0) &&
+      if (((ret = handle_grant_struct(PROXY_USERS_ACL, drop, user_from, user_to,
+                                      on_drop_role_priv)) > 0 &&
            !result) ||
           found)
         result = 1; /* At least one record/element found. */
@@ -1934,7 +1948,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     TABLE *history_tbl = tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
     if (history_check_done)
       tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table = NULL;
-    ret = handle_grant_data(thd, tables, 0, user_name, NULL);
+    ret = handle_grant_data(thd, tables, 0, user_name, NULL, false);
     if (history_check_done)
       tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table = history_tbl;
     if (ret) {
@@ -2053,20 +2067,20 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   DBUG_RETURN(result);
 }
 
-/*
+/**
   Drop a list of users and all their privileges.
 
-  SYNOPSIS
-    mysql_drop_user()
-    thd                         The current thread.
-    list                        The users to drop.
+  @param thd                         The current thread.
+  @param list                        The users to drop.
+  @param if_exists                   The if exists flag
+  @param on_drop_role_priv           enabled by the DROP ROLE privilege
 
-  RETURN
-    false       OK.
-    true       Error.
+  @retval false      OK
+  @retval true       Error
 */
 
-bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
+bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
+                     bool on_drop_role_priv) {
   int result = 0;
   String wrong_users;
   LEX_USER *user_name, *tmp_user_name;
@@ -2128,7 +2142,8 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
     audit_users.insert(tmp_user_name);
 
-    int ret = handle_grant_data(thd, tables, 1, user_name, NULL);
+    int ret =
+        handle_grant_data(thd, tables, 1, user_name, NULL, on_drop_role_priv);
     if (ret <= 0) {
       if (ret < 0) {
         result = 1;
@@ -2264,7 +2279,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
-    int ret = handle_grant_data(thd, tables, 0, user_to, NULL);
+    int ret = handle_grant_data(thd, tables, 0, user_to, NULL, false);
 
     if (ret != 0) {
       if (ret < 0) {
@@ -2277,7 +2292,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
       continue;
     }
 
-    ret = handle_grant_data(thd, tables, 0, user_from, user_to);
+    ret = handle_grant_data(thd, tables, 0, user_from, user_to, false);
 
     if (ret <= 0) {
       if (ret < 0) {
@@ -2440,7 +2455,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       history_tbl = tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table;
       tables[ACL_TABLES::TABLE_PASSWORD_HISTORY].table = NULL;
     }
-    ret = handle_grant_data(thd, tables, false, user_from, NULL);
+    ret = handle_grant_data(thd, tables, false, user_from, NULL, false);
 
     /* purge the password history if plugin is different */
     if ((what_to_alter.m_what & DIFFERENT_PLUGIN_ATTR) &&

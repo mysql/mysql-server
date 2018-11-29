@@ -479,7 +479,7 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
 }
 
 /**
-  Used by mysql_drop_user(). Will drop all
+  Used by @ref mysql_drop_user. Will drop all
   @param thd
   @param edge_table
   @param defaults_table
