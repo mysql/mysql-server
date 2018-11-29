@@ -29,7 +29,6 @@ TempTable Table declarations. */
 #include <cstddef>
 #include <functional>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -166,16 +165,6 @@ class Table {
 
   TABLE_SHARE *m_mysql_table_share;
 };
-
-/** A container for the list of the tables. Don't allocate memory for it from
- * the Allocator because the Allocator keeps one block for reuse and it is
- * only marked for reuse after all elements from it have been removed. This
- * container, being a global variable may allocate some memory and never free
- * it before its destructor is called at thread termination time. */
-typedef std::unordered_map<std::string, Table> Tables;
-
-/** A list of the tables that currently exist for this thread. */
-extern thread_local Tables tables;
 
 /* Implementation of inlined methods. */
 

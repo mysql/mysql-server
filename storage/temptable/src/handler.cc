@@ -25,6 +25,7 @@ TempTable public handler API implementation. */
 
 #include <limits>
 #include <new>
+#include <unordered_map>
 
 #ifndef DBUG_OFF
 #include <thread>
@@ -43,6 +44,19 @@ TempTable public handler API implementation. */
 #include "storage/temptable/include/temptable/test.h"
 
 namespace temptable {
+
+/** A container for the list of the tables. Don't allocate memory for it from
+ * the Allocator because the Allocator keeps one block for reuse and it is
+ * only marked for reuse after all elements from it have been removed. This
+ * container, being a global variable may allocate some memory and never free
+ * it before its destructor is called at thread termination time. */
+using Tables = std::unordered_map<std::string, Table>;
+
+/** A list of the tables that currently exist for this OS thread. */
+static Tables &TlsTables() {
+  static thread_local Tables tls_tables;
+  return tls_tables;
+}
 
 #if defined(HAVE_WINNUMA)
 /** Page size used in memory allocation. */
@@ -119,8 +133,8 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     );
     // clang-format on
 
-    const auto insert_result = tables.emplace(
-        std::piecewise_construct, std::forward_as_tuple(table_name),
+    const auto insert_result = TlsTables().emplace(
+        std::piecewise_construct, std::make_tuple(table_name),
         std::forward_as_tuple(mysql_table, all_columns_are_fixed_size));
 
     ret = insert_result.second ? Result::OK : Result::TABLE_EXIST;
@@ -145,11 +159,11 @@ int Handler::delete_table(const char *table_name, const dd::Table *) {
   Result ret;
 
   try {
-    const auto pos = tables.find(table_name);
+    const auto pos = TlsTables().find(table_name);
 
-    if (pos != tables.end()) {
+    if (pos != TlsTables().end()) {
       if (&pos->second != m_opened_table) {
-        tables.erase(pos);
+        TlsTables().erase(pos);
         ret = Result::OK;
       } else {
         /* Attempt to delete the currently opened table. */
@@ -183,8 +197,8 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   Result ret;
 
   try {
-    Tables::iterator iter = tables.find(table_name);
-    if (iter == tables.end()) {
+    Tables::iterator iter = TlsTables().find(table_name);
+    if (iter == TlsTables().end()) {
       ret = Result::NO_SUCH_TABLE;
     } else {
       m_opened_table = &iter->second;
