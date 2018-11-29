@@ -3493,7 +3493,7 @@ bool JOIN::rollup_process_const_fields() {
       if (*group_tmp->item == item) {
         Item *new_item = new Item_func_rollup_const(item);
         if (!new_item) return 1;
-        new_item->fix_fields(thd, (Item **)0);
+        if (new_item->fix_fields(thd, (Item **)0)) return true;
         thd->change_item_tree(it.ref(), new_item);
         for (ORDER *tmp = group_tmp; tmp; tmp = tmp->next) {
           if (*tmp->item == item) thd->change_item_tree(tmp->item, new_item);
@@ -3589,6 +3589,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
           sub selects.
         */
         item = item->copy_or_same(thd);
+        if (item == nullptr) return true;
         ((Item_sum *)item)->make_unique();
         *(*func) = (Item_sum *)item;
         (*func)++;
