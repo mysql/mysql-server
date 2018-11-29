@@ -430,7 +430,8 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
   return ret;
 }
 
-static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
+                  long timeout MY_ATTRIBUTE((unused)),
                   ssl_handshake_func_t func, unsigned long *ssl_errno_holder) {
   int r;
   SSL *ssl;

@@ -382,6 +382,4 @@ Result Table::indexes_remove(Storage::Element *row) {
   return result;
 }
 
-thread_local Tables tables;
-
 } /* namespace temptable */
