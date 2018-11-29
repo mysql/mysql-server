@@ -572,7 +572,7 @@ bool rec_offs_cmp(ulint *offsets1, ulint *offsets2);
 
 /** Print the record offsets.
 @param[in]    out         the output stream to which offsets are printed.
-@param[in]    offset      the field offsets of the record.
+@param[in]    offsets     the field offsets of the record.
 @return the output stream. */
 std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets);
 #else
