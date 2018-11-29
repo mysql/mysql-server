@@ -414,6 +414,10 @@ void rec_get_offsets_reverse(
 }
 
 #ifdef UNIV_DEBUG
+/** Check if the given two record offsets are identical.
+@param[in]  offsets1  field offsets of a record
+@param[in]  offsets2  field offsets of a record
+@return true if they are identical, false otherwise. */
 bool rec_offs_cmp(ulint *offsets1, ulint *offsets2) {
   ulint n1 = rec_offs_n_fields(offsets1);
   ulint n2 = rec_offs_n_fields(offsets2);
@@ -432,10 +436,18 @@ bool rec_offs_cmp(ulint *offsets1, ulint *offsets2) {
     if (field_offset_1 != field_offset_2) {
       return (false);
     }
+
+    if (len_1 != len_2) {
+      return (false);
+    }
   }
   return (true);
 }
 
+/** Print the record offsets.
+@param[in]    out         the output stream to which offsets are printed.
+@param[in]    offsets     the field offsets of the record.
+@return the output stream. */
 std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets) {
   ulint n = rec_offs_n_fields(offsets);
 

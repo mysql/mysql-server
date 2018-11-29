@@ -1303,7 +1303,6 @@ bool ref_t::check_space_id(dict_index_t *index) const {
   space_id_t ref_space_id = space_id();
 
   bool lob_ref_valid = (ref_space_id == 0 || idx_space_id == ref_space_id);
-  ut_ad(lob_ref_valid);
   return (lob_ref_valid);
 }
 #endif /* UNIV_DEBUG */
@@ -1362,7 +1361,9 @@ bool rec_check_lobref_space_id(dict_index_t *index, const rec_t *rec,
 
       byte *field_ref = data + local_len;
       ref_t ref(field_ref);
-      ut_ad(ref.check_space_id(index));
+      if (!ref.check_space_id(index)) {
+        return (false);
+      }
     }
   }
   return (true);
