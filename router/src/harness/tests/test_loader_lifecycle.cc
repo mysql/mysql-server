@@ -1608,91 +1608,126 @@ TEST_F(LifecycleTest, send_signals2) {
 }
 #endif
 
-/*
- * Disabling as this test needs revising, it continues to fail on macos
- * on pb2 with an error like:
- * Failure Expected: (200) > (time_diff( t0, t1)), actual: 200 vs 239
+/**
+ * @test
+ * This test verifies operation of Harness API function wait_for_stop().
+ * It is tested in two scenarios:
+ *   1. when Router is "running": it should block until timeout expires
+ *   2. when Router is "stopping": it should exit immediately
  */
-TEST_F(LifecycleTest, DISABLED_wait_for_stop) {
-  // This test is really about testing Harness API function wait_for_stop(),
-  // when passed a timeout value. It is used when start/stop = exit_slow, and
-  // here we verify its behaviour.
-  //
-  // SCENARIO:
-  // while start() is running, "Router is running", thus start() should block,
-  // waiting for Harness to progress to "stopping" state. That will not occur
-  // until all plugins have exited, in this case meaning, the start() exits
-  // (until its wait_for_stop() returns, thus the plugin is really waiting for
-  // itself :)).
-  // Once that all plugins have exited, Harness will be in the "stopping" state,
-  // thus plugin's stop() function will be called.  It also calls
-  // wait_for_stop(), but this time it should exit immediately, since the
-  // Harness is shutting down.
-  //
-  // EXPECTATIONS:
-  // wait_for_stop() inside start() should block for 100ms, return false
-  // wait_for_stop() inside stop() should return immediately, return true
+TEST_F(LifecycleTest, wait_for_stop) {
+  // SCENARIO #1: When Router is "running"
+  // EXPECTATION:
+  //   wait_for_stop() inside should block for 100ms, then return false (time
+  //   out)
+  // EXPLANATION:
+  //   When plugin function start() is called, Router will be in a "running"
+  //   state. Inside start() calls wait_for_stop(timeout = 100ms), which
+  //   means wait_for_stop() SHOULD block and time out after 100ms. Then the
+  //   start() will just exit, and when it does that, it will cause Router to
+  //   initiate shutdown (and set the shutdown flag), as there are no more
+  //   plugins running.
+  config_text_ << "start = exitonstop_shorttimeout\n";
 
-  config_text_ << "start = exit_slow\n";  // \_ they run
-  config_text_ << "stop  = exit_slow\n";  // /  wait_for_stop() inside
+  // SCENARIO #2: When Router is "stopping"
+  // EXPECTATION:
+  //   wait_for_stop() inside should return immediately, then return true (due
+  //   to shut down flag being set)
+  // EXPLANATION:
+  //   Now that start() has exited, Router has progressed to "stopping" state,
+  //   and as a result, plugin function stop() will be called. stop() makes a
+  //   call to wait_for_stop(<big timeout value>). Since this time around,
+  //   Router is already in the "stopping" state, the function SHOULD exit
+  //   immediately, returing control back to stop(), which just exits after.
+  config_text_ << "stop  = exitonstop_longtimeout\n";
+
   init_test(config_text_, {false, true, true, false});
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   freeze_bus(bus);
 
-  // mark time start
-  ch::time_point<ch::steady_clock> t0 = ch::steady_clock::now();
+  ch::time_point<ch::steady_clock> t0, t1;
 
-  loader_.start_all();
-  unfreeze_and_wait_for_msg(bus,
-                            "lifecycle:instance1 start():EXIT_SLOW:sleeping");
+  // run scenarios #1 and #2
+  {
+    t0 = ch::steady_clock::now();
+    loader_.start_all();
 
-  // wait_for_stop() in start() should be sleeping right now, blocking progress
-  refresh_log();
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_SLOW:sleeping"));
-  EXPECT_EQ(
-      0,
-      count_in_log(
-          "lifecycle:instance1 start():EXIT_SLOW:done, stop request received"));
-  EXPECT_EQ(
-      0, count_in_log("lifecycle:instance1 start():EXIT_SLOW:done, timed out"));
-  EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(
-      0,
-      count_in_log(
-          "lifecycle:instance1 stop():EXIT_SLOW:done, stop request received"));
-  EXPECT_EQ(
-      0, count_in_log("lifecycle:instance1 stop():EXIT_SLOW:done, timed out"));
+    // wait to enter scenario #1
+    unfreeze_and_wait_for_msg(
+        bus, "lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping");
 
-  // wait for it to exit (it will unblock main_loop())
-  EXPECT_EQ(loader_.main_loop(), nullptr);
+    // we are now in scenario #1
+    // (wait_for_stop() in start() should be sleeping right now; main_loop() is
+    // blocked waiting for start() to exit)
+    refresh_log();
+    // clang-format off
+    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():begin"));
+    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:sleeping"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = true (stop request received)"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = false (timed out)"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():begin"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = true (stop request received)"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = false (timed out)"));
+    // clang-format on
 
-  // verify that:
-  //   - wait_for_stop() in start() blocked
-  //   - wait_for_stop() in stop() did not block
-  ch::time_point<ch::steady_clock> t1 = ch::steady_clock::now();
-  EXPECT_LE(100, time_diff(t0, t1));  // 100 = kPersistDuration in lifecycle.cc
-  EXPECT_GT(
-      200, time_diff(
-               t0, t1));  // 200 would mean that both start() and stop() blocked
+    // wait for scenario #1 to finish and scenario #2 to run
+    // (start() should exit without error, causing main_loop() to unblock and
+    // progress to calling stop(), then finally return)
+    EXPECT_EQ(loader_.main_loop(), nullptr);
 
-  // verify what both wait_for_stop()'s returned
-  refresh_log();
-  EXPECT_EQ(
-      0,
-      count_in_log(
-          "lifecycle:instance1 start():EXIT_SLOW:done, stop request received"));
-  EXPECT_EQ(
-      1, count_in_log("lifecycle:instance1 start():EXIT_SLOW:done, timed out"));
-  EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
-  EXPECT_EQ(
-      1,
-      count_in_log(
-          "lifecycle:instance1 stop():EXIT_SLOW:done, stop request received"));
-  EXPECT_EQ(
-      0, count_in_log("lifecycle:instance1 stop():EXIT_SLOW:done, timed out"));
+    // stop the timer
+    t1 = ch::steady_clock::now();
+  }
+
+  // verify expectations
+  {
+    // first, we measure the time to run scenarios #1 and #2:
+    // - Scenario #1 should take 100+ ms to execute (wait_for_stop() should
+    //   block for 100ms, everything else is fast)
+    // - Scenario #2 should take close to 0 ms to execute (wait_for_stop()
+    //   should return immiedately, everything else is fast)
+    //
+    // Therefore, we expect that the cumulative time should be close to just
+    // over 100ms:
+    // - if it was less than 100ms, scenario #1 must have failed
+    //   (wait_for_stop() failed to block).
+    // - if it takes 10 seconds or more, scenario #2 must have failed
+    //   (wait_for_stop(timeout = 10 seconds) timed out, instead of returning
+    //   immediately)
+
+    // NOTE about a choice of timeout (10 seconds):
+    // 10s timeout is a little arbitrary.  In theory, all we need is something
+    // just a little over 100ms, since Scenario #2 has no blocking states and
+    // should run really quick.  So we might be tempted to pick something like
+    // 110ms or 200ms, however as we have learned, it's possible to exceed such
+    // timeout on a busy OSX machine and fail the test.  The fault lies with
+    // calls to std::condition_variable::wait_for() (called inside of
+    // wait_for_stop()) which calls syscall psync_cvwait().  Deeper underneath,
+    // it turns out that unless a thread making this syscall has heightened
+    // priority (which it does not), OSX is free to delay delivering signal
+    // for performance reasons.
+    //
+    // We don't bother #ifdef-ing the timeout for OSX, because in principle,
+    // many/all non-RT OSes probably have no tight guarrantees for wait_for()
+    // just like OSX, and an excessive timeout value does not slow down the
+    // test run time.
+
+    // expect 100ms <= (t1-t0) < 10s
+    EXPECT_LE(100, time_diff(t0, t1));        // 100 = scenario #1 timeout
+    EXPECT_GT(10 * 1000, time_diff(t0, t1));  // 10000 = scenario #2 timeout
+
+    // verify what both wait_for_stop()'s returned
+    refresh_log();
+    // clang-format off
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = true (stop request received)"));
+    EXPECT_EQ(1, count_in_log("lifecycle:instance1 start():EXIT_ON_STOP_SHORT_TIMEOUT:done, ret = false (timed out)"));
+    EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():begin"));
+    EXPECT_EQ(1, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = true (stop request received)"));
+    EXPECT_EQ(0, count_in_log("lifecycle:instance1 stop():EXIT_ON_STOP_LONG_TIMEOUT:done, ret = false (timed out)"));
+    // clang-format on
+  }
 }
 
 // Next 4 tests should only run in release builds. Code in debug builds throws
