@@ -1210,19 +1210,21 @@ static void init_check_host(void) {
   if (acl_users_size && !allow_all_hosts) {
     for (ACL_USER *acl_user = acl_users->begin(); acl_user != acl_users->end();
          ++acl_user) {
-      if (acl_user->host.has_wildcard()) {  // Has wildcard
-        ACL_HOST_AND_IP *acl = NULL;
-        for (acl = acl_wild_hosts->begin(); acl != acl_wild_hosts->end();
-             ++acl) {  // Check if host already exists
-          if (!my_strcasecmp(system_charset_info, acl_user->host.get_host(),
-                             acl->get_host()))
-            break;  // already stored
+      if (acl_user->host.get_host()) {
+        if (acl_user->host.has_wildcard()) {  // Has wildcard
+          ACL_HOST_AND_IP *acl = NULL;
+          for (acl = acl_wild_hosts->begin(); acl != acl_wild_hosts->end();
+               ++acl) {  // Check if host already exists
+            if (!my_strcasecmp(system_charset_info, acl_user->host.get_host(),
+                               acl->get_host()))
+              break;  // already stored
+          }
+          if (acl == acl_wild_hosts->end())  // If new
+            acl_wild_hosts->push_back(acl_user->host);
+        } else {
+          // Will be ignored if there's already an entry.
+          acl_check_hosts->emplace(acl_user->host.get_host(), acl_user);
         }
-        if (acl == acl_wild_hosts->end())  // If new
-          acl_wild_hosts->push_back(acl_user->host);
-      } else {
-        // Will be ignored if there's already an entry.
-        acl_check_hosts->emplace(acl_user->host.get_host(), acl_user);
       }
     }
   }
