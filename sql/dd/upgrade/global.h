@@ -63,6 +63,7 @@ namespace upgrade_57 {
 const String_type ISL_EXT = ".isl";
 const String_type PAR_EXT = ".par";
 const String_type OPT_EXT = ".opt";
+const String_type NDB_EXT = ".ndb";
 extern const char *TRN_EXT;
 extern const char *TRG_EXT;
 

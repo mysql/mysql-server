@@ -313,6 +313,7 @@ static bool check_file_extension(const String_type &extn) {
           (extn.compare(extn.size() - 4, 4, TRN_EXT) == 0) ||
           (extn.compare(extn.size() - 4, 4, PAR_EXT) == 0) ||
           (extn.compare(extn.size() - 4, 4, OPT_EXT) == 0) ||
+          (extn.compare(extn.size() - 4, 4, NDB_EXT) == 0) ||
           (extn.compare(extn.size() - 4, 4, ISL_EXT) == 0));
 }
 
