@@ -298,9 +298,9 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = Tdata0;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
+    ndbrequire(c_apiConnectRecordPool.getValidPtr(apiConnectptr));
     tcConnectptr.i = Tdata1;
-    tcConnectRecord.getPtr(tcConnectptr);
+    ndbrequire(tcConnectRecord.getValidPtr(tcConnectptr));
     complete010Lab(signal, apiConnectptr);
     return;
   }
