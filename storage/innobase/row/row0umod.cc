@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -218,6 +218,7 @@ row_undo_mod_remove_clust_low(
 	than the rolling-back one. */
 	ut_ad(rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
 				   dict_table_is_comp(node->table)));
+	row_convert_impl_to_expl_if_needed(btr_cur, node);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, mtr)
@@ -502,7 +503,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		ut_ad(err == DB_SUCCESS);
 	} else {
 		/* Remove the index record */
-
 		if (dict_index_is_spatial(index)) {
 			rec_t*	rec = btr_pcur_get_rec(&pcur);
 			if (rec_get_deleted_flag(rec,
@@ -512,6 +512,8 @@ row_undo_mod_del_mark_or_remove_sec_low(
 					" on rollback update.";
 			}
 		}
+
+		row_convert_impl_to_expl_if_needed(btr_cur, node);
 
 		if (modify_leaf) {
 			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -72,15 +72,15 @@ trx_state_eq(
 }
 
 /****************************************************************//**
-Retrieves the error_info field from a trx.
+Retrieves the index causing the error from a trx.
 @return the error info */
 UNIV_INLINE
 const dict_index_t*
-trx_get_error_info(
+trx_get_error_index(
 /*===============*/
 	const trx_t*	trx)	/*!< in: trx object */
 {
-	return(trx->error_info);
+	return(trx->error_index);
 }
 
 /*******************************************************************//**
