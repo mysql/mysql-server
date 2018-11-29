@@ -884,15 +884,21 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   Note, const_value may stay untouched, so the caller is responsible to
   initialize it.
 
-  @param      date_arg    date argument, it's name is used for error reporting.
-  @param      str_arg     string argument to get datetime value from.
-  @param[out] const_value the converted value is stored here, if not NULL.
+  @param         date_arg    date argument, its name is used for error
+                             reporting.
+  @param         str_arg     string argument to get datetime value from.
+  @param[in,out] const_value If not nullptr, the converted value is stored
+                             here. To detect that conversion was not possible,
+                             the caller is responsible for initializing this
+                             value to MYSQL_TIMESTAMP_ERROR before calling
+                             and checking the value has changed after the call.
 
   @return true on error, false on success, false if str_arg is not a const.
 */
 bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
                                          ulonglong *const_value) {
   THD *thd = current_thd;
+  DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
   /*
     Don't use cache while in the context analysis mode only (i.e. for
     EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such
@@ -904,78 +910,74 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
       str_arg->may_evaluate_const(thd) && str_arg->type() != Item::FUNC_ITEM) {
     ulonglong value;
     if (str_arg->data_type() == MYSQL_TYPE_TIME) {
-      // Convert from TIME to DATETIME
+      // Convert from TIME to DATETIME numeric packed value
       value = str_arg->val_date_temporal();
       if (str_arg->null_value) return true;
     } else {
-      // Convert from string to DATETIME
-      DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
-      bool error;
-      String tmp, *str_val = 0;
+      // Convert from string to DATETIME numeric packed value
+      enum_field_types date_arg_type = date_arg->data_type();
       enum_mysql_timestamp_type t_type =
-          (date_arg->data_type() == MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE
-                                                    : MYSQL_TIMESTAMP_DATETIME);
-      str_val = str_arg->val_str(&tmp);
+          (date_arg_type == MYSQL_TYPE_DATE ? MYSQL_TIMESTAMP_DATE
+                                            : MYSQL_TIMESTAMP_DATETIME);
+      String tmp;
+      String *str_val = str_arg->val_str(&tmp);
       if (str_arg->null_value) return true;
+      bool error;
       value = get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(),
                                 &error);
-      if (error) return true;
+      if (error) {
+        const char *typestr = (date_arg_type == MYSQL_TYPE_DATE)
+                                  ? "DATE"
+                                  : (date_arg_type == MYSQL_TYPE_DATETIME)
+                                        ? "DATETIME"
+                                        : "TIMESTAMP";
+
+        ErrConvString err(str_val->c_ptr(), str_val->length(),
+                          thd->variables.character_set_client);
+        my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
+
+        return true;
+      }
     }
     if (const_value) *const_value = value;
   }
   return false;
 }
 
-/*
-  Check whether compare_datetime() can be used to compare items.
+/**
+  Checks whether compare_datetime() can be used to compare items.
 
   SYNOPSIS
     Arg_comparator::can_compare_as_dates()
     a, b          [in]  items to be compared
-    const_value   [out] converted value of the string constant, if any
 
   DESCRIPTION
-    Check several cases when the DATE/DATETIME comparator should be used.
-    The following cases are checked:
-      1. Both a and b is a DATE/DATETIME field/function returning string or
-         int result.
-      2. Only a or b is a DATE/DATETIME field/function returning string or
-         int result and the other item (b or a) is an item with string result.
-         If the second item is a constant one then it's checked to be
-         convertible to the DATE/DATETIME type. If the constant can't be
-         converted to a DATE/DATETIME then the compare_datetime() comparator
-         isn't used and the warning about wrong DATE/DATETIME value is issued.
+    Checks several cases when the DATETIME comparator should be used.
+    The following cases are accepted:
+      1. Both a and b is a DATE/DATETIME/TIMESTAMP field/function returning
+         string or int result.
+      2. Only a or b is a DATE/DATETIME/TIMESTAMP field/function returning
+         string or int result and the other item (b or a) is an item with
+         string result.
+    This doesn't mean that the string can necessarily be successfully
+    converted to a datetime value. But if it cannot this will lead to an error
+    later, @see Arg_comparator::get_date_from_const
+
       In all other cases (date-[int|real|decimal]/[int|real|decimal]-date)
       the comparison is handled by other comparators.
-    If the datetime comparator can be used and one the operands of the
-    comparison is a string constant that was successfully converted to a
-    DATE/DATETIME type then the result of the conversion is returned in the
-    const_value if it is provided.  If there is no constant or
-    compare_datetime() isn't applicable then the *const_value remains
-    unchanged.
 
-  @return true if can compare as dates, false otherwise.
+  @return true if the Arg_comparator::compare_datetime should be used,
+          false otherwise
 */
 
-bool Arg_comparator::can_compare_as_dates(Item *a, Item *b,
-                                          ulonglong *const_value) {
+bool Arg_comparator::can_compare_as_dates(Item *a, Item *b) {
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM) return false;
 
-  if (a->is_temporal_with_date()) {
-    if (b->is_temporal_with_date())  //  date[time] + date
-    {
-      return true;
-    } else if (b->result_type() == STRING_RESULT)  // date[time] + string
-    {
-      return !get_date_from_const(a, b, const_value);
-    } else
-      return false;  // date[time] + number
-  } else if (b->is_temporal_with_date() &&
-             a->result_type() == STRING_RESULT)  // string + date[time]
-  {
-    return !get_date_from_const(b, a, const_value);
-  } else
-    return false;  // No date[time] items found
+  if (a->is_temporal_with_date() &&
+      (b->result_type() == STRING_RESULT || b->is_temporal_with_date()))
+    return true;
+  else
+    return a->result_type() == STRING_RESULT && b->is_temporal_with_date();
 }
 
 /**
@@ -1049,7 +1051,6 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
  */
 bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
                                   Item **a2, Item_result type) {
-  ulonglong const_value = (ulonglong)-1;
   owner = owner_arg;
   set_null = set_null && owner_arg;
   a = a1;
@@ -1064,31 +1065,45 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
     return false;
   }
 
-  bool compare = can_compare_as_dates(*a, *b, &const_value);
-  if (current_thd->is_error()) return true;
+  /*
+    Checks whether at least one of the arguments is DATE/DATETIME/TIMESTAMP
+    and the other one is also DATE/DATETIME/TIMESTAMP or a constant string.
+  */
+  if (can_compare_as_dates(*a, *b)) {
+    a_cache = nullptr;
+    b_cache = nullptr;
+    ulonglong numeric_datetime = static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR);
 
-  if (compare) {
-    a_cache = 0;
-    b_cache = 0;
-
-    if (const_value != (ulonglong)-1) {
-      /*
-        cache_converted_constant can't be used here because it can't
-        correctly convert a DATETIME value from string to int representation.
-      */
-      Item_cache_datetime *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
-      /* Mark the cache as non-const to prevent re-caching. */
-      cache->set_used_tables(1);
-      if (!(*a)->is_temporal_with_date()) {
-        cache->store_value((*a), const_value);
+    /*
+      If one of the arguments is constant string, try to convert it
+      to DATETIME and cache it.
+    */
+    if (!(*a)->is_temporal_with_date()) {
+      if (!get_date_from_const(*b, *a, &numeric_datetime) &&
+          numeric_datetime != static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR)) {
+        auto *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
+        // OOM
+        if (!cache) return true; /* purecov: inspected */
+        cache->store_value((*a), numeric_datetime);
+        // Mark the cache as non-const to prevent re-caching.
+        cache->set_used_tables(1);
         a_cache = cache;
         a = &a_cache;
-      } else {
-        cache->store_value((*b), const_value);
+      }
+    } else if (!(*b)->is_temporal_with_date()) {
+      if (!get_date_from_const(*a, *b, &numeric_datetime) &&
+          numeric_datetime != static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR)) {
+        auto *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
+        // OOM
+        if (!cache) return true; /* purecov: inspected */
+        cache->store_value((*b), numeric_datetime);
+        // Mark the cache as non-const to prevent re-caching.
+        cache->set_used_tables(1);
         b_cache = cache;
         b = &b_cache;
       }
     }
+    if (current_thd->is_error()) return true;
     func = &Arg_comparator::compare_datetime;
     get_value_a_func = &get_datetime_value;
     get_value_b_func = &get_datetime_value;
@@ -1101,8 +1116,8 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
              (*a)->data_type() == MYSQL_TYPE_TIME &&
              (*b)->data_type() == MYSQL_TYPE_TIME) {
     /* Compare TIME values as integers. */
-    a_cache = 0;
-    b_cache = 0;
+    a_cache = nullptr;
+    b_cache = nullptr;
     func = &Arg_comparator::compare_datetime;
     get_value_a_func = &get_time_value;
     get_value_b_func = &get_time_value;

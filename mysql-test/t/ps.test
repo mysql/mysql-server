@@ -2890,14 +2890,12 @@ drop table t1, t2;
 --echo #
 --echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 --echo #
-CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
-ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > 1234))";
---disable_warnings
+ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'))";
 EXECUTE stmt;
 EXECUTE stmt;
---enable_warnings
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 

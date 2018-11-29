@@ -6231,10 +6231,8 @@ DROP TABLE t1;
 
 # SYSDATE(n) post-decimal digits are not zeros
 # Disable warnings, see Bug#61216: Incorrect warning for "datetime LIKE string"
---disable_warnings
-SELECT SYSDATE(6) LIKE '____-__-__ __:__:__.______';
-SELECT SYSDATE(6) NOT LIKE '%.000000' || SYSDATE(6) NOT LIKE '%.000000';
---enable_warnings
+SELECT BINARY SYSDATE(6) LIKE '____-__-__ __:__:__.______';
+SELECT BINARY SYSDATE(6) NOT LIKE '%.000000' || BINARY SYSDATE(6) NOT LIKE '%.000000';
 
 CREATE TABLE t1 (s1 DATETIME(2));
 INSERT INTO t1 VALUES ('1970-01-01 11:11:11.1234');

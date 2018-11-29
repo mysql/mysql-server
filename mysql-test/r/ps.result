@@ -2883,17 +2883,18 @@ drop table t1, t2;
 #
 # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
 #
-CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+CREATE TABLE t1 (a TIME NOT NULL, b TINYINT);
 INSERT IGNORE INTO t1 VALUES (0, 0),(0, 0);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
-Warning	1264	Out of range value for column 'a' at row 2
 PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
-ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > 1234))";
+ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > '1234abc'))";
 EXECUTE stmt;
 1
+Warnings:
+Warning	1292	Incorrect time value: '1234abc' for column 'a' at row 1
 EXECUTE stmt;
 1
+Warnings:
+Warning	1292	Incorrect time value: '1234abc' for column 'a' at row 1
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #

@@ -38674,6 +38674,7 @@ t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -38682,73 +38683,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_ts WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01
@@ -38851,75 +38834,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` is not null)
-SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_ts WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_ts WHERE t <= '1970-01-01 00:00:01';
@@ -39025,76 +38939,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` 
 Zero date?
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
@@ -39144,78 +38988,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01
@@ -39267,79 +39040,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -40225,6 +39925,7 @@ t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -40233,73 +39934,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_ts WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01.00
@@ -40402,75 +40085,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` is not null)
-SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_ts WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_ts WHERE t <= '1970-01-01 00:00:01';
@@ -40576,76 +40190,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` 
 Zero date?
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
@@ -40695,78 +40239,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01.00
@@ -40818,79 +40291,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -41776,6 +41176,7 @@ t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -41784,73 +41185,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_ts WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01.000000
@@ -41953,75 +41336,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` is not null)
-SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_ts WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_ts WHERE t <= '1970-01-01 00:00:01';
@@ -42127,76 +41441,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` 
 Zero date?
 SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_ts WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_ts WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_ts WHERE t >  '0000-00-00 00:00:00';
@@ -42246,78 +41490,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_ts WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01.000000
@@ -42369,79 +41542,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_ts WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_ts	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_ts`.`t` AS `t` from `test`.`tbl_ts` where (`test`.`tbl_ts`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -43327,6 +42427,7 @@ t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -43335,73 +42436,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01
 2018-06-19 21:00:00
 2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_datetime WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01
@@ -43504,75 +42587,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2038-01-19 06:14:08')
-SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_datetime WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_datetime WHERE t <= '1970-01-01 00:00:01';
@@ -43678,76 +42692,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tb
 Zero date?
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
@@ -43797,78 +42741,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01
@@ -43920,79 +42793,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01
-2018-06-19 21:00:00
-2038-01-19 06:14:07
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -44878,6 +43678,7 @@ t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -44886,73 +43687,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.00
 2018-06-19 21:00:00.00
 2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_datetime WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01.00
@@ -45055,75 +43838,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2038-01-19 06:14:08')
-SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_datetime WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_datetime WHERE t <= '1970-01-01 00:00:01';
@@ -45229,76 +43943,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tb
 Zero date?
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
@@ -45348,78 +43992,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01.00
@@ -45471,79 +44044,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.00
-2018-06-19 21:00:00.00
-2038-01-19 06:14:07.99
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -46429,6 +44929,7 @@ t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -46437,73 +44938,55 @@ for MTR)
 DATETIME: 1970, 2038 just fine.
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 t
 1970-01-01 03:00:01.000000
 2018-06-19 21:00:00.000000
 2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'0000-00-00 10:20:30')
 EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 10:20:30';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 10:20:30' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 10:20:30')
+Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 10:20:30')
 SELECT * FROM tbl_datetime WHERE t <  '2038-01-19 06:14:07.999999';
 t
 1970-01-01 03:00:01.000000
@@ -46606,75 +45089,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2038-01-19 06:14:08')
-SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '12038-01-19 06:14:08.000000')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '12038-01-19 06:14:08.000000';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '12038-01-19 06:14:08.000000' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '12038-01-19 06:14:08.000000')
 SELECT * FROM tbl_datetime WHERE t <  '1970-01-01 00:00:01';
 t
 SELECT * FROM tbl_datetime WHERE t <= '1970-01-01 00:00:01';
@@ -46780,76 +45194,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tb
 Zero date?
 SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '0000-00-00 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '0000-00-00 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '0000-00-00 00:00:00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_datetime WHERE t <  '0000-00-00 00:00:00';
-t
 SELECT * FROM tbl_datetime WHERE t <= '0000-00-00 00:00:00';
 t
 SELECT * FROM tbl_datetime WHERE t >  '0000-00-00 00:00:00';
@@ -46899,78 +45243,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'0000-00-00 00:00:00')
-SET SESSION sql_mode = DEFAULT;
 Zero in date
-SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = '2018-00-03 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-00-03 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-00-03 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> '2018-00-03 00:00:00')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_datetime WHERE t <  '2018-00-03 00:00:00';
 t
 1970-01-01 03:00:01.000000
@@ -47022,79 +45295,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-00-03 00:00:00')
-SET SESSION sql_mode = DEFAULT;
-Strangely, this does not give an error nor warning, and does
-comparison using internal datetime comparison (pre-folding), so
-we do the same.
-SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-t
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-t
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-t
-1970-01-01 03:00:01.000000
-2018-06-19 21:00:00.000000
-2038-01-19 06:14:07.999999
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` < TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` > TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t >= '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` >= TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t =  '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` = TIMESTAMP'2018-02-31 00:00:00')
-EXPLAIN  SELECT * FROM tbl_datetime WHERE t <> '2018-02-31 00:00:00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_datetime	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect datetime value: '2018-02-31 00:00:00' for column 't' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_datetime`.`t` AS `t` from `test`.`tbl_datetime` where (`test`.`tbl_datetime`.`t` <> TIMESTAMP'2018-02-31 00:00:00')
 
 Some in range string literals
 
@@ -47975,6 +46175,7 @@ INSERT INTO tbl_date VALUES ('0000-01-01'), ('2038-01-19'), ('9999-12-31');
 ANALYZE TABLE tbl_date;
 Table	Op	Msg_type	Msg_text
 test.tbl_date	analyze	status	OK
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 1. String literals
 
@@ -48239,76 +46440,6 @@ Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_da
 Zero date?
 SELECT * FROM tbl_date WHERE d <  '0000-00-00';
 d
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d <= '0000-00-00';
-d
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d >  '0000-00-00';
-d
-0000-01-01
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d >= '0000-00-00';
-d
-0000-01-01
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d =  '0000-00-00';
-d
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d <> '0000-00-00';
-d
-0000-01-01
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-EXPLAIN  SELECT * FROM tbl_date WHERE d <  '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < '0000-00-00')
-EXPLAIN  SELECT * FROM tbl_date WHERE d <= '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= '0000-00-00')
-EXPLAIN  SELECT * FROM tbl_date WHERE d >  '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > '0000-00-00')
-EXPLAIN  SELECT * FROM tbl_date WHERE d >= '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= '0000-00-00')
-EXPLAIN  SELECT * FROM tbl_date WHERE d =  '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = '0000-00-00')
-EXPLAIN  SELECT * FROM tbl_date WHERE d <> '0000-00-00';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> '0000-00-00')
-SET SESSION sql_mode = '';
-SELECT * FROM tbl_date WHERE d <  '0000-00-00';
-d
 SELECT * FROM tbl_date WHERE d <= '0000-00-00';
 d
 SELECT * FROM tbl_date WHERE d >  '0000-00-00';
@@ -48358,78 +46489,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'0000-00-00')
-SET SESSION sql_mode = default;
 Zero in date
-SELECT * FROM tbl_date WHERE d <  '2018-00-03';
-d
-0000-01-01
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d <= '2018-00-03';
-d
-0000-01-01
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d >  '2018-00-03';
-d
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d >= '2018-00-03';
-d
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d =  '2018-00-03';
-d
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-SELECT * FROM tbl_date WHERE d <> '2018-00-03';
-d
-0000-01-01
-2038-01-19
-9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-EXPLAIN  SELECT * FROM tbl_date WHERE d <  '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < '2018-00-03')
-EXPLAIN  SELECT * FROM tbl_date WHERE d <= '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= '2018-00-03')
-EXPLAIN  SELECT * FROM tbl_date WHERE d >  '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > '2018-00-03')
-EXPLAIN  SELECT * FROM tbl_date WHERE d >= '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= '2018-00-03')
-EXPLAIN  SELECT * FROM tbl_date WHERE d =  '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = '2018-00-03')
-EXPLAIN  SELECT * FROM tbl_date WHERE d <> '2018-00-03';
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
-Warnings:
-Warning	1292	Incorrect date value: '2018-00-03' for column 'd' at row 1
-Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> '2018-00-03')
-SET SESSION sql_mode = '';
 SELECT * FROM tbl_date WHERE d <  '2018-00-03';
 d
 0000-01-01
@@ -48481,78 +46541,59 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'2018-00-03')
-SET SESSION sql_mode = default;
 Strangely, this does not give an error nor warning, and does
 comparison using internal datetime comparison (pre-folding), so
 we do the same.
 SELECT * FROM tbl_date WHERE d <  '2018-02-31';
 d
 0000-01-01
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <= '2018-02-31';
 d
 0000-01-01
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >  '2018-02-31';
 d
 2038-01-19
 9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >= '2018-02-31';
 d
 2038-01-19
 9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d =  '2018-02-31';
 d
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <> '2018-02-31';
 d
 0000-01-01
 2038-01-19
 9999-12-31
-Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 EXPLAIN  SELECT * FROM tbl_date WHERE d <  '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < DATE'2018-02-31')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <= '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2018-02-31')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >  '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2018-02-31')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >= '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= DATE'2018-02-31')
 EXPLAIN  SELECT * FROM tbl_date WHERE d =  '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = DATE'2018-02-31')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <> '2018-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Warning	1292	Incorrect date value: '2018-02-31' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'2018-02-31')
 
 2. TIMESTAMP literals compared with DATE field
@@ -48718,71 +46759,53 @@ incorrect value; removes time part
 SELECT * FROM tbl_date WHERE d <  20380119124500;
 d
 0000-01-01
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <= 20380119124500;
 d
 0000-01-01
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >  20380119124500;
 d
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >= 20380119124500;
 d
 2038-01-19
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d =  20380119124500;
 d
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <> 20380119124500;
 d
 0000-01-01
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 EXPLAIN  SELECT * FROM tbl_date WHERE d <  20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <= 20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >  20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >= 20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d =  20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <> 20380119124500;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119124500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'2038-01-19')
 out of range; interpreted as a value smaller than TIMESTAMP min
 SELECT * FROM tbl_date WHERE d <  2018;
@@ -48963,71 +46986,53 @@ incorrect value; removes time part
 SELECT * FROM tbl_date WHERE d <  20380119061405.00;
 d
 0000-01-01
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <= 20380119061405.00;
 d
 0000-01-01
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >  20380119061405.00;
 d
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >= 20380119061405.00;
 d
 2038-01-19
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d =  20380119061405.00;
 d
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <> 20380119061405.00;
 d
 0000-01-01
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 EXPLAIN  SELECT * FROM tbl_date WHERE d <  20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <= 20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >  20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >= 20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d =  20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <> 20380119061405.00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119061405.00' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'2038-01-19')
 out of range - compare using double
 SELECT * FROM tbl_date WHERE d <  2018.55;
@@ -49209,71 +47214,53 @@ incorrect value; removes time part
 SELECT * FROM tbl_date WHERE d <  20380119194500E00;
 d
 0000-01-01
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <= 20380119194500E00;
 d
 0000-01-01
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >  20380119194500E00;
 d
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d >= 20380119194500E00;
 d
 2038-01-19
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d =  20380119194500E00;
 d
 2038-01-19
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 SELECT * FROM tbl_date WHERE d <> 20380119194500E00;
 d
 0000-01-01
 9999-12-31
-Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 EXPLAIN  SELECT * FROM tbl_date WHERE d <  20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` < DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <= 20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >  20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` > DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d >= 20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` >= DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d =  20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` = DATE'2038-01-19')
 EXPLAIN  SELECT * FROM tbl_date WHERE d <> 20380119194500E00;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tbl_date	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1292	Incorrect date value: '20380119194500' for column 'd' at row 1
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'2038-01-19')
 out of range compare using double
 SELECT * FROM tbl_date WHERE d <  0.00E00;
@@ -49328,6 +47315,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`tbl_date`.`d` AS `d` from `test`.`tbl_date` where (`test`.`tbl_date`.`d` <> DATE'0000-00-00')
 DROP TABLE tbl_date;
+SET SESSION sql_mode = DEFAULT;
 CREATE TABLE t(t TIME);
 INSERT INTO t VALUES ('18:00:00');
 ANALYZE TABLE t;

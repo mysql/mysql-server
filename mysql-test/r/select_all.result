@@ -2187,10 +2187,7 @@ INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\AR
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
-gvid	the_success	the_fail	the_size	the_time
-Warnings:
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
-Warning	1292	Incorrect datetime value: 'wrong-date-value' for column 'sampletime' at row 1
+ERROR HY000: Incorrect DATETIME value: 'wrong-date-value'
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= NULL AND b.sampletime < NULL AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
@@ -3384,20 +3381,9 @@ f1	f2
 4	2005-10-01
 5	2005-12-30
 select * from t1 where f2 >= '0000-00-00' order by f2;
-f1	f2
-1	2005-01-01
-2	2005-09-01
-3	2005-09-30
-4	2005-10-01
-5	2005-12-30
-Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'f2' at row 1
+ERROR HY000: Incorrect DATE value: '0000-00-00'
 select * from t1 where f2 >= '2005-09-31' order by f2;
-f1	f2
-4	2005-10-01
-5	2005-12-30
-Warnings:
-Warning	1292	Incorrect date value: '2005-09-31' for column 'f2' at row 1
+ERROR HY000: Incorrect DATE value: '2005-09-31'
 select * from t1 where f2 >= '2005-09-3a' order by f2;
 f1	f2
 3	2005-09-30
@@ -3406,12 +3392,7 @@ f1	f2
 Warnings:
 Warning	1292	Incorrect date value: '2005-09-3a' for column 'f2' at row 1
 select * from t1 where f2 <= '2005-09-31' order by f2;
-f1	f2
-1	2005-01-01
-2	2005-09-01
-3	2005-09-30
-Warnings:
-Warning	1292	Incorrect date value: '2005-09-31' for column 'f2' at row 1
+ERROR HY000: Incorrect DATE value: '2005-09-31'
 select * from t1 where f2 <= '2005-09-3a' order by f2;
 f1	f2
 1	2005-01-01
@@ -4311,10 +4292,7 @@ str_to_date('2007-10-09','%Y-%m-%d') > '2007/10/01 00:00:00 GMT-6'
 Warnings:
 Warning	1292	Truncated incorrect date value: '2007/10/01 00:00:00 GMT-6'
 select str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6';
-str_to_date('2007-10-09','%Y-%m-%d') <= '2007/10/2000:00:00 GMT-6'
-1
-Warnings:
-Warning	1292	Truncated incorrect date value: '2007/10/2000:00:00 GMT-6'
+ERROR HY000: Incorrect DATE value: '2007/10/2000:00:00 GMT-6'
 select str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6';
 str_to_date('2007-10-01','%Y-%m-%d') = '2007-10-1 00:00:00 GMT-6'
 1
@@ -4365,16 +4343,9 @@ str_to_date('2007-10-01 12:34','%Y-%m-%d %H') = '2007-10-01 12:00:00'
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '2007-10-01 12:34'
 select str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00';
-str_to_date('2007-02-30 12:34','%Y-%m-%d %H:%i') = '2007-02-30 12:34:00'
-1
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-02-30 12:34:00'
+ERROR HY000: Incorrect DATETIME value: '2007-02-30 12:34:00'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
                                                 and '2007/10/20 00:00:00';
 str_to_date('2007-10-00','%Y-%m-%d') between '2007/09/01 00:00:00'
@@ -4384,16 +4355,9 @@ Warnings:
 Warning	1411	Incorrect datetime value: '2007-10-00' for function str_to_date
 set SQL_MODE=TRADITIONAL;
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34';
-str_to_date('2007-10-01 12:34','%Y-%m-%d %H:%i') = '2007-10-00 12:34'
-0
-Warnings:
-Warning	1292	Truncated incorrect datetime value: '2007-10-00 12:34'
+ERROR HY000: Incorrect DATETIME value: '2007-10-00 12:34'
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 NULL
@@ -4426,29 +4390,13 @@ select str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34';
 str_to_date(NULL,'%Y-%m-%d %H:%i') = '2007-10-01 12:34'
 NULL
 select str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = '';
-str_to_date('2007-10-00 12:34','%Y-%m-%d %H:%i') = ''
-NULL
-Warnings:
-Warning	1292	Truncated incorrect datetime value: ''
-Warning	1411	Incorrect datetime value: '2007-10-00 12:34' for function str_to_date
+ERROR HY000: Incorrect DATETIME value: ''
 select str_to_date('1','%Y-%m-%d') = '1';
-str_to_date('1','%Y-%m-%d') = '1'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: '1'
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
+ERROR HY000: Incorrect DATE value: '1'
 select str_to_date('1','%Y-%m-%d') = '1';
-str_to_date('1','%Y-%m-%d') = '1'
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: '1'
-Warning	1411	Incorrect datetime value: '1' for function str_to_date
+ERROR HY000: Incorrect DATE value: '1'
 select str_to_date('','%Y-%m-%d') = '';
-str_to_date('','%Y-%m-%d') = ''
-NULL
-Warnings:
-Warning	1292	Truncated incorrect date value: ''
-Warning	1411	Incorrect datetime value: '' for function str_to_date
+ERROR HY000: Incorrect DATE value: ''
 select str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL;
 str_to_date('1000-01-01','%Y-%m-%d') between '0000-00-00' and NULL
 0
@@ -4879,9 +4827,7 @@ SELECT date_nokey FROM C
 WHERE int_key IN (SELECT 1 FROM A) 
 HAVING date_nokey = '10:41:7' 
 ORDER BY date_key;
-date_nokey
-Warnings:
-Warning	1292	Incorrect date value: '10:41:7' for column 'date_nokey' at row 1
+ERROR HY000: Incorrect DATE value: '10:41:7'
 DROP TABLE A,C;
 CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);

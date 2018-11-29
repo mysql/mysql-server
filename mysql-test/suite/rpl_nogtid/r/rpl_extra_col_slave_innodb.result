@@ -203,8 +203,14 @@ i blob) ENGINE='InnoDB';
 *** Create t9 on Master ***
 CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5)
 ) ENGINE='InnoDB';
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
+replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
 *** Start Slave ***
 include/rpl_reset.inc
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = (select concat('ALLOW_INVALID_DATES,',
+replace(replace(@@sql_mode,'NO_ZERO_DATE',''), 'NO_ZERO_IN_DATE','')));
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
@@ -215,7 +221,9 @@ a	b	c	d	e	f	g	h	i
 2	b1b1b1b1b1b1b1b1	JOE	CURRENT_TIMESTAMP	0		NULL		NULL
 3	b1b1b1b1b1b1b1b1	QA	CURRENT_TIMESTAMP	0		NULL		NULL
 include/assert.inc [The values of column 'd' should have non-zero timetsamp.]
+SET sql_mode = @previous_sql_mode;
 DROP TABLE t9;
+SET sql_mode = @previous_sql_mode;
 *** Create t10 on slave  ***
 STOP SLAVE;
 CREATE TABLE t10 (a INT KEY, b BLOB, f DOUBLE DEFAULT '233', 

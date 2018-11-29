@@ -912,9 +912,11 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;  # Tests print
 DROP TABLE t1;
 
 #
-# Bug #16249: different results for a range with an without index 
-#             when a range condition use an invalid datetime constant 
-#
+# Bug #16249: different results for a range with and without index
+#             when a range condition use an invalid datetime constant
+# This case was made obsolete after the changes applied by
+# Bug#28940878 WRONG RESULT WHEN COMPARING DATE[TIME] WITH STRING
+# as we don't fallback anymore to string comparison if the date is invalid.
 
 CREATE TABLE t1 (                                      
   item char(20) NOT NULL default '',                          
@@ -929,13 +931,17 @@ INSERT INTO t1 VALUES
 ('A1','2005-12-12 08:00:00',3000),
 ('A2','2005-12-01 08:00:00',1000);
 
+--error ER_WRONG_VALUE
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+--error ER_WRONG_VALUE
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 
 DROP INDEX `PRIMARY` ON t1;
 
+--error ER_WRONG_VALUE
 EXPLAIN SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
+--error ER_WRONG_VALUE
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-01 24:00:00';
 SELECT * FROM t1 WHERE item='A1' AND started<='2005-12-02 00:00:00';
 
@@ -1254,9 +1260,14 @@ SELECT * FROM t1 WHERE a >= '2009:09:23 00:00:00';
 --echo # The former may give errors for the truncated values, while the latter
 --echo # gives warnings. The purpose of this test is not to interfere, and only
 --echo # preserve existing behavior.
+--echo # This case was made obsolete after the changes applied by
+--echo # Bug#28940878 WRONG RESULT WHEN COMPARING DATE[TIME] WITH STRING
+--echo # as we don't fallback anymore to string comparison if the date is invalid.
+--error ER_WRONG_VALUE
 SELECT str_to_date('2007-10-00', '%Y-%m-%d') >= '' AND 
        str_to_date('2007-10-00', '%Y-%m-%d') <= '2007/10/20';
 
+--error ER_WRONG_VALUE
 SELECT str_to_date('2007-20-00', '%Y-%m-%d') >= '2007/10/20' AND 
        str_to_date('2007-20-00', '%Y-%m-%d') <= '';
 

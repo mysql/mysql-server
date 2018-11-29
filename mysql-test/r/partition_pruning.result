@@ -840,7 +840,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -940,22 +941,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p2001-01-01	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p2001-01-01	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	6	100.00	Using where; Using index
@@ -976,6 +986,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	range	a	a	4	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 # test without index
 ALTER TABLE t1 DROP KEY a;
 ANALYZE TABLE t1;
@@ -1031,7 +1042,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -1131,22 +1143,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p2001-01-01	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
@@ -1167,6 +1188,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 DROP TABLE t1;
 # test of LIST and index
 CREATE TABLE t1 (a DATE, KEY(a))
@@ -1231,7 +1253,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -1331,22 +1354,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
@@ -1367,6 +1399,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	range	a	a	4	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 # test without index
 ALTER TABLE t1 DROP KEY a;
 ANALYZE TABLE t1;
@@ -1422,7 +1455,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -1522,22 +1556,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
@@ -1558,6 +1601,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 DROP TABLE t1;
 # TO_SECONDS, test of LIST and index
 CREATE TABLE t1 (a DATE, KEY(a))
@@ -1622,7 +1666,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -1722,22 +1767,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	range	a	a	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	index	a	a	4	NULL	6	100.00	Using where; Using index
@@ -1758,6 +1812,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	range	a	a	4	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 # test without index
 ALTER TABLE t1 DROP KEY a;
 ANALYZE TABLE t1;
@@ -1813,7 +1868,8 @@ a
 SELECT * FROM t1 WHERE a = '1001-00-00';
 a
 1001-00-00
-# Disabling warnings for the invalid date
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = "ALLOW_INVALID_DATES";
 SELECT * FROM t1 WHERE a < '1999-02-31';
 a
 0000-00-00
@@ -1913,22 +1969,31 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1001-00-00')
-# Disabling warnings for the invalid date
 EXPLAIN SELECT * FROM t1 WHERE a < '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` < DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a <= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` <= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a >= '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a > '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pNULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'1999-02-31')
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
@@ -1949,6 +2014,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0001-01-01,pNULL,p1001-01-01	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between '0001-01-01' and '1001-01-01')
+SET sql_mode = @previous_sql_mode;
 DROP TABLE t1;
 SET sql_mode = default;
 # Test with DATETIME column NOT NULL
@@ -2907,6 +2973,8 @@ Warnings:
 Warning	1292	Incorrect datetime value: '2009-04-99'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` < <cache>(cast('2009-04-99' as datetime)))
 DROP TABLE t1;
+SET @previous_sql_mode = @@sql_mode;
+SET sql_mode = 'ALLOW_INVALID_DATES';
 CREATE TABLE t1
 (a INT NOT NULL AUTO_INCREMENT,
 b DATETIME,
@@ -2918,15 +2986,8 @@ PARTITION p1 VALUES LESS THAN (733712) COMMENT = 'LESS THAN 2008-11-01',
 PARTITION pX VALUES LESS THAN MAXVALUE);
 SELECT a,b FROM t1 WHERE b >= '2008-12-01' AND b < '2009-12-00';
 a	b
-Warnings:
-Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00 00:00:00' for column 'b' at row 1
-Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
 DROP TABLE t1;
+SET sql_mode = @previous_sql_mode;
 create table t1 ( a int not null) partition by hash(a) partitions 2;
 insert into t1 values (1),(2),(3);
 ANALYZE TABLE t1;

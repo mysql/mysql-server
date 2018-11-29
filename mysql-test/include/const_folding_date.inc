@@ -3,6 +3,7 @@ let $colname=d;
 eval CREATE TABLE tbl_date($colname DATE);
 INSERT INTO tbl_date VALUES ('0000-01-01'), ('2038-01-19'), ('9999-12-31');
 ANALYZE TABLE tbl_date;
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=ALLOW_INVALID_DATES;
 
 --echo
 --echo 1. String literals
@@ -27,16 +28,10 @@ let $constant='2038-01-19 12:45:00';
 --echo Zero date?
 let $constant='0000-00-00';
 --source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = '';
---source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = default;
 
 --echo Zero in date
 let $constant='2018-00-03';
 --source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = '';
---source include/const_folding_cmp_ops.inc
-SET SESSION sql_mode = default;
 
 --echo Strangely, this does not give an error nor warning, and does
 --echo comparison using internal datetime comparison (pre-folding), so
@@ -107,3 +102,4 @@ let $constant=0.00E00;
 --source include/const_folding_cmp_ops.inc
 
 eval DROP TABLE $table_name;
+SET SESSION sql_mode = DEFAULT;

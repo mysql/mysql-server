@@ -84,7 +84,7 @@ class Arg_comparator {
                                const Item *warn_item, bool *is_null);
   bool try_year_cmp_func(Item_result type);
   static bool get_date_from_const(Item *date_arg, Item *str_arg,
-                                  ulonglong *value);
+                                  ulonglong *const_value);
   /**
     Only used by compare_json() in the case where a JSON value is
     compared to an SQL value. This member points to pre-allocated
@@ -154,7 +154,7 @@ class Arg_comparator {
   int compare_json();
   bool compare_null_values();
 
-  static bool can_compare_as_dates(Item *a, Item *b, ulonglong *const_val_arg);
+  static bool can_compare_as_dates(Item *a, Item *b);
 
   Item **cache_converted_constant(THD *thd, Item **value, Item **cache,
                                   Item_result type);

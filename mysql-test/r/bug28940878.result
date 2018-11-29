@@ -1,31 +1,26 @@
 #bug28940878
 CREATE TABLE t1(d DATE);
 INSERT INTO t1 VALUES('2011-02-20');
-# In the default sql mode both should show warnings
-#
-# Note that since the date on the right is invalid, comparisons
-# will be done as String in both cases now
+# In the default sql mode invalid dates should return errors
 SELECT * FROM t1 WHERE d <= '2013-02-32';
-d
-2011-02-20
-Warnings:
-Warning	1292	Incorrect date value: '2013-02-32' for column 'd' at row 1
+ERROR HY000: Incorrect DATE value: '2013-02-32'
 SELECT * FROM t1 WHERE d <= '2013-02-30';
-d
-2011-02-20
-Warnings:
-Warning	1292	Incorrect date value: '2013-02-30' for column 'd' at row 1
+ERROR HY000: Incorrect DATE value: '2013-02-30'
+SELECT * FROM t1 WHERE d >= '0000-00-00';
+ERROR HY000: Incorrect DATE value: '0000-00-00'
+SELECT * FROM t1 WHERE d >= 'wrong-date';
+ERROR HY000: Incorrect DATE value: 'wrong-date'
 SET @old_sql_mode := @@sql_mode;
 SET @@sql_mode = 'ALLOW_INVALID_DATES';
-# In the 'ALLOW_INVALID_DATES' sql mode only first should show warnings
-# Note that since the date on the right is invalid comparisons
-# will be done as String
+# In the 'ALLOW_INVALID_DATES' sql mode only the first two query should return error
 SELECT * FROM t1 WHERE d <= '2013-02-32';
+ERROR HY000: Incorrect DATE value: '2013-02-32'
+SELECT * FROM t1 WHERE d >= 'wrong-date';
+ERROR HY000: Incorrect DATE value: 'wrong-date'
+SELECT * FROM t1 WHERE d <= '2013-02-30';
 d
 2011-02-20
-Warnings:
-Warning	1292	Incorrect date value: '2013-02-32' for column 'd' at row 1
-SELECT * FROM t1 WHERE d <= '2013-02-30';
+SELECT * FROM t1 WHERE d >= '0000-00-00';
 d
 2011-02-20
 SET @@sql_mode = @old_sql_mode;
