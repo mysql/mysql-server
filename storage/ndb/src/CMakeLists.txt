@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -183,7 +183,7 @@ SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   SOVERSION ${NDB_SHARED_LIB_VERSION})
 MYSQL_INSTALL_TARGETS(ndbclient_so
   DESTINATION "${INSTALL_LIBDIR}"
-  COMPONENT Developement)
+  COMPONENT Development)
 # Build test program to check linking against ndclient_so
 ADD_EXECUTABLE(ndbclient_shared_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_shared_link_test ndbclient_so)

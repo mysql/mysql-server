@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -117,12 +117,12 @@ SET(NDB_MGMAPI_HEADERS
 
 INSTALL(FILES ${NDB_GENERAL_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
-        COMPONENT Developement)
+        COMPONENT Development)
 
 INSTALL(FILES ${NDB_NDBAPI_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
-        COMPONENT Developement)
+        COMPONENT Development)
 
 INSTALL(FILES ${NDB_MGMAPI_HEADERS}
         DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
-        COMPONENT Developement)
+        COMPONENT Development)
