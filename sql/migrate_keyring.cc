@@ -67,9 +67,6 @@ bool Migrate_keyring::init(int  argc,
   string so(".so");
   string dll(".dll");
 
-  m_argc= argc;
-  m_argv= argv;
-
   if (!source_plugin)
   {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
@@ -137,6 +134,17 @@ bool Migrate_keyring::init(int  argc,
       DBUG_RETURN(true);
     }
   }
+
+  m_argc= argc;
+  m_argv= new char *[m_argc + 2];  // 1st for extra option and 2nd for NULL
+  for (int cnt= 0; cnt < m_argc; ++cnt) {
+    m_argv[cnt]= argv[cnt];
+  }
+  /* add --<plugin_name>_open_mode=1 option */
+  m_internal_option= "--" + m_source_plugin_name + "_open_mode=1";
+  m_argv[m_argc]= const_cast<char *>(m_internal_option.c_str());
+  /* update m_argc, m_argv */
+  m_argv[++m_argc]= NULL;
   DBUG_RETURN(false);
 }
 
@@ -179,7 +187,9 @@ bool Migrate_keyring::execute()
 
   /* skip program name */
   m_argc--;
-  m_argv++;
+  /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
+   * lose access to the alloced mem and hence there would be leak */
+  char **tmp_m_argv= m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1)
   {
@@ -189,7 +199,7 @@ bool Migrate_keyring::execute()
     };
     my_getopt_skip_unknown= 0;
     my_getopt_use_args_separator= true;
-    if (handle_options(&m_argc, &m_argv, no_opts, NULL))
+    if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL))
       unireg_abort(MYSQLD_ABORT_EXIT);
 
     if (m_argc > 1)
@@ -427,6 +437,8 @@ Migrate_keyring::~Migrate_keyring()
 {
   if (mysql)
   {
+    delete[] m_argv;
+    m_argv= NULL;
     mysql_close(mysql);
     mysql= NULL;
     if (migrate_connect_options)
