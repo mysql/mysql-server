@@ -94,7 +94,13 @@ static MYSQL_SYSVAR_STR(
     MYSQL_DEFAULT_KEYRINGFILE                          /* default    */
 );
 
-static SYS_VAR *keyring_file_system_variables[] = {MYSQL_SYSVAR(data), NULL};
+static MYSQL_SYSVAR_BOOL(open_mode, keyring_file_open_mode,
+                         PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
+                         "Mode in which keyring file should be opened", NULL,
+                         NULL, true);
+
+static SYS_VAR *keyring_file_system_variables[] = {
+    MYSQL_SYSVAR(data), MYSQL_SYSVAR(open_mode), NULL};
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;

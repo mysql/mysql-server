@@ -31,6 +31,7 @@
 #include "plugin/keyring/buffer.h"
 #include "plugin/keyring/checker/checker_factory.h"
 #include "plugin/keyring/common/i_keyring_io.h"
+#include "plugin/keyring/common/keyring.h"
 #include "plugin/keyring/common/keyring_memory.h"
 #include "plugin/keyring/common/logger.h"
 #include "plugin/keyring/digest.h"
