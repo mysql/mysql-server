@@ -16,7 +16,7 @@ GRANT ALL ON *.* TO user5_mysqlx@localhost;
 --write_file $xtest_file
 -->quiet
 -->sql
-SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+SELECT CONNECTION_TYPE from performance_schema.threads where PROCESSLIST_ID=CONNECTION_ID();
 SHOW VARIABLES LIKE 'tls_version';
 SHOW STATUS LIKE 'Mysqlx_ssl_version';
 -->endsql

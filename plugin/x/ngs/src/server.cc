@@ -321,9 +321,10 @@ ngs::shared_ptr<Session_interface> Server::create_session(
 
 void Server::on_client_closed(const Client_interface &client) {
   log_debug("%s: on_client_close", client.client_id());
-  m_delegate->on_client_closed(client);
-
+  // Lets first remove it, and then decrement the counters
+  // in m_delegate.
   m_client_list.remove(client.client_id_num());
+  m_delegate->on_client_closed(client);
 }
 
 void Server::add_authentication_mechanism(

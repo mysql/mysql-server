@@ -125,14 +125,16 @@ int Send_message_block_processor::process_client_message(
   if (m_context->m_options.m_bindump)
     m_context->print(message_to_bindump(msg), "\n");
 
-  try {
-    // send request
-    session->get_protocol().send(msg_id, msg);
+  const auto error = session->get_protocol().send(msg_id, msg);
 
-    if (!m_context->m_expected_error.check_ok()) return 1;
-  } catch (xcl::XError &err) {
-    if (!m_context->m_expected_error.check_error(err)) return 1;
+  if (error) {
+    if (!m_context->m_expected_error.check_error(error)) return 1;
+
+    return 0;
   }
+
+  if (!m_context->m_expected_error.check_ok()) return 1;
+
   return 0;
 }
 

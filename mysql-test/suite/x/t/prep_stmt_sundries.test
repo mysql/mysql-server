@@ -450,6 +450,13 @@ exec $MYSQLXTEST
   -ux_root --password='' --schema=xtest
   --file=$MYSQL_TMP_DIR/prep_stmt_sundries.xpl 2>&1;
 
+# Ensure that all connections are closed, after that we can proceed
+# with Prepared_stmt_count status variables assertion
+#
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 4;
+source ../include/wait_for_status_variables.inc;
+
 --echo
 --echo ## Assert global X Plugin status variables
 --let $assert_text= Global plugin status Mysqlx_prep_prepare must match number of send Mysqlx.Prepare.Prepare messages

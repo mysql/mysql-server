@@ -53,17 +53,6 @@ Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
 
-void Client::on_session_close(ngs::Session_interface &s) {
-  ngs::Client::on_session_close(s);
-  if (s.state_before_close() != ngs::Session_interface::Authenticating) {
-    ++Global_status_variables::instance().m_closed_sessions_count;
-  }
-}
-
-void Client::on_session_reset(ngs::Session_interface &s) {
-  ngs::Client::on_session_reset(s);
-}
-
 ngs::Capabilities_configurator *Client::capabilities_configurator() {
   ngs::Capabilities_configurator *caps =
       ngs::Client::capabilities_configurator();
@@ -111,26 +100,6 @@ void Client::kill() {
 
   m_session->on_kill();
   ++Global_status_variables::instance().m_killed_sessions_count;
-}
-
-void Client::on_network_error(int error) {
-  ngs::Client::on_network_error(error);
-  if (error != 0)
-    ++Global_status_variables::instance().m_connection_errors_count;
-}
-
-void Client::on_server_shutdown() {
-  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
-
-  if (local_copy) local_copy->on_kill();
-
-  ngs::Client::on_server_shutdown();
-}
-
-void Client::on_auth_timeout() {
-  ngs::Client::on_auth_timeout();
-
-  ++Global_status_variables::instance().m_connection_errors_count;
 }
 
 /* Check is a session assigned to this client has following thread data

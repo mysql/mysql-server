@@ -424,6 +424,13 @@ exec $MYSQLXTEST
   -ux_root --password=''
   --file=$MYSQL_TMP_DIR/prep_stmt_sundries.xpl 2>&1;
 
+# Ensure that all connections are closed, after that we can proceed
+# with Prepared_stmt_count status variables assertion
+#
+let $wait_for_status_variable = 'Mysqlx_connections_closed';
+let $wait_for_status_value = 2;
+source ../include/wait_for_status_variables.inc;
+
 --echo
 --echo ## Assert global variables
 --let $assert_text= Global plugin variable Mysqlx_cursor_open must match number of send Mysqlx.Cursor.Open messages

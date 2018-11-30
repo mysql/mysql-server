@@ -140,6 +140,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
 
 ## Assert global variables
 include/assert.inc [Global plugin variable Mysqlx_cursor_open must match number of send Mysqlx.Cursor.Open messages]

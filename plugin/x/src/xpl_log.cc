@@ -31,9 +31,4 @@ namespace xpl {
 
 MYSQL_PLUGIN plugin_handle = NULL;
 
-void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level,
-                        const char *message) {
-  LogPluginErr(WARNING_LEVEL, ER_XPLUGIN_ERROR_MSG, message);
-}
-
 }  // namespace xpl
