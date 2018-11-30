@@ -262,6 +262,12 @@ TEST_F(DebuggingInfrastructureTest, DebugManagerTestingSettingStringOptions) {
   Gcs_debug_manager::get_current_debug_options(res_debug_options);
   ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
 
+  Gcs_debug_manager::set_debug_options(",,,");
+  ASSERT_FALSE(Gcs_debug_manager::is_valid_debug_options(",,,"));
+  ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(), GCS_DEBUG_NONE);
+  Gcs_debug_manager::get_current_debug_options(res_debug_options);
+  ASSERT_EQ(res_debug_options.compare("GCS_DEBUG_NONE"), 0);
+
   Gcs_debug_manager::set_debug_options(
       ",,gcs_debug_basic ,  gcs_debug_trace ,,");
   ASSERT_EQ(Gcs_debug_manager::get_current_debug_options(),
