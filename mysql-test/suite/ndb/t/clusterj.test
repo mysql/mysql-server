@@ -7,6 +7,7 @@
 --source include/have_ndb.inc
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
+--let JAVA_MIN_REQUIRED_VERSION=1.8
 --source suite/ndb/include/have_java.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR

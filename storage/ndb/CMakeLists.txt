@@ -251,7 +251,7 @@ ELSEIF(WITH_NDB_JAVA)
     MESSAGE(STATUS "Looking for Java in standard locations")
   ENDIF()
 
-  FIND_PACKAGE(Java 1.6 COMPONENTS Development)
+  FIND_PACKAGE(Java 1.8 COMPONENTS Development)
   IF(NOT JAVA_FOUND)
     IF(DEFINED ENV{JAVA_HOME})
       # Could not find Java in the specific location set by JAVA_HOME
