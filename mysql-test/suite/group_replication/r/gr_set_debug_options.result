@@ -11,6 +11,8 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '123456'
 SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '!@#!#!#'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS=",,,";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of ',,,'
 SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_DBG'
 SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL,12345";
@@ -20,6 +22,8 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="123456";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '123456'
 SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="!@#!#!#";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of '!@#!#!#'
+SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS=",,,,,";
+ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of ',,,,,'
 SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_DBG";
 ERROR 42000: Variable 'group_replication_communication_debug_options' can't be set to the value of 'GCS_DEBUG_DBG'
 include/assert.inc [Checking the value of gr_communications_debug_opts]
