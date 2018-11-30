@@ -39,10 +39,12 @@
 #include <string>
 
 #include "errmsg.h"
+#include "my_macros.h"
+#include "scope_guard.h"
+
 #include "plugin/x/client/xconnection_config.h"
 #include "plugin/x/client/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
-#include "scope_guard.h"
 
 #ifndef WIN32
 #include <netdb.h>
@@ -391,12 +393,6 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
                 sslGetErrString((enum_ssl_init_error)init_error_id));
 }
 
-#ifdef _WIN32
-#define SOCKET_ERROR_WIN_OR_POSIX(W, P) W
-#else
-#define SOCKET_ERROR_WIN_OR_POSIX(W, P) P
-#endif  // _WIN32
-
 #ifdef HAVE_WOLFSSL
 
 #ifdef SOCKET_EPIPE
@@ -409,9 +405,8 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
 
 #endif  // HAVE_WOLFSSL
 
-#define SOCKET_EPIPE SOCKET_ERROR_WIN_OR_POSIX(ERROR_BROKEN_PIPE, EPIPE)
-#define SOCKET_ECONNABORTED \
-  SOCKET_ERROR_WIN_OR_POSIX(WSAECONNABORTED, ECONNABORTED)
+#define SOCKET_EPIPE IF_WIN(ERROR_BROKEN_PIPE, EPIPE)
+#define SOCKET_ECONNABORTED IF_WIN(WSAECONNABORTED, ECONNABORTED)
 
 XError Connection_impl::get_socket_error(const int error_id) {
   switch (error_id) {

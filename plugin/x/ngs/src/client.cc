@@ -34,6 +34,8 @@
 #include <functional>
 #include <sstream>
 
+#include "my_macros.h"
+
 #include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
 #include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
 #include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
@@ -82,7 +84,6 @@ Client::Client(std::shared_ptr<Vio_interface> connection,
       m_state(Client_invalid),
       m_removed(false),
       m_protocol_monitor(pmon),
-      m_close_reason(Not_closing),
       m_msg_buffer(NULL),
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {
@@ -127,7 +128,7 @@ void Client::activate_tls() {
 }
 
 void Client::on_auth_timeout() {
-  m_close_reason = Close_connect_timeout;
+  set_close_reason_if_non_fatal(Close_reason::k_connect_timeout);
 
   // XXX send an ERROR notice when it's available
   disconnect_and_trigger_close();
@@ -190,7 +191,7 @@ void Client::handle_message(Message_request &request) {
   switch (request.get_message_type()) {
     case Mysqlx::ClientMessages::CON_CLOSE:
       m_encoder->send_ok("bye!");
-      m_close_reason = Close_normal;
+      set_close_reason_if_non_fatal(Close_reason::k_normal);
       disconnect_and_trigger_close();
       break;
 
@@ -231,16 +232,30 @@ void Client::handle_message(Message_request &request) {
       log_debug("%s: Invalid message %i received during client initialization",
                 client_id(), request.get_message_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
-      m_close_reason = Close_error;
+      set_close_reason_if_non_fatal(Close_reason::k_error);
       disconnect_and_trigger_close();
       break;
   }
 }
 
-void Client::disconnect_and_trigger_close() {
-  if (m_close_reason == Not_closing) m_close_reason = Close_normal;
+void Client::set_close_reason_if_non_fatal(const Close_reason reason) {
+  switch (m_close_reason) {
+    case Close_reason::k_normal:
+    case Close_reason::k_none:
+      m_close_reason = reason;
+      return;
 
-  shutdown_connection();
+    default:
+      return;
+  }
+}
+
+void Client::disconnect_and_trigger_close() {
+  set_close_reason_if_non_fatal(Close_reason::k_normal);
+
+  m_state = Client_closing;
+
+  m_connection->shutdown();
 }
 
 const char *Client::client_hostname_or_address() const {
@@ -253,7 +268,8 @@ void Client::on_read_timeout() {
   Mysqlx::Notice::Warning warning;
   const bool force_flush = true;
 
-  m_close_reason = Close_read_timeout;
+  set_close_reason_if_non_fatal(Close_reason::k_read_timeout);
+
   warning.set_level(Mysqlx::Notice::Warning::ERROR);
   warning.set_code(ER_IO_READ_ERROR);
   warning.set_msg("IO Read error: read_timeout exceeded");
@@ -266,25 +282,43 @@ void Client::on_read_timeout() {
 // this will be called on socket errors, but also when halt_and_wait() is called
 // which will shutdown the socket for reading and trigger a eof
 // (meaning, closed for reads, but writes would still be ok)
-void Client::on_network_error(int error) {
+void Client::on_network_error(const int error) {
   if (error == SOCKET_ETIMEDOUT || error == SOCKET_EAGAIN) {
-    ++xpl::Global_status_variables::instance().m_aborted_clients;
-    if (m_close_reason != Close_read_timeout)
-      m_close_reason = Close_write_timeout;
+    set_close_reason_if_non_fatal(Close_reason::k_write_timeout);
   }
-  if (error == 0)
-    log_debug("%s: peer disconnected (state %i)", client_id(), m_state.load());
-  else
-    log_debug("%s: network error %i (state %i)", client_id(), error,
-              m_state.load());
-  if (m_close_reason == Not_closing && m_state != Client_closing && error != 0)
-    m_close_reason = Close_net_error;
+
+  log_debug("%s, %i: on_network_error(error:%i)", client_id(), m_state.load(),
+            error);
+
+  if (m_state != Client_closing && error != 0)
+    set_close_reason_if_non_fatal(Close_reason::k_net_error);
 
   m_state.exchange(Client_closing);
 }
 
+void Client::update_counters() {
+  switch (m_close_reason) {
+    case Close_reason::k_write_timeout:
+    case Close_reason::k_read_timeout:
+      ++xpl::Global_status_variables::instance().m_aborted_clients;
+      ++xpl::Global_status_variables::instance().m_connection_errors_count;
+      break;
+
+    case Close_reason::k_connect_timeout:
+    case Close_reason::k_net_error:
+      ++xpl::Global_status_variables::instance().m_connection_errors_count;
+      break;
+
+    default:
+      return;
+  }
+}
+
 void Client::remove_client_from_server() {
-  if (false == m_removed.exchange(true)) m_server.on_client_closed(*this);
+  if (false == m_removed.exchange(true)) {
+    update_counters();
+    m_server.on_client_closed(*this);
+  }
 }
 
 void Client::on_client_addr(const bool skip_resolve) {
@@ -312,7 +346,7 @@ void Client::on_client_addr(const bool skip_resolve) {
   try {
     m_client_host = resolve_hostname();
   } catch (...) {
-    m_close_reason = Close_reject;
+    set_close_reason_if_non_fatal(Close_reason::k_reject);
     disconnect_and_trigger_close();
 
     throw;
@@ -354,7 +388,7 @@ void Client::on_accept() {
       m_session = session;
   }
   if (!session) {
-    m_close_reason = Close_error;
+    set_close_reason_if_non_fatal(Close_reason::k_error);
     disconnect_and_trigger_close();
   }
 }
@@ -369,11 +403,11 @@ void Client::on_session_close(Session_interface &s MY_ATTRIBUTE((unused))) {
   log_debug("%s: Session %i removed", client_id(), s.session_id());
 
   // no more open sessions, disconnect
-  if (m_close_reason == Not_closing) m_close_reason = Close_normal;
+  disconnect_and_trigger_close();
 
-  m_state = Client_closing;
-
-  shutdown_connection();
+  if (s.state_before_close() != ngs::Session_interface::Authenticating) {
+    ++xpl::Global_status_variables::instance().m_closed_sessions_count;
+  }
 
   remove_client_from_server();
 }
@@ -411,6 +445,10 @@ void Client::on_session_reset(Session_interface &s MY_ATTRIBUTE((unused))) {
 void Client::on_server_shutdown() {
   log_debug("%s: closing client because of shutdown (state: %i)", client_id(),
             m_state.load());
+  ngs::shared_ptr<ngs::Session_interface> local_copy = m_session;
+
+  if (local_copy) local_copy->on_kill();
+
   // XXX send a server shutdown notice
   disconnect_and_trigger_close();
 }
@@ -423,20 +461,6 @@ void Client::set_encoder(ngs::Protocol_encoder_interface *enc) {
   m_encoder =
       ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
   m_encoder->get_flusher()->set_write_timeout(m_write_timeout);
-}
-
-void Client::get_last_error(int *out_error_code, std::string *out_message) {
-  ngs::Operations_factory operations_factory;
-  System_interface::Shared_ptr system_interface(
-      operations_factory.create_system_interface());
-
-  system_interface->get_socket_error_and_message(*out_error_code, *out_message);
-}
-
-void Client::shutdown_connection() {
-  m_state = Client_closing;
-
-  m_connection->shutdown();
 }
 
 Error_code Client::read_one_message(Message_request *out_message) {
@@ -455,9 +479,8 @@ Error_code Client::read_one_message(Message_request *out_message) {
       on_read_timeout();
     }
 
-    if (!(io_error == EBADF && m_close_reason == Close_connect_timeout)) {
-      on_network_error(io_error);
-    }
+    if (EBADF != io_error) on_network_error(io_error);
+
     return {};
   }
 

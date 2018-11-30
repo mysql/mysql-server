@@ -672,6 +672,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->recvresult client_id user host
 
+
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   namespace: "xplugin"
@@ -688,7 +689,15 @@ Mysqlx.Sql.StmtExecute {
 
 -->setsession xcon1
 -->recvuntildisc
--->sleep 1
+
+# Ensure that all connection disconnected until now
+# were released. The test must wait for Mysqlx_connections_closed.
+quiet;
+noquery_result;
+-->wait_for 7	SELECT variable_value FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_connections_closed'
+noquiet;
+query_result;
+
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"

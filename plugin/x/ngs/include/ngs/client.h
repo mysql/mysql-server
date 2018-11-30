@@ -130,16 +130,18 @@ class Client : public Client_interface {
 
   mutable xpl::Mutex m_session_exit_mutex;
 
-  enum {
-    Not_closing,
-    Close_net_error,
-    Close_error,
-    Close_reject,
-    Close_normal,
-    Close_connect_timeout,
-    Close_write_timeout,
-    Close_read_timeout
-  } m_close_reason;
+  enum class Close_reason {
+    k_none,
+    k_net_error,
+    k_error,
+    k_reject,
+    k_normal,
+    k_connect_timeout,
+    k_write_timeout,
+    k_read_timeout
+  };
+
+  Close_reason m_close_reason{Close_reason::k_none};
 
   char *m_msg_buffer;
   size_t m_msg_buffer_size;
@@ -159,7 +161,7 @@ class Client : public Client_interface {
 
   void handle_message(Message_request &message);
   virtual std::string resolve_hostname() = 0;
-  virtual void on_network_error(int error);
+  virtual void on_network_error(const int error);
   void on_read_timeout();
 
   Protocol_monitor_interface &get_protocol_monitor();
@@ -175,7 +177,8 @@ class Client : public Client_interface {
 
   Waiting_for_io_interface *get_idle_processing();
   void get_last_error(int *out_error_code, std::string *out_message);
-  void shutdown_connection();
+  void set_close_reason_if_non_fatal(const Close_reason reason);
+  void update_counters();
 
   void on_client_addr(const bool skip_resolve_name);
   void on_accept();
