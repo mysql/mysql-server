@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,9 +80,14 @@ static MYSQL_SYSVAR_STR(
   update_keyring_file_data,                                    /* update()   */
   MYSQL_DEFAULT_KEYRINGFILE                                    /* default    */
 );
+static MYSQL_SYSVAR_BOOL(open_mode, keyring_file_open_mode,
+                         PLUGIN_VAR_INVISIBLE | PLUGIN_VAR_RQCMDARG,
+                         "Mode in which keyring file should be opened", NULL,
+                         NULL, TRUE);
 
 static struct st_mysql_sys_var *keyring_file_system_variables[]= {
   MYSQL_SYSVAR(data),
+  MYSQL_SYSVAR(open_mode),
   NULL
 };
 
