@@ -283,7 +283,7 @@ SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   SOVERSION ${NDB_SHARED_LIB_VERSION})
 MYSQL_INSTALL_TARGETS(ndbclient_so
   DESTINATION "${INSTALL_LIBDIR}"
-  COMPONENT Developement)
+  COMPONENT Development)
 # Build test program to check linking against ndclient_so
 ADD_EXECUTABLE(ndbclient_shared_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_shared_link_test ndbclient_so)
