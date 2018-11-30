@@ -298,6 +298,7 @@ st_sort_field * make_unireg_sortorder(ORDER *order, uint *length,
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
+void join_const_unlock_row(st_join_table *tab);
 int join_init_quick_read_record(QEP_TAB *tab);
 int join_init_read_record(QEP_TAB *tab);
 int join_read_first(QEP_TAB *tab);
