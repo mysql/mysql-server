@@ -115,6 +115,12 @@ class ConstIterator final : public TableRowIterator {
 
   bool Init() override;
   int Read() override;
+  /**
+    Rows from const tables are read once but potentially used
+    multiple times during execution of a query.
+    Ensure such rows are never unlocked during query execution.
+  */
+  void UnlockRow() override {}
 
  private:
   TABLE_REF *const m_ref;
