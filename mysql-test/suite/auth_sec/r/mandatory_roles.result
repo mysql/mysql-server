@@ -236,9 +236,9 @@ Grants for u1@localhost
 GRANT SELECT ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SET GLOBAL mandatory_roles='';
-ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SUPER privileges, as well as the ROLE_ADMIN privilege(s) for this operation
 SET GLOBAL mandatory_roles='foo@localhost';
-ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SUPER privileges, as well as the ROLE_ADMIN privilege(s) for this operation
 GRANT ''@'localhost' TO u1@localhost;
 ERROR HY000: Failed to grant ``@`localhost`` to `u1`@`localhost`
 SET GLOBAL mandatory_roles='';
