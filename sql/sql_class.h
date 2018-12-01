@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -2179,6 +2179,7 @@ public:
   struct  rand_struct rand;		// used for authentication
   struct  system_variables variables;	// Changeable local variables
   struct  system_status_var status_var; // Per thread statistic vars
+  bool status_var_aggregated; // True if THD status added to global status
   struct  system_status_var *initial_status_var; /* used by show status */
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**

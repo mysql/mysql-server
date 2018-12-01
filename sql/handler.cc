@@ -1214,6 +1214,7 @@ int ha_prepare(THD *thd)
     {
       int err;
       handlerton *ht= ha_info->ht();
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_prepare_count);
       if (ht->prepare)
       {
@@ -1495,6 +1496,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_commit_count);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
@@ -1557,6 +1559,7 @@ int ha_rollback_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error= 1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_rollback_count);
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
@@ -2056,6 +2059,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_savepoint_rollback_count);
     trans->no_2pc|= ht->prepare == 0;
   }
@@ -2073,6 +2077,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_rollback_count);
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
@@ -2106,6 +2111,7 @@ int ha_prepare_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error= 1;
       }
+      DBUG_ASSERT(!thd->status_var_aggregated);
       status_var_increment(thd->status_var.ha_prepare_count);
     }
     DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
@@ -2144,6 +2150,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
     }
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_savepoint_count);
   }
   /*
@@ -5237,7 +5244,10 @@ int ha_discover(THD *thd, const char *db, const char *name,
     error= 0;
 
   if (!error)
+  {
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(thd->status_var.ha_discover_count);
+  }
   DBUG_RETURN(error);
 }
 
@@ -5968,7 +5978,10 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc= !MY_TEST(mode & HA_MRR_NO_ASSOCIATION);
 
   if (is_mrr_assoc)
+  {
+    DBUG_ASSERT(!thd->status_var_aggregated);
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
+  }
  
   rowids_buf_end= buf->buffer_end;
   elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
