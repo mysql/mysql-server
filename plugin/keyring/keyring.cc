@@ -99,6 +99,8 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     keyring_init_psi_keys();
 #endif
 
+    DBUG_EXECUTE_IF("simulate_keyring_init_error", return TRUE;);
+
     if (init_keyring_locks())
       return TRUE;
 
@@ -108,7 +110,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
       logger->log(MY_ERROR_LEVEL, "Could not create keyring directory "
         "The keyring_file will stay unusable until correct path to the keyring "
         "directory gets provided");
-      return FALSE;
+      return TRUE;
     }
     keys.reset(new Keys_container(logger.get()));
     IKeyring_io *keyring_io= new Buffered_file_io(logger.get());
@@ -120,7 +122,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
         " can be created in the specified location. "
         "The keyring_file will stay unusable until correct path to the keyring file "
         "gets provided");
-      return FALSE;
+      return TRUE;
     }
     is_keys_container_initialized = TRUE;
     return FALSE;

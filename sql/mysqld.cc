@@ -4741,7 +4741,7 @@ int mysqld_main(int argc, char **argv)
     }
 
     sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "successfull");
+                          "successful");
     log_error_dest= "stderr";
     flush_error_log_messages();
     unireg_abort(MYSQLD_SUCCESS_EXIT);
