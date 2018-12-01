@@ -121,7 +121,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     keyring_init_psi_keys();
 #endif
 
-    DBUG_EXECUTE_IF("simulate_keyring_init_error", return TRUE;);
+    DBUG_EXECUTE_IF("simulate_keyring_init_error", return true;);
 
     if (init_keyring_locks()) return true;
 
