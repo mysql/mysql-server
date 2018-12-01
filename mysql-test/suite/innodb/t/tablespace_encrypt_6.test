@@ -326,9 +326,10 @@ SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS 
 --echo # Initalize tables
 call tde_db.init_setup();
 
---echo # restart without --early-plugin-load and keyring_file_data
---echo # AND explicitly install plugin to access old table
-let $restart_parameters = restart: ;
+# restart without --early-plugin-load (still need to provide with
+# keyring_file_data otherwise it would point to default location which might be
+# non-writable to mtr). Instead explicitly install plugin to access old table
+let $restart_parameters = restart: --loose-keyring_file_data=MYSQL_TMP_DIR/mydummy_keyring;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
 --source include/restart_mysqld.inc
 
