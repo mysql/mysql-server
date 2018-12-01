@@ -121,12 +121,14 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     keyring_init_psi_keys();
 #endif
 
+    DBUG_EXECUTE_IF("simulate_keyring_init_error", return TRUE;);
+
     if (init_keyring_locks()) return true;
 
     logger.reset(new Logger());
     if (create_keyring_dir_if_does_not_exist(keyring_file_data_value)) {
       logger->log(ERROR_LEVEL, ER_KEYRING_FAILED_TO_CREATE_KEYRING_DIR);
-      return false;
+      return true;
     }
     keys.reset(new Keys_container(logger.get()));
     std::vector<std::string> allowedFileVersionsToInit;
@@ -138,7 +140,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
     if (keys->init(keyring_io, keyring_file_data_value)) {
       is_keys_container_initialized = false;
       logger->log(ERROR_LEVEL, ER_KEYRING_FILE_INIT_FAILED);
-      return false;
+      return true;
     }
     is_keys_container_initialized = true;
     return false;
