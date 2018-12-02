@@ -280,6 +280,20 @@ SELECT variable_name, h1, h2, h3, delta, host, IF(host=delta,'OK','ERROR') Expec
 FROM test.status_results
 ORDER BY variable_name;
 
+
+--echo ================================================================================
+--echo TEST 8: FLUSH STATUS should clear account, host and user status
+--echo ================================================================================
+--echo
+FLUSH STATUS;
+--echo
+SELECT * FROM status_by_account WHERE user LIKE 'user%' AND variable_name IN ('handler_delete');
+--echo
+SELECT * FROM status_by_host WHERE host IN ('localhost') AND variable_name IN ('handler_delete');
+--echo
+SELECT * FROM status_by_user WHERE user LIKE 'user%' AND variable_name IN ('handler_delete');
+
+
 --echo ================================================================================
 --echo CLEANUP
 --echo ================================================================================
