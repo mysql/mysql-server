@@ -2642,7 +2642,7 @@ class Add_status : public Do_THD_Impl {
   Add_status(System_status_var *value) : m_stat_var(value) {}
   virtual void operator()(THD *thd) {
     if (!thd->status_var_aggregated)
-      add_to_status(m_stat_var, &thd->status_var, false);
+      add_to_status(m_stat_var, &thd->status_var);
   }
 
  private:

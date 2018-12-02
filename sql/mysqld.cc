@@ -1478,7 +1478,8 @@ ulong sql_rnd_with_mutex() {
   return tmp;
 }
 
-struct System_status_var *get_thd_status_var(THD *thd) {
+struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
+  *aggregated = thd->status_var_aggregated;
   return &thd->status_var;
 }
 
@@ -10128,11 +10129,11 @@ class Reset_thd_status : public Do_THD_Impl {
  public:
   Reset_thd_status() {}
   virtual void operator()(THD *thd) {
-    /*
-      Add thread's status variabes to global status
-      and reset thread's status variables.
-    */
-    add_to_status(&global_status_var, &thd->status_var, true);
+    /* Update the global status if not done so already. */
+    if (!thd->status_var_aggregated) {
+      add_to_status(&global_status_var, &thd->status_var);
+    }
+    reset_system_status_vars(&thd->status_var);
   }
 };
 

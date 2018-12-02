@@ -960,6 +960,7 @@ class THD : public MDL_context_owner,
     actually reports the previous query, not itself.
   */
   void save_current_query_costs() {
+    DBUG_ASSERT(!status_var_aggregated);
     status_var.last_query_cost = m_current_query_cost;
     status_var.last_query_partial_plans = m_current_query_partial_plans;
   }
