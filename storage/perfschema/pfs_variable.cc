@@ -1306,8 +1306,6 @@ void reset_pfs_status_stats()
   reset_status_by_account();
   reset_status_by_user();
   reset_status_by_host();
-  /* Clear again, updated by previous aggregations. */
-  reset_global_status();
 }
 
 /** @} */
