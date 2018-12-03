@@ -28,10 +28,8 @@ ENDIF()
 ### Includes
 ###
 
-# rpcgen.cmake will store RPC_INCLUDE_DIR in the cache
-IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
-  INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
-  ADD_DEFINITIONS(-DHAVE_TIRPC)
+IF(NOT WIN32)
+  MYSQL_CHECK_RPC()
 ENDIF()
 
 # Add the definition to build XCom with SSL support.
