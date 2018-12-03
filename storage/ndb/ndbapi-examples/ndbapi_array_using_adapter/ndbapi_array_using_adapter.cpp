@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,10 +242,10 @@ static void do_read(Ndb& ndb)
   vector<NdbRecAttr*> attr;
   const int column_count= table->getNoOfColumns();
   attr.reserve(column_count);
-
+  attr.push_back(nullptr);
   for (int i= 1; i < column_count; i++)
   {
-    attr[i] = operation->getValue(i, NULL);
+    attr.push_back(operation->getValue(i, NULL));
     if (attr[i] == NULL) APIERROR(transaction->getNdbError());
   }
 

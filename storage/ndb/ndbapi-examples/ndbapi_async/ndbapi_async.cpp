@@ -61,6 +61,7 @@
 #include <NdbApi.hpp>
 
 #include <stdlib.h>
+#include <string.h>
 #include <iostream> // Used for cout
 #include <config.h>
 #ifdef HAVE_SYS_SELECT_H
@@ -341,10 +342,16 @@ int populate(Ndb * myNdb, int data, async_callback_t * cbData)
 	}
 	asynchExitHandler(myNdb);
       } // if
+      char mercedes[20];
+      char blue[20];
+      memset(mercedes, 0, sizeof(mercedes));
+      memset(blue, 0, sizeof(blue));
+      strcpy(mercedes, "mercedes");
+      strcpy(blue, "blue");
       if(myNdbOperation->insertTuple() < 0  ||
 	 myNdbOperation->equal("REG_NO", data) < 0 ||
-	 myNdbOperation->setValue("BRAND", "Mercedes") <0 ||
-	 myNdbOperation->setValue("COLOR", "Blue") < 0)
+	 myNdbOperation->setValue("BRAND", mercedes) <0 ||
+	 myNdbOperation->setValue("COLOR", blue) < 0)
       {
 	if (asynchErrorHandler(transaction[current].conn, myNdb)) 
 	{
@@ -411,7 +418,7 @@ void mysql_connect_and_create(const char * socket) {
 		  "     BRAND CHAR(20) NOT NULL,"
 		  "     COLOR CHAR(20) NOT NULL,"
 		  "     PRIMARY KEY USING HASH (REG_NO))"
-		  "  ENGINE=NDB"
+		  "  ENGINE=NDB CHARSET=latin1"
     );
   }
   mysql_close(&mysql);
