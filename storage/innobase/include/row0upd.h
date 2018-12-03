@@ -79,7 +79,7 @@ upd_field_t *upd_get_nth_field(const upd_t *update, ulint n);
 @param[in]	trx		transaction */
 UNIV_INLINE
 void upd_field_set_field_no(upd_field_t *upd_field, ulint field_no,
-                            dict_index_t *index, trx_t *trx);
+                            const dict_index_t *index, trx_t *trx);
 
 /** set field number to a update vector field, marks this field is updated
 @param[in,out]	upd_field	update vector field
@@ -87,7 +87,7 @@ void upd_field_set_field_no(upd_field_t *upd_field, ulint field_no,
 @param[in]	index		index */
 UNIV_INLINE
 void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
-                              dict_index_t *index);
+                              const dict_index_t *index);
 /** Returns a field of an update vector by field_no.
  @return update vector field, or NULL */
 UNIV_INLINE
@@ -149,9 +149,9 @@ void row_upd_index_write_log(
  @return true if the update changes the size of some field in index or
  the field is external in rec or update */
 ibool row_upd_changes_field_size_or_external(
-    dict_index_t *index,  /*!< in: index */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
-    const upd_t *update); /*!< in: update vector */
+    const dict_index_t *index, /*!< in: index */
+    const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
+    const upd_t *update);      /*!< in: update vector */
 /** Returns true if row update contains disowned external fields.
  @return true if the update contains disowned external fields. */
 bool row_upd_changes_disowned_external(
@@ -164,7 +164,7 @@ bool row_upd_changes_disowned_external(
  counterpart in ibuf_insert_to_index_page(). */
 void row_upd_rec_in_place(
     rec_t *rec,                /*!< in/out: record where replaced */
-    dict_index_t *index,       /*!< in: the index the record belongs to */
+    const dict_index_t *index, /*!< in: the index the record belongs to */
     const ulint *offsets,      /*!< in: array returned by rec_get_offsets() */
     const upd_t *update,       /*!< in: update vector */
     page_zip_des_t *page_zip); /*!< in: compressed page with enough space
@@ -206,15 +206,15 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
 /** Replaces the new column values stored in the update vector to the index
  entry given. */
 void row_upd_index_replace_new_col_vals_index_pos(
-    dtuple_t *entry,     /*!< in/out: index entry where replaced;
-                         the clustered index record must be
-                         covered by a lock or a page latch to
-                         prevent deletion (rollback or purge) */
-    dict_index_t *index, /*!< in: index; NOTE that this may also be a
+    dtuple_t *entry,           /*!< in/out: index entry where replaced;
+                               the clustered index record must be
+                               covered by a lock or a page latch to
+                               prevent deletion (rollback or purge) */
+    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
                          non-clustered index */
-    const upd_t *update, /*!< in: an update vector built for the index so
-                         that the field number in an upd_field is the
-                         index position */
+    const upd_t *update,       /*!< in: an update vector built for the index so
+                               that the field number in an upd_field is the
+                               index position */
     ibool order_only,
     /*!< in: if TRUE, limit the replacement to
     ordering fields of index; note that this
@@ -224,17 +224,17 @@ void row_upd_index_replace_new_col_vals_index_pos(
 /** Replaces the new column values stored in the update vector to the index
  entry given. */
 void row_upd_index_replace_new_col_vals(
-    dtuple_t *entry,     /*!< in/out: index entry where replaced;
-                         the clustered index record must be
-                         covered by a lock or a page latch to
-                         prevent deletion (rollback or purge) */
-    dict_index_t *index, /*!< in: index; NOTE that this may also be a
+    dtuple_t *entry,           /*!< in/out: index entry where replaced;
+                               the clustered index record must be
+                               covered by a lock or a page latch to
+                               prevent deletion (rollback or purge) */
+    const dict_index_t *index, /*!< in: index; NOTE that this may also be a
                          non-clustered index */
-    const upd_t *update, /*!< in: an update vector built for the
-                         CLUSTERED index so that the field number in
-                         an upd_field is the clustered index position */
-    mem_heap_t *heap);   /*!< in: memory heap for allocating and
-                         copying the new values */
+    const upd_t *update,       /*!< in: an update vector built for the
+                               CLUSTERED index so that the field number in
+                               an upd_field is the clustered index position */
+    mem_heap_t *heap);         /*!< in: memory heap for allocating and
+                               copying the new values */
 /** Replaces the new column values stored in the update vector. */
 void row_upd_replace(
     trx_t *trx,                /*!< in: current transaction. */

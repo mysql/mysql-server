@@ -650,9 +650,9 @@ byte *trx_undo_rec_get_row_ref(
 /** Skips a row reference from an undo log record.
  @return pointer to remaining part of undo record */
 static byte *trx_undo_rec_skip_row_ref(
-    byte *ptr,           /*!< in: remaining part in update undo log
-                         record, at the start of the row reference */
-    dict_index_t *index) /*!< in: clustered index */
+    byte *ptr,                 /*!< in: remaining part in update undo log
+                               record, at the start of the row reference */
+    const dict_index_t *index) /*!< in: clustered index */
 {
   ulint ref_len;
   ulint i;
@@ -846,7 +846,6 @@ static void trx_undo_get_mbr_from_ext(trx_t *trx, dict_index_t *index,
 }
 
 static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
-                                             dict_index_t *index,
                                              upd_field_t *uf,
                                              lob::undo_vers_t *lob_undo) {
   DBUG_ENTER("trx_undo_read_blob_update");
@@ -1633,7 +1632,7 @@ byte *trx_undo_update_rec_get_update(
                                 be preserved as long as the update vector is
                                 used, as we do NOT copy the data in the
                                 record! */
-    dict_index_t *index,        /*!< in: clustered index */
+    const dict_index_t *index,  /*!< in: clustered index */
     ulint type,                 /*!< in: TRX_UNDO_UPD_EXIST_REC,
                                 TRX_UNDO_UPD_DEL_REC, or
                                 TRX_UNDO_DEL_MARK_REC; in the last case,
@@ -1765,7 +1764,7 @@ byte *trx_undo_update_rec_get_update(
 
       if (type_cmpl.is_lob_undo() && type_cmpl.is_lob_updated()) {
         /* Read the partial update on LOB */
-        ptr = trx_undo_read_blob_update(ptr, index, upd_field, lob_undo);
+        ptr = trx_undo_read_blob_update(ptr, upd_field, lob_undo);
       }
     }
 
@@ -2317,37 +2316,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool trx_undo_get_undo_rec(
 #define ATTRIB_USED_ONLY_IN_DEBUG MY_ATTRIBUTE((unused))
 #endif /* UNIV_DEBUG */
 
-/** Build a previous version of a clustered index record. The caller must hold
-a latch on the index page of the clustered index record.
-@param[in]	index_rec	clustered index record in the index tree
-@param[in]	index_mtr	mtr which contains the latch to index_rec page
-                                and purge_view
-@param[in]	rec		version of a clustered index record
-@param[in]	index		clustered index
-@param[in,out]	offsets		rec_get_offsets(rec, index)
-@param[in]	heap		memory heap from which the memory needed is
-                                allocated
-@param[out]	old_vers	previous version, or NULL if rec is the first
-                                inserted version, or if history data has been
-                                deleted
-@param[in]	v_heap		memory heap used to create vrow dtuple if it is
-                                not yet created. This heap diffs from "heap"
-                                above in that it could be
-                                prebuilt->old_vers_heap for selection
-@param[out]	vrow		virtual column info, if any
-@param[in]	v_status	status determine if it is going into this
-                                function by purge thread or not. And if we read
-                                "after image" of undo log has been rebuilt
-@param[in]	lob_undo	LOB undo information.
-@retval true if previous version was built, or if it was an insert or the table
-has been rebuilt
-@retval false if the previous version is earlier than purge_view, or being
-purged, which means that it may have been removed */
 bool trx_undo_prev_version_build(
     const rec_t *index_rec ATTRIB_USED_ONLY_IN_DEBUG,
     mtr_t *index_mtr ATTRIB_USED_ONLY_IN_DEBUG, const rec_t *rec,
-    dict_index_t *index, ulint *offsets, mem_heap_t *heap, rec_t **old_vers,
-    mem_heap_t *v_heap, const dtuple_t **vrow, ulint v_status,
+    const dict_index_t *const index, ulint *offsets, mem_heap_t *heap,
+    rec_t **old_vers, mem_heap_t *v_heap, const dtuple_t **vrow, ulint v_status,
     lob::undo_vers_t *lob_undo) {
   DBUG_ENTER("trx_undo_prev_version_build");
 
@@ -2518,6 +2491,22 @@ bool trx_undo_prev_version_build(
       rec_get_offsets(*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
 #endif  // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
+  /* If vrow is not NULL it means that the caller is interested in the values of
+  the virtual columns for this version.
+  If the UPD_NODE_NO_ORD_CHANGE flag is set on cmpl_info, it means that the
+  change which created this entry in undo log did not affect any column of any
+  secondary index (in particular: virtual), and thus the values of virtual
+  columns were not recorded in undo. In such case the caller may assume that the
+  values of (virtual) columns present in secondary index are exactly the same as
+  they are in the next (more recent) version.
+  If on the other hand the UPD_NODE_NO_ORD_CHANGE flag is not set, then we will
+  make sure that *vrow points to a properly allocated memory and contains the
+  values of virtual columns for this version recovered from undo log.
+  This implies that if the caller has provided a non-NULL vrow, and the *vrow is
+  still NULL after the call, (and old_vers is not NULL) it must be because the
+  UPD_NODE_NO_ORD_CHANGE flag was set for this version.
+  This last statement is an important assumption made by the
+  row_vers_impl_x_locked_low() function. */
   if (vrow && !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
     if (!(*vrow)) {
       *vrow = dtuple_create_with_vcol(v_heap ? v_heap : heap,
