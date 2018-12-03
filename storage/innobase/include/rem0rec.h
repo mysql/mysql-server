@@ -591,9 +591,9 @@ ulint rec_get_converted_size_comp(
  @return size */
 UNIV_INLINE
 ulint rec_get_converted_size(
-    dict_index_t *index,    /*!< in: record descriptor */
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    ulint n_ext)            /*!< in: number of externally stored columns */
+    const dict_index_t *index, /*!< in: record descriptor */
+    const dtuple_t *dtuple,    /*!< in: data tuple */
+    ulint n_ext)               /*!< in: number of externally stored columns */
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /** Copies the first n fields of a physical record to a data tuple.
