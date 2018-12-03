@@ -117,6 +117,9 @@ static const int DEFAULT_PARALLELISM= 0;
 static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
 static const ulong ONE_YEAR_IN_SECONDS= (ulong) 3600L*24L*365L;
 
+static constexpr unsigned MAX_BLOB_ROW_SIZE= 14000;
+static constexpr unsigned DEFAULT_MAX_BLOB_PART_SIZE= MAX_BLOB_ROW_SIZE - 4*13;
+
 ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
 static ulong opt_ndb_wait_setup;
@@ -9513,7 +9516,7 @@ create_ndb_column(THD *thd,
         col.setStripeSize(0);
         if (mod_maxblob->m_found)
         {
-          col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
+          col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
         }
       }
       else if (field_blob->max_data_length() < (1 << 24))
@@ -9535,7 +9538,7 @@ create_ndb_column(THD *thd,
     col.setStripeSize(0);
     if (mod_maxblob->m_found)
     {
-      col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
+      col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
     }
     break;
   mysql_type_long_blob:
@@ -9547,7 +9550,7 @@ create_ndb_column(THD *thd,
       col.setCharset(cs);
     }
     col.setInlineSize(256);
-    col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safety */ 13));
+    col.setPartSize(DEFAULT_MAX_BLOB_PART_SIZE);
     col.setStripeSize(0);
     // The mod_maxblob modified has no effect here, already at max
     break;
@@ -11235,7 +11238,6 @@ int ha_ndbcluster::create(const char *name,
      * 5 - from extra words added by tup/dict??
      */
 
-    // Use NDB_MAX_TUPLE_SIZE_IN_WORDS, unless MAX_BLOB_PART_SIZE is set
     switch (form->field[i]->real_type()) {
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:    
@@ -11245,9 +11247,7 @@ int ha_ndbcluster::create(const char *name,
     {
       NdbDictionary::Column * column= table_map.getColumn(tab, i);
       unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
-      unsigned ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS;
-      if (column->getPartSize() > (int)(4 * ndb_max))
-        ndb_max= NDB_MAX_TUPLE_SIZE_IN_WORDS; // MAX_BLOB_PART_SIZE
+      unsigned ndb_max= MAX_BLOB_ROW_SIZE;
 
       if (size > ndb_max &&
           (pk_length+7) < ndb_max)
