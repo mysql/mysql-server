@@ -3723,6 +3723,7 @@ row_ins(
 						= DB_DUPLICATE_KEY;
 				thr_get_trx(thr)->error_index
 						= node->index;
+			//fall through
 			default:
 				DBUG_RETURN(err);
 			}
