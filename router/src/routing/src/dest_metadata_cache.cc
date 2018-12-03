@@ -51,7 +51,7 @@ using std::runtime_error;
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()
 
-// if client wants a primary and there's none, we can wait up to this amount of
+// if client wants a PRIMARY and there's none, we can wait up to this amount of
 // seconds until giving up and disconnecting the client
 // TODO: possibly this should be made into a configurable option
 static const int kPrimaryFailoverTimeout = 10;
@@ -68,14 +68,14 @@ DestMetadataCacheGroup::ServerRole get_server_role_from_uri(
     throw runtime_error("Missing 'role' in routing destination specification");
 
   const std::string name = uri.at("role");
-  std::string name_lc = name;
-  std::transform(name.begin(), name.end(), name_lc.begin(), ::tolower);
+  std::string name_uc = name;
+  std::transform(name.begin(), name.end(), name_uc.begin(), ::toupper);
 
-  if (name_lc == "primary")
+  if (name_uc == "PRIMARY")
     return DestMetadataCacheGroup::ServerRole::Primary;
-  else if (name_lc == "secondary")
+  else if (name_uc == "SECONDARY")
     return DestMetadataCacheGroup::ServerRole::Secondary;
-  else if (name_lc == "primary_and_secondary")
+  else if (name_uc == "PRIMARY_AND_SECONDARY")
     return DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary;
 
   throw std::runtime_error("Invalid server role in metadata cache routing '" +
@@ -86,11 +86,11 @@ std::string get_server_role_name(
     const DestMetadataCacheGroup::ServerRole role) {
   switch (role) {
     case DestMetadataCacheGroup::ServerRole::Primary:
-      return "primary";
+      return "PRIMARY";
     case DestMetadataCacheGroup::ServerRole::Secondary:
-      return "secondary";
+      return "SECONDARY";
     case DestMetadataCacheGroup::ServerRole::PrimaryAndSecondary:
-      return "primary_and_secondary";
+      return "PRIMARY_AND_SECONDARY";
   }
 
   return "unknown";
@@ -228,7 +228,6 @@ DestMetadataCacheGroup::get_available(
 
     primary_fallback = secondary == managed_servers_vec.end();
   }
-
   // if we are gathering the nodes for the decision about keeping existing
   // connections we look also at the disconnect_on_promoted_to_primary_ setting
   // if set to 'no' we need to allow primaries for role=SECONDARY
@@ -407,7 +406,7 @@ int DestMetadataCacheGroup::get_server_socket(
         log_warning(
             "No available servers found for '%s' %s routing",
             ha_replicaset_.c_str(),
-            server_role_ == ServerRole::Primary ? "primary" : "secondary");
+            server_role_ == ServerRole::Primary ? "PRIMARY" : "SECONDARY");
         return -1;
       }
 

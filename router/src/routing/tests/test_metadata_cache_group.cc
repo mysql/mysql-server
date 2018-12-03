@@ -1184,7 +1184,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryWrongMode) {
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
           &metadata_cache_api_, &routing_sock_ops_),
-      std::runtime_error, "mode 'read-only' is not valid for 'role=primary'");
+      std::runtime_error, "mode 'read-only' is not valid for 'role=PRIMARY'");
 }
 
 TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
@@ -1196,7 +1196,7 @@ TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
           &metadata_cache_api_, &routing_sock_ops_),
       std::runtime_error,
-      "mode 'read-write' is not valid for 'role=secondary'");
+      "mode 'read-write' is not valid for 'role=SECONDARY'");
 }
 
 TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
@@ -1209,7 +1209,7 @@ TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
           &metadata_cache_api_, &routing_sock_ops_),
       std::runtime_error,
-      "mode 'read-write' is not valid for 'role=primary_and_secondary'");
+      "mode 'read-write' is not valid for 'role=PRIMARY_AND_SECONDARY'");
 }
 
 /*****************************************/
