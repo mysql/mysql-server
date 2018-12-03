@@ -51,6 +51,19 @@ ELSE()
   PROJECT("MySQLRouter")
 ENDIF()
 
+# In CMake 3.12 and above, the
+#
+# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
+# * ``check_include_file_cxx`` macro in the
+#   ``CheckIncludeFileCXX`` module, and the
+# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
+#
+# now prefer to link the check executable to the libraries listed in the
+# ``CMAKE_REQUIRED_LIBRARIES`` variable.
+IF(POLICY CMP0075)
+  CMAKE_POLICY(SET CMP0075 OLD)
+ENDIF()
+
 IF(SOLARIS)
   # disable rapidjson optimisation on Solaris as it breaks
   # shared objects that build with -fPIC
