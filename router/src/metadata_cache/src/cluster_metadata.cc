@@ -482,19 +482,16 @@ ClusterMetadata::fetch_instances_from_metadata_server(
       ";");
 
   // example response
+  // clang-format off
   // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
-  // | replicaset_name | mysql_server_uuid                    | role | weight |
-  // version_token | location | I.addresses->>'$.mysqlClassic' |
-  // I.addresses->>'$.mysqlX' |
+  // | replicaset_name | mysql_server_uuid                    | role | weight | version_token | location | I.addresses->>'$.mysqlClassic' | I.addresses->>'$.mysqlX' |
   // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
-  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   |   NULL |
-  // NULL | blabla   | localhost:3310                 | NULL | | default |
-  // 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   |   NULL |          NULL |
-  // blabla   | localhost:3320                 | NULL                     | |
-  // default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   |   NULL |
-  // NULL | blabla   | localhost:3330                 | NULL |
+  // | default         | 30ec658e-861d-11e6-9988-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3310                 | NULL                     |
+  // | default         | 3acfe4ca-861d-11e6-9e56-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3320                 | NULL                     |
+  // | default         | 4c08b4a2-861d-11e6-a256-08002741aeb6 | HA   | NULL   | NULL          | blabla   | localhost:3330                 | NULL                     |
   // +-----------------+--------------------------------------+------+--------+---------------+----------+--------------------------------+--------------------------+
-
+  // clang-format on
+  //
   // The following instance map stores a list of servers mapped to every
   // replicaset name.
   // {
