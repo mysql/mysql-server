@@ -659,6 +659,9 @@ inline void *Allocator<T>::mem_fetch(size_t bytes) {
     }
   } else {
     DBUG_ASSERT(t == Mem_type::DISK);
+    if (!temptable_use_mmap) {
+      throw Result::RECORD_FILE_FULL;
+    }
     ptr = mem_fetch_from_disk(bytes);
     if (ptr == nullptr) {
       throw Result::RECORD_FILE_FULL;

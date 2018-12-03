@@ -4623,6 +4623,11 @@ static Sys_var_ulonglong Sys_temptable_max_ram(
     VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */),
     BLOCK_SIZE(1));
 
+static Sys_var_bool Sys_temptable_use_mmap("temptable_use_mmap",
+                                           "Use mmap files for temptables",
+                                           GLOBAL_VAR(temptable_use_mmap),
+                                           CMD_LINE(OPT_ARG), DEFAULT(true));
+
 static Sys_var_plugin Sys_default_tmp_storage_engine(
     "default_tmp_storage_engine",
     "The default storage engine for new explicit temporary tables",

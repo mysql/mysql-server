@@ -2622,14 +2622,28 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
   bool table_on_disk = false;
   DBUG_ENTER("create_ondisk_from_heap");
 
-  if ((wtable->s->db_type() != heap_hton) ||
-      (error != HA_ERR_RECORD_FILE_FULL)) {
+  if (error != HA_ERR_RECORD_FILE_FULL) {
     /*
       We don't want this error to be converted to a warning, e.g. in case of
       INSERT IGNORE ... SELECT.
     */
     wtable->file->print_error(error, MYF(ME_FATALERROR));
     DBUG_RETURN(1);
+  }
+
+  if (wtable->s->db_type() != heap_hton) {
+    if (wtable->s->db_type() != temptable_hton || temptable_use_mmap) {
+      /* Do not convert in-memory temporary tables to on-disk
+      temporary tables if the storage engine is anything other
+      than the temptable engine or if the user has set the variable
+      temptable_use_mmap to true to use mmap'ed files for temporary
+      tables. */
+      wtable->file->print_error(error, MYF(ME_FATALERROR));
+      DBUG_RETURN(1);
+    }
+
+    /* If we are here, then the in-memory temporary tables need
+    to be converted into on-disk temporary tables */
   }
 
   const char *save_proc_info = thd->proc_info;
@@ -2825,8 +2839,17 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
         psi_batch_started = table->file->end_psi_batch_mode_if_started();
       }
 
-      // Closing the MEMORY table drops it if its ref count is down to zero.
-      (void)table->file->ha_close();
+      // Close the in-memory table
+      if (table->s->db_type() == temptable_hton) {
+        /* Drop the in-memory temptable.
+        This code can execute only if mmap'ed temporary
+        files were disabled using temptable_use_mmap variable */
+        DBUG_ASSERT(temptable_use_mmap == false);
+        table->file->ha_drop_table(table->s->table_name.str);
+      } else {
+        // Closing the MEMORY table drops it if its ref count is down to zero
+        (void)table->file->ha_close();
+      }
       share.tmp_handler_count--;
     }
 

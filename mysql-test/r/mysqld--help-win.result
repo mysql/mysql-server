@@ -1296,6 +1296,9 @@ The following options may be given as the first argument:
  Maximum amount of memory (in bytes) the TempTable storage
  engine is allowed to allocate from the main memory (RAM)
  before starting to store data on disk.
+ --temptable-use-mmap 
+ Use mmap files for temptables
+ (Defaults to on; use --skip-temptable-use-mmap to disable.)
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1694,6 +1697,7 @@ table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
 temptable-max-ram 1073741824
+temptable-use-mmap TRUE
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
