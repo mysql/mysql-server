@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,6 +292,11 @@ void destroy_channel_info(Channel_info* channel_info)
 void dec_connection_count()
 {
   Connection_handler_manager::dec_connection_count();
+}
+
+void increment_aborted_connects()
+{
+  Connection_handler_manager::get_instance()->inc_aborted_connects();
 }
 #endif // !EMBEDDED_LIBRARY
 
