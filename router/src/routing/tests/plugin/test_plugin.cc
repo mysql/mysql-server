@@ -473,11 +473,10 @@ TEST_F(RoutingPluginTests, StartBadUnixSocket) {
   socket = "/this/path/does/not/exist/socket";
   reset_config();
   CmdExecResult cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(
-      cmd_result.output,
-      HasSubstr(
-          "Setting up named socket service '/this/path/does/not/exist/socket': "
-          "No such file or directory"));
+  ASSERT_THAT(cmd_result.output,
+              HasSubstr("Setting up named socket service "
+                        "'/this/path/does/not/exist/socket': "));
+  ASSERT_THAT(cmd_result.output, HasSubstr("No such file or directory"));
 }
 
 TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {

@@ -51,6 +51,8 @@
 // must have this first, before #includes that rely on it
 #include <gtest/gtest_prod.h>
 
+#include "my_config.h"
+
 ////////////////////////////////////////
 // Harness include files
 #include "exception.h"
@@ -102,6 +104,12 @@
 #endif
 
 #if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
+// dlopen/dlclose work differently on Alpine
+#if defined(LINUX_ALPINE)
 #undef USE_DLCLOSE
 #define USE_DLCLOSE 0
 #endif

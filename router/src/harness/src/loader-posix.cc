@@ -24,6 +24,8 @@
 
 #include "mysql/harness/loader.h"
 
+#include "my_config.h"
+
 #include "mysql/harness/filesystem.h"
 
 #include "exception.h"
@@ -48,6 +50,12 @@
 #endif
 
 #if defined(__SANITIZE_ADDRESS__) && __SANITIZE_ADDRESS__ == 1
+#undef USE_DLCLOSE
+#define USE_DLCLOSE 0
+#endif
+
+// dlopen/dlclose work differently on Alpine
+#if defined(LINUX_ALPINE)
 #undef USE_DLCLOSE
 #define USE_DLCLOSE 0
 #endif
