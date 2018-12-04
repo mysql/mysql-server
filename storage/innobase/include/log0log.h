@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -61,6 +61,8 @@ extern	ibool	log_debug_writes;
 /** Write to log */
 # define log_do_write TRUE
 #endif /* UNIV_DEBUG */
+
+static const char ib_logfile_basename[] = "ib_logfile";
 
 /** Wait modes for log_write_up_to @{ */
 #define LOG_NO_WAIT		91
