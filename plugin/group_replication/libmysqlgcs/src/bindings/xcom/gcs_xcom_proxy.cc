@@ -732,7 +732,10 @@ bool Gcs_xcom_proxy_base::test_xcom_tcp_connection(std::string &host,
   connection_descriptor *con = xcom_client_open_connection(host, port);
 
   bool const could_connect_to_local_xcom = (con != nullptr);
-  if (could_connect_to_local_xcom) xcom_client_close_connection(con);
+  bool could_disconnect_from_local_xcom = false;
+  if (could_connect_to_local_xcom) {
+    could_disconnect_from_local_xcom = xcom_client_close_connection(con);
+  }
 
-  return could_connect_to_local_xcom;
+  return could_connect_to_local_xcom && could_disconnect_from_local_xcom;
 }
