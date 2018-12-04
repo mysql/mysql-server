@@ -83,7 +83,7 @@ MACRO (MYSQL_CHECK_RAPIDJSON)
     IF (NOT SYSTEM_RAPIDJSON_FOUND)
       MESSAGE(FATAL_ERROR "Cannot find system rapidjson libraries. You need to "
         "install the required libraries:\n"
-        "  Debian/Ubuntu:              apt-get install rapidjson-dev\n"
+        "  Debian/Ubuntu:              apt install rapidjson-dev\n"
         "  RedHat/Fedora/Oracle Linux: yum install rapidjson-devel\n"
         "  SuSE:                       zypper install rapidjson\n"
         "You can also use the bundled version by specifyng "
