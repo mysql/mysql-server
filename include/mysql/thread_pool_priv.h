@@ -175,4 +175,7 @@ ulong get_max_connections(void);
 */
 my_thread_attr_t *get_connection_attrib(void);
 
+/* Increment the status variable 'Aborted_connects'. */
+void increment_aborted_connects();
+
 #endif  // THREAD_POOL_PRIV_INCLUDED

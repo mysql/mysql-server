@@ -276,6 +276,10 @@ void dec_connection_count() {
   Connection_handler_manager::dec_connection_count();
 }
 
+void increment_aborted_connects() {
+  Connection_handler_manager::get_instance()->inc_aborted_connects();
+}
+
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef) {
   DBUG_ASSERT(chf != NULL && tef != NULL);
