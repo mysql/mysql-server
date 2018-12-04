@@ -607,9 +607,9 @@ sub main {
 
   # Also read from any plugin local or suite specific plugin.defs
   my $plugin_def =
-    "$basedir/components/*/tests/mtr/plugin.defs " .
     "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-    "$basedir/internal/plugin/*/tests/mtr/plugin.defs " . "suite/*/plugin.defs";
+    "$basedir/internal/mysql-test/include/plugin.defs " .
+    "suite/*/plugin.defs";
 
   for (glob $plugin_def) {
     read_plugin_defs($_);
