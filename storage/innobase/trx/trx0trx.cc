@@ -905,6 +905,12 @@ static void trx_resurrect_update(
     trx->start_time = ut_time();
   }
 
+  trx->ddl_operation = undo->dict_operation;
+
+  if (undo->dict_operation) {
+    trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+  }
+
   if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
     trx->undo_no = undo->top_undo_no + 1;
     trx->undo_rseg_space = undo->rseg->space_id;
