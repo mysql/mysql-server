@@ -1702,10 +1702,6 @@ void aggregate_thread_status(PFS_thread *thread, PFS_account *safe_account,
   }
 
   System_status_var *status_var = get_thd_status_var(thd, &aggregated);
-  if (unlikely(aggregated)) {
-    /* THD is being closed, status has already been aggregated. */
-    return;
-  }
 
   if (likely(safe_account != NULL)) {
     safe_account->aggregate_status_stats(status_var);
