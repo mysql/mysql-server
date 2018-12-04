@@ -85,12 +85,18 @@
 %global sles15                1
 %endif
 
+%if 0%{?suse_version} == 1550
+%global dist                  .sl16
+%global sles16                1
+%endif
+
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
 %{?sles12:                %global systemd 1}
 %{?sles15:                %global systemd 1}
+%{?sles16:                %global systemd 1}
 %{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
-%global min                   8.0.0
+%global min                   8.0.11
 
 Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
@@ -131,6 +137,7 @@ BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %{?sles11:BuildRequires: gcc48 gcc48-c++}
 %{?sles12:BuildRequires: gcc7 gcc7-c++}
+%{?sles16:BuildRequires: rpcgen pkgconfig(libtirpc)}
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)

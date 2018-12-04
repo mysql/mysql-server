@@ -61,7 +61,7 @@
 %endif
 
 %if 0%{?rhel} == 7
-%global compatver             5.6.37
+%global compatver             5.6.42
 %global compatlib             18
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
@@ -86,7 +86,7 @@
 %global license_type          GPLv2
 %endif
 
-%global min                   8.0.0
+%global min                   8.0.11
 
 Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
