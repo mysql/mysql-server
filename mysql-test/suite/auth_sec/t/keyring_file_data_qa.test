@@ -69,6 +69,7 @@ FROM INFORMATION_SCHEMA.PLUGINS WHERE plugin_name='keyring_file';
 # Cleanup
 DROP TABLE t1;
 
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --source include/force_restart.inc
 --echo
 --echo #End:
