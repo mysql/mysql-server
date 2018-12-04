@@ -21,4 +21,5 @@ eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/new_keyring_file';
 eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/mysecret_keyring';
 UNINSTALL PLUGIN keyring_file;
 
+--remove_file $MYSQL_TMP_DIR/mydummy_key
 --source include/force_restart.inc

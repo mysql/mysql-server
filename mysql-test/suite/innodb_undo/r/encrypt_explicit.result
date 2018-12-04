@@ -9,7 +9,6 @@ MYSQLD_DATADIR1/
 SHOW VARIABLES LIKE 'keyring_file%';
 Variable_name	Value
 keyring_file_data	key_file/my_keyfile
-keyring_file_open_mode	ON
 SELECT @@innodb_undo_log_encrypt;
 @@innodb_undo_log_encrypt
 1
