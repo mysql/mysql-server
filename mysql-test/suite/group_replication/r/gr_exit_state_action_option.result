@@ -12,20 +12,20 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
 
 #########################################################################
-# 1) Check the default value. It should be ABORT_SERVER.
+# 1) Check the default value. It should be READ_ONLY.
 #########################################################################
 
 SET @@GLOBAL.group_replication_exit_state_action = default;
-include/assert.inc [The default of group_replication_exit_state_action should be ABORT_SERVER]
+include/assert.inc [The default of group_replication_exit_state_action should be READ_ONLY]
 
 #########################################################################
 # 2) Set the sysvar to the possible valid values.
 #########################################################################
 
-SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
-include/assert.inc [The default of group_replication_exit_state_action should be READ_ONLY]
 SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
-include/assert.inc [The default of group_replication_exit_state_action should be ABORT_SERVER]
+include/assert.inc [The value of group_replication_exit_state_action should be ABORT_SERVER]
+SET GLOBAL group_replication_exit_state_action = "READ_ONLY";
+include/assert.inc [The value of group_replication_exit_state_action should be READ_ONLY]
 
 #########################################################################
 # 3) Set the sysvar to invalid values. There should be an error and the
@@ -38,8 +38,7 @@ SET GLOBAL group_replication_exit_state_action = on;
 ERROR 42000: Variable 'group_replication_exit_state_action' can't be set to the value of 'ON'
 SET GLOBAL group_replication_exit_state_action = "abort";
 ERROR 42000: Variable 'group_replication_exit_state_action' can't be set to the value of 'abort'
-SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
-include/assert.inc [The default of group_replication_exit_state_action should be ABORT_SERVER]
+include/assert.inc [The value of group_replication_exit_state_action should be READ_ONLY]
 
 #########################################################################
 # 4) Cleanup.

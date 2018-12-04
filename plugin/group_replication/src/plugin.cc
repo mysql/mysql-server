@@ -209,7 +209,7 @@ ulong timeout_on_unreachable_var = 0;
  Exit state action that is executed when a server involuntarily leaves the
  group.
 */
-ulong exit_state_action_var = EXIT_STATE_ACTION_ABORT_SERVER;
+ulong exit_state_action_var = EXIT_STATE_ACTION_READ_ONLY;
 
 /**
   The default value for auto_increment_increment is choosen taking into
@@ -3376,7 +3376,7 @@ static MYSQL_SYSVAR_ENUM(exit_state_action,     /* name */
                          "ABORT_SERVER.",                /* values */
                          NULL,                           /* check func. */
                          NULL,                           /* update func. */
-                         EXIT_STATE_ACTION_ABORT_SERVER, /* default */
+                         EXIT_STATE_ACTION_READ_ONLY,    /* default */
                          &exit_state_actions_typelib_t); /* type lib */
 
 static MYSQL_SYSVAR_ULONG(
