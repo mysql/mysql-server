@@ -35,9 +35,7 @@ if(!IS_WINDOWS)
   push(@arch_paths, ('/usr/local/jdk/bin', '/usr/local/java/bin', '/usr/local/java/jdk/bin'));
   push(@arch_paths, ('/usr/jdk-latest/bin', '/usr/bin'));
 
-  $java_args = "-d32";
   if ($bits == 64) {
-    $java_args = "-d64";
     push(@arch_paths, ('/usr/java-local/jdk-64/bin', '/usr/local/jdk-64/bin', '/usr/local/java/jdk-64/bin'));
   }
 }

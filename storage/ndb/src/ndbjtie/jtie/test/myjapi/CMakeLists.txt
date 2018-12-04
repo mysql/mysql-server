@@ -79,7 +79,7 @@ ENDIF()
 ADD_TEST(
   NAME test_jtie_myjapi
   COMMAND
-  ${Java_JAVA_EXECUTABLE_PATH} ${Java_JAVA_ARCH_OPT} "-ea" "-Xcheck:jni"
+  ${Java_JAVA_EXECUTABLE_PATH} "-ea" "-Xcheck:jni"
   "-classpath" "${JTIE_MYJAPI_JAR}"
   "-Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}/${JAVA_SUBDIR}"
   "test.MyJapiTest"
