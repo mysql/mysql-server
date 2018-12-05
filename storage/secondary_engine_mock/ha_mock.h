@@ -88,6 +88,8 @@ class ha_mock : public handler {
 
   const char *table_type() const override { return "MOCK"; }
 
+  int prepare_load_table(const TABLE &table) override;
+
   int load_table(const TABLE &table) override;
 
   int unload_table(const char *db_name, const char *table_name) override;

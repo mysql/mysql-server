@@ -138,9 +138,18 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
   return to;
 }
 
+int ha_mock::prepare_load_table(const TABLE &table) {
+  loaded_tables->add(table.s->db.str, table.s->table_name.str);
+  return 0;
+}
+
 int ha_mock::load_table(const TABLE &table) {
   DBUG_ASSERT(table.file != nullptr);
-  loaded_tables->add(table.s->db.str, table.s->table_name.str);
+  if (loaded_tables->get(table.s->db.str, table.s->table_name.str) == nullptr) {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table.s->db.str,
+             table.s->table_name.str);
+    return HA_ERR_KEY_NOT_FOUND;
+  }
   return 0;
 }
 

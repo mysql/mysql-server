@@ -4080,6 +4080,8 @@ class handler {
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                 dd::Table *table_def);
 
+  int ha_prepare_load_table(const TABLE &table);
+
   int ha_load_table(const TABLE &table);
 
   int ha_unload_table(const char *db_name, const char *table_name);
@@ -5781,6 +5783,18 @@ class handler {
   virtual int sample_init();
   virtual int sample_next(uchar *buf);
   virtual int sample_end();
+
+  /**
+   * Prepares secondary engine for loading a table.
+   *
+   * @param table Table opened in primary storage engine.
+   *
+   * @return 0 if success, error code otherwise.
+   */
+  virtual int prepare_load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
+    DBUG_ASSERT(false);
+    return HA_ERR_WRONG_COMMAND;
+  }
 
   /**
    * Loads a table into its defined secondary storage engine.

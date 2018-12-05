@@ -4838,6 +4838,15 @@ int handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
 }
 
 /**
+ * Prepares the secondary engine for table load.
+ *
+ * @sa handler::prepare_load_table()
+ */
+int handler::ha_prepare_load_table(const TABLE &table) {
+  return prepare_load_table(table);
+}
+
+/**
  * Loads a table into its defined secondary storage engine: public interface.
  *
  * @sa handler::load_table()
