@@ -2343,11 +2343,12 @@ enum enum_stats_auto_recalc : int {
 
 /* struct to hold information about the table that should be created */
 struct HA_CREATE_INFO {
-  HA_CREATE_INFO() { memset(this, 0, sizeof(*this)); }
-  const CHARSET_INFO *table_charset, *default_table_charset;
-  LEX_STRING connect_string;
-  const char *password, *tablespace;
-  LEX_STRING comment;
+  const CHARSET_INFO *table_charset{nullptr};
+  const CHARSET_INFO *default_table_charset{nullptr};
+  LEX_STRING connect_string{nullptr, 0};
+  const char *password{nullptr};
+  const char *tablespace{nullptr};
+  LEX_STRING comment{nullptr, 0};
 
   /**
   Algorithm (and possible options) to be used for InnoDB's transparent
@@ -2356,7 +2357,7 @@ struct HA_CREATE_INFO {
   where possible. Note: this value is interpreted by the storage engine only.
   and ignored by the Server layer. */
 
-  LEX_STRING compress;
+  LEX_STRING compress{nullptr, 0};
 
   /**
   This attibute is used for InnoDB's transparent page encryption.
@@ -2364,7 +2365,7 @@ struct HA_CREATE_INFO {
   the data. Note: this value is interpreted by the storage engine only.
   and ignored by the Server layer. */
 
-  LEX_STRING encrypt_type;
+  LEX_STRING encrypt_type{nullptr, 0};
 
   /**
    * Secondary engine of the table.
@@ -2372,19 +2373,21 @@ struct HA_CREATE_INFO {
    */
   LEX_STRING secondary_engine{nullptr, 0};
 
-  const char *data_file_name, *index_file_name;
-  const char *alias;
-  ulonglong max_rows, min_rows;
-  ulonglong auto_increment_value;
-  ulong table_options;
-  ulong avg_row_length;
-  ulong used_fields;
-  ulong key_block_size;
-  uint stats_sample_pages; /* number of pages to sample during
+  const char *data_file_name{nullptr};
+  const char *index_file_name{nullptr};
+  const char *alias{nullptr};
+  ulonglong max_rows{0};
+  ulonglong min_rows{0};
+  ulonglong auto_increment_value{0};
+  ulong table_options{0};
+  ulong avg_row_length{0};
+  ulong used_fields{0};
+  ulong key_block_size{0};
+  uint stats_sample_pages{0}; /* number of pages to sample during
                            stats estimation, if used, otherwise 0. */
-  enum_stats_auto_recalc stats_auto_recalc;
+  enum_stats_auto_recalc stats_auto_recalc{HA_STATS_AUTO_RECALC_DEFAULT};
   SQL_I_List<TABLE_LIST> merge_list;
-  handlerton *db_type;
+  handlerton *db_type{nullptr};
   /**
     Row type of the table definition.
 
@@ -2394,18 +2397,18 @@ struct HA_CREATE_INFO {
     Can be changed either explicitly by the parser.
     If nothing specified inherits the value of the original table (if present).
   */
-  enum row_type row_type;
-  uint null_bits; /* NULL bits at start of record */
-  uint options;   /* OR of HA_CREATE_ options */
-  uint merge_insert_method;
-  enum ha_storage_media storage_media; /* DEFAULT, DISK or MEMORY */
+  enum row_type row_type = ROW_TYPE_DEFAULT;
+  uint null_bits{0}; /* NULL bits at start of record */
+  uint options{0};   /* OR of HA_CREATE_ options */
+  uint merge_insert_method{0};
+  ha_storage_media storage_media{HA_SM_DEFAULT}; /* DEFAULT, DISK or MEMORY */
 
   /*
     A flag to indicate if this table should be marked as a hidden table in
     the data dictionary. One use case is to mark the temporary tables
     created by ALTER to be marked as hidden.
   */
-  bool m_hidden;
+  bool m_hidden{false};
 
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
