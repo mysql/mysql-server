@@ -12254,6 +12254,23 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
 
     if (new_is_temp)
     {
+      if(Ndb_dist_priv_util::is_distributed_priv_table(old_dbname, m_tabname))
+      {
+        // Special case allowing the legacy distributed privilege tables
+        // to be migrated to local shadow tables.  Do not drop the table from
+        // NdbDictionary or publish this change via schema distribution.
+        // Rename the share.
+        ndb_log_info("Migrating legacy privilege table: Rename %s to %s",
+                     m_tabname, new_tabname);
+        Ndb_share_temp_ref share(from, "rename_table__for_local_shadow");
+        assert(! share->op);  // privilege tables never have an event
+        NDB_SHARE_KEY* old_key = share->key; // Save current key
+        NDB_SHARE_KEY* new_key = NDB_SHARE::create_key(to);
+        (void)NDB_SHARE::rename_share(share, new_key);
+        NDB_SHARE::free_key(old_key);
+        DBUG_RETURN(0);
+      }
+
       /*
         This is an alter table which renames real name to temp name.
         ie. step 3) per above and is the first of
@@ -12626,6 +12643,26 @@ drop_table_impl(THD *thd, Ndb *ndb,
   DBUG_RETURN(0);
 }
 
+static void clear_table_from_dictionary_cache(Ndb *ndb,
+                                              const char * db,
+                                              const char * table_name)
+{
+  const NdbDictionary::Dictionary * dict = ndb->getDictionary();
+  ndb->setDatabaseName(db);
+  const NdbDictionary::Table * tab = dict->getTableGlobal(table_name);
+  if(tab)
+  {
+    NdbDictionary::Dictionary::List index_list;
+    dict->listIndexes(index_list, *tab);
+    for (unsigned i = 0; i < index_list.count; i++)
+    {
+      const NdbDictionary::Index * index=
+        dict->getIndexGlobal(index_list.elements[i].name, *tab);
+      dict->removeIndexGlobal(*index, 1 /*invalidate=true*/);
+    }
+    dict->removeTableGlobal(*tab, 1 /*invalidate=true*/);
+  }
+}
 
 int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
 {
@@ -12662,6 +12699,26 @@ int ha_ndbcluster::delete_table(const char *path, const dd::Table *)
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::delete_table"))
   {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+  }
+
+  if(thd_sql_command(thd) == SQLCOM_ALTER_TABLE &&
+     ndb_name_is_temp(m_tabname) &&
+     Ndb_dist_priv_util::is_distributed_priv_table(m_dbname, prepare_name))
+  {
+    ndb_log_info("Migrating legacy privilege table: Drop %s (%s)",
+                 prepare_name, m_tabname);
+    // Special case allowing the legacy distributed privilege tables
+    // to be migrated to local shadow tables. Do not drop the table from
+    // NdbDictionary or publish this change via schema distribution.
+    // Mark the share as dropped, then clear the table from the dictionary cache.
+    mysql_mutex_lock(&ndbcluster_mutex);
+    NDB_SHARE *share= NDB_SHARE::acquire_reference_by_key_have_lock(
+      path, "delete_table__for_local_shadow");
+    NDB_SHARE::mark_share_dropped(&share);
+    NDB_SHARE::release_reference_have_lock(share, "delete_table__for_local_shadow");
+    mysql_mutex_unlock(&ndbcluster_mutex);
+    clear_table_from_dictionary_cache(thd_ndb->ndb, m_dbname, prepare_name);
+    DBUG_RETURN(0);
   }
 
   /*
