@@ -1229,6 +1229,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<keyword> INACTIVE_SYM                  /* MYSQL */
 %token          LATERAL_SYM                   /* SQL-1999-R */
 %token<keyword> OPTIONAL_SYM                  /* MYSQL */
+%token<keyword> SECONDARY_SYM                 /* MYSQL */
 %token<keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
 %token<keyword> SECONDARY_LOAD_SYM            /* MYSQL */
 %token<keyword> SECONDARY_UNLOAD_SYM          /* MYSQL */
@@ -6619,6 +6620,10 @@ column_attribute:
         | not NULL_SYM
           {
             $$= NEW_PTN PT_not_null_column_attr;
+          }
+        | not SECONDARY_SYM
+          {
+            $$= NEW_PTN PT_secondary_column_attr;
           }
         | DEFAULT_SYM now_or_signed_literal
           {
@@ -13922,6 +13927,7 @@ role_or_ident_keyword:
         | ROLE_SYM
         | ROLLBACK_SYM
         | SAVEPOINT_SYM
+        | SECONDARY_SYM
         | SECONDARY_ENGINE_SYM
         | SECONDARY_LOAD_SYM
         | SECONDARY_UNLOAD_SYM

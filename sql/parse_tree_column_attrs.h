@@ -104,6 +104,18 @@ class PT_not_null_column_attr : public PT_column_attr_base {
 };
 
 /**
+  Node for the @SQL{NOT SECONDARY} column attribute
+
+  @ingroup ptn_column_attrs
+*/
+class PT_secondary_column_attr : public PT_column_attr_base {
+ public:
+  void apply_type_flags(unsigned long *type_flags) const override {
+    *type_flags |= NOT_SECONDARY_FLAG;
+  }
+};
+
+/**
   Node for the @SQL{UNIQUE [KEY]} column attribute
 
   @ingroup ptn_column_attrs

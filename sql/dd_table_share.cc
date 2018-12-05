@@ -915,8 +915,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   name = strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()] = '\0';
 
-  dd::Properties *column_options =
-      const_cast<dd::Properties *>(&col_obj->options());
+  const dd::Properties *column_options = &col_obj->options();
 
   // Type
   field_type = dd_get_old_field_type(col_obj->type());
@@ -1089,6 +1088,10 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
         strmake_root(&share->mem_root, comment.c_str(), comment.length());
     reg_field->comment.length = comment.length();
   }
+
+  // NOT SECONDARY column option.
+  if (column_options->exists("not_secondary"))
+    reg_field->flags |= NOT_SECONDARY_FLAG;
 
   reg_field->set_hidden(col_obj->hidden());
 

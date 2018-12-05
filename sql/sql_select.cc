@@ -311,8 +311,35 @@ void reset_statement_timer(THD *thd) {
 }
 
 /**
- * Validates a command with respect to the use_secondary_engine system
- * variable.
+ * Checks if a query reads a column that is _not_ available in the secondary
+ * engine (i.e. a column defined with NOT SECONDARY).
+ *
+ * @param lex Parse tree descriptor.
+ *
+ * @return True if at least one of the read columns is not in the secondary
+ * engine, false otherwise.
+ */
+static bool reads_not_secondary_columns(const LEX *lex) {
+  // Check all read base tables.
+  for (const TABLE_LIST *tl = lex->query_tables; tl != nullptr;
+       tl = tl->next_global) {
+    if (tl->is_placeholder()) continue;
+
+    // Check all read columns of table.
+    for (unsigned int i = bitmap_get_first_set(tl->table->read_set);
+         i != MY_BIT_NONE; i = bitmap_get_next_set(tl->table->read_set, i)) {
+      if (tl->table->field[i]->flags & NOT_SECONDARY_FLAG) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Validates a query that uses the secondary engine
+ *
+ * No validations are done if query has not been prepared against the secondary
+ * engine.
  *
  * @param lex Parse tree descriptor.
  *
@@ -322,9 +349,16 @@ static bool validate_use_secondary_engine(const LEX *lex) {
   const THD *thd = lex->thd;
   const Sql_cmd *sql_cmd = lex->m_sql_cmd;
 
-  // Statement will use secondary engine, no further validations required.
+  // Validation can only be done after statement has been prepared.
+  DBUG_ASSERT(sql_cmd->is_prepared());
+
+  // Ensure that all read columns are in the secondary engine.
   if (sql_cmd->using_secondary_storage_engine()) {
-    DBUG_ASSERT(thd->variables.use_secondary_engine != SECONDARY_ENGINE_OFF);
+    if (reads_not_secondary_columns(lex)) {
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "One or more read columns are marked as NOT SECONDARY");
+      return true;
+    }
     return false;
   }
 
@@ -343,6 +377,7 @@ static bool validate_use_secondary_engine(const LEX *lex) {
         "secondary engine");
     return true;
   }
+
   return false;
 }
 

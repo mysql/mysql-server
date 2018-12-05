@@ -1203,6 +1203,9 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
+    if (flags & NOT_SECONDARY_FLAG)
+      packet->append(STRING_WITH_LEN(" NOT SECONDARY"));
+
     if (field->type() == MYSQL_TYPE_GEOMETRY) {
       const Field_geom *field_geom = down_cast<const Field_geom *>(field);
       if (field_geom->get_srid().has_value()) {

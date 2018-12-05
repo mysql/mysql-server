@@ -101,3 +101,24 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
 DROP TABLE t1;
+#
+# Exclude some columns from secondary engine.
+#
+CREATE TABLE t1 (
+a INT,
+b INT NOT SECONDARY,
+c INT,
+d INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+DROP TABLE t1;
+#
+# Attempt to exclude all columns from secondary engine.
+#
+CREATE TABLE t1 (a INT NOT SECONDARY, b INT NOT SECONDARY) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2 (a INT NOT SECONDARY, KEY i ((a < 10))) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. All columns marked as NOT SECONDARY.
+ALTER TABLE t2 SECONDARY_LOAD;
+ERROR HY000: Secondary engine operation failed. All columns marked as NOT SECONDARY.
+DROP TABLE t1, t2;

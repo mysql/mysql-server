@@ -787,3 +787,227 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 DROP TABLE t1;
+#
+# Load only a subset of columns into secondary engine.
+#
+SET @my_use_secondary_engine = @@use_secondary_engine;
+CREATE TABLE t1 (
+pk INT PRIMARY KEY AUTO_INCREMENT,
+a INT,
+b INT NOT SECONDARY,
+c INT,
+d INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2 (
+pk INT PRIMARY KEY AUTO_INCREMENT,
+e INT,
+f INT NOT SECONDARY,
+g INT,
+h INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 (a, b, c, d) VALUES (1,1,1,1), (1,1,1,1), (2,2,2,2);
+INSERT INTO t2 (e, f, g, h) VALUES (2,2,2,2), (2,2,2,2), (3,3,3,3);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+# Statements which should be sent to primary engine since not all columns
+# are in secondary engine.
+CREATE VIEW v1 as SELECT * FROM t1;
+CREATE VIEW v2 as SELECT t1.a, t2.f FROM t1, t2;
+SELECT * FROM t1;
+pk	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	2	2	2	2
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT 1 FROM t1 WHERE b=1;
+1
+1
+1
+SELECT 1 FROM t1 GROUP BY b;
+1
+1
+1
+SELECT 1 FROM t1 ORDER BY b;
+1
+1
+1
+1
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 WHERE b=1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 GROUP BY b;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM t1 ORDER BY b;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT * FROM v1;
+pk	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	2	2	2	2
+SELECT SUM(b) FROM v1;
+SUM(b)
+4
+SELECT 1 FROM v1 WHERE b=1;
+1
+1
+1
+SELECT 1 FROM v1 GROUP BY b;
+1
+1
+1
+SELECT 1 FROM v1 ORDER BY b;
+1
+1
+1
+1
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ SUM(b) FROM v1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 WHERE b=1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 GROUP BY b;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ 1 FROM v1 ORDER BY b;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT t1.a, t2.f FROM t1, t2;
+a	f
+1	2
+1	2
+1	2
+1	2
+1	3
+1	3
+2	2
+2	2
+2	3
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ t1.a, t2.f FROM t1, t2;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT * FROM v2;
+a	f
+1	2
+1	2
+1	2
+1	2
+1	3
+1	3
+2	2
+2	2
+2	3
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM v2;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+# Statements which should be sent to the secondary engine since all
+# columns are in secondary engine.
+SET @@use_secondary_engine = FORCED;
+CREATE VIEW v3 as SELECT a, c FROM t1;
+CREATE VIEW v4 as SELECT t1.a, t1.c, t2.e, t2.g FROM t1, t2;
+SELECT a, c FROM t1;
+a	c
+SELECT 1 FROM t1 WHERE a=1;
+1
+SELECT * FROM v3;
+a	c
+SELECT t1.a, t1.c, t2.e, t2.g FROM t1, t2;
+a	c	e	g
+SELECT * FROM v4;
+a	c	e	g
+DROP VIEW v1, v2, v3, v4;
+DROP TABLE t1, t2;
+SET @@use_secondary_engine = @my_use_secondary_engine;
+#
+# NOT SECONDARY on partitioned table
+#
+CREATE TABLE t1 (a INT PRIMARY KEY NOT SECONDARY, b INT DEFAULT 10)
+PARTITION BY RANGE (a) (
+PARTITION p0 VALUES LESS THAN (1),
+PARTITION p1 VALUES LESS THAN (2),
+PARTITION p2 VALUES LESS THAN (3),
+PARTITION p3 VALUES LESS THAN (4),
+PARTITION p4 VALUES LESS THAN (5),
+PARTITION p5 VALUES LESS THAN (6),
+PARTITION max VALUES LESS THAN MAXVALUE);
+INSERT INTO t1(a) VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+ALTER TABLE t1 SECONDARY_ENGINE=MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT a FROM t1;
+a
+-1
+0
+1
+2
+3
+4
+5
+6
+7
+8
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+SELECT b FROM t1;
+b
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
+b
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
+DROP TABLE t1;
+#
+# Use NOT SECONDARY as comment.
+#
+CREATE TABLE t1 (a INT /* NOT SECONDARY */, b INT ) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1,1);
+ALTER TABLE t1 SECONDARY_LOAD;
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ a FROM t1;
+a
+FLUSH STATUS;
+SELECT a FROM t1;
+a
+SELECT * FROM t1;
+a	b
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	2
+DROP TABLE t1;
+#
+# Use NOT SECONADRY with other constraint on column.
+#
+CREATE TABLE t1 (a INT, b INT NOT SECONDARY UNIQUE KEY) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 1);
+ALTER TABLE t1 SECONDARY_LOAD;
+FLUSH STATUS;
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ * FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SELECT a FROM t1;
+a
+SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ b FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+DROP TABLE t1;
+# Add NON SECONDARY and do not use SECONDARY_ENGINE AT CREATE
+CREATE TABLE t1 (a INT NOT SECONDARY, b INT);
+INSERT INTO t1 VALUES (1,1);
+SELECT a FROM t1;
+a
+1
+SELECT b FROM t1;
+b
+1
+SELECT * FROM t1;
+a	b
+1	1
+DROP TABLE t1;

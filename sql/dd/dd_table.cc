@@ -691,6 +691,10 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       col_options->set("column_format",
                        static_cast<uint32>(field->column_format()));
 
+    // NOT SECONDARY column option.
+    if (field->flags & NOT_SECONDARY_FLAG)
+      col_options->set("not_secondary", true);
+
     //
     // Write intervals
     //

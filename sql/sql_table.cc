@@ -2445,6 +2445,13 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
       MDL_SHARED_NO_WRITE));
   DBUG_ASSERT(table.s->has_secondary());
 
+  // At least one column must be loaded into the secondary engine.
+  if (bitmap_bits_set(table.read_set) == 0) {
+    my_error(ER_SECONDARY_ENGINE, MYF(0),
+             "All columns marked as NOT SECONDARY");
+    return true;
+  }
+
   // The defined secondary engine must be the name of a valid storage engine.
   plugin_ref plugin =
       ha_resolve_by_name(thd, &table.s->secondary_engine, false);
@@ -10168,8 +10175,22 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
     return true;
 
-  // Allow the secondary engine to load all columns.
-  table_list->table->use_all_columns();
+  // Omit hidden generated columns and columns marked as NOT SECONDARY from
+  // read_set. It is the responsibility of the secondary engine handler to load
+  // only the columns included in the read_set.
+  bitmap_clear_all(table_list->table->read_set);
+  for (Field **field = table_list->table->field; *field != nullptr; ++field) {
+    // Skip hidden generated columns.
+    if (bitmap_is_set(&table_list->table->fields_for_functional_indexes,
+                      (*field)->field_index))
+      continue;
+
+    // Skip columns marked as NOT SECONDARY.
+    if ((*field)->flags & NOT_SECONDARY_FLAG) continue;
+
+    // Mark column as eligible for loading.
+    table_list->table->mark_column_used(*field, MARK_COLUMNS_READ);
+  }
 
   // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
   if (!table_list->table->s->has_secondary()) {

@@ -123,6 +123,29 @@ SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 DROP TABLE t1;
 
+--echo #
+--echo # Exclude some columns from secondary engine.
+--echo #
+CREATE TABLE t1 (
+  a INT,
+  b INT NOT SECONDARY,
+  c INT,
+  d INT NOT SECONDARY
+) SECONDARY_ENGINE MOCK;
+ALTER TABLE t1 SECONDARY_LOAD;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to exclude all columns from secondary engine.
+--echo #
+CREATE TABLE t1 (a INT NOT SECONDARY, b INT NOT SECONDARY) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2 (a INT NOT SECONDARY, KEY i ((a < 10))) SECONDARY_ENGINE MOCK;
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t1 SECONDARY_LOAD;
+--error ER_SECONDARY_ENGINE
+ALTER TABLE t2 SECONDARY_LOAD;
+DROP TABLE t1, t2;
+
 --disable_query_log
 UNINSTALL PLUGIN mock;
 --enable_query_log

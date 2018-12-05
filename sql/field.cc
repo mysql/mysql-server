@@ -2172,7 +2172,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   */
   tmp->auto_flags = Field::NONE;
   tmp->flags &= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG |
-                 BINARY_FLAG | ENUM_FLAG | SET_FLAG);
+                 BINARY_FLAG | ENUM_FLAG | SET_FLAG | NOT_SECONDARY_FLAG);
   tmp->reset_fields();
   return tmp;
 }

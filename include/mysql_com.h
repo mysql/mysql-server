@@ -187,6 +187,10 @@
 #define FIELD_IS_MARKED                   \
   (1 << 28) /**< Intern: field is marked, \
                  general purpose */
+
+/** Field will not be loaded in secondary engine. */
+#define NOT_SECONDARY_FLAG (1 << 29)
+
 /** @}*/
 
 /**
