@@ -29,27 +29,9 @@
 #include <cstring>
 #include <stdexcept>
 
+#include "helpers/router_test_helpers.h"
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"
-
-// TODO This is already defined in ../../../tests/helpers/router_test_helpers.h,
-// but
-//     we don't want to include that (different sub-project).  Instead, it
-//     should be moved to mysql_harness/shared/include/test/helpers.h first, and
-//     then #included from here.
-#define EXPECT_THROW_LIKE(expr, exc, msg)                                     \
-  try {                                                                       \
-    expr;                                                                     \
-    ADD_FAILURE() << "Expected exception of type " #exc << " but got none\n"; \
-  } catch (exc & e) {                                                         \
-    if (std::string(e.what()).find(msg) == std::string::npos) {               \
-      ADD_FAILURE() << "Expected exception with message: " << msg             \
-                    << "\nbut got: " << e.what() << "\n";                     \
-    }                                                                         \
-  } catch (...) {                                                             \
-    ADD_FAILURE() << "Expected exception of type " #exc                       \
-                  << " but got another\n";                                    \
-  }
 
 using ::testing::ContainerEq;
 using ::testing::NotNull;

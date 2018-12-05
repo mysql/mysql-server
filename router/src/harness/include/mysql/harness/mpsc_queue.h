@@ -51,7 +51,7 @@ class MPSCQueueDV {
 
     // free all items in the queue
     while (dequeue(item)) {
-    };
+    }
 
     // free the head node
     Node *front = head_.load(std::memory_order_relaxed);

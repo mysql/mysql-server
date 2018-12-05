@@ -113,8 +113,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
   mysql_harness::Config config;
   mysql_harness::ConfigSection &section = config.add("metadata_cache", "");
 
-  for (const std::pair<std::string, std::string> &pair :
-       test_data.input.extra_config_lines) {
+  for (const auto &pair : test_data.input.extra_config_lines) {
     section.add(pair.first, pair.second);
   }
 
@@ -279,8 +278,7 @@ TEST_P(MetadataCachePluginConfigBadTest, BadConfigs) {
   mysql_harness::Config config;
   mysql_harness::ConfigSection &section = config.add("metadata_cache", "");
 
-  for (const std::pair<std::string, std::string> &pair :
-       test_data.input.extra_config_lines) {
+  for (const auto &pair : test_data.input.extra_config_lines) {
     section.add(pair.first, pair.second);
   }
 

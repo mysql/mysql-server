@@ -35,42 +35,44 @@
     return;                                                        \
   }
 
-#define ASSERT_THROW_LIKE(expr, exc, msg)                                   \
-  try {                                                                     \
-    expr;                                                                   \
-    FAIL() << "Expected exception of type " #exc << " but got none\n";      \
-  } catch (const exc &e) {                                                  \
-    if (std::string(e.what()).find(msg) == std::string::npos) {             \
-      FAIL() << "Expected exception of type " #exc " with message: " << msg \
-             << "\nbut got message: " << e.what() << "\n";                  \
-    }                                                                       \
-  } catch (const std::exception &e) {                                       \
-    FAIL() << "Expected exception of type " #exc "\nbut got "               \
-           << typeid(e).name() << ": " << e.what() << "\n";                 \
-  }
+#define HARNESS_TEST_THROW_LIKE_(statement, expected_exception,                \
+                                 expected_message, fail)                       \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \
+  if (::testing::internal::AlwaysTrue()) {                                     \
+    try {                                                                      \
+      GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);               \
+      fail() << "Expected exception of type " #expected_exception              \
+             << " but got none\n";                                             \
+    } catch (const expected_exception &e) {                                    \
+      if (std::string(e.what()).find(expected_message) == std::string::npos) { \
+        fail() << "Expected exception of type " #expected_exception            \
+                  " with message: "                                            \
+               << expected_message << "\nbut got message: " << e.what()        \
+               << "\n";                                                        \
+      }                                                                        \
+    } catch (...) {                                                            \
+      std::exception_ptr eptr = std::current_exception();                      \
+      try {                                                                    \
+        std::rethrow_exception(eptr);                                          \
+      } catch (const std::exception &e) {                                      \
+        fail() << "Expected exception of type " #expected_message "\nbut got " \
+               << typeid(e).name() << ": " << e.what() << "\n";                \
+      } catch (...) {                                                          \
+        fail() << "Expected exception of type " #expected_message "\nbut got " \
+               << "non-std-exception\n";                                       \
+      }                                                                        \
+    }                                                                          \
+  } else                                                                       \
+    do {                                                                       \
+    } while (0)
 
-/*
- * it would be great if the catch-all part could report the type of the
- * exception we got in a simpler way.
- */
-#define EXPECT_THROW_LIKE(expr, exc, msg)                                     \
-  try {                                                                       \
-    expr;                                                                     \
-    ADD_FAILURE() << "Expected exception of type " #exc << " but got none\n"; \
-  } catch (const exc &e) {                                                    \
-    if (std::string(e.what()).find(msg) == std::string::npos) {               \
-      ADD_FAILURE() << "Expected exception of type " #exc " with message: "   \
-                    << msg << "\nbut got message: " << e.what() << "\n";      \
-    }                                                                         \
-  } catch (...) {                                                             \
-    auto user_e = std::current_exception();                                   \
-    try {                                                                     \
-      std::rethrow_exception(user_e);                                         \
-    } catch (const std::exception &e) {                                       \
-      ADD_FAILURE() << "Expected exception of type " #exc << "\nbut got "     \
-                    << typeid(e).name() << ": " << e.what() << "\n";          \
-    }                                                                         \
-  }
+#define ASSERT_THROW_LIKE(statement, expected_exception, expected_message)  \
+  HARNESS_TEST_THROW_LIKE_(statement, expected_exception, expected_message, \
+                           FAIL)
+
+#define EXPECT_THROW_LIKE(statement, expected_exception, expected_message)  \
+  HARNESS_TEST_THROW_LIKE_(statement, expected_exception, expected_message, \
+                           ADD_FAILURE)
 
 #include "mysql/harness/filesystem.h"
 

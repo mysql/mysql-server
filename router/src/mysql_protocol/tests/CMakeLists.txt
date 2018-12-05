@@ -22,6 +22,7 @@
 
 INCLUDE_DIRECTORIES(
   ../include
+  ../../../tests/
 )
 
 SET(TEST_MODULE mysql_protocol)

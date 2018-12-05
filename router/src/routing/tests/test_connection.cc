@@ -121,7 +121,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
@@ -168,7 +168,7 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
@@ -225,7 +225,7 @@ TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
   EXPECT_CALL(socket_operations_, getpeername(_, _, _))
       .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
                       Return(0)));
-  ;
+
   EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));
 
