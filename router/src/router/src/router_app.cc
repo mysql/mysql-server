@@ -1181,28 +1181,28 @@ void MySQLRouter::prepare_command_options() noexcept {
                           "Install Router as Windows service which starts "
                           "automatically at system boot",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--install-service-manual"}),
       "Install Router as Windows service which needs to be started manually",
       CmdOptionValueReq::none, "",
-      [this](const string &) { /*implemented elsewhere*/ });
+      [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(CmdOption::OptionNames({"--remove-service"}),
                           "Remove Router from Windows services",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(CmdOption::OptionNames({"--service"}),
                           "Start Router as Windows service",
                           CmdOptionValueReq::none, "",
-                          [this](const string &) { /*implemented elsewhere*/ });
+                          [](const string &) { /*implemented elsewhere*/ });
 
   arg_handler_.add_option(
       CmdOption::OptionNames({"--update-credentials-section"}),
       "Updates the credentials for the given section",
-      CmdOptionValueReq::required, "section_name", [this](const string &value) {
+      CmdOptionValueReq::required, "section_name", [](const string &value) {
         std::string prompt = mysqlrouter::string_format(
             "Enter password for config section '%s'", value.c_str());
         std::string pass = mysqlrouter::prompt_password(prompt);
@@ -1216,7 +1216,7 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       CmdOption::OptionNames({"--remove-credentials-section"}),
       "Removes the credentials for the given section",
-      CmdOptionValueReq::required, "section_name", [this](const string &value) {
+      CmdOptionValueReq::required, "section_name", [](const string &value) {
         PasswordVault pv;
         pv.remove_password(value);
         pv.store_passwords();
@@ -1227,7 +1227,7 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       CmdOption::OptionNames({"--clear-all-credentials"}),
       "Clear the vault, removing all the credentials stored on it",
-      CmdOptionValueReq::none, "", [this](const string &) {
+      CmdOptionValueReq::none, "", [](const string &) {
         PasswordVault pv;
         pv.clear_passwords();
         log_info("Removed successfully all passwords from the vault.");

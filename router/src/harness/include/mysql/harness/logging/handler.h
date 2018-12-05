@@ -61,6 +61,10 @@ class HARNESS_EXPORT Handler {
    */
   static constexpr const char *kDefaultName = nullptr;
 
+  explicit Handler() = default;
+  explicit Handler(const Handler &) = default;
+  Handler &operator=(const Handler &) = default;
+
   virtual ~Handler() = default;
 
   void handle(const Record &record);

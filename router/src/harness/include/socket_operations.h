@@ -52,6 +52,15 @@ namespace mysql_harness {
  */
 class HARNESS_EXPORT SocketOperationsBase {
  public:
+#ifdef _WIN32
+  using socket_t = SOCKET;
+#else
+  using socket_t = int;
+#endif
+
+  explicit SocketOperationsBase() = default;
+  explicit SocketOperationsBase(const SocketOperationsBase &) = default;
+  SocketOperationsBase &operator=(const SocketOperationsBase &) = default;
   virtual ~SocketOperationsBase() = default;
 
   // the following functions are thin wrappers around syscalls
@@ -99,7 +108,7 @@ class HARNESS_EXPORT SocketOperationsBase {
    *
    * call connect_non_blocking_status() to get the final result
    */
-  virtual int connect_non_blocking_wait(int sock,
+  virtual int connect_non_blocking_wait(socket_t sock,
                                         std::chrono::milliseconds timeout) = 0;
 
   /**
@@ -182,7 +191,7 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    * @param sock a connected socket
    * @param timeout time to wait for the connect to complete
    */
-  int connect_non_blocking_wait(int sock,
+  int connect_non_blocking_wait(socket_t sock,
                                 std::chrono::milliseconds timeout) override;
 
   /**

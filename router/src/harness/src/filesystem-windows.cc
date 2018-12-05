@@ -41,15 +41,6 @@ using std::ostringstream;
 using std::string;
 
 namespace {
-std::string get_last_error() {
-  char message[512];
-  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS |
-                    FORMAT_MESSAGE_ALLOCATE_BUFFER,
-                nullptr, GetLastError(), LANG_NEUTRAL, message, sizeof(message),
-                nullptr);
-  return std::string(message);
-}
-const std::string dirsep("/");
 const std::string extsep(".");
 }  // namespace
 

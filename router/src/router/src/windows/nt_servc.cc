@@ -174,7 +174,7 @@ BOOL NTService::Remove(LPCSTR szInternName) {
   } else {
     if ((service = OpenService(scm, szInternName, DELETE))) {
       if (!DeleteService(service))
-        printf("Failed to remove the service (code %i)\n", GetLastError());
+        printf("Failed to remove the service (code %lu)\n", GetLastError());
       else {
         printf("Service successfully removed.\n");
         ret_value = TRUE;  // everything went ok

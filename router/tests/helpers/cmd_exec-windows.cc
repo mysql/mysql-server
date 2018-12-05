@@ -163,7 +163,6 @@ int Process_launcher::read_one_char() {
 int Process_launcher::read(char *buf, size_t count) {
   BOOL bSuccess = FALSE;
   DWORD dwBytesRead, dwCode;
-  int i = 0;
 
   while (!(bSuccess = ReadFile(child_out_rd, buf, count, &dwBytesRead, NULL))) {
     dwCode = GetLastError();

@@ -65,7 +65,7 @@ int SocketOperations::poll(struct pollfd *fds, nfds_t nfds,
 }
 
 int SocketOperations::connect_non_blocking_wait(
-    int sock, std::chrono::milliseconds timeout_ms) {
+    socket_t sock, std::chrono::milliseconds timeout_ms) {
   struct pollfd fds[] = {
       {sock, POLLOUT, 0},
   };

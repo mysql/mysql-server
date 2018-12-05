@@ -39,6 +39,9 @@ class HTTP_SERVER_EXPORT BaseRequestHandler {
 
   virtual void handle_request(HttpRequest &req) = 0;
 
+  BaseRequestHandler() = default;
+  explicit BaseRequestHandler(const BaseRequestHandler &) = delete;
+  BaseRequestHandler &operator=(const BaseRequestHandler &) = delete;
   virtual ~BaseRequestHandler();
 };
 

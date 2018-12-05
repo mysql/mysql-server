@@ -63,16 +63,16 @@ extern const std::string kDefaultMetadataCluster;
 extern const unsigned int kDefaultConnectTimeout;
 extern const unsigned int kDefaultReadTimeout;
 
-METADATA_API enum class ReplicasetStatus {
+enum class ReplicasetStatus {
   AvailableWritable,
   AvailableReadOnly,
   UnavailableRecovering,
   Unavailable
 };
 
-METADATA_API enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
+enum class ServerMode { ReadWrite, ReadOnly, Unavailable };
 
-METADATA_API enum class InstanceStatus {
+enum class InstanceStatus {
   Reachable,
   InvalidHost,  // Network connection cannot even be attempted (ie bad IP)
   Unreachable,  // TCP connection cannot be opened
@@ -195,6 +195,14 @@ class METADATA_API ReplicasetStateListenerInterface {
    */
   virtual void notify(const LookupResult &instances,
                       const bool md_servers_reachable) = 0;
+
+  ReplicasetStateListenerInterface() = default;
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit ReplicasetStateListenerInterface(
+      const ReplicasetStateListenerInterface &) = delete;
+  ReplicasetStateListenerInterface &operator=(
+      const ReplicasetStateListenerInterface &) = delete;
   virtual ~ReplicasetStateListenerInterface();
 };
 
@@ -231,10 +239,18 @@ class METADATA_API ReplicasetStateNotifierInterface {
    */
   virtual void remove_listener(const std::string &replicaset_name,
                                ReplicasetStateListenerInterface *listener) = 0;
+
+  ReplicasetStateNotifierInterface() = default;
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit ReplicasetStateNotifierInterface(
+      const ReplicasetStateNotifierInterface &) = delete;
+  ReplicasetStateNotifierInterface &operator=(
+      const ReplicasetStateNotifierInterface &) = delete;
   virtual ~ReplicasetStateNotifierInterface();
 };
 
-METADATA_API class MetadataCacheAPIBase
+class METADATA_API MetadataCacheAPIBase
     : public ReplicasetStateNotifierInterface {
  public:
   /** @brief Initialize a MetadataCache object and start caching
@@ -345,12 +361,17 @@ METADATA_API class MetadataCacheAPIBase
   virtual void remove_listener(const std::string &replicaset_name,
                                ReplicasetStateListenerInterface *listener) = 0;
 
+  MetadataCacheAPIBase() = default;
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit MetadataCacheAPIBase(const MetadataCacheAPIBase &) = delete;
+  MetadataCacheAPIBase &operator=(const MetadataCacheAPIBase &) = delete;
   virtual ~MetadataCacheAPIBase() {}
 };
 
-METADATA_API class MetadataCacheAPI : public MetadataCacheAPIBase {
+class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
  public:
-  static METADATA_API MetadataCacheAPIBase *instance();
+  static MetadataCacheAPIBase *instance();
 
   void cache_init(
       const std::string &group_replication_id,

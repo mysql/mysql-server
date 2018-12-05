@@ -314,7 +314,7 @@ void ProcessLauncher::report_error(const char *msg, const char *prefix) {
                   NULL, dwCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                   (LPTSTR)&lpMsgBuf, 0, NULL);
     std::string msgerr;
-    if (prefix != "") {
+    if (prefix != nullptr) {
       msgerr += std::string(prefix) + "; ";
     }
     msgerr += "SystemError: ";

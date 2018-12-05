@@ -339,7 +339,7 @@ void set_log_level_for_all_loggers(LogLevel level) {
 // However, since we are building a DLL/DSO with this file, and since VS only
 // allows __declspec(dllimport/dllexport) in function declarations, we must
 // provide both declaration and definition.
-extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void LOGGER_API
+extern "C" MY_ATTRIBUTE((format(printf, 3, 0))) void HARNESS_EXPORT
     log_message(LogLevel level, const char *module, const char *fmt,
                 va_list ap);
 

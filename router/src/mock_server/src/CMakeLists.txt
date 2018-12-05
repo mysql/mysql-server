@@ -37,7 +37,7 @@ ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc
 SET(common_libraries)
 SET(math_libraries)
 IF(WIN32)
-  LIST(APPEND common_libraries Ws2_32.lib)
+  LIST(APPEND common_libraries ws2_32)
 ELSEIF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
   LIST(APPEND common_libraries -lnsl -lsocket -lpthread)
   LIST(APPEND math_libraries -lm)

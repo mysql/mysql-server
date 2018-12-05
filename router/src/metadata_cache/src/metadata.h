@@ -46,6 +46,12 @@ class METADATA_API MetaData {
   virtual bool connect(
       const metadata_cache::ManagedInstance &metadata_server) = 0;
   virtual void disconnect() = 0;
+
+  MetaData() = default;
+  // disable copy as it isn't needed right now. Feel free to enable
+  // must be explicitly defined though.
+  explicit MetaData(const MetaData &) = delete;
+  MetaData &operator=(const MetaData &) = delete;
   virtual ~MetaData() {}
 };
 

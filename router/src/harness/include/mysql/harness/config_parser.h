@@ -283,6 +283,7 @@ class HARNESS_EXPORT Config {
   }
 
   Config(const Config &) = default;
+  Config &operator=(const Config &) = default;
   virtual ~Config() = default;
 
   template <class SeqT>
