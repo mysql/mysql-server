@@ -126,7 +126,7 @@ RouterComponentTest::~RouterComponentTest() { purge_dir(logging_dir_.str()); }
 
 void RouterComponentTest::init() {
   using mysql_harness::Path;
-  ;
+
   if (origin_dir_.str().empty()) {
     throw std::runtime_error("Origin dir not set");
   }

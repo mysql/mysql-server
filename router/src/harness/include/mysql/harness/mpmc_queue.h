@@ -66,7 +66,7 @@ class MPMCQueueMS2Lock {
 
     // free all items in the queue
     while (dequeue(item)) {
-    };
+    }
 
     // free the head node
     delete head_;

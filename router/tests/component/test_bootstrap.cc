@@ -131,7 +131,7 @@ void CommonBootstrapTest::bootstrap_failover(
     env_vars.emplace("MYSQL_SERVER_MOCK_PORT_" + std::to_string(ndx),
                      std::to_string(mock_server_config.port));
     ndx++;
-  };
+  }
 
   std::vector<std::tuple<CommandHandle, unsigned int>> mock_servers;
 

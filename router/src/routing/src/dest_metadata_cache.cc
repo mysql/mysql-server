@@ -391,7 +391,6 @@ size_t DestMetadataCacheGroup::get_next_server(
     default:
       assert(0);
       // impossible we verify this in init()
-      ;
   }
 
   return result;
