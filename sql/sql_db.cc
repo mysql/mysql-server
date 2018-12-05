@@ -572,6 +572,12 @@ int mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
   }
 
+  if (ha_check_reserved_db_name(db))
+  {
+    my_error(ER_WRONG_DB_NAME, MYF(0), db);
+    DBUG_RETURN(-1);
+  }
+
   if (lock_schema_name(thd, db))
     DBUG_RETURN(-1);
 
