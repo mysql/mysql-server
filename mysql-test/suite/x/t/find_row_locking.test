@@ -13,7 +13,7 @@ create schema xtest default charset 'utf8mb4';
 
 -->macro Check_data_locks_table
 -->noquery_result
--->stmtsql SELECT COUNT(*) FROM performance_schema.data_locks
+-->stmtsql SELECT COUNT(*) FROM performance_schema.data_locks WHERE OBJECT_NAME='test_coll';
 -->recvtovar %NUM%
 -->endmacro
 
