@@ -840,7 +840,8 @@ protected:
   void handle_invalid_sections_in_send_signal(const Signal*) const;
   void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
-  void handle_send_failed(SendStatus, Signal*) const;
+  template<typename SecPtr>
+  void handle_send_failed(SendStatus, Signal*, Uint32, SecPtr[]) const;
   void handle_out_of_longsignal_memory(Signal*) const;
 
   /**

@@ -43,6 +43,7 @@
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
 #include "ndbd_malloc.hpp"
+#include "signaldata/DumpStateOrd.hpp"
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ContinueFragmented.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
@@ -372,8 +373,12 @@ SimulatedBlock::handle_out_of_longsignal_memory(Signal * signal) const
 			     "");
 }
 
+template<typename SecPtr>
 void
-SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
+SimulatedBlock::handle_send_failed(SendStatus ss,
+                                   Signal * signal,
+                                   Uint32 recNode,
+                                   SecPtr ptr[]) const
 {
   switch(ss){
   case SEND_BUFFER_FULL:
@@ -381,6 +386,31 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
                                "Out of SendBufferMemory in sendSignal", "");
     break;
   case SEND_MESSAGE_TOO_BIG:
+    /* If message is too big when sending CmvmiDummySignal log a convinient
+     * message about it to.
+     * Note that CmvmiDummySignal is not intended for production usage but for
+     * use by test cases.
+     */
+    if (signal->header.theVerId_signalNumber == GSN_DUMP_STATE_ORD &&
+        signal->theData[0] == DumpStateOrd::CmvmiDummySignal)
+    {
+      jam();
+      const Uint32 num_secs = signal->getNoOfSections();
+      char msg[24*4];
+      snprintf(msg,
+               sizeof(msg),
+               "Failed sending CmvmiDummySignal"
+               " (size %u+%u+%u+%u+%u) from %u to %u.",
+               signal->getLength(), num_secs,
+               (num_secs > 0) ? ptr[0].sz : 0,
+               (num_secs > 1) ? ptr[1].sz : 0,
+               (num_secs > 2) ? ptr[2].sz : 0,
+               signal->theData[2],
+               recNode);
+      g_eventLogger->info("%s", msg);
+      infoEvent("%s", msg);
+      return;
+    }
     ErrorReporter::handleError(NDBD_EXIT_NDBREQUIRE,
                                "Message too big in sendSignal", "");
     break;
@@ -391,7 +421,8 @@ SimulatedBlock::handle_send_failed(SendStatus ss, Signal * signal) const
   case SEND_OK:
   case SEND_BLOCKED:
   case SEND_DISCONNECTED:
-    break;
+    // Should never happen
+    ndbabort();
   }
   ndbabort();
 }
@@ -774,7 +805,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, (LinearSectionPtr*)NULL);
     }
   }
   return;
@@ -884,7 +915,7 @@ ndbrequire(noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, (LinearSectionPtr*)NULL);
     }
   }
 
@@ -1006,7 +1037,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, ptr);
     }
   }
 
@@ -1139,7 +1170,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, ptr);
     }
   }
   
@@ -1251,7 +1282,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, sections->m_ptr);
     }
 
     ::releaseSections(SB_SP_ARG noOfSections, sections->m_ptr);
@@ -1382,7 +1413,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, sections->m_ptr);
     }
   }
 
@@ -1514,7 +1545,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, sections->m_ptr);
     }
   }
 
@@ -1655,7 +1686,7 @@ ndbrequire(signal->header.m_noOfSections == 0);
                     ss == SEND_BLOCKED ||
                     ss == SEND_DISCONNECTED)))
     {
-      handle_send_failed(ss, signal);
+      handle_send_failed(ss, signal, recNode, sections->m_ptr);
     }
   }
 

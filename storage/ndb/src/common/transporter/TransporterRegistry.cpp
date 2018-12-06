@@ -792,7 +792,7 @@ TransporterRegistry::prepareSendTemplate(
 	    return SEND_OK;
 	  }
 	}
-	
+
 	WARNING("Signal to " << nodeId << " lost(buffer)");
 	DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
@@ -800,7 +800,7 @@ TransporterRegistry::prepareSendTemplate(
       }
       else
       {
-        g_eventLogger->info("Send message too big");
+        g_eventLogger->info("Send message too big: length %u", lenBytes);
 	return SEND_MESSAGE_TOO_BIG;
       }
     }

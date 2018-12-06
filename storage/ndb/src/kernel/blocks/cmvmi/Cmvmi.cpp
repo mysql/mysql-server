@@ -24,6 +24,8 @@
 
 #include "Cmvmi.hpp"
 
+#include <cstring>
+
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
@@ -1482,6 +1484,144 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
         {
           g_eventLogger->info("Disable Debug level in node log");
           g_eventLogger->disable(Logger::LL_DEBUG);
+        }
+        else if (val == DumpStateOrd::CmvmiRelayDumpStateOrd)
+        {
+          /* MGMD have no transporter to API nodes.  To be able to send a
+           * dump command to an API node MGMD send the dump signal via a
+           * data node using CmvmiRelay command.  The first argument is the
+           * destination node, the rest is the dump command that should be
+           * sent.
+           *
+           * args: dest-node dump-state-ord-code dump-state-ord-arg#1 ...
+           */
+          jam();
+          const Uint32 length = signal->length();
+          if (length < 3)
+          {
+            // Not enough words for sending DUMP_STATE_ORD
+            jam();
+            return;
+          }
+          const Uint32 node_id = signal->theData[1];
+          const Uint32 ref = numberToRef(CMVMI, node_id);
+          std::memmove(&signal->theData[0],
+                       &signal->theData[2],
+                       (length - 2) * sizeof(Uint32));
+          sendSignal(ref , GSN_DUMP_STATE_ORD, signal, length - 2, JBB);
+        }
+        else if (val == DumpStateOrd::CmvmiDummySignal)
+        {
+          /* Log in event logger that signal sent by dump command
+           * CmvmiSendDummySignal is received.  Include information about
+           * signal size and its sections and which node sent it.
+           */
+          jam();
+          const Uint32 node_id = signal->theData[2];
+          const Uint32 num_secs = signal->getNoOfSections();
+          SectionHandle handle(this, signal);
+          SegmentedSectionPtr ptr[3];
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+              handle.getSection(ptr[i], i);
+          }
+          char msg[24*4];
+          snprintf(msg,
+                   sizeof(msg),
+                   "Receiving CmvmiDummySignal"
+                   " (size %u+%u+%u+%u+%u) from %u to %u.",
+                   signal->getLength(),
+                   num_secs,
+                   (num_secs > 0) ? ptr[0].sz : 0,
+                   (num_secs > 1) ? ptr[1].sz : 0,
+                   (num_secs > 2) ? ptr[2].sz : 0,
+                   node_id,
+                   getOwnNodeId());
+          g_eventLogger->info("%s", msg);
+          infoEvent("%s", msg);
+          releaseSections(handle);
+        }
+        else if (val == DumpStateOrd::CmvmiSendDummySignal)
+        {
+          /* Send a CmvmiDummySignal to specified node with specified size and
+           * sections.  This is used to verify that messages with certain
+           * signal sizes and sections can be sent and received.
+           *
+           * The sending is also logged in event logger.  This log entry should
+           * be matched with corresponding log when receiving the
+           * CmvmiDummySignal dump command.  See preceding dump command above.
+           *
+           * args: rep-node dest-node padding frag-size
+           *       #secs sec#1-len sec#2-len sec#3-len
+           */
+          jam();
+          if (signal->length() < 5)
+          {
+            // Not enough words to send a dummy signal
+            jam();
+            return;
+          }
+          const Uint32 node_id = signal->theData[2];
+          const Uint32 ref =
+            (getNodeInfo(node_id).m_type == NodeInfo::DB)
+            ? numberToRef(CMVMI, node_id)
+            : numberToRef(API_CLUSTERMGR, node_id);
+          const Uint32 fill_word = signal->theData[3];
+          const Uint32 frag_size = signal->theData[4];
+          if (frag_size != 0)
+          {
+            // Fragmented signals not supported yet.
+            jam();
+            return;
+          }
+          const Uint32 num_secs = (signal->length() > 5) ? signal->theData[5] : 0;
+          if (num_secs > 3)
+          {
+            jam();
+            return;
+          }
+          Uint32 tot_len = signal->length();
+          LinearSectionPtr ptr[3];
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+            const Uint32 sec_len = signal->theData[6 + i];
+            ptr[i].sz = sec_len;
+            tot_len += sec_len;
+          }
+          Uint32* sec_alloc = NULL;
+          Uint32* sec_data = &signal->theData[signal->length()];
+          if (tot_len > NDB_ARRAY_SIZE(signal->theData))
+          {
+            sec_data = sec_alloc = new Uint32[tot_len];
+          }
+          signal->theData[0] = DumpStateOrd::CmvmiDummySignal;
+          signal->theData[2] = getOwnNodeId();
+          for (Uint32 i = 0; i < tot_len; i++)
+          {
+            sec_data[i] = fill_word;
+          }
+          for (Uint32 i = 0; i < num_secs; i++)
+          {
+            const Uint32 sec_len = signal->theData[6 + i];
+            ptr[i].p = sec_data;
+            sec_data += sec_len;
+          }
+          char msg[24*4];
+          snprintf(msg,
+                   sizeof(msg),
+                   "Sending CmvmiDummySignal"
+                   " (size %u+%u+%u+%u+%u) from %u to %u.",
+                   signal->getLength(),
+                   num_secs,
+                   (num_secs > 0) ? ptr[0].sz : 0,
+                   (num_secs > 1) ? ptr[1].sz : 0,
+                   (num_secs > 2) ? ptr[2].sz : 0,
+                   getOwnNodeId(),
+                   node_id);
+          infoEvent("%s", msg);
+          sendSignal(ref , GSN_DUMP_STATE_ORD, signal,
+                     signal->length(), JBB, ptr, num_secs);
+          delete[] sec_alloc;
         }
       }
     }

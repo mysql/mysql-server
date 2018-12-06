@@ -1,0 +1,166 @@
+select now() into @now;
+section size 3x32768: DB(1) -> DB(1)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000001 0x499602d2 
+0x00000000 0x00000003 0x00008000 0x00008000 
+0x00008000 
+
+* Send biggest supported messages *
+size 8188: MGM(3) -> MGM(3)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000003 0x499602d2 0x00000000 0x00000001 
+0x00001ff1 
+
+size 8188: API(16) -> API(16)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000010 0x499602d2 0x00000000 0x00000001 
+0x00001ff1 
+
+size 8189: DB(2) -> DB(1)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000001 0x499602d2 
+0x00000000 0x00000001 0x00001ff0 
+
+size 8189: DB(1) -> API(32)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000020 0x499602d2 
+0x00000000 0x00000001 0x00001ff0 
+
+size 8188: MGM(3) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001fef 
+
+size 8188: API(16) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001fef 
+
+* Fail send messages bigger than 32KiB bytes *
+size 8192: MGM(3) -> MGM(3)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000003 0x499602d2 0x00000000 0x00000001 
+0x00001ff5 
+
+size 8192: API(16) -> API(16)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000010 0x499602d2 0x00000000 0x00000001 
+0x00001ff5 
+
+size 8192: DB(2) -> DB(1)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000001 0x499602d2 
+0x00000000 0x00000001 0x00001ff3 
+
+size 8192: DB(1) -> API(32)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000020 0x499602d2 
+0x00000000 0x00000001 0x00001ff3 
+
+size 8192: MGM(3) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001ff3 
+
+size 8192: API(16) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001ff3 
+
+* Fail send messages limited by send buffers but not bigger than 32KiB *
+size 8192: MGM(3) -> MGM(3)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000003 0x499602d2 0x00000000 0x00000001 
+0x00001ff5 
+
+size 8192: API(16) -> API(16)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000010 0x499602d2 0x00000000 0x00000001 
+0x00001ff5 
+
+size 8192: DB(2) -> DB(1)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000001 0x499602d2 
+0x00000000 0x00000001 0x00001ff3 
+
+size 8192: DB(1) -> API(32)
+Sending dump signal with data:
+0x0001925d 0x00000001 0x00000020 0x499602d2 
+0x00000000 0x00000001 0x00001ff3 
+
+size 8192: MGM(3) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000003 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001ff3 
+
+size 8192: API(16) -> DB(1)
+Sending dump signal with data:
+0x0001925b 0x00000010 0x0001925d 0x00000001 
+0x00000001 0x499602d2 0x00000000 0x00000001 
+0x00001ff3 
+
+create temporary table ndb_output (
+idx int auto_increment primary key,
+output_line blob
+);
+select
+substr(output_line, 21)
+from ndb_output
+where
+output_line like '%Dummy%'
+  and substr(output_line, 1, 20) >= @now
+group by output_line
+order by
+substr(output_line, instr(output_line, 'size')),
+substr(output_line, 21) desc;
+substr(output_line, 21)
+Node 1: Sending CmvmiDummySignal (size 7+1+8175+0+0) from 16 to 1.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8175+0+0) from 16 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8175+0+0) from 3 to 1.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8175+0+0) from 3 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8176+0+0) from 1 to 32.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8176+0+0) from 1 to 32.
+Node 2: Sending CmvmiDummySignal (size 7+1+8176+0+0) from 2 to 1.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8176+0+0) from 2 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8177+0+0) from 16 to 16.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8177+0+0) from 16 to 16.
+Node 1: Sending CmvmiDummySignal (size 7+1+8177+0+0) from 3 to 3.
+Node 1: Receiving CmvmiDummySignal (size 7+1+8177+0+0) from 3 to 3.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 1 to 32.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 1 to 32.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 1 to 32.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 1 to 32.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 16 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 16 to 1.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 16 to 1.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 16 to 1.
+Node 2: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 2 to 1.
+Node 2: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 2 to 1.
+Node 2: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 2 to 1.
+Node 2: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 2 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 3 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8179+0+0) from 3 to 1.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 3 to 1.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8179+0+0) from 3 to 1.
+Node 1: Sending CmvmiDummySignal (size 7+1+8181+0+0) from 16 to 16.
+Node 1: Sending CmvmiDummySignal (size 7+1+8181+0+0) from 16 to 16.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8181+0+0) from 16 to 16.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8181+0+0) from 16 to 16.
+Node 1: Sending CmvmiDummySignal (size 7+1+8181+0+0) from 3 to 3.
+Node 1: Sending CmvmiDummySignal (size 7+1+8181+0+0) from 3 to 3.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8181+0+0) from 3 to 3.
+Node 1: Failed sending CmvmiDummySignal (size 7+1+8181+0+0) from 3 to 3.
+Node 1: Sending CmvmiDummySignal (size 9+3+32768+32768+32768) from 1 to 1.
+Node 1: Receiving CmvmiDummySignal (size 9+3+32768+32768+32768) from 1 to 1.
+drop table ndb_output;

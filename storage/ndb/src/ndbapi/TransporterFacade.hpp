@@ -96,6 +96,11 @@ public:
 
   // Only sends to nodes which are alive
 private:
+   template<typename SectionPtr>
+   void handle_message_too_big(NodeId,
+                              const NdbApiSignal*,
+                              const SectionPtr[],
+                              Uint32) const;
   int sendSignal(trp_client*, const NdbApiSignal *, NodeId nodeId);
   int sendSignal(trp_client*, const NdbApiSignal*, NodeId,
                  const LinearSectionPtr ptr[3], Uint32 secs);

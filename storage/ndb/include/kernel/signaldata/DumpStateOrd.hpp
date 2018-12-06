@@ -87,6 +87,9 @@ public:
     SetSchedulerResponsiveness = 103000,
     EnableEventLoggerDebug = 103001,
     DisableEventLoggerDebug = 103002,
+    CmvmiRelayDumpStateOrd = 103003,
+    CmvmiDummySignal = 103004,
+    CmvmiSendDummySignal = 103005,
     _CMVMIMax = 103099,
 
     // 1 QMGR Dump information about phase 1 variables
