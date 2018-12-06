@@ -1079,7 +1079,7 @@ DROP USER u1@localhost;
 CREATE USER u1@localhost, u2@localhost IDENTIFIED BY 'abc';
 GRANT ALL ON *.* TO u2@localhost;
 ALTER USER USER() IDENTIFIED WITH 'sha256_password';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''sha256_password'' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH 'sha256_password'' at line 1
 ALTER USER USER() IDENTIFIED BY 'def', u2@localhost PASSWORD EXPIRE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', u2@localhost PASSWORD EXPIRE' at line 1
 ALTER USER USER() IDENTIFIED BY 'def' PASSWORD EXPIRE;

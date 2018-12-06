@@ -237,11 +237,18 @@ int yylex(void *yylval, void *yythd);
   to abort from the parser.
 */
 
-static void MYSQLerror(YYLTYPE *, THD *thd, Parse_tree_root **, const char *s)
+static
+void MYSQLerror(YYLTYPE *location, THD *thd, Parse_tree_root **, const char *s)
 {
-  if (strcmp(s, "syntax error") == 0)
-    s= ER_THD(thd, ER_SYNTAX_ERROR);
-  thd->syntax_error("%s", s);
+  if (strcmp(s, "syntax error") == 0) {
+    thd->syntax_error_at(*location);
+  } else if (strcmp(s, "memory exhausted") == 0) {
+    my_error(ER_OOM, MYF(0));
+  } else {
+    // Find omitted error messages in the generated file (sql_yacc.cc) and fix:
+    DBUG_ASSERT(false);
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+  }
 }
 
 

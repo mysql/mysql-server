@@ -178,7 +178,7 @@ Locked_connects	10
 FLUSH STATUS;
 # Invalid SQL syntax should fail
 CREATE USER u1@localhost REQUIRE NONE ACCOUNT LOCK WITH MAX_QUERIES_PER_HOUR 100;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_QUERIES_PER_HOUR 100' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH MAX_QUERIES_PER_HOUR 100' at line 1
 # CREATE USER SQL syntax check
 DROP USER u1@localhost;
 CREATE USER u1@localhost REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 100 ACCOUNT LOCK;
@@ -207,7 +207,7 @@ CREATE USER for u1@localhost
 CREATE USER 'u1'@'localhost' IDENTIFIED WITH '<default_authentication>' REQUIRE NONE WITH MAX_QUERIES_PER_HOUR 98 PASSWORD EXPIRE ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT PASSWORD REQUIRE CURRENT DEFAULT
 # ALTER USER invalid SQL syntax
 ALTER USER u1@localhost ACCOUNT UNLOCK WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH MAX_QUERIES_PER_HOUR 97 PASSWORD EXPIRE' at line 1
 DROP USER u1@localhost;
 # Duplicated ACCOUNT statement 1
 CREATE USER u1@localhost IDENTIFIED BY 'PASS' ACCOUNT LOCK ACCOUNT UNLOCK;

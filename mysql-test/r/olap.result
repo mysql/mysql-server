@@ -296,17 +296,17 @@ CONCAT(':',product,':')	SUM(profit)	AVG(profit)
 NULL	7785	519.00000
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH CUBE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CUBE' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE' at line 2
 EXPLAIN SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH CUBE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CUBE' at line 2
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE' at line 2
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH CUBE UNION ALL
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CUBE UNION ALL
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CUBE UNION ALL
 SELECT product, country_id , year, SUM(profit) FROM t1
-GROUP BY p' at line 2
+GROUP' at line 2
 drop table t1,t2;
 CREATE TABLE t1 (i int);
 INSERT INTO t1 VALUES(100);
