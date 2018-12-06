@@ -1,6 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates.
-# All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -443,21 +442,27 @@ sub read_line {
 # Read <length> bytes.  Returns the data, or returns undef and sets error.
 sub read_known_length {
   my $self = shift;
-  my $len = shift;
+  my $len  = shift;
   my $data;
+  my $pre_buflen;
 
   $self->{read_try} = 0;
-  while($self->{read_try} < $self->{max_read_tries}) {
-    $self->{read_try}++;
+  while ($self->{read_try} < $self->{max_read_tries}) {
     $data = $self->get_length_from_buffer($len);
-    return $data if(defined($data));
-    if(! $self->read($len - $self->{buflen})) {
-      return undef;
+    return $data if (defined($data));
+    # Desired length is not yet in buffer.
+    $pre_buflen = $self->{buflen};
+    if (!$self->read($len - $pre_buflen)) {  # limited by io_timeout
+      return undef;   # read error
+    }
+    Carp::croak if ($self->{buflen} < $pre_buflen);
+    if($self->{buflen} == $pre_buflen) {
+      $self->{read_try}++;  # select() timed out. Nothing was read.
     }
   }
   # Perhaps the read completed on the final attempt
   $data = $self->get_length_from_buffer($len);
-  if(! defined($data)) {
+  if (!defined($data)) {
     $self->socket_error(0, "read_known_length(): timeout");
   }
   return $data;
