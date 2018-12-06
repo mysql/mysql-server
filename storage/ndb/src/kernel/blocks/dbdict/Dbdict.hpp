@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4819,6 +4819,15 @@ private:
   ArenaAllocator c_arenaAllocator;
   Uint32 c_noOfMetaTables;
   Uint32 c_default_hashmap_size;
+
+  /**
+   * Pool of SafeCounters reserved for use with schema
+   * transactions which currently must not fail to seize
+   * a safecounter.
+   * Other usage should use the generic c_counterMgr pool
+   * and handle failure-to-seize
+   */
+  SafeCounterManager c_reservedCounterMgr;
 };
 
 inline bool
