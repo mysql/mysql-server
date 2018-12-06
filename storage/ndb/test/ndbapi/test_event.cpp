@@ -5664,6 +5664,27 @@ int runCheckAllNodesOnline(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int setEmptySafeCounterPool(const bool val)
+{
+  NdbRestarter restarter;
+
+  int dumpValues[2];
+  dumpValues[0] = 8005;
+  dumpValues[1] = val?1:0;
+
+  return restarter.dumpStateAllNodes(dumpValues, 2);
+}
+
+int setEmptySafeCounterPool(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return setEmptySafeCounterPool(true);
+}
+int clearEmptySafeCounterPool(NDBT_Context* ctx, NDBT_Step* step)
+{
+  return setEmptySafeCounterPool(false);
+}
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -6075,6 +6096,15 @@ TESTCASE("checkParallelTriggerDropReqHandling",
   STEPS(runCreateDropMultipleEventOperations, 10);
   VERIFIER(runCheckAllNodesOnline);
   FINALIZER(runDropMultipleEvents);
+}
+TESTCASE("ExhaustedSafeCounterPool",
+         "Check that DICT is not affected by an exhausted "
+         "SafeCounter pool")
+{
+  INITIALIZER(setEmptySafeCounterPool);
+  INITIALIZER(runCreateShadowTable);
+  FINALIZER(clearEmptySafeCounterPool);
+  FINALIZER(runDropShadowTable);
 }
 
 #if 0
