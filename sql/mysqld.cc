@@ -225,6 +225,41 @@ MySQL clients support the protocol:
 
 -  MySQL Connector/Node.js
 
+@section xprotocol_community_connector How to build a Community Connector
+
+MySQL provides a set of official MySQL Connectors for several popular
+development frameworks and languages like Node.js, .Net, Python, Java, C,
+C++ and more. At the same time, we also encourage community developers to
+create native connectors for their favorite languages. To improve the process
+and encourage creating a community connector going forward, and allow for more
+rapid new feature support within the MySQL communications protocol, we created
+a new protocol called the MySQL X Protocol.
+
+The new X Protocol leverages current industry standards. One of those standards
+in use is protobuf (more formally know as Google Protobuffers).
+The .proto formatted files provide the complete message definitions of the
+X Protocol. Another feature of protobuf is the automatic code generation based
+on those .proto files across a variety of languages for use in community
+developed connectors for MySQL.
+
+These language specific generated files can be used with no restrictions under
+your own terms.
+
+The X Protocol use of .proto makes our protocol design clear and concise,
+no longer requiring the efforts previously required – no longer will you need
+to directly analyze our message format. In addition to the layout of
+the message format, the .proto also defines and documents message sequence
+and flow between the connectors and the MySQL server. The information defined
+in the .proto file makes it easy to implement X protocol support in connector
+code. As those who have written a MySQL connector know, coding the protocol
+is only a small part of the effort required.
+
+Finally, you can focus on the big task of creating a MySQL community
+connector - designing apis, coding, testing, selecting your license, packaging,
+documentation. And, promoting and speaking about your work.
+
+@section xprotocol_mysqlxshell_example X Protocol example
+
 The following figure shows usage of the X %Protocol between MYSQLXSHELL and
 MySQL Server 5.7.12 or higher with the X %Plugin enabled.
 The object _X %Protocol_ on this figure represents rather some concept
