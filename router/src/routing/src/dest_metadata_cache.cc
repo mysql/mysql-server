@@ -474,9 +474,11 @@ void DestMetadataCacheGroup::notify(
 
 void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
   // before using metadata-cache we need to make sure it is initialized
+  // we probe for it max 1000 times each millisecond here, if that's not enough
+  // error out with an exception
   unsigned count = 0;
   while (!cache_api_->is_initialized() && (!env || is_running(env))) {
-    if (count++ > 100) {
+    if (count++ > 1000) {
       throw std::runtime_error(
           "Timed out waiting for metadata-cache to initialize.");
     }
