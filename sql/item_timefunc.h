@@ -137,6 +137,7 @@ class Item_func_dayofmonth final : public Item_int_func {
 
   longlong val_int() override;
   const char *func_name() const override { return "dayofmonth"; }
+  enum Functype functype() const override { return DAY_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 1..31 */
     maybe_null = true;
@@ -173,6 +174,7 @@ class Item_func_month final : public Item_func {
   }
   bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
   const char *func_name() const override { return "month"; }
+  enum Functype functype() const override { return MONTH_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
   bool resolve_type(THD *) override {
     fix_char_length(2);
@@ -220,6 +222,7 @@ class Item_func_hour final : public Item_int_func {
   Item_func_hour(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "hour"; }
+  enum Functype functype() const override { return HOUR_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..23 */
     maybe_null = true;
@@ -236,6 +239,7 @@ class Item_func_minute final : public Item_int_func {
   Item_func_minute(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "minute"; }
+  enum Functype functype() const override { return MINUTE_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
@@ -268,6 +272,7 @@ class Item_func_second final : public Item_int_func {
   Item_func_second(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "second"; }
+  enum Functype functype() const override { return SECOND_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..59 */
     maybe_null = true;
@@ -319,6 +324,7 @@ class Item_func_year final : public Item_int_func {
   Item_func_year(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "year"; }
+  enum Functype functype() const override { return YEAR_FUNC; }
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool resolve_type(THD *) override {
@@ -630,6 +636,7 @@ class Item_date_func : public Item_temporal_func {
   longlong val_date_temporal() override;
   double val_real() override { return static_cast<double>(val_int()); }
   const char *func_name() const override { return "date"; }
+  enum Functype functype() const override { return DATE_FUNC; }
   bool resolve_type(THD *) override { return false; }
   my_decimal *val_decimal(my_decimal *decimal_value) override {
     DBUG_ASSERT(fixed == 1);
@@ -1512,6 +1519,7 @@ class Item_func_microsecond final : public Item_int_func {
   Item_func_microsecond(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "microsecond"; }
+  enum Functype functype() const override { return MICROSECOND_FUNC; }
   bool resolve_type(THD *) override {
     maybe_null = true;
     return false;

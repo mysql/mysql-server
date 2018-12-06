@@ -1113,6 +1113,7 @@ class Item_func_if final : public Item_func {
                          SELECT_LEX *removed_select) override;
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
+  enum Functype functype() const override { return IF_FUNC; }
 };
 
 class Item_func_nullif final : public Item_bool_func2 {
@@ -1580,6 +1581,8 @@ class Item_func_case final : public Item_func {
     set_arguments(list, true);
     memset(&cmp_items, 0, sizeof(cmp_items));
   }
+  int get_first_expr_num() const { return first_expr_num; }
+  int get_else_expr_num() const { return else_expr_num; }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override;
@@ -1599,6 +1602,7 @@ class Item_func_case final : public Item_func {
     return cmp_collation.collation;
   }
   void cleanup() override;
+  enum Functype functype() const override { return CASE_FUNC; }
 };
 
 /**

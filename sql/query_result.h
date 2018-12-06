@@ -159,6 +159,13 @@ class Query_result {
     DBUG_ASSERT(false);
     return nullptr;
   } /* purecov: inspected */
+
+  /**
+    Checks if this Query_result intercepts and transforms the result set.
+
+    @return true if it is an interceptor, false otherwise
+  */
+  virtual bool is_interceptor() const { return false; }
 };
 
 /*
@@ -174,6 +181,7 @@ class Query_result_interceptor : public Query_result {
   bool send_result_set_metadata(THD *, List<Item> &, uint) override {
     return false;
   }
+  bool is_interceptor() const override final { return true; }
 };
 
 class Query_result_send : public Query_result {

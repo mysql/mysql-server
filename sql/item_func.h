@@ -169,7 +169,25 @@ class Item_func : public Item_result_field {
     GSYSVAR_FUNC,
     GROUPING_FUNC,
     TABLE_FUNC,
-    DD_INTERNAL_FUNC
+    DD_INTERNAL_FUNC,
+    PLUS_FUNC,
+    MINUS_FUNC,
+    MUL_FUNC,
+    DIV_FUNC,
+    CEILING_FUNC,
+    SQRT_FUNC,
+    ABS_FUNC,
+    MOD_FUNC,
+    IF_FUNC,
+    CASE_FUNC,
+    YEAR_FUNC,
+    MONTH_FUNC,
+    DAY_FUNC,
+    DATE_FUNC,
+    HOUR_FUNC,
+    MINUTE_FUNC,
+    SECOND_FUNC,
+    MICROSECOND_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -967,6 +985,7 @@ class Item_func_plus final : public Item_func_additive_op {
 
   double real_op() override;
   my_decimal *decimal_op(my_decimal *) override;
+  enum Functype functype() const override { return PLUS_FUNC; }
 };
 
 class Item_func_minus final : public Item_func_additive_op {
@@ -983,6 +1002,7 @@ class Item_func_minus final : public Item_func_additive_op {
   double real_op() override;
   my_decimal *decimal_op(my_decimal *) override;
   bool resolve_type(THD *thd) override;
+  enum Functype functype() const override { return MINUS_FUNC; }
 };
 
 class Item_func_mul final : public Item_num_op {
@@ -997,6 +1017,7 @@ class Item_func_mul final : public Item_num_op {
   void result_precision() override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
+  enum Functype functype() const override { return MUL_FUNC; }
 };
 
 class Item_func_div final : public Item_num_op {
@@ -1012,6 +1033,7 @@ class Item_func_div final : public Item_num_op {
   const char *func_name() const override { return "/"; }
   bool resolve_type(THD *thd) override;
   void result_precision() override;
+  enum Functype functype() const override { return DIV_FUNC; }
 };
 
 class Item_func_int_div final : public Item_int_func {
@@ -1045,6 +1067,7 @@ class Item_func_mod final : public Item_num_op {
   bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
+  enum Functype functype() const override { return MOD_FUNC; }
 };
 
 class Item_func_neg final : public Item_func_num1 {
@@ -1076,6 +1099,7 @@ class Item_func_abs final : public Item_func_num1 {
   bool resolve_type(THD *) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
+  enum Functype functype() const override { return ABS_FUNC; }
 };
 
 // A class to handle logarithmic and trigonometric functions
@@ -1130,6 +1154,7 @@ class Item_func_sqrt final : public Item_dec_func {
   Item_func_sqrt(const POS &pos, Item *a) : Item_dec_func(pos, a) {}
   double val_real() override;
   const char *func_name() const override { return "sqrt"; }
+  enum Functype functype() const override { return SQRT_FUNC; }
 };
 
 class Item_func_pow final : public Item_dec_func {
@@ -1213,6 +1238,7 @@ class Item_func_ceiling final : public Item_func_int_val {
   my_decimal *decimal_op(my_decimal *) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_function_as_value_generator(uchar *) override { return false; }
+  enum Functype functype() const override { return CEILING_FUNC; }
 };
 
 class Item_func_floor final : public Item_func_int_val {
