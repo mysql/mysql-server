@@ -156,8 +156,18 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
           string_format("Setting up TCP service using %s: %s",
                         context_.get_bind_address().str().c_str(), exc.what()));
     }
-    log_info("[%s] started: listening on %s", context_.get_name().c_str(),
-             context_.get_bind_address().str().c_str());
+
+    // routing strategy and mode are mutually-exclusive (mode is legacy)
+    if (routing_strategy_ != RoutingStrategy::kUndefined)
+      log_info("[%s] started: listening on %s, routing strategy = %s",
+               context_.get_name().c_str(),
+               context_.get_bind_address().str().c_str(),
+               get_routing_strategy_name(routing_strategy_).c_str());
+    else
+      log_info("[%s] started: listening on %s, routing mode = %s",
+               context_.get_name().c_str(),
+               context_.get_bind_address().str().c_str(),
+               get_access_mode_name(access_mode_).c_str());
   }
 #ifndef _WIN32
   if (context_.get_bind_named_socket().is_set()) {
