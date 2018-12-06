@@ -180,3 +180,8 @@ max-time: 180
 cmd: testLimits
 args: -n NdbfsBulkOpen T1
 max-time: 360
+
+cmd: test_event
+args: -n ExhaustedSafeCounterPool T1
+max-time: 120
+

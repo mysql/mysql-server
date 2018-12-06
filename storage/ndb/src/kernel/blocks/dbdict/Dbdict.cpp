@@ -328,11 +328,31 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
   }
   if (signal->theData[0] == 8004)
   {
+    infoEvent("DICT: c_reservedCounterMgr size: %u free: %u",
+              c_reservedCounterMgr.getSize(),
+              c_reservedCounterMgr.getNoOfFree());
+    c_reservedCounterMgr.printNODE_FAILREP();
     infoEvent("DICT: c_counterMgr size: %u free: %u",
               c_counterMgr.getSize(),
               c_counterMgr.getNoOfFree());
     c_counterMgr.printNODE_FAILREP();
   }
+#ifdef ERROR_INSERT
+  if (signal->theData[0] == 8005)
+  {
+    bool val = true;
+    if (signal->getLength() == 2)
+    {
+      val = (signal->theData[1] != 0);
+    }
+    g_eventLogger->info("DICT: Setting fake empty generic SafeCounter pool to %u",
+                        val);
+    g_eventLogger->info("DICT: c_counterMgr size: %u free: %u",
+                        c_counterMgr.getSize(),
+                        c_counterMgr.getNoOfFree());
+    c_counterMgr.setFakeEmpty(val);
+  }
+#endif
 
   if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
   {
@@ -2249,7 +2269,8 @@ Dbdict::Dbdict(Block_context& ctx):
   c_restart_enable_fks(false),
   c_nr_upgrade_fks_done(false),
   c_at_restart_skip_indexes(0),
-  c_at_restart_skip_fks(0)
+  c_at_restart_skip_fks(0),
+  c_reservedCounterMgr(* this)
 {
   BLOCK_CONSTRUCTOR(Dbdict);
 
@@ -2532,7 +2553,14 @@ void Dbdict::initCommonData()
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
+  {
+    /* Generous guesstimate : 1 normal, 1 local, 1 recovery */
+    const Uint32 SchemaTransConcurrency = 3;
 
+    const Uint32 DictTakeoverConcurrency = 1;
+    c_reservedCounterMgr.setSize(SchemaTransConcurrency +
+                                 DictTakeoverConcurrency);
+  }
 #if defined VM_TRACE || defined ERROR_INSERT
   g_trace = 99;
 #else
@@ -5397,6 +5425,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_noNodesFailed += numberOfFailedNodes;
   Uint32 theFailedNodes[NdbNodeBitmask::Size];
   memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
+  c_reservedCounterMgr.execNODE_FAILREP(signal);
   c_counterMgr.execNODE_FAILREP(signal);
 
   NdbNodeBitmask failedNodes;
@@ -5478,7 +5507,7 @@ void Dbdict::handle_master_takeover(Signal* signal)
   masterNodePtr.p->m_nodes = c_aliveNodes;
   NodeReceiverGroup rg(DBDICT, masterNodePtr.p->m_nodes);
   {
-    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, masterNodePtr.p->m_counter);
     bool ok = sc.init<DictTakeoverRef>(rg, c_masterNodeId);
     ndbrequire(ok);
   }
@@ -19414,6 +19443,10 @@ void Dbdict::completeSubStartReq(Signal* signal,
       jam();
       NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
       RequestTracker & p = subbPtr.p->m_reqTracker;
+      /**
+       * Expect to have SafeCounter available as we have just
+       * released one to the pool to get here.
+       */
       ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
                                     subbPtr.i));
 
@@ -22598,7 +22631,7 @@ Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
     Check if we got replies from all nodes
   */
   {
-    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, masterNodePtr.p->m_counter);
     if (!sc.clearWaitingFor(nodeId)) {
       jam();
       return;
@@ -22645,7 +22678,7 @@ Dbdict::execDICT_TAKEOVER_CONF(Signal* signal)
     Check that we got reply from all nodes
   */
   {
-    SafeCounter sc(c_counterMgr, masterNodePtr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, masterNodePtr.p->m_counter);
     if (!sc.clearWaitingFor(nodeId)) {
       jam();
       return;
@@ -29840,7 +29873,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       trans_ptr.p->m_ref_nodes.clear();
       NodeReceiverGroup rg(DBDICT, trans_ptr.p->m_nodes);
       {
-        SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+        SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
         bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
         ndbrequire(ok);
       }
@@ -30125,7 +30158,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
 
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -30225,7 +30258,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
   Uint32 nodeId = refToNode(senderRef);
 
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     if (!sc.clearWaitingFor(nodeId)) {
       jam();
       return;
@@ -30308,7 +30341,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
   }
 
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     if (!sc.clearWaitingFor(nodeId)) {
       jam();
       return;
@@ -30561,7 +30594,7 @@ Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -30657,7 +30690,7 @@ Dbdict::trans_prepare_next(Signal* signal,
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -30863,7 +30896,7 @@ Dbdict::trans_abort_parse_next(Signal* signal,
   check_partial_trans_abort_parse_next(trans_ptr, nodes, op_ptr);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31054,7 +31087,7 @@ Dbdict::trans_abort_prepare_next(Signal* signal,
   check_partial_trans_abort_prepare_next(trans_ptr, nodes, op_ptr);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31134,7 +31167,7 @@ Dbdict::trans_rollback_sp_start(Signal* signal, SchemaTransPtr trans_ptr)
     NdbNodeBitmask nodes;
     nodes.set(getOwnNodeId());
     NodeReceiverGroup rg(DBDICT, nodes);
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
 
@@ -31190,7 +31223,7 @@ Dbdict::trans_rollback_sp_next(Signal* signal,
   trans_ptr.p->m_ref_nodes.clear();
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31315,7 +31348,7 @@ Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
   check_partial_trans_commit_start(trans_ptr, nodes);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31568,7 +31601,7 @@ Dbdict::trans_commit_next(Signal* signal,
   check_partial_trans_commit_next(trans_ptr, nodes, op_ptr);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31775,7 +31808,7 @@ Dbdict::trans_complete_start(Signal* signal, SchemaTransPtr trans_ptr)
   check_partial_trans_complete_start(trans_ptr, nodes);
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31857,7 +31890,7 @@ Dbdict::trans_complete_next(Signal* signal,
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
@@ -31955,7 +31988,7 @@ Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
   NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
   NodeReceiverGroup rg(DBDICT, nodes);
   {
-    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    SafeCounter sc(c_reservedCounterMgr, trans_ptr.p->m_counter);
     bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
     ndbrequire(ok);
   }
