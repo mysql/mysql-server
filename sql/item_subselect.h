@@ -359,8 +359,17 @@ class Item_exists_subselect : public Item_subselect {
   enum_exec_method exec_method;
   /// Priority of this predicate in the convert-to-semi-join-nest process.
   int sj_convert_priority;
-  /// True if this predicate is chosen for semi-join transformation
-  bool sj_chosen;
+  /// Decision on whether predicate is selected for semi-join transformation
+  enum enum_sj_selection {
+    /// Not selected for semi-join, evaluate as subquery predicate, or
+    /// replace with a substitution for the Item (e.g. Item_in_optimizer)
+    SJ_NOT_SELECTED,
+    /// Selected for semi-join, replace predicate with "true"
+    SJ_SELECTED,
+    /// Subquery's WHERE is always false, replace predicate with "false"
+    SJ_ALWAYS_FALSE
+  };
+  enum_sj_selection sj_selection{SJ_NOT_SELECTED};
   /**
     Used by subquery optimizations to keep track about where this subquery
     predicate is located, and whether it is a candidate for transformation.
@@ -380,7 +389,6 @@ class Item_exists_subselect : public Item_subselect {
         value(false),
         exec_method(EXEC_UNSPECIFIED),
         sj_convert_priority(0),
-        sj_chosen(false),
         embedding_join_nest(NULL) {}
 
   explicit Item_exists_subselect(const POS &pos)
@@ -388,7 +396,6 @@ class Item_exists_subselect : public Item_subselect {
         value(false),
         exec_method(EXEC_UNSPECIFIED),
         sj_convert_priority(0),
-        sj_chosen(false),
         embedding_join_nest(NULL) {}
 
   trans_res select_transformer(THD *, SELECT_LEX *) override {

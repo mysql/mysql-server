@@ -189,3 +189,88 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#28957660 Regression: Crash in select_lex::flatten_subqueries
+
+CREATE TABLE t1 (a INTEGER);
+
+# Test query derived from the bug report
+let $query=
+SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE 127 = 55);
+eval explain $query;
+eval $query;
+
+# A query where all subqueries are converted to semi-join
+let $query=
+SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1);
+eval explain $query;
+eval $query;
+
+# A query where one subquery cannot be converted (because tables > 61)
+let $query=
+SELECT * FROM t1
+WHERE EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1) AND
+      EXISTS (SELECT * FROM t1);
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;

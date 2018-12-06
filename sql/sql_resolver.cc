@@ -2967,13 +2967,13 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
 
     Conversion of one subquery predicate
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    We start with a join that has a semi-join subquery:
+    We start with a query block that has a semi-join subquery predicate:
 
       SELECT ...
       FROM ot, ...
       WHERE oe IN (SELECT ie FROM it1 ... itN WHERE subq_where) AND outer_where
 
-    and convert it into a semi-join nest:
+    and convert the predicate and subquery into a semi-join nest:
 
       SELECT ...
       FROM ot SEMI JOIN (it1 ... itN), ...
@@ -2982,10 +2982,10 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     that is, in order to do the conversion, we need to
 
      * Create the "SEMI JOIN (it1 .. itN)" part and add it into the parent
-       query's FROM structure.
-     * Add "AND subq_where AND oe=ie" into parent query's WHERE (or ON if
-       the subquery predicate was in an ON expression)
-     * Remove the subquery predicate from the parent query's WHERE
+       query block's FROM structure.
+     * Add "AND subq_where AND oe=ie" into parent query block's WHERE (or ON if
+       the subquery predicate was in an ON condition)
+     * Remove the subquery predicate from the parent query block's WHERE
 
     Considerations when converting many predicates
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3048,7 +3048,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
   }
 
   /*
-    2. Pick which subqueries to convert:
+    Pick which subqueries to convert:
       sort the subquery array
       - prefer correlated subqueries over uncorrelated;
       - prefer subqueries that have greater number of outer tables;
@@ -3061,32 +3061,26 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
   // A permanent transformation is going to start, so:
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  // #tables-in-parent-query + #tables-in-subquery + sj nests <= MAX_TABLES
-  /* Replace all subqueries to be flattened with Item_int(1) */
+  /*
+    Replace all subqueries to be flattened with a truth predicate.
+    Generally, this predicate is TRUE, but if the subquery has a WHERE condition
+    that is always false, replace with a FALSE predicate. In the latter case,
+    also avoid converting the subquery to a semi-join.
+  */
 
   uint table_count = leaf_table_count;
   for (subq = subq_begin; subq < subq_end; subq++) {
     // Add the tables in the subquery nest plus one in case of materialization:
     const uint tables_added =
         (*subq)->unit->first_select()->leaf_table_count + 1;
-    (*subq)->sj_chosen = table_count + tables_added <= MAX_TABLES;
+    if (table_count + tables_added <= MAX_TABLES)
+      (*subq)->sj_selection = Item_exists_subselect::SJ_SELECTED;
 
-    if (!(*subq)->sj_chosen) continue;
-    /*
-      If this subquery has a predicate that can be evaluted to an
-      ALWAYS TRUE or an ALWAYS FALSE condition, do it here before the
-      subquery transformation happens.
-    */
     Item *subq_pred = (*subq)->unit->first_select()->where_cond();
-
-    if (subq_pred && !subq_pred->fixed &&
-        subq_pred->fix_fields(thd, &subq_pred))
-      DBUG_RETURN(true);
     /*
       A predicate can be evaluated to ALWAYS TRUE or ALWAYS FALSE when it
-      has only const items. If it is evaluated to be ALWAYS TRUE, remove
-      the condition. If found to be ALWAYS FALSE, do not include the subquery
-      in transformations.
+      has only const items. If found to be ALWAYS FALSE, do not include
+      the subquery in transformations.
     */
     bool cond_value = true;
     if (subq_pred && subq_pred->const_item() &&
@@ -3095,23 +3089,32 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
         simplify_const_condition(thd, &subq_pred, false, &cond_value))
       DBUG_RETURN(true);
 
-    if (!cond_value) {
-      (*subq)->sj_chosen = false;
+    if (!cond_value)
+      (*subq)->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
+
+    if ((*subq)->sj_selection == Item_exists_subselect::SJ_SELECTED)
+      table_count += tables_added;
+
+    if ((*subq)->sj_selection == Item_exists_subselect::SJ_NOT_SELECTED)
       continue;
-    }
-
-    table_count += tables_added;
-
-    // In WHERE/ON of parent query, replace IN(subq) with "1" (<=>TRUE)
+    /*
+      In WHERE/ON of parent query, replace IN (subq) with truth value:
+      - When subquery is converted to semi-join: truth value true.
+      - When subquery WHERE cond is false: truth value false.
+    */
+    Item *truth_item = new Item_int(cond_value ? 1LL : 0LL);
+    if (truth_item == nullptr) DBUG_RETURN(true);
     Item **tree = ((*subq)->embedding_join_nest == NULL)
                       ? &m_where_cond
                       : (*subq)->embedding_join_nest->join_cond_ref();
-    if (replace_subcondition(thd, tree, *subq, new Item_int(1), false))
+    if (replace_subcondition(thd, tree, *subq, truth_item, false))
       DBUG_RETURN(true); /* purecov: inspected */
   }
 
+  /* Transform the selected subqueries into semi-join */
+
   for (subq = subq_begin; subq < subq_end; subq++) {
-    if (!(*subq)->sj_chosen) continue;
+    if ((*subq)->sj_selection != Item_exists_subselect::SJ_SELECTED) continue;
 
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
                         (*subq)->unit->first_select()->select_number,
@@ -3120,11 +3123,12 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     if (convert_subquery_to_semijoin(thd, *subq)) DBUG_RETURN(true);
   }
   /*
-    3. Finalize the subqueries that we did not convert,
-       ie. perform IN->EXISTS rewrite.
+    Finalize the subqueries that we did not convert,
+    ie. perform IN->EXISTS rewrite.
   */
   for (subq = subq_begin; subq < subq_end; subq++) {
-    if ((*subq)->sj_chosen) continue;
+    if ((*subq)->sj_selection != Item_exists_subselect::SJ_NOT_SELECTED)
+      continue;
     {
       OPT_TRACE_TRANSFORM(trace, oto0, oto1,
                           (*subq)->unit->first_select()->select_number,
@@ -3148,8 +3152,14 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     (*subq)->changed = 1;
     (*subq)->fixed = 1;
 
+    /*
+      If the Item has been substituted with another Item (e.g an
+      Item_in_optimizer), resolve it and add it to proper WHERE or ON clause.
+      If no substitute exists (e.g for EXISTS predicate), no action is required.
+    */
     Item *substitute = (*subq)->substitution;
-    const bool do_fix_fields = !(*subq)->substitution->fixed;
+    if (substitute == nullptr) continue;
+    const bool do_fix_fields = !substitute->fixed;
     const bool subquery_in_join_clause = (*subq)->embedding_join_nest != NULL;
 
     Item **tree = subquery_in_join_clause
