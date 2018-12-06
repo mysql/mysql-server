@@ -869,26 +869,23 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   if (!skip_classic_protocol) {
     if (use_sockets) {
       options.rw_endpoint.socket = kRWSocketName;
-      if (!multi_master) options.ro_endpoint.socket = kROSocketName;
+      options.ro_endpoint.socket = kROSocketName;
     }
     if (!skip_tcp) {
       options.rw_endpoint.port = base_port == 0 ? kDefaultRWPort : base_port++;
-      if (!multi_master)
-        options.ro_endpoint.port =
-            base_port == 0 ? kDefaultROPort : base_port++;
+      options.ro_endpoint.port = base_port == 0 ? kDefaultROPort : base_port++;
     }
   }
   if (!skip_x_protocol) {
     if (use_sockets) {
       options.rw_x_endpoint.socket = kRWXSocketName;
-      if (!multi_master) options.ro_x_endpoint.socket = kROXSocketName;
+      options.ro_x_endpoint.socket = kROXSocketName;
     }
     if (!skip_tcp) {
       options.rw_x_endpoint.port =
           base_port == 0 ? kDefaultRWXPort : base_port++;
-      if (!multi_master)
-        options.ro_x_endpoint.port =
-            base_port == 0 ? kDefaultROXPort : base_port++;
+      options.ro_x_endpoint.port =
+          base_port == 0 ? kDefaultROXPort : base_port++;
     }
   }
   if (user_options.find("logdir") != user_options.end())
@@ -1620,8 +1617,8 @@ static std::string find_executable_path() {
   throw std::logic_error("Could not find own installation directory");
 }
 
-std::string ConfigGenerator::endpoint_option(const Options &options,
-                                             const Options::Endpoint &ep) {
+/*static*/ std::string ConfigGenerator::endpoint_option(
+    const Options &options, const Options::Endpoint &ep) {
   std::string r;
   if (ep.port > 0) {
     auto bind_address =
@@ -1657,6 +1654,31 @@ static void save_initial_dynamic_state(
   // save to out stream
   mdc_dynamic_state.save(state_stream);
 }
+
+/*static*/ std::string ConfigGenerator::gen_metadata_cache_routing_section(
+    bool is_classic, bool is_writable, const Options::Endpoint endpoint,
+    const Options &options, const std::string &metadata_key,
+    const std::string &metadata_replicaset,
+    const std::string &fast_router_key) {
+  if (!endpoint) return "";
+
+  const std::string key_suffix =
+      std::string(is_classic ? "" : "_x") + (is_writable ? "_rw" : "_ro");
+  const std::string role = is_writable ? "PRIMARY" : "SECONDARY";
+  const std::string strategy =
+      is_writable ? "first-available" : "round-robin-with-fallback";
+  const std::string protocol = is_classic ? "classic" : "x";
+
+  // clang-format off
+  return "[routing:" + fast_router_key + key_suffix + "]\n" +
+         endpoint_option(options, endpoint) + "\n" +
+         "destinations=metadata-cache://" + metadata_key + "/" +
+             metadata_replicaset + "?role=" + role + "\n"
+         "routing_strategy=" + strategy + "\n"
+         "protocol=" + protocol + "\n"
+         "\n";
+  // clang-format on
+};
 
 void ConfigGenerator::create_config(
     std::ostream &config_file, std::ostream &state_file, uint32_t router_id,
@@ -1725,42 +1747,18 @@ void ConfigGenerator::create_config(
   config_file << "\n";
 
   const std::string fast_router_key = metadata_key + "_" + metadata_replicaset;
-  if (options.rw_endpoint) {
-    config_file << "[routing:" << fast_router_key << "_rw]\n"
-                << endpoint_option(options, options.rw_endpoint) << "\n"
-                << "destinations=metadata-cache://" << metadata_key << "/"
-                << metadata_replicaset << "?role=PRIMARY\n"
-                << "routing_strategy=round-robin\n"
-                << "protocol=classic\n"
-                << "\n";
-  }
-  if (options.ro_endpoint) {
-    config_file << "[routing:" << fast_router_key << "_ro]\n"
-                << endpoint_option(options, options.ro_endpoint) << "\n"
-                << "destinations=metadata-cache://" << metadata_key << "/"
-                << metadata_replicaset << "?role=SECONDARY\n"
-                << "routing_strategy=round-robin\n"
-                << "protocol=classic\n"
-                << "\n";
-  }
-  if (options.rw_x_endpoint) {
-    config_file << "[routing:" << fast_router_key << "_x_rw]\n"
-                << endpoint_option(options, options.rw_x_endpoint) << "\n"
-                << "destinations=metadata-cache://" << metadata_key << "/"
-                << metadata_replicaset << "?role=PRIMARY\n"
-                << "routing_strategy=round-robin\n"
-                << "protocol=x\n"
-                << "\n";
-  }
-  if (options.ro_x_endpoint) {
-    config_file << "[routing:" << fast_router_key << "_x_ro]\n"
-                << endpoint_option(options, options.ro_x_endpoint) << "\n"
-                << "destinations=metadata-cache://" << metadata_key << "/"
-                << metadata_replicaset << "?role=SECONDARY\n"
-                << "routing_strategy=round-robin\n"
-                << "protocol=x\n"
-                << "\n";
-  }
+
+  // proxy to save on typing the same long list of args
+  auto gen_mdc_rt_sect = [&](bool is_classic, bool is_writable,
+                             Options::Endpoint endpoint) {
+    return gen_metadata_cache_routing_section(
+        is_classic, is_writable, endpoint, options, metadata_key,
+        metadata_replicaset, fast_router_key);
+  };
+  config_file << gen_mdc_rt_sect(true, true, options.rw_endpoint);
+  config_file << gen_mdc_rt_sect(true, false, options.ro_endpoint);
+  config_file << gen_mdc_rt_sect(false, true, options.rw_x_endpoint);
+  config_file << gen_mdc_rt_sect(false, false, options.ro_x_endpoint);
   config_file.flush();
 }
 
