@@ -187,11 +187,10 @@ static bool row_clust_vers_matches_sec(
   dtuple_t *entry = row_build_index_entry(row, ext, sec_index, heap);
 
   /** If the reconstructed values do not match the secondary index then we know
-  we should report no match */
-  if (0 != cmp_dtuple_rec(entry, sec_rec, sec_index, sec_offsets)) {
-    return false;
-  }
-  /** We also compare the strings in binary mode to make it more robust */
+  we should report no match. We compare the strings in binary mode to make it
+  more robust, because a thread which has changed "a" to "A" should prevent
+  concurrent transactions from peeking into the new binary representation,
+  say via CONVERT(column_name, binary). */
   dtuple_set_types_binary(entry, dtuple_get_n_fields(entry));
   return (0 == cmp_dtuple_rec(entry, sec_rec, sec_index, sec_offsets));
 }
