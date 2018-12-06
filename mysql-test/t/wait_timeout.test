@@ -66,8 +66,7 @@ let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.processlist;
 connection default;
 # When the connection is closed in this way, the error code should
 # be consistent see Bug#2845 for an explanation
-# depending on platform/client, either errno 2006 or 2013 can occur below
---error 2006,2013
+--error ER_NET_WAIT_ERROR
 SELECT 2;
 --echo --enable_reconnect;
 --enable_reconnect
@@ -123,8 +122,7 @@ disconnect wait_con;
 connection con1;
 # When the connection is closed in this way, the error code should
 # be consistent see Bug#2845 for an explanation
-# depending on platform/client, either errno 2006 or 2013 can occur below
---error 2006,2013
+--error ER_NET_WAIT_ERROR
 SELECT 2;
 --echo --enable_reconnect;
 --enable_reconnect
@@ -161,12 +159,44 @@ let $wait_condition=
 
 --echo # Check that con1 has been disconnected.
 connection con1;
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--error ER_NET_WAIT_ERROR
 SELECT 1;
 
 disconnect con1;
 connection default;
+
+--echo #
+--echo # Test UNIX domain sockets timeout with reconnect.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,localhost,root,,);
+
+--echo --enable_reconnect;
+--enable_reconnect
+SET @is_old_connection = 1;
+SELECT @is_old_connection;
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been reconnected.
+connection con1;
+--error ER_NET_WAIT_ERROR
+SELECT "Unix domain socket will hit wait_timeout with reconnect";
+
+SELECT @is_old_connection;
+
+disconnect con1;
+connection default;
+
 
 --echo #
 --echo # Test TCP/IP sockets timeout.
@@ -187,9 +217,47 @@ let $wait_condition=
 
 --echo # Check that con1 has been disconnected.
 connection con1;
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--error ER_NET_WAIT_ERROR
 SELECT 1;
+
+# depending on platform/client, either errno 2006 or 2013 can occur below
+--error 2006,2013
+SELECT "TCP/IP reconnect check";
+
+disconnect con1;
+connection default;
+
+
+
+--echo #
+--echo # Test TCP/IP sockets timeout with reconnect.
+--echo #
+
+--echo # Open con1 and set a timeout.
+connect(con1,127.0.0.1,root,,);
+
+--echo --enable_reconnect;
+--enable_reconnect
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+SET @is_old_connection = 1;
+SELECT @is_old_connection;
+
+--echo # Wait for con1 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con1 has been disconnected.
+connection con1;
+# TODO: Investigate why no error with updated client and old server?
+# Expected: https://dev.mysql.com/doc/refman/5.7/en/c-api-auto-reconnect.html
+--error ER_NET_WAIT_ERROR
+SELECT "TCP/IP will hit wait_timeout with reconnect";
+
+SELECT @is_old_connection;
 
 disconnect con1;
 connection default;

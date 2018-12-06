@@ -9,7 +9,7 @@ SELECT 1;
 connection wait_con;
 connection default;
 SELECT 2;
-Got one of the listed errors
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
 --enable_reconnect;
 SELECT 3;
 3
@@ -24,7 +24,7 @@ SELECT 1;
 connection wait_con;
 connection con1;
 SELECT 2;
-Got one of the listed errors
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
 --enable_reconnect;
 SELECT 3;
 3
@@ -41,9 +41,25 @@ disconnection con1;
 SET @@SESSION.wait_timeout = 2;
 # Wait for con1 to be disconnected.
 # Check that con1 has been disconnected.
-# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 SELECT 1;
-Got one of the listed errors
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
+#
+# Test UNIX domain sockets timeout with reconnect.
+#
+# Open con1 and set a timeout.
+--enable_reconnect;
+SET @is_old_connection = 1;
+SELECT @is_old_connection;
+@is_old_connection
+1
+SET @@SESSION.wait_timeout = 2;
+# Wait for con1 to be disconnected.
+# Check that con1 has been reconnected.
+SELECT "Unix domain socket will hit wait_timeout with reconnect";
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
+SELECT @is_old_connection;
+@is_old_connection
+NULL
 #
 # Test TCP/IP sockets timeout.
 #
@@ -51,6 +67,24 @@ Got one of the listed errors
 SET @@SESSION.wait_timeout = 2;
 # Wait for con1 to be disconnected.
 # Check that con1 has been disconnected.
-# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 SELECT 1;
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
+SELECT "TCP/IP reconnect check";
 Got one of the listed errors
+#
+# Test TCP/IP sockets timeout with reconnect.
+#
+# Open con1 and set a timeout.
+--enable_reconnect;
+SET @@SESSION.wait_timeout = 2;
+SET @is_old_connection = 1;
+SELECT @is_old_connection;
+@is_old_connection
+1
+# Wait for con1 to be disconnected.
+# Check that con1 has been disconnected.
+SELECT "TCP/IP will hit wait_timeout with reconnect";
+ERROR 08S01: wait_timeout exceeded, too long idle time since last command
+SELECT @is_old_connection;
+@is_old_connection
+NULL

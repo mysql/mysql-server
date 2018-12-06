@@ -150,7 +150,7 @@ my_bool net_realloc(NET *net, size_t length)
   {
     DBUG_PRINT("error", ("Packet too large. Max size: %lu",
                          net->max_packet_size));
-    /* @todo: 1 and 2 codes are identical. */
+    /* Error, but no need to stop using the socket. */
     net->error= 1;
     net->last_errno= ER_NET_PACKET_TOO_LARGE;
 #ifdef MYSQL_SERVER
@@ -170,7 +170,7 @@ my_bool net_realloc(NET *net, size_t length)
                                   NET_HEADER_SIZE + COMP_HEADER_SIZE,
                                   MYF(MY_WME))))
   {
-    /* @todo: 1 and 2 codes are identical. */
+    /* Error, but no need to stop using the socket. */
     net->error= 1;
     net->last_errno= ER_OUT_OF_RESOURCES;
     /* In the server the error is reported by MY_WME flag. */
@@ -519,8 +519,22 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
   /* On failure, propagate the error code. */
   if (count)
   {
+#ifdef MYSQL_SERVER
     /* Socket should be closed. */
     net->error= 2;
+#else
+    /* Socket should be closed after trying to read. */
+    net->error= 5;
+#  ifdef HAVE_YASSL
+    /*
+      YaSSL does not reset errors, so write after failed read also fails.
+      See lack of support for ERR_clear_error() in YaSSL.
+      So fall back to pre bug#93240 behavior for YaSSL.
+    */
+    if (vio_type(net->vio) == VIO_TYPE_SSL)
+      net->error= 2;
+#  endif
+#endif
 
     /* Interrupted by a timeout? */
     if (vio_was_timeout(net->vio))
@@ -611,8 +625,8 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   query_cache_insert((char*) packet, length, net->pkt_nr);
 #endif
 
-  /* Socket can't be used */
-  if (net->error == 2)
+  /* Socket can't be used for writing */
+  if (net->error == 2 || net->error == 5)
     DBUG_RETURN(TRUE);
 
   net->reading_or_writing= 2;
@@ -645,6 +659,11 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
 
   net->reading_or_writing= 0;
 
+  /* Socket can't be used any more */
+  if (net->error == 4) {
+    net->error= 2;
+    DBUG_RETURN(TRUE);
+  }
   DBUG_RETURN(res);
 }
 
@@ -697,9 +716,6 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
   /* On failure, propagate the error code. */
   if (count)
   {
-    /* Socket should be closed. */
-    net->error= 2;
-
     /* Interrupted by a timeout? */
     if (!eof && vio_was_timeout(net->vio))
       net->last_errno= ER_NET_READ_INTERRUPTED;
@@ -707,7 +723,24 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
       net->last_errno= ER_NET_READ_ERROR;
 
 #ifdef MYSQL_SERVER
+    /* First packet always wait for net_wait_timeout */
+    if (net->pkt_nr == 0 && vio_was_timeout(net->vio))
+      net->last_errno= ER_NET_WAIT_ERROR;
+    /* Socket should be closed after trying to write/send error. */
+    net->error= 4;
+#ifdef HAVE_YASSL
+    /*
+      YaSSL does not reset errors, so write after failed read also fails.
+      See lack of support for ERR_clear_error() in YaSSL.
+      So fall back to pre bug#93240 behavior for YaSSL.
+    */
+    if (vio_type(net->vio) == VIO_TYPE_SSL)
+      net->error= 2;
+#endif
     my_error(net->last_errno, MYF(0));
+#else
+    /* Socket should be closed. */
+    net->error= 2;
 #endif
   }
 
@@ -775,7 +808,27 @@ static my_bool net_read_packet_header(NET *net)
   */
   if (pkt_nr != (uchar) net->pkt_nr)
   {
-    /* Not a NET error on the client. XXX: why? */
+#if ! defined(MYSQL_SERVER)
+    DBUG_PRINT("info", ("pkt_nr %u net->pkt_nr %u", pkt_nr, net->pkt_nr));
+    if (net->pkt_nr == 1) {
+      DBUG_ASSERT(net->where_b == 0);
+      /*
+        Server may have sent an error before it received our new command.
+        Perhaps due to wait_timeout.
+        Only use what is already read and then close the socket.
+      */
+      net->error= 2;
+      net->last_errno= ER_NET_PACKETS_OUT_OF_ORDER;
+      net->pkt_nr= pkt_nr + 1;
+
+      /*
+        The caller should handle the error code in the packet
+        and the socket are blocked from further usage,
+        so reading the packet header was OK.
+      */
+      return FALSE;
+    }
+#endif
 #if defined(MYSQL_SERVER)
     my_error(ER_NET_PACKETS_OUT_OF_ORDER, MYF(0));
 #elif defined(EXTRA_DEBUG)
@@ -860,10 +913,14 @@ static size_t net_read_packet(NET *net, size_t *complen)
     goto error;
 
 end:
+  if (net->error == 5)
+    net->error= 2;
   net->reading_or_writing= 0;
   return pkt_len;
 
 error:
+  if (net->error == 5)
+    net->error= 2;
   net->reading_or_writing= 0;
   return packet_error;
 }

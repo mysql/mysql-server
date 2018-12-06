@@ -7774,6 +7774,9 @@ ER_XA_REPLICATION_FILTERS
 ER_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
+ER_NET_WAIT_ERROR 08S01
+  eng "wait_timeout exceeded, too long idle time since last command"
+
 #
 #  End of 5.7 error messages.
 #

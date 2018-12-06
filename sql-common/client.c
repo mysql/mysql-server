@@ -1232,12 +1232,13 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   mysql->info=0;
   mysql->affected_rows= ~(my_ulonglong) 0;
   /*
-    Do not check the socket/protocol buffer on COM_QUIT as the
-    result of a previous command might not have been read. This
-    can happen if a client sends a query but does not reap the
-    result before attempting to close the connection.
+    Do not check the socket/protocol buffer as the
+    result/error/timeout of a previous command might not have been read.
+    This can happen if a client sends a query but does not reap the result
+    before attempting to close the connection or wait_timeout occurs on
+    the server.
   */
-  net_clear(&mysql->net, (command != COM_QUIT));
+  net_clear(net, 0);
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   MYSQL_TRACE(SEND_COMMAND, mysql, (command, header_length, arg_length, header, arg));
@@ -1265,6 +1266,24 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     {
       set_mysql_error(mysql, CR_NET_PACKET_TOO_LARGE, unknown_sqlstate);
       goto end;
+    }
+    if (net->last_errno == ER_NET_ERROR_ON_WRITE) {
+      /*
+        Write error, try to read and see if the server gave an error
+        before closing the connection. Most likely Unix Domain Socket.
+      */
+      if (net->vio) {
+        my_net_set_read_timeout(net, 0);
+        /*
+          cli_safe_read will also set error variables in net,
+          and we are already in error state.
+        */
+        if (cli_safe_read(mysql, NULL) == packet_error) {
+          goto end;
+        }
+        /* Can this happen in any other case than COM_QUIT? */
+        DBUG_ASSERT(command == COM_QUIT);
+      }
     }
     end_server(mysql);
     if (mysql_reconnect(mysql) || stmt_skip)
@@ -4978,7 +4997,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
   {
     /* Allow reconnect next time */
     mysql->server_status&= ~SERVER_STATUS_IN_TRANS;
-    set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
+    if (mysql->net.last_errno == 0)
+      set_mysql_error(mysql, CR_SERVER_GONE_ERROR, unknown_sqlstate);
     DBUG_RETURN(1);
   }
   mysql_init(&tmp_mysql);

@@ -359,6 +359,13 @@ typedef struct st_net {
   */
   unsigned char *unused;
   unsigned int last_errno;
+  /**
+    1 - Error, but socket still usable
+    2 - Error, do not use the socket
+    3 - Not used, but will result in a recoverable error.
+    4 - Read error, OK to try write the error and then close the socket.
+    5 - Write error, OK to try read the error and then close the socket.
+  */
   unsigned char error; 
   my_bool unused4; /* Please remove with the next incompatible ABI change. */
   my_bool unused5; /* Please remove with the next incompatible ABI change. */
