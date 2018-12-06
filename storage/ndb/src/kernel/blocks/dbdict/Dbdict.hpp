@@ -4828,6 +4828,15 @@ private:
   Uint32 c_noOfMetaTables;
   Uint32 c_default_hashmap_size;
   Uint32 m_use_checksum;
+  
+  /**
+   * Pool of SafeCounters reserved for use with schema
+   * transactions which currently must not fail to seize
+   * a safecounter.
+   * Other usage should use the generic c_counterMgr pool
+   * and handle failure-to-seize
+   */
+  SafeCounterManager c_reservedCounterMgr;
 };
 
 inline bool
