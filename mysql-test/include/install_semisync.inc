@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
 --let $include_filename= install_semisync.inc
 --source include/begin_include_file.inc
 
@@ -14,6 +11,7 @@
 if ($value == No such row)
 {
     SET sql_log_bin = 0;
+    CALL mtr.add_suppression("Read semi-sync reply.*");
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
     SET GLOBAL rpl_semi_sync_master_enabled = 1;
     SET sql_log_bin = 1;
