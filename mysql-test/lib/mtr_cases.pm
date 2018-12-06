@@ -555,7 +555,8 @@ sub collect_one_suite($$$$) {
     } else {
       $suitedir = my_find_dir(
         $::basedir,
-        [ "internal/mysql-test/suite/",
+        [ "internal/cloud/mysql-test/suite/",
+          "internal/mysql-test/suite/",
           "internal/plugin/$suite/tests",
           "lib/mysql-test/suite",
           "mysql-test/suite",

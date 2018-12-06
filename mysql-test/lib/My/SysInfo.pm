@@ -223,4 +223,21 @@ sub print_info {
   }
 }
 
+# Return the network interface
+sub network_interface {
+  my $out = (IS_WINDOWS) ? 'nul' : '/dev/null';
+
+  # Hardcode the default value, in case the below check fails.
+  my $network_interface = "eth0";
+
+  `ip link 2> $out`;
+  if ($? == 0) {
+    $network_interface =
+`ip link show | grep "state UP" | cut -d ':' -f 2 | tr -d ' ' | head -n1 2> $out`;
+    chomp($network_interface);
+  }
+
+  return $network_interface;
+}
+
 1;

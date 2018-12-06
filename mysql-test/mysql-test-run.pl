@@ -38,7 +38,7 @@ use strict;
 use warnings;
 
 use lib "lib";
-use lib "../internal/mysql-test/lib";
+use lib "../internal/cloud/mysql-test/lib";
 
 use Cwd;
 use Cwd 'abs_path';
@@ -603,9 +603,10 @@ sub main {
 
   # Also read from any plugin local or suite specific plugin.defs
   my $plugin_def =
-    "$basedir/plugin/*/tests/mtr/plugin.defs " .
-    "$basedir/internal/plugin/*/tests/mtr/plugin.defs " .
-    "$basedir/components/*/tests/mtr/plugin.defs " . "suite/*/plugin.defs";
+     "$basedir/components/*/tests/mtr/plugin.defs " .
+     "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
+     "$basedir/internal/plugin/*/tests/mtr/plugin.defs " .
+     "suite/*/plugin.defs";
 
   for (glob $plugin_def) {
     read_plugin_defs($_);
