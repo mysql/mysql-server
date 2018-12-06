@@ -39,6 +39,7 @@
 #include "sql/ha_ndbcluster_connection.h"
 #include "sql/mysqld.h"     // opt_bin_log
 #include "sql/mysqld_thd_manager.h" // Global_THD_manager
+#include "sql/ndb_apply_status_table.h"
 #include "sql/ndb_binlog_client.h"
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_dd.h"
@@ -52,6 +53,7 @@
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_require.h"
+#include "sql/ndb_schema_dist_table.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
@@ -84,6 +86,7 @@ extern bool opt_ndb_log_transaction_id;
 extern bool log_bin_use_v1_row_events;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
+extern bool opt_ndb_schema_dist_upgrade_allowed;
 
 bool ndb_log_empty_epochs(void);
 
@@ -1471,7 +1474,7 @@ class Ndb_binlog_setup {
   log_NDB_error(const NdbError& ndb_error) const
   {
     // Display error code and message returned by NDB
-    ndb_log_error("NDB error: %d, %s",
+    ndb_log_error("Got error '%d: %s' from NDB",
                   ndb_error.code, ndb_error.message);
   }
 
@@ -2234,116 +2237,190 @@ class Ndb_binlog_setup {
     return true;
   }
 
-  static bool
-  create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
-                           const char* table, size_t table_length,
-                           const char* create_definitions,
-                           const char* create_options)
-  {
-    /* Need a connection to create table, else retry later. */
-    if (g_ndb_cluster_connection->get_no_ready() <= 0)
-      return true;
+  class Util_table_creator {
+    THD *const m_thd;
+    Thd_ndb *const m_thd_ndb;
+    Ndb_util_table &m_util_table;
+    // Full name of table to use in log printouts
+    std::string m_name;
 
-    /*
-      Check if table exists in MySQL DD and in such case remove
-      it from DD since there is none in NDB.
-    */
+    const char *db_name() const { return m_util_table.db_name(); };
+    const char *table_name() const { return m_util_table.table_name(); };
 
-    Ndb_dd_client dd_client(thd);
+    Util_table_creator() = delete;
+    Util_table_creator(const Util_table_creator &) = delete;
 
-    if (!dd_client.mdl_locks_acquire_exclusive(db, table))
-    {
-      ndb_log_info("Failed to MDL lock '%s.%s'", db, table);
-      return true; // failed
-    }
+    bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool& reinstall) const {
+      ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
 
-    const dd::Table* existing;
-    if (dd_client.get_table(db, table, &existing))
-    {
-      ndb_log_verbose(1, "Removing '%s.%s' from DD", db, table);
+      if (!m_util_table.exists()) {
+        ndb_log_verbose(50, "The '%s' table does not exist, creating..",
+                        m_name.c_str());
 
-      if (!dd_client.remove_table(db, table))
-      {
-        ndb_log_info("Failed to remove '%s.%s' from DD", db, table);
+        // Create the table using NdbApi
+        if (!m_util_table.create()) {
+          ndb_log_error("Failed to create '%s' table", m_name.c_str());
+          return false;
+        }
+        reinstall = true;
+
+        ndb_log_info("Created '%s' table", m_name.c_str());
       }
 
-      dd_client.commit();
+      if (!m_util_table.open()) {
+        ndb_log_error("Failed to open '%s' table", m_name.c_str());
+        return false;
+      }
 
-      /*
-        The table existed in and was deleted from DD. It's possible
-        that someone has tried to use it and thus it might have been
-        inserted in the table definition cache. Close the table
-        in the table definition cace(tdc).
-      */
-      ndb_log_verbose(1, "Removing table '%s.%s'' from table definition cache",
-                      db, table);
+      if (m_util_table.need_upgrade()) {
+        ndb_log_warning("The '%s' table need upgrade", m_name.c_str());
 
-      ndb_tdc_close_cached_table(thd, db, table);
+        if (!upgrade_allowed) {
+          ndb_log_info("Upgrade of '%s' table not allowed!", m_name.c_str());
+          // Skip upgrading the table and continue with
+          // limited functionality
+          return true;
+        }
+
+        ndb_log_info("Upgrade of '%s' table...", m_name.c_str());
+        if (!m_util_table.upgrade()) {
+          ndb_log_error("Upgrade of '%s' table failed!", m_name.c_str());
+          return false;
+        }
+        reinstall= true;
+        ndb_log_info("Upgrade of '%s' table completed", m_name.c_str());
+      }
+
+      ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());
+      return true;
     }
 
-    Ndb_local_connection mysqld(thd);
+    bool install_in_DD(bool reinstall) {
+      Ndb_dd_client dd_client(m_thd);
 
-    const bool create_if_not_exists = true;
-    const bool res = mysqld.create_sys_table(db, db_length,
-                                             table, table_length,
-                                             create_if_not_exists,
-                                             create_definitions,
-                                             create_options);
-    return res;
-  }
+      if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
+        ndb_log_error("Failed to MDL lock '%s' table", m_name.c_str());
+        return false;
+      }
 
+      const dd::Table *existing;
+      if (!dd_client.get_table(db_name(), table_name(), &existing)) {
+        ndb_log_error("Failed to get '%s' table from DD", m_name.c_str());
+        return false;
+      }
 
-  static bool
-  ndb_apply_table__create(THD *thd)
-  {
-    DBUG_ENTER("ndb_apply_table__create");
+      // Table definition exists
+      if (existing) {
+        int table_id, table_version;
+        if (!ndb_dd_table_get_object_id_and_version(existing, table_id,
+                                                    table_version)) {
+          ndb_log_error("Failed to extract id and version from '%s' table",
+                        m_name.c_str());
+          DBUG_ASSERT(false);
+          // Continue and force removal of table definition
+          reinstall = true;
+        }
 
-    /* NOTE! Updating this table schema must be reflected in ndb_restore */
-    const bool res =
-      create_cluster_sys_table(thd,
-                               STRING_WITH_LEN("mysql"),
-                               STRING_WITH_LEN("ndb_apply_status"),
-                               // table_definition
-                               "server_id INT UNSIGNED NOT NULL,"
-                               "epoch BIGINT UNSIGNED NOT NULL, "
-                               "log_name VARCHAR(255) BINARY NOT NULL, "
-                               "start_pos BIGINT UNSIGNED NOT NULL, "
-                               "end_pos BIGINT UNSIGNED NOT NULL, "
-                               "PRIMARY KEY USING HASH (server_id)",
-                               // table_options
-                               "ENGINE=NDB CHARACTER SET latin1");
-    DBUG_RETURN(res);
-  }
+        // Check if table definition in DD is outdated
+        const NdbDictionary::Table *ndbtab = m_util_table.get_table();
+        if (!reinstall && (ndbtab->getObjectId() == table_id &&
+                           ndbtab->getObjectVersion() == table_version)) {
+          // Existed, didn't need reinstall and version matched
+          return true;
+        }
 
+        ndb_log_verbose(1, "Removing '%s' from DD", m_name.c_str());
+        if (!dd_client.remove_table(db_name(), table_name())) {
+          ndb_log_info("Failed to remove '%s' from DD", m_name.c_str());
+          return false;
+        }
 
-  static bool
-  ndb_schema_table__create(THD *thd)
-  {
-    DBUG_ENTER("ndb_schema_table__create");
+        dd_client.commit();
 
-    /* NOTE! Updating this table schema must be reflected in ndb_restore */
-    const bool res =
-      create_cluster_sys_table(thd,
-                               STRING_WITH_LEN("mysql"),
-                               STRING_WITH_LEN("ndb_schema"),
-                               // table_definition
-                               "db VARBINARY(63) NOT NULL,"
-                               "name VARBINARY(63) NOT NULL,"
-                               "slock BINARY(32) NOT NULL,"
-                               "query BLOB NOT NULL,"
-                               "node_id INT UNSIGNED NOT NULL,"
-                               "epoch BIGINT UNSIGNED NOT NULL,"
-                               "id INT UNSIGNED NOT NULL,"
-                               "version INT UNSIGNED NOT NULL,"
-                               "type INT UNSIGNED NOT NULL,"
-                               "PRIMARY KEY USING HASH (db,name)",
-                               // table_options
-                               "ENGINE=NDB CHARACTER SET latin1");
-    DBUG_RETURN(res);
-  }
+        /*
+          The table existed in and was deleted from DD. It's possible
+          that someone has tried to use it and thus it might have been
+          inserted in the table definition cache. Close the table
+          in the table definition cace(tdc).
+        */
+        ndb_log_verbose(1, "Removing '%s' from table definition cache",
+                        m_name.c_str());
+        ndb_tdc_close_cached_table(m_thd, db_name(), table_name());
+      }
 
-  Ndb_binlog_setup(const Ndb_binlog_setup&); // Not copyable
-  Ndb_binlog_setup operator=(const Ndb_binlog_setup&); // Not assignable
+      // Create DD table definition
+      Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+      // Allow creating DD table definition although table already exist in NDB
+      thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE);
+      // Mark table definition as hidden in DD
+      if (m_util_table.is_hidden())
+        thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE_HIDDEN);
+
+      Ndb_local_connection mysqld(m_thd);
+      if (mysqld.create_util_table(m_util_table.define_table_dd())) {
+        ndb_log_error("Failed to create table defintion for '%s' in DD",
+                      m_name.c_str());
+        return false;
+      }
+
+      return true;
+    }
+
+    bool setup_table_for_binlog() const {
+      // Acquire exclusive MDL lock on schema and table
+      Ndb_dd_client dd_client(m_thd);
+      if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
+        ndb_log_error("Failed to acquire MDL lock for '%s' table",
+                      m_name.c_str());
+        m_thd->clear_error();
+        return false;
+      }
+
+      const dd::Table *table_def;
+      if (!dd_client.get_table(db_name(), table_name(), &table_def)) {
+        ndb_log_error("Failed to open table definition for '%s' table",
+                      m_name.c_str());
+        return false;
+      }
+
+      // Setup events for this table
+      if (ndbcluster_binlog_setup_table(m_thd, m_thd_ndb->ndb, db_name(),
+                                        table_name(), table_def)) {
+        ndb_log_error("Failed to setup events for '%s' table", m_name.c_str());
+        return false;
+      }
+
+      return true;
+    }
+
+   public:
+    Util_table_creator(THD *thd, Thd_ndb *thd_ndb, Ndb_util_table &util_table)
+        : m_thd(thd), m_thd_ndb(thd_ndb), m_util_table(util_table) {
+      m_name.append(db_name()).append(".").append(table_name());
+    }
+
+    bool create_or_upgrade(bool upgrade_allowed) {
+      bool reinstall = false;
+      if (!create_or_upgrade_in_NDB(upgrade_allowed, reinstall)) {
+        return false;
+      }
+
+      if (!install_in_DD(reinstall)) {
+        return false;
+      }
+
+      /* Give additional 'binlog_setup rights' to this Thd_ndb */
+      Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+      thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+      if (!setup_table_for_binlog()) {
+        return false;
+      }
+      return true;
+    }
+  };
+
+  Ndb_binlog_setup(const Ndb_binlog_setup &) = delete;
+  Ndb_binlog_setup operator=(const Ndb_binlog_setup &) = delete;
 
 public:
 
@@ -2389,17 +2466,13 @@ public:
         break;
       }
 
-      /* Give additional 'binlog_setup rights' to this Thd_ndb */
-      Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
-      thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+      Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+      Util_table_creator schema_table_creator(m_thd, m_thd_ndb,
+                                              schema_dist_table);
+      if (!schema_table_creator.create_or_upgrade(
+              opt_ndb_schema_dist_upgrade_allowed))
+        break;
 
-      if (ndb_create_table_from_engine(m_thd,
-                                       NDB_REP_DB, NDB_SCHEMA_TABLE,
-                                       true))
-      {
-        if (ndb_schema_table__create(m_thd))
-          break;
-      }
       if (ndb_schema_share == NULL)  //Needed for 'ndb_schema_dist_is_ready()'
       {
         ndb_log_verbose(50, "Schema distribution setup failed");
@@ -2430,13 +2503,11 @@ public:
          break;
        });
 
-       if (ndb_create_table_from_engine(m_thd,
-                                        NDB_REP_DB, NDB_APPLY_TABLE,
-                                        true))
-       {
-         if (ndb_apply_table__create(m_thd))
-           break;
-       }
+       Ndb_apply_status_table apply_status_table(m_thd_ndb);
+       Util_table_creator apply_table_creator(m_thd, m_thd_ndb,
+                                              apply_status_table);
+       if (!apply_table_creator.create_or_upgrade(true))
+         break;
 
        if (find_all_databases(m_thd, m_thd_ndb))
          break;
@@ -2933,9 +3004,7 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
   ndb_tdc_close_cached_table(thd, share->db, share->table_name);
 
   // Release the "binlog" reference from NDB_SHARE
-  mysql_mutex_lock(&ndbcluster_mutex);
-  NDB_SHARE::release_reference_have_lock(share, "binlog");
-  mysql_mutex_unlock(&ndbcluster_mutex);
+  NDB_SHARE::release_reference(share, "binlog");
 
   // Remove pointer to event_data from the EventOperation
   pOp->setCustomData(NULL);

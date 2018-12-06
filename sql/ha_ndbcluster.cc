@@ -10572,7 +10572,6 @@ int ha_ndbcluster::create(const char *name,
   NDBCOL col;
   uint i, pk_length= 0;
   bool use_disk= false;
-  bool ndb_sys_table= false;
   Ndb_fk_list fk_list_for_truncate;
 
   // Verify default value for "single user mode" of the table
@@ -10687,25 +10686,39 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 
-  if (ndb_name_is_temp(m_tabname))
+  if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE))
   {
+    // Creating ndbcluster util table. This is done in order to install the
+    // table definition in DD using SQL. Apply special settings for the table
+    // and return
+    DBUG_PRINT("info", ("Creating ndbcluster util table"));
+
+    if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE_HIDDEN))
+    {
+      // Mark the util table as hidden in DD
+      ndb_dd_table_mark_as_hidden(table_def);
+    }
+
+    // Table already created in NDB, check that it exist and fail create
+    // otherwise
+    Ndb_table_guard ndbtab_g(dict, m_tabname);
+    if (!ndbtab_g.get_table()) {
+      DBUG_RETURN(create.failed_internal_error(
+          "The util table does not already exist in NDB"));
+    }
+
+    // Update table definition with the table id and version of the NDB table
+    const NdbDictionary::Table * const ndbtab = ndbtab_g.get_table();
+    ndb_dd_table_set_object_id_and_version(table_def, ndbtab->getObjectId(),
+                                           ndbtab->getObjectVersion());
+
+    DBUG_RETURN(create.succeeded());
+  }
+
+  if (ndb_name_is_temp(m_tabname)) {
     // Creating table with temporary name, table will only be access by this
     // MySQL Server -> skip schema distribution
     DBUG_PRINT("info", ("Creating table with temporary name"));
-  }
-  else if (Ndb_schema_dist_client::is_schema_dist_table(m_dbname, m_tabname))
-  {
-    // Creating the schema distribution table itself -> skip schema distribution
-    // but apply special settings for the table
-    DBUG_PRINT("info", ("Creating the schema distribution table"));
-
-    // Set mysql.ndb_schema table to read+write also in single user mode
-    tab.setSingleUserMode(NdbDictionary::Table::SingleUserModeReadWrite);
-
-    ndb_sys_table= true;
-
-    // Mark the mysql.ndb_schema table as hidden in the DD
-    ndb_dd_table_mark_as_hidden(table_def);
   }
   else
   {
@@ -10723,15 +10736,6 @@ int ha_ndbcluster::create(const char *name,
       // Check of db or table name limits failed
       my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier.c_str());
       DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-    }
-  }
-
-  if (!ndb_apply_status_share)
-  {
-    if ((strcmp(m_dbname, NDB_REP_DB) == 0 &&
-         strcmp(m_tabname, NDB_APPLY_TABLE) == 0))
-    {
-      ndb_sys_table= true;
     }
   }
 
@@ -10963,34 +10967,28 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(
         create.failed_oom("Failed to set table name"));
   }
-  if (!ndb_sys_table)
-  {
-    if (THDVAR(thd, table_temporary))
-    {
-#ifdef DOES_NOT_WORK_CURRENTLY
-      tab.setTemporary(true);
-#endif
-      DBUG_PRINT("info", ("table_temporary set"));
-      tab.setLogging(false);
-    }
-    else if (THDVAR(thd, table_no_logging))
-    {
-      DBUG_PRINT("info", ("table_no_logging set"));
-      tab.setLogging(false);
-    }
 
-    if (mod_nologging->m_found)
-    {
-      DBUG_PRINT("info", ("tab.setLogging(%u)",
-                         (!mod_nologging->m_val_bool)));
-      tab.setLogging(!mod_nologging->m_val_bool);
-    }
-    else
-    {
-      DBUG_PRINT("info",
-                 ("mod_nologging not found, getLogging()=%u",
-                  tab.getLogging()));
-    }
+  if (THDVAR(thd, table_temporary))
+  {
+#ifdef DOES_NOT_WORK_CURRENTLY
+    tab.setTemporary(true);
+#endif
+    DBUG_PRINT("info", ("table_temporary set"));
+    tab.setLogging(false);
+  }
+  else if (THDVAR(thd, table_no_logging))
+  {
+    DBUG_PRINT("info", ("table_no_logging set"));
+    tab.setLogging(false);
+  }
+  if (mod_nologging->m_found)
+  {
+    DBUG_PRINT("info", ("tab.setLogging(%u)",
+                        (!mod_nologging->m_val_bool)));
+    tab.setLogging(!mod_nologging->m_val_bool);
+  }
+
+  {
     bool use_fully_replicated;
     bool use_read_backup;
 
@@ -11035,10 +11033,6 @@ int ha_ndbcluster::create(const char *name,
     {
       tab.setReadBackupFlag(true);
     }
-  }
-  else
-  {
-    DBUG_PRINT("info", ("ndb_sys_table true"));
   }
   tab.setRowChecksum(opt_ndb_row_checksum);
 
@@ -13298,6 +13292,10 @@ int ndbcluster_discover(handlerton*, THD* thd,
     DBUG_RETURN(1);
   }
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE)) {
+    DBUG_PRINT("exit", ("Simulate that table does not exist in NDB"));
+    DBUG_RETURN(1);
+  }
 
 #ifndef BUG27543602
   // Temporary workaround for Bug 27543602
@@ -13459,6 +13457,13 @@ int ndbcluster_table_exists_in_engine(handlerton*, THD* thd,
 
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+  const Thd_ndb* thd_ndb = get_thd_ndb(thd);
+  if (thd_ndb->check_option(Thd_ndb::CREATE_UTIL_TABLE)) {
+    DBUG_PRINT("exit", ("Simulate that table does not exist in NDB"));
+    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+  }
+
   NDBDICT* dict= ndb->getDictionary();
   NdbDictionary::Dictionary::List list;
   if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
@@ -19730,6 +19735,21 @@ static MYSQL_SYSVAR_BOOL(
   1                                 /* default */
 );
 
+bool opt_ndb_schema_dist_upgrade_allowed;
+static MYSQL_SYSVAR_BOOL(
+    schema_dist_upgrade_allowed,         /* name */
+    opt_ndb_schema_dist_upgrade_allowed, /* var  */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Allow schema distribution table upgrade when connecting to NDB. Use this "
+    "variable to defer this change until all MySQL Servers connected to the "
+    "cluster have been upgrade to same version. NOTE! The schema distribution "
+    "functionality might be slightly degraded until the change has been "
+    "performed.",
+    NULL, /* check func. */
+    NULL, /* update func. */
+    true  /* default */
+);
+
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
   opt_ndb_connectstring,            /* var */
@@ -19933,6 +19953,7 @@ static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(log_apply_status),
   MYSQL_SYSVAR(log_transaction_id),
   MYSQL_SYSVAR(clear_apply_status),
+  MYSQL_SYSVAR(schema_dist_upgrade_allowed),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),

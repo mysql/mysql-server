@@ -169,7 +169,7 @@ public:
   class NdbEventOperation *op;
 
   // Raw pointer for passing table definition from schema dist client to
-  // participant in the same node to avoid that paritcipant have to access
+  // participant in the same node to avoid that participant have to access
   // the DD to open the table definition.
   const void* inplace_alter_new_table_def;
 

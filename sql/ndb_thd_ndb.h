@@ -86,7 +86,21 @@ public:
       Gives special priorites to this Thd_ndb, allowing it to create
       schema distribution event ops before ndb_schema_dist_is_ready()
      */
-    ALLOW_BINLOG_SETUP= 1 << 2
+    ALLOW_BINLOG_SETUP= 1 << 2,
+
+    /*
+       Create a ndbcluster util table in DD. The table already exists
+       in NDB and thus some functions need to return early in order to hide
+       the table. This allows using SQL to install the table definition in DD.
+    */
+    CREATE_UTIL_TABLE = 1 << 3,
+
+    /*
+       Mark the util table as hidden when installing the table definition
+       in DD. By marking the table as hidden it will not be available for either
+       DML or DDL.
+    */
+    CREATE_UTIL_TABLE_HIDDEN = 1 << 4
   };
 
   // Check if given option is set
