@@ -95,6 +95,8 @@ void MetadataCacheAPI::cache_init(
                         get_instance(user, password, connect_timeout,
                                      read_timeout, 1, ttl, ssl_options),
                         ttl, ssl_options, cluster_name, thread_stack_size));
+
+  is_initialized_ = true;
 }
 
 /**
@@ -103,8 +105,6 @@ void MetadataCacheAPI::cache_init(
 void MetadataCacheAPI::cache_start() {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
   g_metadata_cache->start();
-
-  is_initialized_ = true;
 }
 
 /**
