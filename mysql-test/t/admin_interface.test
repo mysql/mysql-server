@@ -95,7 +95,7 @@ SELECT CURRENT_USER();
 --exec $MYSQLD_CMD --log-error=$MYSQLD_LOG --datadir=$MYSQL_TMP_DIR/newdd --secure-file-priv="" --admin-address=127.0.0.1 --admin-port=$ADMIN_PORT
 
 --let SEARCH_FILE=$MYSQLD_LOG
---let SEARCH_PATTERN=Can't start server: Bind on TCP/IP port: (Address already in use|Only one usage of each socket address .* normally permitted)
+--let SEARCH_PATTERN=Can't start server: Bind on TCP/IP port: (Address .*in use|Only one usage of each socket address .* normally permitted)
 --source include/search_pattern.inc
 
 --remove_file $MYSQLD_LOG

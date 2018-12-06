@@ -40,7 +40,7 @@ CURRENT_USER()
 root@localhost
 disconnect ordinary_tcp_con;
 # Check error when starting a server having admin port which is busy
-Pattern "Can't start server: Bind on TCP/IP port: (Address already in use|Only one usage of each socket address .* normally permitted)" found
+Pattern "Can't start server: Bind on TCP/IP port: (Address .*in use|Only one usage of each socket address .* normally permitted)" found
 # Test case 6
 # Check that ordinary connection using default connection method can be established
 connect ordinary_con,localhost,root,,,,,;
