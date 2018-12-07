@@ -533,10 +533,19 @@ std::vector<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     return nullptr;
   }
 
+  auto has_v4_addresses_it =
+      std::find_if(ips.begin(), ips.end(),
+                   [](std::pair<sa_family_t, std::string> const &ip_entry) {
+                     return ip_entry.first == AF_INET;
+                   });
+  bool has_v4_addresses = has_v4_addresses_it != ips.end();
+
   auto *retval = new std::vector<
       std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>();
 
   for (auto &ip : ips) {
+    if (has_v4_addresses && ip.first == AF_INET6) continue;
+
     std::string mask = get_mask();
     // If mask is empty, lets hand out a default value.
     // 32 to IPv4 and 128 to IPv6

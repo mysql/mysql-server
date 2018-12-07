@@ -182,9 +182,19 @@ TEST_F(GcsWhitelist, ListWithHostname) {
   std::vector<std::pair<sa_family_t, std::string>> ips;
   resolve_all_ip_addr_from_hostname("localhost", ips);
 
+  auto has_v4_addresses_it =
+      std::find_if(ips.begin(), ips.end(),
+                   [](std::pair<sa_family_t, std::string> const &ip_entry) {
+                     return ip_entry.first == AF_INET;
+                   });
+  bool has_v4_addresses = has_v4_addresses_it != ips.end();
+
   // This should not block to whatever address localhost resolves
   for (auto &ip : ips) {
-    EXPECT_FALSE(xcs->get_ip_whitelist().shall_block(ip.second));
+    if (has_v4_addresses && ip.first == AF_INET6)
+      EXPECT_TRUE(xcs->get_ip_whitelist().shall_block(ip.second));
+    else
+      EXPECT_FALSE(xcs->get_ip_whitelist().shall_block(ip.second));
   }
 
   // this finalizes the m_logger, so be careful to not add a call to
