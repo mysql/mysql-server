@@ -771,16 +771,6 @@ sub optimize_cases {
     # Skip processing if already marked as skipped
     next if $tinfo->{skip};
 
-    # Binlog must be enabled for secondary engine
-    if ($::secondary_engine_support) {
-      my $skip_log_bin_pattern = "^--(loose[-_])?skip[-_]log[-_]bin";
-      if (grep(/$skip_log_bin_pattern/, @{ $tinfo->{'master_opt'} }) ||
-          grep(/$skip_log_bin_pattern/, @{ $tinfo->{'slave_opt'} })) {
-        skip_test($tinfo, "Binlog must be enabled.");
-        next;
-      }
-    }
-
     # If a binlog format was set with '--mysqld=--binlog-format=x',
     # skip all tests that doesn't support it.
     if (defined $binlog_format) {
@@ -795,13 +785,6 @@ sub optimize_cases {
           $tinfo->{'comment'} =
             "Doesn't support --binlog-format='$binlog_format'";
         }
-      }
-
-      # Tests with binlog_format other than ROW can't be run with
-      # secondary engine.
-      if ($::secondary_engine_support and "row" ne lc $binlog_format) {
-        skip_test($tinfo, "Binlog format must be ROW.");
-        next;
       }
     } else {
       # =======================================================
@@ -825,15 +808,6 @@ sub optimize_cases {
         if (!$supported) {
           skip_test($tinfo,
                     "Doesn't support --binlog-format = '$test_binlog_format'");
-          next;
-        }
-      }
-
-      # Tests with binlog_format other than ROW can't be run with
-      # secondary engine.
-      if (defined $test_binlog_format and !$tinfo->{skip}) {
-        if ($::secondary_engine_support and "row" ne lc $test_binlog_format) {
-          skip_test($tinfo, "Binlog format must be ROW.");
           next;
         }
       }
@@ -1393,8 +1367,8 @@ sub unspace {
 sub opts_from_file ($) {
   my $file = shift;
 
-  my $file_handle =
-    IO::File->new($file, '<') or mtr_error("Can't open file '$file': $!");
+  my $file_handle = IO::File->new($file, '<') or
+    mtr_error("Can't open file '$file': $!");
 
   my @args;
   while (<$file_handle>) {

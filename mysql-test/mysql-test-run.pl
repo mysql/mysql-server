@@ -98,7 +98,6 @@ my $opt_mark_progress;
 my $opt_max_connections;
 my $opt_ps_protocol;
 my $opt_report_features;
-my $opt_secondary_engine;
 my $opt_skip_core;
 my $opt_skip_test_list;
 my $opt_sleep;
@@ -159,9 +158,6 @@ my $mysqlx_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
 my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
 
-my $DEFAULT_SUITES =
-"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine";
-
 my $build_thread       = 0;
 my $daemonize_mysqld   = 0;
 my $debug_d            = "d";
@@ -210,6 +206,9 @@ our $opt_suite_opt;
 our $opt_summary_report;
 our $opt_vardir;
 our $opt_xml_report;
+
+our $DEFAULT_SUITES =
+"main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x,secondary_engine";
 
 our $opt_big_test                  = 0;
 our $opt_check_testcases           = 1;
@@ -360,6 +359,9 @@ sub main {
   mtr_report("Logging: $0 ", join(" ", @ARGV));
 
   command_line_setup();
+
+  # Append secondary engiene test suite to list of default suites.
+  add_secondary_engine_suite() if $secondary_engine_support;
 
   # Create build thread id directory
   create_unique_id_dir();
@@ -521,6 +523,8 @@ sub main {
                                  \@opt_cases,  $opt_skip_test_list);
   mark_time_used('collect');
 
+  check_secondary_engine_option($tests) if $secondary_engine_support;
+
   if ($opt_report_features) {
     # Put "report features" as the first test to run. No result file,
     # prints the output on console.
@@ -603,10 +607,9 @@ sub main {
 
   # Also read from any plugin local or suite specific plugin.defs
   my $plugin_def =
-     "$basedir/components/*/tests/mtr/plugin.defs " .
-     "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-     "$basedir/internal/plugin/*/tests/mtr/plugin.defs " .
-     "suite/*/plugin.defs";
+    "$basedir/components/*/tests/mtr/plugin.defs " .
+    "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
+    "$basedir/internal/plugin/*/tests/mtr/plugin.defs " . "suite/*/plugin.defs";
 
   for (glob $plugin_def) {
     read_plugin_defs($_);
@@ -1173,12 +1176,14 @@ sub run_worker ($) {
 
       run_testcase($test);
 
+      # Stop the secondary engine servers if started.
+      stop_secondary_engine_servers() if $test->{'secondary-engine'};
+
       # Send it back, now with results set
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
     } elsif ($line eq 'BYE') {
       mtr_report("Server said BYE");
-      stop_secondary_engine_server() if $secondary_engine_support;
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
 
@@ -1200,9 +1205,7 @@ sub run_worker ($) {
     }
   }
 
-  stop_secondary_engine_server() if $secondary_engine_support;
   stop_all_servers();
-
   exit(1);
 }
 
@@ -1428,7 +1431,6 @@ sub command_line_setup {
 
     # Secondary engine options
     'change-propagation:1' => \$opt_change_propagation,
-    'secondary-engine'     => \$opt_secondary_engine,
 
     # Debugging
     'boot-dbx'             => \$opt_boot_dbx,
@@ -1669,19 +1671,9 @@ sub command_line_setup {
     mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
   }
 
-  if ($opt_secondary_engine and !$secondary_engine_support) {
-    mtr_error("Can't use --secondary-engine option.");
-  } elsif (!$opt_secondary_engine and $secondary_engine_support) {
-    $secondary_engine_support = 0
-      if (
-         (defined $opt_suites and !check_secondary_engine_suite($opt_suites)) or
-         not defined $opt_suites);
-  }
-
   if (defined $opt_change_propagation) {
-    if (not defined $opt_secondary_engine) {
-      mtr_error("Can't use '--change-propagation' option without enabling " .
-                "'--secondary-engine' option.");
+    if (!$secondary_engine_support) {
+      mtr_error("Can't use '--change-propagation' option");
     } elsif ($opt_change_propagation < 0 or $opt_change_propagation > 1) {
       # 'change-propagation' option value should be either 0 or 1.
       mtr_error("Invalid value '$opt_change_propagation' for option " .
@@ -2820,6 +2812,8 @@ sub environment_setup {
 
   if ($secondary_engine_support) {
     secondary_engine_environment_setup(\&find_plugin, $bindir);
+    initialize_function_pointers(\&gdb_arguments, \&mark_log, \&mysqlds,
+                                 \&run_query, \&valgrind_arguments);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -4387,6 +4381,14 @@ sub run_testcase ($) {
   mtr_verbose("Running test:", $tinfo->{name});
   resfile_report_test($tinfo) if $opt_resfile;
 
+  # Skip secondary engine tests if the support doesn't exist.
+  if (defined $tinfo->{'secondary-engine'} and !$secondary_engine_support) {
+    $tinfo->{'skip'}    = 1;
+    $tinfo->{'comment'} = "Test needs secondary engine support.";
+    mtr_report_test_skipped($tinfo);
+    return;
+  }
+
   # Allow only alpanumerics pluss _ - + . in combination names, or
   # anything beginning with -- (the latter comes from --combination).
   my $combination = $tinfo->{combination};
@@ -4418,7 +4420,7 @@ sub run_testcase ($) {
   if (!using_extern()) {
     my @restart = servers_need_restart($tinfo);
     if (@restart != 0) {
-      stop_secondary_engine_server() if $secondary_engine_support;
+      stop_secondary_engine_servers() if $tinfo->{'secondary-engine'};
       stop_servers($tinfo, @restart);
     }
 
@@ -4479,12 +4481,6 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
       return 1;
     }
-
-    if ($secondary_engine_support and $tinfo->{'skip'}) {
-      # Skip flag is set, don't run it.
-      mtr_report_test_skipped($tinfo);
-      return 0;
-    }
   }
   mark_time_used('restart');
 
@@ -4503,6 +4499,7 @@ sub run_testcase ($) {
 
     if ($opt_start_exit) {
       mtr_print("Server(s) started, not waiting for them to finish");
+      stop_secondary_engine_servers() if $tinfo->{'secondary-engine'};
       if (IS_WINDOWS) {
         POSIX::_exit(0);    # exit hangs here in ActiveState Perl
       } else {
@@ -5157,7 +5154,7 @@ sub start_check_warnings ($$) {
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR} = $log_error;
   extract_warning_lines($log_error, $tinfo->{name});
-  extract_secondary_engine_warning_lines() if $secondary_engine_support;
+  extract_secondary_engine_warning_lines() if $tinfo->{'secondary-engine'};
 
   my $args;
   mtr_init_args(\$args);
@@ -5332,19 +5329,15 @@ sub check_expected_crash_and_restart($$) {
 
         unlink($expect_file);
 
-        # Stop secondary engine server if enabled
-        stop_secondary_engine_server() if $secondary_engine_support;
-
         # Start server with same settings as last time
-        mysqld_start($mysqld, $mysqld->{'started_opts'});
+        mysqld_start($mysqld, $mysqld->{'started_opts'}, $tinfo);
 
-        # Start secondary engine server.
-        start_secondary_engine_server(\&gdb_arguments, \&mysqlds, \&run_query,
-                                      \&valgrind_arguments)
-          if $secondary_engine_support;
-
-        load_table_contents(\&run_query, $mysqld, $tinfo)
-          if $secondary_engine_support;
+        if ($tinfo->{'secondary-engine'}) {
+          my $restart_flag = 1;
+          # Start secondary engine servers.
+          start_secondary_engine_servers($tinfo, $restart_flag);
+          load_table_contents($mysqld) if defined $opt_change_propagation;
+        }
 
         return 1;
       }
@@ -5469,7 +5462,7 @@ sub after_failure ($) {
     foreach my $mysqld (mysqlds()) {
       my $data_dir = $mysqld->value('datadir');
       save_datadir_after_failure(dirname($data_dir), $save_dir);
-      save_secondary_engine_logdir($save_dir) if $secondary_engine_support;
+      save_secondary_engine_logdir($save_dir) if $tinfo->{'secondary-engine'};
     }
   }
 }
@@ -5598,10 +5591,6 @@ sub mysqld_arguments ($$$) {
                  "--print-defaults");
   arrange_option_files_options($args, $mysqld, $extra_opts, @options);
 
-  # Set the plugin-dir location to secondary engine plugin directory location.
-  mtr_add_arg($args, "--plugin-dir=" . $::secondary_engine_plugin_dir)
-    if $secondary_engine_support;
-
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid = $>;
@@ -5696,9 +5685,10 @@ sub mysqld_arguments ($$$) {
   return $args;
 }
 
-sub mysqld_start ($$) {
+sub mysqld_start ($$$) {
   my $mysqld     = shift;
   my $extra_opts = shift;
+  my $tinfo      = shift;
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
@@ -5731,12 +5721,12 @@ sub mysqld_start ($$) {
       my ($opt_name1, $value1) = My::Options::_split_option($extra_opt);
       my $found = 0;
       foreach my $restart_opt (@{ $mysqld->{'restart_opts'} }) {
-	next if $restart_opt eq '';
+        next if $restart_opt eq '';
         my ($opt_name2, $value2) = My::Options::_split_option($restart_opt);
         $found = 1 if (My::Options::option_equals($opt_name1, $opt_name2));
         last if $found == 1;
       }
-      push (@all_opts, $extra_opt) if $found == 0;
+      push(@all_opts, $extra_opt) if $found == 0;
     }
     push(@all_opts, @{ $mysqld->{'restart_opts'} });
     mtr_verbose(
@@ -5782,7 +5772,7 @@ sub mysqld_start ($$) {
 
     # Indicate the exe should not be started
     $exe = undef;
-  } elsif ($secondary_engine_support) {
+  } elsif ($tinfo->{'secondary-engine'}) {
     # Wait for the PID file to be created if secondary engine
     # is enabled.
   } else {
@@ -6139,17 +6129,7 @@ sub start_servers($) {
     if ($mysqld->{proc}) {
       # Already started, write start of testcase to log file
       mark_log($mysqld->value('#log-error'), $tinfo);
-      # Write start of testcase to secondary engine error log file
-      mark_log($::secondary_engine_log_error, $tinfo)
-        if ($secondary_engine_support);
-      # No need to install secondary engine plugin
-      $mysqld->{install_secondary_engine_plugin} = 0
-        if $secondary_engine_support;
       next;
-    } else {
-      # Install secondary engine plugin since mysqld server will be restarted.
-      $mysqld->{install_secondary_engine_plugin} = 1
-        if $secondary_engine_support;
     }
 
     my $datadir = $mysqld->value('datadir');
@@ -6233,23 +6213,7 @@ sub start_servers($) {
     }
 
     my $extra_opts = get_extra_opts($mysqld, $tinfo);
-    mysqld_start($mysqld, $extra_opts);
-
-    if ($secondary_engine_support) {
-      check_plugin_dir($tinfo);
-
-      # Skip tests starting more than one server.
-      check_number_of_servers(\&mysqlds, $tinfo) if !$tinfo->{'skip'};
-
-      return 0 if $tinfo->{'skip'};
-
-      # Write start of testcase to secondary engine error log file
-      mark_log($::secondary_engine_log_error, $tinfo);
-
-      # Start secondary engine server.
-      start_secondary_engine_server(\&gdb_arguments, \&mysqlds, \&run_query,
-                                    \&valgrind_arguments);
-    }
+    mysqld_start($mysqld, $extra_opts, $tinfo);
 
     # Save this test case information, so next can examine it
     $mysqld->{'started_tinfo'} = $tinfo;
@@ -6304,11 +6268,13 @@ sub start_servers($) {
     }
   }
 
-  if ($secondary_engine_support) {
+  if ($tinfo->{'secondary-engine'}) {
+    # Start secondary engine servers.
+    start_secondary_engine_servers($tinfo);
+
     # Install secondary engine plugin on all running mysqld servers.
-    install_secondary_engine_plugin(\&mysqlds, \&run_query, $tinfo);
-    if (defined $tinfo->{'result'} and $tinfo->{'result'} eq 'MTR_RES_FAILED') {
-      return 1;
+    foreach my $mysqld (mysqlds()) {
+      install_secondary_engine_plugin($mysqld);
     }
   }
 
@@ -6463,9 +6429,6 @@ sub start_mysqltest ($) {
   # Check for any client options
   get_client_options($args, $tinfo) if $tinfo->{client_opt};
 
-  add_secondary_engine_options($args, $opt_change_propagation)
-    if $secondary_engine_support;
-
   # Export MYSQL_TEST variable containing <path>/mysqltest <args>
   $ENV{'MYSQL_TEST'} = mtr_args2str($exe_mysqltest, @$args);
 
@@ -6480,6 +6443,9 @@ sub start_mysqltest ($) {
     valgrind_arguments($args, \$exe);
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
+
+  add_secondary_engine_options($tinfo, $args, $opt_change_propagation)
+    if $tinfo->{'secondary-engine'};
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 
