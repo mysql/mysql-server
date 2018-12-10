@@ -608,8 +608,7 @@ sub main {
   # Also read from any plugin local or suite specific plugin.defs
   my $plugin_def =
     "$basedir/internal/cloud/mysql-test/suite/*/plugin.defs " .
-    "$basedir/internal/mysql-test/include/plugin.defs " .
-    "suite/*/plugin.defs";
+    "$basedir/internal/mysql-test/include/plugin.defs " . "suite/*/plugin.defs";
 
   for (glob $plugin_def) {
     read_plugin_defs($_);
@@ -4499,7 +4498,6 @@ sub run_testcase ($) {
 
     if ($opt_start_exit) {
       mtr_print("Server(s) started, not waiting for them to finish");
-      stop_secondary_engine_servers() if $tinfo->{'secondary-engine'};
       if (IS_WINDOWS) {
         POSIX::_exit(0);    # exit hangs here in ActiveState Perl
       } else {
