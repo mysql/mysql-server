@@ -775,3 +775,30 @@ DROP USER 'user\_s_12601974'@'localhost';
 SET @@sql_mode= @org_mode;
 
 #End of Test for Bug#12601974
+
+Bug#28546855 EXECUTE STATEMENT HAVE TO CHECK STRICT_TRANS_TABLES MODE
+
+SELECT '\'';
+'
+'
+SET SQL_MODE=DEFAULT;
+CREATE TABLE test(id INT, count DOUBLE);
+INSERT INTO test VALUES (1,0), (2,0);
+always worked
+UPDATE test SET count = count + 1 WHERE id = '1invalid';
+ERROR 22007: Truncated incorrect DOUBLE value: '1invalid'
+PREPARE stmt FROM 'UPDATE test SET count = count + 1 WHERE id = ?';
+SET @a = '1invalid';
+failed to give an error
+EXECUTE stmt USING @a;
+ERROR 22007: Truncated incorrect DOUBLE value: '1invalid'
+SET SQL_MODE='';
+EXECUTE stmt USING @a;
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '1invalid'
+SELECT * FROM test;
+id	count
+1	1
+2	0
+SET SQL_MODE=DEFAULT;
+DROP TABLE test;

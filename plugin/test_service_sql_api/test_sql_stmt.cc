@@ -889,7 +889,7 @@ static void test_1(MYSQL_SESSION session, void *p) {
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"5";
-  params[0].length = 2;
+  params[0].length = 1;
 
   params[1].type = MYSQL_TYPE_STRING;
   params[1].unsigned_type = false;
@@ -950,13 +950,13 @@ static void test_2(MYSQL_SESSION session, void *p) {
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"4";
-  params[0].length = 2;
+  params[0].length = 1;
 
   params[1].type = MYSQL_TYPE_STRING;
   params[1].unsigned_type = false;
   params[1].null_bit = false;
   params[1].value = (const unsigned char *)"7";
-  params[1].length = 2;
+  params[1].length = 1;
 
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameters = params;
@@ -1007,13 +1007,13 @@ static void test_3(MYSQL_SESSION session, void *p) {
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"2";
-  params[0].length = 2;
+  params[0].length = 1;
 
   params[1].type = MYSQL_TYPE_STRING;
   params[1].unsigned_type = false;
   params[1].null_bit = false;
   params[1].value = (const unsigned char *)"3";
-  params[1].length = 2;
+  params[1].length = 1;
 
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameter_count = 2;

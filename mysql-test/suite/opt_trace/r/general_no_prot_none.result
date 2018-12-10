@@ -10145,6 +10145,8 @@ set optimizer_trace_offset=0, optimizer_trace_limit=100;
 execute stmt using @param;
 count(*)
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1
@@ -10294,6 +10296,8 @@ set optimizer_trace_offset=0, optimizer_trace_limit=100;
 execute stmt using @param;
 count(*)
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1

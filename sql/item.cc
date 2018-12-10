@@ -3606,10 +3606,9 @@ double Item_param::val_real() {
     }
     case STRING_VALUE:
     case LONG_DATA_VALUE: {
-      int dummy_err;
-      const char *end_not_used;
-      return my_strntod(str_value.charset(), (char *)str_value.ptr(),
-                        str_value.length(), &end_not_used, &dummy_err);
+      return double_from_string_with_check(
+          str_value.charset(), str_value.ptr(),
+          (char *)str_value.ptr() + str_value.length());
     }
     case TIME_VALUE:
       /*
