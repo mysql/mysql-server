@@ -113,6 +113,9 @@ SHOW GRANTS FOR "mysql.session"@localhost;
 
 --let restart_parameters=restart: --sql_require_primary_key=1
 --source include/restart_mysqld.inc
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 let $restart_parameters = restart: ;
