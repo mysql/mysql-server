@@ -985,7 +985,7 @@ void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 
   operationRecPtr.p->hashValue = LHBits32(signal->hashValue);
   operationRecPtr.p->tupkeylen = signal->keyLen;
-  operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen = signal->keyLen;
+  operationRecPtr.p->m_scanOpDeleteCountOpRef = RNIL;
   operationRecPtr.p->transId1 = signal->transId1;
   operationRecPtr.p->transId2 = signal->transId2;
 
@@ -3831,9 +3831,8 @@ Dbacc::report_pending_dealloc(Signal* signal,
        * To make that possible, we store the deleting
        * operation's userptr in the scan op record.
        */
-      ndbrequire(opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef == 0);
-      opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef =
-          countOpPtrP->userptr + 1;
+      ndbrequire(opPtrP->m_scanOpDeleteCountOpRef == RNIL);
+      opPtrP->m_scanOpDeleteCountOpRef = countOpPtrP->userptr;
       return;
     }
     ndbrequire(countOpPtrP->userptr != RNIL);
@@ -3881,8 +3880,8 @@ Dbacc::trigger_dealloc(Signal* signal, const Operationrec* opPtrP)
        * stored on the scan operation in report_pending_dealloc()
        * to inform LQH that the deallocation is triggered.
        */
-      ndbrequire(opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef != 0);
-      userptr = opPtrP->m_key_or_scan_info.m_scanOpDeleteCountOpRef - 1;
+      ndbrequire(opPtrP->m_scanOpDeleteCountOpRef != RNIL);
+      userptr = opPtrP->m_scanOpDeleteCountOpRef;
     }
     /* Inform LQH that deallocation can go ahead */
     signal->theData[0] = fragrecptr.p->myfid;
@@ -7930,7 +7929,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   ndbrequire(localkeylen == 1)
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-  operationRecPtr.p->m_key_or_scan_info.xfrmtupkeylen = 0; // not used
+  operationRecPtr.p->m_scanOpDeleteCountOpRef = RNIL;
   NdbTick_Invalidate(&operationRecPtr.p->m_lockTime);
 }//Dbacc::initScanOpRec()
 

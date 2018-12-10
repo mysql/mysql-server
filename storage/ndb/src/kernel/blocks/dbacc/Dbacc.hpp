@@ -709,11 +709,7 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  union
-  {
-    Uint32 xfrmtupkeylen;
-    Uint32 m_scanOpDeleteCountOpRef;
-  } m_key_or_scan_info;
+  Uint32 m_scanOpDeleteCountOpRef;
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
