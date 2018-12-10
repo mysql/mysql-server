@@ -711,11 +711,7 @@ struct Operationrec {
   Uint32 userptr;
   Uint16 elementContainer;
   Uint16 tupkeylen;
-  union
-  {
-    Uint32 xfrmtupkeylen;
-    Uint32 m_scanOpDeleteCountOpRef;
-  } m_key_or_scan_info;
+  Uint32 m_scanOpDeleteCountOpRef;
   Uint32 userblockref;
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
@@ -1012,7 +1008,7 @@ private:
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
-  Uint32 getElement(const AccKeyReq* signal,
+  Uint32 getElement(AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
                     Uint32& bucketConidx,
@@ -1100,7 +1096,7 @@ private:
   void zpagesize_error(const char* where);
 
   // charsets
-  void xfrmKeyData(AccKeyReq* signal) const;
+  Uint32 xfrmKeyData(AccKeyReq* signal) const;
 
   // Initialisation
   void initData();
