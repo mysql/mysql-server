@@ -2575,7 +2575,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     bool log_query_on_participant)
 {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
-
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
                        query, db, table_name));
   if (!ndb_schema_share)
@@ -2583,70 +2582,49 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     DBUG_RETURN(0);
   }
 
-  NDB_SCHEMA_OBJECT *ndb_schema_object;
-  {
-    ndb_schema_object= ndb_get_schema_object(db, table_name, true);
+  // Get NDB_SCHEMA_OBJECT
+  std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
+      ndb_schema_object(
+          NDB_SCHEMA_OBJECT::get(db, table_name, ndb_table_id,
+                                 ndb_table_version, m_max_participants, true),
+          NDB_SCHEMA_OBJECT::release);
 
+  if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
     /**
-     * We will either get a newly created schema_object, or a 
-     * 'all-clear' schema_object completed but still referred
-     * by my binlog-injector-thread. In both cases there should
-     * be no outstanding SLOCK's.
-     * See also the 'ndb_binlog_schema_object_race' error injection.
-     */ 
-    DBUG_ASSERT(bitmap_is_clear_all(&ndb_schema_object->slock_bitmap));
-
-    /**
-     * Expect answer from all other nodes by default(those
-     * who are not subscribed will be filtered away by
-     * the Coordinator which keep track of such stuff)
+     * Try to trigger a race between late incomming slock ack for
+     * schema operations having its coordinator on another node,
+     * which we would otherwise have discarded as no matching
+     * ndb_schema_object existed, and another schema op with same 'key',
+     * coordinated by this node. Thus causing a mixup betweeen these,
+     * and the schema distribution getting totally out of synch.
      */
-    bitmap_set_all(&ndb_schema_object->slock_bitmap);
-
-    ndb_schema_object->table_id= ndb_table_id;
-    ndb_schema_object->table_version= ndb_table_version;
-
-    if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
-    {
-      /**
-       * Try to trigger a race between late incomming slock ack for
-       * schema operations having its coordinator on another node,
-       * which we would otherwise have discarded as no matching
-       * ndb_schema_object existed, and another schema op with same 'key',
-       * coordinated by this node. Thus causing a mixup betweeen these,
-       * and the schema distribution getting totally out of synch.
-       */
-      ndb_milli_sleep(50);
-    }
+    ndb_milli_sleep(50);
   }
+
+  // Format string to use in log printouts
+  const std::string op_name = db + std::string(".") + table_name + "(" +
+                              std::to_string(ndb_table_id) + "/" +
+                              std::to_string(ndb_table_version) + ")";
 
   {
     /* begin protect ndb_schema_share */
     Mutex_guard ndb_schema_share_g(injector_data_mutex);
     if (ndb_schema_share == NULL)
     {
-      ndb_free_schema_object(&ndb_schema_object);
       DBUG_RETURN(0);
     }
   }
 
-  char save_db[FN_REFLEN];
-  strcpy(save_db, ndb->getDatabaseName());
+  // Open ndb_schema table
+  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+  if (!schema_dist_table.open()) {
+    DBUG_RETURN(1);
+  }
+  const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
 
-  NDBDICT *dict= ndb->getDictionary();
-  ndb->setDatabaseName(NDB_REP_DB);
-  Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-  const NDBTAB *ndbtab= ndbtab_g.get_table();
   NdbTransaction *trans = nullptr;
   int retries= 100;
-
   const NdbError *ndb_error = nullptr;
-  if (ndbtab == nullptr)
-  {
-    ndb_error= &dict->getNdbError();
-    goto end;
-  }
-
   while (1)
   {
     char tmp_buf[FN_REFLEN];
@@ -2654,7 +2632,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     const uint32 log_type= (uint32)type;
     const char *log_db= db;
     const char *log_tab= table_name;
-    const char *log_subscribers= (char*)ndb_schema_object->slock;
     // Use nodeid of the primary cluster connection since that is
     // the nodeid which the coordinator and participants listen to
     const uint32 log_node_id = g_ndb_cluster_connection->node_id();
@@ -2681,10 +2658,15 @@ int Ndb_schema_dist_client::log_schema_op_impl(
       r|= op->equal(SCHEMA_NAME_I, tmp_buf);
       DBUG_ASSERT(r == 0);
       /* slock */
-      DBUG_ASSERT(ndbtab->getColumn(SCHEMA_SLOCK_I)->getLength() ==
-                  (int)no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-      r|= op->setValue(SCHEMA_SLOCK_I, log_subscribers);
-      DBUG_ASSERT(r == 0);
+      {
+        // Start the schema operation with all bits set in the slock column.
+        // The expectation is that all participants will reply and those not
+        // connected will be filtered away by the coordinator.
+        std::vector<char> slock_data;
+        slock_data.assign(schema_dist_table.get_slock_bits() / 8, 0xFF);
+        r|= op->setValue(SCHEMA_SLOCK_I, slock_data.data());
+        DBUG_ASSERT(r == 0);
+      }
       /* query */
       {
         NdbBlob *ndb_blob= op->getBlobHandle(SCHEMA_QUERY_I);
@@ -2768,7 +2750,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
                        1 /* force send */) == 0)
     {
       DBUG_PRINT("info", ("logged: %s", query));
-      dict->forceGCPWait(1);
+      ndb->getDictionary()->forceGCPWait(1);
       break;
     }
 err:
@@ -2787,7 +2769,7 @@ err:
     ndb_error= this_error;
     break;
   }
-end:
+
   if (ndb_error)
     push_warning_printf(m_thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG, ER_THD(m_thd, ER_GET_ERRMSG),
@@ -2797,24 +2779,18 @@ end:
           
   if (trans)
     ndb->closeTransaction(trans);
-  ndb->setDatabaseName(save_db);
 
-  ndb_log_verbose(19,
-                  "distributed %s.%s(%u/%u) type: %s(%u) "
-                  "query: \'%s\' to %x%08x",
-                  db, table_name, ndb_table_id, ndb_table_version,
-                  type_name(type), type, query,
-                  ndb_schema_object->slock_bitmap.bitmap[1],
-                  ndb_schema_object->slock_bitmap.bitmap[0]);
+  ndb_log_verbose(
+      19, "Distributed '%s' type: %s(%u) query: \'%s\' to all subscribers",
+      op_name.c_str(), type_name(type), type, query);
 
   /*
     Wait for other mysqld's to acknowledge the table operation
   */
   if (unlikely(ndb_error))
   {
-    ndb_log_error("%s, distributing %s err: %u",
-                  type_str(type), ndb_schema_object->key,
-                  ndb_error->code);
+    ndb_log_error("%s, distributing '%s' err: %u", type_str(type),
+                  op_name.c_str(), ndb_error->code);
   }
   else if (!bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
@@ -2850,32 +2826,29 @@ end:
         max_timeout--;
         if (max_timeout == 0)
         {
-          ndb_log_error("%s, distributing %s timed out. Ignoring...",
-                        type_str(type), ndb_schema_object->key);
+          ndb_log_error("%s, distributing '%s' timed out. Ignoring...",
+                        type_str(type), op_name.c_str());
           DBUG_ASSERT(false);
           break;
         }
         if (ndb_log_get_verbose_level())
-          ndb_report_waiting(type_str(type), max_timeout,
-                             "distributing", ndb_schema_object->key,
-                             &ndb_schema_object->slock_bitmap);
+          ndb_report_waiting(type_str(type), max_timeout, "distributing",
+                             op_name.c_str(), &ndb_schema_object->slock_bitmap);
       }
     }
     mysql_mutex_unlock(&ndb_schema_object->mutex);
+
+
   }
   else
   {
-    ndb_log_verbose(19, "%s, not waiting for distributing %s",
-                    type_str(type), ndb_schema_object->key);
+    ndb_log_verbose(19, "%s, not waiting for distributing '%s'", type_str(type),
+                    op_name.c_str());
   }
 
-  ndb_free_schema_object(&ndb_schema_object);
-
   ndb_log_verbose(19,
-                  "distribution of %s.%s(%u/%u) type: %s(%u) query: \'%s\'"
-                  " - complete!",
-                  db, table_name, ndb_table_id, ndb_table_version,
-                  type_name(type), type, query);
+                  "distribution of '%s' type: %s(%u) query: \'%s\' - complete!",
+                  op_name.c_str(), type_name(type), type, query);
 
   DBUG_RETURN(0);
 }
@@ -3471,47 +3444,51 @@ class Ndb_schema_event_handler {
     thd->reset_db(thd_db_save);
   }
 
+  /**
+    @brief Inform the other nodes that schema operation has been completed by
+    this node, this is done by updating the row in the ndb_schema table.
 
-  /*
-    Acknowledge handling of schema operation
-    - Inform the other nodes that schema op has
-      been completed by this node (by updating the
-      row for this op in ndb_schema table)
+    @note The function will read the row from ndb_schema with exclusive lock,
+    append it's own data to the 'slock' column and then write the row back.
+
+    @param schema The schema operation which has just been executed
+
+    @return different return values are returned, but not documented since they
+    are currently unused
+
   */
-  int
-  ack_schema_op(const Ndb_schema_op *schema) const
-  {
-    const char* const db = schema->db;
+  int ack_schema_op(const Ndb_schema_op *schema) const {
+    const char *const db = schema->db;
     const char* const table_name = schema->name;
     const uint32 table_id = schema->id;
     const uint32 table_version = schema->version;
 
     DBUG_ENTER("ack_schema_op");
 
-    const NdbError *ndb_error= 0;
+    // NOTE! check_ndb_in_thd() might create a new Ndb object
     Ndb *ndb= check_ndb_in_thd(m_thd);
-    char save_db[FN_HEADLEN];
-    strcpy(save_db, ndb->getDatabaseName());
 
+    // Open ndb_schema table
+    Ndb_schema_dist_table schema_dist_table(get_thd_ndb(m_thd));
+    if (!schema_dist_table.open()) {
+      // NOTE! Legacy crash unless this was cluster connection failure, there
+      // are simply no other of way sending error back to coordinator
+      ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
+      DBUG_RETURN(1);
+    }
+    const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
+
+    const NdbError *ndb_error = nullptr;
     char tmp_buf[FN_REFLEN];
-    NDBDICT *dict= ndb->getDictionary();
-    ndb->setDatabaseName(NDB_REP_DB);
-    Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-    const NDBTAB *ndbtab= ndbtab_g.get_table();
     NdbTransaction *trans= 0;
     int retries= 100;
-    int retry_sleep= 30; /* 30 milliseconds, transaction */
+    const int retry_sleep = 30; /* milliseconds, transaction */
 
+    // Initialize slock bitmap
+    // NOTE! Should dynamically adapt to size of "slock" column
     MY_BITMAP slock;
     uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
     bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
-
-    if (ndbtab == 0)
-    {
-      if (dict->getNdbError().code != 4009)
-        abort();
-      DBUG_RETURN(0);
-    }
 
     while (1)
     {
@@ -3521,7 +3498,7 @@ class Ndb_schema_event_handler {
         NdbOperation *op= 0;
         int r= 0;
 
-        /* read the bitmap exlusive */
+        /* read row from ndb_schema with exlusive row lock */
         r|= (op= trans->getNdbOperation(ndbtab)) == 0;
         DBUG_ASSERT(r == 0);
         r|= op->readTupleExclusive();
@@ -3540,9 +3517,11 @@ class Ndb_schema_event_handler {
         /* slock */
         r|= op->getValue(SCHEMA_SLOCK_I, (char*)slock.bitmap) == 0;
         DBUG_ASSERT(r == 0);
+
+        /* Execute in NDB */
+        if (trans->execute(NdbTransaction::NoCommit))
+          goto err;
       }
-      if (trans->execute(NdbTransaction::NoCommit))
-        goto err;
 
       char before_slock[32];
       if (ndb_log_get_verbose_level() > 19)
@@ -3612,7 +3591,7 @@ class Ndb_schema_event_handler {
       {
         DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'",
                             own_nodeid(), db, table_name));
-        dict->forceGCPWait(1);
+        (void)ndb->getDictionary()->forceGCPWait(1);
         break;
       }
     err:
@@ -3642,7 +3621,6 @@ class Ndb_schema_event_handler {
     }
     if (trans)
       ndb->closeTransaction(trans);
-    ndb->setDatabaseName(save_db);
     DBUG_RETURN(0);
   }
 
@@ -3744,60 +3722,41 @@ class Ndb_schema_event_handler {
 
     assert(is_post_epoch());
 
-    // Try to create a race between SLOCK acks handled after another
-    // schema operation could have been started.
     if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false))
     {
-      NDB_SCHEMA_OBJECT *p =
-          ndb_get_schema_object(schema->db, schema->name, false);
-      if (p == NULL)
-      {
+      // Try to create a race between SLOCK acks handled after another
+      // schema operation on same object could have been started.
+
+      // Get temporary NDB_SCHEMA_OBJECT, sleep if one does not exist
+      std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
+          tmp_ndb_schema_obj(
+              NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
+                                     schema->version),
+              NDB_SCHEMA_OBJECT::release);
+      if (tmp_ndb_schema_obj == nullptr) {
         ndb_milli_sleep(10);
-      }
-      else
-      {
-        ndb_free_schema_object(&p);
       }
     }
 
-    /* Ack to any SQL thread waiting for schema op to complete */
-    NDB_SCHEMA_OBJECT *ndb_schema_object =
-        ndb_get_schema_object(schema->db, schema->name, false);
-    if (!ndb_schema_object)
-    {
+    // Get NDB_SCHEMA_OBJECT
+    std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
+        ndb_schema_object(NDB_SCHEMA_OBJECT::get(schema->db, schema->name,
+                                                 schema->id, schema->version),
+                          NDB_SCHEMA_OBJECT::release);
+    if (!ndb_schema_object) {
       /* Noone waiting for this schema op in this mysqld */
       ndb_log_verbose(19, "Discarding event...no obj: '%s.%s' (%u/%u)",
                       schema->db, schema->name, schema->id, schema->version);
       DBUG_VOID_RETURN;
     }
 
-    if (ndb_schema_object->table_id != schema->id ||
-        ndb_schema_object->table_version != schema->version)
-    {
-      /* Someone waiting, but for another id/version... */
-      ndb_log_verbose(19, "Discarding event...key: '%s.%s' "
-                          "non matching id/version [%u/%u] != [%u/%u]",
-                          schema->db, schema->name,
-                          ndb_schema_object->table_id,
-                          ndb_schema_object->table_version,
-                          schema->id,
-                          schema->version);
-      ndb_free_schema_object(&ndb_schema_object);
-      DBUG_VOID_RETURN;
-    }
-
     mysql_mutex_lock(&ndb_schema_object->mutex);
-    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
-              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
-              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
 
-    char before_slock[32];
+    std::string slock_bitmap_before;
     if (ndb_log_get_verbose_level() > 19)
     {
       /* Format 'before slock' into temp string */
-      snprintf(before_slock, sizeof(before_slock), "%x%08x",
-                  ndb_schema_object->slock[1],
-                  ndb_schema_object->slock[0]);
+      slock_bitmap_before = ndb_schema_object->slock_bitmap_to_string();
     }
 
     /**
@@ -3809,17 +3768,12 @@ class Ndb_schema_event_handler {
     bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema->slock);
 
     /* Print updated slock together with before image of it */
-    ndb_log_verbose(19, "CLEAR_SLOCK key: '%s.%s' (%u/%u) %x%08x, from "
-                        "%s to %x%08x",
-                        schema->db, schema->name, schema->id, schema->version,
-                        schema->slock_buf[1], schema->slock_buf[0],
-                        before_slock,
-                        ndb_schema_object->slock[1],
-                        ndb_schema_object->slock[0]);
-
-    DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
-              (uchar*)ndb_schema_object->slock_bitmap.bitmap,
-              no_bytes_in_map(&ndb_schema_object->slock_bitmap));
+    if (ndb_log_get_verbose_level() > 19) {
+      ndb_log_info("CLEAR_SLOCK: '%s.%s(%u/%u)' from %s to %s", schema->db,
+                   schema->name, schema->id, schema->version,
+                   slock_bitmap_before.c_str(),
+                   ndb_schema_object->slock_bitmap_to_string().c_str());
+    }
 
     /* Wake up the waiter */
     mysql_mutex_unlock(&ndb_schema_object->mutex);
@@ -3841,10 +3795,8 @@ class Ndb_schema_event_handler {
     {
       ndb_milli_sleep(10);
     }
-    ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
-
 
   void
   handle_offline_alter_table_commit(const Ndb_schema_op* schema)
@@ -5021,7 +4973,7 @@ class Ndb_schema_event_handler {
       const SCHEMA_OP_TYPE schema_type= (SCHEMA_OP_TYPE)schema->type;
 
       ndb_log_verbose(19,
-                      "got schema event on %s.%s(%u/%u) query: '%s' "
+                      "got schema event on '%s.%s(%u/%u)' query: '%s' "
                       "type: %s(%d) node: %u slock: %x%08x",
                       schema->db, schema->name,
                       schema->id, schema->version,
@@ -5214,9 +5166,9 @@ class Ndb_schema_event_handler {
   List<const Ndb_schema_op> m_post_epoch_handle_list;
   List<const Ndb_schema_op> m_post_epoch_ack_list;
 
-public:
-  Ndb_schema_event_handler(); // Not implemented
-  Ndb_schema_event_handler(const Ndb_schema_event_handler&); // Not implemented
+ public:
+  Ndb_schema_event_handler() = delete;
+  Ndb_schema_event_handler(const Ndb_schema_event_handler&) = delete;
 
   Ndb_schema_event_handler(THD* thd, MEM_ROOT* mem_root, uint own_nodeid,
                            Ndb_schema_dist_data& schema_dist_data):
@@ -5226,14 +5178,12 @@ public:
   {
   }
 
-
   ~Ndb_schema_event_handler()
   {
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
     DBUG_ASSERT(m_post_epoch_ack_list.elements == 0);
   }
-
 
   void handle_event(Ndb* s_ndb, NdbEventOperation *pOp)
   {
@@ -5320,7 +5270,6 @@ public:
 
     DBUG_VOID_RETURN;
   }
-
 
   void post_epoch()
   {

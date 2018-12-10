@@ -27,105 +27,126 @@
 
 #include <mutex>
 #include <string>
-#include "map_helpers.h"
-#include "mysql/service_mysql_alloc.h"
-#include "template_utils.h"
+#include <unordered_map>
 
+#include "sql/ndb_bitmap.h"
+
+// List keeping track of active NDB_SCHEMA_OBJECTs. The list is used
+// by the schema distribution coordinator to find the correct NDB_SCHEMA_OBJECT
+// in order to communicate with the schema dist client.
 class Ndb_schema_objects
 {
 public:
   // Mutex protecting the unordered map
   std::mutex m_lock;
-  malloc_unordered_map<std::string, NDB_SCHEMA_OBJECT *> m_hash;
-  Ndb_schema_objects()
-    : m_hash(PSI_INSTRUMENT_ME)
-  {
+  std::unordered_map<std::string, NDB_SCHEMA_OBJECT *> m_hash;
+  Ndb_schema_objects() {}
+
+  NDB_SCHEMA_OBJECT *find(std::string key) const {
+    const auto it = m_hash.find(key);
+    if (it == m_hash.end()) return nullptr;
+    return it->second;
   }
-} ndb_schema_objects;
+} active_schema_clients;
 
+NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, uint slock_bits)
+    : m_key(key) {
+  // Check legacy min limit for number of bits
+  DBUG_ASSERT(slock_bits >= 256);
 
-NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *db, const char* table_name,
-                                         bool create_if_not_exists)
-{
-  NDB_SCHEMA_OBJECT *ndb_schema_object;
-  DBUG_ENTER("ndb_get_schema_object");
-  DBUG_PRINT("enter", ("db: '%s', table_name: '%s'", db, table_name));
+  // Initialize bitmap, clears all bits.
+  bitmap_init(&slock_bitmap, nullptr, slock_bits, false);
 
-  std::string key;
-  key.append("./").append(db).append("/").append(table_name);
+  // Set all bits in order to expect answer from all other nodes by
+  // default(those who are not subscribed will be filtered away by the
+  // Coordinator which keep track of such stuff)
+  bitmap_set_all(&slock_bitmap);
+
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(PSI_INSTRUMENT_ME, &cond);
+}
+
+NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
+  DBUG_ASSERT(m_use_count == 0);
+
+  mysql_cond_destroy(&cond);
+  mysql_mutex_destroy(&mutex);
+
+  bitmap_free(&slock_bitmap);
+}
+
+NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
+                                          const char *table_name, uint32 id,
+                                          uint32 version, uint participants,
+                                          bool create_if_not_exists) {
+  DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
+  DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u",
+                       db, table_name, id, version));
+
+  // Number of partipcipants must be provided when allowing a new instance to be
+  // created
+  DBUG_ASSERT((create_if_not_exists && participants) || !create_if_not_exists);
+
+  // Build a key on the form "./<db>/<name>_<id>_<version>"
+  const std::string key = std::string("./") + db + "/" + table_name + "_" +
+                          std::to_string(id) + "_" + std::to_string(version);
   DBUG_PRINT("info", ("key: '%s'", key.c_str()));
 
-  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
 
-  while (!(ndb_schema_object =
-               find_or_nullptr(ndb_schema_objects.m_hash, key.c_str())))
-  {
-    if (!create_if_not_exists)
-    {
-      DBUG_PRINT("info", ("does not exist"));
-      break;
-    }
-    if (!(ndb_schema_object=
-          (NDB_SCHEMA_OBJECT*) my_malloc(PSI_INSTRUMENT_ME,
-                                         sizeof(*ndb_schema_object) +
-                                         key.length() + 1,
-                                         MYF(MY_WME | MY_ZEROFILL))))
-    {
-      DBUG_PRINT("info", ("malloc error"));
-      break;
-    }
-    ndb_schema_object->key= (char *)(ndb_schema_object+1);
-    memcpy(ndb_schema_object->key, key.c_str(), key.length() + 1);
-    ndb_schema_object->key_length= key.length();
-    ndb_schema_objects.m_hash.emplace(key.c_str(), ndb_schema_object);
-    mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_object->mutex,
-                     MY_MUTEX_INIT_FAST);
-    mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
-    bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
-                sizeof(ndb_schema_object->slock)*8, false);
-    //slock_bitmap is initially cleared due to 'ZEROFILL-malloc'
-    break;
-  }
+  NDB_SCHEMA_OBJECT *ndb_schema_object = active_schema_clients.find(key);
   if (ndb_schema_object)
   {
-    ndb_schema_object->use_count++;
-    DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
+    ndb_schema_object->m_use_count++;
+    DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
+    DBUG_RETURN(ndb_schema_object);
   }
 
+  if (!create_if_not_exists) {
+    DBUG_PRINT("info", ("does not exist"));
+    DBUG_RETURN(nullptr);
+  }
+
+  ndb_schema_object =
+      new (std::nothrow) NDB_SCHEMA_OBJECT(key.c_str(), participants);
+  if (!ndb_schema_object) {
+    DBUG_PRINT("info", ("failed to allocate"));
+    DBUG_RETURN(nullptr);
+  }
+
+  // Add to list of NDB_SCHEMA_OBJECTs
+  active_schema_clients.m_hash.emplace(key, ndb_schema_object);
+  ndb_schema_object->m_use_count++;
+  DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
   DBUG_RETURN(ndb_schema_object);
 }
 
-
 void
-ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
+NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object)
 {
-  DBUG_ENTER("ndb_free_schema_object");
-  DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
+  DBUG_ENTER("NDB_SCHEMA_OBJECT::release");
+  DBUG_PRINT("enter", ("key: '%s'", ndb_schema_object->m_key.c_str()));
 
-  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
 
-  if (!--(*ndb_schema_object)->use_count)
-  {
-    DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-    ndb_schema_objects.m_hash.erase((*ndb_schema_object)->key);
-    mysql_cond_destroy(&(*ndb_schema_object)->cond);
-    mysql_mutex_destroy(&(*ndb_schema_object)->mutex);
-    my_free(*ndb_schema_object);
-    *ndb_schema_object= NULL;
-  }
-  else
-  {
-    DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
-  }
+  ndb_schema_object->m_use_count--;
+  DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->m_use_count));
+
+  if (ndb_schema_object->m_use_count != 0)
+    DBUG_VOID_RETURN;
+
+  // Remove from list of NDB_SCHEMA_OBJECTS
+  active_schema_clients.m_hash.erase(ndb_schema_object->m_key);
+  delete ndb_schema_object;
   DBUG_VOID_RETURN;
 }
 
-//static
+
 void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
 {
-  std::lock_guard<std::mutex> lock_hash(ndb_schema_objects.m_lock);
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
 
-  for (const auto &key_and_value : ndb_schema_objects.m_hash)
+  for (const auto &key_and_value : active_schema_clients.m_hash)
   {
     NDB_SCHEMA_OBJECT *schema_object = key_and_value.second;
     schema_object->check_waiter(new_participants);
@@ -141,4 +162,8 @@ NDB_SCHEMA_OBJECT::check_waiter(const MY_BITMAP &new_participants)
 
   // Wakeup waiting Client
   mysql_cond_signal(&cond);
+}
+
+std::string NDB_SCHEMA_OBJECT::slock_bitmap_to_string() const {
+  return ndb_bitmap_to_hex_string(&slock_bitmap);
 }

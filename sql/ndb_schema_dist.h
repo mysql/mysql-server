@@ -116,6 +116,9 @@ class Ndb_schema_dist_client {
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
 
+  // Max number of participants supported
+  int m_max_participants{0};
+
   /*
     @brief Generate unique id for distribution of objects which doesn't have
            global id in NDB.

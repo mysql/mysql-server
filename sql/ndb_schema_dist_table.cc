@@ -291,3 +291,7 @@ std::string Ndb_schema_dist_table::define_table_dd() const {
      << ") ENGINE=ndbcluster CHARACTER SET latin1";
   return ss.str();
 }
+
+int Ndb_schema_dist_table::get_slock_bits() const {
+  return get_column_max_length(COL_SLOCK) * 8;
+}

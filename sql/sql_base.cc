@@ -857,7 +857,7 @@ static TABLE_SHARE *get_table_share_with_discover(
 {
   TABLE_SHARE *share;
   bool exists;
-  DBUG_ENTER("get_table_share_with_create");
+  DBUG_ENTER("get_table_share_with_discover");
 
   share = get_table_share(thd, table_list->db, table_list->table_name, key,
                           key_length, true, open_secondary);

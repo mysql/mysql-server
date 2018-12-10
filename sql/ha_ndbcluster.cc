@@ -10115,9 +10115,6 @@ ha_ndbcluster::update_comment_info(THD* thd,
   DBUG_VOID_RETURN;
 }
 
-/*
-  Create a table in NDB Cluster
- */
 static uint get_no_fragments(ulonglong max_rows)
 {
   ulonglong acc_row_size= 25 + /*safety margin*/ 2;

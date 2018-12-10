@@ -52,6 +52,13 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   bool need_upgrade() const override;
 
   std::string define_table_dd() const override;
+
+  /**
+     @brief Return number of bits possible to store in the "slock" column
+
+     @return number of bits
+  */
+  int get_slock_bits() const;
 };
 
 #endif
