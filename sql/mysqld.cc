@@ -9236,8 +9236,12 @@ bool mysqld_get_one_option(int optid,
       opt_specialflag |= SPECIAL_NO_HOST_CACHE;
       break;
     case (int)OPT_SKIP_RESOLVE:
-      opt_skip_name_resolve = 1;
-      opt_specialflag |= SPECIAL_NO_RESOLVE;
+      if (argument && argument[0] == '0')
+        opt_skip_name_resolve = 0;
+      else {
+        opt_skip_name_resolve = 1;
+        opt_specialflag |= SPECIAL_NO_RESOLVE;
+      }
       break;
     case (int)OPT_WANT_CORE:
       test_flags |= TEST_CORE_ON_SIGNAL;

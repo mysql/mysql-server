@@ -396,4 +396,23 @@ myisam_stats_method
 SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
 myisam_repair_threads=default, myisam_stats_method=default;
 RESET PERSIST;
+#
+# Bug #28749668: SKIP_NAME_RESOLVE CAN BE PERSIT_ONLY-ED TO ON, BUT NOT OFF
+#
+SELECT @@global.skip_name_resolve;
+@@global.skip_name_resolve
+0
+CREATE USER 'bug28749668'@'%';
+GRANT ALL ON *.* TO 'bug28749668'@'%';
+SET PERSIST_ONLY skip_name_resolve=0;
+# Restart server and check if server starts
+# restart
+SELECT @@global.skip_name_resolve;
+@@global.skip_name_resolve
+0
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+skip_name_resolve	0
+RESET PERSIST;
+DROP USER 'bug28749668'@'%';
 # End of the 8.0 tests
