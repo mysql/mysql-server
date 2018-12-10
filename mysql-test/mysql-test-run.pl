@@ -5319,7 +5319,17 @@ sub check_expected_crash_and_restart($$) {
           delete $mysqld->{'restart_opts'};
         }
 
-        unlink($expect_file);
+        # Attempt to remove the .expect file. If it fails in
+        # windows, retry removal after a sleep.
+        my $retry = 1;
+        while (unlink($expect_file) == 0 &&
+               $! == 13 && # Error = 13, Permission denied
+               IS_WINDOWS &&
+               $retry-- >= 0) {
+          # Permission denied to unlink.
+          # Race condition seen on windows. Wait and retry.
+          mtr_milli_sleep(1000);
+        }
 
         # Start server with same settings as last time
         mysqld_start($mysqld, $mysqld->{'started_opts'}, $tinfo);
