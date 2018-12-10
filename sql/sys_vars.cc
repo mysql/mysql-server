@@ -6118,7 +6118,8 @@ static bool sysvar_check_authid_string(sys_var *, THD *thd, set_var *var) {
   DBUG_ASSERT(sctx != 0);
   if (sctx && !sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN");
+             "SYSTEM_VARIABLES_ADMIN or SUPER privileges, as well as the "
+             "ROLE_ADMIN");
     /* No privilege access error */
     return true;
   }
