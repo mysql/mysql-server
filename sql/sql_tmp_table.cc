@@ -989,7 +989,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         }
       }
       if (item->m_is_window_function) {
-        if (!param->m_window) {
+        if (!param->m_window || param->m_window_frame_buffer) {
           /*
             A pre-windowing table; no point in storing WF.
             Or a window's frame buffer:
@@ -1008,11 +1008,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         /*
           A non-WF expression containing a WF conservatively requires all
           windows to have been processed, and is not stored in any of
-          windowing tables. Note that if the tmp table belongs to an even
-          later step - materialization of a query's result - then
-          not_all_columns==false and we store the expression.
+          windowing tables until the last one.
         */
-        goto update_hidden;
+        if (param->m_window == nullptr || !param->m_window->is_last())
+          goto update_hidden;
       }
       if (item->const_item() && (int)hidden_field_count <= 0)
         continue;  // We don't have to store this

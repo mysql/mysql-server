@@ -4040,10 +4040,11 @@ bool SELECT_LEX::change_func_or_wf_group_ref(THD *thd, Item *func,
     if (real_item->type() == Item::FUNC_ITEM) {
       if (change_func_or_wf_group_ref(thd, real_item, &arg_changed))
         return true;
-    } else if (item->type() == Item::SUM_FUNC_ITEM &&
-               item->m_is_window_function) {
+    } else if (real_item->type() == Item::SUM_FUNC_ITEM &&
+               real_item->m_is_window_function) {
       DBUG_ASSERT(!wf);  // wfs are not not nested
-      if (change_func_or_wf_group_ref(thd, item, &arg_changed)) return true;
+      if (change_func_or_wf_group_ref(thd, real_item, &arg_changed))
+        return true;
     }
   }
   if (arg_changed) {

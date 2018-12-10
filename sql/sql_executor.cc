@@ -692,10 +692,11 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
         do_copy = (item->m_is_window_function &&
                    down_cast<Item_sum *>(item)->uses_only_one_row());
         break;
-      case CFT_NON_WF:
-        do_copy = !item->m_is_window_function;
-        if (do_copy)  // copying an expression of a WF would be wrong:
-          DBUG_ASSERT(!item->has_wf());
+      case CFT_HAS_NO_WF:
+        do_copy = !item->m_is_window_function && !item->has_wf();
+        break;
+      case CFT_HAS_WF:
+        do_copy = !item->m_is_window_function && item->has_wf();
         break;
       case CFT_WF:
         do_copy = item->m_is_window_function;
@@ -6057,6 +6058,7 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       DBUG_RETURN(true);
   }
 
+  if (w.is_last() && copy_funcs(param, thd, CFT_HAS_WF)) DBUG_RETURN(true);
   *output_row_ready = true;
   w.set_last_row_output(current_row);
   DBUG_PRINT("info", ("sent row: %lld", current_row));
@@ -6280,12 +6282,9 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
     if (!end_of_records) {
       /*
         This saves the values of non-WF functions for the row. For example,
-        1+t.a. But also 1+LEAD. Even though at this point we lack data to
-        compute LEAD; the saved value is thus incorrect; later, when the row
-        is fully computable, we will re-evaluate the CFT_NON_WF to get a
-        correct value for 1+LEAD.
+        1+t.a.
       */
-      if (copy_fields_and_funcs(out_tbl, thd, CFT_NON_WF))
+      if (copy_fields_and_funcs(out_tbl, thd, CFT_HAS_NO_WF))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
       if (!having_is_true(qep_tab->having))
@@ -6359,7 +6358,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
         DBUG_RETURN(NESTED_LOOP_ERROR);
     }
   } else {
-    if (copy_fields_and_funcs(out_tbl, thd, CFT_NON_WF))
+    if (copy_fields_and_funcs(out_tbl, thd, CFT_HAS_NO_WF))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     if (!having_is_true(qep_tab->having))
@@ -6368,6 +6367,9 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
     win->check_partition_boundary();
 
     if (copy_funcs(out_tbl, thd, CFT_WF))
+      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+
+    if (win->is_last() && copy_funcs(out_tbl, thd, CFT_HAS_WF))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
 
     join->found_records++;

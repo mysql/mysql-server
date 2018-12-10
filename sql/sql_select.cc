@@ -4534,8 +4534,7 @@ bool JOIN::make_tmp_tables_info() {
         */
         Temp_table_param *par =
             new (thd->mem_root) Temp_table_param(tmp_table_param);
-        par->m_window = nullptr;  // Only OUT table needs access to Window
-
+        par->m_window_frame_buffer = true;
         List<Item> tmplist(*curr_all_fields, thd->mem_root);
         TABLE *table =
             create_tmp_table(thd, par, tmplist, nullptr, false, false,

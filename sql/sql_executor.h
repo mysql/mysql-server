@@ -323,11 +323,16 @@ enum Copy_func_type {
   */
   CFT_WF_USES_ONLY_ONE_ROW,
   /**
+    In first windowing step, copies non-window functions which do not rely on
+    window functions, i.e. those that have Item::has_wf() == false.
+  */
+  CFT_HAS_NO_WF,
+  /**
     In final windowing step, copies all non-wf functions. Must be called after
     all wfs have been evaluated, as non-wf functions may reference wf,
     e.g. 1+RANK.
   */
-  CFT_NON_WF,
+  CFT_HAS_WF,
   /**
     Copies all window functions.
   */

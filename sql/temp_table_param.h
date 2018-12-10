@@ -166,11 +166,16 @@ class Temp_table_param {
     that MEMORY tables cannot index BIT columns.
   */
   bool bit_fields_as_long;
+
   /// Whether the UNIQUE index can be promoted to PK
   bool can_use_pk_for_unique;
 
-  bool
-      m_window_short_circuit;  ///< (Last) window's tmp file step can be skipped
+  /// (Last) window's tmp file step can be skipped
+  bool m_window_short_circuit;
+
+  /// This tmp table is used for a window's frame buffer
+  bool m_window_frame_buffer{false};
+
   /// If this is the out table of a window: the said window
   Window *m_window;
 
