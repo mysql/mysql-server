@@ -94,7 +94,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
       << router.get_full_output();
 
   EXPECT_TRUE(
-      router.expect_output("MySQL Router  has now been configured for the "
+      router.expect_output("MySQL Router configured for the "
                            "InnoDB cluster 'mycluster'"))
       << "router: " << router.get_full_output() << std::endl
       << "server: " << server_mock.get_full_output();

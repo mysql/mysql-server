@@ -759,7 +759,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     config_gen.create_config(conf_output, state_output, 123, "myrouter",
                              "mysqlrouter", {"server1", "server2", "server3"},
                              "mycluster", "myreplicaset", "cluster_user",
-                             options, false, "state_file_name.json");
+                             options, "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -829,7 +829,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     // system instance (no key)
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options, false,
+                             "myreplicaset", "cluster_user", options,
                              "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
@@ -901,7 +901,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options, false,
+                             "myreplicaset", "cluster_user", options,
                              "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
@@ -976,7 +976,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options, false,
+                             "myreplicaset", "cluster_user", options,
                              "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
@@ -1053,7 +1053,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
 
     config_gen.create_config(conf_output, state_output, 123, "", "",
                              {"server1", "server2", "server3"}, "mycluster",
-                             "myreplicaset", "cluster_user", options, false,
+                             "myreplicaset", "cluster_user", options,
                              "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
@@ -1138,7 +1138,7 @@ TEST_F(ConfigGeneratorTest, create_config_single_master) {
     config_gen.create_config(conf_output, state_output, 123, "myrouter",
                              "mysqlrouter", {"server1", "server2", "server3"},
                              "mycluster", "myreplicaset", "cluster_user",
-                             options, false, +"state_file_name.json");
+                             options, "state_file_name.json");
     ASSERT_THAT(
         conf_output.str(),
         Eq("# File automatically generated during MySQL Router bootstrap\n"
@@ -1217,7 +1217,7 @@ TEST_F(ConfigGeneratorTest, create_config_multi_master) {
       config_gen.fill_options(true, user_options);
   config_gen.create_config(conf_output, state_output, 123, "myrouter", "",
                            {"server1", "server2", "server3"}, "mycluster",
-                           "myreplicaset", "cluster_user", options, false,
+                           "myreplicaset", "cluster_user", options,
                            "state_file_name.json");
   ASSERT_THAT(
       conf_output.str(),

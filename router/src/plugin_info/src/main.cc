@@ -27,6 +27,10 @@
 #include <iostream>
 #include <string>
 
+#include "mysql/harness/tty.h"
+#include "mysql/harness/vt100.h"
+#include "mysql/harness/vt100_filter.h"
+
 /**
  * display error.
  *
@@ -41,16 +45,29 @@
  */
 static void display_error(std::ostream &cerr, const std::string program_name,
                           const std::string &errmsg, bool with_help) {
-  cerr << "[Error] " << errmsg << std::endl;
+  cerr << Vt100::foreground(Vt100::Color::Red) << "[ERROR] "
+       << Vt100::render(Vt100::Render::ForegroundDefault) << errmsg << "\n";
 
   if (with_help) {
-    cerr << std::endl
-         << "[Note] Use '" << program_name << " --help' to show the help."
-         << std::endl;
+    cerr << "\n"
+         << Vt100::foreground(Vt100::Color::Red) << "[NOTE]"
+         << Vt100::render(Vt100::Render::ForegroundDefault) << " Use '"
+         << program_name << " --help' to show the help."
+         << "\n";
   }
+  cerr << std::endl;  // flush
 }
 
 int main(int argc, char **argv) {
+  Tty cout_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_out_streambuf(
+      std::cout.rdbuf(), !(cout_tty.is_tty() && cout_tty.ensure_vt100()));
+  std::ostream filtered_out_stream(&filtered_out_streambuf);
+
+  Tty cerr_tty(Tty::fd_from_stream(std::cerr));
+  Vt100Filter filtered_err_streambuf(
+      std::cerr.rdbuf(), !(cerr_tty.is_tty() && cerr_tty.ensure_vt100()));
+  std::ostream filtered_err_stream(&filtered_err_streambuf);
   try {
     std::vector<std::string> args;
     if (argc > 1) {
@@ -60,13 +77,15 @@ int main(int argc, char **argv) {
         args.emplace_back(argv[n]);
       }
     }
-    PluginInfoFrontend frontend(argv[0], args, std::cout, std::cerr);
+    // cout is a tty?
+    PluginInfoFrontend frontend(argv[0], args, filtered_out_stream,
+                                filtered_err_stream);
     return frontend.run();
   } catch (const UsageError &e) {
-    display_error(std::cerr, argv[0], e.what(), true);
+    display_error(filtered_err_stream, argv[0], e.what(), true);
     return EXIT_FAILURE;
   } catch (const FrontendError &e) {
-    display_error(std::cerr, argv[0], e.what(), false);
+    display_error(filtered_err_stream, argv[0], e.what(), false);
     return EXIT_FAILURE;
   }
 }

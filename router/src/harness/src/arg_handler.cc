@@ -209,37 +209,53 @@ void CmdArgHandler::process(const vector<string> &arguments) {
   }
 }
 
-vector<string> CmdArgHandler::usage_lines(const string &prefix,
-                                          const string &rest_metavar,
-                                          size_t width) const noexcept {
+vector<string> CmdArgHandler::usage_lines_if(const string &prefix,
+                                             const string &rest_metavar,
+                                             size_t width,
+                                             UsagePredicate predicate) const
+    noexcept {
   std::stringstream ss;
   vector<string> usage;
 
-  for (auto option = options_.begin(); option != options_.end(); ++option) {
+  for (auto option : options_) {
+    bool accepted;
+
+    std::tie(accepted, option) = predicate(option);
+
+    if (!accepted) continue;
+
     ss.clear();
     ss.str(string());
 
-    ss << "[";
-    for (auto name = option->names.begin(); name != option->names.end();
-         ++name) {
-      ss << *name;
-      if (name == --option->names.end()) {
-        if (option->value_req != CmdOptionValueReq::none) {
-          if (option->value_req == CmdOptionValueReq::optional) {
-            ss << "=[";
-          } else {
-            ss << "=";
-          }
-          ss << "<" << (option->metavar.empty() ? "VALUE" : option->metavar)
-             << ">";
-          if (option->value_req == CmdOptionValueReq::optional) {
-            ss << "]";
-          }
-        }
-        ss << "]";
-      } else {
-        ss << "|";
+    bool has_multiple_names = option.names.size() > 1;
+
+    if (!option.required) {
+      ss << "[";
+    } else if (has_multiple_names) {
+      ss << "(";
+    }
+    {
+      auto name_it = option.names.begin();
+      ss << *name_it;
+      for (++name_it; name_it != option.names.end(); ++name_it) {
+        ss << "|" << *name_it;
       }
+    }
+    if (option.value_req != CmdOptionValueReq::none) {
+      if (option.value_req == CmdOptionValueReq::optional) {
+        ss << "=[";
+      } else {
+        ss << "=";
+      }
+      ss << "<" << (option.metavar.empty() ? "VALUE" : option.metavar) << ">";
+      if (option.value_req == CmdOptionValueReq::optional) {
+        ss << "]";
+      }
+    }
+    if (!option.required) {
+      ss << "]";
+    } else if (has_multiple_names) {
+      ss << ")";
     }
     usage.push_back(ss.str());
   }

@@ -124,7 +124,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
       << "server output: " << server_mock.get_full_output() << std::endl;
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router  has now been configured for the InnoDB cluster 'test'"))
+      "MySQL Router configured for the InnoDB cluster 'test'"))
       << "bootstrap output: " << router_bootstrapping.get_full_output()
       << std::endl
       << "routing log: " << get_router_log_output() << std::endl

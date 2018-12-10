@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "library_file.h"
+#include "mysql/harness/vt100.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
@@ -63,10 +64,12 @@ std::string PluginInfoFrontend::get_version() const noexcept {
 std::string PluginInfoFrontend::get_help(const size_t screen_width) const {
   std::stringstream os;
 
-  os << "Usage: " << program_name_ << " <mysqlrouter_plugin_file> <plugin_name>"
-     << kNewline << kNewline;
+  os << Vt100::render(Vt100::Render::Bold)
+     << "Usage: " << Vt100::render(Vt100::Render::Normal) << program_name_
+     << " <mysqlrouter_plugin_file> <plugin_name>" << kNewline << kNewline;
 
-  os << "# Examples" << kNewline << kNewline;
+  os << Vt100::render(Vt100::Render::Bold) << "# Examples"
+     << Vt100::render(Vt100::Render::Normal) << kNewline << kNewline;
 
   os << "Print plugin information:" << kNewline << kNewline;
   os << "    " << program_name_
@@ -77,7 +80,8 @@ std::string PluginInfoFrontend::get_help(const size_t screen_width) const {
         "8.0\\lib\\routing.dll\" routing"
 #endif
      << kNewline << kNewline;
-  os << "# Options" << kNewline << kNewline;
+  os << Vt100::render(Vt100::Render::Bold) << "# Options"
+     << Vt100::render(Vt100::Render::Normal) << kNewline << kNewline;
 
   for (const auto &line : arg_handler_.option_descriptions(screen_width, 6)) {
     os << line << kNewline;

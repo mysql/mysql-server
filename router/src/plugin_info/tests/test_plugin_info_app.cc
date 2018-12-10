@@ -36,6 +36,8 @@
 #include "helpers/router_test_helpers.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/vt100.h"
+#include "mysql/harness/vt100_filter.h"
 #include "print_version.h"
 #include "router_config.h"
 #include "welcome_copyright_notice.h"
@@ -53,9 +55,12 @@ Path g_origin_path;
 
 class PluginInfoAppTest : public ::testing::Test {
  protected:
-  virtual void SetUp();
+  PluginInfoAppTest()
+      : out_stream_(),
+        filtered_out_streambuf_(out_stream_.rdbuf()),
+        filtered_out_stream_(&filtered_out_streambuf_) {}
+  void SetUp() override;
 
-  void verify_help_output();
   void verify_version_output();
   void verify_plugin_info(const string &brief, const string &version,
                           const string &requires, const string &conflicts);
@@ -63,6 +68,8 @@ class PluginInfoAppTest : public ::testing::Test {
   string get_plugin_file_path(const string &plugin_name);
 
   std::stringstream out_stream_;
+  Vt100Filter filtered_out_streambuf_;
+  std::ostream filtered_out_stream_;
   std::stringstream out_stream_err_;
 
   Path plugin_dir_;
@@ -91,11 +98,16 @@ string PluginInfoAppTest::get_plugin_file_path(const string &plugin_name) {
   return plugin_path.str();
 }
 
-void PluginInfoAppTest::verify_help_output() {
-  const string kHelpOutput =
-      "Usage: mysqlrouter_plugin_info <mysqlrouter_plugin_file> "
-      "<plugin_name>\n\n"
-      "# Examples\n\n"
+template <bool WithVt100>
+static void verify_help_output(std::stringstream &out_stream) {
+  const std::string kHelpOutput =
+      (WithVt100 ? Vt100::render(Vt100::Render::Bold) : "") +
+      "Usage: " + (WithVt100 ? Vt100::render(Vt100::Render::Normal) : "") +
+      "mysqlrouter_plugin_info <mysqlrouter_plugin_file> " +
+      "<plugin_name>\n\n" +
+      (WithVt100 ? Vt100::render(Vt100::Render::Bold) : "") + "# Examples" +
+      (WithVt100 ? Vt100::render(Vt100::Render::Normal) : "") +
+      "\n\n"
       "Print plugin information:\n\n"
 #ifndef _WIN32
       "    mysqlrouter_plugin_info /usr/lib/mysqlrouter/routing.so routing\n"
@@ -103,15 +115,16 @@ void PluginInfoAppTest::verify_help_output() {
       "    mysqlrouter_plugin_info \"c:\\Program Files\\MySQL\\MySQL "
       "Router 8.0\\lib\\routing.dll\" routing\n"
 #endif
-      "\n"
-      "# Options\n\n"
+      "\n" +
+      (WithVt100 ? Vt100::render(Vt100::Render::Bold) : "") + "# Options" +
+      (WithVt100 ? Vt100::render(Vt100::Render::Normal) : "") +
+      "\n\n"
       "  -V, --version\n"
       "      Display version information and exit.\n"
       "  -?, --help\n"
       "      Display this help and exit.\n";
 
-  EXPECT_EQ(out_stream_.str(), kHelpOutput);
-  EXPECT_THAT(out_stream_err_.str(), StrEq(""));
+  EXPECT_EQ(out_stream.str(), kHelpOutput);
 }
 
 void PluginInfoAppTest::verify_version_output() {
@@ -168,9 +181,26 @@ TEST_F(PluginInfoAppTest, NoParametersPassed) {
   EXPECT_THROW(plugin_info_app.run(), UsageError);
 }
 
-// if the mysqlrouter_plugin_info was called with --help parameter
-// we expect usage being printed to error stream and app returning with 0
-TEST_F(PluginInfoAppTest, HelpRequested) {
+/**
+ * @test ensure that --help leads to exit-code 0 and the help-text
+ *       is sent to the out-stream.
+ */
+TEST_F(PluginInfoAppTest, HelpRequested_plain) {
+  std::vector<std::string> args{"--help"};
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
+                                     filtered_out_stream_, out_stream_err_);
+
+  int res = plugin_info_app.run();
+
+  EXPECT_EQ(EXIT_SUCCESS, res);
+  verify_help_output<false>(out_stream_);
+}
+
+/**
+ * @test ensure that --help leads to exit-code 0 and the help-text
+ *       is sent to the out-stream.
+ */
+TEST_F(PluginInfoAppTest, HelpRequested_vt100) {
   std::vector<std::string> args{"--help"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
                                      out_stream_, out_stream_err_);
@@ -178,13 +208,13 @@ TEST_F(PluginInfoAppTest, HelpRequested) {
   int res = plugin_info_app.run();
 
   EXPECT_EQ(EXIT_SUCCESS, res);
-  verify_help_output();
+  verify_help_output<true>(out_stream_);
 }
 
-// if the mysqlrouter_plugin_info was called with --version parameter
-// we expect the version being printed to error stream and app returning
-// with
-// 0
+/**
+ * @test ensure that --version leads to exit-code 0 and the version-string
+ *       is sent to the out-stream.
+ */
 TEST_F(PluginInfoAppTest, VersionRequested) {
   std::vector<std::string> args{"--version"};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,

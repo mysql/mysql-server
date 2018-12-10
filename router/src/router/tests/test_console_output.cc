@@ -141,8 +141,8 @@ TEST_F(ConsoleOutputTestX, ConfigurationFileList) {
 
 TEST_F(ConsoleOutputTestX, BasicUsage) {
   std::vector<std::string> options{
-      "[-V|--version]",
-      "[-?|--help]",
+      "(-V|--version)",
+      "(-?|--help)",
       "[-c|--config=<path>]",
       "[-a|--extra-config=<path>]",
   };

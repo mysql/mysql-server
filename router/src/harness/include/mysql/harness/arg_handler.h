@@ -66,6 +66,7 @@ struct CmdOption {
   std::string metavar;
   ActionFunc action;
   AtEndActionFunc at_end_action;
+  bool required{false};
 
   CmdOption(OptionNames names_, std::string description_,
             CmdOptionValueReq value_req_, const std::string metavar_,
@@ -291,6 +292,9 @@ class HARNESS_EXPORT CmdArgHandler {
   OptionContainer::const_iterator find_option(const std::string &name) const
       noexcept;
 
+  using UsagePredicate =
+      std::function<std::pair<bool, CmdOption>(const CmdOption &)>;
+
   /** @brief Produces lines of text suitable to show usage
    *
    * Produces lines of text suitable to show usage of the command line
@@ -318,7 +322,19 @@ class HARNESS_EXPORT CmdArgHandler {
    */
   std::vector<std::string> usage_lines(const std::string &prefix,
                                        const std::string &rest_metavar,
-                                       size_t width) const noexcept;
+                                       size_t width) const noexcept {
+    return usage_lines_if(
+        prefix, rest_metavar, width,
+        [](const CmdOption &opt) -> std::pair<bool, CmdOption> {
+          return {true, opt};
+        });
+  }
+
+  std::vector<std::string> usage_lines_if(const std::string &prefix,
+                                          const std::string &rest_metavar,
+                                          size_t width,
+                                          UsagePredicate predicate) const
+      noexcept;
 
   /** @brief Produces description of all options
    *

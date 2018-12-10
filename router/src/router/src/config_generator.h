@@ -83,7 +83,9 @@ class SysUserOperations;
 class ConfigGenerator {
  public:
   ConfigGenerator(
+      std::ostream &out_stream = std::cout, std::ostream &err_stream = std::cerr
 #ifndef _WIN32
+      ,
       SysUserOperationsBase *sys_user_operations = SysUserOperations::instance()
 #endif
   );
@@ -218,8 +220,13 @@ class ConfigGenerator {
                      const std::string &metadata_cluster,
                      const std::string &metadata_replicaset,
                      const std::string &username, const Options &options,
-                     bool print_configs = false,
                      const std::string &state_file_name = "");
+
+  void create_report(const std::string &config_file_name,
+                     const std::string &router_name,
+                     const std::string &metadata_cluster,
+                     const std::string &hostname, bool is_system_deployment,
+                     const Options &options);
 
   /** @brief Deletes (old) Router accounts
    *
@@ -358,6 +365,9 @@ class ConfigGenerator {
   std::string gr_initial_socket_;
 
   KeyringInfo keyring_info_;
+
+  std::ostream &out_stream_;
+  std::ostream &err_stream_;
 
 #ifndef _WIN32
   SysUserOperationsBase *sys_user_operations_;

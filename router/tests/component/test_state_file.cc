@@ -774,14 +774,15 @@ INSTANTIATE_TEST_CASE_P(
         // state file does not exits
         StateFileSchemaTestParams(
             "",
-            {"Error: Could not open dynamic state file 'non-existing.json' for "
+            {"Could not open dynamic state file 'non-existing.json' "
+             "for "
              "reading"},
             false, /* = don't create state file, use the path given */
             "non-existing.json"),
 
         // state file path empty
         StateFileSchemaTestParams(
-            "", {"Error: Could not open dynamic state file '' for reading"},
+            "", {"Could not open dynamic state file '' for reading"},
             false, /* = don't create state file, use the empty path given */
             ""),
 
@@ -908,7 +909,7 @@ INSTANTIATE_TEST_CASE_P(
               "}"
             "}",
             // clang-format on
-            {"Error: bootstrap_server_addresses is not allowed when dynamic "
+            {"bootstrap_server_addresses is not allowed when dynamic "
              "state file is used"},
             true, "",
             true /*use static bootstrap_server_addresses in static conf. file*/),
@@ -950,7 +951,7 @@ INSTANTIATE_TEST_CASE_P(
         // dynamic_state file not existing
         StateFileSchemaTestParams(
             "",
-            {"Error: bootstrap_server_addresses is not allowed when dynamic "
+            {"bootstrap_server_addresses is not allowed when dynamic "
              "state file is used"},
             false, /* = don't create state file, use the path given */
             "non-existing.json",

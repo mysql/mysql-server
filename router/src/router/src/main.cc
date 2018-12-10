@@ -79,6 +79,8 @@
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/tty.h"
+#include "mysql/harness/vt100_filter.h"
 #include "mysql_session.h"
 #include "random_generator.h"
 #include "router_app.h"
@@ -148,9 +150,19 @@ int real_main(int argc, char **argv) {
     return 1;
   }
 
+  // cout is a tty?
+  Tty cout_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_out_streambuf(
+      std::cout.rdbuf(), !(cout_tty.is_tty() && cout_tty.ensure_vt100()));
+  std::ostream filtered_out_stream(&filtered_out_streambuf);
+
+  Tty cerr_tty(Tty::fd_from_stream(std::cout));
+  Vt100Filter filtered_err_streambuf(
+      std::cerr.rdbuf(), !(cerr_tty.is_tty() && cerr_tty.ensure_vt100()));
+  std::ostream filtered_err_stream(&filtered_err_streambuf);
   int result = 0;
   try {
-    MySQLRouter router(argc, argv);
+    MySQLRouter router(argc, argv, filtered_out_stream, filtered_err_stream);
     // This nested try/catch block is necessary in Windows, to
     // workaround a crash that occurs when an exception is thrown from
     // a plugin (e.g. routing_plugin_tests)

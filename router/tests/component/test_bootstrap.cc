@@ -301,17 +301,19 @@ void CommonBootstrapTest::bootstrap_failover(
     EXPECT_TRUE(ready) << proc.get_full_output();
   }
 
-  std::string router_cmdline;
+  std::vector<std::string> router_cmdline;
 
   if (router_options.size()) {
-    for (const auto &piece : router_options) {
-      router_cmdline += piece;
-      router_cmdline += " ";
-    }
+    router_cmdline = router_options;
   } else {
-    router_cmdline = "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1") +
-                     ":" + env_vars.at("MYSQL_SERVER_MOCK_PORT_1") +
-                     " --report-host " + my_hostname + " -d " + bootstrap_dir;
+    router_cmdline.emplace_back(
+        "--bootstrap=" + env_vars.at("MYSQL_SERVER_MOCK_HOST_1") + ":" +
+        env_vars.at("MYSQL_SERVER_MOCK_PORT_1"));
+
+    router_cmdline.emplace_back("--report-host");
+    router_cmdline.emplace_back(my_hostname);
+    router_cmdline.emplace_back("-d");
+    router_cmdline.emplace_back(bootstrap_dir);
   }
 
   // launch the router
@@ -347,11 +349,10 @@ void CommonBootstrapTest::bootstrap_failover(
     for (auto &mock_server : mock_servers) {
       std::get<0>(mock_server).get_full_output();
     }
-    EXPECT_THAT(
-        lines,
-        ::testing::Contains(
-            "MySQL Router  has now been configured for the InnoDB cluster '" +
-            cluster_name + "'."))
+    EXPECT_THAT(lines,
+                ::testing::Contains(
+                    "# MySQL Router configured for the InnoDB cluster '" +
+                    cluster_name + "'"))
         << "router:" << router.get_full_output() << std::endl
         << mock_servers;
 
@@ -875,7 +876,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(router.expect_output(
-        "MySQL Router  has now been configured for the InnoDB cluster 'test'"))
+        "MySQL Router configured for the InnoDB cluster 'test'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();
     EXPECT_EQ(router.wait_for_exit(), 0);
@@ -1007,7 +1008,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
     // check if the bootstraping was successful
     EXPECT_TRUE(
-        router.expect_output("MySQL Router  has now been configured for the "
+        router.expect_output("MySQL Router configured for the "
                              "InnoDB cluster 'mycluster'"))
         << router.get_full_output() << std::endl
         << "server: " << server_mock.get_full_output();

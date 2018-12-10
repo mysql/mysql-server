@@ -55,11 +55,10 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
   TcpPortPool port_pool_;
 };
 
+/**
+ * @test early starting messages are written to STDERR directly.
+ */
 TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
-  // This test verifies that fatal error message thrown in MySQLRouter::start()
-  // during startup (before Loader::start() takes over) are properly logged to
-  // STDERR
-
   auto conf_params = get_DEFAULT_defaults();
   // we want to log to the console
   conf_params["logging_folder"] = "";
@@ -69,7 +68,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   const std::string conf_file = create_config_file(conf_dir, "", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -77,7 +76,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   // configured to load or start any plugin. Exiting.
   const std::string out = router.get_full_output();
   EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-  EXPECT_THAT(out.c_str(), HasSubstr(" Error: MySQL Router not configured to "
+  EXPECT_THAT(out.c_str(), HasSubstr("MySQL Router not configured to "
                                      "load or start any plugin. Exiting."));
 }
 
@@ -99,7 +98,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   const std::string conf_file = create_config_file(conf_dir, "", &params);
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear in log:
@@ -108,7 +107,7 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   auto matcher = [](const std::string &line) -> bool {
     return line.find(" main ERROR ") != line.npos &&
            line.find(
-               " Error: MySQL Router not configured to load or start any "
+               "Error: MySQL Router not configured to load or start any "
                "plugin. Exiting.") != line.npos;
   };
   EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher))
@@ -593,20 +592,14 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
               testing::Not(testing::HasSubstr("Executing query:")));
 
   // check if normal output is written to output
-  EXPECT_THAT(
-      router.get_full_output(),
-      testing::HasSubstr("The following connection information can be used to "
-                         "connect to the cluster after MySQL Router has been "
-                         "started with generated configuration."));
+  EXPECT_THAT(router.get_full_output(),
+              testing::HasSubstr("After this MySQL Router has been started "
+                                 "with the generated configuration"));
 
-  EXPECT_THAT(
-      router.get_full_output(),
-      testing::HasSubstr(
-          "Classic MySQL protocol connections to cluster 'mycluster':"));
+  EXPECT_THAT(router.get_full_output(),
+              testing::HasSubstr("MySQL Classic protocol"));
 
-  EXPECT_THAT(
-      router.get_full_output(),
-      testing::HasSubstr("X protocol connections to cluster 'mycluster':"));
+  EXPECT_THAT(router.get_full_output(), testing::HasSubstr("MySQL X protocol"));
 }
 
 class MetadataCacheLoggingTest : public RouterLoggingTest {

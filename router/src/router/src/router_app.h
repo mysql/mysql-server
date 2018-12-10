@@ -87,7 +87,9 @@ class MySQLRouter {
    */
   MySQLRouter()
       : can_start_(false),
-        showing_info_(false)
+        showing_info_(false),
+        out_stream_(std::cout),
+        err_stream_(std::cerr)
 #ifndef _WIN32
         ,
         sys_user_operations_(mysqlrouter::SysUserOperations::instance())
@@ -112,7 +114,10 @@ class MySQLRouter {
    * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
-  MySQLRouter(const mysql_harness::Path &origin, const vector<string> &arguments
+  MySQLRouter(const mysql_harness::Path &origin,
+              const vector<string> &arguments,
+              std::ostream &out_stream = std::cout,
+              std::ostream &err_stream = std::cerr
 #ifndef _WIN32
               ,
               mysqlrouter::SysUserOperationsBase *sys_user_operations =
@@ -139,7 +144,8 @@ class MySQLRouter {
    * @param err_stream output stream representing "stderr"
    * @param sys_user_operations .oO( ... )
    */
-  MySQLRouter(const int argc, char **argv
+  MySQLRouter(const int argc, char **argv, std::ostream &out_stream,
+              std::ostream &err_stream
 #ifndef _WIN32
               ,
               mysqlrouter::SysUserOperationsBase *sys_user_operations =
@@ -501,6 +507,9 @@ class MySQLRouter {
   mysql_harness::Path origin_;
 
   KeyringInfo keyring_info_;
+
+  std::ostream &out_stream_;
+  std::ostream &err_stream_;
 
 #ifndef _WIN32
   /** @brief Value of the --user parameter given on the command line if router
