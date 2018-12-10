@@ -421,6 +421,7 @@ SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
 ALTER TABLESPACE mysql ENCRYPTION='N';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
 
+remove_file $MYSQL_TMP_DIR/mydummy_key;
 remove_file $MYSQL_TMP_DIR/mysql_ts_keyring;
 remove_file $MYSQLTEST_VARDIR/tmpfile.txt;
 
