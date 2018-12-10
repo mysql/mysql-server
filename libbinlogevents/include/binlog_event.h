@@ -142,7 +142,8 @@
    2 /* type, default_collation_for_utf8mb4_number */ +                       \
    1 /* sql_require_primary_key */ + +1U + 2U +                               \
    MAX_ACTIVE_ROLES_IN_EVENT /* type, active_roles_len */ +                   \
-   1U /* cant_replay_with_mysqlbinlog */)
+   1U /* cant_replay_with_mysqlbinlog */ + 1 +                                \
+   1 /* type, default_table_encryption */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).

@@ -53,7 +53,8 @@ class Schemata : public Entity_object_table_impl {
     FIELD_DEFAULT_COLLATION_ID,
     FIELD_CREATED,
     FIELD_LAST_ALTERED,
-    FIELD_OPTIONS
+    FIELD_OPTIONS,
+    FIELD_DEFAULT_ENCRYPTION
   };
 
   enum enum_indexes {

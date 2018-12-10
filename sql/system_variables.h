@@ -377,6 +377,12 @@ struct System_variables {
     in the replication topology.
   */
   uint32_t immediate_server_version;
+
+  /**
+    Used to determine if the database or tablespace should be encrypted by
+    default.
+  */
+  bool default_table_encryption;
 };
 
 /**

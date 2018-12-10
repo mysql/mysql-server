@@ -1545,6 +1545,16 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
                    (*all_members_it)->get_lower_case_table_names());
       goto cleaning;
     }
+
+    if (local_member_info->get_default_table_encryption() !=
+        (*all_members_it)->get_default_table_encryption()) {
+      result = 1;
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_DEFAULT_TABLE_ENCRYPTION_DIFF_FROM_GRP,
+                   local_member_info->get_default_table_encryption(),
+                   (*all_members_it)->get_default_table_encryption());
+      goto cleaning;
+    }
   }
 
 cleaning:

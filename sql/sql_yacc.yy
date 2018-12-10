@@ -439,7 +439,7 @@ void warn_about_deprecated_national(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 106
+%expect 107
 
 /*
    MAINTAINER:
@@ -1268,7 +1268,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
         opt_describe_column
-        opt_datadir_ssl
+        opt_datadir_ssl default_encryption
 
 %type <lex_cstr>
         opt_table_alias
@@ -5883,6 +5883,18 @@ create_database_option:
             if (set_default_charset(Lex->create_info, $1))
               MYSQL_YYABORT;
           }
+        | default_encryption
+          {
+            // Validate if we have either 'y|Y' or 'n|N'
+            if (my_strcasecmp(system_charset_info, $1.str, "Y") != 0 &&
+                my_strcasecmp(system_charset_info, $1.str, "N") != 0) {
+              my_error(ER_WRONG_VALUE, MYF(0), "argument (should be Y or N)", $1.str);
+              MYSQL_YYABORT;
+            }
+
+            Lex->create_info->encrypt_type= $1;
+            Lex->create_info->used_fields |= HA_CREATE_USED_DEFAULT_ENCRYPTION;
+          }
         ;
 
 opt_if_not_exists:
@@ -6089,6 +6101,10 @@ default_charset:
 
 default_collation:
           opt_default COLLATE_SYM opt_equal collation_name { $$ = $4;}
+        ;
+
+default_encryption:
+          opt_default ENCRYPTION_SYM opt_equal TEXT_STRING_sys { $$ = $4;}
         ;
 
 row_types:

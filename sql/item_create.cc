@@ -1075,7 +1075,7 @@ class Internal_function_factory : public Create_func {
 
   Item *create_func(THD *thd, LEX_STRING function_name,
                     PT_item_list *item_list) override {
-    if (!thd->parsing_system_view &&
+    if (!thd->parsing_system_view && !thd->is_dd_system_thread() &&
         DBUG_EVALUATE_IF("skip_dd_table_access_check", false, true)) {
       my_error(ER_NO_ACCESS_TO_NATIVE_FCT, MYF(0), function_name.str);
       return nullptr;
@@ -1631,7 +1631,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"GET_DD_INDEX_SUB_PART_LENGTH",
      SQL_FN_LIST_INTERNAL(Item_func_get_dd_index_sub_part_length, 5)},
     {"GET_DD_CREATE_OPTIONS",
-     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 2)},
+     SQL_FN_INTERNAL(Item_func_get_dd_create_options, 3)},
     {"GET_DD_TABLESPACE_PRIVATE_DATA",
      SQL_FN_INTERNAL(Item_func_get_dd_tablespace_private_data, 2)},
     {"GET_DD_INDEX_PRIVATE_DATA",
@@ -1711,7 +1711,11 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"INTERNAL_TABLESPACE_STATUS",
      SQL_FN_INTERNAL(Item_func_internal_tablespace_status, 4)},
     {"INTERNAL_TABLESPACE_EXTRA",
-     SQL_FN_INTERNAL(Item_func_internal_tablespace_extra, 4)}};
+     SQL_FN_INTERNAL(Item_func_internal_tablespace_extra, 4)},
+    {"GET_DD_PROPERTY_KEY_VALUE",
+     SQL_FN_INTERNAL(Item_func_get_dd_property_key_value, 2)},
+    {"REMOVE_DD_PROPERTY_KEY",
+     SQL_FN_INTERNAL(Item_func_remove_dd_property_key, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;

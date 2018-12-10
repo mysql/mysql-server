@@ -1252,7 +1252,6 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
     // Acquire tablespace.
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Tablespace *ts_obj = NULL;
-    DEBUG_SYNC(thd, "before_acquire_in_fill_dd_tablespace_id_or_name");
     if (thd->dd_client()->acquire(tablespace_name, &ts_obj)) {
       // acquire() always fails with a error being reported.
       DBUG_RETURN(true);
@@ -1945,18 +1944,12 @@ static bool fill_dd_table_from_create_info(
   // initialized to MYSQL_VERSION_ID by the dd::Abstract_table_impl
   // constructor.
 
-  // Engine
-  {
-    // Storing real storage engine name in tab_obj.
-
-    handlerton *hton = thd->work_part_info
-                           ? thd->work_part_info->default_engine_type
-                           : create_info->db_type;
-
-    DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
-
-    tab_obj->set_engine(ha_resolve_storage_engine_name(hton));
-  }
+  // Storing real storage engine name in tab_obj.
+  handlerton *hton = thd->work_part_info
+                         ? thd->work_part_info->default_engine_type
+                         : create_info->db_type;
+  DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
+  tab_obj->set_engine(ha_resolve_storage_engine_name(hton));
 
   // Comments
   if (create_info->comment.str && create_info->comment.length)
@@ -2083,12 +2076,20 @@ static bool fill_dd_table_from_create_info(
     table_options->set("compress", compress);
   }
 
-  if (create_info->encrypt_type.str && create_info->encrypt_type.length) {
-    dd::String_type encrypt_type;
-    encrypt_type.assign(create_info->encrypt_type.str,
-                        create_info->encrypt_type.length);
+  /*
+    Store the ENCRYPTION clause for SE's that support encryption.
+    We always store 'N' if user has not specified the encryption clause.
+  */
+  if ((hton->flags & HTON_SUPPORTS_TABLE_ENCRYPTION) &&
+      !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+    dd::String_type encrypt_type = "N";
+    if (create_info->encrypt_type.str && create_info->encrypt_type.length) {
+      encrypt_type.assign(create_info->encrypt_type.str,
+                          create_info->encrypt_type.length);
+    }
     table_options->set("encrypt_type", encrypt_type);
   }
+
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set("storage", create_info->storage_media);
@@ -2527,16 +2528,17 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
 }
 /* purecov: end */
 
-bool table_storage_engine(THD *thd, const dd::Table *table, handlerton **hton) {
+template <typename T>
+bool table_storage_engine(THD *thd, const T *obj, handlerton **hton) {
   DBUG_ENTER("dd::table_storage_engine");
 
   DBUG_ASSERT(hton);
 
   // Get engine by name
   plugin_ref tmp_plugin =
-      ha_resolve_by_name_raw(thd, lex_cstring_handle(table->engine()));
+      ha_resolve_by_name_raw(thd, lex_cstring_handle(obj->engine()));
   if (!tmp_plugin) {
-    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), table->engine().c_str());
+    my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), obj->engine().c_str());
     DBUG_RETURN(true);
   }
 
@@ -2545,6 +2547,12 @@ bool table_storage_engine(THD *thd, const dd::Table *table, handlerton **hton) {
 
   DBUG_RETURN(false);
 }
+
+template bool table_storage_engine<dd::Table>(THD *, const dd::Table *,
+                                              handlerton **);
+template bool table_storage_engine<dd::Tablespace>(THD *,
+                                                   const dd::Tablespace *,
+                                                   handlerton **);
 
 bool recreate_table(THD *thd, const char *schema_name, const char *table_name) {
   // There should be an exclusive metadata lock on the table
@@ -2617,6 +2625,72 @@ bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type) {
   return thd->dd_client()->update(table_def);
 }
 
+inline void report_error_as_tablespace_missing(Object_id id) {
+  my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), id);
+}
+
+inline void report_error_as_tablespace_missing(const String_type name) {
+  my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), name.c_str());
+}
+
+/*
+  Find if tablespace is a general tablespace and if it is encrypted.
+
+  @param k    KEY to search the tablespace object in DD.
+  @param thd  Thread
+  @param *is_encrypted[out]  On success, this represents table encryption type.
+  @param *is_general_tablespace[out] On success, this represents if table
+                                     is general tablespace.
+
+  @returns true for failure, false for success.
+*/
+template <typename KEY>
+bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
+                                         bool *is_encrypted_tablespace,
+                                         bool *is_general_tablespace) {
+  *is_encrypted_tablespace = false;
+  *is_general_tablespace = false;
+
+  // Acquire the tablespace object.
+  cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const Tablespace *tsp = nullptr;
+  DEBUG_SYNC(thd, "before_acquire_in_read_tablespace_encryption");
+  if (thd->dd_client()->acquire(k, &tsp)) {
+    return true;
+  }
+
+  // Stop if we did not find a tablespace.
+  if (!tsp) {
+    report_error_as_tablespace_missing(k);
+    return true;
+  }
+
+  // Acquire the tablespace engine hton.
+  handlerton *hton = NULL;
+  Tablespace_type space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
+  // If the engine is not found, my_error() has already been called
+  if (dd::table_storage_engine(thd, tsp, &hton)) return true;
+
+  // Find the tablespace type.
+  if (hton->get_tablespace_type &&
+      hton->get_tablespace_type(*tsp, &space_type)) {
+    my_error(ER_TABLESPACE_TYPE_UNKNOWN, MYF(0), tsp->name().c_str());
+    return true;
+  }
+
+  // Determine if we have a general tablespace and if it is encrypted.
+  if (space_type != Tablespace_type::SPACE_TYPE_IMPLICIT &&
+      tsp->options().exists("encryption")) {
+    String_type e;
+    (void)tsp->options().get("encryption", &e);
+    DBUG_ASSERT(e.empty() == false);
+    *is_general_tablespace = true;
+    *is_encrypted_tablespace = is_encrypted(e);
+  }
+
+  return false;
+}
+
 // Helper function which copies all tablespace ids referenced by
 // table to an (output) iterator
 template <typename IT>
@@ -2642,25 +2716,25 @@ static void copy_tablespace_ids(const Table &t, IT it) {
    the table itself (implicit tablespace), then proceeds to acquire
    and check the "ecryption" option in table's tablespaces.
 
-   @param thd
-   @param t table to check
+   @param[in] thd
+   @param[in] t table to check
+   @param[out] is_general_tablespace Denotes if we found general tablespace.
 
    @retval {true, *} in case of errors
    @retval {false, true} if at least one tablespace is encrypted
    @retval {false, false} if no tablespace is encrypted
  */
-Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
-  if (t.options().exists("encrypt_type")) {
-    String_type et;
-    (void)t.options().get("encrypt_type", &et);
-    DBUG_ASSERT(et.empty() == false);
-    if (et == "Y" || et == "y") {
-      return {false, true};
-    }
-    return {false, false};
-  }
+Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
+                                       bool *is_general_tablespace) {
   std::vector<Object_id> tspids;
   copy_tablespace_ids(t, std::back_inserter(tspids));
+
+  // There are no tablespaces used.
+  if (tspids.size() == 0) {
+    *is_general_tablespace = false;
+    return {false, false};
+  }
+
   auto valid_end =
       std::partition(tspids.begin(), tspids.end(),
                      [](Object_id id) { return id != INVALID_OBJECT_ID; });
@@ -2670,28 +2744,13 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
   bool error = false;
   bool encrypted =
       std::any_of(tspids.begin(), unique_end, [&](const Object_id id) {
-        cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-        const Tablespace *tsp = nullptr;
-        if (thd->dd_client()->acquire(id, &tsp)) {
+        bool is_encrypted = false;
+        if (is_general_tablespace_and_encrypted(id, thd, &is_encrypted,
+                                                is_general_tablespace)) {
           error = true;
-          return false;  // or true to stop execution?
-        }
-        DBUG_ASSERT(tsp != nullptr);
-        if (tsp == nullptr) {
           return false;
         }
-
-        if (!tsp->options().exists("encryption")) {
-          return false;
-        }
-
-        String_type e;
-        (void)tsp->options().get("encryption", &e);
-        DBUG_ASSERT(e.empty() == false);
-        if (e == "Y" || e == "y") {
-          return true;
-        }
-        return false;
+        return is_encrypted;
       });
   return {error, encrypted};
 }
@@ -2735,6 +2794,107 @@ bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab) {
   }
 
   return false;
+}
+
+/*
+  Helper function which copies all tablespace ids referenced by table to an
+  (output) iterator.
+*/
+template <typename IT>
+static void copy_tablespace_names(const HA_CREATE_INFO *ci, partition_info *pi,
+                                  IT it) {
+  if (ci->tablespace) {
+    *it = ci->tablespace;
+    ++it;
+  }
+
+  if (!pi) return;
+
+  /*
+    Traverse through all partitions.
+
+    Note: We may really not find a general tablespace in 8.0.15.
+    Probably this piece of code is good to have if InnoDB later supports
+    shared tablespaces in partitioned tables.
+  */
+  List_iterator<partition_element> part_it(pi->partitions);
+  partition_element *part_elem;
+  while ((part_elem = part_it++)) {
+    if (part_elem->tablespace_name) {
+      *it = part_elem->tablespace_name;
+      ++it;
+    }
+    // Traverse through all subpartitions.
+    List_iterator<partition_element> sub_it(part_elem->subpartitions);
+    partition_element *sub_elem;
+    while ((sub_elem = sub_it++)) {
+      if (sub_elem->tablespace_name) {
+        *it = sub_elem->tablespace_name;
+        ++it;
+      }
+    }  // end of sub_parts
+  }    // end of parts
+}
+
+/**
+   Predicate to determine if a table resides in an encrypted
+   tablespace and if it a general tablespace.
+
+   @param[in] thd Thread
+   @param[in] ci  HA_CREATE_INFO *  Representing table DDL.
+   @param[out] is_general_tablespace Marked as true on success if its
+                                general tablespace.
+
+   @retval {true, *} in case of errors
+   @retval {false, true} if at least one tablespace is encrypted
+   @retval {false, false} if no tablespace is encrypted
+ */
+Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
+                                       bool *is_general_tablespace) {
+  // If SE does not support encrypted tablespace, stop here.
+  if (!(ci->db_type->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
+    *is_general_tablespace = false;
+    return {false, false};
+  }
+
+  // Copy all tablespace names.
+  std::vector<String_type> ts_names;
+  copy_tablespace_names(ci, thd->work_part_info, std::back_inserter(ts_names));
+
+  Tablespace_type tt;
+  if (ci->db_type->get_tablespace_type_by_name(ci->tablespace, &tt)) {
+    return {true, false};
+  }
+  if (ts_names.empty() ||  // If no explicit tablespace names used OR
+      /* If user provided implicit tablespace 'innodb_file_per_table' */
+      (ts_names.size() == 1 && ci->tablespace &&
+       tt == Tablespace_type::SPACE_TYPE_IMPLICIT)) {
+    *is_general_tablespace = false;
+    return {false, false};
+  }
+
+  /*
+    Table uses a general tablespace. Now check if any one of them have been
+    encrypted.
+  */
+  bool error = false;
+  bool encrypted = std::any_of(
+      ts_names.begin(), ts_names.end(), [&](const String_type name) {
+        bool is_encrypted = false;
+        if (ci->db_type->get_tablespace_type_by_name(name.c_str(), &tt)) {
+          error = true;
+          return false;
+        }
+        if (tt != Tablespace_type::SPACE_TYPE_TEMPORARY &&
+            tt != Tablespace_type::SPACE_TYPE_IMPLICIT &&
+            is_general_tablespace_and_encrypted(name, thd, &is_encrypted,
+                                                is_general_tablespace)) {
+          error = true;
+          return false;
+        }
+        return is_encrypted;
+      });
+  return {error, encrypted};
 }
 
 }  // namespace dd

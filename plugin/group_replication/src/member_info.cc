@@ -43,7 +43,8 @@ Group_member_info::Group_member_info(
     ulonglong gtid_assignment_block_size_arg,
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
-    uint lower_case_table_names_arg, PSI_mutex_key psi_mutex_key_arg)
+    uint lower_case_table_names_arg, bool default_table_encryption_arg,
+    PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -57,8 +58,12 @@ Group_member_info::Group_member_info(
       conflict_detection_enable(!in_single_primary_mode),
       member_weight(member_weight_arg),
       lower_case_table_names(lower_case_table_names_arg),
+      default_table_encryption(default_table_encryption_arg),
       group_action_running(false),
       primary_election_running(false),
+#ifndef DBUG_OFF
+      skip_encode_default_table_encryption(false),
+#endif
       psi_mutex_key(psi_mutex_key_arg) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   gcs_member_id = new Gcs_member_identifier(gcs_member_id_arg);
@@ -89,8 +94,12 @@ Group_member_info::Group_member_info(Group_member_info &other)
       conflict_detection_enable(other.is_conflict_detection_enabled()),
       member_weight(other.get_member_weight()),
       lower_case_table_names(other.get_lower_case_table_names()),
+      default_table_encryption(other.get_default_table_encryption()),
       group_action_running(other.is_group_action_running()),
       primary_election_running(other.is_primary_election_running()),
+#ifndef DBUG_OFF
+      skip_encode_default_table_encryption(false),
+#endif
       psi_mutex_key(other.psi_mutex_key) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   gcs_member_id =
@@ -105,8 +114,12 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       member_version(NULL),
       unreachable(false),
       lower_case_table_names(DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES),
+      default_table_encryption(false),
       group_action_running(false),
       primary_election_running(false),
+#ifndef DBUG_OFF
+      skip_encode_default_table_encryption(false),
+#endif
       psi_mutex_key(psi_mutex_key_arg) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
   decode(data, len);
@@ -127,7 +140,7 @@ void Group_member_info::update(
     ulonglong gtid_assignment_block_size_arg,
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
-    uint lower_case_table_names_arg) {
+    uint lower_case_table_names_arg, bool default_table_encryption_arg) {
   MUTEX_LOCK(lock, &update_lock);
 
   hostname.assign(hostname_arg);
@@ -141,6 +154,7 @@ void Group_member_info::update(
   conflict_detection_enable = !in_single_primary_mode;
   member_weight = member_weight_arg;
   lower_case_table_names = lower_case_table_names_arg;
+  default_table_encryption = default_table_encryption_arg;
   group_action_running = false;
   primary_election_running = false;
 
@@ -239,6 +253,13 @@ void Group_member_info::encode_payload(
   char is_election_running_aux = primary_election_running ? '1' : '0';
   encode_payload_item_char(buffer, PIT_PRIMARY_ELECTION_RUNNING,
                            is_election_running_aux);
+
+  char default_table_encryption_aux = default_table_encryption ? '1' : '0';
+#ifndef DBUG_OFF
+  if (!skip_encode_default_table_encryption)
+#endif
+    encode_payload_item_char(buffer, PIT_DEFAULT_TABLE_ENCRYPTION,
+                             default_table_encryption_aux);
 
   DBUG_VOID_RETURN;
 }
@@ -350,6 +371,21 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
           slider += payload_item_length;
           primary_election_running =
               (is_election_running_aux == '1') ? true : false;
+        }
+        break;
+
+      /*
+        If PIT_DEFAULT_TABLE_ENCRYPTION is not included, which will
+        happen if this member is from a lower version, the default
+        'false' will be used, since those versions did not encrypt
+        tables by default.
+      */
+      case PIT_DEFAULT_TABLE_ENCRYPTION:
+        if (slider + payload_item_length <= end) {
+          unsigned char default_table_encryption_aux = *slider;
+          slider += payload_item_length;
+          default_table_encryption =
+              (default_table_encryption_aux == '1') ? true : false;
         }
         break;
     }
@@ -497,6 +533,11 @@ uint Group_member_info::get_lower_case_table_names() {
 bool Group_member_info::is_unreachable() {
   MUTEX_LOCK(lock, &update_lock);
   return unreachable;
+}
+
+bool Group_member_info::get_default_table_encryption() {
+  MUTEX_LOCK(lock, &update_lock);
+  return default_table_encryption;
 }
 
 void Group_member_info::set_unreachable() {

@@ -192,13 +192,11 @@ ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
 Alter encryption of table part of mysql tablespace
 --------------------------------------------------
 ALTER TABLE mysql.component ENCRYPTION='Y';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 ALTER TABLE mysql.component ENCRYPTION='y';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 ALTER TABLE mysql.component ENCRYPTION='N';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 ALTER TABLE mysql.component ENCRYPTION='n';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 ---------------------------------------------------------------------
 Metadata for a table in mysql ts should not show encryption attribute
 ---------------------------------------------------------------------

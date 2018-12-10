@@ -212,6 +212,9 @@ int write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
 /* Lower case table name */
 uint gr_lower_case_table_names = 0;
 
+/* Default table encryption option */
+bool gr_default_table_encryption = false;
+
 /* Generic components variables */
 ulong components_stop_timeout_var = LONG_TIMEOUT;
 
@@ -822,7 +825,7 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
         local_member_plugin_version, gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
         enforce_update_everywhere_checks_var, member_weight_var,
-        gr_lower_case_table_names);
+        gr_lower_case_table_names, gr_default_table_encryption);
   } else {
     local_member_info = new Group_member_info(
         hostname, port, uuid, write_set_extraction_algorithm,
@@ -830,8 +833,14 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
         local_member_plugin_version, gtid_assignment_block_size_var,
         Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
         enforce_update_everywhere_checks_var, member_weight_var,
-        gr_lower_case_table_names);
+        gr_lower_case_table_names, gr_default_table_encryption);
   }
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("group_replication_skip_encode_default_table_encryption", {
+    local_member_info->skip_encode_default_table_encryption = true;
+  });
+#endif
 
   // Update membership info of member itself
   if (group_member_mgr != NULL) group_member_mgr->update(local_member_info);
@@ -2336,6 +2345,8 @@ static int check_if_server_properly_configured() {
     gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
   });
 #endif
+
+  gr_default_table_encryption = startup_pre_reqs.default_table_encryption;
 
   DBUG_RETURN(0);
 }

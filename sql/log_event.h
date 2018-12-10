@@ -427,6 +427,7 @@ struct PRINT_EVENT_INFO {
   uint8_t sql_require_primary_key;
   my_thread_id thread_id;
   bool thread_id_printed;
+  uint8_t default_table_encryption;
 
   PRINT_EVENT_INFO();
 
@@ -1423,6 +1424,10 @@ class Query_log_event : public virtual binary_log::Query_event,
   /** Whether or not the statement represented by this event requires
       `Q_SQL_REQUIRE_PRIMARY_KEY` to be logged along aside. */
   bool need_sql_require_primary_key{false};
+
+  /** Whether or not the statement represented by this event requires
+      `Q_DEFAULT_TABLE_ENCRYPTION` to be logged along aside. */
+  bool needs_default_table_encryption{false};
 };
 
 /**

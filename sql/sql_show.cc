@@ -48,6 +48,7 @@
 #include "sql/auth/auth_acls.h"                      // DB_ACLS
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
+#include "sql/dd/dd_table.h"                 // is_encrypted
 #include "sql/dd/types/column.h"             // dd::Column
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
@@ -617,6 +618,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(true);
   }
 
+  bool is_encrypted_schema = false;
   if (is_infoschema_db(dbname)) {
     dbname = INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset = system_charset_info;
@@ -640,6 +642,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
     if (create.default_table_charset == NULL)
       create.default_table_charset = thd->collation();
+
+    is_encrypted_schema = schema->default_encryption();
   }
   List<Item> field_list;
   field_list.push_back(new Item_empty_string("Database", NAME_CHAR_LEN));
@@ -668,6 +672,14 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     }
     buffer.append(STRING_WITH_LEN(" */"));
   }
+  buffer.append(STRING_WITH_LEN(" /*!80014"));
+  buffer.append(STRING_WITH_LEN(" DEFAULT ENCRYPTION="));
+  if (is_encrypted_schema)
+    buffer.append(STRING_WITH_LEN("'Y'"));
+  else
+    buffer.append(STRING_WITH_LEN("'N'"));
+  buffer.append(STRING_WITH_LEN(" */"));
+
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
   if (protocol->end_row()) DBUG_RETURN(true);
@@ -1017,6 +1029,44 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
       return false;
   }
   return has_default;
+}
+
+/*
+  Check if we should print encryption clause. We always show explicit
+  ENCRYPTION clause, OR if table's schema has default encryption enabled.
+
+  @param thd              The thread
+  @param share            Represents table share metadata.
+  @param *print     [out] Point to out param.
+
+  @returns true if ENCRYPTION clause should be printed, else false.
+*/
+static bool should_print_encryption_clause(THD *thd, TABLE_SHARE *share,
+                                           bool *print) {
+  // Don't print for temporary
+  if (share->tmp_table) {
+    *print = false;
+    return false;
+  }
+
+  // Find schema encryption default.
+  dd::Schema_MDL_locker mdl_handler(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *schema = nullptr;
+  if (mdl_handler.ensure_locked(share->db.str) ||
+      thd->dd_client()->acquire(share->db.str, &schema))
+    return true;
+  if (schema == nullptr) {
+    my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+    return true;
+  }
+
+  // Decide if we need to print the clause.
+  bool table_is_encrypted = dd::is_encrypted(share->encrypt_type);
+  *print = table_is_encrypted ||
+           (schema->default_encryption() != table_is_encrypted);
+
+  return false;
 }
 
 /**
@@ -1529,10 +1579,25 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
     }
-    if (table->s->encrypt_type.length) {
+    bool print_encryption = false;
+    if (should_print_encryption_clause(thd, share, &print_encryption))
+      DBUG_RETURN(true);
+    if (print_encryption) {
       packet->append(STRING_WITH_LEN(" ENCRYPTION="));
-      append_unescaped(packet, share->encrypt_type.str,
-                       share->encrypt_type.length);
+      if (share->encrypt_type.length) {
+        append_unescaped(packet, share->encrypt_type.str,
+                         share->encrypt_type.length);
+      } else {
+        /*
+          We print ENCRYPTION='N' only incase user did not explicitly
+          provide ENCRYPTION clause and schema has default_encryption 'Y'.
+          In other words, if there is no ENCRYPTION clause supplied, then
+          it is always unencrypted table. Server always maintains
+          ENCRYPTION clause for encrypted tables, even if user did not
+          supply the clause explicitly.
+        */
+        packet->append(STRING_WITH_LEN("\'N\'"));
+      }
     }
     table->file->append_create_info(packet);
     if (share->comment.length) {

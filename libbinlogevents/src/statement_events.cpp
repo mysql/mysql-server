@@ -89,7 +89,8 @@ Query_event::Query_event(
       sql_require_primary_key(0xff),
       active_roles(nullptr),
       active_roles_len(0),
-      cant_replay_with_mysqlbinlog(false) {}
+      cant_replay_with_mysqlbinlog(false),
+      default_table_encryption(0xff) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -142,7 +143,8 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       sql_require_primary_key(0xff),
       active_roles(nullptr),
       active_roles_len(0),
-      cant_replay_with_mysqlbinlog(false) {
+      cant_replay_with_mysqlbinlog(false),
+      default_table_encryption(0xff) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
@@ -341,6 +343,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         break;
       case Q_CANT_REPLAY_WITH_MYSQLBINLOG:
         cant_replay_with_mysqlbinlog = true;
+        break;
+      case Q_DEFAULT_TABLE_ENCRYPTION:
+        READER_TRY_SET(default_table_encryption, read<uint8_t>);
         break;
       default:
         /* That's why you must write status vars in growing order of code */

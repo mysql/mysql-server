@@ -59,7 +59,7 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists) {
 }
 
 bool create_schema(THD *thd, const char *schema_name,
-                   const CHARSET_INFO *charset_info) {
+                   const CHARSET_INFO *charset_info, bool default_encryption) {
   // Create dd::Schema object.
   std::unique_ptr<dd::Schema> schema(dd::create_object<dd::Schema>());
 
@@ -67,6 +67,7 @@ bool create_schema(THD *thd, const char *schema_name,
   schema->set_name(schema_name);
   DBUG_ASSERT(charset_info);
   schema->set_default_collation_id(charset_info->number);
+  schema->set_default_encryption(default_encryption);
 
   // Get statement start time.
   ulonglong ull_curtime = my_time_t_to_ull_datetime(thd->query_start_in_secs());

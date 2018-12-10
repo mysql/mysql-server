@@ -342,6 +342,8 @@ void get_server_startup_prerequirements(Trans_context_info &requirements,
   requirements.parallel_applier_preserve_commit_order =
       opt_slave_preserve_commit_order;
   requirements.lower_case_table_names = lower_case_table_names;
+  requirements.default_table_encryption =
+      global_system_variables.default_table_encryption;
 }
 
 bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,

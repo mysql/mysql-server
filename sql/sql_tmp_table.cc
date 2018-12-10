@@ -1938,10 +1938,14 @@ static bool use_tmp_disk_storage_engine(
     return true;
   }
 
-  /* During bootstrap, the heap engine is not available, so we force using
+  /*
+    During bootstrap, the heap engine is not available, so we force using
     disk storage engine. This is especially hit when creating a I_S system
-    view definition with a UNION in it. */
-  if (opt_initialize) {
+    view definition with a UNION in it AND is also when upgrading from
+    older DD tables which involves execution of UPDATE queries to adjust
+    metadata of DD tables.
+  */
+  if (opt_initialize || thd->is_dd_system_thread()) {
     return true;
   }
 

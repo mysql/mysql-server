@@ -108,6 +108,7 @@ typedef struct Trans_context_info {
   bool parallel_applier_preserve_commit_order;
   enum_tx_isolation tx_isolation;  // enum values in enum_tx_isolation
   uint lower_case_table_names;
+  bool default_table_encryption;
 } Trans_context_info;
 
 /**

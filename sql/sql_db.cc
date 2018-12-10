@@ -66,6 +66,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
 #include "sql/dd/dd.h"                       // dd::get_dictionary()
 #include "sql/dd/dd_schema.h"                // dd::create_schema
+#include "sql/dd/dd_table.h"                 // is_encrypted()
 #include "sql/dd/dictionary.h"               // dd::Dictionary
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
@@ -249,6 +250,25 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   }
 
   /*
+    Check if user has permission to alter database, if encryption type
+    provided differ from global 'default_table_encryption' setting.
+    We use 'default_table_encryption' value if encryption is not supplied
+    by user.
+  */
+  bool encrypt_schema = false;
+  if (create_info->encrypt_type.str) {
+    encrypt_schema = dd::is_encrypted(create_info->encrypt_type);
+  } else {
+    encrypt_schema = thd->variables.default_table_encryption;
+  }
+  if (opt_table_encryption_privilege_check &&
+      encrypt_schema != thd->variables.default_table_encryption &&
+      check_table_encryption_admin_access(thd)) {
+    my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  /*
     When creating the schema, we must lock the schema name without case (for
     correct MDL locking) when l_c_t_n == 2.
   */
@@ -347,7 +367,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   if (store_in_dd) {
     set_db_default_charset(thd, create_info);
 
-    if (dd::create_schema(thd, db, create_info->default_table_charset)) {
+    if (dd::create_schema(thd, db, create_info->default_table_charset,
+                          encrypt_schema)) {
       /*
         We could be here due an deadlock or some error reported
         by DD API framework. We remove the database directory
@@ -403,6 +424,18 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     DBUG_RETURN(true);
   }
 
+  /*
+    Check if user has permission to alter database, if encryption type
+    provided differ from global 'default_table_encryption' setting.
+  */
+  if (create_info->encrypt_type.str && opt_table_encryption_privilege_check &&
+      dd::is_encrypted(create_info->encrypt_type) !=
+          thd->variables.default_table_encryption &&
+      check_table_encryption_admin_access(thd)) {
+    my_error(ER_CANNOT_SET_DATABASE_ENCRYPTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   if (lock_schema_name(thd, db)) DBUG_RETURN(true);
 
   set_db_default_charset(thd, create_info);
@@ -419,6 +452,10 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   // Set new collation ID.
   schema->set_default_collation_id(create_info->default_table_charset->number);
+
+  // Set encryption type.
+  if (create_info->encrypt_type.length > 0)
+    schema->set_default_encryption(dd::is_encrypted(create_info->encrypt_type));
 
   // Update schema.
   if (thd->dd_client()->update(schema)) DBUG_RETURN(true);

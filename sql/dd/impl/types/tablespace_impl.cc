@@ -175,6 +175,13 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::store_attributes(Raw_record *r) {
+#ifndef DBUG_OFF
+  if (my_strcasecmp(system_charset_info, "InnoDB", m_engine.c_str()) == 0) {
+    DBUG_ASSERT(m_options.exists("encryption"));
+  } else {
+    DBUG_ASSERT(!m_options.exists("encryption"));
+  }
+#endif
   return store_id(r, Tablespaces::FIELD_ID) ||
          store_name(r, Tablespaces::FIELD_NAME) ||
          r->store(Tablespaces::FIELD_COMMENT, m_comment) ||
@@ -487,6 +494,12 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
     if (select_clos_where_key_matches(
             [&tref](Raw_record *r) {
               tref.m_schema_name = r->read_str(Schemata::FIELD_NAME);
+              tref.m_schema_encryption =
+                  static_cast<enum_encryption_type>(
+                      r->read_int(Schemata::FIELD_DEFAULT_ENCRYPTION)) ==
+                          enum_encryption_type::ET_YES
+                      ? true
+                      : false;
               return false;
             },
             trx.otx.get_table<Schema>(),
@@ -499,7 +512,8 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
   return false;
 }
 
-MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref) {
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref,
+                     enum enum_mdl_type mdl_type) {
   MDL_request *r = new (thd->mem_root) MDL_request;
 
   if (lower_case_table_names == 2) {
@@ -508,11 +522,27 @@ MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref) {
     dd::String_type lc_name =
         casedn(Object_table_definition_impl::fs_name_collation(), tref.m_name);
     MDL_REQUEST_INIT(r, MDL_key::TABLE, lc_schema_name.c_str(), lc_name.c_str(),
-                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+                     mdl_type, MDL_TRANSACTION);
   } else {
     MDL_REQUEST_INIT(r, MDL_key::TABLE, tref.m_schema_name.c_str(),
-                     tref.m_name.c_str(), MDL_EXCLUSIVE, MDL_TRANSACTION);
+                     tref.m_name.c_str(), mdl_type, MDL_TRANSACTION);
   }
   return r;
 }
+
+MDL_request *mdl_schema_req(THD *thd, const dd::String_type &schema_name) {
+  MDL_request *r = new (thd->mem_root) MDL_request;
+
+  if (lower_case_table_names == 2) {
+    dd::String_type lc_schema_name =
+        casedn(Object_table_definition_impl::name_collation(), schema_name);
+    MDL_REQUEST_INIT(r, MDL_key::SCHEMA, lc_schema_name.c_str(), "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  } else {
+    MDL_REQUEST_INIT(r, MDL_key::SCHEMA, schema_name.c_str(), "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  }
+  return r;
+}
+
 }  // namespace dd

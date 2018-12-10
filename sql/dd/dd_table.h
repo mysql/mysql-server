@@ -266,19 +266,20 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
                           const char *table_name, enum legacy_db_type *db_type);
 
 /**
-  Get the storage engine handlerton for the given table.
+  Get the storage engine handlerton for the given table or tablespace.
 
   This function sets explicit error codes if:
   - The SE is invalid:      ER_UNKNOWN_STORAGE_ENGINE
 
   @param[in]  thd             Thread context
-  @param[in]  table           dd::Table object describing the table.
+  @param[in]  obj             dd::Table or a dd::Tablespace object.
   @param[out] hton            Handlerton for the table's storage engine
 
   @retval     true            Error
   @retval     false           Success
 */
-bool table_storage_engine(THD *thd, const dd::Table *table, handlerton **hton);
+template <typename T>
+bool table_storage_engine(THD *thd, const T *obj, handlerton **hton);
 
 /**
   Regenerate a metadata locked table.
@@ -405,8 +406,33 @@ bool get_field_numeric_precision(const Create_field *field,
 bool get_field_datetime_precision(const Create_field *field,
                                   uint *datetime_precision);
 
+/*
+  Does ENCRYPTION clause mean unencrypted or encrypted table ?
+
+  @note SQL server expects value '', 'N' or 'n' to represent unecnryption.
+  We do not consider 'Y'/'y' as encryption, so that this allows storage
+  engines to accept any other string like 'aes' or other string to
+  represent encryption type.
+
+  @param type - String given in ENCRYPTION clause.
+
+  @return true if table would be encrypted, else false.
+*/
+inline bool is_encrypted(const String_type &type) {
+  return (type.empty() == false && type != "" && type != "N" && type != "n");
+}
+
+inline bool is_encrypted(const LEX_STRING &type) {
+  return is_encrypted(String_type(type.str, type.length));
+}
+
 using Encrypt_result = ResultType<bool>;
-Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t);
+Encrypt_result is_tablespace_encrypted(THD *thd, const dd::Table &t,
+                                       bool *found_tablespace);
+
+using Encrypt_result = ResultType<bool>;
+Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
+                                       bool *found_tablespace);
 
 /**
   Predicate which indicates if the table has real (non-hidden) primary key.

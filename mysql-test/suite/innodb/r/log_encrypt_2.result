@@ -103,7 +103,7 @@ c1	c2
 3	NULL
 # Mysqldump output
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */;
 
 USE `tde_db`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

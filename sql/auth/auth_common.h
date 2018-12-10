@@ -779,6 +779,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 bool check_table_access(THD *thd, ulong requirements, TABLE_LIST *tables,
                         bool any_combination_of_privileges_will_do, uint number,
                         bool no_errors);
+bool check_table_encryption_admin_access(THD *thd);
 bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                       const List<LEX_USER> *roles, bool with_admin_opt);
 bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,

@@ -152,10 +152,13 @@
       New DD table check_constraints is introduced for the check
       constraints metadata.
 
+  - WL#12261 adds new mysql.schemata.default_encryption DD column.
+
 
   80016: Next DD version number after the previous is public.
   ----------------------------------------------------------------------------
   Changes from version 80015:
+  - No changes, this version number is not active yet.
 
 
   If a new DD version is published in a MRU, that version may or may not

@@ -1,0 +1,55 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap a group on server 1 with
+#    GLOBAL.default_table_encryption = ON
+[connection server1]
+SET @table_encryption_default= @@GLOBAL.default_table_encryption;
+SET @@GLOBAL.default_table_encryption = ON;
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Try join a member with
+#    GLOBAL.default_table_encryption = OFF
+#    to the group, it shall fail.
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The member is configured with a default_table_encryption option value '0' different from the group '1'. The member will now exit the group.");
+SET SESSION sql_log_bin = 1;
+SET @table_encryption_default= @@GLOBAL.default_table_encryption;
+SET @@GLOBAL.default_table_encryption = OFF;
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+
+############################################################
+# 3. Try join a member with
+#    GLOBAL.default_table_encryption = ON
+#    to the group, it shall succeed.
+SET @@GLOBAL.default_table_encryption = ON;
+include/start_group_replication.inc
+
+############################################################
+# 4. Try to change GLOBAL.default_table_encryption while
+#    Group Replication is running, it shall fail.
+SET @@GLOBAL.default_table_encryption = OFF;
+ERROR HY000: The default_table_encryption option cannot be changed when Group replication is running.
+
+############################################################
+# 5. Try to change SESSION.default_table_encryption while
+#    Group Replication is running, it shall succeed.
+SET @@SESSION.default_table_encryption = OFF;
+
+############################################################
+# 6. Clean up.
+[connection server1]
+include/stop_group_replication.inc
+SET @@GLOBAL.default_table_encryption= @table_encryption_default;
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.default_table_encryption= @table_encryption_default;
+SET @@SESSION.default_table_encryption= @table_encryption_default;
+include/group_replication_end.inc

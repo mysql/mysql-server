@@ -49,8 +49,8 @@ SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 # Test create encrypted table when inndb_file_per_table is 0,
 # Should fail, since it will try to create table in system tablespace and
-# 'ENCRYPTION' option is not allowed with shared tablespace.
---error ER_ILLEGAL_HA_CREATE_OPTION
+# We cannot create encrypted table in unencrypted system tablespace.
+--error ER_INVALID_ENCRYPTION_REQUEST
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SHOW WARNINGS;
 
@@ -58,22 +58,19 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
 # Test create encrypted table in system tablespace,
-# Should fail, since it's a shared tablespace and 'ENCRYPTION' option is not
-# allowed with shared tablespace.
---error ER_ILLEGAL_HA_CREATE_OPTION
+# Should fail, 'ENCRYPTION=Y' option is not  allowed with system tablespace.
+--error ER_INVALID_ENCRYPTION_REQUEST
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
 SHOW WARNINGS;
---error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
-SHOW WARNINGS;
+DROP TABLE t1;
 
 # Test create temporary encrypted table,
-# Should fail, since temporary table is in shared tablespace and 'ENCRYPTION'
-# option is not allowed with shared tablespace.
---error ER_ILLEGAL_HA_CREATE_OPTION
+# Should fail, 'ENCRYPTION' clause is not  allowed with temporary tablespace.
+--error ER_CANNOT_USE_ENCRYPTION_CLAUSE
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 SHOW WARNINGS;
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_CANNOT_USE_ENCRYPTION_CLAUSE
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 SHOW WARNINGS;
 
@@ -160,7 +157,7 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
 
 # Don't support move it to shared tablespace
---error ER_TARGET_TS_UNENCRYPTED
+--error ER_INVALID_ENCRYPTION_REQUEST
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
 
 # Alter using copy algorithm
@@ -281,7 +278,7 @@ CREATE TABLE t1 (c1 int);
 ALTER TABLE t1 COMPRESSION='zlib';
 SHOW WARNINGS;
 
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 ALTER TABLE t1 ENCRYPTION='Y',ALGORITHM=COPY;
 
 # Cleanup

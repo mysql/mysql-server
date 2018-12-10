@@ -366,6 +366,7 @@ extern ulong log_error_verbosity;
 
 extern bool persisted_globals_load;
 extern bool opt_keyring_operations;
+extern bool opt_table_encryption_privilege_check;
 extern char *opt_keyring_migration_user;
 extern char *opt_keyring_migration_host;
 extern char *opt_keyring_migration_password;

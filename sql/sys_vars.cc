@@ -6494,3 +6494,61 @@ static Sys_var_uint Sys_immediate_server_version(
     SESSION_ONLY(immediate_server_version), NO_CMD_LINE,
     VALID_RANGE(0, UNDEFINED_SERVER_VERSION), DEFAULT(UNDEFINED_SERVER_VERSION),
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_session_admin));
+
+static bool check_set_default_table_encryption_access(
+    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
+  DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
+                  { return false; });
+  if (var->type == OPT_GLOBAL && is_group_replication_running()) {
+    my_message(ER_GROUP_REPLICATION_RUNNING,
+               "The default_table_encryption option cannot be changed when "
+               "Group replication is running.",
+               MYF(0));
+    return true;
+  }
+
+  // Should own one of SUPER or both (SYSTEM_VARIABLES_ADMIN and
+  // TABLE_ENCRYPTION_ADMIN)
+  if (thd->slave_thread || thd->security_context()->check_access(SUPER_ACL) ||
+      (thd->security_context()
+           ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+           .first &&
+       thd->security_context()
+           ->has_global_grant(STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"))
+           .first)) {
+    return false;
+  }
+
+  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+           "SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN");
+  return true;
+}
+
+static Sys_var_bool Sys_default_table_encryption(
+    "default_table_encryption",
+    "Database and tablespace created with this default encryption property"
+    "unless, the user specify a explicit encryption property.",
+    HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_set_default_table_encryption_access), ON_UPDATE(0));
+
+static bool check_set_table_encryption_privilege_access(sys_var *, THD *thd,
+                                                        set_var *) {
+  DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
+                  { return false; });
+  if (!thd->security_context()->check_access(SUPER_ACL)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
+    return true;
+  }
+  return false;
+}
+
+static Sys_var_bool Sys_table_encryption_privilege_check(
+    "table_encryption_privilege_check",
+    "Indicates if server enables privilege check when user tries to use "
+    "non-default value for CREATE DATABASE or CREATE TABLESPACE or when "
+    "user tries to do CREATE TABLE with ENCRYPTION option which deviates "
+    "from per-database default.",
+    GLOBAL_VAR(opt_table_encryption_privilege_check), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_set_table_encryption_privilege_access), ON_UPDATE(0));

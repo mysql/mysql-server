@@ -115,6 +115,11 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   */
   init_optimizer_cost_module(true);
 
+  // Disable table encryption privilege checks for system threads.
+  bool saved_table_encryption_privilege_check =
+      opt_table_encryption_privilege_check;
+  opt_table_encryption_privilege_check = false;
+
   /*
     Install or start or upgrade the dictionary
     depending on bootstrapping option.
@@ -156,6 +161,9 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     result = ::bootstrap::run_bootstrap_thread(
         NULL, &dd::info_schema::update_I_S_metadata,
         SYSTEM_THREAD_DD_INITIALIZE);
+
+  // Restore the table_encryption_privilege_check.
+  opt_table_encryption_privilege_check = saved_table_encryption_privilege_check;
 
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();

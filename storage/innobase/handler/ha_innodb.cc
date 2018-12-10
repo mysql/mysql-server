@@ -1228,6 +1228,14 @@ static bool innobase_get_tablespace_statistics(
 static bool innobase_get_tablespace_type(const dd::Tablespace &space,
                                          Tablespace_type *space_type);
 
+/** Retrieve the tablespace type by name.
+
+@param[in]  tablespace_name	Tablespace name.
+@param[out] space_type	        Tablespace category.
+@return false on success, true on failure */
+static bool innobase_get_tablespace_type_by_name(const char *tablespace_name,
+                                                 Tablespace_type *space_type);
+
 /** Perform post-commit/rollback cleanup after DDL statement.
 @param[in,out]	thd	connection thread */
 static void innobase_post_ddl(THD *thd);
@@ -4617,7 +4625,8 @@ static int innodb_init(void *p) {
   innobase_hton->fill_is_table = innobase_fill_i_s_table;
   innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
                          HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
-                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE;
+                         HTON_CAN_RECREATE | HTON_SUPPORTS_SECONDARY_ENGINE |
+                         HTON_SUPPORTS_TABLE_ENCRYPTION;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -4646,6 +4655,8 @@ static int innodb_init(void *p) {
 
   innobase_hton->get_tablespace_statistics = innobase_get_tablespace_statistics;
   innobase_hton->get_tablespace_type = innobase_get_tablespace_type;
+  innobase_hton->get_tablespace_type_by_name =
+      innobase_get_tablespace_type_by_name;
 
   innobase_hton->is_dict_readonly = innobase_is_dict_readonly;
 
@@ -10604,16 +10615,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
 
     if (err == DB_SUCCESS) {
       const char *encrypt = m_create_info->encrypt_type.str;
-      /* If encryption option is specified, then it must be
-      innodb-file-per-table tablespace. Otherwise case would
-      have already been blocked at
-      create_option_tablespace_is_valid(). */
-      if (encrypt) {
-        ut_ad(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE);
-        ut_ad(!DICT_TF_HAS_SHARED_SPACE(m_flags));
-      }
-
-      if (!Encryption::is_none(encrypt)) {
+      if (!Encryption::is_none(encrypt) &&
+          (m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)) {
         /* Set the encryption flag. */
         byte *master_key = NULL;
         ulint master_key_id;
@@ -11090,6 +11093,7 @@ bool innobase_is_valid_tablespace_name(ts_command_type ts_cmd,
 bool create_table_info_t::create_option_tablespace_is_valid() {
   bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
   bool is_file_per_table = tablespace_is_file_per_table(m_create_info);
+  bool is_general_space = tablespace_is_general_space(m_create_info);
   bool is_temp_space =
       (m_create_info->tablespace &&
        strcmp(m_create_info->tablespace, dict_sys_t::s_temp_space_name) == 0);
@@ -11116,21 +11120,41 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
         " is deprecated and will be removed in a future release.",
         m_create_info->tablespace);
   }
+
+  /* Check the encryption option validity. */
+  if (m_create_info->encrypt_type.str != nullptr &&
+      Encryption::validate(m_create_info->encrypt_type.str) == DB_UNSUPPORTED) {
+    my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+    return false;
+  }
+
   if (!m_use_shared_space) {
     if (!m_use_file_per_table) {
       /* System tablespace is being used for table */
-      if (m_create_info->encrypt_type.str) {
-        /* Encryption option is not allowed for table in general/shared
-        tablesapces. */
+      if (m_create_info->encrypt_type.str != nullptr &&
+          !Encryption::is_none(m_create_info->encrypt_type.str)) {
+        /* Encryption is not allowed for system tablespace. */
         my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                        "InnoDB : ENCRYPTION is not accepted"
-                        " syntax for CREATE/ALTER table, for"
-                        " tables in general/shared tablespace.",
+                        "InnoDB : ENCRYPTION=Y is not accepted"
+                        " for system tablespace.",
                         MYF(0));
         return false;
       }
     }
     return (true);
+  }
+
+  if (m_use_shared_space && !is_general_space) {
+    /* System tablespace is being used for table */
+    if (m_create_info->encrypt_type.str != nullptr &&
+        !Encryption::is_none(m_create_info->encrypt_type.str)) {
+      /* Encryption is not allowed for system tablespace. */
+      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                      "InnoDB : ENCRYPTION=Y is not accepted"
+                      " for system tablespace.",
+                      MYF(0));
+      return false;
+    }
   }
 
   /* Name validation should be ensured from the SQL layer. */
@@ -11167,34 +11191,6 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
   }
 
   bool is_create_table = (thd_sql_command(m_thd) == SQLCOM_CREATE_TABLE);
-  /* If ENCRYPTION option is used */
-  if (m_create_info->used_fields & HA_CREATE_USED_ENCRYPT) {
-    bool report_error = false;
-    if (is_create_table) { /* CREATE TABLE ... */
-      /* Its a create table command (obviously for shared tablespace).*/
-      report_error = true;
-    } else { /* ALTER TABLE ... */
-      /* TABLESPACE option is also used */
-      if (m_create_info->used_fields & HA_CREATE_USED_TABLESPACE) {
-        if (is_shared_tablespace(m_create_info->tablespace)) {
-          /* Table is being moved to a shared tablespace */
-          report_error = true;
-        }
-      } else if (is_shared_tablespace(m_create_info->tablespace)) {
-        /* Table belongs to a shared tablespace */
-        report_error = true;
-      }
-    }
-
-    if (report_error) {
-      my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                      "InnoDB : ENCRYPTION is not accepted syntax"
-                      " for CREATE/ALTER table, for tables in"
-                      " general/shared tablespace.",
-                      MYF(0));
-      return false;
-    }
-  }
 
   /* Tables in shared tablespace should not have encryption options */
   if (is_shared_tablespace(m_create_info->tablespace)) {
@@ -11805,13 +11801,6 @@ bool create_table_info_t::innobase_table_flags() {
       /* Incorrect encryption option */
       my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
       DBUG_RETURN(false);
-    }
-
-    if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
-      if (!Encryption::is_none(encryption)) {
-        my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-        DBUG_RETURN(false);
-      }
     }
   }
 
@@ -16293,6 +16282,47 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
   } else {
     ut_ad(0);
     return true;
+  }
+
+  return false;
+}
+
+/**
+  Get the tablespace type given the name.
+
+  @param[in]  tablespace_name tablespace name
+  @param[out] space_type      type of space
+
+  @return Operation status.
+  @retval false on success and true for failure.
+*/
+static bool innobase_get_tablespace_type_by_name(const char *tablespace_name,
+                                                 Tablespace_type *space_type) {
+  if ((tablespace_name == nullptr && srv_file_per_table) ||
+      (tablespace_name &&
+       0 == strcmp(tablespace_name, dict_sys_t::s_file_per_table_name))) {
+    *space_type = Tablespace_type::SPACE_TYPE_IMPLICIT;
+  } else if ((tablespace_name == nullptr && !srv_file_per_table) ||
+             (tablespace_name &&
+              0 == strcmp(tablespace_name, dict_sys_t::s_sys_space_name))) {
+    *space_type = Tablespace_type::SPACE_TYPE_SYSTEM;
+  } else if (0 == strcmp(tablespace_name, dict_sys_t::s_dd_space_name)) {
+    *space_type = Tablespace_type::SPACE_TYPE_DICTIONARY;
+  } else if (0 == strcmp(tablespace_name, dict_sys_t::s_temp_space_name)) {
+    *space_type = Tablespace_type::SPACE_TYPE_TEMPORARY;
+  } else if (0 == strcmp(tablespace_name,
+                         dict_sys_t::s_default_undo_space_name_1) ||
+             0 == strcmp(tablespace_name,
+                         dict_sys_t::s_default_undo_space_name_2)) {
+    /*
+      TODO: This function doesn't consider user created UNDO
+      tablespaces because, as of now this function is not being
+      called for UNDO tablesapces. But should consider this in
+      future for completeness.
+     */
+    *space_type = Tablespace_type::SPACE_TYPE_UNDO;
+  } else {
+    *space_type = Tablespace_type::SPACE_TYPE_SHARED;
   }
 
   return false;

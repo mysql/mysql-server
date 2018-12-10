@@ -73,6 +73,7 @@
 #include "sql/auth/auth_common.h"  // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"  // current_thd
+#include "sql/dd/dd_table.h"  // is_encrypted
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/info_schema/tablespace_stats.h"
 #include "sql/dd/properties.h"  // dd::Properties
@@ -4272,14 +4273,23 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
     }
   }
 
+  // Print ENCRYPTION clause.
+  dd::String_type encrypt_type;
   if (p->exists("encrypt_type")) {
-    dd::String_type opt_value;
-    p->get("encrypt_type", &opt_value);
-    if (!opt_value.empty()) {
-      ptr = my_stpcpy(ptr, " ENCRYPTION=\"");
-      ptr = my_stpcpy(ptr, opt_value.c_str());
-      ptr = my_stpcpy(ptr, "\"");
-    }
+    p->get("encrypt_type", &encrypt_type);
+  } else {
+    encrypt_type = "N";
+  }
+
+  // Show ENCRYPTION clause only if we have a encrypted table
+  // OR if schema encryption default is different from table encryption.
+  bool is_schema_encrypted = args[2]->val_int();
+  bool encryption_request_type = is_encrypted(encrypt_type);
+  if (encryption_request_type ||
+      (is_schema_encrypted != encryption_request_type)) {
+    ptr = my_stpcpy(ptr, " ENCRYPTION=\'");
+    ptr = my_stpcpy(ptr, encrypt_type.c_str());
+    ptr = my_stpcpy(ptr, "\'");
   }
 
   if (p->exists("stats_persistent")) {
@@ -4800,4 +4810,109 @@ void Item_func_roles_graphml::cleanup() {
     value_cache.set((char *)NULL, 0, system_charset_info);
     value_cache_set = false;
   }
+}
+
+/**
+  @brief
+    This function prepares string representing value stored at key
+    supplied.
+    This is required for upgrade to parse encryption key value.
+
+    Syntax:
+      string get_dd_property_key_value(dd.table.options, key)
+ */
+String *Item_func_get_dd_property_key_value::val_str(String *str) {
+  DBUG_ENTER("Item_func_get_dd_property_key_value::val_str");
+
+  // Read tables.options
+  String properties;
+  String key;
+  std::ostringstream oss("");
+  null_value = false;
+
+  String *properties_ptr = args[0]->val_str(&properties);
+  String *key_ptr = args[1]->val_str(&key);
+
+  if (key_ptr == nullptr || properties_ptr == nullptr) {
+    null_value = true;
+    DBUG_RETURN(nullptr);
+  }
+
+  // Read required values from properties
+  std::unique_ptr<dd::Properties> p(
+      dd::Properties::parse_properties(properties_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           properties_ptr->c_ptr_safe());
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    null_value = true;
+    DBUG_RETURN(str);
+  }
+
+  // Read the value at key
+  dd::String_type keyname(key_ptr->c_ptr_safe(), strlen(key_ptr->c_ptr_safe()));
+  dd::String_type value;
+  if (p->exists(keyname)) {
+    p->get(keyname, &value);
+    oss << value;
+  } else {
+    null_value = true;
+    DBUG_RETURN(nullptr);
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
+}
+
+/**
+  @brief
+    This function removes a key value from given property string.
+    This is required during upgrade to encryption key value.
+
+    Syntax:
+      string remove_dd_property_key(dd.table.options, key)
+
+    The function either returns the string after removing the key OR
+    returns the original property string if key is not found.
+ */
+String *Item_func_remove_dd_property_key::val_str(String *str) {
+  DBUG_ENTER("Item_func_get_remove_dd_property_key::val_str");
+
+  // Read tables.options
+  String properties;
+  String key;
+  std::ostringstream oss("");
+  null_value = false;
+
+  String *properties_ptr = args[0]->val_str(&properties);
+  String *key_ptr = args[1]->val_str(&key);
+
+  if (key_ptr == nullptr || properties_ptr == nullptr) {
+    null_value = true;
+    DBUG_RETURN(nullptr);
+  }
+
+  // Read required values from properties
+  std::unique_ptr<dd::Properties> p(
+      dd::Properties::parse_properties(properties_ptr->c_ptr_safe()));
+
+  // Warn if the property string is corrupt.
+  if (!p.get()) {
+    LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+           properties_ptr->c_ptr_safe());
+    str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+    DBUG_RETURN(str);
+  }
+
+  // Read the value at key
+  dd::String_type keyname(key_ptr->c_ptr_safe(), strlen(key_ptr->c_ptr_safe()));
+  (void)p->remove(keyname);
+  oss << p->raw_string();
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
 }

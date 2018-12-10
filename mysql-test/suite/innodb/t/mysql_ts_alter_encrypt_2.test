@@ -249,13 +249,11 @@ DROP TABLE mysql.events;
 --echo Alter encryption of table part of mysql tablespace
 --echo --------------------------------------------------
 # Changing encryption at table level should not be permitted
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 ALTER TABLE mysql.component ENCRYPTION='Y';
---error ER_ILLEGAL_HA_CREATE_OPTION
+--error ER_INVALID_ENCRYPTION_REQUEST
 ALTER TABLE mysql.component ENCRYPTION='y';
---error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE mysql.component ENCRYPTION='N';
---error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE mysql.component ENCRYPTION='n';
 
 --echo ---------------------------------------------------------------------

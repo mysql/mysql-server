@@ -37,6 +37,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"                  // ER_*
 #include "sql/dd/dd.h"                     // create_object
+#include "sql/dd/impl/bootstrap_ctx.h"     // dd::bootstrap::DD_bootstrap_ctx
 #include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
 #include "sql/dd/impl/raw/raw_record.h"    // Raw_record
 #include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
@@ -94,6 +95,15 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
 
   m_default_collation_id = r.read_ref_id(Schemata::FIELD_DEFAULT_COLLATION_ID);
 
+  // m_default_encryption is added in 80015
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80015)) {
+    m_default_encryption = enum_encryption_type::ET_NO;
+  } else {
+    m_default_encryption = static_cast<enum_encryption_type>(
+        r.read_int(Schemata::FIELD_DEFAULT_ENCRYPTION));
+  }
+
   return false;
 }
 
@@ -102,6 +112,14 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
 bool Schema_impl::store_attributes(Raw_record *r) {
   Object_id default_catalog_id =
       Dictionary_impl::instance()->default_catalog_id();
+
+  // Store m_default_encryption only if we're not upgrading
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80015) &&
+      r->store(Schemata::FIELD_DEFAULT_ENCRYPTION,
+               static_cast<int>(m_default_encryption))) {
+    return true;
+  }
 
   return store_id(r, Schemata::FIELD_ID) ||
          store_name(r, Schemata::FIELD_NAME) ||

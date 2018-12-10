@@ -208,6 +208,8 @@ bool dynamic_privilege_init(void) {
       ret |= service->register_privilege(
           STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"));
       ret |= service->register_privilege(STRING_WITH_LEN("SYSTEM_USER"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);

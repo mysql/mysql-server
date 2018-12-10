@@ -1333,8 +1333,8 @@ class Item_func_get_dd_column_privileges final : public Item_str_func {
 
 class Item_func_get_dd_create_options final : public Item_str_func {
  public:
-  Item_func_get_dd_create_options(const POS &pos, Item *a, Item *b)
-      : Item_str_func(pos, a, b) {}
+  Item_func_get_dd_create_options(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_str_func(pos, a, b, c) {}
 
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
@@ -1573,6 +1573,44 @@ class Item_func_convert_cpu_id_mask final : public Item_str_func {
   }
 
   const char *func_name() const override { return "convert_cpu_id_mask"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_get_dd_property_key_value final : public Item_str_func {
+ public:
+  Item_func_get_dd_property_key_value(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "get_dd_property_key_value"; }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_remove_dd_property_key final : public Item_str_func {
+ public:
+  Item_func_remove_dd_property_key(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    set_data_type_string(MAX_BLOB_WIDTH, system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override { return "remove_dd_property_key"; }
 
   String *val_str(String *) override;
 };

@@ -2172,6 +2172,32 @@ deny:
 }
 
 /**
+  Check if a current user has the privilege TABLE_ENCRYPTION_ADMIN required
+  to create encrypted table. We skip the same for slave threads.
+
+  @param thd    Current thread
+
+  @retval false  A user has the privilege TABLE_ENCRYPTION_ADMIN
+  @retval true   A user doesn't have the privilege TABLE_ENCRYPTION_ADMIN
+*/
+
+bool check_table_encryption_admin_access(THD *thd) {
+  Security_context *sctx = thd->security_context();
+
+  /* replication slave thread can do anything */
+  if (thd->slave_thread) {
+    return false;
+  }
+
+  if (!sctx->has_global_grant(STRING_WITH_LEN("TABLE_ENCRYPTION_ADMIN"))
+           .first) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
   Given a TABLE_LIST object this function checks against
    1. global privileges
    2. db privileges

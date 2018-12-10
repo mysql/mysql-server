@@ -185,6 +185,10 @@ inline Fake_TABLE *get_schema_table(THD *thd, handlerton *hton) {
                              Mock_dd_field_longlong());  // created
   m_field_list.push_back(new (thd->mem_root)
                              Mock_dd_field_longlong());  // last_altered
+  m_field_list.push_back(new (*THR_MALLOC)               // options
+                         Mock_dd_field_varstring(128, &dummy_share));
+  m_field_list.push_back(new (*THR_MALLOC)
+                             Mock_dd_field_longlong());  // default_encryption
 
   // Create table object (and table share implicitly).
   table = new Fake_TABLE(m_field_list);

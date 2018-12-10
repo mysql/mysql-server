@@ -178,6 +178,9 @@ void store_predefined_tablespace_metadata(THD *thd) {
       space_file->set_se_private_data(file->get_se_private_data());
     }
 
+    // All the predefined tablespace are unencrypted (atleast for now).
+    tablespace->options().set("encryption", "N");
+
     /*
       Here, we just want to populate the core registry in the storage
       adapter. We do not want to have the object registered in the
@@ -1392,6 +1395,206 @@ void establish_table_name_sets(std::set<String_type> *create_set,
 /* purecov: end */
 
 /**
+  Adjust metadata in source DD tables in mysql schema. This is done by
+  mostly executing UPDATE queries on them, but we do not migrate data to
+  destination DD tables.
+
+  @param   thd         Thread context.
+
+  @returns false if success. otherwise true.
+*/
+/* purecov: begin inspected */
+bool update_meta_data(THD *thd) {
+  /*
+    Turn off foreign key checks while migrating the meta data.
+  */
+  if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0"))
+    return dd::end_transaction(thd, true);
+
+  /* Version dependent migration of meta data can be added here. */
+
+  /*
+    8.0.11 allowed entries with 0 timestamps to be created. These must
+    be updated, otherwise, upgrade will fail since 0 timestamps are not
+    allowed with the default SQL mode.
+  */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80012)) {
+    if (execute_query(thd,
+                      "UPDATE mysql.tables SET last_altered = "
+                      "CURRENT_TIMESTAMP WHERE last_altered = 0"))
+      return dd::end_transaction(thd, true);
+    if (execute_query(thd,
+                      "UPDATE mysql.tables SET created = CURRENT_TIMESTAMP "
+                      "WHERE created = 0"))
+      return dd::end_transaction(thd, true);
+  }
+
+  /* Upgrade from 80014. */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80015)) {
+    // A) REMOVE 'ENCRYPTION' KEY FROM MYSQL.TABLESPACES.OPTIONS FOR
+    //    NON-INNODB TABLESPACES/TABLES
+
+    /*
+      Remove ENCRYPTION clause for unencrypted non-InnoDB tablespaces.
+      Because its only InnoDB that support encryption in 8.0.15.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tablespaces ts "
+            "SET ts.options=REMOVE_DD_PROPERTY_KEY(ts.options, 'encryption') "
+            "WHERE ts.engine!='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') IS NOT "
+            "NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    // Remove ENCRYPTION clause for non-InnoDB tables.
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tables tbl "
+            "SET tbl.options=REMOVE_DD_PROPERTY_KEY(tbl.options, "
+            "'encrypt_type') "
+            "WHERE tbl.tablespace_id IS NULL AND tbl.engine!='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(tbl.options,'encrypt_type') IS NOT "
+            "NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    // B) UPDATE MYSQL.TABLESPACES.OPTIONS 'ENCRYPTION' KEY FOR INNODB SE.
+
+    /*
+      Add ENCRYPTION clause for InnoDB file-per-table tablespaces used by
+      partitioned table.
+
+      For a partitioned table using file-per-table tablespace, the
+      tablespace_id is stored in tables corresponding
+      mysql.index_partitions.tablespace_id. The following query finds the
+      partitioned tablespace by joining several DD tables and updates
+      the 'encryption' key same as that of tables encryption type.
+
+      This is done as we expect all innodb tablespaces to have proper
+      'encryption' flag set.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.index_partitions ip "
+            "JOIN mysql.tablespaces ts ON ts.id = ip.tablespace_id "
+            "JOIN mysql.table_partitions p ON p.id = ip.partition_id "
+            "JOIN mysql.tables t ON t.id = p.table_id "
+            "JOIN mysql.indexes i ON i.table_id = t.id "
+            "SET ts.options=CONCAT(IFNULL(ts.options,''), "
+            "IF(LOWER(GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type'))='y' "
+            ", 'encryption=Y;','encryption=N;')) "
+            "WHERE t.tablespace_id IS NULL AND i.tablespace_id IS NULL AND "
+            "p.tablespace_id IS NULL AND ts.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type') IS NOT NULL "
+            "AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') IS NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Add ENCRYPTION clause for InnoDB file-per-table tablespaces same as
+      encryption type of the table.
+
+      For a tables using file-per-table tablespace, the tablespace_id is
+      stored in tables corresponding mysql.indexes.tablespace_id.
+      The following query finds the tablespace by joining
+      several DD tables and updates the 'encryption' key same as that of
+      tables encryption type.
+
+      This is done as we expect all innodb tablespaces to have proper
+      'encryption' flag set.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.indexes i "
+            "JOIN mysql.tablespaces ts ON ts.id = i.tablespace_id "
+            "JOIN mysql.tables t ON t.id = i.table_id "
+            "SET ts.options=CONCAT(IFNULL(ts.options,''), "
+            "IF(LOWER(GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type'))='y'"
+            ", 'encryption=Y;','encryption=N;')) "
+            "WHERE ts.engine='InnoDB' AND t.tablespace_id IS NULL "
+            "AND GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') IS NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Update ENCRYPTION clause for unencrypted InnoDB tablespaces.
+      Where the 'encryption' key value is empty string ''.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tablespaces ts "
+            "SET ts.options=CONCAT(IFNULL(REMOVE_DD_PROPERTY_KEY(ts.options, "
+            "'encryption'),''), 'encryption=N;') "
+            "WHERE ts.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') = ''")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Store ENCRYPTION clause for unencrypted InnoDB general tablespaces,
+      when the 'encryption' key is not yet present.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tablespaces ts "
+            "SET ts.options=CONCAT(IFNULL(ts.options,''), 'encryption=N;') "
+            "WHERE ts.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') IS NULL ")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    // C) UPDATE MYSQL.TABLES.OPTIONS 'ENCRYPT_TYPE' KEY FOR INNODB TABLES.
+
+    /*
+      Update 'encrypt_type' flag for innodb tables using general tablespace.
+      It is not possible to have general tablespaces used in partitioned
+      table as of 8.0.15, so we ignore to check for partitioned tables
+      using general tablespace.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tables t "
+            "JOIN mysql.tablespaces ts ON ts.id = t.tablespace_id "
+            "SET t.options=CONCAT(IFNULL(t.options,''), "
+            "IF(LOWER(GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption'))='y'"
+            ", 'encrypt_type=Y;','encrypt_type=N;')) "
+            "WHERE t.engine='InnoDB' AND t.tablespace_id IS NOT NULL AND "
+            "GET_DD_PROPERTY_KEY_VALUE(ts.options,'encryption') IS NOT NULL "
+            "AND GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type') IS "
+            "NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+
+    /*
+      Store 'encrypt_type=N' for unencrypted InnoDB file-per-table tables,
+      for tables which does not have a 'encrypt_type' key stored already.
+    */
+    if (execute_query(
+            thd,
+            "UPDATE mysql.tables t "
+            "SET t.options=CONCAT(IFNULL(t.options,''), 'encrypt_type=N;') "
+            "WHERE t.tablespace_id IS NULL AND t.engine='InnoDB' AND "
+            "GET_DD_PROPERTY_KEY_VALUE(t.options,'encrypt_type') IS NULL")) {
+      return dd::end_transaction(thd, true);
+    }
+  }
+
+  /*
+    Turn foreign key checks back on and commit explicitly.
+  */
+  if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1"))
+    return dd::end_transaction(thd, true);
+
+  return false;
+}
+/* purecov: end */
+
+/**
   Copy meta data from the actual tables to the target tables.
 
   The default is to copy all data. This is sufficient if we e.g. add a
@@ -1436,29 +1639,24 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
 
   /* Version dependent migration of meta data can be added here. */
 
-  /*
-    8.0.11 allowed entries with 0 timestamps to be created. These must
-    be updated, otherwise, upgrade will fail since 0 timstamps are not
-    allowed with the default SQL mode.
-  */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80012)) {
-    if (execute_query(thd,
-                      "UPDATE mysql.tables SET last_altered = "
-                      "CURRENT_TIMESTAMP WHERE last_altered = 0"))
-      return dd::end_transaction(thd, true);
-    if (execute_query(thd,
-                      "UPDATE mysql.tables SET created = CURRENT_TIMESTAMP "
-                      "WHERE created = 0"))
-      return dd::end_transaction(thd, true);
-  }
-
   /* Upgrade from 80012. */
   if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
           bootstrap::DD_VERSION_80013)) {
     migrated_set.insert("tables");
     if (execute_query(thd,
                       "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+      return dd::end_transaction(thd, true);
+    }
+  }
+
+  /* Upgrade from 80014. */
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80015)) {
+    migrated_set.insert("schemata");
+
+    // Store 'NO' for new mysql.schemata.default_encryption column.
+    if (execute_query(
+            thd, "INSERT INTO schemata SELECT *, 'NO' FROM mysql.schemata")) {
       return dd::end_transaction(thd, true);
     }
   }
@@ -1486,7 +1684,7 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
   if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1"))
     return dd::end_transaction(thd, true);
 
-  return dd::end_transaction(thd, false);
+  return false;
 }
 /* purecov: end */
 
@@ -1971,8 +2169,22 @@ bool upgrade_tables(THD *thd) {
     specific handling, but the default is to just copy all meta data from
     the actual to the target table, assuming the number and type of columns
     are the same (e.g. if an index is added). The data migration is committed.
+
+    We achieve data migration in two steps:
+
+    1) update_meta_data() is used to adjust metadata in source DD tables in
+    mysql schema. This is done by mostly executing UPDATE queries on
+    them, but we do not migrate data to destination DD tables.
+
+    2) migrate_meta_data() is used to adjust metadata in destination DD
+    tables using UPDATE command and also migrate data to destination DD
+    tables using INSERT command.
+
+    Note that the changes done during migration of meta data are committed
+    in next step at the end of 'atomic switch' described below.
   */
-  if (migrate_meta_data(thd, create_set, remove_set)) return true;
+  if (update_meta_data(thd) || migrate_meta_data(thd, create_set, remove_set))
+    return true;
 
   /*
     We are now ready to do the atomic switch of the actual and target DD

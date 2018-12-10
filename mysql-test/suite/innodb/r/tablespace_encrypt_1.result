@@ -15,39 +15,32 @@ DROP TABLE IF EXISTS t1;
 SYSTEM TABLESPACE
 ---------------------------
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table = 0;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 0
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -58,17 +51,15 @@ ERROR 42000: InnoDB: `innodb_system` is a reserved tablespace name.
 TEMPORARY TABLESPACE
 ---------------------------
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3834	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3834	ENCRYPTION clause is not valid for temporary tablespace.
 ------------------------------------------------
 CREATE TABLESPACE WITH INVALID ENCRYPTION OPTION
 ------------------------------------------------
@@ -400,7 +391,7 @@ NAME	ENCRYPTION
 test/t1	Y
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="Y"
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -413,13 +404,13 @@ NAME	ENCRYPTION
 test/t1	N
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="N"
+test	t1	InnoDB	
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="N" ENGINE = InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
@@ -427,20 +418,20 @@ NAME	ENCRYPTION
 test/t1	N
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="N"
+test	t1	InnoDB	
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 encryption="Y";
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
 NAME	ENCRYPTION
 test/t1	Y
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="Y"
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -454,7 +445,7 @@ NAME	ENCRYPTION
 test/t1	Y
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="Y"
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -467,13 +458,13 @@ NAME	ENCRYPTION
 test/t1	N
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="N"
+test	t1	InnoDB	
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=innodb_file_per_table ENCRYPTION="N" ENGINE = InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
@@ -481,20 +472,20 @@ NAME	ENCRYPTION
 test/t1	N
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="N"
+test	t1	InnoDB	
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='N'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 encryption="Y";
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
 NAME	ENCRYPTION
 test/t1	Y
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	ENCRYPTION="Y"
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -516,86 +507,73 @@ t1	CREATE TABLE `t1` (
 ) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=encrypt_ts ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='test/t1';
 NAME	ENCRYPTION
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 DROP TABLE t1;
 --------------------------
 CREATE/ALTER TABLE IN GENERAL TABLESPACE
 --------------------------
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-SHOW WARNINGS;
-Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Invalid encryption option.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+Error	3184	Invalid encryption option.
 Error	1031	Table storage engine for 't1' doesn't have this option
-CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENGINE = InnoDB;
+CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 ALTER TABLE t1 encryption='Y';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 ALTER TABLE t1 encryption='N';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 encryption='R';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Invalid encryption option.
 DROP TABLE t1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="N" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-SHOW WARNINGS;
-Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENCRYPTION="R" ENGINE = InnoDB;
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
-Error	1031	Table storage engine for 't1' doesn't have this option
+Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c1 INT, c2 char(20)) TABLESPACE encrypt_ts ENGINE = InnoDB;
 ALTER TABLE t1 encryption='Y';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 ALTER TABLE t1 encryption='N';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
 ALTER TABLE t1 encryption='R';
-ERROR HY000: InnoDB : ENCRYPTION is not accepted syntax for CREATE/ALTER table, for tables in general/shared tablespace.
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 DROP TABLE t1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -646,7 +624,8 @@ c1	c2
 0	aaaaa
 SET GLOBAL innodb_file_per_table=1;
 DROP TABLE t1;
-CREATE TABLE t1(c2 char(100) , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB tablespace=encrypt_ts;
+CREATE TABLE t1(c2 char(100) , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB
+tablespace=encrypt_ts ENCRYPTION='Y';
 ALTER TABLE t1 DROP INDEX idx1;
 ALTER TABLE t1 ADD COLUMN c4 CHAR(20);
 DROP TABLE t1;
@@ -720,7 +699,7 @@ CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB AUTOE
 NODEGROUP = 5 WAIT COMMENT = 'TABLESPACE ENCRYPTION' INITIAL_SIZE = 100M EXTENT_SIZE = 100M ENCRYPTION='Y';
 DROP TABLESPACE encrypt_ts;
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts';
 NAME	ENCRYPTION
 encrypt_ts	Y
@@ -728,13 +707,13 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='t
 NAME	ENCRYPTION
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 ALTER TABLESPACE encrypt_ts RENAME TO encrypt_ts_renamed;
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='encrypt_ts_renamed';
 NAME	ENCRYPTION
@@ -743,13 +722,13 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='t
 NAME	ENCRYPTION
 SELECT TABLE_SCHEMA,TABLE_NAME,ENGINE,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME="t1";
 TABLE_SCHEMA	TABLE_NAME	ENGINE	CREATE_OPTIONS
-test	t1	InnoDB	
+test	t1	InnoDB	ENCRYPTION='Y'
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) /*!50100 TABLESPACE `encrypt_ts_renamed` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts_renamed` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts_renamed;
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
@@ -763,22 +742,22 @@ SET i = i + 1;
 END WHILE;
 COMMIT;
 END|
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ROW_FORMAT=COMPRESSED;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=COMPRESSED;
 ERROR HY000: InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
 SHOW WARNINGS;
 Level	Code	Message
 Error	1478	InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
 Error	1031	Table storage engine for 't1' doesn't have this option
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ROW_FORMAT=FIXED;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=FIXED;
 ERROR HY000: Table storage engine for 't1' doesn't have this option
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ROW_FORMAT=DYNAMIC;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=DYNAMIC;
 DROP TABLE t1;
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ROW_FORMAT=REDUNDANT;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=REDUNDANT;
 DROP TABLE t1;
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ROW_FORMAT=COMPACT;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' ROW_FORMAT=COMPACT;
 DROP TABLE t1;
 DROP PROCEDURE populate_t1;
-CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts KEY_BLOCK_SIZE=1;
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y' KEY_BLOCK_SIZE=1;
 ERROR HY000: InnoDB: Tablespace `encrypt_ts` cannot contain a COMPRESSED table
 SHOW WARNINGS;
 Level	Code	Message
@@ -789,7 +768,7 @@ SET block_encryption_mode = 'aes-256-cbc';
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE = InnoDB ENCRYPTION='Y';
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
-CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
 INSERT INTO tde_db.t1 VALUES(0, 'abc');
 INSERT INTO tde_db.t1 VALUES(1, 'xyz');
 INSERT INTO tde_db.t1 VALUES(2, null);
@@ -817,7 +796,7 @@ c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,
 c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,
 c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
-) ENGINE=InnoDB TABLESPACE=encrypt_ts;
+) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
@@ -826,7 +805,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t_encrypt(c4,c7) VALUES('{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO tde_db.t_encrypt(c4,c7) select c4,c7 from tde_db.t_encrypt;
 SELECT c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -845,10 +824,10 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 DROP TABLE IF EXISTS tde_db.t_encrypt;
-CREATE TABLE tde_db.t_encrypt(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 char(100), c3 BLOB , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB TABLESPACE=encrypt_ts;
-CREATE TABLE tde_db.t_encrypt1(c11 INT , c22 char(100), c33 BLOB , FULLTEXT INDEX `idx1` (c22)) ENGINE=InnoDB TABLESPACE=encrypt_ts;
+CREATE TABLE tde_db.t_encrypt(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 char(100), c3 BLOB , FULLTEXT INDEX `idx1` (c2)) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
+CREATE TABLE tde_db.t_encrypt1(c11 INT , c22 char(100), c33 BLOB , FULLTEXT INDEX `idx1` (c22)) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
 SHOW CREATE TABLE tde_db.t_encrypt;
 Table	Create Table
 t_encrypt	CREATE TABLE `t_encrypt` (
@@ -857,7 +836,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c3` blob,
   PRIMARY KEY (`c1`),
   FULLTEXT KEY `idx1` (`c2`)
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 SHOW CREATE TABLE tde_db.t_encrypt1;
 Table	Create Table
 t_encrypt1	CREATE TABLE `t_encrypt1` (
@@ -865,9 +844,9 @@ t_encrypt1	CREATE TABLE `t_encrypt1` (
   `c22` char(100) DEFAULT NULL,
   `c33` blob,
   FULLTEXT KEY `idx1` (`c22`)
-) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) /*!50100 TABLESPACE `encrypt_ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 CREATE TABLE tde_db.t_encrypt2 (f1 INT PRIMARY KEY, f2 CHAR(100),
-FOREIGN KEY (f1) REFERENCES tde_db.t_encrypt(c1) ON UPDATE CASCADE) ENGINE=InnoDB TABLESPACE=encrypt_ts;
+FOREIGN KEY (f1) REFERENCES tde_db.t_encrypt(c1) ON UPDATE CASCADE) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
 CREATE TRIGGER tde_db.trigger_encrypt_table AFTER INSERT ON tde_db.t_encrypt
 FOR EACH ROW
 begin
@@ -941,7 +920,7 @@ DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;
 USE tde_db;
 DROP TABLE IF EXISTS tde_db.t_encrypt;
-CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT ,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) , PRIMARY KEY (c2,c3(100))) ENGINE=InnoDB TABLESPACE=encrypt_ts;
+CREATE TABLE tde_db.t_encrypt  (c2 INT NOT NULL AUTO_INCREMENT ,c3 VARCHAR(255), c4 JSON ,c5 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_a')) STORED,c6 INT GENERATED ALWAYS AS (JSON_EXTRACT(c4,'$.key_b')) VIRTUAL,c7 POINT NOT NULL SRID 0,spatial INDEX idx2 (c7) , PRIMARY KEY (c2,c3(100))) ENGINE=InnoDB TABLESPACE=encrypt_ts ENCRYPTION='Y';
 CREATE PROCEDURE tde_db.txn_t_encrypt()
 BEGIN
 declare i int default 0;
@@ -1030,7 +1009,7 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='e
 NAME	ENCRYPTION
 encrypt_ts	Y
 CREATE DATABASE tde_db;
-CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts;
+CREATE TABLE tde_db.t1(c1 INT PRIMARY KEY, c2 char(50)) ENGINE = InnoDB TABLESPACE encrypt_ts ENCRYPTION='Y';
 INSERT INTO tde_db.t1 VALUES(0, 'abc');
 INSERT INTO tde_db.t1 VALUES(1, 'xyz');
 SELECT * FROM tde_db.t1;

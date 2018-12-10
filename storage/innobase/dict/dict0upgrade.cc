@@ -1054,6 +1054,15 @@ static uint32_t dd_upgrade_register_tablespace(
 
   dd_file->set_filename(upgrade_space->path);
 
+  if (!FSP_FLAGS_GET_ENCRYPTION(upgrade_space->flags)) {
+    /* Update DD Option value, for Unencryption */
+    dd_space->options().set("encryption", "N");
+
+  } else {
+    /* Update DD Option value, for Encryption */
+    dd_space->options().set("encryption", "Y");
+  }
+
   if (dd_client->store(dd_space)) {
     /* It would be better to return thd->get_stmt_da()->mysql_errno(),
     however, server doesn't fill in the errno during bootstrap. */

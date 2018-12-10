@@ -419,6 +419,7 @@ eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
 --enable_query_log
 # Try to run some DMLs. Should be allowed.
 DESCRIBE t1;
+SHOW CREATE TABLE t1;
 SELECT COUNT(*) FROM t1;
 INSERT INTO t1 VALUES ("SOME VALUES");
 SELECT COUNT(*) from t1;
@@ -437,13 +438,13 @@ eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
 --echo # Wait for MDL request by con2 to appear in metadata_locks table.
 let $wait_condition = SELECT LOCK_STATUS = 'PENDING'
         FROM performance_schema.metadata_locks
-        WHERE OBJECT_NAME='encrypt_ts' AND
+        WHERE OBJECT_NAME='t1' AND
         OWNER_THREAD_ID = $con2_thread_id;
 --source include/wait_condition.inc
 # Make sure con2 thread has MDL request in PENDING state.
 eval SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
 	FROM performance_schema.metadata_locks
-	WHERE OBJECT_NAME='encrypt_ts' AND
+	WHERE OBJECT_NAME='t1' AND
 	OWNER_THREAD_ID = $con2_thread_id;
 --enable_query_log
 
@@ -465,6 +466,7 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 	WHERE NAME LIKE "%encrypt_ts%";
 # Make sure table DDL is done.
 DESCRIBE t1;
+SHOW CREATE TABLE t1;
 
 --echo ###########
 --echo # Cleanup #

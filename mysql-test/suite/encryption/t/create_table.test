@@ -1,0 +1,424 @@
+--echo #
+--echo # WL#12261 Control (enforce and disable) table encryption
+--echo #
+--source include/have_debug.inc
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+connect (con1, localhost, u1);
+
+
+--echo # This test run CREATE TABLE in different configurations,
+--echo #
+--echo # - Setting table_encryption_privilege_check to true/false.
+--echo # - Setting default_table_encryption to true/false.
+--echo # - With and without ENCRYPTION clause.
+--echo # - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+--echo # - Test SHOW CREATE TABLE
+--echo # - Test INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS
+--echo # - Check for warnings generated.
+--echo #
+
+# Initialization
+--let caseno=0
+--let use_tablespace=false
+--let expected_error=0
+--let expected_error2=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test CREATE TABLE on DATABASE with ENCRYPTION 'y/n'
+--echo # and with different values for system variable
+--echo # 'table_encryption_privilege_check' and 'default_table_encryption'
+
+--echo `````````````````````````````````````````````````````````
+--echo # CREATE TABLE without ENCRYPTION clause
+
+--let explicit_encryption_clause=false
+
+--let privilege_check=false
+--let database_encryption='n'
+--source ./create_table.inc
+--let database_encryption='y'
+--source ./create_table.inc
+
+--let privilege_check=true
+--let database_encryption='n'
+--source ./create_table.inc
+--let database_encryption='y'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # CREATE TABLE with ENCRYPTION clause
+
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+
+--let database_encryption='n'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let privilege_check=true
+
+--let database_encryption='n'
+--let table_encryption='y'
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let table_encryption='n'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Check with invalid ENCRYPTION value
+--let privilege_check=false
+--let database_encryption='n'
+--let expected_error=ER_INVALID_ENCRYPTION_OPTION
+--let table_encryption='k'
+--source ./create_table.inc
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # With innodb_file_per_table=off and
+--echo # Test CREATE TABLE without ENCRYPTION clause.
+SET GLOBAL innodb_file_per_table = OFF;
+--let expected_error=0
+--let use_tablespace=false
+--let explicit_encryption_clause=false
+
+--let privilege_check=false
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+--let expected_error=0
+--let privilege_check=true
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+--let expected_error=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # With explicit ENCRYPTION clause
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+
+--source ./create_table.inc
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+
+--source ./create_table.inc
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--let expected_error=0
+--let table_encryption='n'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # With innodb_file_per_table = ON.
+--echo # Test CREATE TABLE with explicit TABLESPACE=innodb_file_per_table
+SET GLOBAL innodb_file_per_table = ON;
+--let use_tablespace=true
+--let tablespace_name=innodb_file_per_table
+
+--echo `````````````````````````````````````````````````````````
+--echo # Without ENCRYPTION clause
+--let explicit_encryption_clause=false
+--let expected_error=0
+
+--let privilege_check=false
+--let database_encryption='n'
+--source ./create_table.inc
+--let database_encryption='y'
+--source ./create_table.inc
+
+--let privilege_check=true
+--let database_encryption='n'
+--source ./create_table.inc
+--let database_encryption='y'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # With ENCRYPTION clause
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+
+--let database_encryption='n'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test CREATE TABLE with TABLESPACE=innodb_system
+--let use_tablespace=true
+--let tablespace_name=innodb_system
+
+--echo `````````````````````````````````````````````````````````
+--echo # Without ENCRYPTION clause
+--let explicit_encryption_clause=false
+
+--let expected_error=0
+
+--let privilege_check=false
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--let database_encryption='y'
+--source ./create_table.inc
+
+--let expected_error=0
+--let privilege_check=true
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+--let expected_error=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # With ENCRYPTION clause
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--echo # The statement would fail even with user owning TABLE_ENCRYPTION_ADMIN
+--echo # with ER_ILLEGAL_HA_CREATE_OPTION because one cannot create
+--echo # encrypted table in system tablespace.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+--let expected_error=0
+--let expected_error2=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails because we cannot created a encrypted table in system tablespace.
+--let database_encryption='y'
+--let table_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let expected_error=0
+--let table_encryption='n'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test CREATE TABLE with general TABLESPACE
+
+--echo `````````````````````````````````````````````````````````
+--echo # With unencrypted general tablespace and without ENCRYPTION clause.
+--let use_tablespace=true
+--let tablespace_name=ts1
+--let table_encryption='n'
+--let explicit_encryption_clause=false
+--let expected_error=0
+
+--let privilege_check=false
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--echo # The table ENCRYPTION clause is inherited from database and this
+--echo # does not match tablespace encryption type.
+--let database_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+
+--let expected_error=0
+--let privilege_check=true
+--let database_encryption='n'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--echo # The table ENCRYPTION clause is inherited from database and this
+--echo # does not match tablespace encryption type.
+--let database_encryption='y'
+--let expected_error=ER_INVALID_ENCRYPTION_REQUEST
+--source ./create_table.inc
+--let expected_error=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # With ENCRYPTION clause
+--let explicit_encryption_clause=true
+
+--let privilege_check=false
+
+--let database_encryption='n'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let privilege_check=true
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let database_encryption='n'
+--let table_encryption='y'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+--let expected_error=0
+--let table_encryption='n'
+--source ./create_table.inc
+
+--let database_encryption='y'
+--let table_encryption='y'
+--source ./create_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Fails as there is mismatch between table and database encryption.
+--let table_encryption='n'
+--let expected_error=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./create_table.inc
+
+
+--echo # Cleanup
+disconnect con1;
+connection default;
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

@@ -86,7 +86,7 @@ namespace info_schema {
     `UNIT_NAME`, `CONVERSION_FACTOR`, `DESCRIPTION`, and `UNIT_TYPE`. This view
     contains the supported spatial units.
 
-  80014:
+  80014: Published in 8.0.14
   ------------------------------------
   There are no changes from version 80013. Hence server version 80014 used
   I_S version 80013.
@@ -99,6 +99,11 @@ namespace info_schema {
     New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
     INFORMATION_SCHMEA.TABLE_CONSTRAINTS is modified to include check
     constraints defined on the table.
+
+  - WL#12261 Control (enforce and disable) table encryption
+    - Add new column information_schema.schemata.default_encryption
+    - information_schema.tables.options UDF definition is changed to pass
+      schema default encryption.
 */
 
 static const uint IS_DD_VERSION = 80015;

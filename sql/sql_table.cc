@@ -8265,6 +8265,56 @@ static bool create_table_impl(
   DBUG_RETURN(false);
 }
 
+/*
+  This function disallows requests to use general tablespace for the table
+  with ENCRYPTION clause different from the general tablespace's encryption
+  type.
+
+  @param thd          Thread
+  @param create_info  Metadata of the table.
+
+  @returns true on failure, false on success.
+*/
+static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
+  // Study if this table uses general tablespaces and if any one is encrypted.
+  bool uses_general_tablespace = false;
+  bool uses_encrypted_tablespace = false;
+  dd::Encrypt_result result =
+      dd::is_tablespace_encrypted(thd, create_info, &uses_general_tablespace);
+  if (result.error) return true;
+
+  if (uses_general_tablespace) {
+    uses_encrypted_tablespace = result.value;
+  } else if (!create_info->tablespace &&
+             create_info->db_type->get_tablespace_type_by_name) {
+    /*
+      No tablespace is explicitly specified. InnoDB can either use
+      file-per-table or general tablespace based on 'innodb_file_per_table'
+      setting, so ask SE about it.
+     */
+    Tablespace_type tt;
+    if (create_info->db_type->get_tablespace_type_by_name(
+            create_info->tablespace, &tt)) {
+      return true;
+    }
+    uses_general_tablespace = (tt != Tablespace_type::SPACE_TYPE_IMPLICIT);
+  }
+
+  /*
+    Stop if table's uses general tablespace and the requested encryption
+    type does not match the general tablespace encryption type.
+  */
+  bool requested_type = dd::is_encrypted(create_info->encrypt_type);
+  if (uses_general_tablespace && requested_type != uses_encrypted_tablespace) {
+    my_error(ER_INVALID_ENCRYPTION_REQUEST, MYF(0),
+             requested_type ? "'encrypted'" : "'unencrypted'",
+             uses_encrypted_tablespace ? "'encrypted'" : "'unencrypted'");
+    return true;
+  }
+
+  return false;
+}
+
 /**
   Simple wrapper around create_table_impl() to be used
   in various version of CREATE TABLE statement.
@@ -8317,6 +8367,49 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
   if (schema == nullptr) {
     my_error(ER_BAD_DB_ERROR, MYF(0), db);
     return true;
+  }
+
+  // Do not accept ENCRYPTION clause for temporary table.
+  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+      create_info->encrypt_type.length) {
+    my_error(ER_CANNOT_USE_ENCRYPTION_CLAUSE, MYF(0), "temporary");
+    return true;
+  }
+
+  // Determine table encryption type, and check if user is allowed to create.
+  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+    /*
+      Assume table as encrypted, if user did not explicitly state it and
+      we have a schema with default encryption enabled.
+     */
+    if (!create_info->encrypt_type.length && schema->default_encryption()) {
+      create_info->encrypt_type = {strmake_root(thd->mem_root, "Y", 1), 1};
+    }
+
+    // Stop if it is invalid encryption clause, when using general tablespace.
+    if (validate_table_encryption(thd, create_info)) return true;
+
+    // Check table encryption privilege
+    if (create_info->encrypt_type.str || create_info->tablespace) {
+      /*
+        Check privilege only if request encryption type differ from schema
+        default encryption type.
+       */
+      bool request_type = dd::is_encrypted(create_info->encrypt_type);
+      if (schema->default_encryption() != request_type) {
+        if (opt_table_encryption_privilege_check) {
+          if (check_table_encryption_admin_access(thd)) {
+            my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));
+            return true;
+          }
+        } else if (schema->default_encryption() && !request_type) {
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING,
+              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+        }
+      }
+    }
   }
 
   if (thd->is_plugin_fake_ddl()) no_ha_table = true;
@@ -9853,6 +9946,15 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
   */
   if (src_table_obj && !src_table_obj->is_explicit_tablespace()) {
     local_create_info.tablespace = nullptr;
+  }
+
+  /*
+    Do not keep ENCRYPTION clause for unencrypted table.
+    We raise error if we are creating encrypted temporary table later.
+  */
+  if (local_create_info.encrypt_type.str &&
+      !dd::is_encrypted(local_create_info.encrypt_type)) {
+    local_create_info.encrypt_type = {nullptr, 0};
   }
 
   /*
@@ -14136,12 +14238,49 @@ static bool simple_rename_or_index_change(
       DBUG_RETURN(true);
     DBUG_ASSERT(table_def != nullptr);
 
-    if (old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) {
-      if (collect_and_lock_fk_tables_for_rename_table(
-              thd, table_list->db, table_list->table_name, table_def,
-              alter_ctx->new_db, alter_ctx->new_alias, old_db_type,
-              &fk_invalidator))
+    /*
+      Check table encryption privilege, if rename changes database.
+    */
+    if (alter_ctx->is_database_changed()) {
+      bool is_general_tablespace{false};
+      bool is_table_encrypted{false};
+      dd::Encrypt_result result =
+          dd::is_tablespace_encrypted(thd, *table_def, &is_general_tablespace);
+      if (result.error) {
         DBUG_RETURN(true);
+      }
+      is_table_encrypted = result.value;
+      // If implicit tablespace, read the encryption clause value.
+      if (!is_general_tablespace &&
+          table_def->options().exists("encrypt_type")) {
+        dd::String_type et;
+        (void)table_def->options().get("encrypt_type", &et);
+        DBUG_ASSERT(et.empty() == false);
+        is_table_encrypted = is_encrypted(et);
+      }
+
+      // If table encryption differ from schema encryption, check privilege.
+      if (new_schema.default_encryption() != is_table_encrypted) {
+        if (opt_table_encryption_privilege_check) {
+          if (check_table_encryption_admin_access(thd)) {
+            my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));
+            DBUG_RETURN(true);
+          }
+        } else if (new_schema.default_encryption() && !is_table_encrypted) {
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING,
+              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+        }
+      }
+    }
+
+    if ((old_db_type->flags & HTON_SUPPORTS_FOREIGN_KEYS) &&
+        collect_and_lock_fk_tables_for_rename_table(
+            thd, table_list->db, table_list->table_name, table_def,
+            alter_ctx->new_db, alter_ctx->new_alias, old_db_type,
+            &fk_invalidator)) {
+      DBUG_RETURN(true);
     }
 
     if (lock_check_constraint_names_for_rename(
@@ -15338,6 +15477,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       DBUG_RETURN(true);
   }
 
+  // Stop if we have invalid encryption clause.
+  if (!is_tmp_table && validate_table_encryption(thd, create_info))
+    DBUG_RETURN(true);
+
   /*
     For temporary tables or tables in SEs supporting atomic DDL dd::Table
     object describing new version of table. This object will be created in
@@ -15401,6 +15544,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   bool invalidate_fk_parents_on_error = false;
 
+  dd::Encrypt_result old_er{false, false};
+  dd::Encrypt_result new_er{false, false};
+
   /*
     If we are ALTERing non-temporary table in SE not supporting atomic DDL
     we don't have dd::Table object describing new version of table yet.
@@ -15418,26 +15564,87 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (remove_secondary_engine(thd, *table_list, *create_info, old_table_def))
     goto err_new_table_cleanup;
 
-  if (  // Tablespace specified in ALTER
-      (create_info->used_fields & HA_CREATE_USED_TABLESPACE) &&
-      // Have valid table object for old version of table
-      old_table_def != nullptr) {
-    dd::Encrypt_result er = dd::is_tablespace_encrypted(thd, *table_def);
-    if (er.error) {
+  // If we are changing the tablespace or the table encryption type.
+  if (old_table_def && (create_info->used_fields & HA_CREATE_USED_TABLESPACE ||
+                        create_info->used_fields & HA_CREATE_USED_ENCRYPT ||
+                        alter_ctx.is_database_changed())) {
+    bool source_is_general_tablespace{false};
+    bool source_encrytion_type{false};
+    bool destination_is_general_tablespace{false};
+    bool destination_encrytion_type{false};
+
+    // Determine source tablespace type and encryption type.
+    old_er = dd::is_tablespace_encrypted(thd, *old_table_def,
+                                         &source_is_general_tablespace);
+    if (old_er.error) {
       goto err_new_table_cleanup;
     }
-    if (!er.value) {
-      // Destination tablespace is not encrypted, need to check that
-      // the src is not either (to avoid unintended decryption)
-      dd::Encrypt_result old_er =
-          dd::is_tablespace_encrypted(thd, *old_table_def);
-      if (old_er.error) {
-        goto err_new_table_cleanup;
-      }
-      if (old_er.value) {
-        // Cannot transfer encrypted table to non-encrypted tablespace
-        my_error(ER_TARGET_TS_UNENCRYPTED, MYF(0));
-        goto err_new_table_cleanup;
+    source_encrytion_type = old_er.value;
+    if (!source_is_general_tablespace &&
+        old_table_def->options().exists("encrypt_type")) {
+      dd::String_type et;
+      (void)old_table_def->options().get("encrypt_type", &et);
+      DBUG_ASSERT(et.empty() == false);
+      source_encrytion_type = is_encrypted(et);
+    }
+
+    // Determine destination tablespace type and encryption type.
+    new_er = dd::is_tablespace_encrypted(thd, *table_def,
+                                         &destination_is_general_tablespace);
+    if (new_er.error) {
+      goto err_new_table_cleanup;
+    }
+    destination_encrytion_type = new_er.value;
+    if (!destination_is_general_tablespace &&
+        table_def->options().exists("encrypt_type")) {
+      dd::String_type et;
+      (void)table_def->options().get("encrypt_type", &et);
+      DBUG_ASSERT(et.empty() == false);
+      destination_encrytion_type = is_encrypted(et);
+    }
+
+    /*
+      Disallow converting a general tablespace to a file-per-table
+      tablespace without a explicit ENCRYPTION clause.
+    */
+    if (source_is_general_tablespace && source_encrytion_type == true &&
+        !destination_is_general_tablespace &&
+        !(create_info->used_fields & HA_CREATE_USED_ENCRYPT)) {
+      my_error(ER_TARGET_TABLESPACE_UNENCRYPTED, MYF(0));
+      goto err_new_table_cleanup;
+    }
+
+    /*
+      Disallow moving encrypted table (using general or file-per-table
+      tablespace) to a unencrypted general tablespace.
+    */
+    if (source_encrytion_type == true && destination_is_general_tablespace &&
+        destination_encrytion_type == false) {
+      my_error(ER_TARGET_TABLESPACE_UNENCRYPTED, MYF(0));
+      goto err_new_table_cleanup;
+    }
+
+    /*
+      Check table encryption privilege, if table encryption type differ
+      from schema encryption type.
+    */
+    if (new_schema->default_encryption() != destination_encrytion_type) {
+      // Ingore privilege check and show warning if database is same and
+      // table encryption type is not changed.
+      bool show_warning = !alter_ctx.is_database_changed() &&
+                          source_encrytion_type == destination_encrytion_type;
+
+      if (!show_warning && opt_table_encryption_privilege_check) {
+        if (check_table_encryption_admin_access(thd)) {
+          my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));
+          DBUG_RETURN(true);
+        }
+      } else if (new_schema->default_encryption() &&
+                 !destination_encrytion_type) {
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                            ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB),
+                            "");
       }
     }
   }
@@ -17071,6 +17278,20 @@ static bool check_engine(THD *thd, const char *db_name, const char *table_name,
       !((*new_engine)->flags & HTON_SUPPORTS_SECONDARY_ENGINE)) {
     my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "SECONDARY_ENGINE");
     DBUG_RETURN(true);
+  }
+
+  // The storage engine must support encryption.
+  if (create_info->encrypt_type.str) {
+    bool encryption_request_type = false;
+    dd::String_type encrypt_type;
+    encrypt_type.assign(create_info->encrypt_type.str,
+                        create_info->encrypt_type.length);
+    encryption_request_type = is_encrypted(encrypt_type);
+    if (encryption_request_type &&
+        !((*new_engine)->flags & HTON_SUPPORTS_TABLE_ENCRYPTION)) {
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "ENCRYPTION");
+      DBUG_RETURN(true);
+    }
   }
 
   DBUG_RETURN(false);

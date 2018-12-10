@@ -69,6 +69,8 @@ Schemata::Schemata() {
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
                          "last_altered TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_DEFAULT_ENCRYPTION, "FIELD_DEFAULT_ENCRYPTION",
+                         "default_encryption ENUM('NO', 'YES') NOT NULL");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
   m_target_def.add_index(INDEX_UK_CATALOG_ID_NAME, "INDEX_UK_CATALOG_ID_NAME",
@@ -87,9 +89,9 @@ Schemata::Schemata() {
 
   m_target_def.add_populate_statement(
       "INSERT INTO schemata (catalog_id, name, default_collation_id, created, "
-      "last_altered, options) VALUES "
+      "last_altered, options, default_encryption) VALUES "
       "(1,'information_schema',33, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
-      "NULL)");
+      "NULL, 'NO')");
 }
 
 ///////////////////////////////////////////////////////////////////////////

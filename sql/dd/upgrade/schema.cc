@@ -155,7 +155,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   // Disable autocommit option
   Disable_autocommit_guard autocommit_guard(thd);
 
-  if (dd::create_schema(thd, schema_name, schema_charset)) {
+  if (dd::create_schema(thd, schema_name, schema_charset, false)) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);

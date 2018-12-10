@@ -739,6 +739,12 @@ given at all. */
 /** SECONDARY_ENGINE used during table create. */
 #define HA_CREATE_USED_SECONDARY_ENGINE (1L << 29)
 
+/**
+  CREATE|ALTER SCHEMA|DATABASE has an explicit ENCRYPTION clause.
+
+  Implies HA_CREATE_USED_DEFAULT_ENCRYPTION.
+*/
+#define HA_CREATE_USED_DEFAULT_ENCRYPTION (1L << 30)
 /*
   End of bits used in used_fields
 */
@@ -1391,11 +1397,22 @@ enum class Tablespace_type {
   @param[out] space_type     type of space
 
   @return Operation status.
-  @retval == 0  Success.
-  @retval != 0  Error (unknown space type, no error code returned)
+  @retval false on success and true for failure.
 */
 typedef bool (*get_tablespace_type_t)(const dd::Tablespace &space,
                                       Tablespace_type *space_type);
+
+/**
+  Get the tablespace type given the name, from the SE.
+
+  @param[in]  tablespace_name tablespace name
+  @param[out] space_type      type of space
+
+  @return Operation status.
+  @retval false on success and true for failure.
+*/
+typedef bool (*get_tablespace_type_by_name_t)(const char *tablespace_name,
+                                              Tablespace_type *space_type);
 
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond, enum enum_schema_tables);
@@ -2213,6 +2230,7 @@ struct handlerton {
   upgrade_tablespace_t upgrade_tablespace;
   upgrade_space_version_t upgrade_space_version;
   get_tablespace_type_t get_tablespace_type;
+  get_tablespace_type_by_name_t get_tablespace_type_by_name;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
@@ -2387,6 +2405,9 @@ struct handlerton {
 
 /** Engine supports secondary storage engines. */
 #define HTON_SUPPORTS_SECONDARY_ENGINE (1 << 15)
+
+/** Engine supports table or tablespace encryption . */
+#define HTON_SUPPORTS_TABLE_ENCRYPTION (1 << 16)
 
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;

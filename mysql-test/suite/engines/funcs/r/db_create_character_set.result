@@ -1,115 +1,115 @@
 DROP DATABASE IF EXISTS d12;
 CREATE DATABASE d12 CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	ascii	ascii_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	ascii	ascii_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d12;
 CREATE DATABASE d12 CHARACTER SET utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	utf8	utf8_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	utf8	utf8_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d12;
 CREATE DATABASE d12 CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	binary	binary	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	binary	binary	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d12;
 CREATE DATABASE d12 CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	swe7	swe7_swedish_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	swe7	swe7_swedish_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d12;
 CREATE DATABASE d12 CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	cp1251	cp1251_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	cp1251	cp1251_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP DATABASE d12;
 CREATE SCHEMA d12 CHARACTER SET ascii;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	ascii	ascii_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	ascii	ascii_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP SCHEMA d12;
 CREATE SCHEMA d12 CHARACTER SET utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	utf8	utf8_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	utf8	utf8_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP SCHEMA d12;
 CREATE SCHEMA d12 CHARACTER SET binary;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	binary	binary	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	binary	binary	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP SCHEMA d12;
 CREATE SCHEMA d12 CHARACTER SET swe7;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	swe7	swe7_swedish_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	swe7	swe7_swedish_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP SCHEMA d12;
 CREATE SCHEMA d12 CHARACTER SET cp1251;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
-CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
-def	d12	cp1251	cp1251_general_ci	NULL
-def	information_schema	utf8	utf8_general_ci	NULL
-def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	d12	cp1251	cp1251_general_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
 DROP SCHEMA d12;

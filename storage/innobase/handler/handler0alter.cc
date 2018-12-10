@@ -4444,18 +4444,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       compression = NULL;
     }
 
-    const char *encrypt;
-    encrypt = ha_alter_info->create_info->encrypt_type.str;
-    /* If encryption option is specified, then it must be
-    innodb-file-per-table tablespace. Otherwise case would
-    have already been blocked at
-    create_option_tablespace_is_valid(). */
-    if (encrypt) {
-      ut_ad(flags2 & DICT_TF2_USE_FILE_PER_TABLE);
-      ut_ad(!DICT_TF_HAS_SHARED_SPACE(flags));
-    }
-
-    if (!Encryption::is_none(encrypt)) {
+    if (!Encryption::is_none(ha_alter_info->create_info->encrypt_type.str)) {
       /* Check if keyring is ready. */
       if (!Encryption::check_keyring()) {
         dict_mem_table_free(ctx->new_table);
@@ -5188,13 +5177,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);
       goto err_exit_no_heap;
     }
-  }
-
-  /* If target tablespace is shared tablespace, remove encrypt option from
-  table definition as table is moved to shared tablespace. */
-  if (is_shared_tablespace(ha_alter_info->create_info->tablespace) &&
-      old_dd_tab->options().exists("encrypt_type")) {
-    new_dd_tab->options().remove("encrypt_type");
   }
 
   /* Check if any index name is reserved. */

@@ -30,6 +30,7 @@
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/sdi_fwd.h"               // RJ_Document
 #include "sql/dd/types/entity_object.h"   // dd::Entity_object
+#include "sql/mdl.h"                      // enum enum_mdl_type
 
 class THD;
 class MDL_request;
@@ -201,10 +202,14 @@ struct Tablespace_table_ref {
   String_type m_name;
   Object_id m_schema_id;
   String_type m_schema_name;
+  bool m_schema_encryption;
   Tablespace_table_ref() = default; /* purecov: inspected */
   Tablespace_table_ref(Object_id id, const String_type &&name,
                        Object_id schema_id)
-      : m_id{id}, m_name{std::move(name)}, m_schema_id{schema_id} {}
+      : m_id{id},
+        m_name{std::move(name)},
+        m_schema_id{schema_id},
+        m_schema_encryption{false} {}
 };
 
 bool operator==(const Tablespace_table_ref &a, const Tablespace_table_ref &b);
@@ -230,9 +235,19 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
   Create am MDL_request for a the table identified by a Tablespace_table_ref.
   @param thd thread context
   @param tref table to create request for
+  @param mdl_type The lock type requested.
   @retval MDL_request (allocated on thd->memroot)
  */
-MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref);
+MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref,
+                     enum enum_mdl_type mdl_type);
+
+/**
+  Create am MDL_request for a the schema name provided.
+  @param thd thread context
+  @param schema_name on which to create request for
+  @retval MDL_request (allocated on thd->memroot)
+ */
+MDL_request *mdl_schema_req(THD *thd, const dd::String_type &schema_name);
 
 }  // namespace dd
 

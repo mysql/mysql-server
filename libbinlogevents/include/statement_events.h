@@ -417,8 +417,14 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
   <tr>
     <td>sql_require_primary_key</td>
     <td>Q_SQL_REQUIRE_PRIMARY_KEY</td>
-    <td>1 byte integer</td>
+    <td>2 byte integer</td>
     <td>Value of the config variable sql_require_primary_key</td>
+  </tr>
+  <tr>
+    <td>default_table_encryption</td>
+    <td>Q_DEFAULT_TABLE_ENCRYPTION</td>
+    <td>2 byte integer</td>
+    <td>Value of the config variable default_table_encryption</td>
   </tr>
   </table>
 
@@ -527,7 +533,11 @@ class Query_event : public Binary_log_event {
     /*
       Incompatible statement for mysqlbinlog utility
     */
-    Q_CANT_REPLAY_WITH_MYSQLBINLOG
+    Q_CANT_REPLAY_WITH_MYSQLBINLOG,
+    /*
+      Replicate default_table_encryption.
+    */
+    Q_DEFAULT_TABLE_ENCRYPTION
   };
   const char *query;
   const char *db;
@@ -649,6 +659,8 @@ class Query_event : public Binary_log_event {
 
   /* Incompatible for mysqlbinlog */
   bool cant_replay_with_mysqlbinlog;
+
+  uint8_t default_table_encryption;
 
   /**
     The constructor will be used while creating a Query_event, to be

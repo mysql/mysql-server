@@ -239,6 +239,10 @@ The following options may be given as the first argument:
  The number of days after which the password will expire.
  --default-storage-engine=name 
  The default storage engine for new tables
+ --default-table-encryption 
+ Database and tablespace created with this default
+ encryption propertyunless, the user specify a explicit
+ encryption property.
  --default-time-zone=name 
  Set the default time zone.
  --default-tmp-storage-engine=name 
@@ -1275,6 +1279,12 @@ The following options may be given as the first argument:
  the same statement.
  --table-definition-cache=# 
  The number of cached table definitions
+ --table-encryption-privilege-check 
+ Indicates if server enables privilege check when user
+ tries to use non-default value for CREATE DATABASE or
+ CREATE TABLESPACE or when user tries to do CREATE TABLE
+ with ENCRYPTION option which deviates from per-database
+ default.
  --table-open-cache=# 
  The number of cached open tables (total for all table
  cache instances)
@@ -1401,6 +1411,7 @@ daemonize FALSE
 default-authentication-plugin caching_sha2_password
 default-password-lifetime 0
 default-storage-engine InnoDB
+default-table-encryption FALSE
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
 default-week-format 0
@@ -1686,6 +1697,7 @@ sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
+table-encryption-privilege-check FALSE
 table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF

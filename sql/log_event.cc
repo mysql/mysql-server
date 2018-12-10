@@ -3575,6 +3575,11 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     *start++ = Q_CANT_REPLAY_WITH_MYSQLBINLOG;
   }
 
+  if (thd && needs_default_table_encryption) {
+    *start++ = Q_DEFAULT_TABLE_ENCRYPTION;
+    *start++ = thd->variables.default_table_encryption;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -3667,6 +3672,24 @@ static bool is_unsafe_for_mysqlbinlog(const LEX *lex) {
     case SQLCOM_REVOKE:
     case SQLCOM_REVOKE_ALL:
       return mysqld_partial_revokes();
+    default:
+      break;
+  }
+  return false;
+}
+
+/**
+  Returns whether or not the statement held by the `LEX` object parameter
+  requires `Q_DEFAULT_TABLE_ENCRYPTION` to be logged together with the
+  statement.
+ */
+static bool is_sql_require_default_table_encryption(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  switch (cmd) {
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_ALTER_TABLESPACE:
+      return true;
     default:
       break;
   }
@@ -4019,6 +4042,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
 
   cant_replay_with_mysqlbinlog = is_unsafe_for_mysqlbinlog(lex);
 
+  needs_default_table_encryption = is_sql_require_default_table_encryption(lex);
+
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
   DBUG_PRINT("info", ("Query_log_event has flags2: %lu  sql_mode: %llu",
@@ -4279,6 +4304,11 @@ void Query_log_event::print_query_header(
   if (sql_require_primary_key != print_event_info->sql_require_primary_key) {
     my_b_printf(file, "/*!80013 SET @@session.sql_require_primary_key=%d*/%s\n",
                 sql_require_primary_key, print_event_info->delimiter);
+  }
+  if (default_table_encryption != print_event_info->default_table_encryption) {
+    my_b_printf(file,
+                "/*!80014 SET @@session.default_table_encryption=%d*/%s\n",
+                default_table_encryption, print_event_info->delimiter);
   }
 }
 
@@ -4616,6 +4646,12 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         DBUG_ASSERT(sql_require_primary_key == 0 ||
                     sql_require_primary_key == 1);
         thd->variables.sql_require_primary_key = sql_require_primary_key;
+      }
+
+      if (default_table_encryption != 0xff) {
+        DBUG_ASSERT(default_table_encryption == 0 ||
+                    default_table_encryption == 1);
+        thd->variables.default_table_encryption = default_table_encryption;
       }
 
       thd->table_map_for_update = (table_map)table_map_for_update;
@@ -13392,6 +13428,7 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
       sql_require_primary_key(0xff),
       thread_id(0),
       thread_id_printed(false),
+      default_table_encryption(0xff),
       base64_output_mode(BASE64_OUTPUT_UNSPEC),
       printed_fd_event(false),
       have_unflushed_events(false),

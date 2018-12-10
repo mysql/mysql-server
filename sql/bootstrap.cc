@@ -384,6 +384,12 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   thd->variables.explicit_defaults_for_timestamp =
       intern_find_sys_var("explicit_defaults_for_timestamp", 0)->get_default();
 
+  /*
+    The global table encryption default setting applies to user threads.
+    Setting it false for system threads.
+  */
+  thd->variables.default_table_encryption = false;
+
   my_thread_attr_t thr_attr;
   my_thread_attr_init(&thr_attr);
 #ifndef _WIN32

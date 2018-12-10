@@ -3070,6 +3070,16 @@ bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
   dd_file->se_private_data().set(dd_space_key_strings[DD_SPACE_ID],
                                  static_cast<uint32>(space_id));
 
+  dd::Properties &toptions = dd_space->options();
+  if (!FSP_FLAGS_GET_ENCRYPTION(flags)) {
+    /* Update DD Option value, for Unencryption */
+    toptions.set("encryption", "N");
+
+  } else {
+    /* Update DD Option value, for Encryption */
+    toptions.set("encryption", "Y");
+  }
+
   if (dd_client->store(dd_space.get())) {
     return (true);
   }

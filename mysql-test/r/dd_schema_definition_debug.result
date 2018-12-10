@@ -521,6 +521,7 @@ schemata	CREATE TABLE `schemata` (
   `created` timestamp NOT NULL,
   `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
+  `default_encryption` enum('NO','YES') COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
   KEY `default_collation_id` (`default_collation_id`),

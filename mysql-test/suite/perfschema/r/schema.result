@@ -3,7 +3,7 @@ Database (performance_schema)
 performance_schema
 show create database performance_schema;
 Database	Create Database
-performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
+performance_schema	CREATE DATABASE `performance_schema` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
 use performance_schema;
 show tables;
 Tables_in_performance_schema

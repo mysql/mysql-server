@@ -652,6 +652,13 @@ INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER', IF(grant_priv = 'Y',
 FROM mysql.user WHERE super_priv = 'Y' AND @hadSystemUserPriv = 0;
 COMMIT;
 
+-- Add the privilege TABLE_ENCRYPTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige TABLE_ENCRYPTION_ADMIN.
+SET @hadTableEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'TABLE_ENCRYPTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'TABLE_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
