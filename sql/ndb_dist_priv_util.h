@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,8 +41,12 @@ public:
   const char* iter_next_table()
   {
     static const char* tables[] =
-      { "user", "db", "tables_priv", "columns_priv", "procs_priv",
-        "proxies_priv" };
+      { "user", "db", "tables_priv",
+        "columns_priv", "procs_priv", "proxies_priv"
+#ifndef DBUG_OFF
+        , "mtr__acl_test_table"   // For test ndb_ddl.dist_priv_migration
+#endif
+      };
 
     if (m_iter_curr_table >= (sizeof(tables) / sizeof(tables[0])))
       return NULL;

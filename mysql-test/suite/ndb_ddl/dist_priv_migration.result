@@ -1,0 +1,82 @@
+*** TEST CASE 1 ***
+*** Positive test that a table named mtr__acl_test_table exhibits
+*** the special behavior used for upgrading ACL tables into 8.0
+At MySQL Server 1
+USE mysql;
+CREATE TABLE mtr__acl_test_table (i int not null primary key, j int)
+ENGINE=ndb;
+INSERT INTO mtr__acl_test_table values(1,2);
+INSERT INTO mtr__acl_test_table values(2,3);
+INSERT INTO mtr__acl_test_table values(3,4);
+ALTER TABLE mtr__acl_test_table ENGINE=InnoDB;
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+i	j
+1	2
+2	3
+3	4
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table';
+ENGINE
+InnoDB
+At MySQL Server 2
+USE mysql;
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table';
+ENGINE
+ndbcluster
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+i	j
+1	2
+2	3
+3	4
+INSERT INTO mtr__acl_test_table values(4,5);
+At MySQL Server 1
+SELECT * FROM mtr__acl_test_table ORDER BY i;
+i	j
+1	2
+2	3
+3	4
+At MySQL Server 3 also migrate the table to InnoDB
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table';
+ENGINE
+ndbcluster
+ALTER TABLE mysql.mtr__acl_test_table ENGINE=InnoDB;
+At MySQL Server 2, DROP the NDB table:
+DROP TABLE mysql.mtr__acl_test_table;
+At MySQL Server 4, Confirm that the NDB table has been dropped
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table';
+ENGINE
+At MySQL Server 1
+SELECT COUNT(*) FROM mtr__acl_test_table;
+COUNT(*)
+3
+DROP TABLE mtr__acl_test_table;
+At MySQL Server 3 Drop the local InnoDB table
+DROP TABLE mysql.mtr__acl_test_table;
+*** TEST CASE 2 ***
+*** Negative test that a table *not* named mtr__acl_test_table
+*** does not exhibit the special behavior
+CREATE TABLE mtr__acl_test_table_2 (i int not null primary key, j int)
+ENGINE=ndb;
+INSERT INTO mtr__acl_test_table_2 values(1,2);
+INSERT INTO mtr__acl_test_table_2 values(2,3);
+INSERT INTO mtr__acl_test_table_2 values(3,4);
+ALTER TABLE mtr__acl_test_table_2 ENGINE=InnoDB;
+SELECT * FROM mtr__acl_test_table_2 ORDER BY i;
+i	j
+1	2
+2	3
+3	4
+SELECT engine FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table_2';
+ENGINE
+InnoDB
+At MySQL 2 we expect the table does not exist
+SELECT count(*) FROM INFORMATION_SCHEMA.TABLES
+WHERE table_name='mtr__acl_test_table_2';
+count(*)
+0
+Back at mysqld1 drop the negative test table
+DROP TABLE mtr__acl_test_table_2;
