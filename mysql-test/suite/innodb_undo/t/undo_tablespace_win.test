@@ -1,0 +1,46 @@
+--echo #
+--echo # InnoDB supports CREATE/ALTER/DROP UNDO TABLESPACE
+--echo #
+
+--source include/windows.inc
+--source include/have_innodb_default_undo_tablespaces.inc
+
+# Do a slow shutdown and restart to clear out the undo logs
+SET GLOBAL innodb_fast_shutdown = 0;
+--let $shutdown_server_timeout = 300
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Try CREATE UNDO TABLESPACE commands that respond differently on Windows
+--echo #
+--echo # Cannot embed a newline character into windows file name
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\n_99.ibu';
+--replace_result \\ /
+SHOW WARNINGS;
+
+--echo # Cannot embed a CR character into windows file name
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\r_99.ibu';
+--replace_result \\ /
+SHOW WARNINGS;
+
+--echo # Cannot embed a tab character into a windows file name
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE UNDO TABLESPACE undo_99 ADD DATAFILE 'undo_\t_99.ibu';
+--replace_result \\ /
+SHOW WARNINGS;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .* File .*undo.*");
+call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 123 in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .* Can't create UNDO tablespace undo_99");
+--enable_query_log
+

@@ -555,7 +555,8 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
   ut_ad(err == DB_SUCCESS);
 
   fh = os_file_create(innodb_data_file_key, file_name,
-                      srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
+                      (srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE) |
+                          OS_FILE_ON_ERROR_NO_EXIT,
                       OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
   if (ret == FALSE) {
