@@ -278,10 +278,7 @@ ELSEIF(WITH_NDB_JAVA)
     ENDIF()
 
     # Search for version in specified order
-    SET(_preferred_versions
-       1.8
-       1.7
-       1.6)
+    SET(_preferred_versions 1.8)
 
     FOREACH(_version ${_preferred_versions})
       SET(_path ${_base_path}jdk${_version}${_bit_suffix})
