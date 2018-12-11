@@ -51,21 +51,26 @@ dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
     mysql_null_bit_mask[i] = m_prebuilt->mysql_template[i].mysql_null_bit_mask;
   }
 
-  m_load_init(m_thread_contexts[id], m_prebuilt->n_template,
-              m_prebuilt->mysql_row_len, mysql_row_offsets,
-              mysql_nullbit_offsets, mysql_null_bit_mask);
+  dberr_t err = DB_SUCCESS;
+  bool initError = m_load_init(m_thread_contexts[id], m_prebuilt->n_template,
+                               m_prebuilt->mysql_row_len, mysql_row_offsets,
+                               mysql_nullbit_offsets, mysql_null_bit_mask);
+  if (initError) {
+    err = DB_INTERRUPTED;
+  } else {
+    err = Key_reader::worker(id, ctxq, f);
 
-  dberr_t err = Key_reader::worker(id, ctxq, f);
-
-  /** It's possible that we might not have sent the records in the buffer when
-  we have reached the end of records and the buffer is not full. Send them
-  now. */
-  if (n_recs[id] % m_send_num_recs != 0 && err == DB_SUCCESS) {
-    m_load_rows(m_thread_contexts[id], n_recs[id] % m_send_num_recs,
-                (void *)m_bufs[id]);
-    n_total_recs_sent.add(id, n_recs[id] % m_send_num_recs);
+    /** It's possible that we might not have sent the records in the buffer when
+    we have reached the end of records and the buffer is not full. Send them
+    now. */
+    if (n_recs[id] % m_send_num_recs != 0 && err == DB_SUCCESS) {
+      if (m_load_rows(m_thread_contexts[id], n_recs[id] % m_send_num_recs,
+                      (void *)m_bufs[id])) {
+        err = DB_INTERRUPTED;
+      }
+      n_total_recs_sent.add(id, n_recs[id] % m_send_num_recs);
+    }
   }
-
   m_load_end(m_thread_contexts[id]);
 
   return (err);

@@ -4086,13 +4086,20 @@ class handler {
 
   int ha_unload_table(const char *db_name, const char *table_name);
 
-  /**
-    Get number of threads that would be spawned for parallel read.
-    @return error code
-    @retval 0 on success
-   */
-  virtual int pread_adapter_scan_get_num_threads(size_t & /* num_threads */) {
-    return 0;
+  /** Initializes a parallel scan. It creates a parallel_scan_ctx that has to
+  be used across all parallel_scan methods. Also, gets the number of threads
+  that would be spawned for parallel scan.
+  @param[in, out]   parallel_scan_ctx a scan context created by this method
+                                      that has to be used in
+                                      pread_adapter_scan_parallel_load
+  @param[in, out]   num_threads       number of threads to be spawned
+
+  @return error code
+  @retval 0 on success
+  */
+  virtual int pread_adapter_parallel_scan_start(void *& /* parallel_scan_ctx */,
+                                                size_t & /* num_threads */) {
+    return (0);
   }
 
   /**
@@ -4114,7 +4121,7 @@ class handler {
                        memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call.
    */
-  using pread_adapter_pload_init_cbk = std::function<void(
+  using pread_adapter_pload_init_cbk = std::function<bool(
       void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
       ulong *null_byte_offsets, ulong *null_bitmasks)>;
 
@@ -4127,6 +4134,7 @@ class handler {
                          buffer for nrows records. The length of each record
                          is fixed and communicated via
                          pread_adapter_pload_init_cbk.
+    @returns true if there is an error, false otherwise.
    */
   using pread_adapter_pload_row_cbk =
       std::function<bool(void *cookie, uint nrows, void *rowdata)>;
@@ -4138,16 +4146,36 @@ class handler {
    */
   using pread_adapter_pload_end_cbk = std::function<void(void *cookie)>;
 
-  /**
-    Start parallel read of data.
+  /** Run the parallel read of data.
+    @param[in]      parallel_scan_ctx a scan context created by
+                                      pread_adapter_scan_get_num_threads
+    @param[in]      thread_contexts   context for each of the spawned threads
+    @param[in]      load_init_fn      callback called by each parallel load
+                                      thread at the beginning of the parallel
+                                      load.
+    @param[in]      load_rows_fn      callback called by each parallel load
+                                      thread when processing of rows is
+                                      required.
+    @param[in]      load_end_fn       callback called by each parallel load
+                                      thread when processing of rows has ended.
     @return error code
     @retval 0 on success
-   */
-  virtual int pread_adapter_scan_parallel_load(
-      void ** /* thread_contexts */,
+    */
+  virtual int pread_adapter_parallel_scan_run(
+      void * /* parallel_scan_ctx */, void ** /* thread_contexts */,
       pread_adapter_pload_init_cbk /* load_init_fn */,
       pread_adapter_pload_row_cbk /* load_rows_fn */,
       pread_adapter_pload_end_cbk /* load_end_fn */) {
+    return (0);
+  }
+
+  /** Run the parallel read of data.
+    @param[in]      parallel_scan_ctx a scan context created by
+                                      pread_adapter_scan_get_num_threads
+    @return error code
+    @retval 0 on success
+    */
+  virtual int pread_adapter_parallel_scan_end(void * /* parallel_scan_ctx */) {
     return (0);
   }
 

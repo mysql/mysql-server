@@ -58,8 +58,9 @@ class Parallel_reader_adapter : public Key_reader {
   @param null_bitmasks An array of size ncols, where each element
                      represents the bitmask required to get the null bit. The
                      memory of this array belongs to the caller and will be
-                     free-ed after the pload_end_cbk call. */
-  using pread_adapter_pload_init_cbk = std::function<void(
+                     free-ed after the pload_end_cbk call.
+  @returns true if the is an error, false otherwise. */
+  using pread_adapter_pload_init_cbk = std::function<bool(
       void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
       ulong *null_byte_offsets, ulong *null_bitmasks)>;
 
@@ -90,8 +91,8 @@ class Parallel_reader_adapter : public Key_reader {
     m_bufs.reserve(n_threads);
 
     for (size_t i = 0; i < n_threads; ++i) {
-      m_bufs[i] =
-          static_cast<byte *>(ut_malloc_nokey(ADAPTER_SEND_BUFFER_SIZE));
+      m_bufs.push_back(
+          static_cast<byte *>(ut_malloc_nokey(ADAPTER_SEND_BUFFER_SIZE)));
     }
 
     m_send_num_recs = ADAPTER_SEND_BUFFER_SIZE / m_prebuilt->mysql_row_len;
@@ -190,7 +191,7 @@ class Parallel_partition_reader_adapter : public Parallel_reader_adapter {
                      represents the bitmask required to get the null bit. The
                      memory of this array belongs to the caller and will be
                      free-ed after the pload_end_cbk call. */
-  using pread_adapter_pload_init_cbk = std::function<void(
+  using pread_adapter_pload_init_cbk = std::function<bool(
       void *cookie, ulong ncols, ulong row_len, ulong *col_offsets,
       ulong *null_byte_offsets, ulong *null_bitmasks)>;
 

@@ -2714,7 +2714,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 
 /** Destruct ha_innobase handler. */
 
-ha_innobase::~ha_innobase() { UT_DELETE(m_parallel_reader); }
+ha_innobase::~ha_innobase() {}
 
 /** Updates the user_thd field in a handle and also allocates a new InnoDB
  transaction handle if needed, and updates the transaction fields in the

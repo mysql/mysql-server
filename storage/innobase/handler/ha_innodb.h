@@ -418,26 +418,48 @@ class ha_innobase : public handler {
                                   dd::Table *new_dd_tab) override;
   /** @} */
 
-  /** Get number of threads that would be spawned for parallel read.
-  @param[in, out]   num_threads     number of threads to be spawned
-  @return error code
-  @retval 0 on success */
-  int pread_adapter_scan_get_num_threads(size_t &num_threads) override;
+  /** Initializes a parallel scan. It creates a parallel_scan_ctx that has to
+  be used across all parallel_scan methods. Also, gets the number of threads
+  that would be spawned for parallel scan.
+  @param[in, out]   parallel_scan_ctx a scan context created by this method
+                                      that has to be used in
+                                      pread_adapter_scan_parallel_load
+  @param[in, out]   num_threads       number of threads to be spawned
 
-  /** Start parallel read of InnoDB records.
-  @param[in]      thread_contexts context for each of the spawned threads
-  @param[in]      load_init_fn    callback called by each parallel load
-  thread at the beginning of the parallel load.
-  @param[in]      load_rows_fn    callback called by each parallel load
-  thread when processing of rows is required.
-  @param[in]      load_end_fn     callback called by each parallel load
-  thread when processing of rows has ended.
   @return error code
-  @retval 0 on success */
-  int pread_adapter_scan_parallel_load(
-      void **thread_contexts, pread_adapter_pload_init_cbk load_init_fn,
+  @retval 0 on success
+  */
+  int pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
+                                        size_t &num_threads) override;
+
+  /** Run the parallel read of data.
+  @param[in]      parallel_scan_ctx a scan context created by
+                                    pread_adapter_scan_get_num_threads
+  @param[in]      thread_contexts   context for each of the spawned threads
+  @param[in]      load_init_fn      callback called by each parallel load
+                                    thread at the beginning of the parallel
+                                    load.
+  @param[in]      load_rows_fn      callback called by each parallel load
+                                    thread when processing of rows is
+                                    required.
+  @param[in]      load_end_fn       callback called by each parallel load
+                                    thread when processing of rows has ended.
+  @return error code
+  @retval 0 on success
+  */
+  int pread_adapter_parallel_scan_run(
+      void *parallel_scan_ctx, void **thread_contexts,
+      pread_adapter_pload_init_cbk load_init_fn,
       pread_adapter_pload_row_cbk load_rows_fn,
       pread_adapter_pload_end_cbk load_end_fn) override;
+
+  /** Run the parallel read of data.
+  @param[in]      parallel_scan_ctx a scan context created by
+                                    pread_adapter_scan_get_num_threads
+  @return error code
+  @retval 0 on success
+  */
+  int pread_adapter_parallel_scan_end(void *parallel_scan_ctx) override;
 
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes) override;
@@ -651,7 +673,7 @@ class ha_innobase : public handler {
 
   /*!< match mode of the latest search: ROW_SEL_EXACT,
   ROW_SEL_EXACT_PREFIX, or undefined */
-  uint m_last_match_mode;
+  uint m_last_match_mode{0};
 
   /** this field is used to remember the original select_lock_type that
   was decided in ha_innodb.cc,":: store_lock()", "::external_lock()",
@@ -660,9 +682,6 @@ class ha_innobase : public handler {
 
   /** If mysql has locked with external_lock() */
   bool m_mysql_has_locked;
-
-  /** Do a parallel scan of an index. */
-  Parallel_reader_adapter *m_parallel_reader{nullptr};
 };
 
 struct trx_t;
