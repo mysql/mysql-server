@@ -239,6 +239,7 @@ INSERT INTO global_suppressions VALUES
  ("The member has resumed contact with a majority of the members in the group.*"),
  ("Members removed from the group.*"),
  ("Error while sending message for group replication recovery"),
+ ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are .*"),
 
  /*
    Warnings/errors related to SSL connection by mysqlx
