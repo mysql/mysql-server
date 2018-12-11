@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -29,6 +29,12 @@ namespace ngs {
 
 class Socket_events: public Socket_events_interface {
 public:
+#ifdef _WIN32
+  // mimick evutil_socket_t in libevent-2.x
+  typedef intptr_t socket_type;
+#else
+  typedef int socket_type;
+#endif
   Socket_events();
   ~Socket_events();
 
@@ -39,8 +45,8 @@ public:
   void break_loop();
 
 private:
-  static void timeout_call(int sock, short which, void *arg);
-  static void socket_data_avaiable(int sock, short which, void *arg);
+  static void timeout_call(socket_type sock, short which, void *arg);
+  static void socket_data_avaiable(socket_type sock, short which, void *arg);
 
   struct Timer_data;
   struct Socket_data;

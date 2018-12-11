@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,12 +51,12 @@ if(WITH_BUNDLED_MEMCACHED)
   else()
     # NOTE! Seems to be a slight confusion which variables
     # are set by cmake/libevent.cmake. The comment says
-    # LIBEVENT_LIBRARIES and LIBEVENT_INCLUDE_DIR, but actually
+    # LIBEVENT_LIBRARIES and LIBEVENT_INCLUDE_DIRS, but actually
     # slightly different varables are set depending on bundled or not.
     # Thus using the same variable names as plugin/innodb_memcached/ assuming
     # that things does _not_ build unless using bundled libevent.
-    ndb_require_variable(LIBEVENT_LIBRARY)
-    ndb_require_variable(LIBEVENT_INCLUDE_DIR)
+    ndb_require_variable(LIBEVENT_LIBRARIES)
+    ndb_require_variable(LIBEVENT_INCLUDE_DIRS)
   endif()
 
   add_subdirectory(extra/memcached)
