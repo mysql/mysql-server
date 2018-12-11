@@ -5122,6 +5122,8 @@ void Dblqh::seizeTcrec(TcConnectionrecPtr& tcConnectptr)
   locTcConnectptr.p->tableref = RNIL;
   locTcConnectptr.p->hashIndex = RNIL;
   locTcConnectptr.p->m_committed_log_space = 0;
+  locTcConnectptr.p->m_dealloc_state = TcConnectionrec::DA_IDLE;
+  locTcConnectptr.p->m_dealloc_data.m_unused = RNIL;
 
   ctcNumFree = numFree - 1;
   cfirstfreeTcConrec = nextTc;
@@ -27264,6 +27266,8 @@ void Dblqh::initReqinfoExecSr(Signal* signal,
   regTcPtr->dirtyOp = ZFALSE;
   regTcPtr->tcBlockref = cownref;
   regTcPtr->m_reorg = ScanFragReq::REORG_ALL;
+  regTcPtr->m_dealloc_state = TcConnectionrec::DA_IDLE;
+  regTcPtr->m_dealloc_data.m_unused = RNIL;
 }//Dblqh::initReqinfoExecSr()
 
 /* -------------------------------------------------------------------------- 
