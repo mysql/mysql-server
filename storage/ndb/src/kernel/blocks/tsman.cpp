@@ -196,8 +196,8 @@ Tsman::execREAD_CONFIG_REQ(Signal* signal)
 
 #ifdef ERROR_INSERT
   Uint32 disk_data_format = 1;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
-                                        &disk_data_format));
+  ndb_mgm_get_int_parameter(p, CFG_DB_DISK_DATA_FORMAT,
+                            &disk_data_format);
   g_use_old_format = (disk_data_format == 0);
 #endif
   m_file_pool.init(RT_TSMAN_FILE, pc);
