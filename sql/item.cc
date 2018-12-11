@@ -3608,7 +3608,7 @@ double Item_param::val_real() {
     case LONG_DATA_VALUE: {
       return double_from_string_with_check(
           str_value.charset(), str_value.ptr(),
-          (char *)str_value.ptr() + str_value.length());
+          str_value.ptr() + str_value.length());
     }
     case TIME_VALUE:
       /*
