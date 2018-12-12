@@ -150,7 +150,7 @@ class Optimize_table_order {
   table_map eq_ref_extension_by_limited_search(table_map remaining_tables,
                                                uint idx,
                                                uint current_search_depth);
-  void consider_plan(uint idx, Opt_trace_object *trace_obj);
+  bool consider_plan(uint idx, Opt_trace_object *trace_obj);
   bool fix_semijoin_strategies();
   bool semijoin_firstmatch_loosescan_access_paths(uint first_tab, uint last_tab,
                                                   table_map remaining_tables,

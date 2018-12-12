@@ -855,8 +855,6 @@ static bool retry_with_secondary_engine(const THD *thd) {
   @return true on error, false on success
 */
 static bool optimize_secondary_engine(THD *thd) {
-  DBUG_ASSERT(thd->lex->secondary_engine_execution_context() == nullptr);
-
   if (retry_with_secondary_engine(thd)) {
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->get_stmt_da()->set_error_status(thd, ER_PREPARE_FOR_SECONDARY_ENGINE);

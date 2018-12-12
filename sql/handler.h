@@ -68,9 +68,11 @@
 #include "typelib.h"
 
 class Alter_info;
+class Candidate_table_order;
 class Create_field;
 class Field;
 class Item;
+class JOIN;
 class Json_dom;
 class Partition_handler;
 class Plugin_table;
@@ -2039,13 +2041,52 @@ typedef bool (*check_fk_column_compat_t)(
 typedef bool (*is_reserved_db_name_t)(handlerton *hton, const char *name);
 
 /**
-  Optimize a statement for execution on a secondary storage engine.
+  Prepare the secondary engine for executing a statement. This function is
+  called right after the secondary engine TABLE objects have been opened by
+  open_secondary_engine_tables(), before the statement is optimized and
+  executed. Secondary engines will typically create a context object in this
+  function, which they can use to store state that is needed during the
+  optimization and execution phases.
+
+  @param thd  thread context
+  @param lex  the statement to execute
+  @return true on error, false on success
+*/
+using prepare_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
+
+/**
+  Optimize a statement for execution on a secondary storage engine. This
+  function is called when the optimization of a statement has completed, just
+  before the statement is executed. Secondary engines can use this function to
+  apply engine-specific optimizations to the execution plan. They can also
+  reject executing the query by raising an error, in which case the query will
+  be reprepared and executed by the primary storage engine.
 
   @param thd  thread context
   @param lex  the statement being optimized
   @return true on error, false on success
 */
 using optimize_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
+
+/**
+  Compares the cost of two join plans in the secondary storage engine. The cost
+  of the current candidate is compared with the cost of the best plan seen so
+  far.
+
+  @param thd thread context
+  @param join the JOIN to evaluate
+  @param table_order the ordering of the tables in the candidate plan
+  @param optimizer_cost the cost estimate calculated by the optimizer
+  @param[out] cheaper true if the candidate is the best plan seen so far for
+                      this JOIN (must be true if it is the first plan seen),
+                      false otherwise
+  @param[out] secondary_engine_cost the cost estimated by the secondary engine
+
+  @return false on success, or true if an error has been raised
+*/
+using compare_secondary_engine_cost_t = bool (*)(
+    THD *thd, const JOIN &join, const Candidate_table_order &table_order,
+    double optimizer_cost, bool *cheaper, double *secondary_engine_cost);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
@@ -2336,11 +2377,29 @@ struct handlerton {
   check_fk_column_compat_t check_fk_column_compat;
 
   /**
+    Pointer to a function that prepares a secondary engine for executing a
+    statement.
+
+    @see prepare_secondary_engine_t for function signature.
+  */
+  prepare_secondary_engine_t prepare_secondary_engine;
+
+  /**
     Pointer to a function that optimizes the current statement for
     execution on the secondary storage engine represented by this
     handlerton.
+
+    @see optimize_secondary_engine_t for function signature.
   */
   optimize_secondary_engine_t optimize_secondary_engine;
+
+  /**
+    Pointer to a function that estimates the cost of executing a join in a
+    secondary storage engine.
+
+    @see compare_secondary_engine_cost_t for function signature.
+  */
+  compare_secondary_engine_cost_t compare_secondary_engine_cost;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;

@@ -1243,4 +1243,23 @@ class Deps_of_remaining_lateral_derived_tables {
 double calculate_subquery_executions(const Item_subselect *subquery,
                                      Opt_trace_context *trace);
 
+/**
+  Class which presents a view of the current candidate table order for a JOIN.
+*/
+class Candidate_table_order {
+ public:
+  Candidate_table_order(const JOIN *join) : m_join(join) {}
+
+  /// Returns the number of tables in the candidate plan.
+  size_t size() const { return m_join->tables; }
+
+  /// Returns the table reference at the given position in the candidate plan.
+  const TABLE_LIST *table_ref(size_t position) const {
+    return m_join->positions[position].table->table_ref;
+  }
+
+ private:
+  const JOIN *const m_join;
+};
+
 #endif /* SQL_OPTIMIZER_INCLUDED */
