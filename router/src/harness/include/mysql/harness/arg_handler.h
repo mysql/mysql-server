@@ -39,7 +39,7 @@
 #include <string>
 #include <vector>
 
-enum class CmdOptionValueReq : uint8_t {
+enum class CmdOptionValueReq {
   none = 0x01,
   required = 0x02,
   optional = 0x03,
@@ -283,7 +283,7 @@ class HARNESS_EXPORT CmdArgHandler {
    *
    * Example usage:
    *     // check if option name is already present
-   *     assert(options_.end() == find_option(name))
+   *     assert(end() == find_option(name))
    *
    * @param name name of the option as string
    * @returns iterator object

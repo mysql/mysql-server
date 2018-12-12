@@ -916,7 +916,8 @@ TEST_F(RouterAccountHostTest, argument_missing) {
                               std::to_string(server_port) + " --account-host");
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("option '--account-host' requires a value."))
+  EXPECT_TRUE(router.expect_output(
+      "option '--account-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
@@ -1049,7 +1050,8 @@ TEST_F(RouterReportHostTest, argument_missing) {
   auto router = launch_router("--bootstrap=1.2.3.4:5678 --report-host");
 
   // check if the bootstraping was successful
-  EXPECT_TRUE(router.expect_output("option '--report-host' requires a value."))
+  EXPECT_TRUE(router.expect_output(
+      "option '--report-host' expects a value, got nothing"))
       << router.get_full_output() << std::endl;
   EXPECT_EQ(router.wait_for_exit(), 1);
 }

@@ -2140,9 +2140,8 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
         MySQLRouter router(Path(), argv);
         FAIL() << "Expected std::invalid_argument to be thrown";
       } catch (const std::runtime_error &e) {
-        EXPECT_STREQ(
-            ("option '" + opt + "' requires a value.").c_str(),
-            e.what());  // TODO it would be nice to make case consistent
+        EXPECT_EQ("option '" + opt + "' expects a value, got nothing",
+                  e.what());  // TODO it would be nice to make case consistent
         SUCCEED();
       } catch (...) {
         FAIL() << "Expected std::runtime_error to be thrown";
@@ -2161,9 +2160,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage1_cmdline_arg_parse) {
           // - detected differently
           EXPECT_STREQ("Invalid value for --ssl-mode option", e.what());
         } else {
-          EXPECT_STREQ(
-              ("Value for option '" + opt + "' can't be empty.").c_str(),
-              e.what());
+          EXPECT_EQ("Value for option '" + opt + "' can't be empty.", e.what());
         }
         SUCCEED();
       } catch (...) {

@@ -999,9 +999,10 @@ TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutBootstrap) {
 TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutValue) {
   vector<string> argv = {"--bootstrap", "127.0.0.1:3060",
                          "--master-key-reader"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()),
-                    std::runtime_error,
-                    "option '--master-key-reader' requires a value.");
+  ASSERT_THROW_LIKE(
+      MySQLRouter(g_origin, argv, mock_sys_user_operations.get()),
+      std::runtime_error,
+      "option '--master-key-reader' expects a value, got nothing");
 }
 
 /**
@@ -1012,9 +1013,10 @@ TEST_F(AppTest, ThrowWhenMasterKeyReaderUsedWithoutValue) {
 TEST_F(AppTest, ThrowWhenMasterKeyWriterUsedWithoutValue) {
   vector<string> argv = {"--bootstrap", "127.0.0.1:3060",
                          "--master-key-writer"};
-  ASSERT_THROW_LIKE(MySQLRouter(g_origin, argv, mock_sys_user_operations.get()),
-                    std::runtime_error,
-                    "option '--master-key-writer' requires a value.");
+  ASSERT_THROW_LIKE(
+      MySQLRouter(g_origin, argv, mock_sys_user_operations.get()),
+      std::runtime_error,
+      "option '--master-key-writer' expects a value, got nothing");
 }
 
 /**
