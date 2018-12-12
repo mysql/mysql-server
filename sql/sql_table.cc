@@ -4251,6 +4251,10 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
     DBUG_RETURN(true);
   }
 
+  LEX_CSTRING comment_cstr = {sql_field->comment.str,
+                              sql_field->comment.length};
+  if (is_invalid_string(comment_cstr, system_charset_info)) DBUG_RETURN(true);
+
   if (validate_comment_length(thd, sql_field->comment.str,
                               &sql_field->comment.length, COLUMN_COMMENT_MAXLEN,
                               ER_TOO_LONG_FIELD_COMMENT, sql_field->field_name))
