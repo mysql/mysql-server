@@ -10182,6 +10182,8 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   DBUG_ASSERT(m_alter_info->requested_algorithm ==
               Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT);
 
+  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
+
   // Always use isolation level READ_COMMITTED to ensure consistent view of
   // table data during entire load operation. Higher isolation levels provide no
   // benefits for this operation and could impact performance, so it's fine to
