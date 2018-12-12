@@ -173,7 +173,6 @@ my %old_env;
 my %visited_suite_names;
 
 # Global variables
-our $opt_change_propagation;
 our $opt_client_dbx;
 our $opt_client_ddd;
 our $opt_client_debugger;
@@ -1428,9 +1427,6 @@ sub command_line_setup {
     # Extra options used when running test clients
     'mysqltest=s' => \@opt_extra_mysqltest_opt,
 
-    # Secondary engine options
-    'change-propagation:1' => \$opt_change_propagation,
-
     # Debugging
     'boot-dbx'             => \$opt_boot_dbx,
     'boot-ddd'             => \$opt_boot_ddd,
@@ -1668,16 +1664,6 @@ sub command_line_setup {
 
   if ($opt_test_progress != 0 and $opt_test_progress != 1) {
     mtr_error("Invalid value '$opt_test_progress' for option 'test-progress'.");
-  }
-
-  if (defined $opt_change_propagation) {
-    if (!$secondary_engine_support) {
-      mtr_error("Can't use '--change-propagation' option");
-    } elsif ($opt_change_propagation < 0 or $opt_change_propagation > 1) {
-      # 'change-propagation' option value should be either 0 or 1.
-      mtr_error("Invalid value '$opt_change_propagation' for option " .
-                "'--change-propagation'.");
-    }
   }
 
   # Read the file and store it in a string.
@@ -5338,7 +5324,7 @@ sub check_expected_crash_and_restart($$) {
           my $restart_flag = 1;
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
-          load_table_contents($mysqld) if defined $opt_change_propagation;
+          load_table_contents($mysqld) if defined $tinfo->{'load_pool'};
         }
 
         return 1;
@@ -6446,8 +6432,7 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "%s", $_) for @args_saved;
   }
 
-  add_secondary_engine_options($tinfo, $args, $opt_change_propagation)
-    if $tinfo->{'secondary-engine'};
+  add_secondary_engine_options($tinfo, $args) if $tinfo->{'secondary-engine'};
 
   mtr_add_arg($args, "--test-file=%s", $tinfo->{'path'});
 

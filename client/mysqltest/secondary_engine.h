@@ -41,7 +41,7 @@ typedef std::vector<unsigned int> Errors;
 class Secondary_engine {
  public:
   Secondary_engine() {}
-  Secondary_engine(bool change_propagation, const char *engine_name);
+  Secondary_engine(const char *load_pool, const char *engine_name);
 
   ~Secondary_engine() {}
 
@@ -129,8 +129,8 @@ class Secondary_engine {
   /// @retval True if execution of unload statement fails, false otherwise.
   bool run_secondary_unload_statement(MYSQL *mysql, Errors expected_errors);
 
-  bool m_change_propagation;
   const char *m_engine_name;
+  const char *m_load_pool;
   std::string m_table_name;
   Statement_type m_stmt_type;
 

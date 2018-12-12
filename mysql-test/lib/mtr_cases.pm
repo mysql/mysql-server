@@ -165,6 +165,12 @@ sub create_disabled_test_list($$) {
   unshift(@disabled_collection, $internal_disabled_def_file)
     if -f $internal_disabled_def_file;
 
+  # 'disabled.def' file in cloud directory.
+  $internal_disabled_def_file =
+    "$::basedir/internal/cloud/mysql-test/collections/disabled.def";
+  unshift(@disabled_collection, $internal_disabled_def_file)
+    if -f $internal_disabled_def_file;
+
   # Add 'disabled_ndb.def' to the list of disabled files if ndb is enabled.
   unshift(@disabled_collection,
           "$::glob_mysql_test_dir/collections/disabled_ndb.def")
@@ -1196,18 +1202,6 @@ sub collect_one_test_case {
     return $tinfo;
   }
 
-  if ($::secondary_engine_support and
-      defined $::opt_change_propagation and
-      defined $tinfo->{'change_propagation'}) {
-    if ($tinfo->{'change_propagation'} and !$::opt_change_propagation) {
-      skip_test($tinfo, "Test requires change propagation to be ON");
-      return $tinfo;
-    } elsif (!$tinfo->{'change_propagation'} and $::opt_change_propagation) {
-      skip_test($tinfo, "Test requires change propagation to be OFF");
-      return $tinfo;
-    }
-  }
-
   # Find config file to use if not already selected in <testname>.opt file
   if (defined $defaults_file) {
     # Using same config file for all tests
@@ -1315,8 +1309,8 @@ my @tags = (
   # option along with valgrind option.
   [ "include/no_valgrind_without_big.inc", "no_valgrind_without_big", 1 ],
 
-  [ "include/have_change_propagation_off.inc", "change_propagation", 0 ],
-  [ "include/have_change_propagation_on.inc",  "change_propagation", 1 ],);
+  [ "include/have_change_propagation_off.inc", "change-propagation", 0 ],
+  [ "include/have_change_propagation_on.inc",  "change-propagation", 1 ],);
 
 sub tags_from_test_file {
   my $tinfo = shift;

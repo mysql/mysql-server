@@ -39,13 +39,12 @@ static int offload_count_before = 0;
 
 /// Constructor function for 'Secondary_engine' class
 ///
-/// @param change_propagation Boolean flag indicating whether change
-///                           propagation is enabled or not.
-/// @param engine_name        Secondary engine name
-Secondary_engine::Secondary_engine(bool change_propagation,
+/// @param load_pool   Load pool value for secondary engine.
+/// @param engine_name Secondary engine name
+Secondary_engine::Secondary_engine(const char *load_pool,
                                    const char *engine_name)
-    : m_change_propagation(change_propagation),
-      m_engine_name(engine_name),
+    : m_engine_name(engine_name),
+      m_load_pool(load_pool),
       m_table_name(""),
       m_stmt_type(UNKNOWN_STMT),
       m_secondary_engine_errors{
@@ -364,7 +363,7 @@ void Secondary_engine::match_statement(char *statement, std::size_t errors) {
     if (match_create_statement(statement, &m_table_name)) {
       // CREATE TABLE statement
       m_stmt_type = CREATE_STMT;
-    } else if (!m_change_propagation &&
+    } else if (!std::strcmp(m_load_pool, "SNAPSHOT") &&
                match_dml_statement(statement, &m_table_name)) {
       // DML statement
       m_stmt_type = DML_STMT;

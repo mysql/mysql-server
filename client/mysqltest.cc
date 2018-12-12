@@ -154,11 +154,11 @@ Expected_warnings *disabled_warnings = new Expected_warnings();
 Expected_warnings *enabled_warnings = new Expected_warnings();
 
 enum {
-  OPT_CHANGE_PROPAGATION = OPT_MAX_CLIENT_OPTION,
-  OPT_COLORED_DIFF,
+  OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
+  OPT_LOAD_POOL,
   OPT_LOG_DIR,
   OPT_MARK_PROGRESS,
   OPT_MAX_CONNECT_RETRIES,
@@ -219,9 +219,9 @@ static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
 
 // Secondary engine options
+static const char *opt_load_pool = 0;
 static const char *opt_offload_count_file;
 static const char *opt_secondary_engine;
-static int opt_change_propagation;
 
 static Secondary_engine *secondary_engine = nullptr;
 
@@ -7177,10 +7177,6 @@ static struct my_option my_long_options[] = {
 #include "sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"change-propagation", OPT_CHANGE_PROPAGATION,
-     "Disable/enable change propagation when secondary engine is enabled.",
-     &opt_change_propagation, &opt_change_propagation, 0, GET_INT, REQUIRED_ARG,
-     -1, -1, 1, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &opt_charsets_dir, &opt_charsets_dir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -7234,6 +7230,9 @@ static struct my_option my_long_options[] = {
      "FORMAT=JSON",
      &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
      0, 0, 0, 0},
+    {"load-pool", OPT_LOAD_POOL, "Load pool value for secondary engine.",
+     &opt_load_pool, &opt_load_pool, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     0},
     {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir, &opt_logdir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mark-progress", OPT_MARK_PROGRESS,
@@ -8055,7 +8054,7 @@ static void run_query_normal(struct st_connection *cn,
   MYSQL *mysql = &cn->mysql;
   MYSQL_RES *res = 0;
 
-  if (opt_change_propagation != -1) {
+  if (opt_load_pool) {
     secondary_engine->match_statement(query, expected_errors->count());
     if (secondary_engine->statement_type()) {
       std::vector<unsigned int> ignore_errors = expected_errors->errors();
@@ -8159,7 +8158,7 @@ end:
   // variable then can be used from the test case itself.
   var_set_errno(mysql_errno(mysql));
 
-  if (opt_change_propagation != -1 && secondary_engine->statement_type()) {
+  if (opt_load_pool && secondary_engine->statement_type()) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
     if (secondary_engine->run_load_statements(mysql, ignore_errors))
@@ -8187,7 +8186,7 @@ static void run_query_stmt(MYSQL *mysql, struct st_command *command,
     cur_con->stmt = stmt;
   }
 
-  if (opt_change_propagation != -1) {
+  if (opt_load_pool) {
     secondary_engine->match_statement(query, expected_errors->count());
     if (secondary_engine->statement_type()) {
       std::vector<unsigned int> ignore_errors = expected_errors->errors();
@@ -8363,7 +8362,7 @@ end:
     cur_con->stmt = NULL;
   }
 
-  if (opt_change_propagation != -1 && secondary_engine->statement_type()) {
+  if (opt_load_pool && secondary_engine->statement_type()) {
     std::vector<unsigned int> ignore_errors = expected_errors->errors();
     // Run secondary engine load statements.
     if (secondary_engine->run_load_statements(mysql, ignore_errors))
@@ -9286,9 +9285,9 @@ int main(int argc, char **argv) {
     open_file(opt_include);
   }
 
-  if (opt_change_propagation != -1) {
+  if (opt_load_pool) {
     secondary_engine =
-        new Secondary_engine(opt_change_propagation, opt_secondary_engine);
+        new Secondary_engine(opt_load_pool, opt_secondary_engine);
   } else if (opt_offload_count_file) {
     secondary_engine = new Secondary_engine();
   }
