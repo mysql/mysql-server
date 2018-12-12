@@ -374,6 +374,12 @@ struct ref_t {
   static space_id_t space_id(const byte *ref) {
     return (mach_read_from_4(ref));
   }
+
+  /** Read the page no from the blob reference.
+  @return the page no */
+  static page_no_t page_no(const byte *ref) {
+    return (mach_read_from_4(ref + BTR_EXTERN_PAGE_NO));
+  }
 #endif /* UNIV_DEBUG */
 
   /** Read the space id from the blob reference.

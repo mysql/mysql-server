@@ -948,7 +948,12 @@ byte *btr_copy_externally_stored_field_func(
     return (buf);
   }
 
-  ut_ad(extern_len > 0);
+  if (extern_len == 0) {
+    /* The lob has already been purged. */
+    ut_ad(ref_t::page_no(field_ref) == FIL_NULL);
+    *len = 0;
+    return (buf);
+  }
 
   if (page_size.is_compressed()) {
     ut_ad(local_len == 0);
