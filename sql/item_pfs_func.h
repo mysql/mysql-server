@@ -72,7 +72,7 @@ class Item_func_pfs_format_bytes final : public Item_str_func {
   Item_func_pfs_format_bytes(const POS &pos, Item *a) : Item_str_func(pos, a) {}
   const char *func_name() const override { return "format_bytes"; }
   bool resolve_type(THD *) override;
-  String *val_str(String *str);
+  String *val_str(String *str) override;
 };
 
 /** format_pico_time() */
@@ -87,7 +87,7 @@ class Item_func_pfs_format_pico_time final : public Item_str_func {
       : Item_str_func(pos, a) {}
   const char *func_name() const override { return "format_pico_time"; }
   bool resolve_type(THD *) override;
-  String *val_str(String *str);
+  String *val_str(String *str) override;
 };
 
 #endif /* ITEM_PFS_FUNC_INCLUDED */

@@ -1973,7 +1973,7 @@ static void BM_Chinese_AS_CS(size_t num_iterations) {
   expect_arrays_equal(expected, dest, sizeof(dest));
   SetBytesProcessed(num_iterations * strlen(content));
 }
-BENCHMARK(BM_Chinese_AS_CS);
+BENCHMARK(BM_Chinese_AS_CS)
 
 // The classic MySQL latin1 collation, for reference.
 static void BM_Latin1_CI(size_t num_iterations) {
