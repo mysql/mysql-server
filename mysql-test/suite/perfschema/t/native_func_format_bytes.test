@@ -45,12 +45,11 @@ SELECT format_bytes(1024 * 1024 * 1024 * 1024 * 1024 + 1);
 --echo
 SELECT format_bytes(power(2, 63));
 
-# Temporarily disabled due to result variance in 32-bit, optimized release build
-#--echo
-#--echo ## 1024^6 Eib
-#SELECT format_bytes(1152921504606846976-1);
-#--echo
-#SELECT format_bytes(x'1000000000000000'-1);
+--echo
+--echo ## 1024^6 Eib
+SELECT format_bytes(1152921504606846976-1);
+--echo
+SELECT format_bytes(x'1000000000000000'-1);
 
 --echo
 SELECT format_bytes(1180591620717411434000);

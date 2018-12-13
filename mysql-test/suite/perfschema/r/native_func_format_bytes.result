@@ -86,6 +86,15 @@ SELECT format_bytes(power(2, 63));
 format_bytes(power(2, 63))
 8.00 EiB
 
+## 1024^6 Eib
+SELECT format_bytes(1152921504606846976-1);
+format_bytes(1152921504606846976-1)
+1.00 EiB
+
+SELECT format_bytes(x'1000000000000000'-1);
+format_bytes(x'1000000000000000'-1)
+1.00 EiB
+
 SELECT format_bytes(1180591620717411434000);
 format_bytes(1180591620717411434000)
 1024.00 EiB
