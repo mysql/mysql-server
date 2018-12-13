@@ -40,6 +40,10 @@ struct sockaddr_un;
 
 namespace xcl {
 
+namespace details {
+int make_vio_timeout(const int64_t value);
+}  // namespace details
+
 class Ssl_config;
 class Connection_config;
 

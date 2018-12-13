@@ -165,6 +165,9 @@ void Session_holder::setup_ssl() {
                               m_options.io_timeout);
   m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Write_timeout,
                               m_options.io_timeout);
+  m_session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Session_connect_timeout,
+      m_options.session_connect_timeout);
 }
 
 void Session_holder::setup_msg_callbacks() {

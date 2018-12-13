@@ -37,6 +37,10 @@ class Auth_chaining_test_suite_base : public Xcl_session_impl_tests {
         .WillRepeatedly(Return(false));
     EXPECT_CALL(m_mock_connection, connect(_, _, _))
         .WillRepeatedly(Return(XError{0, ""}));
+    EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
+    EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
+    EXPECT_CALL(m_mock_connection, set_read_timeout(_));
+    EXPECT_CALL(m_mock_connection, set_write_timeout(_));
   }
 
   void set_ssl_state(bool is_enabled) {
