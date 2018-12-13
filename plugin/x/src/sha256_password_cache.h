@@ -50,8 +50,8 @@ class SHA256_password_cache final
   SHA256_password_cache();
   SHA256_password_cache(SHA256_password_cache &) = delete;
   SHA256_password_cache &operator=(const SHA256_password_cache &) = delete;
-  SHA256_password_cache(SHA256_password_cache &&) = default;
-  SHA256_password_cache &operator=(SHA256_password_cache &&) = default;
+  SHA256_password_cache(SHA256_password_cache &&) = delete;
+  SHA256_password_cache &operator=(SHA256_password_cache &&) = delete;
 
   void enable() override;
   void disable() override;
