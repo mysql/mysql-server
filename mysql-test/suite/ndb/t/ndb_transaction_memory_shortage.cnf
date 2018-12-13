@@ -1,0 +1,6 @@
+!include suite/ndb/my.cnf
+
+[ENV]
+# Activate short signal requests to be able to test CacheRecord pool
+# which is not used for long TCKEYREQ.
+NDB_FORCE_SHORT_REQUESTS=Y
