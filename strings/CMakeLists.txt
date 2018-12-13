@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -67,11 +67,32 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
   ADD_COMPILE_FLAGS(dtoa.cc COMPILE_FLAGS "-fno-strict-aliasing")
 ENDIF()
 
+MYSQL_ADD_EXECUTABLE(uca9dump uca9-dump.cc SKIP_INSTALL)
+
+SET(ZH_HANS_SRC_FILE ${CMAKE_SOURCE_DIR}/strings/lang_data/zh_hans.txt)
+SET(ZH_HANS_DST_FILE ${CMAKE_BINARY_DIR}/strings/uca900_zh_tbls.cc)
+SET(JA_HANS_SRC_FILE ${CMAKE_SOURCE_DIR}/strings/lang_data/ja_hans.txt)
+SET(JA_HANS_DST_FILE ${CMAKE_BINARY_DIR}/strings/uca900_ja_tbls.cc)
+ADD_CUSTOM_COMMAND(OUTPUT ${ZH_HANS_DST_FILE}
+                          ${JA_HANS_DST_FILE}
+                   COMMAND uca9dump zh
+                     --in_file=${ZH_HANS_SRC_FILE}
+                     --out_file=${ZH_HANS_DST_FILE}
+                   COMMAND uca9dump ja
+                     --in_file=${JA_HANS_SRC_FILE}
+                     --out_file=${JA_HANS_DST_FILE}
+                   DEPENDS uca9dump ${ZH_HANS_SRC_FILE} ${JA_HANS_SRC_FILE}
+                  )
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${JA_HANS_DST_FILE} ${ZH_HANS_DST_FILE}
+  PROPERTIES GENERATED TRUE
+  )
+
+LIST(APPEND STRINGS_SOURCES ${JA_HANS_DST_FILE} ${ZH_HANS_DST_FILE})
 # Avoid dependencies on perschema data defined in mysys
 ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
 
 MYSQL_ADD_EXECUTABLE(conf_to_src conf_to_src.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(conf_to_src strings)
-
-MYSQL_ADD_EXECUTABLE(uca9dump uca9-dump.cc SKIP_INSTALL)

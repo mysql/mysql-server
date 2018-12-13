@@ -51,6 +51,7 @@ utf8mb4_ja_0900_as_cs_ks	utf8mb4	304
 utf8mb4_0900_as_ci	utf8mb4	305
 utf8mb4_ru_0900_ai_ci	utf8mb4	306
 utf8mb4_ru_0900_as_cs	utf8mb4	307
+utf8mb4_zh_0900_as_cs	utf8mb4	308
 utf8mb4_test_ci	utf8mb4	326
 utf16_test_ci	utf16	327
 utf8mb4_test_400_ci	utf8mb4	328

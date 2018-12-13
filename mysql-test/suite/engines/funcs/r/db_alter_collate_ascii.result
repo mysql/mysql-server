@@ -243,6 +243,7 @@ utf8mb4_unicode_ci	utf8mb4	224		#	#	PAD SPACE
 utf8mb4_vietnamese_ci	utf8mb4	247		#	#	PAD SPACE
 utf8mb4_vi_0900_ai_ci	utf8mb4	277		#	#	NO PAD
 utf8mb4_vi_0900_as_cs	utf8mb4	300		#	#	NO PAD
+utf8mb4_zh_0900_as_cs	utf8mb4	308		#	#	NO PAD
 utf8_bin	utf8	83		#	#	PAD SPACE
 utf8_croatian_ci	utf8	213		#	#	PAD SPACE
 utf8_czech_ci	utf8	202		#	#	PAD SPACE
