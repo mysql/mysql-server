@@ -711,7 +711,7 @@ int dump_zh_hans(MY_UCA *uca, int *pageloaded, FILE *infile, FILE *outfile) {
   }
   fprintf(outfile, "\n};\n\n");
   fprintf(outfile, "extern const int ZH_HAN_WEIGHT_PAIRS = %lu;\n",
-          zh_han_to_single_weight_map.size());
+          static_cast<unsigned long>(zh_han_to_single_weight_map.size()));
 
   return 0;
 }
