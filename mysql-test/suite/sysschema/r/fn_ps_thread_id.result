@@ -1,6 +1,8 @@
 SELECT sys.ps_thread_id(234623462376);
 sys.ps_thread_id(234623462376)
 NULL
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function
 SELECT sys.ps_thread_id(CONNECTION_ID()) = @ps_thread_id;
 sys.ps_thread_id(CONNECTION_ID()) = @ps_thread_id
 1

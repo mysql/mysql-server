@@ -339,6 +339,7 @@ SET(SQL_SHARED_SOURCES
   item_cmpfunc.cc 
   item_create.cc
   item_func.cc
+  item_pfs_func.cc
   item_json_func.cc
   item_regexp_func.cc
   item_row.cc 

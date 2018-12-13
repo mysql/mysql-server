@@ -1,0 +1,167 @@
+#
+# Tests for the Performance Schema native function format_pico_time()
+#
+
+SELECT format_pico_time(NULL);
+format_pico_time(NULL)
+NULL
+
+SELECT format_pico_time(0);
+format_pico_time(0)
+  0 ps
+
+SELECT format_pico_time(1);
+format_pico_time(1)
+  1 ps
+
+SELECT format_pico_time(999);
+format_pico_time(999)
+999 ps
+
+SELECT format_pico_time(1000);
+format_pico_time(1000)
+1.00 ns
+
+SELECT format_pico_time(1001);
+format_pico_time(1001)
+1.00 ns
+
+SELECT format_pico_time(999999);
+format_pico_time(999999)
+1000.00 ns
+
+SELECT format_pico_time(1000000);
+format_pico_time(1000000)
+1.00 us
+
+SELECT format_pico_time(1000001);
+format_pico_time(1000001)
+1.00 us
+
+SELECT format_pico_time(1010000);
+format_pico_time(1010000)
+1.01 us
+
+SELECT format_pico_time(987654321);
+format_pico_time(987654321)
+987.65 us
+
+SELECT format_pico_time(1000000000);
+format_pico_time(1000000000)
+1.00 ms
+
+SELECT format_pico_time(999876000000);
+format_pico_time(999876000000)
+999.88 ms
+
+SELECT format_pico_time(999999999999);
+format_pico_time(999999999999)
+1000.00 ms
+
+SELECT format_pico_time(1000000000000);
+format_pico_time(1000000000000)
+1.00 s
+
+SELECT format_pico_time(59000000000000);
+format_pico_time(59000000000000)
+59.00 s
+
+SELECT format_pico_time(60000000000000);
+format_pico_time(60000000000000)
+1.00 min
+
+SELECT format_pico_time(3549000000000000);
+format_pico_time(3549000000000000)
+59.15 min
+
+SELECT format_pico_time(3599000000000000);
+format_pico_time(3599000000000000)
+59.98 min
+
+SELECT format_pico_time(3600000000000000);
+format_pico_time(3600000000000000)
+1.00 h
+
+SELECT format_pico_time(power(2, 63));
+format_pico_time(power(2, 63))
+106.75 d
+
+SELECT format_pico_time((power(2, 63) - 1) * 2 + 1);
+format_pico_time((power(2, 63) - 1) * 2 + 1)
+213.50 d
+
+SELECT format_pico_time(36000000.495523);
+format_pico_time(36000000.495523)
+36.00 us
+
+SELECT format_pico_time(1000 * pow(10,12) * 86400);
+format_pico_time(1000 * pow(10,12) * 86400)
+1000.00 d
+
+SELECT format_pico_time(86400000000000000000);
+format_pico_time(86400000000000000000)
+1000.00 d
+
+SELECT format_pico_time(86400000000000000000+5000);
+format_pico_time(86400000000000000000+5000)
+1000.00 d
+
+## Negative values are ok
+SELECT format_pico_time(1010000 * -1);
+format_pico_time(1010000 * -1)
+-1.01 us
+
+## Force exponent
+SELECT format_pico_time(8650000000000000000099);
+format_pico_time(8650000000000000000099)
+1.00e+05 d
+
+SELECT format_pico_time(-8650000000000000000099);
+format_pico_time(-8650000000000000000099)
+-1.00e+05 d
+
+SELECT format_pico_time(8640000000000000000099 * 2);
+format_pico_time(8640000000000000000099 * 2)
+2.00e+05 d
+
+
+## Bad input
+SELECT format_pico_time("foo");
+ERROR 22003: Input value is out of range in 'format_pico_time'
+
+## Aggregate functions
+USE test;
+
+CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);
+INSERT INTO timer_waits VALUES ('1 min',         60000000000000);
+INSERT INTO timer_waits VALUES ('1 hour',      3600000000000000);
+INSERT INTO timer_waits VALUES ('1 day',      86400000000000000);
+INSERT INTO timer_waits VALUES ('100 days', 8640000000000000000);
+
+SELECT id, format_pico_time(wait), wait FROM timer_waits;
+id	format_pico_time(wait)	wait
+1 sec	1.00 s	1000000000000
+1 min	1.00 min	60000000000000
+1 hour	1.00 h	3600000000000000
+1 day	1.00 d	86400000000000000
+100 days	100.00 d	8640000000000000000
+
+SELECT sum(wait), format_pico_time(sum(wait)) FROM timer_waits;
+sum(wait)	format_pico_time(sum(wait))
+8730061000000000000	101.04 d
+
+SELECT avg(wait), format_pico_time(avg(wait)) FROM timer_waits;
+avg(wait)	format_pico_time(avg(wait))
+1746012200000000000.0000	20.21 d
+
+SELECT min(wait), format_pico_time(min(wait)) FROM timer_waits;
+min(wait)	format_pico_time(min(wait))
+1000000000000	1.00 s
+
+SELECT max(wait), format_pico_time(max(wait)) FROM timer_waits;
+max(wait)	format_pico_time(max(wait))
+8640000000000000000	100.00 d
+
+DROP TABLE timer_waits;

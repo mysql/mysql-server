@@ -1,0 +1,124 @@
+#
+# Tests for the Performance Schema native functions ps_thread_id()
+# and ps_current_thread_id()
+
+# 'connection ID' is the MySQL server processlist ID
+# 'thread ID' is the Performance Schema thread ID assigned to the connection ID
+
+
+USE test;
+# Get the connection ID of this connection
+SELECT connection_id() INTO @cid;
+
+# Get the thread ID for this connection
+SELECT thread_id FROM performance_schema.threads
+WHERE PROCESSLIST_ID = @cid INTO @tid;
+
+# Open another connection, get the connection ID
+
+
+# Get the thread ID for the remote thread
+SELECT thread_id FROM performance_schema.threads
+WHERE PROCESSLIST_ID = @cid_1 INTO @tid_1;
+
+# Verify that the remote thread IDs are different
+SELECT @cid <> @cid_1 AS "Expect 1";
+Expect 1
+1
+SELECT @tid <> @tid_1 AS "Expect 1";
+Expect 1
+1
+
+# Returns the current thread ID
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+Expect 0
+0
+
+# Bad parameter count
+SELECT ps_current_thread_id(1);
+ERROR 42000: Incorrect parameter count in the call to native function 'ps_current_thread_id'
+
+# A NULL connection ID returns NULL
+SELECT ps_thread_id(NULL) AS "Expect NULL";
+Expect NULL
+NULL
+
+# The current connection ID returns the current thread ID
+SELECT ps_thread_id(@cid) - @tid AS "Expect 0";
+Expect 0
+0
+
+# Another connection ID returns the corresponding thread ID
+SELECT ps_thread_id(@cid_1) - @tid_1 AS "Expect 0";
+Expect 0
+0
+
+# Hybrid parameter
+SELECT ps_thread_id(@cid + 0) - @tid AS "Expect 0";
+Expect 0
+0
+
+# Return NULL if connection ID not found
+SELECT ps_thread_id(9999999) AS "Expect NULL";
+Expect NULL
+NULL
+
+# Return NULL if bad parameter
+SELECT ps_thread_id("foo") AS "Expect NULL";
+Expect NULL
+NULL
+
+# Return NULL if negative number
+SELECT ps_thread_id(-1) AS "Expect NULL";
+Expect NULL
+NULL
+
+# Error if bad parameter count
+SELECT ps_thread_id(1, 2);
+ERROR 42000: Incorrect parameter count in the call to native function 'ps_thread_id'
+
+# Error if bad parameter count
+SELECT ps_thread_id();
+ERROR 42000: Incorrect parameter count in the call to native function 'ps_thread_id'
+
+# Name collision warning
+USE test;
+CREATE FUNCTION ps_current_thread_id() RETURNS varchar(100) return "This is function ps_current_thread_id()";
+Warnings:
+Note	1585	This function 'ps_current_thread_id' has the same name as a native function
+
+SHOW WARNINGS;
+Level	Code	Message
+Note	1585	This function 'ps_current_thread_id' has the same name as a native function
+
+CREATE FUNCTION ps_thread_id() RETURNS varchar(100) return "This is a function ps_thread_id()";
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function
+
+SHOW WARNINGS;
+Level	Code	Message
+Note	1585	This function 'ps_thread_id' has the same name as a native function
+
+# Local function should work ok
+SELECT test.ps_current_thread_id();
+test.ps_current_thread_id()
+This is function ps_current_thread_id()
+Warnings:
+Note	1585	This function 'ps_current_thread_id' has the same name as a native function
+SELECT test.ps_thread_id();
+test.ps_thread_id()
+This is a function ps_thread_id()
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function
+
+# Global function should still work
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+Expect 0
+0
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+Expect 0
+0
+
+# Cleanup
+DROP FUNCTION test.ps_current_thread_id;
+DROP FUNCTION test.ps_thread_id;

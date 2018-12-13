@@ -1,0 +1,14 @@
+--echo #
+--echo # Tests for the Performance Schema native functions ps_thread_id()
+--echo # and ps_current_thread_id()
+--echo
+
+--echo # Get the connection ID of this connection
+SELECT connection_id() INTO @cid;
+
+--echo
+--echo # The thread is not instrumented, therefore it must be NULL
+SELECT ps_current_thread_id();
+--echo
+SELECT ps_thread_id(@cid);
+--echo

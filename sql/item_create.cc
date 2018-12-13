@@ -56,6 +56,7 @@
 #include "sql/item_geofunc.h"      // Item_func_st_area
 #include "sql/item_inetfunc.h"     // Item_func_inet_ntoa
 #include "sql/item_json_func.h"    // Item_func_json
+#include "sql/item_pfs_func.h"     // Item_pfs_func_thread_id
 #include "sql/item_regexp_func.h"  // Item_func_regexp_xxx
 #include "sql/item_strfunc.h"      // Item_func_aes_encrypt
 #include "sql/item_sum.h"          // Item_sum_udf_str
@@ -1099,9 +1100,8 @@ Internal_function_factory<Instantiator_fn>
 }  // namespace
 
 /**
-  Function builder for Stored Functions.
+  Function builder for stored functions.
 */
-
 class Create_sp_func : public Create_qfunc {
  public:
   virtual Item *create(THD *thd, LEX_STRING db, LEX_STRING name,
@@ -1372,6 +1372,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"FIELD", SQL_FN_V(Item_func_field, 2, MAX_ARGLIST_SIZE)},
     {"FIND_IN_SET", SQL_FN(Item_func_find_in_set, 2)},
     {"FLOOR", SQL_FN(Item_func_floor, 1)},
+    {"FORMAT_BYTES", SQL_FN(Item_func_pfs_format_bytes, 1)},
+    {"FORMAT_PICO_TIME", SQL_FN(Item_func_pfs_format_pico_time, 1)},
     {"FOUND_ROWS", SQL_FN(Item_func_found_rows, 0)},
     {"FROM_BASE64", SQL_FN(Item_func_from_base64, 1)},
     {"FROM_DAYS", SQL_FN(Item_func_from_days, 1)},
@@ -1472,6 +1474,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"PI", SQL_FN(Item_func_pi, 0)},
     {"POW", SQL_FN(Item_func_pow, 2)},
     {"POWER", SQL_FN(Item_func_pow, 2)},
+    {"PS_CURRENT_THREAD_ID", SQL_FN(Item_func_pfs_current_thread_id, 0)},
+    {"PS_THREAD_ID", SQL_FN(Item_func_pfs_thread_id, 1)},
     {"QUOTE", SQL_FN(Item_func_quote, 1)},
     {"RADIANS", SQL_FACTORY(Radians_instantiator)},
     {"RAND", SQL_FN_V(Item_func_rand, 0, 1)},

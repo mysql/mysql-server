@@ -1,0 +1,122 @@
+--echo #
+--echo # Tests for the Performance Schema native functions ps_thread_id()
+--echo # and ps_current_thread_id()
+--echo
+--echo # 'connection ID' is the MySQL server processlist ID
+--echo # 'thread ID' is the Performance Schema thread ID assigned to the connection ID
+--echo
+
+--echo
+USE test;
+
+--echo # Get the connection ID of this connection
+SELECT connection_id() INTO @cid;
+
+--echo
+--echo # Get the thread ID for this connection
+SELECT thread_id FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = @cid INTO @tid;
+
+--echo
+--echo # Open another connection, get the connection ID
+connect(con1, localhost, root,,);
+let $con1_id = `SELECT connection_id()`;
+# debug eval SELECT $con1_id;
+
+--connection default
+--echo
+--disable_query_log
+eval SELECT $con1_id INTO @cid_1;
+--enable_query_log
+
+--echo
+--echo # Get the thread ID for the remote thread
+SELECT thread_id FROM performance_schema.threads
+  WHERE PROCESSLIST_ID = @cid_1 INTO @tid_1;
+
+--echo
+--echo # Verify that the remote thread IDs are different
+SELECT @cid <> @cid_1 AS "Expect 1";
+SELECT @tid <> @tid_1 AS "Expect 1";
+
+## ps_current_thread_id()
+
+--echo
+--echo # Returns the current thread ID
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+
+--echo
+--echo # Bad parameter count
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ps_current_thread_id(1);
+
+## ps_thread_id()
+
+--echo
+--echo # A NULL connection ID returns NULL
+SELECT ps_thread_id(NULL) AS "Expect NULL";
+
+--echo
+--echo # The current connection ID returns the current thread ID
+SELECT ps_thread_id(@cid) - @tid AS "Expect 0";
+
+--echo
+--echo # Another connection ID returns the corresponding thread ID
+SELECT ps_thread_id(@cid_1) - @tid_1 AS "Expect 0";
+
+--echo
+--echo # Hybrid parameter
+SELECT ps_thread_id(@cid + 0) - @tid AS "Expect 0";
+
+--echo
+--echo # Return NULL if connection ID not found
+SELECT ps_thread_id(9999999) AS "Expect NULL";
+
+--echo
+--echo # Return NULL if bad parameter
+SELECT ps_thread_id("foo") AS "Expect NULL";
+
+--echo
+--echo # Return NULL if negative number
+SELECT ps_thread_id(-1) AS "Expect NULL";
+
+--echo
+--echo # Error if bad parameter count
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ps_thread_id(1, 2);
+
+--echo
+--echo # Error if bad parameter count
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT ps_thread_id();
+
+
+## Name collisions
+
+--echo
+--echo # Name collision warning
+#--warning ER_NATIVE_FCT_NAME_COLLISION
+USE test;
+CREATE FUNCTION ps_current_thread_id() RETURNS varchar(100) return "This is function ps_current_thread_id()";
+--echo
+SHOW WARNINGS;
+--echo
+CREATE FUNCTION ps_thread_id() RETURNS varchar(100) return "This is a function ps_thread_id()";
+--echo
+SHOW WARNINGS;
+
+--echo
+--echo # Local function should work ok
+SELECT test.ps_current_thread_id();
+SELECT test.ps_thread_id();
+
+--echo
+--echo # Global function should still work
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+SELECT ps_current_thread_id() - @tid AS "Expect 0";
+
+--echo
+--echo # Cleanup
+DROP FUNCTION test.ps_current_thread_id;
+DROP FUNCTION test.ps_thread_id;
+--disconnect con1

@@ -1,0 +1,99 @@
+--echo #
+--echo # Tests for the Performance Schema native function format_pico_time()
+--echo #
+--echo
+
+SELECT format_pico_time(NULL);
+--echo
+SELECT format_pico_time(0);
+--echo
+SELECT format_pico_time(1);
+--echo
+SELECT format_pico_time(999);
+--echo
+SELECT format_pico_time(1000);
+--echo
+SELECT format_pico_time(1001);
+--echo
+SELECT format_pico_time(999999);
+--echo
+SELECT format_pico_time(1000000);
+--echo
+SELECT format_pico_time(1000001);
+--echo
+SELECT format_pico_time(1010000);
+--echo
+SELECT format_pico_time(987654321);
+--echo
+SELECT format_pico_time(1000000000);
+--echo
+SELECT format_pico_time(999876000000);
+--echo
+SELECT format_pico_time(999999999999);
+--echo
+SELECT format_pico_time(1000000000000);
+--echo
+SELECT format_pico_time(59000000000000);
+--echo
+SELECT format_pico_time(60000000000000);
+--echo
+SELECT format_pico_time(3549000000000000);
+--echo
+SELECT format_pico_time(3599000000000000);
+--echo
+SELECT format_pico_time(3600000000000000);
+--echo
+SELECT format_pico_time(power(2, 63));
+--echo
+SELECT format_pico_time((power(2, 63) - 1) * 2 + 1);
+--echo
+SELECT format_pico_time(36000000.495523);
+--echo
+SELECT format_pico_time(1000 * pow(10,12) * 86400);
+--echo
+SELECT format_pico_time(86400000000000000000);
+--echo
+SELECT format_pico_time(86400000000000000000+5000);
+
+--echo
+--echo ## Negative values are ok
+SELECT format_pico_time(1010000 * -1);
+
+--echo
+--echo ## Force exponent
+SELECT format_pico_time(8650000000000000000099);
+--echo
+SELECT format_pico_time(-8650000000000000000099);
+--echo
+SELECT format_pico_time(8640000000000000000099 * 2);
+--echo
+
+--echo
+--echo ## Bad input
+--error ER_DATA_OUT_OF_RANGE
+SELECT format_pico_time("foo");
+--echo
+
+--echo ## Aggregate functions
+USE test;
+--echo
+CREATE TABLE timer_waits (id VARCHAR(10), wait BIGINT(20) UNSIGNED DEFAULT NULL) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+--echo
+# Max BIGINT unsigned is  18 446 744 073 709 551 615
+INSERT INTO timer_waits VALUES ('1 sec',          1000000000000);
+INSERT INTO timer_waits VALUES ('1 min',         60000000000000);
+INSERT INTO timer_waits VALUES ('1 hour',      3600000000000000);
+INSERT INTO timer_waits VALUES ('1 day',      86400000000000000);
+INSERT INTO timer_waits VALUES ('100 days', 8640000000000000000);
+--echo
+SELECT id, format_pico_time(wait), wait FROM timer_waits;
+--echo
+SELECT sum(wait), format_pico_time(sum(wait)) FROM timer_waits;
+--echo
+SELECT avg(wait), format_pico_time(avg(wait)) FROM timer_waits;
+--echo
+SELECT min(wait), format_pico_time(min(wait)) FROM timer_waits;
+--echo
+SELECT max(wait), format_pico_time(max(wait)) FROM timer_waits;
+--echo
+DROP TABLE timer_waits;

@@ -1,6 +1,8 @@
 SELECT sys.format_bytes(NULL);
 sys.format_bytes(NULL)
 NULL
+Warnings:
+Note	1585	This function 'format_bytes' has the same name as a native function
 SELECT sys.format_bytes(1);
 sys.format_bytes(1)
 1 bytes

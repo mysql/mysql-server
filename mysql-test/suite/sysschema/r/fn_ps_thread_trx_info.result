@@ -4,6 +4,8 @@ NULL
 SELECT JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)));
 JSON_VALID(sys.ps_thread_trx_info(sys.ps_thread_id(NULL)))
 1
+Warnings:
+Note	1585	This function 'ps_thread_id' has the same name as a native function
 CREATE DATABASE trx;
 CREATE TABLE trx.info (id INT PRIMARY KEY, info VARCHAR(20));
 # Warm-up data-dictionary cache.

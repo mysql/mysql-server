@@ -1,0 +1,20 @@
+--echo #
+--echo # Tests for the Performance Schema native functions ps_thread_id()
+--echo # and ps_current_thread_id() with disabled Performance Schema
+--echo
+
+--echo # Verify the Performance Schema is disabled
+SELECT @@global.performance_schema AS 'Expect 0';
+
+--echo
+--echo # Get the connection ID of this connection
+SELECT connection_id() INTO @cid;
+
+--echo
+--echo # The Performance Schema is not available
+--error ER_WRONG_PERFSCHEMA_USAGE
+SELECT ps_current_thread_id();
+--echo
+--error ER_WRONG_PERFSCHEMA_USAGE
+SELECT ps_thread_id(@cid);
+--echo
