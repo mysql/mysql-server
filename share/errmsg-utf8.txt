@@ -19137,6 +19137,16 @@ ER_PLUGIN_NOT_EARLY_DUP
 ER_PLUGIN_NO_INSTALL_DUP
   eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+  eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_FOUND_ROWS
+  eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

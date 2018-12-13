@@ -122,8 +122,12 @@ _utf8 'A' collate utf8_bin = ?
 DEALLOCATE PREPARE stmt1;
 create table t1 (id int);
 prepare stmt1 from "select FOUND_ROWS()";
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select SQL_CALC_FOUND_ROWS * from t1;
 id
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt1;
 FOUND_ROWS()
 0
@@ -131,6 +135,8 @@ insert into t1 values (1);
 select SQL_CALC_FOUND_ROWS * from t1;
 id
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt1;
 FOUND_ROWS()
 1
@@ -458,6 +464,8 @@ deallocate prepare stmt;
 create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt;
 a
 1
@@ -465,6 +473,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 a
 1
@@ -472,6 +482,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 a
 1
@@ -479,6 +491,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 deallocate prepare stmt;
 drop table t1;
 CREATE TABLE t1 (N int, M tinyint);
@@ -540,16 +554,22 @@ prepare stmt2 FROM 'SELECT not_a_function (a) FROM t1';
 ERROR 42000: FUNCTION test.not_a_function does not exist
 drop table t1;
 prepare stmt from "SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0";
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt;
 foo
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 foo
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 deallocate prepare stmt;
 drop table if exists t1;
 Warnings:

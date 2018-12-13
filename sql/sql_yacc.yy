@@ -15770,7 +15770,12 @@ query_spec_option:
         | SQL_SMALL_RESULT    { $$= SELECT_SMALL_RESULT; }
         | SQL_BIG_RESULT      { $$= SELECT_BIG_RESULT; }
         | SQL_BUFFER_RESULT   { $$= OPTION_BUFFER_RESULT; }
-        | SQL_CALC_FOUND_ROWS { $$= OPTION_FOUND_ROWS; }
+        | SQL_CALC_FOUND_ROWS {
+            push_warning(YYTHD, Sql_condition::SL_WARNING,
+                         ER_WARN_DEPRECATED_SYNTAX,
+                         ER_THD(YYTHD, ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS));
+            $$= OPTION_FOUND_ROWS;
+          }
         | ALL                 { $$= SELECT_ALL; }
         ;
 

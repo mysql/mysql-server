@@ -699,6 +699,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` limit 2,2
 EXPLAIN REPLACE INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

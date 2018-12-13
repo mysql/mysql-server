@@ -7328,6 +7328,9 @@ bool Item_func_found_rows::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   pc->thd->lex->safe_to_cache_query = false;
+  push_warning(current_thd, Sql_condition::SL_WARNING,
+               ER_WARN_DEPRECATED_SYNTAX,
+               ER_THD(current_thd, ER_WARN_DEPRECATED_FOUND_ROWS));
   return false;
 }
 

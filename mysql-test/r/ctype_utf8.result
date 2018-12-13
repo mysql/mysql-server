@@ -3431,10 +3431,16 @@ select sql_calc_found_rows * from t2 limit 2;
 f1
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select hex(concat(found_rows()));
 hex(concat(found_rows()))
 34
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 create table t1 as select concat(found_rows()) as c1;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

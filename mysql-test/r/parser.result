@@ -1311,6 +1311,8 @@ UNION
 a
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 DROP TABLE t1, t2, t3;
 CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
 CALL p1();

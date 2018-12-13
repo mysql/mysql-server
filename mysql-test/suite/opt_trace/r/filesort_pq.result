@@ -2902,9 +2902,13 @@ f0	f1	f2
 28	27	27
 29	28	28
 30	29	29
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 100
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1
@@ -3073,9 +3077,13 @@ ORDER BY f1, f0 LIMIT 30	{
 SELECT SQL_CALC_FOUND_ROWS * FROM t1
 ORDER BY f1, f0 LIMIT 0;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 100
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1
@@ -3264,9 +3272,13 @@ f0	f1	f2
 29	28	28
 30	29	29
 31	30	30
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 89
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
@@ -3464,9 +3476,13 @@ ORDER BY f2, f0 LIMIT 20	{
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 0;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 89
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
@@ -3674,9 +3690,13 @@ f0	f1	f2
 29	28	28
 30	29	29
 31	30	30
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 89
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
@@ -3874,9 +3894,13 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 0 OFFSET 10;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 89
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
@@ -4768,9 +4792,13 @@ f0	f1	f2	f1	f2
 404	3	3	3	3
 404	3	3	3	3
 404	3	3	3	3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1500
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 JOIN tmp on t1.f2=tmp.f2
@@ -5127,9 +5155,13 @@ f0	f1	f2	f1	f2
 425	24	24	24	24
 425	24	24	24	24
 425	24	24	24	24
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1185
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 JOIN tmp on t1.f2=tmp.f2
@@ -7252,6 +7284,9 @@ SELECT FOUND_ROWS();
 SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 END|
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 CALL wl1393_sp_test()|
 f0	f1	f2
 12	11	11

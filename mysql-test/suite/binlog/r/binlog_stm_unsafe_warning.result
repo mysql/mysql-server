@@ -31,6 +31,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (a VARCHAR(1000));
 INSERT INTO t1 VALUES (CURRENT_USER());
 INSERT INTO t1 VALUES (FOUND_ROWS());
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
 INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
 INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));

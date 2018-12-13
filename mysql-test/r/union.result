@@ -103,9 +103,13 @@ count(*)
 a	b
 1	a
 2	b
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select count(*) from (
 select                      a,b from t1  union all select a,b from t2) q;
 count(*)
@@ -114,9 +118,13 @@ select sql_calc_found_rows  a,b from t1  union all select a,b from t2 limit 2;
 a	b
 1	a
 2	b
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 8
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 explain 
 select * from t1 where a in
 (select a from t1 union select a from t1 order by (select a))
@@ -352,9 +360,13 @@ COUNT(*)
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1) UNION all (SELECT * FROM t2) LIMIT 1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 COUNT(*)
@@ -363,9 +375,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION all (SELECT * FROM t2)) q;
 COUNT(*)
@@ -376,9 +392,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1) UNION all (SELECT * FROM t2 LIMIT 1)) q;
 COUNT(*)
@@ -389,9 +409,13 @@ a
 2
 3
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 (SELECT                     * FROM t1 LIMIT 1) UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -399,9 +423,13 @@ COUNT(*)
 (SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1) UNION SELECT * FROM t2 LIMIT 1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION all SELECT * FROM t2 LIMIT 2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION all SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
@@ -412,9 +440,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION all SELECT * FROM t2) q;
 COUNT(*)
@@ -423,9 +455,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION all SELECT * FROM t2 LIMIT 2;
 a
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -434,9 +470,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2;
 a
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -448,9 +488,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 100 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -464,9 +508,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -479,9 +527,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LIMIT 1 UNION SELECT * FROM t2 LIMIT 2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2 LIMIT 2' at line 1
 SELECT COUNT(*) FROM (
@@ -492,9 +544,13 @@ COUNT(*)
 a
 1
 3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 4
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION SELECT * FROM t2) q;
 COUNT(*)
@@ -503,9 +559,13 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION SELECT * FROM t2 LIMIT 2,2;
 a
 3
 4
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 limit 2,2 UNION SELECT * FROM t2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT * FROM t2' at line 1
 SELECT COUNT(*) FROM (
@@ -517,9 +577,13 @@ a
 3
 4
 5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 3
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a desc LIMIT 1;
 a
 5
@@ -2038,6 +2102,8 @@ NULL	NULL
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1, t2;
 # Bug #17669551 CRASH/ASSERT AT SELECT_CREATE::PREPARE2 AT
 # SQL_INSERT.CC
@@ -2063,9 +2129,13 @@ COUNT(*)
 SELECT SQL_CALC_FOUND_ROWS * FROM t2 UNION ALL SELECT * FROM t1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT COUNT(*) FROM (
 SELECT                     * FROM t1 UNION ALL SELECT * FROM t2) q;
 COUNT(*)
@@ -2073,9 +2143,13 @@ COUNT(*)
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 UNION ALL SELECT * FROM t2;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1, t2;
 # End of WL1763 tests
 # Bug#18503515 UNION with set function in ORDER BY should be rejected
@@ -2743,14 +2817,20 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT SQL_CALC_FOUND_ROWS c1 FROM t1) UNION ALL
 (SELECT c1 FROM t1) LIMIT 2;
 c1
 1
 2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 6
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 3) LIMIT 2;
 c1
@@ -2759,6 +2839,8 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 1) LIMIT 3;
 c1
@@ -2767,6 +2849,8 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 3) UNION ALL
 (SELECT c1 FROM t1 LIMIT 3) LIMIT 1 OFFSET 4;
 c1
@@ -2774,12 +2858,16 @@ c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 5
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 (SELECT c1 FROM t1 LIMIT 1) UNION ALL
 (SELECT c1 FROM t1 LIMIT 1) LIMIT 1 OFFSET 2;
 c1
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1;
 #End of test for Bug#22602381
 # INSERT SELECT using UNION ALL:

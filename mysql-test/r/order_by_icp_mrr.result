@@ -2299,15 +2299,23 @@ f0	f1	f2
 206	5	5
 306	5	5
 406	5	5
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 500
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1
 ORDER BY f1, f0 LIMIT 0;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 500
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 20;
 f0	f1	f2
@@ -2331,15 +2339,23 @@ f0	f1	f2
 215	14	14
 315	14	14
 415	14	14
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 445
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 0;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 445
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 10 OFFSET 10;
 f0	f1	f2
@@ -2353,15 +2369,23 @@ f0	f1	f2
 215	14	14
 315	14	14
 415	14	14
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 445
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE f1>10
 ORDER BY f2, f0 LIMIT 0 OFFSET 10;
 f0	f1	f2
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 445
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 set sort_buffer_size= 327680;
 SELECT * FROM t1 JOIN tmp on t1.f2=tmp.f2
 ORDER BY tmp.f1, f0 LIMIT 30;
@@ -2462,9 +2486,13 @@ f0	f1	f2	f1	f2
 404	3	3	3	3
 404	3	3	3	3
 404	3	3	3	3
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1500
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 JOIN tmp on t1.f2=tmp.f2
 WHERE t1.f2>20
 ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30;
@@ -2499,9 +2527,13 @@ f0	f1	f2	f1	f2
 425	24	24	24	24
 425	24	24	24	24
 425	24	24	24	24
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 1185
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 CREATE VIEW v1 as SELECT * FROM t1 ORDER BY f1, f0 LIMIT 30;
 SELECT * FROM v1;
 f0	f1	f2
@@ -2623,6 +2655,9 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15;
 SELECT FOUND_ROWS();
 SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30;
 END|
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 CALL wl1393_sp_test()|
 f0	f1	f2
 12	11	11

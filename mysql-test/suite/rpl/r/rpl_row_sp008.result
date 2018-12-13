@@ -14,6 +14,9 @@ SELECT SQL_CALC_FOUND_ROWS * FROM test.t1 LIMIT 1;
 INSERT INTO test.t2 VALUES(FOUND_ROWS());
 END|
 Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 < ---- Master selects-- >
