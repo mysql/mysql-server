@@ -34,6 +34,8 @@
 #include <functional>
 #include <sstream>
 
+#include "my_dbug.h"
+
 #include "my_macros.h"
 
 #include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
@@ -356,6 +358,15 @@ void Client::on_client_addr(const bool skip_resolve) {
 void Client::on_accept() {
   log_debug("%s: Accepted client connection from %s", client_id(),
             client_address());
+
+  DBUG_EXECUTE_IF("client_accept_timeout", {
+    std::int32_t i = 0;
+    const std::int32_t max_iterations = 1000;
+    while (m_server.is_running() && i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   m_connection->set_thread_owner();
 

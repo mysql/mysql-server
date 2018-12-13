@@ -27,6 +27,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -54,7 +55,8 @@ struct Connection_options {
   std::string ssl_cipher;
   std::string ssl_key;
   std::string allowed_tls;
-  int64_t io_timeout{-1};
+  std::int64_t io_timeout{-1};
+  std::int64_t session_connect_timeout{-1};
   bool dont_wait_for_disconnect{false};
   bool trace_protocol{false};
   xcl::Internet_protocol ip_mode{xcl::Internet_protocol::V4};

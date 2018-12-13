@@ -28,12 +28,15 @@
 #include "plugin/x/client/xconnection_impl.h"
 
 #include "my_config.h"
+#include "my_dbug.h"
 
 #include <errno.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
 #include <cassert>
+#include <chrono>
+#include <future>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -271,14 +274,12 @@ XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
 XError Connection_impl::connect(const std::string &host, const uint16_t port,
                                 const Internet_protocol ip_mode) {
   m_connection_type = Connection_type::Tcp;
-  struct addrinfo *res_lst, hints, *t_res;
-  int gai_errno;
-  char port_buf[NI_MAXSERV];
-
   m_hostname = host;
 
+  char port_buf[NI_MAXSERV];
   snprintf(port_buf, NI_MAXSERV, "%d", port);
 
+  addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
@@ -289,18 +290,38 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
   else if (Internet_protocol::V4 == ip_mode)
     hints.ai_family = AF_INET;
 
-  gai_errno = getaddrinfo(host.c_str(), port_buf, &hints, &res_lst);
-  if (gai_errno != 0)
+  auto addr_future =
+      std::async(std::launch::async, [this, &host, &port_buf, &hints]() {
+        std::shared_ptr<addrinfo> result_list(nullptr, [](addrinfo *addr) {
+          if (addr) freeaddrinfo(addr);
+        });
+        addrinfo *temp_res_lst;
+        auto gai_errno =
+            getaddrinfo(host.c_str(), port_buf, &hints, &temp_res_lst);
+        if (gai_errno == 0) result_list.reset(temp_res_lst);
+        return result_list;
+      });
+
+  const auto timeout = m_context->m_connection_config.m_timeout_session_connect;
+  const auto delay = std::chrono::milliseconds(
+      timeout > 0 ? timeout : std::numeric_limits<std::int32_t>::max());
+  if (addr_future.wait_for(delay) == std::future_status::timeout) {
+    return XError(CR_X_SESSION_CONNECT_TIMEOUT,
+                  "Session_connect_timeout limit exceeded");
+  }
+
+  auto resolved_addr_list_ptr = addr_future.get();
+  if (!resolved_addr_list_ptr)
     return XError(CR_UNKNOWN_HOST, "No such host is known '" + host + "'");
 
   XError error;
-  for (t_res = res_lst; t_res; t_res = t_res->ai_next) {
+  for (const auto *t_res = resolved_addr_list_ptr.get(); t_res;
+       t_res = t_res->ai_next) {
     error = connect(reinterpret_cast<sockaddr *>(t_res->ai_addr),
                     t_res->ai_addrlen);
 
     if (!error) break;
   }
-  freeaddrinfo(res_lst);
 
   if (error) {
     std::string error_description = error.what();
@@ -342,10 +363,12 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   // Enable TCP_NODELAY
   vio_fastsend(m_vio);
 
-  set_read_timeout(details::make_vio_timeout(
-      m_context->m_connection_config.m_timeout_read / 1000));
+  const auto read_timeout = m_context->m_connection_config.m_timeout_read;
+  set_read_timeout(
+      details::make_vio_timeout((read_timeout < 0) ? -1 : read_timeout / 1000));
+  const auto write_timeout = m_context->m_connection_config.m_timeout_write;
   set_write_timeout(details::make_vio_timeout(
-      m_context->m_connection_config.m_timeout_write / 1000));
+      (write_timeout < 0) ? -1 : write_timeout / 1000));
 
   return XError();
 }

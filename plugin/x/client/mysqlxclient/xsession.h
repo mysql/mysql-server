@@ -113,6 +113,19 @@ class XSession {
     */
     Connect_timeout,
     /**
+      Define session establishment timeout, which involves the following steps:
+      * hostname resolve
+      * socket-connection
+      * X Protocol handshake
+      * X Protocol authentication until AuthenticationOk
+      Default value of this parameter is set to "-1", which means infinite
+      block. Values greater than "-1" define the timeout in milliseconds.
+
+      Default: -1.
+      Option type: INTEGER.
+     */
+    Session_connect_timeout,
+    /**
       Define timeout behavior when reading from the connection.
 
       Default value of this parameter is set to "-1", which means infinite

@@ -1,0 +1,33 @@
+## Test of session_connect_timeout
+
+## Preamble
+--source include/have_debug.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("1: Error creating session for connection from .*");
+## Test starts here
+
+let $restart_parameters = restart: --debug=d,client_accept_timeout;
+--source include/restart_mysqld.inc
+exec $MYSQLXTEST
+  -ux_root --password='' --timeout=2000 --expect-error 2500
+  --sql "SELECT 1" 2>&1;
+
+let $restart_parameters = restart: --debug=d,resolve_timeout;
+--source include/restart_mysqld.inc
+exec $MYSQLXTEST
+  -ux_root --password='' --timeout=2000 --expect-error 2500
+  --sql "SELECT 1" 2>&1;
+
+let $restart_parameters = restart: --debug=d,authentication_timeout;
+--source include/restart_mysqld.inc
+exec $MYSQLXTEST
+  -ux_root --password='' --timeout=2000 --expect-error 2500
+  --sql "SELECT 1" 2>&1;
+
+## Cleanup
+let $restart_parameters = restart: ;
+--source include/restart_mysqld.inc
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

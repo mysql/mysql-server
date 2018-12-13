@@ -423,6 +423,10 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
       m_context->m_connection_config.m_timeout_connect = value;
       break;
 
+    case Mysqlx_option::Session_connect_timeout:
+      m_context->m_connection_config.m_timeout_session_connect = value;
+      break;
+
     case Mysqlx_option::Datetime_length_discriminator:
       m_context->m_datetime_length_discriminator = value;
       break;
@@ -492,15 +496,14 @@ XError Session_impl::connect(const char *host, const uint16_t port,
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
-  auto result = get_protocol().get_connection().connect(
-      details::value_or_empty_string(host), port ? port : MYSQLX_TCP_PORT,
-      m_internet_protocol);
-
+  Session_connect_timeout_scope_guard timeout_guard{this};
+  auto &connection = get_protocol().get_connection();
+  const auto result =
+      connection.connect(details::value_or_empty_string(host),
+                         port ? port : MYSQLX_TCP_PORT, m_internet_protocol);
   if (result) return result;
 
-  auto connection_type =
-      get_protocol().get_connection().state().get_connection_type();
-
+  const auto connection_type = connection.state().get_connection_type();
   return authenticate(user, pass, schema, connection_type);
 }
 
@@ -509,14 +512,14 @@ XError Session_impl::connect(const char *socket_file, const char *user,
   if (is_connected())
     return XError{CR_ALREADY_CONNECTED, ER_TEXT_ALREADY_CONNECTED};
 
-  auto result = get_protocol().get_connection().connect_to_localhost(
+  Session_connect_timeout_scope_guard timeout_guard{this};
+  auto &connection = get_protocol().get_connection();
+  const auto result = connection.connect_to_localhost(
       details::value_or_default_string(socket_file, MYSQLX_UNIX_ADDR));
 
   if (result) return result;
 
-  auto connection_type =
-      get_protocol().get_connection().state().get_connection_type();
-
+  const auto connection_type = connection.state().get_connection_type();
   return authenticate(user, pass, schema, connection_type);
 }
 
@@ -529,6 +532,7 @@ XError Session_impl::reauthenticate(const char *user, const char *pass,
 
   if (error) return error;
 
+  Session_connect_timeout_scope_guard timeout_guard{this};
   error = get_protocol().recv_ok();
 
   if (error) return error;
@@ -978,6 +982,45 @@ std::string Session_impl::get_method_from_auth(const Auth auth) {
 bool Session_impl::needs_servers_capabilities() const {
   return m_use_auth_methods.size() == 1 &&
          m_use_auth_methods[0] == Auth::Auto_from_capabilities;
+}
+
+Session_impl::Session_connect_timeout_scope_guard::
+    Session_connect_timeout_scope_guard(Session_impl *parent)
+    : m_parent{parent}, m_start_time{std::chrono::steady_clock::now()} {
+  m_handler_id = m_parent->get_protocol().add_send_message_handler(
+      [this](xcl::XProtocol *, const xcl::XProtocol::Client_message_type_id,
+             const xcl::XProtocol::Message &) -> xcl::Handler_result {
+        const auto timeout =
+            m_parent->m_context->m_connection_config.m_timeout_session_connect;
+        // Infinite timeout, do not set message handler
+        if (timeout < 0) return Handler_result::Continue;
+
+        auto &connection = m_parent->get_protocol().get_connection();
+        const auto delta =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - m_start_time)
+                .count();
+        const auto new_timeout = (timeout - delta) / 1000;
+        connection.set_write_timeout(
+            details::make_vio_timeout((delta > timeout) ? 0 : new_timeout));
+        connection.set_read_timeout(
+            details::make_vio_timeout((delta > timeout) ? 0 : new_timeout));
+        return Handler_result::Continue;
+      });
+}
+
+Session_impl::Session_connect_timeout_scope_guard::
+    ~Session_connect_timeout_scope_guard() {
+  m_parent->get_protocol().remove_send_message_handler(m_handler_id);
+  auto &connection = m_parent->get_protocol().get_connection();
+  const auto read_timeout =
+      m_parent->m_context->m_connection_config.m_timeout_read;
+  connection.set_read_timeout(
+      details::make_vio_timeout((read_timeout < 0) ? -1 : read_timeout / 1000));
+  const auto write_timeout =
+      m_parent->m_context->m_connection_config.m_timeout_write;
+  connection.set_write_timeout(details::make_vio_timeout(
+      (write_timeout < 0) ? -1 : write_timeout / 1000));
 }
 
 static void initialize_xmessages() {

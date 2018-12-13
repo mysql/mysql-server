@@ -29,6 +29,7 @@
 #include <stdexcept>
 
 // needed for ip_to_hostname(), should probably be turned into a service
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
@@ -128,6 +129,15 @@ std::string Client::resolve_hostname() {
   std::string result;
   std::string socket_ip_string;
   uint16 socket_port;
+
+  DBUG_EXECUTE_IF("resolve_timeout", {
+    int i = 0;
+    int max_iterations = 1000;
+    while (server().is_running() && i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   sockaddr_storage *addr =
       m_connection->peer_addr(socket_ip_string, socket_port);

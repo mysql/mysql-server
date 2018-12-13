@@ -24,6 +24,7 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include "my_dbug.h"
 #include "my_io.h"
 
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
@@ -34,6 +35,8 @@
 #include "plugin/x/ngs/include/ngs/protocol/page_buffer.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+
+#include "plugin/x/src/xpl_server.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
@@ -126,6 +129,16 @@ void Protocol_encoder::send_auth_continue(const std::string &data) {
   Mysqlx::Session::AuthenticateContinue msg;
 
   msg.set_auth_data(data);
+
+  DBUG_EXECUTE_IF("authentication_timeout", {
+    int i = 0;
+    int max_iterations = 1000;
+    while ((*xpl::Server::get_instance())->server().is_running() &&
+           i < max_iterations) {
+      my_sleep(10000);
+      ++i;
+    }
+  });
 
   send_message(Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, msg);
 }
