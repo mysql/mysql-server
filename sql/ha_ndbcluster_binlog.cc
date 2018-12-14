@@ -2922,7 +2922,7 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
       ndbtab_g.invalidate();
   }
 
-  // Release the share of the NdbEventoperation
+  // Remove NdbEventOperation from the share
   mysql_mutex_lock(&share->mutex);
   DBUG_ASSERT(share->op == pOp);
   share->op= NULL;
@@ -5256,9 +5256,8 @@ public:
     case NDBEVENT::TE_DROP:
       /* ndb_schema table DROPped */
       if (ndb_binlog_tables_inited && ndb_binlog_running)
-        ndb_log_verbose(1,
-                        "NDB Binlog: ndb tables initially readonly "
-                        "on reconnect.");
+        ndb_log_verbose(
+            1, "NDB Binlog: NDB tables initially readonly on reconnect.");
 
       /* release the ndb_schema_share */
       mysql_mutex_lock(&injector_data_mutex);
@@ -6938,9 +6937,8 @@ handle_non_data_event(THD *thd,
     if (ndb_apply_status_share == share)
     {
       if (ndb_binlog_tables_inited && ndb_binlog_running)
-        ndb_log_verbose(1,
-                        "NDB Binlog: ndb tables initially "
-                        "readonly on reconnect.");
+        ndb_log_verbose(
+            1, "NDB Binlog: NDB tables initially readonly on reconnect.");
 
       /* release the ndb_apply_status_share */
       NDB_SHARE::release_reference(ndb_apply_status_share,
@@ -8694,26 +8692,40 @@ restart_cluster_failure:
       mysql_cond_broadcast(&injector_data_cond);
     }
 
-    // If all eventOp subscriptions has been teared down,
-    // the binlog thread should now restart.
     DBUG_ASSERT(binlog_thread_state == BCCC_running);
+
+    // When a cluster failure occurs, each event operation will receive a
+    // TE_CLUSTER_FAILURE event causing it to be torn down and removed.
+    // When all event operations has been removed from their respective Ndb
+    // object, the thread should restart and try to connect to NDB again.
     if (i_ndb->getEventOperation() == NULL &&
         s_ndb->getEventOperation() == NULL)
     {
-      DBUG_PRINT("info", ("binlog_thread_state= BCCC_restart"));
-      if (ndb_latest_handled_binlog_epoch < ndb_get_latest_trans_gci() && ndb_binlog_running)
-      {
-        log_error("latest transaction in epoch %u/%u not in binlog "
-                  "as latest handled epoch is %u/%u",
-                  (uint)(ndb_get_latest_trans_gci() >> 32),
-                  (uint)(ndb_get_latest_trans_gci()),
-                  (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                  (uint)(ndb_latest_handled_binlog_epoch));
-      }
+      log_error("All event operations gone, restarting thread");
+      binlog_thread_state= BCCC_restart;
+      break;
+    }
+
+    if (!ndb_binlog_tables_inited /* relaxed read without lock */ ) {
+      // One(or more) of the ndbcluster util tables have been dropped, restart
+      // the thread in order to create or setup the util table(s) again
+      log_error("The util tables has been lost, restarting thread");
       binlog_thread_state= BCCC_restart;
       break;
     }
   }
+
+  // Check if loop has been terminated without properly handling all events
+  if (ndb_binlog_running &&
+      ndb_latest_handled_binlog_epoch < ndb_get_latest_trans_gci()) {
+    log_error("latest transaction in epoch %u/%u not in binlog "
+              "as latest handled epoch is %u/%u",
+              (uint)(ndb_get_latest_trans_gci() >> 32),
+              (uint)(ndb_get_latest_trans_gci()),
+              (uint)(ndb_latest_handled_binlog_epoch >> 32),
+              (uint)(ndb_latest_handled_binlog_epoch));
+  }
+
  err:
   if (binlog_thread_state != BCCC_restart)
   {
