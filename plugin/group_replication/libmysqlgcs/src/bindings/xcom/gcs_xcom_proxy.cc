@@ -573,11 +573,23 @@ bool Gcs_xcom_proxy_impl::xcom_client_force_config(node_list *nl,
                                                    uint32_t group_id) {
   app_data_ptr data = new_app_data();
   data = init_config_with_group(data, nl, force_config_type, group_id);
+
   /* Takes ownership of data. */
-  bool const successful = xcom_input_try_push(data);
+  Gcs_xcom_input_queue::future_reply future =
+      xcom_input_try_push_and_get_reply(data);
+  std::unique_ptr<Gcs_xcom_input_queue::Reply> reply = future.get();
+  bool const processable_reply =
+      (reply.get() != nullptr && reply->get_payload() != nullptr);
+
+  bool successful = false;
+  if (processable_reply) {
+    successful = (reply->get_payload()->cli_err == REQUEST_OK);
+  }
+
   if (!successful) {
     MYSQL_GCS_LOG_DEBUG("xcom_client_force_config: Failed to push into XCom.");
   }
+
   return successful;
 }
 

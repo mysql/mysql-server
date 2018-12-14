@@ -16,9 +16,11 @@
 #   10) Kill and restart a member to group loose majority.
 #   11) Invalid address is set on a ONLINE member with majority unreachable. It
 #       should fail.
-#   12) IP address is set on a ONLINE member with majority unreachable. It
+#   12) Address of an UNREACHABLE member is set on a ONLINE member with majority
+#       unreachable. It should fail.
+#   13) IP address is set on a ONLINE member with majority unreachable. It
 #       should succeed.
-#   13) Clean up.
+#   14) Clean up.
 ################################################################################
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
@@ -41,6 +43,9 @@ call mtr.add_suppression("\\[GCS\\] The peers list contains invalid addresses.Pl
 call mtr.add_suppression("Error setting group_replication_force_members value .* on group communication interfaces");
 call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
 call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression(".*Only alive members in the current configuration should be present in a forced configuration list.*");
+call mtr.add_suppression("\\[GCS\\] Error reconfiguring group.");
+
 SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server1
@@ -265,10 +270,23 @@ SET GLOBAL group_replication_force_members= "256.256.256.777:1234";
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
 --source include/assert.inc
 
+--echo
+--echo ############################################################
+--echo # 12. Set IP of an UNREACHABLE member to
+--echo #    group_replication_force_members on a ONLINE member .
+
+--replace_result $member1_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS1
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_force_members= "$member1_group_replication_local_address";
+
+--let $assert_text= group_replication_force_members is empty
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = ""
+--source include/assert.inc
+
 
 --echo
 --echo ############################################################
---echo # 12. Set valid  IP string value to
+--echo # 13. Set valid  IP string value to
 --echo #    group_replication_force_members on a ONLINE member and
 --echo #    majority of group members are unreachable
 
@@ -283,7 +301,7 @@ eval SET GLOBAL group_replication_force_members= "$member2_group_replication_loc
 
 --echo
 --echo ############################################################
---echo # 11. Clean up.
+--echo # 14. Clean up.
 
 # rejoin M1 to group
 --let $rpl_connection_name= server1
