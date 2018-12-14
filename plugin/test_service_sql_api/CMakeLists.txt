@@ -90,3 +90,6 @@ MYSQL_ADD_PLUGIN(test_sql_errors test_sql_errors.cc
 
 MYSQL_ADD_PLUGIN(test_sql_stmt test_sql_stmt.cc
   TEST_ONLY MODULE_ONLY MODULE_OUTPUT_NAME "libtest_sql_stmt")
+
+MYSQL_ADD_PLUGIN(test_sql_reset_connection test_sql_reset_connection.cc
+  TEST_ONLY MODULE_ONLY MODULE_OUTPUT_NAME "libtest_sql_reset_connection")

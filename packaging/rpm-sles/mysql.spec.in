@@ -1241,6 +1241,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_x_sessions_init.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/qa_auth_client.so
@@ -1312,6 +1313,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_views_triggers.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_reset_connection.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_x_sessions_init.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/qa_auth_client.so

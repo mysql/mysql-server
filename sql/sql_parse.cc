@@ -406,6 +406,7 @@ void init_sql_command_flags(void) {
   server_command_flags[COM_STMT_RESET] =
       CF_SKIP_QUESTIONS | CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_STMT_FETCH] = CF_ALLOW_PROTOCOL_PLUGIN;
+  server_command_flags[COM_RESET_CONNECTION] = CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_END] = CF_ALLOW_PROTOCOL_PLUGIN;
 
   /* Initialize the sql command flags array. */
