@@ -291,7 +291,7 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
     hints.ai_family = AF_INET;
 
   auto addr_future =
-      std::async(std::launch::async, [this, &host, &port_buf, &hints]() {
+      std::async(std::launch::async, [&host, &port_buf, &hints]() {
         std::shared_ptr<addrinfo> result_list(nullptr, [](addrinfo *addr) {
           if (addr) freeaddrinfo(addr);
         });
