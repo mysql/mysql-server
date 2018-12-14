@@ -1701,10 +1701,8 @@ void JOIN::create_iterators() {
     }
   }
 
-  // Similarly, no rollup, final SELECT DISTINCT (ie., those that are not
-  // resolved through temporary tables) or window functions.
-  if (rollup.state != ROLLUP::STATE_NONE || select_distinct ||
-      m_windows.elements != 0) {
+  // Similarly, no rollup or window functions.
+  if (rollup.state != ROLLUP::STATE_NONE || m_windows.elements != 0) {
     return;
   }
 
