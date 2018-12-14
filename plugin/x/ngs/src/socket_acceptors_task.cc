@@ -105,7 +105,7 @@ bool Socket_acceptors_task::prepare(
       std::to_string(listeners.size());
 
   if (context && context->m_properties) context->m_properties->swap(properties);
-  show_startup_log();
+  if (result) show_startup_log();
 
   return result;
 }
