@@ -106,8 +106,10 @@
   element, such as a random function or a non-deterministic function.
   Expressions containing this bit cannot be evaluated once and then cached,
   they must be evaluated at latest possible point.
+  MAX_TABLES_FOR_SIZE adds the pseudo bits and is used for sizing purposes only.
 */
-#define MAX_TABLES (sizeof(table_map) * 8 - 3) /* Max tables in join */
+#define MAX_TABLES_FOR_SIZE (sizeof(table_map) * 8)  ///< Use for sizing ONLY
+#define MAX_TABLES (MAX_TABLES_FOR_SIZE - 3)         ///< Max tables in join
 #define INNER_TABLE_BIT (((table_map)1) << (MAX_TABLES + 0))
 #define OUTER_REF_TABLE_BIT (((table_map)1) << (MAX_TABLES + 1))
 #define RAND_TABLE_BIT (((table_map)1) << (MAX_TABLES + 2))

@@ -2996,7 +2996,11 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
     temporary table.
     We deal with this problem by flattening children's subqueries first and
     then using a heuristic rule to determine each subquery predicate's
-    "priority".
+    priority, which is calculated in this order:
+
+    1. Prefer dependent subqueries over non-dependent ones
+    2. Prefer subqueries with many tables over those with fewer tables
+    3. Prefer early subqueries over later ones (to make sort deterministic)
 
   @returns false if success, true if error
 */
@@ -3031,7 +3035,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     there are cases where flattening is not possible and only the parent can
     know.
    */
-  for (subq = subq_begin; subq < subq_end; subq++) {
+  uint subq_no;
+  for (subq = subq_begin, subq_no = 0; subq < subq_end; subq++, subq_no++) {
     // Transformation of IN and EXISTS subqueries is supported
     DBUG_ASSERT((*subq)->substype() == Item_subselect::IN_SUBS ||
                 (*subq)->substype() == Item_subselect::EXISTS_SUBS);
@@ -3041,10 +3046,16 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     // Check that we proceeded bottom-up
     DBUG_ASSERT(child_select->sj_candidates == NULL);
 
+    bool dependent = (*subq)->unit->uncacheable & UNCACHEABLE_DEPENDENT;
     (*subq)->sj_convert_priority =
-        (((*subq)->unit->uncacheable & UNCACHEABLE_DEPENDENT) ? MAX_TABLES
-                                                              : 0) +
-        child_select->leaf_table_count;
+        (((dependent * MAX_TABLES_FOR_SIZE) +  // dependent subqueries first
+          child_select->leaf_table_count) *
+         65536) +           // then with many tables
+        (65536 - subq_no);  // then based on position
+    /*
+      We may actually allocate more than 64k subqueries in a query block,
+      but this is so unlikely that we ignore the impact it may have on sorting.
+    */
   }
 
   /*

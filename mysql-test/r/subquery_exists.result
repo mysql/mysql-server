@@ -486,7 +486,7 @@ EXISTS (SELECT * FROM t1) AND
 EXISTS (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+32	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) semi join (`test`.`t1`) where 0
 SELECT * FROM t1
