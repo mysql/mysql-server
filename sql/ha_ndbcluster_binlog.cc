@@ -236,8 +236,6 @@ static bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
 
-static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb);
-
 bool ndb_schema_dist_is_ready(void)
 {
   Mutex_guard schema_share_g(injector_data_mutex);
@@ -1048,7 +1046,6 @@ ndb_create_table_from_engine(THD *thd,
 class Ndb_binlog_setup {
 
   THD* const m_thd;
-  Thd_ndb* const m_thd_ndb;
 
   /*
     NDB has no representation of the database schema objects, but
@@ -2423,136 +2420,87 @@ class Ndb_binlog_setup {
   Ndb_binlog_setup operator=(const Ndb_binlog_setup &) = delete;
 
 public:
+ Ndb_binlog_setup(THD *thd) : m_thd(thd) {}
 
-  Ndb_binlog_setup(THD* thd) :
-    m_thd(thd),
-    m_thd_ndb(get_thd_ndb(thd))
-  {
-    // Ndb* object in Thd_ndb should've been assigned
-    assert(m_thd_ndb->ndb);
+ /**
+   @brief Setup this node to take part in schema distribution by creating the
+   ndbcluster util tables, perform schema synchronization and create references
+   to NDB_SHARE for all tables.
+
+   @note See special error handling required when function fails.
+
+   @return true if setup is succesful
+   @return false if setup fails. The creation of ndb_schema table and setup
+   of event operation registers this node in schema distribution protocol. Thus
+   this node is expected to reply to schema distribution events. Replying is
+   however not possible until setup has succesfully completed and the binlog
+   thread has started to handle events. If setup fails the event operation on
+   ndb_schema table and all other event operations must be removed in order to
+   signal unsubcribe and remove this node from schema distribution.
+ */
+ bool setup(Thd_ndb* thd_ndb) {
+   /* Test binlog_setup on this mysqld being slower (than other mysqld) */
+   if (DBUG_EVALUATE_IF("ndb_binlog_setup_slow", true, false)) {
+     ndb_log_info("'ndb_binlog_setup_slow' -> sleep");
+     ndb_milli_sleep(10 * 1000);
+     ndb_log_info(" <- sleep");
+   }
+
+   DBUG_ASSERT(ndb_schema_share == nullptr);
+   DBUG_ASSERT(ndb_apply_status_share == nullptr);
+
+   // Protect the schema synchronization with GSL(Global Schema Lock)
+   Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
+   if (global_schema_lock_guard.lock()) {
+     return false;
+   }
+
+   // Remove deleted NDB tables
+   if (!remove_deleted_ndb_tables_from_dd()) {
+     return false;
+   }
+
+   Ndb_schema_dist_table schema_dist_table(thd_ndb);
+   Util_table_creator schema_table_creator(m_thd, thd_ndb, schema_dist_table);
+   if (!schema_table_creator.create_or_upgrade(
+           opt_ndb_schema_dist_upgrade_allowed))
+     return false;
+
+   if (ndb_schema_share == nullptr) {
+     ndb_log_verbose(50, "Schema distribution setup failed");
+     return false;
+   }
+
+   if (DBUG_EVALUATE_IF("ndb_binlog_setup_incomplete", true, false)) {
+     // Remove the dbug keyword, only fail first time and avoid infinite setup
+     DBUG_SET("-d,ndb_binlog_setup_incomplete");
+     // Test handling of setup failing to complete *after* created 'ndb_schema'
+     ndb_log_info("Simulate 'ndb_binlog_setup_incomplete' -> return error");
+     return false;
+   }
+
+   Ndb_apply_status_table apply_status_table(thd_ndb);
+   Util_table_creator apply_table_creator(m_thd, thd_ndb, apply_status_table);
+   if (!apply_table_creator.create_or_upgrade(true)) return false;
+
+   if (find_all_databases(m_thd, thd_ndb)) return false;
+
+   if (!synchronize_data_dictionary()) {
+     ndb_log_verbose(9, "Failed to synchronize DD with NDB");
+     return false;
+   }
+
+   // Check that references for ndb_schema and ndb_apply_status has
+   // been created
+   DBUG_ASSERT(ndb_schema_share);
+   DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
+
+   Mutex_guard injector_mutex_g(injector_data_mutex);
+   ndb_binlog_tables_inited = true;
+
+   return true;  // Setup completed OK
   }
-
-  bool
-  setup(void)
-  {
-    /* Test binlog_setup on this mysqld being slower (than other mysqld) */
-    if (DBUG_EVALUATE_IF("ndb_binlog_setup_slow", true, false))
-    {
-      ndb_log_info("'ndb_binlog_setup_slow' -> sleep");
-      ndb_milli_sleep(10*1000); // seconds * 1000
-      ndb_log_info(" <- sleep");
-    }
-
-    while (true) //To allow 'break' out to error handling
-    {
-      DBUG_ASSERT(ndb_schema_share == NULL);
-      DBUG_ASSERT(ndb_apply_status_share == NULL);
-
-      /**
-        The Global Schema Lock (GSL) protects the discovery of the tables,
-        and creation of the schema change distribution event (ndb_schema_share)
-        to be atomic. This make sure that the schema does not change without
-        being distributed to other mysqld's.
-      */
-      Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
-      if (global_schema_lock_guard.lock())
-      {
-        break;
-      }
-
-      // Remove deleted NDB tables
-      if (!remove_deleted_ndb_tables_from_dd())
-      {
-        break;
-      }
-
-      Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
-      Util_table_creator schema_table_creator(m_thd, m_thd_ndb,
-                                              schema_dist_table);
-      if (!schema_table_creator.create_or_upgrade(
-              opt_ndb_schema_dist_upgrade_allowed))
-        break;
-
-      if (ndb_schema_share == NULL)  //Needed for 'ndb_schema_dist_is_ready()'
-      {
-        ndb_log_verbose(50, "Schema distribution setup failed");
-        break;
-      }
-
-      /**
-        NOTE: At this point the creation of 'ndb_schema_share' has set
-        ndb_schema_dist_is_ready(), which also announced our subscription
-        (and handling) of schema change events.
-        We are excpected to act on any such changes (SLOCK) by all other mysqld.
-        However, this is not possible until setup has succesfully
-        completed, and our binlog-thread started to handle events.
-        Thus, if we fail to complete the setup below, the schema changes *must*
-        be unsubscribed as part of error handling. Any other mysqld's waiting
-        for us to reply, will then get an unsibscribe-event instead, which breaks
-        the wait.
-       */
-       assert(ndb_schema_dist_is_ready());
-
-       DBUG_EXECUTE_IF("ndb_binlog_setup_incomplete",
-       {
-         // Test handling of binlog_setup failing to complete *after*
-         // created 'ndb_schema'
-         ndb_log_info("'ndb_binlog_setup_incomplete' -> return");
-         // NOTE! This break has no effect as it only breaks the while
-         // in the DBUG_EXECUTE_IF macro
-         break;
-       });
-
-       Ndb_apply_status_table apply_status_table(m_thd_ndb);
-       Util_table_creator apply_table_creator(m_thd, m_thd_ndb,
-                                              apply_status_table);
-       if (!apply_table_creator.create_or_upgrade(true))
-         break;
-
-       if (find_all_databases(m_thd, m_thd_ndb))
-         break;
-
-       if (!synchronize_data_dictionary())
-       {
-         ndb_log_verbose(9, "Failed to synchronize DD with NDB");
-         break;
-       }
-
-       /* Shares w/ eventOp subscr. for NDB_SCHEMA_TABLE and
-          NDB_APPLY_TABLE created? */
-       DBUG_ASSERT(ndb_schema_share);
-       DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
-
-       Mutex_guard injector_mutex_g(injector_data_mutex);
-       ndb_binlog_tables_inited= true;
-       return true;     // Setup completed -> OK
-    }
-
-    /**
-      Error handling:
-      Failed to complete ndb_binlog_setup.
-      Remove all existing event operations from a possible partial setup
-    */
-    if (ndb_schema_dist_is_ready()) // Can't leave failed setup with 'dist_is_ready'
-    {
-      ndb_log_info("Clean up leftovers");
-      remove_all_event_operations(schema_ndb, injector_ndb);
-    }
-
-    /* There should not be a partial setup left behind */
-    DBUG_ASSERT(!ndb_schema_dist_is_ready());
-    return false;
-  }
-
-}; // class Ndb_binlog_setup
-
-
-static bool
-ndb_binlog_setup(THD *thd)
-{
-  Ndb_binlog_setup binlog_setup(thd);
-  return binlog_setup.setup();
-}
+};
 
 
 /*
@@ -7546,8 +7494,8 @@ handle_data_event(NdbEventOperation *pOp,
   Injector thread main loop
 ****************************************************************/
 
-static void
-remove_event_operations(Ndb* ndb)
+void
+Ndb_binlog_thread::remove_event_operations(Ndb* ndb) const
 {
   DBUG_ENTER("remove_event_operations");
   NdbEventOperation *op;
@@ -7577,8 +7525,8 @@ remove_event_operations(Ndb* ndb)
   DBUG_VOID_RETURN;
 }
 
-static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
-{
+void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb,
+                                                    Ndb *i_ndb) const {
   DBUG_ENTER("remove_all_event_operations");
 
   /* protect ndb_schema_share */
@@ -7924,6 +7872,7 @@ Ndb_binlog_thread::do_run()
 
   log_info("Started");
 
+  Ndb_binlog_setup binlog_setup(thd);
   Ndb_schema_dist_data schema_dist_data;
 
 restart_cluster_failure:
@@ -8028,8 +7977,12 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for ndbcluster to start";
     thd_set_thd_ndb(thd, thd_ndb);
 
-    while (!ndbcluster_is_connected(1) || !ndb_binlog_setup(thd))
+    while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb))
     {
+      // Failed to complete binlog_setup, remove all existing event
+      // operations from potential partial setup
+      remove_all_event_operations(s_ndb, i_ndb);
+
       if (!thd_ndb->valid_ndb())
       {
         /*

@@ -31,6 +31,8 @@
 #include "sql/ndb_component.h"
 #include "sql/ndb_binlog_hooks.h"
 
+class Ndb;
+
 class Ndb_binlog_thread : public Ndb_component
 {
   Ndb_binlog_hooks binlog_hooks;
@@ -74,7 +76,7 @@ private:
   bool check_reconnect_incident(THD* thd, class injector* inj,
                                 Reconnect_type incident_id) const;
 
-  /*
+  /**
     @brief Perform any purge requests which has been queued up earlier.
 
     @param thd Thread handle
@@ -82,6 +84,25 @@ private:
   void recall_pending_purges(THD *thd);
   std::mutex m_purge_mutex; // Protects m_pending_purges
   std::vector<std::string> m_pending_purges; // List of pending purges
+
+  /**
+     @brief Remove event operations belonging to one Ndb object
+
+     @param ndb The Ndb object to remove event operations from
+  */
+  void remove_event_operations(Ndb *ndb) const;
+
+  /**
+     @brief Remove event operations belonging to the two different Ndb objects
+     owned by the binlog thread
+
+     @note The function also release references to NDB_SHARE's owned by the
+     binlog thread
+
+     @param s_ndb The schema Ndb object to remove event operations from
+     @param i_ndb The injector Ndb object to remove event operations from
+  */
+  void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb) const;
 
 };
 
