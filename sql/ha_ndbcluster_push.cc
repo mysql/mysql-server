@@ -194,6 +194,52 @@ bool ndb_pushed_join::match_definition(int type,  // NdbQueryOperationDef::Type,
   return true;
 }
 
+#ifdef WORDS_BIGENDIAN
+/**
+ * Determine if a specific column type is represented in a format which is
+ * sensitive to the endian format of the underlying platform.
+ */
+static bool
+is_endian_sensible_type(const Field *field)
+{
+  const enum_field_types type = field->real_type();
+  switch(type)
+  {
+    // Most numerics are endian sensible, note the int24 though.
+    // Note: Enum dont have its own type, represented as an int.
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+    // Deprecated temporal types were 8/4 byte integers
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+      return true;
+
+    // The new temporal data types did it right, not endian sensitive
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_TIMESTAMP2:
+    // The Tiny type is a single byte, so endianness does not matter
+    case MYSQL_TYPE_TINY:
+    // Year is also a 'tiny', single byte
+    case MYSQL_TYPE_YEAR:
+    // Odly enough, The int24 is *not* stored in an endian sensible format
+    case MYSQL_TYPE_INT24:
+    // The (deprecated) Time type was handled as an int24.
+    case MYSQL_TYPE_TIME:
+    // Decimal is basically a char string variant.
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
+    // Other datatypes (char, blob, json, ..) is not an endian concern
+    default:
+      return false;
+  }
+}
+#endif
+
 NdbQuery *ndb_pushed_join::make_query_instance(
     NdbTransaction *trans, const NdbQueryParamValue *keyFieldParams,
     uint paramCnt) const {
@@ -226,7 +272,26 @@ NdbQuery *ndb_pushed_join::make_query_instance(
     for (uint i = 0; i < outer_fields; i++) {
       Field *field = m_referred_fields[i];
       DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-      new (extendedParams + paramCnt + i) NdbQueryParamValue(field->ptr, false);
+      uchar* raw = field->ptr;
+
+#ifdef WORDS_BIGENDIAN
+      if (field->table->s->db_low_byte_first && is_endian_sensible_type(field))
+      {
+	const uint32 field_length = field->pack_length();
+	raw = static_cast<uchar*>(my_alloca(field_length));
+
+        // Byte order is swapped to get the correct endian format.
+        const uchar *last = field->ptr+field_length;
+        for (uint pos = 0; pos < field_length; pos++)
+          raw[pos] = *(--last);
+      }
+      else
+#else
+      //Little endian platforms are expected to be only 'low_byte_first'
+      DBUG_ASSERT(field->table->s->db_low_byte_first);
+#endif
+
+      new (extendedParams + paramCnt + i) NdbQueryParamValue(raw, false);
     }
     paramValues = extendedParams;
   }

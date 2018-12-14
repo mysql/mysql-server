@@ -409,6 +409,9 @@ where t1.a=2 and t1.b=2;
 
 ## Bug#28898811 INCORRECTLY REJECT JOIN TO BE PUSHED DOWN
 ##
+## .. also served to detect (also see ndb_endian.test):
+## Bug#29010641 FAILS TO HANDLE DIFFERENT ENDIANNESS FORMATS IN PUSHED JOIN KEYS
+##
 ## Tables not beings considered in the join pushdown analysis,
 ## e.g. a table not being a ndb table, where also incorrectly
 ## excluded as a table which could be referred in the join conditions
