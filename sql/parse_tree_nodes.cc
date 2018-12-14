@@ -1339,9 +1339,11 @@ PT_common_table_expr::PT_common_table_expr(
       m_subq_node(subq_node),
       m_column_names(*column_names),
       m_postparse(mem_root) {
-  if (lower_case_table_names && m_name.length)
+  if (lower_case_table_names && m_name.length) {
     // Lowercase name, as in SELECT_LEX::add_table_to_list()
     m_name.length = my_casedn_str(files_charset_info, m_name.str);
+  }
+  m_postparse.name = m_name;
 }
 
 void PT_with_clause::print(const THD *thd, String *str,

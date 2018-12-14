@@ -447,9 +447,9 @@ class MaterializeIterator final : public TableRowIterator {
                       unique_ptr_destroy_only<RowIterator> subquery_iterator,
                       Temp_table_param *temp_table_param, TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      SELECT_LEX *select_lex, JOIN *join, int ref_slice,
-                      bool copy_fields_and_items, bool rematerialize,
-                      ha_rows limit_rows);
+                      const Common_table_expr *cte, SELECT_LEX *select_lex,
+                      JOIN *join, int ref_slice, bool copy_fields_and_items,
+                      bool rematerialize, ha_rows limit_rows);
 
   bool Init() override;
   int Read() override;
@@ -475,6 +475,10 @@ class MaterializeIterator final : public TableRowIterator {
  private:
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
+
+  /// If we are materializing a CTE, points to it. Otherwise nullptr.
+  const Common_table_expr *m_cte;
+
   Temp_table_param *m_tmp_table_param;
   SELECT_LEX *m_select_lex;
 

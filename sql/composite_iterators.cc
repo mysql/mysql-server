@@ -482,12 +482,14 @@ vector<string> CacheInvalidatorIterator::DebugString() const {
 MaterializeIterator::MaterializeIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> subquery_iterator,
     Temp_table_param *tmp_table_param, TABLE *table,
-    unique_ptr_destroy_only<RowIterator> table_iterator, SELECT_LEX *select_lex,
-    JOIN *join, int ref_slice, bool copy_fields_and_items, bool rematerialize,
+    unique_ptr_destroy_only<RowIterator> table_iterator,
+    const Common_table_expr *cte, SELECT_LEX *select_lex, JOIN *join,
+    int ref_slice, bool copy_fields_and_items, bool rematerialize,
     ha_rows limit_rows)
     : TableRowIterator(thd, table),
       m_subquery_iterator(move(subquery_iterator)),
       m_table_iterator(move(table_iterator)),
+      m_cte(cte),
       m_tmp_table_param(tmp_table_param),
       m_select_lex(select_lex),
       m_join(join),
@@ -498,6 +500,18 @@ MaterializeIterator::MaterializeIterator(
       m_invalidators(thd->mem_root) {}
 
 bool MaterializeIterator::Init() {
+  // If this is a CTE, it could be referred to multiple times in the same query.
+  // If so, check if we have already been materialized through any of our alias
+  // tables.
+  if (!table()->materialized && m_cte != nullptr) {
+    for (TABLE_LIST *table_ref : m_cte->tmp_tables) {
+      if (table_ref->table->materialized) {
+        table()->materialized = true;
+        break;
+      }
+    }
+  }
+
   if (table()->materialized) {
     bool rematerialize = m_rematerialize;
 
@@ -657,7 +671,17 @@ vector<string> MaterializeIterator::DebugString() const {
   }
 
   string str;
-  if (m_rematerialize) {
+  if (m_cte != nullptr) {
+    if (m_cte->tmp_tables.size() == 1) {
+      str = "Materialize CTE " + to_string(m_cte->name);
+    } else {
+      str = "Materialize CTE " + to_string(m_cte->name) + " if needed";
+      if (m_cte->tmp_tables[0]->table != table()) {
+        // See children().
+        str += " (query plan printed elsewhere)";
+      }
+    }
+  } else if (m_rematerialize) {
     str = "Temporary table";
   } else {
     str = "Materialize";
@@ -697,6 +721,15 @@ vector<string> MaterializeIterator::DebugString() const {
 }
 
 vector<RowIterator::Child> MaterializeIterator::children() const {
+  // If a CTE is references multiple times, only bother printing its query plan
+  // once, instead of repeating it over and over again.
+  //
+  // TODO: Consider printing CTE query plans on the top level of the query block
+  // instead?
+  if (m_cte != nullptr && m_cte->tmp_tables[0]->table != table()) {
+    return {};
+  }
+
   char heading[256] = "";
   if (m_limit_rows != HA_POS_ERROR) {
     // We call this “Limit table size” as opposed to “Limit”, to be able to

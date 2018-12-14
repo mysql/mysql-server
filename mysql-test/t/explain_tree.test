@@ -251,3 +251,10 @@ CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
   WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
 DROP TABLE t1;
+
+# A non-recursive CTE. The case of multiple uses is tested in derived_correlated.
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f1 INT );
+EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my_cte, t2;
+DROP TABLE t1;
+DROP TABLE t2;

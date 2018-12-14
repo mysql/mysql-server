@@ -202,6 +202,7 @@ let $query=
 select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 
 eval explain $query;
+eval explain format=tree $query;  # Demonstrates printing of CTEs printed multiple times.
 eval $query;
 
 # Same with HAVING to test similar change in Item_ref::fix_fields

@@ -1513,10 +1513,19 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                          &subjoin->tmp_table_param);
 
       bool rematerialize = qep_tab->rematerialize;
-      if (qep_tab->join()->select_lex->uncacheable) {
+      if (qep_tab->join()->select_lex->uncacheable &&
+          qep_tab->table_ref->common_table_expr() == nullptr) {
         // If the query is uncacheable, we need to rematerialize it each and
         // every time it's read. In particular, this can happen for LATERAL
         // tables.
+        //
+        // For (lateral) CTEs, we don't need this check, as we already
+        // explicitly clear CTEs when we start executing the query block where
+        // it is defined (clear_corr_ctes(), called whenever we start a query
+        // block or materialize a table, takes care of this). In fact,
+        // rematerializing every time is actively harmful, as it would risk
+        // clearing out a temporary table that an outer query block is still
+        // scanning.
         rematerialize = true;
       }
 
@@ -1525,7 +1534,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       table_iterator.reset(new (thd->mem_root) MaterializeIterator(
           thd, subjoin->release_root_iterator(), &subjoin->tmp_table_param,
           qep_tab->table(), move(qep_tab->read_record.iterator),
-          subjoin->select_lex, subjoin,
+          qep_tab->table_ref->common_table_expr(), subjoin->select_lex, subjoin,
           /*ref_slice=*/-1, copy_fields_and_items_in_materialize, rematerialize,
           subjoin->tmp_table_param.end_write_records));
 
@@ -1645,7 +1654,7 @@ void JOIN::create_iterators() {
 
   // The new executor engine can't do materialized tables (except
   // materialized derived tables in some cases, and materialization
-  // at the very end), CTEs, semijoins, loose scan or BNL/BKA.
+  // at the very end), recursive CTEs, semijoins, loose scan or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
@@ -1659,8 +1668,6 @@ void JOIN::create_iterators() {
       // If we have a derived table that can be processed by
       // the new query engine (and doesn't have UNION et al),
       // MaterializeIterator can deal with it.
-      // Note that this test includes non-recursive CTEs,
-      // but we test for those below.
       SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
       if (!unit->is_simple()) {
         return;
@@ -1692,12 +1699,9 @@ void JOIN::create_iterators() {
       }
     }
 
-    if ((qep_tab->table_ref != nullptr &&
-         qep_tab->table_ref->is_recursive_reference()) ||
-        (qep_tab->table() != nullptr &&
-         qep_tab->table()->pos_in_table_list != nullptr &&
-         qep_tab->table()->pos_in_table_list->common_table_expr() != nullptr)) {
-      // CTE.
+    if (qep_tab->table_ref != nullptr &&
+        qep_tab->table_ref->is_recursive_reference()) {
+      // Recursive CTE.
       return;
     }
     if (qep_tab->do_firstmatch() || qep_tab->do_loosescan() ||
@@ -1816,8 +1820,8 @@ void JOIN::create_iterators() {
            MaterializeOperation::AGGREGATE_THEN_MATERIALIZE);
       iterator.reset(new (thd->mem_root) MaterializeIterator(
           thd, move(iterator), qep_tab->tmp_table_param, qep_tab->table(),
-          move(qep_tab->read_record.iterator), select_lex, this,
-          qep_tab->ref_item_slice, copy_fields_and_items,
+          move(qep_tab->read_record.iterator), /*cte=*/nullptr, select_lex,
+          this, qep_tab->ref_item_slice, copy_fields_and_items,
           /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records));
 
       // NOTE: There's no need to call join->add_materialize_iterator(),

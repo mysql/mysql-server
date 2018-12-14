@@ -420,3 +420,16 @@ EXPLAIN
                     -> Table scan on t1
 
 DROP TABLE t1;
+CREATE TABLE t1 ( f1 INT );
+CREATE TABLE t2 ( f1 INT );
+EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my_cte, t2;
+EXPLAIN
+-> Nested loop inner join
+    -> Table scan on t2
+    -> Table scan on my_cte
+        -> Materialize CTE my_cte
+            -> Limit: 3 row(s)
+                -> Table scan on t1
+
+DROP TABLE t1;
+DROP TABLE t2;
