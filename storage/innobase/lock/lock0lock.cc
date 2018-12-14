@@ -2434,7 +2434,7 @@ static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
   }
 
   /* Reorder the record lock wait queue on the CATS priority. */
-  std::sort(waiting.begin(), waiting.end(), CATS_Lock_priority());
+  std::stable_sort(waiting.begin(), waiting.end(), CATS_Lock_priority());
 
   int32_t sub_age = 0;
   int32_t add_age = 0;
