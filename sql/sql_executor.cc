@@ -1627,6 +1627,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 void JOIN::create_iterators() {
   DBUG_ASSERT(m_root_iterator == nullptr);
 
+  if (select_lex->parent_lex->m_sql_cmd != nullptr &&
+      select_lex->parent_lex->m_sql_cmd->using_secondary_storage_engine()) {
+    return;
+  }
+
   struct MaterializeOperation {
     QEP_TAB *temporary_qep_tab;
     enum {
