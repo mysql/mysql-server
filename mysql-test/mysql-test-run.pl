@@ -1180,6 +1180,8 @@ sub run_worker ($) {
       # Stop the secondary engine servers if started.
       stop_secondary_engine_servers() if $test->{'secondary-engine'};
 
+      $ENV{'SECONDARY_ENGINE_TEST'} = 0;
+
       # Send it back, now with results set
       $test->write_test($server, 'TESTRESULT');
       mark_time_used('restart');
@@ -6262,6 +6264,10 @@ sub start_servers($) {
   if ($tinfo->{'secondary-engine'}) {
     # Start secondary engine servers.
     start_secondary_engine_servers($tinfo);
+
+    # Set an environment variable to indicate that the test needs
+    # secondary engine.
+    $ENV{'SECONDARY_ENGINE_TEST'} = 1;
 
     # Install secondary engine plugin on all running mysqld servers.
     foreach my $mysqld (mysqlds()) {

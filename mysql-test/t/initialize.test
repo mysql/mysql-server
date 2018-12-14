@@ -216,6 +216,9 @@ remove_file $MYSQLD_LOG;
 --echo #
 --exec $MYSQLD $extra_args --datadir=$DDIR --initialize --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/keyring $KEYRING_PLUGIN_OPT > $MYSQLD_LOG 2>&1
 
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
 --echo # delete temp keyring file
 remove_file $MYSQL_TMP_DIR/keyring;
 

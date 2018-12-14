@@ -48,7 +48,7 @@ while ($mysql_errno)
   --sleep 0.1
 }
 
-if ($SECONDARY_ENGINE) {
+if ($SECONDARY_ENGINE_TEST) {
   --let $counter = 100
   --let $secondary_engine_status = OFF
 

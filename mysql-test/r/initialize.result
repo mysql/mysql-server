@@ -99,6 +99,7 @@ a
 #
 # Bug#22777039 - MYSQLD --INITIALIZE DOES NOT SUPPORT THE KEYRING_FILE_DATA OPTION
 #
+# delete mysqld log
 # delete temp keyring file
 # delete datadir
 #
