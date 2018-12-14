@@ -24,6 +24,9 @@ else()
     cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 endif()
 
+# This is only used by a plugin, so we need -fPIC
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+
 # if(NOT CMAKE_BUILD_TYPE)
 #     set(CMAKE_BUILD_TYPE Release
 #         CACHE STRING "Set build type to Debug o Release (default Release)" FORCE)

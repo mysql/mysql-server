@@ -18,7 +18,7 @@
 #cmakedefine __EXTENSIONS__
 
 /* Number of bits in a file offset, on hosts where this is settable. */
-#cmakedefine _FILE_OFFSET_BITS 1
+/* #cmakedefine _FILE_OFFSET_BITS 1 */
 /* Define for large files, on AIX-style hosts. */
 #cmakedefine _LARGE_FILES 1
 
