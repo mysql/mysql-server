@@ -2724,3 +2724,119 @@ result_rows	filtered_rows
 Testing: 'not <column> not like 'five''
 result_rows	filtered_rows
 1	1
+#
+# Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
+#
+CREATE TABLE t1 (
+ushort smallint unsigned NOT NULL,
+date_field date
+) engine=ndb;
+insert into t1 values
+(1, '1901-01-01'),
+(2, '1902-02-02'),
+(3, '1903-03-03'),
+(4, '1904-04-04');
+update t1 set ushort=65535;
+# save_in_field() will truncate 999999 to MAX_UINT(65535)
+# The truncated warning is ignored, and we effectively compared
+# against 65535 below.
+explain
+select * from t1 where ushort <= 999999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`ushort` <= 999999)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`ushort` <= 999999)
+select * from t1 where ushort <= 999999;
+ushort	date_field
+65535	1901-01-01
+65535	1902-02-02
+65535	1903-03-03
+65535	1904-04-04
+explain
+select * from t1 where ushort < 999999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`ushort` < 999999)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`ushort` < 999999)
+select * from t1 where ushort < 999999;
+ushort	date_field
+65535	1901-01-01
+65535	1902-02-02
+65535	1903-03-03
+65535	1904-04-04
+explain
+select * from t1 where ushort >= 999999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`ushort` >= 999999)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`ushort` >= 999999)
+select * from t1 where ushort >= 999999;
+ushort	date_field
+explain
+select * from t1 where ushort = 999999;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	25.00	Using pushed condition (`test`.`t1`.`ushort` = 999999)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`ushort` = 999999)
+select * from t1 where ushort = 999999;
+ushort	date_field
+# Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.
+# Seems to be unpredictable which value is actually stored for an
+# out of range value. Anyway the result was not as expected.
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+explain
+select * from t1 where date_field < '9999-99-99';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` < '9999-99-99')
+select * from t1 where date_field < '9999-99-99';
+ushort	date_field
+65535	1901-01-01
+65535	1902-02-02
+65535	1903-03-03
+65535	1904-04-04
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warnings:
+explain
+select * from t1 where date_field > '9999-99-99';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using where
+Warnings:
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` > '9999-99-99')
+select * from t1 where date_field > '9999-99-99';
+ushort	date_field
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warnings:
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+explain
+select * from t1 where date_field < '9999-99-99';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`date_field` < '9999-99-99')
+Warnings:
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` < '9999-99-99')
+select * from t1 where date_field < '9999-99-99';
+ushort	date_field
+65535	1901-01-01
+65535	1902-02-02
+65535	1903-03-03
+65535	1904-04-04
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warnings:
+explain
+select * from t1 where date_field > '9999-99-99';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	33.33	Using pushed condition (`test`.`t1`.`date_field` > '9999-99-99')
+Warnings:
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` > '9999-99-99')
+select * from t1 where date_field > '9999-99-99';
+ushort	date_field
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warning	1292	Incorrect date value: '9999-99-99' for column 'date_field' at row 1
+Warnings:
+drop table t1;

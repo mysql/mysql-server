@@ -2685,3 +2685,82 @@ eval $verify_row_count;
 
 drop table t1;
 --enable_query_log
+
+
+--echo #
+--echo # Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
+--echo #
+
+CREATE TABLE t1 (
+  ushort smallint unsigned NOT NULL,
+  date_field date
+) engine=ndb;
+
+insert into t1 values
+(1, '1901-01-01'),
+(2, '1902-02-02'),
+(3, '1903-03-03'),
+(4, '1904-04-04');
+
+# Set MAX_UINT for 'ushort'
+update t1 set ushort=65535;
+
+--echo # save_in_field() will truncate 999999 to MAX_UINT(65535)
+--echo # The truncated warning is ignored, and we effectively compared
+--echo # against 65535 below.
+
+# '<= 65535', should return all rows
+explain
+select * from t1 where ushort <= 999999;
+--sorted_result
+select * from t1 where ushort <= 999999;
+
+# '< 65535', should return all rows
+explain
+select * from t1 where ushort < 999999;
+--sorted_result
+select * from t1 where ushort < 999999;
+
+# '>= 65535', no rows should be returned
+explain
+select * from t1 where ushort >= 999999;
+--sorted_result
+select * from t1 where ushort >= 999999;
+
+# '= 65535', no rows should be returned
+explain
+select * from t1 where ushort = 999999;
+--sorted_result
+select * from t1 where ushort = 999999;
+
+
+--echo # Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.
+--echo # Seems to be unpredictable which value is actually stored for an
+--echo # out of range value. Anyway the result was not as expected.
+
+set @@optimizer_switch = 'engine_condition_pushdown=off';
+
+explain
+select * from t1 where date_field < '9999-99-99';
+--sorted_result
+select * from t1 where date_field < '9999-99-99';
+
+explain
+select * from t1 where date_field > '9999-99-99';
+--sorted_result
+select * from t1 where date_field > '9999-99-99';
+
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+explain
+select * from t1 where date_field < '9999-99-99';
+--sorted_result
+select * from t1 where date_field < '9999-99-99';
+
+explain
+select * from t1 where date_field > '9999-99-99';
+--sorted_result
+select * from t1 where date_field > '9999-99-99';
+
+
+drop table t1;

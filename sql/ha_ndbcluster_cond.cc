@@ -254,7 +254,7 @@ public:
 
     if (item->type() == Item::FUNC_ITEM)
     {
-      Item_func *func_item= (Item_func *) item;
+      const Item_func *func_item= static_cast<const Item_func*>(item);
       if (func_item->const_item())
         return true;
     }
@@ -268,8 +268,7 @@ public:
     return (item->type() == Item::CACHE_ITEM);
   }
 
-
-  uint32 save_in_field(Ndb_item *field_item)
+  uint32 save_in_field(Ndb_item *field_item, bool allow_truncate=false)
   {
     uint32 length= 0;
     DBUG_ENTER("save_in_field");
@@ -280,8 +279,24 @@ public:
       length= item->max_length;
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
-      ((Item *)item)->save_in_field(field, false);
+      const type_conversion_status status = const_cast<Item*>(item)->save_in_field(field, false);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
+
+      if (unlikely(status != TYPE_OK))
+      {
+        if (!allow_truncate)
+          DBUG_RETURN(0);
+
+        switch (status)
+        {
+          case TYPE_NOTE_TRUNCATED:
+          case TYPE_WARN_TRUNCATED:
+          case TYPE_NOTE_TIME_TRUNCATED:
+            break; // -> OK
+          default:
+            DBUG_RETURN(0);
+        }
+      }
     }
     DBUG_RETURN(length);
   }
@@ -2022,7 +2037,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_EQ_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating EQ filter"));
       if (filter->cmp(NdbScanFilter::COND_EQ, 
                       field->get_field_no(),
@@ -2034,7 +2050,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_NE_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       DBUG_PRINT("info", ("Generating NE filter"));
       if (filter->cmp(NdbScanFilter::COND_NE, 
                       field->get_field_no(),
@@ -2046,7 +2063,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_LT_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       if (a == field)
       {
         DBUG_PRINT("info", ("Generating LT filter")); 
@@ -2070,7 +2088,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_LE_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       if (a == field)
       {
         DBUG_PRINT("info", ("Generating LE filter")); 
@@ -2094,7 +2113,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_GE_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       if (a == field)
       {
         DBUG_PRINT("info", ("Generating GE filter")); 
@@ -2118,7 +2138,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_GT_FUNC:
     {
       // Save value in right format for the field type
-      value->save_in_field(field);
+      if (unlikely(value->save_in_field(field) == 0))
+        DBUG_RETURN(1);
       if (a == field)
       {
         DBUG_PRINT("info", ("Generating GT filter"));
@@ -2141,9 +2162,11 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case NDB_LIKE_FUNC:
     {
-      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type
-      uint32 val_len= value->save_in_field(field);
+      const bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
+      // Save value in right format for the field type, allow string truncation
+      const uint32 val_len= value->save_in_field(field, true);
+      if (unlikely(val_len == 0))
+        DBUG_RETURN(1);
       char buff[MAX_FIELD_WIDTH];
       String str(buff,sizeof(buff),field->get_field_charset());
       if (val_len > field->get_field()->field_length)
@@ -2171,9 +2194,11 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case NDB_NOTLIKE_FUNC:
     {
-      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
-      // Save value in right format for the field type
-      uint32 val_len= value->save_in_field(field);
+      const bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
+      // Save value in right format for the field type, allow string truncation
+      const uint32 val_len= value->save_in_field(field, true);
+      if (unlikely(val_len == 0))
+        DBUG_RETURN(1);
       char buff[MAX_FIELD_WIDTH];
       String str(buff,sizeof(buff),field->get_field_charset());
       if (val_len > field->get_field()->field_length)
