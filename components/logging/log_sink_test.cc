@@ -134,10 +134,8 @@ static void test_add_item_log_me(log_filter_ruleset *rs, const char *label,
   Show that flow control actually works.
   This is intended to work in tandem with the log_components_filter.test;
   the test sets up the filter-rules, and we provided some input to them.
-
-  @retval  0  success
 */
-static int test_if_then_else() {
+static void test_if_then_else() {
   LogEvent()
       .type(LOG_TYPE_ERROR)
       .prio(INFORMATION_LEVEL)
@@ -197,7 +195,6 @@ static int test_if_then_else() {
       .subsys(LOG_SUBSYSTEM_TAG)
       .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE");
-  return 0;
 }
 
 /**
@@ -207,12 +204,14 @@ static int test_if_then_else() {
   @retval -1  could not acquire ruleset (to add throttle)
   @retval -2  could not initialize new rule
   @retval -3  could not acquire ruleset (to delete throttle)
+  @retval -4  could not delete all rules
 */
 static int test_add_item(log_filter_ruleset *rs) {
   log_filter_rule *r;
   int rr = -99;
   uint32 orig_count;
 
+  // if we can't lock the rules, return directly
   if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)
     return -1;
 
@@ -334,25 +333,32 @@ static int test_add_item(log_filter_ruleset *rs) {
   // modify and log event
   test_add_item_log_me(rs, "delta in medias res", orig_count);
 
+  // if we can't lock the rules, return directly
   if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)
     return -3;
-
-  assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRIO_CHANGE,
-                      LOG_FILTER_COND_EQ, LOG_FILTER_ITEM_SET));
-  assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_DEL_ITEM,
-                      LOG_FILTER_COND_NE, LOG_FILTER_ITEM_DEL));
-  assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRS_ITEM,
-                      LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_SET));
 
   rr = 0;
 
 done:
+  /*
+    If we arrive here from a goto, something went wrong, and we don't
+    know what rules were set up correctly. Therefore, some of these
+    deletes may fail (since we never added the corresponding rule).
+    We stick with the original return-code here however as we're
+    interested in the root issue, not subsequent issue.
+
+    If we made it this far without goto (rr==0), all 3 rules have
+    been set up, so not being able to delete any one is clearly an
+    error and should be flagged as such.
+  */
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRIO_CHANGE, LOG_FILTER_COND_EQ,
               LOG_FILTER_ITEM_SET);
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_DEL_ITEM, LOG_FILTER_COND_NE,
               LOG_FILTER_ITEM_DEL);
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRS_ITEM,
               LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_SET);
+
+  if ((rr == 0) && (rs->count != orig_count)) rr = -4;
 
   log_bf->filter_ruleset_unlock(rs);
 
@@ -365,70 +371,86 @@ done:
 /**
   Get coverage for some of the built-ins.
 
-  @retval -1  could not acquire ruleset (to add throttle)
-  @retval -2  could not initialize new rule
-  @retval -3  could not acquire ruleset (to delete throttle)
+  @retval  number of problems detected
 */
 static int test_builtins() {
-  // test classifiers
-  assert(log_bi->item_numeric_class(LOG_INTEGER));
-  assert(log_bi->item_numeric_class(LOG_FLOAT));
-  assert(!log_bi->item_numeric_class(LOG_LEX_STRING));
-  assert(!log_bi->item_numeric_class(LOG_CSTRING));
+  int ret = 0;
 
-  assert(!log_bi->item_string_class(LOG_INTEGER));
-  assert(!log_bi->item_string_class(LOG_FLOAT));
-  assert(log_bi->item_string_class(LOG_LEX_STRING));
-  assert(log_bi->item_string_class(LOG_CSTRING));
+#if !defined(DBUG_OFF)
+  // test classifiers
+  DBUG_ASSERT(log_bi->item_numeric_class(LOG_INTEGER));
+  DBUG_ASSERT(log_bi->item_numeric_class(LOG_FLOAT));
+  DBUG_ASSERT(!log_bi->item_numeric_class(LOG_LEX_STRING));
+  DBUG_ASSERT(!log_bi->item_numeric_class(LOG_CSTRING));
+
+  DBUG_ASSERT(!log_bi->item_string_class(LOG_INTEGER));
+  DBUG_ASSERT(!log_bi->item_string_class(LOG_FLOAT));
+  DBUG_ASSERT(log_bi->item_string_class(LOG_LEX_STRING));
+  DBUG_ASSERT(log_bi->item_string_class(LOG_CSTRING));
 
   // test functions for wellknowns
   int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
-  assert(LOG_ITEM_LOG_LABEL == log_bi->wellknown_get_type(wellknown));
+  DBUG_ASSERT(LOG_ITEM_LOG_LABEL == log_bi->wellknown_get_type(wellknown));
 
   wellknown = log_bi->wellknown_by_type(LOG_ITEM_GEN_INTEGER);
   const char *wk = log_bi->wellknown_get_name(wellknown);
-  assert(LOG_ITEM_TYPE_RESERVED ==
-         log_bi->wellknown_by_name(wk, log_bs->length(wk)));
+  DBUG_ASSERT(LOG_ITEM_TYPE_RESERVED ==
+              log_bi->wellknown_by_name(wk, log_bs->length(wk)));
+#endif
 
   // make a bag, then create a couple of key/value pairs on it
   log_line *ll = log_bi->line_init();
-  assert(log_bi->line_item_count(ll) == 0);
+  DBUG_ASSERT(ll != nullptr);
+  if (ll == nullptr) return 1;
+  DBUG_ASSERT(log_bi->line_item_count(ll) == 0);
 
   log_item_data *d = log_bi->line_item_set(ll, LOG_ITEM_LOG_LABEL);
-  assert(d != nullptr);
-  assert(log_bi->line_item_count(ll) == 1);
+  DBUG_ASSERT(d != nullptr);
+  DBUG_ASSERT(log_bi->line_item_count(ll) == 1);
 
   log_item_data *d1 = log_bi->line_item_set(ll, LOG_ITEM_SQL_ERRCODE);
-  assert(!log_bi->item_set_int(d1, ER_PARSER_TRACE));
-  assert(d1 != nullptr);
-  assert(log_bi->line_item_count(ll) == 2);
+  ret += log_bi->item_set_int(d1, ER_PARSER_TRACE) ? 1 : 0;
+  DBUG_ASSERT(ret == 0);
+  DBUG_ASSERT(d1 != nullptr);
+  DBUG_ASSERT(log_bi->line_item_count(ll) == 2);
 
   // setters (woof)
-  assert(!log_bi->item_set_float(d, 3.1415926927));
-  assert(!log_bi->item_set_int(d, 31415926927));
-  assert(!log_bi->item_set_cstring(d, "pi==3.14"));
-  assert(!log_bi->item_set_lexstring(d, "pi", 2));
+  ret += log_bi->item_set_float(d, 3.1415926927) ? 1 : 0;
+  DBUG_ASSERT(ret == 0);
 
-  // find our item in the bag
+  ret += log_bi->item_set_int(d, 31415926927) ? 1 : 0;
+  DBUG_ASSERT(ret == 0);
+
+  ret += log_bi->item_set_cstring(d, "pi==3.14") ? 1 : 0;
+  DBUG_ASSERT(ret == 0);
+
+  ret += log_bi->item_set_lexstring(d, "pi", 2) ? 1 : 0;
+  DBUG_ASSERT(ret == 0);
+
+  // get our item from the bag
   log_item_iter *it;
   log_item *li;
-  assert((it = log_bi->line_item_iter_acquire(ll)) != nullptr);
-  assert((li = log_bi->line_item_iter_first(it)) != nullptr);
+
+  it = log_bi->line_item_iter_acquire(ll);
+  DBUG_ASSERT(it != nullptr);
+
+  li = log_bi->line_item_iter_first(it);
+  DBUG_ASSERT(li != nullptr);
 
   // break item, then detect brokeness
   li->item_class = LOG_FLOAT;
-  assert(log_bi->item_inconsistent(li) < 0);
+  DBUG_ASSERT(log_bi->item_inconsistent(li) < 0);
 
   // release iter
   log_bi->line_item_iter_release(it);
 
-  // try to log it anyway
+  // try to log item we broke.  logger should handle this gracefully.
   log_bi->line_submit(ll);
 
   // release line
   log_bi->line_exit(ll);
 
-  return 0;
+  return ret;
 }
 
 /**
@@ -635,16 +657,18 @@ static void banner() {
       .message("using LogEvent() object in external service");
 
   // built-in API test: test "well-known" lookups
+#if !defined(DBUG_OFF)
   {
     int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
     const char *label_key = log_bi->wellknown_get_name(wellknown);
     int wellagain =
         log_bi->wellknown_by_name(label_key, log_bs->length(label_key));
 
-    assert(wellknown == wellagain);
+    DBUG_ASSERT(wellknown == wellagain);
 
-    assert(LOG_ITEM_TYPE_NOT_FOUND == log_bi->wellknown_by_name("", 0));
+    DBUG_ASSERT(LOG_ITEM_TYPE_NOT_FOUND == log_bi->wellknown_by_name("", 0));
   }
+#endif
 
   // built-in API test: test item_consistent() checks
   {
