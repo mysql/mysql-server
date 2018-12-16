@@ -200,6 +200,7 @@ our $opt_no_skip;
 our $opt_non_parallel_test;
 our $opt_record;
 our $opt_report_unstable_tests;
+our $opt_skip_combinations;
 our $opt_ssl;
 our $opt_suite_opt;
 our $opt_summary_report;
@@ -1398,7 +1399,7 @@ sub command_line_setup {
     'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
     'no-skip'                  => \$opt_no_skip,
     'only-big-test'            => \$opt_only_big_test,
-    'skip-combinations'        => \&collect_option,
+    'skip-combinations'        => \$opt_skip_combinations,
     'skip-im'                  => \&ignore_option,
     'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
     'skip-rpl'                 => \&collect_option,
@@ -4738,7 +4739,10 @@ sub run_testcase ($) {
     $test_timeout = 0;
 
     # Check if it was secondary engine server that died
-    if ($proc->{'SAFE_NAME'} eq "secondary_engine") {
+    if (grep($proc eq $_, started(secondary_engine_servers()))) {
+      # Secondary engine server is shutdown automatically when
+      # mysqld server is shutdown.
+      next if ($proc->{EXIT_STATUS} == 0);
       # Secondary engine server crashed or died
       $tinfo->{'secondary_engine_srv_crash'} = 1;
       $tinfo->{'comment'} =
@@ -5128,22 +5132,21 @@ sub extract_warning_lines ($$) {
 #   0 OK
 #   1 Check failed
 sub start_check_warnings ($$) {
-  my $tinfo  = shift;
-  my $mysqld = shift;
+  my $tinfo = shift;
+  my $exe   = shift;
 
-  my $name      = "warnings-" . $mysqld->name();
-  my $log_error = $mysqld->value('#log-error');
+  my $name      = "warnings-" . $exe->name();
+  my $log_error = $exe->value('#log-error');
 
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR} = $log_error;
   extract_warning_lines($log_error, $tinfo->{name});
-  extract_secondary_engine_warning_lines() if $tinfo->{'secondary-engine'};
 
   my $args;
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $exe->suffix());
   mtr_add_arg($args, "--test-file=%s",  "include/check-warnings.test");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
@@ -5159,30 +5162,20 @@ sub start_check_warnings ($$) {
   return $proc;
 }
 
-# Loop through our list of processes and check the error log
-# for unexepcted errors and warnings.
-sub check_warnings ($) {
-  my ($tinfo) = @_;
-  my $res = 0;
+## Wait till check-warnings.test process spawned is finished and
+## and report the result based on the exit code returned.
+##
+## Arguments:
+##   $started List of check-warnings.test processes
+##   $tinfo   Test object
+sub wait_for_check_warnings ($$) {
+  my $started = shift;
+  my $tinfo   = shift;
 
+  my $res   = 0;
   my $tname = $tinfo->{name};
 
-  # Clear previous warnings
-  delete($tinfo->{warnings});
-
-  # Start the mysqltest processes in parallel to save time also makes
-  # it possible to wait for any process to exit during the check.
-  my %started;
-  foreach my $mysqld (mysqlds()) {
-    if (defined $mysqld->{'proc'}) {
-      my $proc = start_check_warnings($tinfo, $mysqld);
-      $started{ $proc->pid() } = $proc;
-    }
-  }
-
-  # Return immediately if no check proceess was started
-  return 0 unless (keys %started);
-
+  # Start the timer for check-warnings.test
   my $timeout = start_timer(testcase_timeout($tinfo));
 
   while (1) {
@@ -5191,13 +5184,13 @@ sub check_warnings ($) {
     mtr_report("Got $proc");
 
     # Delete the 'check-warnings.log' file generated after
-    #  check-warnings.test run is completed
+    # check-warnings.test run is completed.
     my $check_warnings_log_file = "$opt_vardir/tmp/check-warnings.log";
     if (-e $check_warnings_log_file) {
       unlink($check_warnings_log_file);
     }
 
-    if (delete $started{ $proc->pid() }) {
+    if (delete $started->{ $proc->pid() }) {
       # One check warning process returned
       my $res      = $proc->exit_status();
       my $err_file = $proc->user_data();
@@ -5231,7 +5224,7 @@ sub check_warnings ($) {
           unlink($err_file);
         }
 
-        if (keys(%started) == 0) {
+        if (keys(%{$started}) == 0) {
           # All checks completed
           mark_time_used('ch-warn');
           return $result;
@@ -5260,13 +5253,51 @@ sub check_warnings ($) {
     }
 
     # Kill any check processes still running
-    map($_->kill(), values(%started));
+    map($_->kill(), values(%{$started}));
 
     mark_time_used('ch-warn');
     return $result;
   }
 
   mtr_error("INTERNAL_ERROR: check_warnings");
+}
+
+# Loop through our list of processes and check the error log
+# for unexepcted errors and warnings.
+sub check_warnings ($) {
+  my ($tinfo) = @_;
+
+  # Clear previous warnings
+  delete($tinfo->{warnings});
+
+  # Start the mysqltest processes in parallel to save time also makes
+  # it possible to wait for any process to exit during the check.
+  my %started;
+  foreach my $mysqld (mysqlds()) {
+    if (defined $mysqld->{'proc'}) {
+      my $proc = start_check_warnings($tinfo, $mysqld);
+      $started{ $proc->pid() } = $proc;
+    }
+  }
+
+  # Return immediately if no check proceess was started
+  return 0 unless (keys %started);
+  wait_for_check_warnings(\%started, $tinfo);
+
+  # Search for unexpected warnings in secondary engine server error
+  # log file. Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during
+  # the check.
+  foreach my $secondary_engine_server (secondary_engine_servers()) {
+    if (defined $secondary_engine_server->{'proc'}) {
+      my $proc = start_check_warnings($tinfo, $secondary_engine_server);
+      $started{ $proc->pid() } = $proc;
+    }
+  }
+
+  # Return immediately if no check proceess was started
+  return 0 unless (keys %started);
+  wait_for_check_warnings(\%started, $tinfo);
 }
 
 # Loop through our list of processes and look for and entry with the
@@ -5329,6 +5360,7 @@ sub check_expected_crash_and_restart($$) {
           my $restart_flag = 1;
           # Start secondary engine servers.
           start_secondary_engine_servers($tinfo, $restart_flag);
+          # Load table contents to secondary engine.
           load_table_contents($mysqld) if defined $tinfo->{'load_pool'};
         }
 

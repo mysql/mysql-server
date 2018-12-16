@@ -154,7 +154,7 @@ sub _mtr_report_test_name ($$) {
 
   if (!$::opt_quiet) {
     my $worker = $tinfo->{worker};
-    $report = $report . "w$worker " if defined $worker;
+    $report = $report . sprintf("%-3s", "w$worker") if defined $worker;
   }
 
   return ($report, $tname);

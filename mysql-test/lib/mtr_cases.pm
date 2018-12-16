@@ -73,7 +73,6 @@ our $enable_disabled;
 our $opt_with_ndbcluster_only;
 our $print_testcases;
 our $quick_collect;
-our $skip_combinations;
 our $skip_rpl;
 our $skip_test;
 our $start_from;
@@ -791,7 +790,7 @@ sub collect_one_suite($$$$) {
 
   # Read combinations for this suite and build testcases x
   # combinations if any combinations exists.
-  if (!$skip_combinations && !$quick_collect) {
+  if (!$::opt_skip_combinations && !$quick_collect) {
     my @combinations;
     my $combination_file = "$suitedir/combinations";
 

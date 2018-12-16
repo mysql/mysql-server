@@ -80,63 +80,11 @@ if ($mysql_errno) {
 
 # Call check_warnings to filter out any warning in the error_log table.
 CALL mtr.check_warnings(@result);
+--enable_query_log
 
---let $result = `SELECT @result`
-
-if ($result) {
-  --echo ^ Found warnings in $log_error
+if (`SELECT @result = 0`) {
+  --skip OK
 }
 
-# Check for suspicious warnings in secondary engine server error log file.
-if ($SECONDARY_ENGINE_LOG_ERROR) {
-  CREATE TEMPORARY TABLE error_log (
-    `row` INT AUTO_INCREMENT PRIMARY KEY,
-    suspicious INT DEFAULT 1,
-    file_name VARCHAR(255),
-    line VARCHAR(2500) CHARSET latin1 DEFAULT NULL
-  );
-
-  # Get the name of secondary engine server error log.
-  --let $log_error   = $SECONDARY_ENGINE_LOG_ERROR
-  --let $log_warning = $log_error.warnings
-
-  # Try to load the warnings into a temporary table, it might fail with
-  # error saying "The MySQL server is running with the
-  # --secure-file-priv" in which case an attempt to load the file using
-  # LOAD DATA LOCAL is made.
-  --error 0,1290
-  eval LOAD DATA INFILE '$log_warning' INTO TABLE error_log
-    CHARACTER SET latin1
-    FIELDS TERMINATED BY 'xykls37' ESCAPED BY ''
-    ignore 1 lines
-    (line)
-    SET file_name = '$log_error';
-
-  if ($mysql_errno) {
-    # Try LOAD DATA LOCAL
-    eval LOAD DATA LOCAL INFILE '$log_warning' INTO TABLE error_log
-      CHARACTER SET latin1
-      FIELDS TERMINATED BY 'xykls37' ESCAPED BY ''
-      ignore 1 lines
-      (line)
-      SET file_name = '$log_error';
-  }
-
-  --echo
-
-  # Call check_warnings to filter out any warning in the error_log table.
-  CALL mtr.check_warnings(@result);
-  --enable_query_log
-
-  --let $result = `SELECT @result`
-
-  if ($result) {
-    --echo ^ Found warnings in $log_error
-  }
-}
-
-if (!$result) {
-  skip OK;
-}
-
-exit;
+--echo ^ Found warnings in $log_error
+--exit;

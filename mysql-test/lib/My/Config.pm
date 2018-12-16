@@ -196,6 +196,15 @@ sub new {
       $self->insert($group_name, undef, undef);
     }
 
+    # Magic #! option (#!name=value)
+    elsif ($line =~ /^(#\![\@\w-]+)\s*=\s*(.*?)\s*$/) {
+      my $option = $1;
+      my $value  = $2;
+      croak "Found option '$option=$value' outside of group"
+        unless $group_name;
+      $self->insert($group_name, $option, $value);
+    }
+
     # Magic #! comments
     elsif ($line =~ /^#\!/) {
       my $magic = $line;
