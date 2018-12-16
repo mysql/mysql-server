@@ -415,27 +415,17 @@
         like this, where fields are separated by one or more spaces.
 
         @verbatim
-  suite_name.test_name : BUG#nnnnn YYYY-MM-DD disabler comment
+  suite_name.test_name [@platform|@!platform] : <BUG|WL>#<XXXX> ["<comment>"]
         @endverbatim
 
         Example:
 
         @verbatim
-  rpl.rpl_row_blob_innodb : BUG#18980 2006-04-10 kent Test fails randomly
+  main.1st @linux : BUG#18980 "Test fails randomly"
         @endverbatim
 
         <b><em>suite_name</em></b> is the suite name.
         <b><em>test_name</em></b> is the test case name.
-        <b>BUG#<em>nnnnn</em></b> indicates the bug related to the
-        test that causes it to fail (and thus requires it to be
-        disabled). <b><em>disabler</em></b> is the name of the person
-        that disabled the test. <b><em>comment</em></b> normally
-        provides a reason why the test was disabled.
-
-        The text following the colon is not part of the mandatory
-        syntax for this file; @ref PAGE_MYSQL_TEST_RUN_PL
-        "mysql-test-run.pl" will not actually care what is written
-        here. However, it is a recommended standard.
 
         An additional element after the test name and before the
         colon you may add a <b>\@<em>platform</em></b> to have the
@@ -443,6 +433,18 @@
         reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
         supported. Alternatively, <b>@!<em>platform</i></b> will
         disable the test on all except the named platform.
+
+        <b>BUG#<em>nnnnn</em></b> or <b>WL#<em>nnnn</em></b> indicates
+        the bug or the WL related to the test that causes it to fail
+        (and thus requires it to be disabled).
+
+        The <b><em>comment</em></b> text following the
+        <b>BUG#<em>nnnnn</em></b> or the <b>WL#<em>nnnn</em></b> is
+        not part of the mandatory syntax for this file,
+        @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" will not
+        actually care what is written here. Length of a
+        <b><em>comment</em></b> text must not be more than <b>80</b>
+        characters.
 
         A comment line can be written in the file by beginning the
         line with a “<b>#</b>” character.

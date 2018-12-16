@@ -3,94 +3,92 @@
 # List the test cases that are to be disabled temporarily.
 #
 # Separate the test case name and the comment with ':'.
-#   <suitename>.<testcasename> : BUG#<xxxx> <date> <disabler> <comment>
+#   <suite>.<test> [@platform|@!platform] : <BUG|WL>#<XXXX> ["<comment>"]
 #
 # Note:
 #   - Do not use any TAB characters for whitespace.
+#   - Length of a comment section must not be more than 80 characters.
 #
 ##############################################################################
 
 # audit_null
-audit_null.audit_plugin_bugs : BUG#28080637 2018-05-31 Anitha Test fails consistently
+audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 
 # auth_sec
-auth_sec.openssl_without_fips: Bug #28812609 2018-11-23 Erlend Test fails all over
+auth_sec.openssl_without_fips : BUG#28812609 Test fails all over
 
 # binlog suite tests
 
-
 # func1 suite tests
-funcs_1.is_basics_mixed @darwin  : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
-funcs_1.is_basics_mixed @windows : BUG#25882809 2017-04-12 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
+funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
+funcs_1.is_basics_mixed @windows : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.
 
 # group_replication suite tests
-group_replication.gr_consistent_reads_after_vs_before_primary_failover   @windows : BUG#28970047 2018-12-03 Nuno
-group_replication.gr_consistent_reads_after_vs_eventual_primary_failover @windows : BUG#28970047 2018-12-03 Nuno
+group_replication.gr_consistent_reads_after_vs_before_primary_failover   @windows : BUG#28970047
+group_replication.gr_consistent_reads_after_vs_eventual_primary_failover @windows : BUG#28970047
 
 # innodb suite tests
-innodb.analyze_table @solaris         : BUG#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout.
-innodb.log_corruption @darwin         : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.
-innodb.log_corruption @freebsd        : BUG#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009.
-innodb.portability_tablespace_linux   : Sivert The maintainability of the zip files required by this test is not acceptable.
-innodb.portability_tablespace_windows : Sivert The maintainability of the zip files required by this test is not acceptable.
-innodb.create_tablespace_partition    : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
-innodb.alter_tablespace_partition     : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
-innodb.truncate                       : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
-innodb.subpartition                   : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
-innodb.ddl_crash_alter_table_partition_tablespace : Mayank Enable again once shared tablespaces are allowed in partitioned table (wl#12034).
-innodb.innodb_bug14676111             : Bug#18200831 2018-08-14 Erlend The test has never worked correctly
+innodb.analyze_table @solaris                     : BUG#22607584 Failing too often on PB2 due to timeout.
+innodb.log_corruption @darwin                     : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
+innodb.log_corruption @freebsd                    : BUG#27760219 Test fails consistently on freebsd and Mac after WL#11009.
+innodb.portability_tablespace_linux               : BUG#28352630 The maintainability of the zip files required by this test is not acceptable.
+innodb.portability_tablespace_windows             : BUG#28352645 The maintainability of the zip files required by this test is not acceptable.
+innodb.create_tablespace_partition                : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
+innodb.alter_tablespace_partition                 : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
+innodb.truncate                                   : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
+innodb.subpartition                               : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
+innodb.ddl_crash_alter_table_partition_tablespace : WL#12034 Enable again once shared tablespaces are allowed in partitioned table.
+innodb.innodb_bug14676111                         : BUG#18200831 The test has never worked correctly
 
 # json suite tests
-json.json_ddl_ndb : BUG#26616564 FAILURE OF JSON_DDL_NDB TEST, Bug#26609059 2017-08-10 Bin, PB2 failures.
+json.json_ddl_ndb : BUG#26616564 PB2 failures.
 
 # main suite tests
-main.ds_mrr-big @solaris   : BUG#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers.
+main.ds_mrr-big @solaris : BUG#14168107 Test leads to timeout on Solaris on slow sparc servers.
 
 # Memcached tests
-memcached.memc242_set      : Bug#28834121 2018-10-24 MEMCACHED.MEMC242_SET IS FAILING
+memcached.memc242_set : BUG#28834121
 
 # Disabled due to InnoDB issues
-main.internal_tmp_disk_storage_engine : BUG#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
+main.internal_tmp_disk_storage_engine : BUG#26917416 Disabled it since it's failing on pb2.
 
 # Upgrade tests failing frequently on Solaris
-main.mysql_upgrade                    @solaris : Bug#28146052 2018-07-30 Erlend
-main.mysql_upgrade_slave_master_info  @solaris : Bug#28146052 2018-07-30 Erlend
-i_main.mysql_upgrade_gtid             @solaris : Bug#28146052 2018-07-30 Erlend
-main.dd_schema_definition_after_upgrade_debug @solaris : Bug#28146052 2018-10-05 Erlend
-main.dd_upgrade_test                          @solaris : Bug#28146052 2018-10-05 Erlend
-main.dd_upgrade_partition                     @solaris : Bug#28146052 2018-10-05 Erlend
-main.component-upgrade                        @solaris : Bug#28146052 2018-10-05 Erlend
-rpl.rpl_mysql_upgrade                         @solaris : Bug#28146052 2018-10-05 Erlend
+main.mysql_upgrade                            @solaris : BUG#28146052
+main.mysql_upgrade_slave_master_info          @solaris : BUG#28146052
+main.dd_schema_definition_after_upgrade_debug @solaris : BUG#28146052
+main.dd_upgrade_test                          @solaris : BUG#28146052
+main.dd_upgrade_partition                     @solaris : BUG#28146052
+main.component-upgrade                        @solaris : BUG#28146052
 
 # max_parts suite tests
-max_parts.innodb-import-partition-1                         : BUG#27413612 Ashish Fails consistently on hudson jobs. Disabled until bug is fixed.
-# max_parts.innodb_partition_open_files_limit @linux          : BUG#27924122 2018-04-25 Horst Disabled on Linux, only.
-max_parts.innodb_partition_open_files_limit @solaris        : BUG#27423163 Ashish Times out on Solaris platform on Hudson. Disabled until bug is fixed.
-max_parts.partition_max_parts_hash_innodb @windows          : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_inv_innodb @windows           : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_key_innodb @windows           : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_list_innodb @windows          : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_parts_range_innodb @windows         : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_key_list_innodb @windows  : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_key_range_innodb @windows : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_list_innodb @windows      : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 2018-02-20 Ashish Disabling max_parts tests on windows.
-max_parts.innodb_partition_open_files_limit                 : Bug#27423163 2018-06-22 Ashish Test times out consistently on Hudson.
+max_parts.innodb-import-partition-1                         : BUG#27413612 Fails consistently on hudson jobs. Disabled until bug is fixed.
+max_parts.innodb_partition_open_files_limit @solaris        : BUG#27423163 Times out on Solaris platform on Hudson. Disabled until bug is fixed.
+max_parts.partition_max_parts_hash_innodb @windows          : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_parts_inv_innodb @windows           : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_parts_key_innodb @windows           : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_parts_list_innodb @windows          : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_parts_range_innodb @windows         : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_list_innodb @windows  : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_key_range_innodb @windows : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_list_innodb @windows      : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 Disabling max_parts tests on windows.
+max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test times out consistently on Hudson.
 
 # perfschema suite test
-perfschema.innodb_is_data_locks : BUG#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2.
-perfschema.threads_history      : Bug#27712231 2018-09-27 Erlend Dahl PB2 PERFSCHEMA.THREADS_HISTORY IS UNSTABLE
+perfschema.innodb_is_data_locks : BUG#27491547
+perfschema.threads_history      : BUG#27712231
 
 # rpl_gtid suite tests
-rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040 2017-08-29 Ivo Roylev.
-rpl_gtid.rpl_gtid_perfschema_applier_xa_status : BUG#27914287 2018-05-30 Dmitry Shulga disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
+rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
+rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 
 # rpl_nogtid suite tests
-rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 2018-05-30 Dmitry Shulga disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
+rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
 
 # rpl suite tests
-rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 2017-09-22 Deepthi Disabled until bug is fixed.
-rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 2018-11-23 Erlend Disabled until the bug is fixed
+rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
+rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 Disabled until the bug is fixed
+rpl.rpl_mysql_upgrade @solaris            : Bug#28146052
 
 # sysschema suite tests
-sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 2016-06-26 Erlend Test fails too often.
+sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.

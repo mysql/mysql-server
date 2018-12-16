@@ -36,9 +36,9 @@ our @EXPORT = qw(collect_option collect_test_cases init_pattern
 use File::Basename;
 use File::Spec::Functions qw / splitdir /;
 use IO::File;
-use My::File::Path qw / get_bld_path /;
 
 use My::Config;
+use My::File::Path qw / get_bld_path /;
 use My::Find;
 use My::Platform;
 use My::SysInfo;
@@ -116,19 +116,42 @@ sub init_pattern {
   return $from;
 }
 
-# Check if the test name format in a disabled.def file is correct. The
-# format is "suite_name.test_name". If the format is incorrect, throw
-# an error and abort the test run.
-sub check_test_name_format($$$) {
-  my $test_name         = shift;
-  my $disabled_def_file = shift;
+## Report an error for an invalid disabled test entry in a disabled.def
+## file.
+##
+## Arguments:
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub report_disabled_test_format_error($$$) {
+  my $line              = shift;
   my $line_number       = shift;
+  my $disabled_def_file = shift;
 
+  mtr_error("The format of line '$line' at '$disabled_def_file:$line_number' " .
+            "is incorrect. The format is '<suitename>.<testcasename> " .
+            "[\@platform|\@!platform] : <BUG|WL>#<XXXX> [\"<comment>\"]'.");
+}
+
+## Check if the test name format in a disabled.def file is correct. The
+## format is "suite_name.test_name". If the format is incorrect, throw an
+## error and abort the test run.
+##
+## Arguments:
+##   $test_name         Test name
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_test_name($$$$) {
+  my $test_name         = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  # Test name must be in "<suitename>.<testcasename>" format.
   my ($suite_name, $tname, $extension) = split_testname($test_name);
   if (not defined $suite_name || not defined $tname || defined $extension) {
-    mtr_error("Invalid test name format '$test_name' at " .
-              "'$disabled_def_file:$line_number', it should be " .
-              "'suite_name.test_name'.");
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
   }
 
   # disabled.def should contain only non-ndb suite tests, and disabled_ndb.def
@@ -141,9 +164,130 @@ sub check_test_name_format($$$) {
   }
 }
 
-# Create a list of disabled tests from disabled.def file. This list is
-# used while collecting the test cases. If a test case is disabled, disabled
-# flag is enabled for the test and the test run will be disabled.
+## Check if the test name section in a disabled.def file is correct. The
+## format is "suite_name.test_name [@platform|@!platform]". If the format
+## is incorrect, throw an error and abort the test run.
+##
+## Arguments:
+##   $test_name_part    Test name section in a disabled test entry
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_test_name_part($$$$) {
+  my $test_name_part    = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  my $test_name;
+  if ($test_name_part =~ /\@/) {
+    # $^O on Windows considered not generic enough.
+    my $plat = (IS_WINDOWS) ? 'windows' : $^O;
+
+    # Test name part contains platform name.
+    if ($test_name_part =~ /^\s*(\S+)\s+\@$plat\s*$/) {
+      # Platform name is mentioned on which the test should be disabled
+      # i.e "suite_name.test_name @platform : <comment>".
+      $test_name = $1;
+      validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+      return $test_name;
+    } elsif ($test_name_part =~ /^\s*(\S+)\s+\@!(\S*)\s*$/) {
+      # Platform name is mentioned on which the test shouldn't be
+      # disabled i.e "suite_name.test_name @!platform : XXXX".
+      $test_name = $1;
+      validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+      return $test_name if ($2 ne $plat);
+    } elsif ($test_name_part !~ /^\s*(\S+)\s+\@(\S*)\s*$/) {
+      # Invalid format for a disabled test.
+      report_disabled_test_format_error($line, $line_number,
+                                        $disabled_def_file);
+    }
+  } elsif ($test_name_part =~ /^\s*(\S+)\s*$/) {
+    # No platform specified.
+    $test_name = $1;
+    validate_test_name($test_name, $line, $line_number, $disabled_def_file);
+    return $test_name;
+  } else {
+    # Invalid format, throw an error.
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+  }
+}
+
+## Check if the comment section in a disabled.def file is correct. The
+## format is "<BUG|WL>#<XXXX> ["<comment>"]". If the format is incorrect,
+## throw an error and abort the test run.
+##
+## Arguments:
+##   $comment_part      Comment section in a disabled test entry
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+sub validate_comment_part($$$$) {
+  my $comment_part      = shift;
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  if ($comment_part =~ /^\s*(BUG|WL)#\d+\s*(\s+(.*))?$/i) {
+    my $comment = $3;
+    # Length of a comment section can't be more than 80 characters.
+    if (length($comment) > 79) {
+      mtr_error("Length of a comment section in a disabled test entry can't " .
+                "be more than 80 characters, " .
+                "'$line' at '$disabled_def_file:$line_number'.");
+    }
+    # Valid format for comment section.
+    return $comment_part;
+  } else {
+    # Invalid format. throw an error.
+    report_disabled_test_format_error($line, $line_number, $disabled_def_file);
+  }
+}
+
+## Validate the format of an entry in a disabled.def file.
+##
+## Arguments:
+##   $line              An entry from a disabled.def file
+##   $line_number       Line number
+##   $disabled_def_file disabled.def file location
+##
+## Returns:
+##   Test name and the comment part.
+sub validate_disabled_test_entry($$$) {
+  my $line              = shift;
+  my $line_number       = shift;
+  my $disabled_def_file = shift;
+
+  my $comment_part;
+  my $test_name_part;
+
+  if ($line =~ /^(.*?):(.*)$/) {
+    $test_name_part = $1;
+    $comment_part   = $2;
+  }
+
+  # Check the format of test name part.
+  my $test_name =
+    validate_test_name_part($test_name_part, $line, $line_number, $disabled_def_file);
+
+  # Check the format of comment part.
+  my $comment =
+    validate_comment_part($comment_part, $line, $line_number, $disabled_def_file);
+
+  return ($test_name, $comment);
+}
+
+## Create a list of disabled tests from disabled.def file. This list
+## is used while collecting the test cases. If a test case is disabled,
+## disabled flag is enabled for the test and the test run will be
+## disabled.
+##
+## Arguments:
+##   $disabled           List to store the disabled tests
+##   $opt_skip_test_list File containing list of tests to be disabled
+##
+## Returns:
+##   List of disabled tests
 sub create_disabled_test_list($$) {
   my $disabled           = shift;
   my $opt_skip_test_list = shift;
@@ -202,48 +346,22 @@ sub create_disabled_test_list($$) {
 
   for my $disabled_def_file (@disabled_collection) {
     my $file_handle = IO::File->new($disabled_def_file, '<') or
-      die "Can't open $disabled_def_file: $!";
+      mtr_error("Can't open '$disabled_def_file' file: $!.");
+
     if (defined $file_handle) {
-      # $^O on Windows considered not generic enough
-      my $plat = (IS_WINDOWS) ? 'windows' : $^O;
+      while (my $line = <$file_handle>) {
+        # Skip a line if it starts with '#' or is an empty line.
+        next if ($line =~ /^#/ or $line =~ /^$/);
 
-      while (<$file_handle>) {
-        chomp;
+        chomp($line);
+        my $line_number = $.;
 
-        # Skip a line if it starts with '#'
-        next if /^#/;
+        # Check the format of an entry in a disabled.def file.
+        my ($test_name, $comment) =
+          validate_disabled_test_entry($line, $line_number, $disabled_def_file);
 
-        my $line_number;
-
-        # After the test name, a platform name can be mentioned on which the
-        # test should be disabled or enabled. Mentioning '@platform_name' will
-        # disable the test on 'platform_name' and '@!platform_name' will
-        # disable the test on all platforms except 'platform_name'.
-        if (/\@/) {
-          if (/\@$plat/) {
-            # Platform name is mentioned on which the test should be disabled
-            # i.e "suite_name.test_name @platform : XXXX"
-            /^\s*(\S+)\s*\@$plat.*:\s*(.*?)\s*$/;
-            $line_number = $.;
-            check_test_name_format($1, $disabled_def_file, $line_number);
-            $disabled->{$1} = $2 if not exists $disabled->{$1};
-          } elsif (/\@!(\S*)/) {
-            # Platform name is mentioned on which the test shouldn't be
-            # disabled i.e "suite_name.test_name @!platform : XXXX"
-            if ($1 ne $plat) {
-              # Disable the test on all other platforms except '$plat'
-              /^\s*(\S+)\s*\@!.*:\s*(.*?)\s*$/;
-              $line_number = $.;
-              check_test_name_format($1, $disabled_def_file, $line_number);
-              $disabled->{$1} = $2 if not exists $disabled->{$1};
-            }
-          }
-        } elsif (/^\s*(\S+)\s*:\s*(.*?)\s*$/) {
-          # Disable the test on all platforms i.e "suite_name.test_name : XXXX"
-          $line_number = $.;
-          check_test_name_format($1, $disabled_def_file, $line_number);
-          $disabled->{$1} = $2 if not exists $disabled->{$1};
-        }
+        # Disable the test case if defined.
+        $disabled->{$test_name} = $comment if defined $test_name;
       }
       $file_handle->close();
     }
