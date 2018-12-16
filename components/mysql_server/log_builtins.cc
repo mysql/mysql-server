@@ -1980,7 +1980,7 @@ void log_service_cache_entry_free::operator()(
 
   if (sce->name != nullptr) my_free(sce->name);
 
-  assert(sce->opened == 0);
+  DBUG_ASSERT(sce->opened == 0);
 
   if (sce->service != nullptr) imp_mysql_server_registry.release(sce->service);
 
@@ -2202,7 +2202,7 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
     sce = key_and_value.second.get();
     sce->requested = 0;
 
-    assert(check_only || (sce->opened == 0));
+    DBUG_ASSERT(check_only || (sce->opened == 0));
   }
 
   sce = nullptr;
@@ -2291,7 +2291,7 @@ int log_builtins_error_stack(const char *conf, bool check_only, size_t *pos) {
         if (log_service_instances == nullptr)
           log_service_instances = lsi_new;
         else {
-          assert(lsi != nullptr);
+          DBUG_ASSERT(lsi != nullptr);
           lsi->next = lsi_new;
         }
 
