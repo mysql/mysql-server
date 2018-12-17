@@ -13134,7 +13134,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
       (scanConcurrency == 0) ||
-      (cConcScanCount == cscanrecFileSize))
+      (cConcScanCount >= cscanrecFileSize))
   {
     goto SCAN_error_check;
   }
@@ -13276,7 +13276,11 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     errCode = ZNO_CONCURRENCY_ERROR;
     goto SCAN_TAB_error;
   }//if
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+  ndbrequire(cConcScanCount >= cscanrecFileSize);
+#else
   ndbrequire(cConcScanCount == cscanrecFileSize);
+#endif
   jam();
   errCode = ZNO_SCANREC_ERROR;
   goto SCAN_TAB_error;
@@ -15027,7 +15031,7 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr, ApiConnect
 Dbtc::ScanRecordPtr
 Dbtc::seizeScanrec(Signal* signal) {
   ScanRecordPtr scanptr;
-  ndbrequire(cConcScanCount < cscanrecFileSize);
+  ndbrequire(cConcScanCount < cscanrecFileSize); // TODO(wl9756)
   ndbrequire(scanRecordPool.seize(scanptr));
   cConcScanCount++;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
@@ -17073,6 +17077,10 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     if (pool_index >= c_transient_pool_count)
       return;
     c_transient_pools[pool_index]->setMaxSize(new_size);
+    if (pool_index == DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX)
+    {
+      cscanrecFileSize = new_size;
+    }
   }
   if (arg == DumpStateOrd::TcResetTransientPoolMaxSize)
   {
@@ -17083,6 +17091,10 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     if (pool_index >= c_transient_pool_count)
       return;
     c_transient_pools[pool_index]->resetMaxSize();
+    if (pool_index == DBTC_SCAN_RECORD_TRANSIENT_POOL_INDEX)
+    {
+      cscanrecFileSize = cscanrecFileSize_original;
+    }
   }
 #endif
 }//Dbtc::execDUMP_STATE_ORD()
@@ -20684,7 +20696,13 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
 
   SegmentedSectionGuard guard(this, attrValuesPtrI);
 
-  if (unlikely(cConcScanCount == cscanrecFileSize))
+  /*
+   * cConcScanCount can be bigger than cscanrecFileSize if
+   * DumpStateOrd::TcSetTransientPoolMaxSize have been used which is only
+   * possible in debug build.
+   * Otherwise it should be less than or equal to cscanrecFileSize.
+   */
+  if (unlikely(cConcScanCount >= cscanrecFileSize))
   {
     jam();
     abortTransFromTrigger(signal, *transPtr, ZNO_SCANREC_ERROR);

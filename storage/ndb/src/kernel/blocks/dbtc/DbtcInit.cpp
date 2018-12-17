@@ -251,6 +251,7 @@ void Dbtc::initRecords(const ndb_mgm_configuration_iterator * mgm_cfg)
     capiConnectFailCount = 0;
   }
   cscanrecFileSize = maxScanRecord;
+  cscanrecFileSize_original = cscanrecFileSize;
 
   Uint32 reserveFragLocation = 0;
   Uint32 reserveScanFragment = 0;

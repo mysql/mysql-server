@@ -2636,6 +2636,7 @@ private:
 
   ScanRecord_pool MY_ALIGNED(64) scanRecordPool;
   UintR cscanrecFileSize;
+  UintR cscanrecFileSize_original;
 
   ScanFragRec_pool MY_ALIGNED(64) c_scan_frag_pool;
   RSS_AP_SNAPSHOT(c_scan_frag_pool);
