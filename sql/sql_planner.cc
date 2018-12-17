@@ -880,6 +880,8 @@ double Optimize_table_order::lateral_derived_cost(
     const Cost_model_server *cost_model) {
   DBUG_ASSERT(tab->table_ref->is_derived() &&
               tab->table_ref->derived_unit()->m_lateral_deps);
+  if (prefix_rowcount == 0)  // no input rows: no materialization needed
+    return 0;
   table_map deps = tab->table_ref->derived_unit()->m_lateral_deps;
   POSITION *positions = got_final_plan ? join->best_positions : join->positions;
   double derived_mat_cost = 0;

@@ -3079,3 +3079,92 @@ SELECT 1 FROM
 (SELECT 1 FROM (SELECT (SELECT y FROM t) FROM t) AS a) AS b;
 ERROR 42S22: Unknown column 'y' in 'field list'
 DROP TABLE t;
+#
+# Bug#28976533 ASSERTION `JOIN->BEST_READ < DOUBLE(1.79769313486231570814527423731704357E+308L)
+#
+CREATE TABLE BB (
+pk INTEGER AUTO_INCREMENT,
+col_int INTEGER ,
+col_int_key INTEGER ,
+col_time_key TIME ,
+col_time TIME ,
+col_datetime_key DATETIME ,
+col_datetime DATETIME ,
+col_varchar_key VARCHAR(20) ,
+col_varchar VARCHAR(20) ,
+PRIMARY KEY (pk DESC),
+KEY (col_time_key),
+KEY (col_time_key DESC)
+);
+SET SQL_MODE='';
+EXPLAIN SELECT
+GRANDPARENT1.col_varchar_key AS g1 FROM BB AS GRANDPARENT1
+LEFT JOIN BB AS GRANDPARENT2 USING ( col_time )
+WHERE GRANDPARENT1.col_int_key IN
+(
+WITH qn AS (
+SELECT  PARENT1.col_int AS p1
+FROM BB AS PARENT1 LEFT JOIN BB AS PARENT2 USING ( col_varchar )
+WHERE PARENT1.col_varchar_key IN
+(
+WITH qn1 AS (
+SELECT DISTINCT CHILD1.col_varchar_key AS C1
+FROM BB AS CHILD1 LEFT JOIN BB AS CHILD2
+ON CHILD1.col_varchar_key <= CHILD2.col_varchar
+WHERE CHILD1.col_time > GRANDPARENT1.col_datetime
+)
+SELECT  * FROM qn1
+)
+AND PARENT1.col_time_key BETWEEN '2008-03-18' AND
+'2004-11-14'
+             )
+SELECT /*+ MERGE(qn) */ * FROM qn
+)
+GROUP BY GRANDPARENT1.col_int;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+5	DEPENDENT DERIVED	CHILD1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using temporary
+5	DEPENDENT DERIVED	CHILD2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.GRANDPARENT1.col_datetime' of SELECT #5 was resolved in SELECT #1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`GRANDPARENT1`.`col_varchar_key` AS `g1` from `test`.`BB` `GRANDPARENT1` semi join (`qn1` join `test`.`BB` `PARENT1` left join `test`.`BB` `PARENT2` on((`test`.`PARENT1`.`col_varchar` = `test`.`PARENT2`.`col_varchar`))) left join `test`.`BB` `GRANDPARENT2` on(multiple equal(`test`.`GRANDPARENT1`.`col_time`, `test`.`GRANDPARENT2`.`col_time`)) where ((`test`.`PARENT1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`GRANDPARENT1`.`col_int_key`, `test`.`PARENT1`.`col_int`) and multiple equal(`test`.`PARENT1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`GRANDPARENT1`.`col_int`
+SELECT
+GRANDPARENT1.col_varchar_key AS g1 FROM BB AS GRANDPARENT1
+LEFT JOIN BB AS GRANDPARENT2 USING ( col_time )
+WHERE GRANDPARENT1.col_int_key IN
+(
+WITH qn AS (
+SELECT  PARENT1.col_int AS p1
+FROM BB AS PARENT1 LEFT JOIN BB AS PARENT2 USING ( col_varchar )
+WHERE PARENT1.col_varchar_key IN
+(
+WITH qn1 AS (
+SELECT DISTINCT CHILD1.col_varchar_key AS C1
+FROM BB AS CHILD1 LEFT JOIN BB AS CHILD2
+ON CHILD1.col_varchar_key <= CHILD2.col_varchar
+WHERE CHILD1.col_time > GRANDPARENT1.col_datetime
+)
+SELECT  * FROM qn1
+)
+AND PARENT1.col_time_key BETWEEN '2008-03-18' AND
+'2004-11-14'
+             )
+SELECT /*+ MERGE(qn) */ * FROM qn
+)
+GROUP BY GRANDPARENT1.col_int;
+g1
+Warnings:
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
+DROP TABLE BB;
+SET SQL_MODE=DEFAULT;
