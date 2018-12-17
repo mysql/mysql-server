@@ -168,7 +168,107 @@ Sending dump signal with data:
 delete from t0;
 set @pool = @pool - 1;
 set @pool = @pool - 1;
+=== Make pool 6 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Connected to Management Server at: localhost:13000
+Sending dump signal with data:
+0x000009fc 0x00000006 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000006 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000006 
+Sending dump signal with data:
+0x000009fd 0x00000006 
+
+delete from t0;
 set @pool = @pool - 1;
+=== Make pool 5 out of memory ===
+insert into t0 (c) values (1),(2),(3),(4);
+Connected to Management Server at: localhost:13000
+Sending dump signal with data:
+0x000009fc 0x00000005 0x00000000 
+Sending dump signal with data:
+0x000009fc 0x00000005 0x00000000 
+
+insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+update t1 set b = d, d = d + c * 1000;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t1 where a = 2222 and b = 1;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where d = 3333;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+delete from t1 where c = 2;
+mysql_errno 0
+show warnings;
+Level	Code	Message
+mysql_errno 0
+delete from t0 where c = 3;
+mysql_errno 1297
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDB
+Error	1297	Got temporary error 275 'Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)' from NDBCLUSTER
+mysql_errno 0
+Sending dump signal with data:
+0x000009fd 0x00000005 
+Sending dump signal with data:
+0x000009fd 0x00000005 
+
+delete from t0;
 set @pool = @pool - 1;
 === Make pool 4 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);

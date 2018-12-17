@@ -3405,7 +3405,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       jam();
       releaseSections(handle);
       terrorCode = ZSEIZE_API_COPY_ERROR;
-      releaseAtErrorLab(signal, apiConnectptr);
+      abortErrorLab(signal, apiConnectptr);
       return;
     }
   }
