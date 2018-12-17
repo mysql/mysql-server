@@ -769,3 +769,107 @@ Warnings:
 Note	1003	delete from `test`.`t1` where (0 and <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 DROP TABLE t1, t2;
 # End of test for Bug#23209903
+#
+# Expect "Impossible WHERE" for never true values like a!=a, a<a, a>a
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+EXPLAIN SELECT * FROM t1 WHERE a!=a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a!=a;
+COUNT(*)
+0
+EXPLAIN SELECT * FROM t1 WHERE a>a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a>a;
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a<a;
+COUNT(*)
+0
+ALTER TABLE t1 MODIFY a TINYINT NOT NULL;
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a!=a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a!=a;
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a>a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a>a;
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where 0
+SELECT COUNT(*) FROM t1 WHERE a<a;
+COUNT(*)
+0
+#
+# Modifing expression doesn't hit "Impossible WHERE" clause
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE not (a!=a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where 1
+SELECT COUNT(*) FROM t1 WHERE not (a!=a);
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a>a-1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`a` > (`test`.`t1`.`a` - 1))
+SELECT COUNT(*) FROM t1 WHERE a>a-1;
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a<a+1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`a` < (`test`.`t1`.`a` + 1))
+SELECT COUNT(*) FROM t1 WHERE a<a+1;
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a-1<a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where ((`test`.`t1`.`a` - 1) < `test`.`t1`.`a`)
+SELECT COUNT(*) FROM t1 WHERE a-1<a;
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a NOT LIKE a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not((`test`.`t1`.`a` like `test`.`t1`.`a`)))
+SELECT COUNT(*) FROM t1 WHERE a NOT LIKE a;
+COUNT(*)
+0
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE a XOR a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	44.44	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`a` xor `test`.`t1`.`a`)
+SELECT COUNT(*) FROM t1 WHERE a XOR a;
+COUNT(*)
+0
+DROP TABLE t1;

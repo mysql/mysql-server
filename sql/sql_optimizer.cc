@@ -9449,7 +9449,8 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
     if (left_item->eq(right_item, 1)) {
-      if (!left_item->maybe_null ||
+      if (*cond_value == Item::COND_FALSE ||
+          !left_item->maybe_null ||
           down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC) {
         *retcond = NULL;
         return false;  // Compare of identical items
