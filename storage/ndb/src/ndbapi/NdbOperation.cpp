@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -230,6 +230,13 @@ NdbOperation::release()
 
   theLockHandle = NULL;
   m_blob_lock_upgraded = false;
+
+#ifndef NDEBUG
+  // Poison members to detect late usage
+  m_accessTable = m_currentTable = (NdbTableImpl*) 0x1;
+  theNdbCon = (NdbTransaction*) 0x1;
+  m_key_record = m_attribute_record = (NdbRecord*) 0x1;
+#endif
 }
 
 void
