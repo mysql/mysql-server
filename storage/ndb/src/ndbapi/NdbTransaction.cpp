@@ -1316,6 +1316,8 @@ NdbTransaction::releaseCompletedOperations()
   releaseOps(theCompletedFirstOp);
   theCompletedFirstOp = NULL;
   theCompletedLastOp = NULL;
+  theErrorLine = 0;
+  theErrorOperation = NULL;
 }//NdbTransaction::releaseCompletedOperations()
 
 
