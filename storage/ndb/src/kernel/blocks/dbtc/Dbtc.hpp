@@ -2184,7 +2184,7 @@ private:
   bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
-  [[noreturn]] void crash_gcp(Uint32 line);
+  [[noreturn]] void crash_gcp(Uint32 line, const char msg[]);
   void seizeGcp(Ptr<GcpRecord> & dst, Uint64 gci);
   void seizeTcConnectFail(Signal* signal);
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);

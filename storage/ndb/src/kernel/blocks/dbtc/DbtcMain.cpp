@@ -6465,7 +6465,7 @@ void Dbtc::commitGciHandling(Signal* signal, Uint64 Tgci, ApiConnectRecordPtr co
                  Uint32(regApiPtr.p->globalcheckpointid),
                  Uint32(localGcpPointer.p->gcpId >> 32),
                  Uint32(localGcpPointer.p->gcpId));
-        crash_gcp(__LINE__);
+        crash_gcp(__LINE__, "Can not find global checkpoint record for commit.");
       }
       jam();
     } while (gcp_list.next(localGcpPointer));
@@ -6490,7 +6490,7 @@ void Dbtc::linkApiToGcp(Ptr<GcpRecord> regGcpPtr,
 }
 
 void
-Dbtc::crash_gcp(Uint32 line)
+Dbtc::crash_gcp(Uint32 line, const char msg[])
 {
   GcpRecordPtr localGcpPointer;
 
@@ -6509,7 +6509,7 @@ Dbtc::crash_gcp(Uint32 line)
                localGcpPointer.p->nextList);
     } while (gcp_list.next(localGcpPointer));
   }
-  progError(line, NDBD_EXIT_NDBREQUIRE);
+  progError(line, NDBD_EXIT_NDBREQUIRE, msg);
   ndbabort();
 }
 
@@ -6520,7 +6520,7 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
   if (unlikely(!c_gcpRecordPool.seize(localGcpPointer)))
   {
     ndbout_c("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
-    crash_gcp(__LINE__);
+    crash_gcp(__LINE__, "Too many active global checkpoints.");
   }
   localGcpPointer.p->gcpId = Tgci;
   localGcpPointer.p->apiConnectList.init();

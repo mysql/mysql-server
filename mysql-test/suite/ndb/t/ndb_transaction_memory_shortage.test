@@ -40,7 +40,7 @@ while (`select @pool > 0`)
 
   # TODO pool 7, DBTC (Line: 2844) 0x00000002 Check keyInfoSection.sz == keylen failed
   # TODO pool 7, DBACC (Line: 1686) 0x00000002 Check operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength failed
-  # Can not fail to seize Dbtc::GcpRecord (pool 11), would crash node.
+  # Overuse GCP record pool (11) will abort nodes, can not recover from that.
   if (`select @pool not in (7, 11)`)
   {
     let $pool=`select @pool`;
