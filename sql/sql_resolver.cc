@@ -2164,8 +2164,14 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
   Item *outer = nullptr;
   table_map left_used_tables = left->used_tables() & ~INNER_TABLE_BIT;
   table_map right_used_tables = right->used_tables() & ~INNER_TABLE_BIT;
-  DBUG_ASSERT((left_used_tables & RAND_TABLE_BIT) == 0 &&
-              (right_used_tables & RAND_TABLE_BIT) == 0);
+
+  /*
+    Predicates that have non-deterministic elements are not decorrelated,
+    see explanation for SELECT_LEX::decorrelate_where_cond().
+  */
+  if ((left_used_tables & RAND_TABLE_BIT) ||
+      (right_used_tables & RAND_TABLE_BIT))
+    return false;
 
   if (left_used_tables == OUTER_REF_TABLE_BIT) {
     outer = left;
@@ -2202,6 +2208,63 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
                   expressions are added to sj_inner_exprs and sj_outer_exprs.
 
   @returns false if success, true if error
+
+  Decorrelation for subqueries containing non-deterministic components:
+  --------------------------------------------------------------------
+
+  There are two types of IN and EXISTS queries with non-deterministic
+  functions that may be meaningful (the EXISTS queries below are correlated
+  equivalents of the respective IN queries):
+
+  1. Non-deterministic function as substitute for expression from outer
+     query block:
+
+  A SELECT * FROM t1
+    WHERE RAND() IN (SELECT t2.x FROM t2)
+
+  B SELECT * FROM t1
+    WHERE EXISTS (SELECT * FROM t2 WHERE RAND() = t2.x);
+
+  Pick a set of random rows that matches against a fixed set (the subquery).
+
+  The intuitive interpretation of the IN subquery is that the random function
+  is evaluated per row of the outer query block, whereas in the EXISTS subquery,
+  it should be evaluated per row of the inner query block, and the subquery
+  is evaluated once per row of the outer query block.
+
+  2. Non-deterministic function as substitute for expression from inner
+     query block:
+
+  A SELECT * FROM t1
+    WHERE t1.x IN (SELECT RAND() FROM t2)
+
+  B SELECT * FROM t1
+    WHERE EXISTS (SELECT * FROM t2 WHERE RAND() = t1.x);
+
+  This is another way of picking a random row, but now the non-determinism
+  occurs in the inner query block.
+
+  The user will expect that only query 1A has the evaluation of
+  non-deterministic functions being performed in the outer query block.
+  Using decorrelation for query 1B would change the apparent semantics of
+  the query.
+
+  The purpose of decorrelation is to be able to use more execution strategies.
+  Without decorrelation, EXISTS is limited to FirstMatch and DupsWeedout
+  strategies. Decorrelation enables LooseScan and Materialization.
+  We can rule out LooseScan for case 2B, since it requires an indexed column
+  from the subquery, and for case 1B, since it requires that the outer table
+  is partitioned according to the distinct values of the index, and random
+  values do not fulfill that partitioning requirement.
+
+  The only strategy left is Materialization. With decorrelation, 1B would be
+  evaluated like 1A, which is not the intuitive way. 2B would also be
+  implemented like 2A, meaning that evaluation of non-deterministic functions
+  would move to the materialization function.
+
+  Thus, the intuitive interpretation is to avoid materialization for subqueries
+  with non-deterministic components in the inner query block, and hence
+  such predicates will not be decorrelated.
 */
 
 bool SELECT_LEX::decorrelate_where_cond(TABLE_LIST *const sj_nest) {

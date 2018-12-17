@@ -10276,6 +10276,16 @@ bool JOIN::compare_costs_of_subquery_strategies(
   Item_exists_subselect::enum_exec_method allowed_strategies =
       select_lex->subquery_strategy(thd);
 
+  /*
+    A non-deterministic subquery should not use materialization, unless forced.
+    For a detailed explanation, see SELECT_LEX::decorrelate_where_cond().
+    Here, the same logic is applied also for subqueries that are not converted
+    to semi-join.
+  */
+  if (allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT &&
+      (unit->uncacheable & UNCACHEABLE_RAND))
+    allowed_strategies = Item_exists_subselect::EXEC_EXISTS;
+
   if (allowed_strategies == Item_exists_subselect::EXEC_EXISTS) return false;
 
   DBUG_ASSERT(allowed_strategies == Item_exists_subselect::EXEC_EXISTS_OR_MAT ||

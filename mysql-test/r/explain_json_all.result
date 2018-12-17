@@ -346,11 +346,11 @@ WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
-3	UNCACHEABLE SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1
 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND())
 OR i IN (SELECT i FROM t4 ORDER BY RAND());
@@ -376,25 +376,15 @@ EXPLAIN
       "used_columns": [
         "i"
       ] /* used_columns */,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))",
       "attached_subqueries": [
         {
-          "table": {
-            "table_name": "<materialized_subquery>",
-            "access_type": "eq_ref",
-            "key": "<auto_key>",
-            "key_length": "5",
-            "rows_examined_per_scan": 1,
-            "materialized_from_subquery": {
-              "using_temporary_table": true,
-              "dependent": true,
-              "cacheable": false,
-              "query_block": {
-                "select_id": 3,
-                "message": "no matching row in const table"
-              } /* query_block */
-            } /* materialized_from_subquery */
-          } /* table */
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 3,
+            "message": "no matching row in const table"
+          } /* query_block */
         },
         {
           "dependent": true,
@@ -429,7 +419,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
