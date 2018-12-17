@@ -751,11 +751,8 @@ static void ndbcluster_reset_slave(THD *thd)
   {
     Ndb_local_connection mysqld(thd);
     const bool ignore_no_such_table = true;
-    if(mysqld.delete_rows(STRING_WITH_LEN("mysql"),
-                          STRING_WITH_LEN("ndb_apply_status"),
-                          ignore_no_such_table,
-                          NULL))
-    {
+    if (mysqld.delete_rows("mysql", "ndb_apply_status", ignore_no_such_table,
+                           "1=1")) {
       // Failed to delete rows from table
     }
   }
@@ -5725,9 +5722,10 @@ public:
 
     // ignore "table does not exist" as it is a "consistent" behavior
     const bool ignore_no_such_table = true;
-    if (mysqld.delete_rows(
-            STRING_WITH_LEN("mysql"), STRING_WITH_LEN("ndb_binlog_index"),
-            ignore_no_such_table, "File='", filename, "'", nullptr)) {
+    std::string where;
+    where.append("File='").append(filename).append("'");
+    if (mysqld.delete_rows("mysql", "ndb_binlog_index", ignore_no_such_table,
+                           where)) {
       // Failed
       return true;
     }
@@ -7700,7 +7698,6 @@ void Ndb_binlog_thread::do_wakeup()
   */
 }
 
-
 bool
 Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
                                             Reconnect_type incident_id) const
@@ -7730,22 +7727,20 @@ Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
     log_verbose(60, " - current binlog file number: %u", log_number);
   }
 
-  /*
-    Insert an incident event since it's not possible to know what has
-    happened in the cluster while not being connected.
-  */
-  LEX_STRING const msg[2] =
-  {
-    { C_STRING_WITH_LEN("mysqld startup") },
-    { C_STRING_WITH_LEN("cluster disconnect") }
-  };
-  DBUG_ASSERT(incident_id < NDB_ARRAY_SIZE(msg));
-
-  log_verbose(20, "Writing incident for %s", msg[incident_id].str);
-
-  (void)inj->record_incident(thd,
-                       binary_log::Incident_event::INCIDENT_LOST_EVENTS,
-                       msg[incident_id]);
+  // Write an incident event to the binlog since it's not possible to know what
+  // has happened in the cluster while not being connected.
+  LEX_STRING msg;
+  switch (incident_id) {
+    case MYSQLD_STARTUP:
+      msg = {C_STRING_WITH_LEN("mysqld startup")};
+      break;
+    case CLUSTER_DISCONNECT:
+      msg = {C_STRING_WITH_LEN("cluster disconnect")};
+      break;
+  }
+  log_verbose(20, "Writing incident for %s", msg.str);
+  (void)inj->record_incident(
+      thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg);
 
   return true; // Incident written
 }

@@ -217,49 +217,28 @@ Ndb_local_connection::flush_table(const char* db, size_t db_length,
                                 NULL));
 }
 
-
-bool
-Ndb_local_connection::delete_rows(const char* db, size_t db_length,
-                                  const char* table, size_t table_length,
-                                  bool ignore_no_such_table,
-                                  ...)
-{
+bool Ndb_local_connection::delete_rows(const std::string &db,
+                                       const std::string &table,
+                                       int ignore_no_such_table,
+                                       const std::string &where) {
   DBUG_ENTER("Ndb_local_connection::delete_rows");
-  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
+  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db.c_str(), table.c_str()));
 
   // Create the SQL string
-  String sql_text((uint32)(db_length + table_length + 100));
-  sql_text.append(STRING_WITH_LEN("DELETE FROM "));
-  sql_text.append(db, (uint32)db_length);
-  sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, (uint32)table_length);
-  sql_text.append(" WHERE ");
-
-  va_list args;
-  va_start(args, ignore_no_such_table);
-
-  // Append var args strings until ending NULL as WHERE clause
-  const char* arg;
-  bool empty_where = true;
-  while ((arg= va_arg(args, char *)))
-  {
-    sql_text.append(arg);
-    empty_where = false;
-  }
-
-  va_end(args);
-
-  if (empty_where)
-    sql_text.append("1=1");
+  std::string sql_text;
+  sql_text.reserve(db.length() + table.length() + 32 + where.length());
+  sql_text.append("DELETE FROM ");
+  sql_text.append(db).append(".").append(table);
+  sql_text.append(" WHERE ").append(where);
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
   if (ignore_no_such_table)
     ignore_mysql_errors[0] = ER_NO_SUCH_TABLE;
 
-  DBUG_RETURN(execute_query_iso(sql_text.lex_string(),
-                                ignore_mysql_errors,
-                                NULL));
+  const LEX_STRING lex_string = {const_cast<char *>(sql_text.c_str()),
+                                 sql_text.length()};
+  DBUG_RETURN(execute_query_iso(lex_string, ignore_mysql_errors, NULL));
 }
 
 

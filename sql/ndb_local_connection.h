@@ -25,6 +25,8 @@
 #ifndef NDB_LOCAL_CONNECTION_H
 #define NDB_LOCAL_CONNECTION_H
 
+#include <string>
+
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 
@@ -53,10 +55,8 @@ public:
   bool flush_table(const char* db, size_t db_length,
                    const char* table, size_t table_length);
 
-  bool delete_rows(const char* db, size_t db_length,
-                   const char* table, size_t table_length,
-                   bool ignore_no_such_table,
-                   ... /* where clause, NULL terminated list of strings */);
+  bool delete_rows(const std::string &db, const std::string &table,
+                   int ignore_no_such_table, const std::string &where);
 
   bool create_sys_table(const char* db, size_t db_length,
                         const char* table, size_t table_length,
