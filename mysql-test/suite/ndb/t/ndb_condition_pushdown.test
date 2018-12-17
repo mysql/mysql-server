@@ -2763,4 +2763,26 @@ select * from t1 where date_field > '9999-99-99';
 select * from t1 where date_field > '9999-99-99';
 
 
+--echo #
+--echo # Bug#29058732 CONDITION PUSHDOWN INCORRECTLY REJECTED FOR TEMPORAL DATA TYPES
+--echo # Condition pushdown incorrectly depended on whether the date_field was
+--echo # specified before or after the string constant.
+--echo #
+explain
+select * from t1 where
+ '1999-01-01' >= date_field ;
+
+explain
+select * from t1 where
+ date_field <= '1999-01-01';
+
+explain
+select * from t1 where
+ date '1999-01-01' >= date_field ;
+
+explain
+select * from t1 where
+ date_field <= date '1999-01-01';
+
+
 drop table t1;

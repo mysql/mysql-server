@@ -739,6 +739,22 @@ class Ndb_cond_traverse_context
   Ndb_rewrite_context *rewrite_stack;
 };
 
+static bool
+is_supported_temporal_type(enum_field_types type)
+{
+  switch(type) {
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_YEAR:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    return true;
+  default:
+    return false;
+  }
+}
 
 /*
   Serialize the item tree into a linked list represented by Ndb_cond
@@ -992,16 +1008,9 @@ ndb_serialize_cond(const Item *item, void *arg)
             // result type and of length that can store the item value
             if (context->expecting(Item::FIELD_ITEM) &&
                 context->expecting_field_type(type) &&
-                context->expecting_max_length(field->field_length) &&
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
-                 ((type == MYSQL_TYPE_TIME ||
-                   type == MYSQL_TYPE_TIME2 ||
-                   type == MYSQL_TYPE_DATE || 
-                   type == MYSQL_TYPE_NEWDATE || 
-                   type == MYSQL_TYPE_YEAR ||
-                   type == MYSQL_TYPE_DATETIME ||
-                   type == MYSQL_TYPE_DATETIME2)
+                 (is_supported_temporal_type(type)
                   ? (context->expecting_field_result(STRING_RESULT) ||
                      context->expecting_field_result(INT_RESULT))
                   : true)) &&
@@ -1026,18 +1035,13 @@ ndb_serialize_cond(const Item *item, void *arg)
               if (! context->expecting_nothing())
               {
                 // We have not seen second argument yet
-                if (type == MYSQL_TYPE_TIME ||
-                    type == MYSQL_TYPE_TIME2 ||
-                    type == MYSQL_TYPE_DATE || 
-                    type == MYSQL_TYPE_NEWDATE || 
-                    type == MYSQL_TYPE_YEAR ||
-                    type == MYSQL_TYPE_DATETIME ||
-                    type == MYSQL_TYPE_DATETIME2)
+                if (is_supported_temporal_type(type))
                 {
                   context->expect_only(Item::STRING_ITEM);
                   context->expect(Item::INT_ITEM);
                 }
                 else
+                {
                   switch (field->result_type()) {
                   case STRING_RESULT:
                     // Expect char string or binary string
@@ -1062,27 +1066,31 @@ ndb_serialize_cond(const Item *item, void *arg)
                     break;
                   default:
                     break;
-                  }    
+                  }
+                }
               }
               else
               {
                 // Expect another logical expression
                 context->expect_only(Item::FUNC_ITEM);
                 context->expect(Item::COND_ITEM);
-                // Check that field and string constant collations are the same
-                if ((field->result_type() == STRING_RESULT) &&
-                    !context->expecting_collation(item->collation.collation)
-                    && type != MYSQL_TYPE_TIME
-                    && type != MYSQL_TYPE_TIME2
-                    && type != MYSQL_TYPE_DATE
-                    && type != MYSQL_TYPE_NEWDATE
-                    && type != MYSQL_TYPE_YEAR
-                    && type != MYSQL_TYPE_DATETIME
-                    && type != MYSQL_TYPE_DATETIME2)
+		
+                if (field->result_type() == STRING_RESULT &&
+		    !is_supported_temporal_type(type))
                 {
-                  DBUG_PRINT("info", ("Found non-matching collation %s",  
-                                      item->collation.collation->name)); 
-                  context->supported= false;
+                  if (!context->expecting_max_length(field->field_length))
+                  {
+                    DBUG_PRINT("info", ("Found non-matching string length %s",
+				        field->field_name));
+                    context->supported= false;
+                  }
+                  // Check that field and string constant collations are the same
+                  else if (!context->expecting_collation(item->collation.collation))
+                  {
+                    DBUG_PRINT("info", ("Found non-matching collation %s",
+                                        item->collation.collation->name));
+                    context->supported= false;
+                  }
                 }
               }
               break;
