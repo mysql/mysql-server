@@ -277,15 +277,14 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 #ifdef WORDS_BIGENDIAN
       if (field->table->s->db_low_byte_first && is_endian_sensible_type(field))
       {
-	const uint32 field_length = field->pack_length();
-	raw = static_cast<uchar*>(my_alloca(field_length));
+        const uint32 field_length = field->pack_length();
+        raw = static_cast<uchar*>(my_alloca(field_length));
 
         // Byte order is swapped to get the correct endian format.
         const uchar *last = field->ptr+field_length;
         for (uint pos = 0; pos < field_length; pos++)
           raw[pos] = *(--last);
       }
-      else
 #else
       //Little endian platforms are expected to be only 'low_byte_first'
       DBUG_ASSERT(field->table->s->db_low_byte_first);
