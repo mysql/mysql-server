@@ -1011,7 +1011,8 @@ bool Rewriter_grant::rewrite() const {
         while ((column = column_iter++)) {
           if (column->rights & priv) {
             comma_maybe(&cols, &comma_inner);
-            cols.append(column->column.ptr(), column->column.length());
+            append_identifier(m_thd, &cols, column->column.ptr(),
+                              column->column.length());
           }
         }
         cols.append(STRING_WITH_LEN(")"));
