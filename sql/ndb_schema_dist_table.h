@@ -54,11 +54,11 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   std::string define_table_dd() const override;
 
   /**
-     @brief Return number of bits possible to store in the "slock" column
+     @brief Return number of bytes possible to store in the "slock" column
 
-     @return number of bits
+     @return number of bytes
   */
-  int get_slock_bits() const;
+  int get_slock_bytes() const;
 };
 
 #endif

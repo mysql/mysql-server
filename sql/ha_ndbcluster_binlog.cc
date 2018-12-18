@@ -2349,8 +2349,6 @@ constexpr uint SCHEMA_EPOCH_I = 5;
 constexpr uint SCHEMA_ID_I = 6;
 constexpr uint SCHEMA_VERSION_I = 7;
 constexpr uint SCHEMA_TYPE_I = 8;
-constexpr uint SCHEMA_SLOCK_SIZE = 32;
-
 
 static void ndb_report_waiting(const char *key,
                                int the_time,
@@ -2496,7 +2494,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
         // The expectation is that all participants will reply and those not
         // connected will be filtered away by the coordinator.
         std::vector<char> slock_data;
-        slock_data.assign(schema_dist_table.get_slock_bits() / 8, 0xFF);
+        slock_data.assign(schema_dist_table.get_slock_bytes(), 0xFF);
         r|= op->setValue(SCHEMA_SLOCK_I, slock_data.data());
         DBUG_ASSERT(r == 0);
       }
@@ -2785,6 +2783,7 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
  */
 class Ndb_schema_dist_data {
   uint m_own_nodeid;
+  uint m_max_subscribers{0};
 
   // Keeps track of subscribers as reported by one data node
   class Node_subscribers {
@@ -2868,6 +2867,8 @@ public:
       m_subscriber_bitmaps.emplace(node_id,
                                    new Node_subscribers(max_subscribers));
     }
+    // Remember max number of subscribers
+    m_max_subscribers = max_subscribers;
   }
 
   void release(void)
@@ -2878,6 +2879,7 @@ public:
       delete subscriber_bitmap;
     }
     m_subscriber_bitmaps.clear();
+    m_max_subscribers = 0;
 
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
@@ -2984,13 +2986,13 @@ private:
   void check_wakeup_clients() const
   {
     // Build bitmask of current participants
-    uint32 participants_buf[256/32];
     MY_BITMAP participants;
-    bitmap_init(&participants, participants_buf, 256, false);
+    bitmap_init(&participants, nullptr, m_max_subscribers, false);
     get_subscriber_bitmask(&participants);
 
     // Check all Client's for wakeup
     NDB_SCHEMA_OBJECT::check_waiters(participants);
+    bitmap_free(&participants);
   }
 
 }; //class Ndb_schema_dist_data
@@ -3077,6 +3079,17 @@ class Ndb_schema_event_handler {
       return str;
     }
 
+    void unpack_slock(const Field* field) {
+      // Allocate bitmap buffer in current MEM_ROOT
+      slock_buf = static_cast<my_bitmap_map*>(sql_alloc(field->field_length));
+      ndbcluster::ndbrequire(slock_buf);
+
+      // Initialize bitmap(always suceeds when buffer is already allocated)
+      (void)bitmap_init(&slock, slock_buf, field->field_length * 8, false);
+
+      // Copy data into bitmap buffer
+      memcpy(slock_buf, field->ptr, field->field_length);
+    }
 
     // Unpack Ndb_schema_op from event_data pointer
     void unpack_event(const Ndb_event_data *event_data)
@@ -3094,10 +3107,8 @@ class Ndb_schema_event_handler {
       name = unpack_varbinary(*field);
       field++;
 
-      /* slock fixed length */
-      slock_length= (*field)->field_length;
-      DBUG_ASSERT((*field)->field_length == sizeof(slock_buf));
-      memcpy(slock_buf, (*field)->ptr, slock_length);
+      /* slock, binary */
+      unpack_slock(*field);
       field++;
 
       /* query, blob */
@@ -3123,14 +3134,16 @@ class Ndb_schema_event_handler {
     }
 
   public:
-    // Note! The db, name and query variables point to memory allocated
-    // in the current MEM_ROOT. When the Ndb_schema_op is put in the list to be
-    // executed after epoch the pointer _values_ are copied and still
-    // point to same strings inside the MEM_ROOT.
-    char* db;
-    char* name;
-    uchar slock_length;
-    uint32 slock_buf[SCHEMA_SLOCK_SIZE/4];
+    // Note! The db, name, slock_buf and query variables point to memory
+    // allocated in the current MEM_ROOT. When the Ndb_schema_op is put in the
+    // list to be executed after epoch, only the pointers are copied and
+    // still point to same memory inside the MEM_ROOT.
+    char *db;
+    char *name;
+  private:
+    // Buffer for the slock bitmap
+    my_bitmap_map *slock_buf;
+  public:
     MY_BITMAP slock;
     char *query;
     size_t query_length() const {
@@ -3154,8 +3167,6 @@ class Ndb_schema_event_handler {
       DBUG_ENTER("Ndb_schema_op::create");
       Ndb_schema_op* schema_op=
         (Ndb_schema_op*)sql_alloc(sizeof(Ndb_schema_op));
-      bitmap_init(&schema_op->slock,
-                  schema_op->slock_buf, 8*SCHEMA_SLOCK_SIZE, false);
       schema_op->unpack_event(event_data);
       schema_op->any_value= any_value;
       DBUG_PRINT("exit", ("'%s.%s': query: '%s' type: %d",
@@ -3316,12 +3327,12 @@ class Ndb_schema_event_handler {
     NdbTransaction *trans= 0;
     int retries= 100;
     const int retry_sleep = 30; /* milliseconds, transaction */
+    std::string before_slock;
 
-    // Initialize slock bitmap
-    // NOTE! Should dynamically adapt to size of "slock" column
+    // Bitmap for the slock bits
     MY_BITMAP slock;
-    uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
-    bitmap_init(&slock, bitbuf, sizeof(bitbuf)*8, false);
+    (void)bitmap_init(&slock, nullptr, schema_dist_table.get_slock_bytes() * 8,
+                      false);
 
     while (1)
     {
@@ -3356,12 +3367,9 @@ class Ndb_schema_event_handler {
           goto err;
       }
 
-      char before_slock[32];
-      if (ndb_log_get_verbose_level() > 19)
-      {
-        /* Format 'before slock' into temp string */
-        snprintf(before_slock, sizeof(before_slock), "%x%08x",
-                    slock.bitmap[1], slock.bitmap[0]);
+      if (ndb_log_get_verbose_level() > 19) {
+        // Generate the 'before slock' string
+        before_slock = ndb_bitmap_to_hex_string(&slock);
       }
 
       /**
@@ -3373,21 +3381,24 @@ class Ndb_schema_event_handler {
        */
       if (schema->node_id == own_nodeid())
       {
-        // Build bitmask of subscribers known to Coordinator
-        MY_BITMAP servers;
-        uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
-        bitmap_init(&servers, bitbuf, sizeof(bitbuf)*8, false);
-        m_schema_dist_data.get_subscriber_bitmask(&servers);
-        bitmap_intersect(&slock, &servers);
+        // Build bitmask of known subscribers
+        MY_BITMAP known_subscribers;
+        (void)bitmap_init(&known_subscribers, nullptr,
+                          schema_dist_table.get_slock_bytes() * 8, false);
+        m_schema_dist_data.get_subscriber_bitmask(&known_subscribers);
+
+        // Remove all "unknown" subscribers from the slock bitmap
+        bitmap_intersect(&slock, &known_subscribers);
+        bitmap_free(&known_subscribers);
       }
       bitmap_clear_bit(&slock, own_nodeid());
 
-      ndb_log_verbose(19, "reply to %s.%s(%u/%u) from %s to %x%08x",
-                           db, table_name,
-                           table_id, table_version,
-                           before_slock,
-                           slock.bitmap[1],
-                           slock.bitmap[0]);
+      if (ndb_log_get_verbose_level() > 19) {
+        const std::string after_slock = ndb_bitmap_to_hex_string(&slock);
+        ndb_log_info("reply to %s.%s(%u/%u) from %s to %s", db, table_name,
+                     table_id, table_version, before_slock.c_str(),
+                     after_slock.c_str());
+      }
 
       {
         NdbOperation *op= 0;
@@ -3454,6 +3465,7 @@ class Ndb_schema_event_handler {
     }
     if (trans)
       ndb->closeTransaction(trans);
+    bitmap_free(&slock);
     DBUG_RETURN(0);
   }
 
@@ -4886,10 +4898,11 @@ class Ndb_schema_event_handler {
 
       }
 
-      /* signal that schema operation has been handled */
-      DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
+      DBUG_DUMP("slock", (uchar *)schema->slock.bitmap,
+                no_bytes_in_map(&schema->slock));
       if (bitmap_is_set(&schema->slock, own_nodeid()))
       {
+        // signal that schema operation has been handled
         ack_schema_op(schema);
       }
     }
