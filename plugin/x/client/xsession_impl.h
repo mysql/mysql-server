@@ -28,6 +28,7 @@
 #ifndef PLUGIN_X_CLIENT_XSESSION_IMPL_H_
 #define PLUGIN_X_CLIENT_XSESSION_IMPL_H_
 
+#include <chrono>
 #include <map>
 #include <memory>
 #include <set>
