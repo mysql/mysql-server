@@ -2956,7 +2956,6 @@ SHOW_VAR ndb_status_conflict_variables[]= {
 int
 show_ndb_status_conflict(THD*, SHOW_VAR* var, char*)
 {
-  /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;
   var->value = (char*) &ndb_status_conflict_variables;
   return 0;

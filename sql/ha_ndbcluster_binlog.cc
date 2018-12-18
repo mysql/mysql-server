@@ -7382,15 +7382,12 @@ void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb,
   DBUG_VOID_RETURN;
 }
 
-extern long long g_event_data_count;
-extern long long g_event_nondata_count;
-extern long long g_event_bytes_count;
+static long long g_event_data_count = 0;
+static long long g_event_nondata_count = 0;
+static long long g_event_bytes_count = 0;
 
-void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
-{
-  /* Update globals to sum of totals from each listening
-   * Ndb object
-   */
+static void update_injector_stats(Ndb *schemaNdb, Ndb *dataNdb) {
+  // Update globals to sum of totals from each listening Ndb object
   g_event_data_count = 
     schemaNdb->getClientStat(Ndb::DataEventsRecvdCount) + 
     dataNdb->getClientStat(Ndb::DataEventsRecvdCount);
@@ -7400,6 +7397,24 @@ void updateInjectorStats(Ndb* schemaNdb, Ndb* dataNdb)
   g_event_bytes_count = 
     schemaNdb->getClientStat(Ndb::EventBytesRecvdCount) + 
     dataNdb->getClientStat(Ndb::EventBytesRecvdCount);
+}
+
+static SHOW_VAR ndb_status_vars_injector[] = {
+    {"api_event_data_count_injector",
+     reinterpret_cast<char *>(&g_event_data_count), SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"api_event_nondata_count_injector",
+     reinterpret_cast<char *>(&g_event_nondata_count), SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {"api_event_bytes_count_injector",
+     reinterpret_cast<char *>(&g_event_bytes_count), SHOW_LONGLONG,
+     SHOW_SCOPE_GLOBAL},
+    {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
+
+int show_ndb_status_injector(THD *, SHOW_VAR *var, char *) {
+  var->type = SHOW_ARRAY;
+  var->value = reinterpret_cast<char *>(&ndb_status_vars_injector);
+  return 0;
 }
 
 /**
@@ -8160,7 +8175,7 @@ restart_cluster_failure:
         }
         s_pOp = s_ndb->nextEvent();
       }
-      updateInjectorStats(s_ndb, i_ndb);
+      update_injector_stats(s_ndb, i_ndb);
     }
 
     Uint64 inconsistent_epoch= 0;
@@ -8180,7 +8195,7 @@ restart_cluster_failure:
         }
         i_pOp= i_ndb->nextEvent();
       }
-      updateInjectorStats(s_ndb, i_ndb);
+      update_injector_stats(s_ndb, i_ndb);
     }
 
     // i_pOp == NULL means an inconsistent epoch or the queue is empty
@@ -8422,7 +8437,7 @@ restart_cluster_failure:
           i_pOp = i_ndb->nextEvent();
         } while (i_pOp && i_pOp->getEpoch() == current_epoch);
 
-        updateInjectorStats(s_ndb, i_ndb);
+        update_injector_stats(s_ndb, i_ndb);
         
         /*
           NOTE: i_pOp is now referring to an event in the next epoch

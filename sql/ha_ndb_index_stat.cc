@@ -3076,7 +3076,6 @@ static SHOW_VAR ndb_status_vars_index_stat[]=
 int
 show_ndb_status_index_stat(THD*, SHOW_VAR* var, char*)
 {
-  /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;
   var->value = (char*) &ndb_status_vars_index_stat;
   return 0;

@@ -25,6 +25,8 @@
 #include <stddef.h>
 #include <string>
 
+class THD;
+struct SHOW_VAR;
 namespace dd {
 class Table;
 }
@@ -34,11 +36,11 @@ class Table;
 */
 void ndbcluster_binlog_init(struct handlerton* hton);
 
-int ndbcluster_binlog_setup_table(class THD* thd, class Ndb* ndb,
+int ndbcluster_binlog_setup_table(THD* thd, class Ndb* ndb,
                                   const char* db, const char* table_name,
                                   const dd::Table* table_def);
 
-int ndbcluster_binlog_wait_synch_drop_table(class THD* thd,
+int ndbcluster_binlog_wait_synch_drop_table(THD* thd,
                                             struct NDB_SHARE* share);
 
 int ndbcluster_binlog_start();
@@ -57,6 +59,12 @@ bool ndb_binlog_is_read_only(void);
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
+
+/*
+  Called as part of SHOW STATUS or performance_schema
+  queries. Returns injector related status variables.
+*/
+int show_ndb_status_injector(THD *, SHOW_VAR *var, char *);
 
 /**
  @brief Queue up workitems which the ndb binlog thread needs to check for
