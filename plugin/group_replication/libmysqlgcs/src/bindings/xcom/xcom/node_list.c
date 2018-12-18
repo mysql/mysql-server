@@ -167,9 +167,8 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
           np->proto = names[i].proto;
           np++;
           /* Update length here so next iteration will check for duplicates
-             against newly a
-              dded node
-                                               */
+             against newly added node
+          */
           nodes->node_list_len++;
         }
       }

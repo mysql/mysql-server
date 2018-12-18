@@ -38,6 +38,7 @@ SET(TESTS
     group_replication_member_info
     group_replication_compatibility_module
     group_replication_member_version
+    group_replication_mysql_version_gcs_protocol_map
    )
 
 FOREACH(test ${TESTS})

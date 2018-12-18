@@ -37,6 +37,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/group_actions/group_action_coordinator.cc
   src/group_actions/multi_primary_migration_action.cc
   src/group_actions/primary_election_action.cc
+  src/group_actions/communication_protocol_action.cc
   src/member_info.cc
   src/observer_server_actions.cc
   src/observer_server_channels.cc
@@ -55,6 +56,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/recovery_state_transfer.cc
   src/replication_threads_api.cc
   src/member_version.cc
+  src/mysql_version_gcs_protocol_map.cc
   src/compatibility_module.cc
   src/handlers/applier_handler.cc
   src/handlers/certification_handler.cc
@@ -93,6 +95,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/udf/udf_single_primary.cc
   src/udf/udf_utils.cc
   src/udf/udf_write_concurrency.cc
+  src/udf/udf_communication_protocol.cc
   src/hold_transactions.cc
 )
 
@@ -109,6 +112,7 @@ IF(WITH_UNIT_TESTS)
     src/member_info.cc
     src/member_version.cc
     src/compatibility_module.cc
+    src/mysql_version_gcs_protocol_map.cc
   )
   SET_TARGET_PROPERTIES(gr_unit_test_resource
                         PROPERTIES

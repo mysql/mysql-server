@@ -131,6 +131,18 @@ void Control_notification::do_execute() {
   static_cast<void>((*m_functor)(m_control_if));
 }
 
+Protocol_change_notification::Protocol_change_notification(
+    xcom_protocol_change_functor *functor,
+    Gcs_xcom_communication_protocol_changer *protocol_changer,
+    Gcs_tagged_lock::Tag const tag)
+    : m_functor(functor), m_protocol_changer(protocol_changer), m_tag(tag) {}
+
+Protocol_change_notification::~Protocol_change_notification() {}
+
+void Protocol_change_notification::do_execute() {
+  (*m_functor)(m_protocol_changer, m_tag);
+}
+
 void *process_notification_thread(void *ptr_object) {
   Gcs_xcom_engine *engine = static_cast<Gcs_xcom_engine *>(ptr_object);
   engine->process();

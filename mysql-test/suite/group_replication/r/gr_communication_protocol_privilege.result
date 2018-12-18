@@ -1,0 +1,21 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 1. Create user without GROUP_REPLICATION_ADMIN privileges
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+
+# 2. Connect to server using group_rpl_user
+[connection con_group_rpl_user]
+
+# 3. group_replication_set_communication_protocol should fail due to lack of privileges
+SELECT group_replication_set_communication_protocol("8.0.14");
+ERROR HY000: Can't initialize function 'group_replication_set_communication_protocol'; User 'group_rpl_user'@'%' needs SUPER or GROUP_REPLICATION_ADMIN privileges.
+
+# 4. Cleanup
+[connection default]
+DROP USER group_rpl_user;
+include/group_replication_end.inc

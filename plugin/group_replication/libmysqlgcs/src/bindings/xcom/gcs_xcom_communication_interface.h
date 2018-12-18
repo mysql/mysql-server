@@ -24,14 +24,18 @@
 #define GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 
 #include <cstdlib>
-#include <map>
-#include <vector>
+#include <map>      // std::map
+#include <utility>  // std::pair
+#include <vector>   // std::vector
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_protocol_changer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_proxy.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
@@ -69,45 +73,30 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
 
   */
 
-  virtual enum_gcs_error send_binding_message(
-      const Gcs_message &message_to_send, unsigned long long *message_length,
-      Gcs_internal_message_header::cargo_type cargo) = 0;
+  virtual enum_gcs_error do_send_message(const Gcs_message &message_to_send,
+                                         unsigned long long *message_length,
+                                         Cargo_type cargo) = 0;
+
+  virtual Gcs_message_pipeline &get_msg_pipeline() = 0;
 
   /**
-    The purpose of this method is to be called when in Gcs_xcom_interface
-    callback method xcom_receive_data is invoked.
-
-    This allows, in terms of software architecture, to concentrate all the
-    message delivery logic and processing in a single place.
-
-    The deliver_message callback that is registered in XCom
-    (in gcs_xcom_interface.h) and that actually receives the low-level
-    messages, is implemented as a delegator to this method.
-
-    Note that the method will be responsible for deleting the message
-    passed as parameter and must be excuted by the same thread that
-    processes global view messages and data message in order to avoid
-    any concurrency issue.
-  */
-
-  virtual bool xcom_receive_data(Gcs_message *message) = 0;
-
-  /**
-    Buffer messages when a view is not installed yet and the state
+    Buffer packets when a view is not installed yet and the state
     exchange phase is being executed.
 
     Note that this method must be excuted by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
 
-    @param[in] message Message to buffer.
+    @param packet Packet to buffer.
+    @param xcom_nodes Membership at the time the packet was received
   */
 
-  virtual void buffer_message(Gcs_message *message) = 0;
+  virtual void buffer_incoming_packet(
+      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
 
   /**
     The state exchange phase has been executed and the view has been
-    installed so this is used to send any buffered message to upper
+    installed so this is used to send any buffered packet to upper
     layers.
 
     Note that this method must be excuted by the same thread that
@@ -115,10 +104,10 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
     avoid any concurrency issue.
   */
 
-  virtual void deliver_buffered_messages() = 0;
+  virtual void deliver_buffered_packets() = 0;
 
-  /**
-    Clean up possible buffered messages that were not delivered to
+  /*
+    Clean up possible buffered packets that were not delivered to
     upper layers because the state exchange has not finished and a
     new global view message was received triggering a new state
     exchange phase.
@@ -128,17 +117,80 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
     avoid any concurrency issue.
   */
 
-  virtual void cleanup_buffered_messages() = 0;
+  virtual void cleanup_buffered_packets() = 0;
 
   /**
-    Return the number of buffered messages.
+    Return the number of buffered packets.
 
     Note that this method must be excuted by the same thread that
     processes global view messages and data message in order to
     avoid any concurrency issue.
   */
 
-  virtual size_t number_buffered_messages() = 0;
+  virtual size_t number_buffered_packets() = 0;
+
+  /**
+   Notify the pipeline about the new XCom membership when a state exchange
+   begins.
+
+   Note that this method must be executed by the same thread that processes
+   global view messages and data message in order to avoid any concurrency
+   issue.
+
+   @param me The identifier of this server
+   @param members The XCom membership
+   */
+  virtual void update_members_information(const Gcs_member_identifier &me,
+                                          const Gcs_xcom_nodes &members) = 0;
+
+  /**
+   Attempts to recover the missing packets that are required for a node to
+   join the group successfully.
+   For example, the missing packets may be some fragments of a message that
+   have already been delivered by XCom to the existing members of the group.
+   The joining node needs those fragments in order to be able to deliver the
+   reassembled message when the final fragments are delivered by XCom.
+
+   Note that this method must be executed by the same thread that processes
+   global view messages and data message in order to avoid any concurrency
+   issue.
+
+   @param synodes The synodes where the required packets were decided
+   @returns true If successful, false otherwise
+   */
+  virtual bool recover_packets(Gcs_xcom_synode_set const &synodes) = 0;
+
+  /**
+   Converts the packet into a message that can be delivered to the upper
+   layer.
+
+   @param packet The packet to convert
+   @param xcom_nodes The membership at the time the packet was delivered
+   @retval Gcs_message* if successful
+   @retval nullptr if unsuccessful
+   */
+  virtual Gcs_message *convert_packet_to_message(
+      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
+
+  /**
+   The purpose of this method is to be called when in Gcs_xcom_interface
+   callback method xcom_receive_data is invoked.
+
+   This allows, in terms of software architecture, to concentrate all the
+   message delivery logic and processing in a single place.
+
+   The deliver_message callback that is registered in XCom
+   (in gcs_xcom_interface.h) and that actually receives the low-level
+   messages, is implemented as a delegator to this method.
+
+   Note that the method will be responsible for deleting the message
+   passed as parameter and must be executed by the same thread that
+   processes global view messages and data message in order to avoid
+   any concurrency issue.
+   */
+
+  virtual void process_user_data_packet(
+      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
 
   virtual ~Gcs_xcom_communication_interface() {}
 };
@@ -162,7 +214,9 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
 
   explicit Gcs_xcom_communication(
       Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
-      Gcs_xcom_view_change_control_interface *view_control);
+      Gcs_xcom_view_change_control_interface *view_control,
+      Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
+      Gcs_group_identifier const &group_id);
 
   virtual ~Gcs_xcom_communication();
 
@@ -191,31 +245,45 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
 
   void remove_event_listener(int event_listener_handle);
 
-  /**
-    Delegation method from Gcs_xcom_interface object.
-
-    @return true - delivered to upper layers, false - buffered
-  */
-  bool xcom_receive_data(Gcs_message *message);
-
   // Implementation of the Gcs_xcom_communication_interface
-  enum_gcs_error send_binding_message(
-      const Gcs_message &message_to_send, unsigned long long *message_length,
-      Gcs_internal_message_header::cargo_type cargo);
+  enum_gcs_error do_send_message(const Gcs_message &message_to_send,
+                                 unsigned long long *message_length,
+                                 Cargo_type cargo);
 
   // For unit testing purposes
   std::map<int, const Gcs_communication_event_listener &>
       *get_event_listeners();
 
-  Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
+  virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
 
-  void buffer_message(Gcs_message *message);
+  void buffer_incoming_packet(Gcs_packet &&packet,
+                              std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
 
-  void deliver_buffered_messages();
+  void deliver_buffered_packets();
 
-  void cleanup_buffered_messages();
+  void cleanup_buffered_packets();
 
-  size_t number_buffered_messages();
+  size_t number_buffered_packets();
+
+  void update_members_information(const Gcs_member_identifier &me,
+                                  const Gcs_xcom_nodes &members);
+
+  bool recover_packets(Gcs_xcom_synode_set const &synodes);
+
+  Gcs_message *convert_packet_to_message(
+      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+
+  void process_user_data_packet(Gcs_packet &&packet,
+                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
+
+  Gcs_protocol_version get_protocol_version() const;
+
+  std::pair<bool, std::future<void>> set_protocol_version(
+      Gcs_protocol_version new_version);
+
+  Gcs_protocol_version get_maximum_supported_protocol_version() const;
+
+  void set_maximum_supported_protocol_version(Gcs_protocol_version version);
 
  private:
   // Registered event listeners
@@ -237,15 +305,78 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   Gcs_message_pipeline m_msg_pipeline;
 
   /**
-    Buffer that is used to store messages while the node is about to install
+    Buffer that is used to store packets while the node is about to install
     a view and is running the state exchange phase.
   */
-  std::vector<Gcs_message *> m_buffered_messages;
+  std::vector<std::pair<Gcs_packet, std::unique_ptr<Gcs_xcom_nodes>>>
+      m_buffered_packets;
+
+  Gcs_member_identifier m_myself;
+
+  /** Most recent XCom membership known. */
+  Gcs_xcom_nodes m_xcom_nodes;
+
+  /** Hash of the group. */
+  unsigned int m_gid_hash;
+
+  /** Protocol changer. */
+  Gcs_xcom_communication_protocol_changer m_protocol_changer;
+
+  /** Notify upper layers that a message has been received. */
+  void notify_received_message(Gcs_message *message);
+
+  /** Delivers the packet to the upper layer. */
+  void deliver_user_data_packet(Gcs_packet &&packet,
+                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes);
 
   /**
-    Notify upper layers that a message has been received.
-  */
-  void notify_received_message(Gcs_message *message);
+   @returns the list of possible donors from which to recover the missing
+   packets this server requires to successfully join the group.
+   */
+  std::vector<Gcs_xcom_node_information> possible_packet_recovery_donors()
+      const;
+
+  /**
+   Error code for the packet recovery proceess.
+   */
+  enum class packet_recovery_result {
+    OK,
+    PACKETS_UNRECOVERABLE,
+    NO_MEMORY,
+    PIPELINE_ERROR,
+    PIPELINE_UNEXPECTED_OUTPUT,
+    PACKET_UNEXPECTED_CARGO,
+    ERROR
+  };
+
+  /**
+   Attempts to recover the packets delivered in @c synodes from @c donor.
+
+   @c recovered_data is an out parameter.
+   */
+  packet_recovery_result recover_packets_from_donor(
+      Gcs_xcom_node_information const &donor,
+      Gcs_xcom_synode_set const &synodes,
+      synode_app_data_array &recovered_data);
+
+  /**
+   Processes all the recovered packets.
+   */
+  packet_recovery_result process_recovered_packets(
+      synode_app_data_array const &recovered_data);
+
+  /**
+   Processes a single recovered packet.
+   */
+  packet_recovery_result process_recovered_packet(
+      synode_app_data const &recovered_data);
+
+  /**
+   Logs the packet recovery failure.
+   */
+  void log_packet_recovery_failure(
+      packet_recovery_result const &error_code,
+      Gcs_xcom_node_information const &donor) const;
 
   /*
     Disabling the copy constructor and assignment operator.

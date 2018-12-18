@@ -27,29 +27,39 @@
 
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
 class Group_action_message : public Plugin_gcs_message {
  public:
   enum enum_payload_item_type {
-    PIT_UNKNOWN = 0,  // This type should not be used anywhere.
-
-    PIT_ACTION_TYPE = 1,  // Length of the payload item: 2 bytes
-
-    PIT_ACTION_PHASE = 2,  // Length of the payload item: 2 bytes
-
-    PIT_ACTION_RETURN_VALUE = 3,  // Length of the payload item: 4 bytes
-
-    PIT_ACTION_PRIMARY_ELECTION_UUID = 4,  // The uuid field
-
-    PIT_MAX = 4  // No valid type codes can appear after this one.
+    // This type should not be used anywhere.
+    PIT_UNKNOWN = 0,
+    // Length of the payload item: 2 bytes
+    PIT_ACTION_TYPE = 1,
+    // Length of the payload item: 2 bytes
+    PIT_ACTION_PHASE = 2,
+    // Length of the payload item: 4 bytes
+    PIT_ACTION_RETURN_VALUE = 3,
+    // The uuid field
+    PIT_ACTION_PRIMARY_ELECTION_UUID = 4,
+    // The GCS protocol field: 2 bytes
+    PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION = 5,
+    // No valid type codes can appear after this one.
+    PIT_MAX = 5
   };
 
   /** Enum for the types of message / actions */
   enum enum_action_message_type {
-    ACTION_UNKNOWN_MESSAGE = 0,           // This type should not be used
-    ACTION_MULTI_PRIMARY_MESSAGE = 1,     // Change to multi primary
-    ACTION_PRIMARY_ELECTION_MESSAGE = 2,  // Elect/Change mode to primary member
-    ACTION_MESSAGE_END = 3                // The end of the enum
+    // This type should not be used
+    ACTION_UNKNOWN_MESSAGE = 0,
+    // Change to multi primary
+    ACTION_MULTI_PRIMARY_MESSAGE = 1,
+    // Elect/Change mode to primary member
+    ACTION_PRIMARY_ELECTION_MESSAGE = 2,
+    // Change GCS protocol version
+    ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE = 3,
+    // The end of the enum
+    ACTION_MESSAGE_END = 4
   };
 
   /** Enum for the phase of the action in the message */
@@ -79,6 +89,14 @@ class Group_action_message : public Plugin_gcs_message {
     @param[in] primary_uuid   the primary uuid to elect
   */
   Group_action_message(std::string &primary_uuid);
+
+  /**
+    Message constructor for ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE action
+    type
+
+    @param[in] gcs_protocol   the GCS protocol to change to
+   */
+  explicit Group_action_message(Gcs_protocol_version gcs_protocol);
 
   /**
     Message destructor
@@ -134,6 +152,13 @@ class Group_action_message : public Plugin_gcs_message {
   */
   const std::string &get_primary_to_elect_uuid();
 
+  /**
+    Returns the GCS protocol this group action wants the group to change to.
+
+    @return the GCS protocol version
+   */
+  Gcs_protocol_version const &get_gcs_protocol();
+
  protected:
   /**
     Encodes the message contents for transmission.
@@ -163,6 +188,9 @@ class Group_action_message : public Plugin_gcs_message {
 
   /** The uuid for election, can be empty if not defined */
   std::string primary_election_uuid;
+
+  /** The GCS protocol version to change to */
+  Gcs_protocol_version gcs_protocol;
 };
 
 #endif /* GROUP_ACTION_MESSAGE_INCLUDED */

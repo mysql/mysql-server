@@ -352,6 +352,10 @@ xdr_app_u (XDR *xdrs, app_u *objp)
 		 if (!xdr_xcom_event_horizon (xdrs, &objp->app_u_u.event_horizon))
 			 return FALSE;
 		break;
+	case get_synode_app_data_type:
+		 if (!xdr_synode_no_array (xdrs, &objp->app_u_u.synodes))
+			 return FALSE;
+		break;
 	default:
 		break;
 	}
@@ -816,8 +820,79 @@ xdr_pax_msg_1_4 (XDR *xdrs, pax_msg_1_4 *objp)
 		 return FALSE;
 	return TRUE;
 }
+
+bool_t
+xdr_synode_app_data (XDR *xdrs, synode_app_data *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_synode_no (xdrs, &objp->synode))
+		 return FALSE;
+	 if (!xdr_checked_data (xdrs, &objp->data))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_synode_app_data_array (XDR *xdrs, synode_app_data_array *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_array (xdrs, (char **)&objp->synode_app_data_array_val, (u_int *) &objp->synode_app_data_array_len, 1024,
+		sizeof (synode_app_data), (xdrproc_t) xdr_synode_app_data))
+		 return FALSE;
+	return TRUE;
+}
+
+bool_t
+xdr_pax_msg_1_6 (XDR *xdrs, pax_msg_1_6 *objp)
+{
+	register int32_t *buf;
+
+	 if (!xdr_node_no (xdrs, &objp->to))
+		 return FALSE;
+	 if (!xdr_node_no (xdrs, &objp->from))
+		 return FALSE;
+	 if (!xdr_uint32_t (xdrs, &objp->group_id))
+		 return FALSE;
+	 if (!xdr_synode_no (xdrs, &objp->max_synode))
+		 return FALSE;
+	 if (!xdr_start_t (xdrs, &objp->start_type))
+		 return FALSE;
+	 if (!xdr_ballot (xdrs, &objp->reply_to))
+		 return FALSE;
+	 if (!xdr_ballot (xdrs, &objp->proposal))
+		 return FALSE;
+	 if (!xdr_pax_op (xdrs, &objp->op))
+		 return FALSE;
+	 if (!xdr_synode_no (xdrs, &objp->synode))
+		 return FALSE;
+	 if (!xdr_pax_msg_type (xdrs, &objp->msg_type))
+		 return FALSE;
+	 if (!xdr_pointer (xdrs, (char **)&objp->receivers, sizeof (bit_set), (xdrproc_t) xdr_bit_set))
+		 return FALSE;
+	 if (!xdr_pointer (xdrs, (char **)&objp->a, sizeof (app_data), (xdrproc_t) xdr_app_data))
+		 return FALSE;
+	 if (!xdr_pointer (xdrs, (char **)&objp->snap, sizeof (snapshot), (xdrproc_t) xdr_snapshot))
+		 return FALSE;
+	 if (!xdr_pointer (xdrs, (char **)&objp->gcs_snap, sizeof (gcs_snapshot), (xdrproc_t) xdr_gcs_snapshot))
+		 return FALSE;
+	 if (!xdr_client_reply_code (xdrs, &objp->cli_err))
+		 return FALSE;
+	 if (!xdr_bool (xdrs, &objp->force_delivery))
+		 return FALSE;
+	 if (!xdr_int32_t (xdrs, &objp->refcnt))
+		 return FALSE;
+	 if (!xdr_synode_no (xdrs, &objp->delivered_msg))
+		 return FALSE;
+	 if (!xdr_xcom_event_horizon (xdrs, &objp->event_horizon))
+		 return FALSE;
+	 if (!xdr_synode_app_data_array (xdrs, &objp->requested_synode_app_data))
+		 return FALSE;
+	return TRUE;
+}
 #ifndef PAX_MSG_TYPEDEF
 #define PAX_MSG_TYPEDEF
-typedef pax_msg_1_4 pax_msg;
+typedef pax_msg_1_6 pax_msg;
 extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif

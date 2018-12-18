@@ -434,6 +434,7 @@ void Plugin_gcs_events_handler::handle_group_action_message(
   switch (action_message_type) {
     case Group_action_message::ACTION_MULTI_PRIMARY_MESSAGE:
     case Group_action_message::ACTION_PRIMARY_ELECTION_MESSAGE:
+    case Group_action_message::ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE:
       group_action_message = new Group_action_message(
           message.get_message_data().get_payload(),
           message.get_message_data().get_payload_length());

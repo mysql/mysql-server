@@ -23,469 +23,297 @@
 #ifndef GCS_MSG_H
 #define GCS_MSG_H
 
-#include <stdlib.h>
 #include <cassert>
-#include <limits>
-#include <string>
-#include <type_traits>
+#include <cstdlib>
+#include <memory>
+#include <sstream>
+#include <unordered_set>
+#include <vector>
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message_headers.h"
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_synode.h"
+
+class Gcs_message_pipeline;
 
 /**
- This is the fixed header of a GCS message. This header is internal to the
- MySQL GCS library and contains metadata information about the contents of
- the message. Moreover it contains additional dynamic headers that are
- created by internal protocols that are built on top of the basic send/receive
- procedure.
-
- These protocols add dynamic headers after this header and before the payload,
- then the on-the-wire layout looks like this:
-
-   +----------------------------------------------------+
-   | fixed header | dynamic headers |         payload   |
-   +----------------------------------------------------+
-
- The on-the-wire representation of the fixed header header is:
-
-  +------------------+-----------+--------------------------------------+
-  | field            | wire size | description                          |
-  +==================+===========+======================================+
-  | version          |   4 bytes | protocol version                     |
-  | fixed_hdr_len    |   2 bytes | length of the fixed header           |
-  | message_len      |   8 bytes | length of the message                |
-  | dyn_hdr_len      |   4 bytes | length of the dynamic headers        |
-  | cargo_type       |   2 bytes | the cargo type in the payload        |
-  +------------------+-----------+--------------------------------------+
-
- The on-the-wire-layout representation of a dynamic header is:
-
-  +------------------+-----------+--------------------------------------+
-  | field            | wire size | description                          |
-  +==================+===========+======================================+
-  | dyn_hdr_len      |   2 bytes | length of the dynamic header         |
-  | stage_code       |   4 bytes | stage code                           |
-  | old_payload_len  |   8 bytes | length of the previous stage payload |
-  +------------------+-----------+--------------------------------------+
-
- Each dynamic header may have its own metadata, thence following the field
- old_payload_len there could be more metadata that serves as input for the
- stage that is processing this header. @c Gcs_message_stage for additional
- details.
+ Deleter for objects managed by a std::unique_ptr that were allocated using
+ the malloc family of functions instead of the new operator.
  */
-class Gcs_internal_message_header {
- public:
-  /**
-   The protocol version number length field.
-   */
-  static const unsigned short WIRE_VERSION_SIZE = 4;
-
-  /**
-   On-the-wire size of the fixed header length field.
-   */
-  static const unsigned short WIRE_HD_LEN_SIZE = 2;
-
-  /**
-   On-the-wire size of the message size field.
-   */
-  static const unsigned short WIRE_TOTAL_LEN_SIZE = 8;
-
-  /**
-   On-the-wire size of the cargo type field.
-   */
-  static const unsigned short WIRE_CARGO_TYPE_SIZE = 2;
-
-  /**
-   On-the-wire size of the dynamic headers length field.
-   */
-  static const unsigned short WIRE_DYNAMIC_HDRS_LEN_SIZE = 4;
-
-  /**
-   On-the-wire offset of the dynamic headers length field.
-   */
-  static const unsigned short WIRE_DYNAMIC_HDRS_LEN_OFFSET =
-      WIRE_VERSION_SIZE + WIRE_HD_LEN_SIZE + WIRE_TOTAL_LEN_SIZE;
-
-  /**
-   On-the-wire offset of the message length field.
-   */
-  static const unsigned short WIRE_MSG_LEN_OFFSET =
-      WIRE_VERSION_SIZE + WIRE_HD_LEN_SIZE;
-
-  /**
-   On-the-wire size of the fixed header.
-   */
-  static const unsigned short WIRE_TOTAL_FIXED_HEADER_SIZE =
-      WIRE_VERSION_SIZE + WIRE_HD_LEN_SIZE + WIRE_TOTAL_LEN_SIZE +
-      WIRE_DYNAMIC_HDRS_LEN_SIZE + WIRE_CARGO_TYPE_SIZE;
-
-  /**
-   The different cargo type codes.
-
-   NOTE: all type values must fit into WIRE_CARGO_TYPE_SIZE bytes storage.
-   */
-  enum class cargo_type : unsigned short {
-    // this type should not be used anywhere.
-    CT_UNKNOWN = 0,
-
-    // this cargo type is used for internal messaging related to stage
-    // exchanges.
-    CT_INTERNAL_STATE_EXCHANGE = 1,
-
-    // this cargo type is used for messages from the application
-    CT_USER_DATA = 2,
-
-    /**
-     No valid type codes can appear after this one. If a type code is to
-     be added, this value needs to be incremented and the lowest type code
-     available be assigned to the new stage.
-     */
-    CT_MAX = 3
-  };
-
- private:
-  /**
-   The header instance protocol version.
-   */
-  unsigned int m_version;
-  static_assert(sizeof(decltype(m_version)) == WIRE_VERSION_SIZE,
-                "The m_version size does not match the storage capacity");
-
-  /**
-   The header instance length.
-   */
-  unsigned short m_fixed_header_len;
-  static_assert(
-      sizeof(decltype(m_fixed_header_len)) == WIRE_HD_LEN_SIZE,
-      "The m_fixed_header_len size does not match the storage capacity");
-
-  /**
-   The message length field.
-   */
-  unsigned long long m_total_len;
-  static_assert(sizeof(decltype(m_total_len)) <= WIRE_TOTAL_LEN_SIZE,
-                "The m_total_len size does not match the storage capacity");
-
-  /**
-   The length of the dynamic headers.
-   */
-  unsigned int m_dynamic_headers_len;
-  static_assert(
-      sizeof(decltype(m_dynamic_headers_len)) == WIRE_DYNAMIC_HDRS_LEN_SIZE,
-      "The m_dynamic_headers_len size does not match the storage capacity");
-
-  /**
-   The cargo type code.
-   */
-  cargo_type m_cargo_type;
-  static_assert(sizeof(decltype(m_cargo_type)) == WIRE_CARGO_TYPE_SIZE,
-                "The m_cargo_type size does not match the storage capacity");
-
- public:
-  explicit Gcs_internal_message_header()
-      : m_version(0),
-        m_fixed_header_len(WIRE_TOTAL_FIXED_HEADER_SIZE),
-        m_total_len(WIRE_TOTAL_FIXED_HEADER_SIZE),
-        m_dynamic_headers_len(0),
-        m_cargo_type() {}
-
-  /**
-   @return the value of the protocol version field.
-   */
-  unsigned int get_version() const { return m_version; }
-
-  /**
-   Set the current protocol version.
-
-   @param version Current protocol version.
-   */
-  void set_version(unsigned int version) { m_version = version; }
-
-  /**
-   @return the value of the header length field value.
-   */
-  unsigned short get_fixed_header_length() const { return m_fixed_header_len; }
-
-  /**
-   @return the cargo type.
-   */
-  cargo_type get_cargo_type() const { return m_cargo_type; }
-
-  /**
-   @return the message total length field value.
-   */
-  unsigned long long get_total_length() const { return m_total_len; }
-
-  /**
-   @return the dynamic headers length field value.
-   */
-  unsigned int get_dynamic_headers_length() const {
-    return m_dynamic_headers_len;
-  }
-
-  /**
-   Set the message length attribute value according to the payload length and
-   the header length. Only the payload information is provided because the
-   header length is fixed.
-
-   @param length payload length
-   */
-  void set_payload_length(unsigned long long length) {
-    m_total_len = length + m_fixed_header_len;
-  }
-
-  /**
-   Set the message total length attribute value.
-
-   @param length message length
-   */
-  void set_total_length(unsigned long long length) { m_total_len = length; }
-
-  /**
-   Set the dynamic headers length field value.
-
-   @param len the dynamic headers value.
-   */
-  void set_dynamic_headers_length(unsigned int len) {
-    m_dynamic_headers_len = len;
-  }
-
-  /**
-   Set the cargo type field value.
-
-   @param type cargo type to set
-   */
-  void set_cargo_type(Gcs_internal_message_header::cargo_type type) {
-    m_cargo_type = type;
-  }
-
-  /**
-   Decode the contents of the buffer and sets the field values according to
-   the values decoded. The buffer MUST be encoded in little endian format.
-
-   @param buffer the buffer to decode from.
-   @return false on success, true otherwise.
-   */
-  bool decode(const unsigned char *buffer);
-
-  /**
-   Encode the contents of this instance into the buffer. The encoding SHALL
-   be done in little endian format.
-
-   @param buffer the buffer to encode to.
-   @return false on success, true otherwise.
-   */
-  bool encode(unsigned char *buffer) const;
+struct Gcs_packet_buffer_deleter {
+  void operator()(unsigned char *buffer) const { std::free(buffer); }
 };
 
 /**
  This class is an abstraction for the packet concept. It is used to manipulate
  the contents of a buffer that is to be sent to the network in an optimal way.
+
+ The on-the-wire layout looks like this:
+
+ +--------------+-----------------+----------------+-----------+
+ | fixed header | dynamic headers | stage metadata |  payload  |
+ +--------------+-----------------+----------------+-----------+
  */
 class Gcs_packet {
+ public:
+  using buffer_ptr = std::unique_ptr<unsigned char, Gcs_packet_buffer_deleter>;
+
  private:
   /**
-   The buffer containing the data for this packet.
-   */
-  unsigned char *m_buffer;
+   Fixed header which is common regardless whether the packet has been
+   changed by a stage or not.
+  */
+  Gcs_internal_message_header m_fixed_header;
 
   /**
-   The capacity of the packet.
-   */
-  unsigned long long m_capacity;
+   List of dynamic headers created by the stages by which the packet has
+   passed through and changed it.
+  */
+  std::vector<Gcs_dynamic_header> m_dynamic_headers;
 
   /**
-   The length of the data in this packet.
+   List of stage metadata created by the stages by which the packet has passed
+   through.
+   This list always has the same length as m_dynamic_headers, and the
+   following holds:
+
+   For every i, m_stage_metadata[i] and m_dynamic_headers[i] correspond to
+   the same stage.
    */
-  unsigned long long m_total_len;
+  std::vector<std::unique_ptr<Gcs_stage_metadata>> m_stage_metadata;
 
   /**
-   The header size.
+   Index of the next stage to apply/revert in both m_dynamic_headers and
+   m_stage_metadata.
    */
-  unsigned int m_header_len;
+  std::size_t m_next_stage_index{0};
 
   /**
-   The offset of the current dynamic header within the buffer.
+   The buffer containing all serialized data for this packet.
    */
-  unsigned int m_dyn_headers_len;  // always points to the next header
+  buffer_ptr m_serialized_packet;
 
   /**
-   The length of the payload.
+   The capacity of the serialization buffer.
    */
-  unsigned long long m_payload_len;
+  unsigned long long m_serialized_packet_size{0};
 
   /**
-   Version in use by the packet
+   The offset in m_serialized_packet where the application payload starts.
    */
-  unsigned int m_version;
+  std::size_t m_serialized_payload_offset{0};
+
+  /**
+   The size of the serialized application payload in m_serialized_packet.
+   */
+  unsigned long long m_serialized_payload_size{0};
+
+  /**
+   The size of the serialized m_stage_metadata in m_serialized_packet.
+   */
+  unsigned long long m_serialized_stage_metadata_size{0};
+
+  /**
+   The XCom synode in which this packet was delivered.
+   */
+  Gcs_xcom_synode m_delivery_synode;
 
  public:
   /**
-   Reallocations are done in chunks. This is the minimum amount of memory
-   that is reallocated each time.
+   This factory method is to be used when sending a packet.
+
+   @param cargo The message type
+   @param current_version The pipeline version
+   @param dynamic_headers The dynamic headers of the stages the packet will go
+   through
+   @param stage_metadata The stage metadata of the stages the packet will go
+   through
+   @param payload_size The payload size
+   @retval {true, Gcs_packet} If packet is created successfully
+   @retval {false, _} If memory could not be allocated
    */
-  static const unsigned short BLOCK_SIZE = 1024;
+  static std::pair<bool, Gcs_packet> make_outgoing_packet(
+      Cargo_type const &cargo, Gcs_protocol_version const &current_version,
+      std::vector<Gcs_dynamic_header> &&dynamic_headers,
+      std::vector<std::unique_ptr<Gcs_stage_metadata>> &&stage_metadata,
+      unsigned long long const &payload_size);
 
   /**
-   This is the constructor that SHALL be used for incoming messages from the
-   group. This will decode the buffer and set internal cursors and offsets
-   according to the information in the headers in the buffer.
+   This factory method is to be used when modifying a packet. This builds a
+   packet with all the same headers, metadata, and state of @c original_packet.
 
-   @param buffer the buffer with the data that has arrived from the group.
-   @param capacity the size of the buffer.
+   It is used, for example, by:
+   - The compression stage of the pipeline, to derive the compressed packet from
+     the original, uncompressed packet.
+   - The fragmentation stage of the pipeline, to derive the fragments from the
+     original packet.
+
+   @param original_packet The packet to "clone"
+   @param new_payload_size The payload size of this packet
+   @retval {true, Gcs_packet} If packet is created successfully
+   @retval {false, _} If memory could not be allocated
    */
-  explicit Gcs_packet(unsigned char *buffer, unsigned long long capacity)
-      : m_buffer(buffer),
-        m_capacity(capacity),
-        m_total_len(0),
-        m_header_len(0),
-        m_dyn_headers_len(0),
-        m_payload_len(0),
-        m_version(0) {
-    Gcs_internal_message_header hd;
-    hd.decode(buffer);
-
-    // update the internal pointers
-    reload_header(hd);
-  }
+  static std::pair<bool, Gcs_packet> make_from_existing_packet(
+      Gcs_packet const &original_packet,
+      unsigned long long const &new_payload_size);
 
   /**
-   This constructor is to be used when sending a message. This builds a packet
-   with an internal buffer that is used to prepare the data to be sent.
+   This factory method is to be used when receiving a packet from the network.
+
+   @param buffer Buffer with a serialized packet
+   @param buffer_size Size of the buffer
+   @param synode The XCom synode where the packet was decided on
+   @param pipeline The message pipeline
+   @returns A packet initialized from the buffer
    */
-  explicit Gcs_packet(const Gcs_internal_message_header &hd)
-      : m_buffer(nullptr), m_capacity(0) {
-    reload_header(hd);
-    if (m_total_len > 0) {
-      m_capacity = calculate_capacity(m_total_len);
-      m_buffer = create_buffer(m_capacity);
-      if (m_buffer == nullptr) m_capacity = 0;
-    }
-  }
+  static Gcs_packet make_incoming_packet(buffer_ptr &&buffer,
+                                         unsigned long long buffer_size,
+                                         synode_no const &synode,
+                                         Gcs_message_pipeline const &pipeline);
 
-  Gcs_packet(Gcs_packet &p) = delete;
-
-  Gcs_packet &operator=(const Gcs_packet &p) = delete;
-
-  Gcs_packet(Gcs_packet &&p) = delete;
-
-  Gcs_packet &operator=(Gcs_packet &&p) = delete;
-
-  virtual ~Gcs_packet() {}
+  Gcs_packet() noexcept;
 
   /**
-   @return the value of the version in use.
+   These constructors are to be used when move semantics may be needed.
    */
-  unsigned int get_version() const { return m_version; }
+  Gcs_packet(Gcs_packet &&packet) noexcept;
+  Gcs_packet &operator=(Gcs_packet &&packet) noexcept;
+
+  Gcs_packet(const Gcs_packet &packet) = delete;
+  Gcs_packet &operator=(const Gcs_packet &packet) = delete;
 
   /**
-   This method sets the payload length.
-
-   @param length payload length.
+   Retrieve this packet's header.
+   @returns The packet's header
    */
-  void set_payload_length(unsigned long long length) { m_payload_len = length; }
+  Gcs_internal_message_header const &get_fixed_header() const;
+
+  /**
+   Retrieve this packet's dynamic headers.
+   @returns The packet's dynamic headers
+   */
+  std::vector<Gcs_dynamic_header> const &get_dynamic_headers() const;
+
+  /**
+   Retrieve this packet's stage metadata.
+   @returns The packet's stage metadata
+   */
+  std::vector<std::unique_ptr<Gcs_stage_metadata>> const &get_stage_metadata()
+      const;
+
+  std::size_t const &get_next_stage_index() const;
+
+  void prepare_for_next_outgoing_stage();
+  void prepare_for_next_incoming_stage();
+
+  Gcs_dynamic_header &get_current_dynamic_header();
+
+  Gcs_stage_metadata &get_current_stage_header();
+
+  unsigned char *get_payload_pointer();
+
+  void set_payload_length(unsigned long long const &new_length);
+
+  /**
+   Return the value of the maximum supported version.
+   */
+  Gcs_protocol_version get_maximum_version() const;
+
+  /**
+   Return the value of the version in use.
+   */
+  Gcs_protocol_version get_used_version() const;
+
+  /**
+   Return the cargo type.
+   */
+  Cargo_type get_cargo_type() const;
+
+  /**
+   Return the total length.
+   */
+  unsigned long long get_total_length() const;
 
   /**
    Return the payload length.
    */
-  unsigned long long get_payload_length() const { return m_payload_len; }
+  unsigned long long const &get_payload_length() const;
 
   /**
-   Return the total data length which includes all headers and also the
-   payload.
+   Encode the packet content into its serialization buffer, and release
+   ownership of the serialization buffer.
+
+   This method must only be called on a valid packet, i.e. a packet for which
+   @c allocate_serialization_buffer was called and returned true.
+
+   @retval {buffer, buffer_size} The buffer with the serialized packet, and
+   its size
    */
-  unsigned long long get_total_length() const {
-    assert((m_payload_len + m_header_len) == m_total_len);
-    return m_total_len;
-  }
+  std::pair<buffer_ptr, unsigned long long> serialize();
 
   /**
-   Return a pointer to the header.
+   Create a string representation of the packet to be logged.
+
+   @param ouput Reference to the output stream where the string will be
+   created.
    */
-  const unsigned char *get_header() const { return m_buffer; }
+  void dump(std::ostringstream &output) const;
+
+  Gcs_xcom_synode const &get_delivery_synode() const;
+
+ private:
+  /**
+   Constructor called by @c make_to_send.
+
+   @param cargo The message type
+   @param current_version The pipeline version
+   @param dynamic_headers The dynamic headers of the stages the packet will go
+   through
+   @param stage_metadata The stage metadata of the stages the packet will go
+   through
+   @param payload_size The payload size
+   */
+  explicit Gcs_packet(
+      Cargo_type const &cargo, Gcs_protocol_version const &current_version,
+      std::vector<Gcs_dynamic_header> &&dynamic_headers,
+      std::vector<std::unique_ptr<Gcs_stage_metadata>> &&stage_metadata,
+      unsigned long long const &payload_size);
 
   /**
-   Return a pointer to the payload.
+   Constructor called by @c make_from_existing_packet.
+
+   @param original_packet The packet to "clone"
+   @param new_payload_size The payload size of this packet
    */
-  unsigned char *get_payload() const { return m_buffer + m_header_len; }
+  explicit Gcs_packet(Gcs_packet const &original_packet,
+                      unsigned long long const &new_payload_size);
 
   /**
-   Set the dynamic headers length.
+   Constructor called by @c make_from_serialized_buffer.
 
-   @param length dynamic headers length.
+   @param synode The XCom synode where the packet was decided on
    */
-  void set_dyn_headers_length(unsigned int length) {
-    m_dyn_headers_len = length;
-  }
+  explicit Gcs_packet(synode_no const &synode);
 
   /**
-   Return the dynamic headers length.
+   Allocates the underlying buffer where the packet will be serialized to using
+   @c serialize.
+
+   @returns true if the required buffer could not be allocated, false otherwise
    */
-  unsigned int get_dyn_headers_length() const { return m_dyn_headers_len; }
+  bool allocate_serialization_buffer();
 
   /**
-   Return a pointer to the buffer which has the same address as the header
-   in the current implementation.
+   Decode the packet content from the given buffer containing a serialized
+   packet.
+
+   @param buffer Buffer containing a serialized packet
+   @param buffer_size Size of the buffer
+   @param synode XCom synode where this packet was decided/delivered
+   @param pipeline The message pipeline
    */
-  unsigned char *get_buffer() const { return m_buffer; }
-
-  /**
-   Release the memory allocated to the current buffer.
-   */
-  void free_buffer() { free(swap_buffer(nullptr, 0)); }
-
-  /**
-   Swap the current buffer for another and return the pointer to the old buffer.
-
-   @param buffer pointer to the new buffer
-   @param capacity the capacity of the new buffer.
-   */
-  unsigned char *swap_buffer(unsigned char *buffer,
-                             unsigned long long capacity) {
-    unsigned char *cur = m_buffer;
-    m_buffer = buffer;
-    m_capacity = capacity;
-    return cur;
-  }
-
-  /**
-   Allocate memory to a new buffer whose capacity is automically converted to
-   a multiple of BLOCK_SIZE and return a pointer to it.
-
-   @param capacity size of the new buffer in bytes.
-   */
-  static unsigned char *create_buffer(unsigned long long capacity) {
-    return static_cast<unsigned char *>(malloc(calculate_capacity(capacity)));
-  }
-
-  /**
-   Return a given a capacity converted to the next multiple of BLOCK_SIZE.
-
-   @param capacity this is the capacity in bytes.
-   */
-  static unsigned long long calculate_capacity(unsigned long long capacity) {
-    return ((capacity + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
-  }
-
-  /**
-   Set the header length.
-
-   @param length the header length.
-   */
-  void set_header_length(unsigned int length) { m_header_len = length; }
-
-  /**
-   Return the header length
-   */
-  unsigned int get_header_length() const { return m_header_len; }
-
-  /**
-   Return the buffer capacity.
-   */
-  unsigned long long get_capacity() const { return m_capacity; }
-
-  /**
-   Reprocess a header and automatically set all attributes accordingly.
-
-   @param hd This is a reference to the header object.
-   */
-  void reload_header(const Gcs_internal_message_header &hd);
+  void deserialize(buffer_ptr &&buffer, unsigned long long buffer_size,
+                   Gcs_message_pipeline const &pipeline);
 };
-#endif
+
+#endif  // GCS_MSG_H

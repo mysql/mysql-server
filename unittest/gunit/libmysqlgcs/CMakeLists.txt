@@ -43,6 +43,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/include
   ${CMAKE_BINARY_DIR}/plugin/group_replication/libmysqlgcs/xdr_gen
+  ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/interface
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom
   ${CMAKE_SOURCE_DIR}/plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom
   ${CMAKE_SOURCE_DIR}/unittest/gunit/libmysqlgcs/include)
@@ -60,7 +61,8 @@ ENDIF()
 ###
 
 SET(GCS_INTERFACE_TESTS
-    interface/gcs_message)
+    interface/gcs_message
+    interface/gcs_tagged_lock)
 
 SET(GCS_XCOM_TESTS
     xcom/gcs_logging
@@ -81,6 +83,8 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_input_queue
     xcom/gcs_xcom_networking
     xcom/gcs_xcom_xcom_base
+    xcom/gcs_xcom_xcom_transport
+    xcom/gcs_xcom_communication_protocol_changer
    )
 
 ###

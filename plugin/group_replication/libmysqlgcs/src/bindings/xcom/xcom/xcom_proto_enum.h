@@ -29,7 +29,8 @@ enum xcom_proto {
   x_1_2 = 3,
   x_1_3 = 4,
   x_1_4 = 5,
-  x_1_5 = 6
+  x_1_5 = 6,
+  x_1_6 = 7
 };
 
 typedef enum xcom_proto xcom_proto;

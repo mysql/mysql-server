@@ -1,0 +1,42 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression(".* is an invalid value for group_replication_communication_protocol_join.*");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+SET SESSION sql_log_bin= 1;
+###############################################################################
+# 2. Verify error when setting group_replication_communication_protocol_join to invalid value type on M3
+SET GLOBAL group_replication_communication_protocol_join = 1;
+ERROR 42000: Incorrect argument type to variable 'group_replication_communication_protocol_join'
+###############################################################################
+# 3. Verify M3 fails to START GROUP_REPLICATION with invalid group_replication_communication_protocol_join
+include/stop_group_replication.inc
+SET GLOBAL group_replication_communication_protocol_join=" ";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_communication_protocol_join="5";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_communication_protocol_join="5.7";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_communication_protocol_join="5.7.14a";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_communication_protocol_join="5.7.13";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+SET GLOBAL group_replication_communication_protocol_join="99.99.99";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+###############################################################################
+# 4. Cleanup
+SET GLOBAL group_replication_communication_protocol_join= default;
+include/start_group_replication.inc
+[connection server1]
+include/group_replication_end.inc

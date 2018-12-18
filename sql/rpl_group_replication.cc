@@ -37,6 +37,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"  // ER_*
 #include "sql/log.h"
+#include "sql/log_event.h"           // MAX_MAX_ALLOWED_PACKET
 #include "sql/mysqld.h"              // mysqld_port
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/replication.h"         // Trans_context_info
@@ -400,4 +401,8 @@ bool is_gtid_committed(const Gtid &gtid) {
 
 unsigned long get_slave_max_allowed_packet() {
   return slave_max_allowed_packet;
+}
+
+unsigned long get_max_slave_max_allowed_packet() {
+  return MAX_MAX_ALLOWED_PACKET;
 }

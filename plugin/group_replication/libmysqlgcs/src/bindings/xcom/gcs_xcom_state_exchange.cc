@@ -22,23 +22,29 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
 
+#include <algorithm>  // std::min
 #include <cassert>
 #include <ctime>
 #include <iterator>
 #include <limits>
+#include <unordered_set>  // std::unordered_set
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"  // gcs_protocol_to_mysql_version
 
 Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
                                      synode_no configuration_id,
+                                     Gcs_protocol_version version,
+                                     const Gcs_xcom_synode_set &snapshot,
                                      const uchar *data, uint64_t data_size)
     : m_view_id(NULL),
       m_configuration_id(configuration_id),
       m_data(NULL),
-      m_data_size(0) {
+      m_data_size(0),
+      m_snapshot(snapshot),
+      m_version(version) {
   m_view_id = new Gcs_xcom_view_identifier(view_id.get_fixed_part(),
                                            view_id.get_monotonic_part());
 
@@ -49,54 +55,14 @@ Xcom_member_state::Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
   }
 }
 
-Xcom_member_state::Xcom_member_state(const uchar *data, uint64_t data_size)
+Xcom_member_state::Xcom_member_state(Gcs_protocol_version version,
+                                     const uchar *data, uint64_t data_size)
     : m_view_id(NULL),
       m_configuration_id(null_synode),
       m_data(NULL),
-      m_data_size(0) {
-  uint64_t fixed_view_id = 0;
-  uint32_t monotonic_view_id = 0;
-  uint32_t group_id = 0;
-  uint64_t msg_no = 0;
-  uint32_t node_no = 0;
-
-  const uchar *slider = data;
-  uint64_t exchangeable_header_size = get_encode_header_size();
-  uint64_t exchangeable_data_size = data_size - exchangeable_header_size;
-
-  memcpy(&fixed_view_id, slider, WIRE_XCOM_VARIABLE_VIEW_ID_SIZE);
-  fixed_view_id = le64toh(fixed_view_id);
-  slider += WIRE_XCOM_VARIABLE_VIEW_ID_SIZE;
-
-  memcpy(&monotonic_view_id, slider, WIRE_XCOM_VIEW_ID_SIZE);
-  monotonic_view_id = le32toh(monotonic_view_id);
-  slider += WIRE_XCOM_VIEW_ID_SIZE;
-
-  m_view_id = new Gcs_xcom_view_identifier(fixed_view_id, monotonic_view_id);
-
-  memcpy(&group_id, slider, WIRE_XCOM_GROUP_ID_SIZE);
-  m_configuration_id.group_id = le32toh(group_id);
-  slider += WIRE_XCOM_GROUP_ID_SIZE;
-
-  memcpy(&msg_no, slider, WIRE_XCOM_MSG_ID_SIZE);
-  m_configuration_id.msgno = le64toh(msg_no);
-  slider += WIRE_XCOM_MSG_ID_SIZE;
-
-  memcpy(&node_no, slider, WIRE_XCOM_NODE_ID_SIZE);
-  m_configuration_id.node = le32toh(node_no);
-  slider += WIRE_XCOM_NODE_ID_SIZE;
-
-  if (exchangeable_data_size != 0) {
-    m_data_size = exchangeable_data_size;
-    m_data = static_cast<uchar *>(malloc(sizeof(uchar) * m_data_size));
-    memcpy(m_data, slider, m_data_size);
-  }
-
-  MYSQL_GCS_LOG_TRACE(
-      "Decoded header and payload for exchageable data: (header)=%llu "
-      "(payload)=%llu",
-      static_cast<long long unsigned>(exchangeable_header_size),
-      static_cast<long long unsigned>(exchangeable_data_size));
+      m_data_size(0),
+      m_version(version) {
+  decode(data, data_size);
 }
 
 Xcom_member_state::~Xcom_member_state() {
@@ -104,21 +70,17 @@ Xcom_member_state::~Xcom_member_state() {
   free(m_data);
 }
 
-uint64_t Xcom_member_state::get_encode_size() const {
-  return get_encode_header_size() + get_encode_payload_size();
-}
-
 uint64_t Xcom_member_state::get_encode_payload_size() const {
   return m_data_size;
 }
 
-uint64_t Xcom_member_state::get_encode_header_size() {
-  return WIRE_XCOM_VARIABLE_VIEW_ID_SIZE + WIRE_XCOM_VIEW_ID_SIZE +
-         WIRE_XCOM_GROUP_ID_SIZE + WIRE_XCOM_MSG_ID_SIZE +
-         WIRE_XCOM_NODE_ID_SIZE;
+uint64_t Xcom_member_state::get_encode_snapshot_size() const {
+  return get_encode_snapshot_elem_size() * m_snapshot.size() +
+         WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE;
 }
 
-bool Xcom_member_state::encode_header(uchar *buffer, uint64_t *buffer_len) {
+bool Xcom_member_state::encode_header(uchar *buffer,
+                                      uint64_t *buffer_len) const {
   uint64_t fixed_view_id = 0;
   uint32_t monotonic_view_id = 0;
   uint32_t group_id = 0;
@@ -180,14 +142,14 @@ bool Xcom_member_state::encode_header(uchar *buffer, uint64_t *buffer_len) {
   return false;
 }
 
-bool Xcom_member_state::encode(uchar *buffer, uint64_t *buffer_len) {
+bool Xcom_member_state::encode_snapshot(uchar *buffer,
+                                        uint64_t *buffer_len) const {
+  uint64_t encoded_size = get_encode_snapshot_size();
   unsigned char *slider = buffer;
-  uint64_t encoded_size = get_encode_size();
-  uint64_t encoded_header_size = get_encode_header_size();
 
-  MYSQL_GCS_LOG_TRACE("Encoding header and payload for exchangeable data")
+  MYSQL_GCS_LOG_TRACE("Encoding snapshot for exchangeable data.")
 
-  if (buffer == NULL || buffer_len == NULL) {
+  if (buffer == nullptr || buffer_len == nullptr) {
     MYSQL_GCS_LOG_ERROR(
         "Buffer to return information on encoded data or encoded data "
         "size is not properly configured.");
@@ -205,25 +167,121 @@ bool Xcom_member_state::encode(uchar *buffer, uint64_t *buffer_len) {
 
   *buffer_len = encoded_size;
 
-  /*
-    Copy the header information to the buffer.
-  */
-  encode_header(slider, &encoded_header_size);
-  slider += encoded_header_size;
-  assert(static_cast<uint64_t>(slider - buffer) <= encoded_size);
+  for (auto const &gcs_synod : m_snapshot) {
+    uint64_t msgno = htole64(gcs_synod.get_synod().msgno);
+    std::memcpy(slider, &msgno, WIRE_XCOM_MSG_ID_SIZE);
+    slider += WIRE_XCOM_MSG_ID_SIZE;
 
-  /*
-    Copy the payload information to the buffer.
-  */
-  memcpy(slider, m_data, m_data_size);
-  slider += m_data_size;
-  assert(static_cast<uint64_t>(slider - buffer) == encoded_size);
+    uint32_t nodeno = htole32(gcs_synod.get_synod().node);
+    std::memcpy(slider, &nodeno, WIRE_XCOM_NODE_ID_SIZE);
+    slider += WIRE_XCOM_NODE_ID_SIZE;
+  }
+
+  uint64_t nr_synods = htole64(m_snapshot.size());
+  std::memcpy(slider, &nr_synods, WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE);
+
+  return false;
+}
+
+bool Xcom_member_state::decode_header(const uchar *buffer, uint64_t) {
+  uint64_t fixed_view_id = 0;
+  uint32_t monotonic_view_id = 0;
+  uint32_t group_id = 0;
+  uint64_t msg_no = 0;
+  uint32_t node_no = 0;
+
+  const uchar *slider = buffer;
+
+  memcpy(&fixed_view_id, slider, WIRE_XCOM_VARIABLE_VIEW_ID_SIZE);
+  fixed_view_id = le64toh(fixed_view_id);
+  slider += WIRE_XCOM_VARIABLE_VIEW_ID_SIZE;
+
+  memcpy(&monotonic_view_id, slider, WIRE_XCOM_VIEW_ID_SIZE);
+  monotonic_view_id = le32toh(monotonic_view_id);
+  slider += WIRE_XCOM_VIEW_ID_SIZE;
+
+  m_view_id = new Gcs_xcom_view_identifier(fixed_view_id, monotonic_view_id);
+
+  memcpy(&group_id, slider, WIRE_XCOM_GROUP_ID_SIZE);
+  m_configuration_id.group_id = le32toh(group_id);
+  slider += WIRE_XCOM_GROUP_ID_SIZE;
+
+  memcpy(&msg_no, slider, WIRE_XCOM_MSG_ID_SIZE);
+  m_configuration_id.msgno = le64toh(msg_no);
+  slider += WIRE_XCOM_MSG_ID_SIZE;
+
+  memcpy(&node_no, slider, WIRE_XCOM_NODE_ID_SIZE);
+  m_configuration_id.node = le32toh(node_no);
+
+  return true;
+}
+
+bool Xcom_member_state::decode_snapshot(const uchar *buffer,
+                                        uint64_t buffer_size) {
+  bool constexpr ERROR = true;
+  bool constexpr OK = false;
+  bool result = ERROR;
+
+  if (m_version == Gcs_protocol_version::V1) {
+    // This message doesn't contain a snapshot
+    result = OK;
+  } else if (m_version >= Gcs_protocol_version::V2) {
+    // End of the buffer.
+    const uchar *slider = (buffer + buffer_size);
+
+    slider -= WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE;
+    uint64_t nr_synods = 0;
+    std::memcpy(&nr_synods, slider, WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE);
+    nr_synods = le64toh(nr_synods);
+
+    for (uint64_t i = 0; i < nr_synods; i++) {
+      slider -= WIRE_XCOM_NODE_ID_SIZE;
+      uint32_t node = 0;
+      std::memcpy(&node, slider, WIRE_XCOM_NODE_ID_SIZE);
+      node = le32toh(node);
+
+      slider -= WIRE_XCOM_MSG_ID_SIZE;
+      uint64_t msgno = 0;
+      memcpy(&msgno, slider, WIRE_XCOM_MSG_ID_SIZE);
+      msgno = le64toh(msgno);
+
+      synode_no synod;
+      synod.group_id = m_configuration_id.group_id;
+      synod.msgno = msgno;
+      synod.node = node;
+      m_snapshot.insert(Gcs_xcom_synode(synod));
+    }
+
+    result = OK;
+  }
+
+  return result;
+}
+
+bool Xcom_member_state::decode(const uchar *data, uint64_t data_size) {
+  const uchar *slider = data;
+  decode_header(slider, data_size);
+  uint64_t exchangeable_header_size = get_encode_header_size();
+  slider += exchangeable_header_size;
+
+  decode_snapshot(data, data_size);
+  uint64_t snapshot_size = get_encode_snapshot_size();
+
+  uint64_t exchangeable_data_size =
+      data_size - exchangeable_header_size - snapshot_size;
+
+  if (exchangeable_data_size != 0) {
+    m_data_size = exchangeable_data_size;
+    m_data = static_cast<uchar *>(malloc(sizeof(uchar) * m_data_size));
+    memcpy(m_data, slider, m_data_size);
+  }
 
   MYSQL_GCS_LOG_TRACE(
-      "Encoded header and payload for exchageable data: (header)= %llu"
-      "(payload)= %llu",
-      static_cast<long long unsigned>(encoded_header_size),
-      static_cast<long long unsigned>(m_data_size));
+      "Decoded header, snapshot and payload for exchageable data: "
+      "(header)=%llu (payload)=%llu (snapshot)=%llu",
+      static_cast<long long unsigned>(exchangeable_header_size),
+      static_cast<long long unsigned>(exchangeable_data_size),
+      static_cast<long long unsigned>(snapshot_size));
 
   return false;
 }
@@ -232,20 +290,23 @@ Gcs_xcom_state_exchange::Gcs_xcom_state_exchange(
     Gcs_communication_interface *comm)
     : m_broadcaster(comm),
       m_awaited_vector(),
+      m_recover_vector(),
       m_ms_total(),
       m_ms_left(),
       m_ms_joined(),
       m_member_states(),
       m_member_versions(),
+      m_member_max_versions(),
       m_group_name(NULL),
       m_local_information("none"),
-      m_configuration_id(null_synode) {}
+      m_configuration_id(null_synode),
+      m_ms_xcom_nodes() {}
 
 Gcs_xcom_state_exchange::~Gcs_xcom_state_exchange() {
   Gcs_xcom_communication_interface *binding_broadcaster =
       static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
 
-  binding_broadcaster->cleanup_buffered_messages();
+  binding_broadcaster->cleanup_buffered_packets();
 
   reset();
 }
@@ -269,9 +330,9 @@ void Gcs_xcom_state_exchange::reset_with_flush() {
     the global view message in XCOM.
   */
   if (is_joining()) {
-    binding_broadcaster->cleanup_buffered_messages();
+    binding_broadcaster->cleanup_buffered_packets();
   } else {
-    binding_broadcaster->deliver_buffered_messages();
+    binding_broadcaster->deliver_buffered_packets();
   }
 
   reset();
@@ -279,7 +340,7 @@ void Gcs_xcom_state_exchange::reset_with_flush() {
 
 void Gcs_xcom_state_exchange::reset() {
   assert(static_cast<Gcs_xcom_communication_interface *>(m_broadcaster)
-             ->number_buffered_messages() == 0);
+             ->number_buffered_packets() == 0);
 
   m_configuration_id = null_synode;
 
@@ -306,18 +367,21 @@ void Gcs_xcom_state_exchange::reset() {
   m_member_states.clear();
 
   m_member_versions.clear();
+  m_member_max_versions.clear();
 
   m_awaited_vector.clear();
 
   delete m_group_name;
   m_group_name = NULL;
+
+  m_ms_xcom_nodes.clear_nodes();
 }
 
 void Gcs_xcom_state_exchange::end() {
   Gcs_xcom_communication_interface *binding_broadcaster =
       static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
 
-  binding_broadcaster->deliver_buffered_messages();
+  binding_broadcaster->deliver_buffered_packets();
 
   reset();
 }
@@ -326,8 +390,9 @@ bool Gcs_xcom_state_exchange::state_exchange(
     synode_no configuration_id, std::vector<Gcs_member_identifier *> &total,
     std::vector<Gcs_member_identifier *> &left,
     std::vector<Gcs_member_identifier *> &joined,
-    std::vector<Gcs_message_data *> &exchangeable_data, Gcs_view *current_view,
-    std::string *group, const Gcs_member_identifier &local_info) {
+    std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data,
+    Gcs_view *current_view, std::string *group,
+    const Gcs_member_identifier &local_info, const Gcs_xcom_nodes &xcom_nodes) {
   uint64_t fixed_part = 0;
   uint32_t monotonic_part = 0;
 
@@ -336,6 +401,18 @@ bool Gcs_xcom_state_exchange::state_exchange(
 
   /* Store member state for later broadcast */
   m_local_information = local_info;
+
+  /*
+   If the view shall be installed, the communication system has to find out the
+   nodes that belong to it in order to build the map to reconstruct possible
+   sliced messages.
+
+   Note this is the only point in the code where this information should be
+   conveyed to the communication system because state exchange messages may
+   only be compressed and don't go through any other communication stage in
+   the communication pipeline.
+   */
+  update_communication_channel(xcom_nodes);
 
   if (m_group_name == NULL) m_group_name = new std::string(*group);
 
@@ -377,6 +454,7 @@ bool Gcs_xcom_state_exchange::state_exchange(
   fill_member_set(total, m_ms_total);
   fill_member_set(joined, m_ms_joined);
   fill_member_set(left, m_ms_left);
+  m_ms_xcom_nodes.add_nodes(xcom_nodes);
 
   /*
     Calculate if i am leaving...
@@ -418,15 +496,22 @@ bool Gcs_xcom_state_exchange::is_leaving() {
 
 enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     const Gcs_xcom_view_identifier &proposed_view,
-    std::vector<Gcs_message_data *> &exchangeable_data) {
+    std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data) {
   uchar *buffer = NULL;
   uchar *slider = NULL;
   uint64_t buffer_len = 0;
   uint64_t exchangeable_header_len = 0;
   uint64_t exchangeable_data_len = 0;
-  std::vector<Gcs_message_data *>::const_iterator it;
-  std::vector<Gcs_message_data *>::const_iterator it_ends;
-  Gcs_message_data *msg_data = NULL;
+  uint64_t exchangeable_snapshot_len = 0;
+
+  Gcs_xcom_communication_interface *xcom_communication =
+      static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
+
+  Gcs_xcom_synode_set snapshot =
+      xcom_communication->get_msg_pipeline().get_snapshot();
+  Xcom_member_state member_state(proposed_view, m_configuration_id,
+                                 Gcs_protocol_version::HIGHEST_KNOWN, snapshot,
+                                 NULL, 0);
 
   /*
     The exchangeable_data may have a list with Gcs_message_data
@@ -436,52 +521,67 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
     This will be changed in the future so that there will be
     only a single piece of data.
   */
-  it_ends = exchangeable_data.end();
-  for (it = exchangeable_data.begin(); it != it_ends; ++it) {
-    msg_data = (*it);
+  auto it_ends = exchangeable_data.end();
+  for (auto it = exchangeable_data.begin(); it != it_ends; ++it) {
+    auto &msg_data = (*it);
     exchangeable_data_len += msg_data ? msg_data->get_encode_size() : 0;
   }
   /*
     This returns the size of the header that will compose the
-    message along with the previous data.
+    message.
   */
-  exchangeable_header_len = Xcom_member_state::get_encode_header_size();
+  exchangeable_header_len = member_state.get_encode_header_size();
 
   /*
-    Allocate a buffer that will contain both the header and
-    the data.
+    This returns the size of snapshot information that will
+    compose the message.
+   */
+  exchangeable_snapshot_len = member_state.get_encode_snapshot_size();
+
+  /*
+    Allocate a buffer that will contain the header, the data, and the packet
+    recovery snapshot.
   */
   MYSQL_GCS_LOG_TRACE(
       "Allocating buffer to carry exchangeable data: (header)=%llu "
-      "(payload)=%llu",
+      "(payload)=%llu (snapshot)=%llu",
       static_cast<long long unsigned>(exchangeable_header_len),
-      static_cast<long long unsigned>(exchangeable_data_len));
-  buffer_len = exchangeable_header_len + exchangeable_data_len;
+      static_cast<long long unsigned>(exchangeable_data_len),
+      static_cast<long long unsigned>(exchangeable_snapshot_len));
+  buffer_len = exchangeable_header_len + exchangeable_data_len +
+               exchangeable_snapshot_len;
   buffer = slider = static_cast<uchar *>(malloc(buffer_len * sizeof(uchar)));
   if (buffer == NULL) {
     MYSQL_GCS_LOG_ERROR("Error allocating buffer to carry exchangeable data")
     return GCS_NOK;
   }
 
-  MYSQL_GCS_LOG_TRACE("Populating header for exchangeable data: (header)=%llu",
-                      static_cast<long long unsigned>(exchangeable_header_len));
-  Xcom_member_state member_state(proposed_view, m_configuration_id, NULL, 0);
+  /*
+   Serialize the state exchange message.
+
+   Its wire format is:
+
+       +--------+------------------+----------+
+       | header | upper-layer data | snapshot |
+       +--------+------------------+----------+
+
+   For more context, see Xcom_member_state.
+   */
   member_state.encode_header(slider, &exchangeable_header_len);
   slider += exchangeable_header_len;
-  assert(static_cast<uint64_t>(slider - buffer) <= buffer_len);
 
   /*
-    Note that the size of the list may be empty and this means
-    that the node has nothing to exchange during a view change.
-    However, it will send an empty message anyway.
-  */
+   Note that the size of the list may be empty and this means that the node has
+   nothing to exchange during a view change.
+   However, it will send an empty message anyway.
+   */
   if (exchangeable_data_len > 0) {
     uint64_t slider_total_len = 0;
     uint64_t slider_len = 0;
-    for (it = exchangeable_data.begin(); it != it_ends; ++it) {
-      msg_data = (*it);
+    for (auto it = exchangeable_data.begin(); it != it_ends; ++it) {
+      auto &msg_data = (*it);
 
-      if (msg_data != NULL) {
+      if (msg_data != nullptr) {
         slider_len = msg_data->get_encode_size();
         MYSQL_GCS_LOG_TRACE(
             "Populating payload for exchangeable data: (payload)=%llu",
@@ -489,12 +589,12 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
         slider_total_len += slider_len;
-        delete msg_data;
       }
     }
-    assert(slider_total_len == exchangeable_data_len);
   }
-  assert(static_cast<uint64_t>(slider - buffer) == buffer_len);
+
+  member_state.encode_snapshot(slider, &exchangeable_snapshot_len);
+  slider += exchangeable_snapshot_len;
 
   /*
     There is another copy here but we cannot avoid this right now
@@ -512,13 +612,9 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   Gcs_group_identifier group_id(*m_group_name);
   Gcs_message message(m_local_information, group_id, message_data);
 
-  Gcs_xcom_communication_interface *binding_broadcaster =
-      static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
-
   unsigned long long message_length = 0;
-  return binding_broadcaster->send_binding_message(
-      message, &message_length,
-      Gcs_internal_message_header::cargo_type::CT_INTERNAL_STATE_EXCHANGE);
+  return xcom_communication->do_send_message(
+      message, &message_length, Cargo_type::CT_INTERNAL_STATE_EXCHANGE);
 }
 
 void Gcs_xcom_state_exchange::update_awaited_vector() {
@@ -540,9 +636,19 @@ void Gcs_xcom_state_exchange::update_awaited_vector() {
   }
 }
 
+void Gcs_xcom_state_exchange::update_communication_channel(
+    const Gcs_xcom_nodes &xcom_nodes) {
+  Gcs_xcom_communication_interface *xcom_communication =
+      static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
+
+  xcom_communication->update_members_information(m_local_information,
+                                                 xcom_nodes);
+}
+
 bool Gcs_xcom_state_exchange::process_member_state(
     Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
-    const unsigned int protocol_version) {
+    Gcs_protocol_version maximum_supported_protocol_version,
+    Gcs_protocol_version used_protocol_version) {
   /*
     A state exchange message just arrived and we will only consider it
     if its configuration identifier matches the one expected by the
@@ -574,7 +680,8 @@ bool Gcs_xcom_state_exchange::process_member_state(
   /*
    Save the protocol version in use and state exchange per member.
    */
-  save_member_state(ms_info, p_id, protocol_version);
+  save_member_state(ms_info, p_id, maximum_supported_protocol_version,
+                    used_protocol_version);
 
   /*
     The rule of updating the awaited_vector at receiving is simply to
@@ -593,40 +700,209 @@ bool Gcs_xcom_state_exchange::process_member_state(
   return can_install_view;
 }
 
-std::vector<Gcs_member_identifier>
-Gcs_xcom_state_exchange::compute_incompatible_protocol_members() {
-  std::vector<Gcs_member_identifier> result;
+std::vector<Gcs_xcom_node_information>
+Gcs_xcom_state_exchange::compute_incompatible_members() {
+  std::vector<Gcs_xcom_node_information> incompatible_members;
+
+  auto &me = m_local_information;
+
+  /* Check if I am joining the group. */
+  auto const it = std::find_if(
+      m_ms_joined.begin(), m_ms_joined.end(),
+      [&me](Gcs_member_identifier const *joining) { return *joining == me; });
+
+  bool const i_am_joining = (it != m_ms_joined.end());
 
   /*
-   Compute the greatest common protocol version number in use among members.
+   If I am an existing member, identify the joining nodes with incompatible
+   protocol versions.
+
+   If I am joining, proactively check whether any of the other nodes has a
+   different protocol version.
+   If so, remove myself from the group.
+   If the group is comprised of older nodes, none of them will remove me, so I
+   have to do it myself.
    */
-  unsigned int computed_version = std::numeric_limits<unsigned int>::max();
-  for (const auto &version : m_member_versions) {
-    if (version.second < computed_version) computed_version = version.second;
+  if (!i_am_joining) {
+    incompatible_members = compute_incompatible_joiners();
+
+  } else if (incompatible_with_group()) {
+    incompatible_members.push_back(*m_ms_xcom_nodes.get_node(me));
   }
-  assert(computed_version != std::numeric_limits<unsigned int>::max());
+
+  return incompatible_members;
+}
+
+bool Gcs_xcom_state_exchange::incompatible_with_group() const {
+  bool constexpr INCOMPATIBLE = true;
+  bool constexpr COMPATIBLE = false;
+  bool result = INCOMPATIBLE;
+
+  /* Get the protocol version that is in use. */
+  Gcs_xcom_communication &comm =
+      static_cast<Gcs_xcom_communication &>(*m_broadcaster);
+  Gcs_message_pipeline &pipeline = comm.get_msg_pipeline();
+  Gcs_protocol_version const protocol_version = pipeline.get_version();
+
+  /* Compare my protocol version against the versions of the other members. */
+  for (auto const &pair : m_member_versions) {
+    auto const &member_version = pair.second;
+    bool const incompatible_with_member = (member_version != protocol_version);
+
+    if (incompatible_with_member) {
+      auto my_protocol = gcs_protocol_to_mysql_version(protocol_version);
+      auto member_protocol = gcs_protocol_to_mysql_version(member_version);
+      auto &member = pair.first.get_member_id();
+
+      MYSQL_GCS_LOG_WARN("This server is running communication protocol "
+                         << my_protocol
+                         << ", which is incompatible with the group member "
+                         << member << " running protocol " << member_protocol
+                         << ". This server will be expelled from the group.");
+
+      goto end;
+
+    } else {
+      MYSQL_GCS_LOG_TRACE(
+          "i_am_incompatible_with_group: compatible with member=%s using "
+          "protocol version=%d = %d",
+          pair.first.get_member_id().c_str(),
+          static_cast<unsigned int>(member_version),
+          static_cast<unsigned int>(protocol_version));
+    }
+  }
+
+  result = COMPATIBLE;
+
+end:
+  return result;
+}
+
+std::vector<Gcs_xcom_node_information>
+Gcs_xcom_state_exchange::compute_incompatible_joiners() {
+  std::vector<Gcs_xcom_node_information> incompatible_joiners;
+
+  /* Get the protocol version that is in use. */
+  Gcs_xcom_communication &comm =
+      static_cast<Gcs_xcom_communication &>(*m_broadcaster);
+  Gcs_message_pipeline &pipeline = comm.get_msg_pipeline();
+  Gcs_protocol_version const protocol_version = pipeline.get_version();
+
+  /* Compute the set of incompatible joiners. */
+  for (Gcs_member_identifier const *joiner_id : m_ms_joined) {
+    DBUG_ASSERT(m_member_versions.find(*joiner_id) != m_member_versions.end());
+    Gcs_protocol_version const &joiner_version = m_member_versions[*joiner_id];
+
+    DBUG_ASSERT(m_member_max_versions.find(*joiner_id) !=
+                m_member_max_versions.end());
+    Gcs_protocol_version const &joiner_max_version =
+        m_member_max_versions[*joiner_id];
+
+    bool const joiner_has_wrong_protocol = (joiner_version != protocol_version);
+    bool const joiner_doesnt_expel_itself =
+        (joiner_max_version == Gcs_protocol_version::V1);
+    bool const incompatible_joiner =
+        (joiner_has_wrong_protocol && joiner_doesnt_expel_itself);
+
+    if (incompatible_joiner) {
+      incompatible_joiners.push_back(*m_ms_xcom_nodes.get_node(*joiner_id));
+
+      auto my_protocol = gcs_protocol_to_mysql_version(protocol_version);
+      auto joiner_protocol = gcs_protocol_to_mysql_version(joiner_version);
+      auto &joiner = joiner_id->get_member_id();
+
+      MYSQL_GCS_LOG_WARN("The server "
+                         << joiner
+                         << ", which is attempting to join the group, is "
+                            "running communication protocol "
+                         << joiner_protocol
+                         << ", which is incompatible with the protocol this "
+                            "server is running ("
+                         << my_protocol << "). The server " << joiner
+                         << " will be expelled from the group.");
+
+    } else {
+      MYSQL_GCS_LOG_TRACE(
+          "compute_incompatible_joiners: compatible joiner=%s with protocol "
+          "version=%d = %d (joiner_has_wrong_protocol=%d, "
+          "joiner_expels_itself=%d)",
+          joiner_id->get_member_id().c_str(),
+          static_cast<unsigned int>(joiner_version),
+          static_cast<unsigned int>(protocol_version),
+          joiner_has_wrong_protocol, !joiner_doesnt_expel_itself);
+    }
+  }
+
+  return incompatible_joiners;
+}
+
+void Gcs_xcom_state_exchange::compute_maximum_supported_protocol_version() {
+  Gcs_xcom_communication &comm =
+      static_cast<Gcs_xcom_communication &>(*m_broadcaster);
+
+  /* Compute the maximum common protocol supported by the group. */
+  Gcs_protocol_version max_supported_version =
+      Gcs_protocol_version::HIGHEST_KNOWN;
+  for (auto const &pair : m_member_max_versions) {
+    auto max_member_version = pair.second;
+
+    MYSQL_GCS_LOG_TRACE(
+        "compute_maximum_supported_protocol_version: Member=%s supports up to "
+        "version=%d",
+        pair.first.get_member_id().c_str(),
+        static_cast<unsigned short>(max_member_version));
+
+    max_supported_version = std::min(max_member_version, max_supported_version);
+  }
+
+  comm.set_maximum_supported_protocol_version(max_supported_version);
+}
+
+bool Gcs_xcom_state_exchange::process_recovery_state() {
+  bool successful = false;
+  Gcs_xcom_synode_set synodes_needed;
+  bool need_recovery = false;
 
   /*
-   Try to set up the message pipeline to use the computed protocol version
-   number. This operation will only fail if the proposed version is less
-   than the current version in use by the member and consequently in the
-   group.
-
-   Although fetching and setting the pipeline version through two different
-   operations is not atomic, this is not a problem because there is no
-   concurrency as only the GCS thread is allowed to change the protocol
-   version in use.
-
-   Currently, this shall not fail as the protocol version has not been
-   changed.
+   If I am the only one that participated in the state exchange, it means I am
+   alone in the group, so there is nothing to recover.
    */
-  Gcs_xcom_communication *comm =
-      static_cast<Gcs_xcom_communication *>(m_broadcaster);
-  Gcs_message_pipeline &pipeline = comm->get_msg_pipeline();
-  assert(pipeline.get_version() == computed_version);
-  pipeline.set_version(computed_version);
+  bool const only_i_exist = (m_member_states.size() == 1);
+  if (only_i_exist) {
+    DBUG_ASSERT(m_member_states.begin()->first == m_local_information);
+    successful = true;
+    goto end;
+  }
 
-  return result;
+  /*
+   Since the state exchange is part of the state machine, all existing group
+   members will send the same synode recovery set.
+   The optimal approach would be to simply use the synode recovery set of one of
+   the existing group members.
+
+   However, other nodes may be joining "together" with us.
+   Those nodes, ourselves included, sent an empty synode recovery set.
+   We cannot distinguish between who is joining and who is already a member.
+
+   So we merge the recovery synodes sets of all nodes into a single set.
+   This simplifies the code by not having to deal with corner cases.
+   */
+  for (auto const &pair : m_member_states) {
+    auto const member_synodes = pair.second->get_snapshot();
+    synodes_needed.insert(member_synodes.begin(), member_synodes.end());
+  }
+
+  need_recovery = (is_joining() && synodes_needed.size() != 0);
+  if (need_recovery) {
+    auto *const comm =
+        static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
+    successful = comm->recover_packets(synodes_needed);
+  } else {
+    successful = true;
+  }
+
+end:
+  return successful;
 }
 
 void Gcs_xcom_state_exchange::fill_member_set(
@@ -637,8 +913,10 @@ void Gcs_xcom_state_exchange::fill_member_set(
 
 void Gcs_xcom_state_exchange::save_member_state(
     Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
-    const unsigned int protocol_version) {
-  m_member_versions[p_id] = protocol_version;
+    Gcs_protocol_version maximum_supported_protocol_version,
+    Gcs_protocol_version used_protocol_version) {
+  m_member_max_versions[p_id] = maximum_supported_protocol_version;
+  m_member_versions[p_id] = used_protocol_version;
   /* m_member_states[p_id] may already exist. In that case we delete the
    * existing pointer, otherwise it leaks. */
   auto member_state_it = m_member_states.find(p_id);

@@ -26,12 +26,14 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <map>
+#include <memory>  // std::unique_ptr
 #include <set>
 #include <string>
 #include <vector>
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
@@ -40,17 +42,64 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-#define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8
-#define WIRE_XCOM_VIEW_ID_SIZE 4
-#define WIRE_XCOM_GROUP_ID_SIZE 4
-#define WIRE_XCOM_MSG_ID_SIZE 8
-#define WIRE_XCOM_NODE_ID_SIZE 4
-
 /**
   @class Xcom_member_state
 
   Class that conveys the state to be exchanged between members, which is not
   provided by XCom.
+
+  In the original GCS protocol (version 1), this message had the following wire
+  format:
+
+      +--------+---------------------+
+      | Header | Upper-layer payload |
+      +--------+---------------------+
+
+  Where the header has the following format:
+
+      +---------+------------+
+      | View ID | XCom synod |
+      +---------+------------+
+
+  With the introduction of the fragmentation stage into the message pipeline, it
+  is possible that an original message is fragmented into several fragments, and
+  each fragment is delivered by XCom individually.
+
+  This means that when a node joins, it is possible for the transmission of a
+  fragmented message to be ongoing, i.e. the existing group members have already
+  received some, but not all, of the fragments.
+  In this situation, the last fragment will arrive after the new node has joined
+  the group.
+  Since the original message is only delivered when all its fragments are
+  received, this means that the original message will need to be delivered by
+  the new node as well.
+  But the problem is that new node does not have the fragments that were
+  received before the new node joined.
+
+  We solve this problem by augmenting the state exchange message with
+  information about the ongoing transmission of fragmented messages.
+  In particular, for every fragmented message whose transmission is ongoing, a
+  node will attach the XCom synods of the fragments it has already received.
+  The new node can use this information to fetch the fragments from XCom.
+
+  As such, in GCS protocol version 2, this message has the following wire
+  format:
+
+      +--------+---------------------+----------------+
+      | Header | Upper-layer payload | Recovery info. |
+      +--------+---------------------+----------------+
+
+  Where the recovery information has the following format:
+
+      +---------------+-...-+----------------+------------+
+      | XCom synod #1 |     | XCom synode #n | Nr. synods |
+      +---------------+-...-+----------------+------------+
+
+  Older GCS instances that only support protocol version 1 will deserialize the
+  recovery information as part of the upper-layer payload.
+  However, this works as long as the upper layer consumes only the portion it is
+  expecting (upper-layer payload), even though it is fed its expected payload
+  with the recovery information appended.
 */
 class Xcom_member_state {
  public:
@@ -60,22 +109,28 @@ class Xcom_member_state {
     @param[in] view_id the view identifier from the node
     @param[in] configuration_id Configuration identifier in use when the state
                                 exchange message was created
+    @param[in] version Protocol version used to represent the state
+    @param[in] cached_ids Snapshot information currently in use
     @param[in] data the generic data to be exchanged
     @param[in] data_size data's size
   */
 
   explicit Xcom_member_state(const Gcs_xcom_view_identifier &view_id,
-                             synode_no configuration_id, const uchar *data,
-                             uint64_t data_size);
+                             synode_no configuration_id,
+                             Gcs_protocol_version version,
+                             const Gcs_xcom_synode_set &snapshot,
+                             const uchar *data, uint64_t data_size);
 
   /**
     Xcom_member_state constructor.
 
+    @param[in] version Protocol version used to represent the state
     @param[in] data the generic data to be exchanged
     @param[in] data_size data's size
   */
 
-  explicit Xcom_member_state(const uchar *data, uint64_t data_size);
+  explicit Xcom_member_state(Gcs_protocol_version version, const uchar *data,
+                             uint64_t data_size);
 
   /**
     Member state destructor.
@@ -93,26 +148,52 @@ class Xcom_member_state {
     @return True if there is no space to store the header.
             Otherwise, false.
   */
-  bool encode_header(uchar *buffer, uint64_t *buffer_len);
+  bool encode_header(uchar *buffer, uint64_t *buffer_len) const;
 
   /**
-    Encodes Member State to be sent through the network.
+   Decodes the Member State's header that was sent through the network.
 
-    @param[out] buffer where the data will be stored.
-    @param[out] buffer_len pointer to the variable that will hold the
-                data's size.
+   @param[out] buffer Where the header was stored.
+   @param[in,out] buffer_len Pointer to the variable that holds the
+   header's size and has the buffer's len as input.
 
-    @return True if for any reason the data could not be exchanged.
-            Otherwise, false.
-  */
-
-  bool encode(uchar *buffer, uint64_t *buffer_len);
+   @return true if nothing went wrong. Otherwise, false.
+   */
+  bool decode_header(const uchar *buffer, uint64_t buffer_len);
 
   /**
-    @return the size of the encoded data when put on the wire.
-  */
+   Encodes the Member State's snapshot to be sent through the network.
 
-  uint64_t get_encode_size() const;
+   @param[out] buffer where the snapshot will be stored.
+   @param[in,out] buffer_len pointer to the variable that will hold the
+   snapshot's size and has the buffer's len as input.
+
+   @return True if there is no space to store the snapshot.
+   Otherwise, false.
+   */
+  bool encode_snapshot(uchar *buffer, uint64_t *buffer_len) const;
+
+  /**
+   Decodes the Member State's snapshot that was sent through the network.
+
+   @param[out] buffer Where the snapshot was stored.
+   @param[in,out] buffer_len It holds the snapshot's size.
+
+   @return true if nothing went wrong. Otherwise, false.
+   */
+  bool decode_snapshot(const uchar *buffer, uint64_t buffer_len);
+
+  /**
+   Decodes Member State that was sent through the network.
+
+   @param[out] buffer where the data was stored.
+   @param[out] buffer_len pointer to the variable that holds the
+   data's size.
+
+   @return True if for any reason the data could not be exchanged.
+           Otherwise, false.
+   */
+  bool decode(const uchar *data, uint64_t data_size);
 
   /**
     @return the size of the encoded payload when put on the wire.
@@ -124,7 +205,17 @@ class Xcom_member_state {
     @return the size of the encoded header when put on the wire.
   */
 
-  static uint64_t get_encode_header_size();
+  static constexpr uint64_t get_encode_header_size() {
+    return WIRE_XCOM_VARIABLE_VIEW_ID_SIZE + WIRE_XCOM_VIEW_ID_SIZE +
+           WIRE_XCOM_GROUP_ID_SIZE + WIRE_XCOM_MSG_ID_SIZE +
+           WIRE_XCOM_NODE_ID_SIZE;
+  }
+
+  /**
+   @return the size of the encoded snapshot when put on the wire.
+   */
+
+  uint64_t get_encode_snapshot_size() const;
 
   /**
     @return the view identifier
@@ -150,7 +241,20 @@ class Xcom_member_state {
 
   uint64_t get_data_size() const { return m_data_size; }
 
+  const Gcs_xcom_synode_set &get_snapshot() const { return m_snapshot; }
+
  private:
+  static constexpr auto WIRE_XCOM_VARIABLE_VIEW_ID_SIZE = 8;
+  static constexpr auto WIRE_XCOM_VIEW_ID_SIZE = 4;
+  static constexpr auto WIRE_XCOM_GROUP_ID_SIZE = 4;
+  static constexpr auto WIRE_XCOM_MSG_ID_SIZE = 8;
+  static constexpr auto WIRE_XCOM_NODE_ID_SIZE = 4;
+  static constexpr auto WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE = 8;
+
+  static constexpr uint64_t get_encode_snapshot_elem_size() {
+    return WIRE_XCOM_MSG_ID_SIZE + WIRE_XCOM_NODE_ID_SIZE;
+  }
+
   /*
     View identifier installed by the current member if there
     is any.
@@ -173,11 +277,26 @@ class Xcom_member_state {
   */
   uint64_t m_data_size;
 
+  /**
+   Recovery information which is currently a list of the XCom synods of the
+   fragments that are in buffers when a node is joining.
+
+   This is currently used only to transfer information on slice packets that
+   need to be fetched by the joining node before it may become ready to serve
+   requests.
+   */
+  Gcs_xcom_synode_set m_snapshot;
+
+  /**
+   GCS communication version number in use.
+   */
+  Gcs_protocol_version m_version;
+
   /*
     Disabling the copy constructor and assignment operator.
   */
-  Xcom_member_state(Xcom_member_state const &);
-  Xcom_member_state &operator=(Xcom_member_state const &);
+  Xcom_member_state(Xcom_member_state const &) = delete;
+  Xcom_member_state &operator=(Xcom_member_state const &) = delete;
 };
 
 /**
@@ -298,9 +417,10 @@ class Gcs_xcom_state_exchange_interface {
       synode_no configuration_id, std::vector<Gcs_member_identifier *> &total,
       std::vector<Gcs_member_identifier *> &left,
       std::vector<Gcs_member_identifier *> &joined,
-      std::vector<Gcs_message_data *> &exchangeable_data,
+      std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data,
       Gcs_view *current_view, std::string *group,
-      const Gcs_member_identifier &local_info) = 0;
+      const Gcs_member_identifier &local_info,
+      const Gcs_xcom_nodes &xcom_nodes) = 0;
 
   /**
     Processes a member state message on an ongoing State Exchange round.
@@ -314,22 +434,27 @@ class Gcs_xcom_state_exchange_interface {
                  installed
   */
 
-  virtual bool process_member_state(Xcom_member_state *ms_info,
-                                    const Gcs_member_identifier &p_id,
-                                    const unsigned int protocol_version) = 0;
+  virtual bool process_member_state(
+      Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
+      Gcs_protocol_version maximum_supported_protocol_version,
+      Gcs_protocol_version used_protocol_version) = 0;
 
-  /*
-   Compute the greatest common protocol version among members using the
-   information that was gathered during the state exchange phase and determine
-   the nodes that cannot remain as members because they have a protocol version
-   that may not be compatible with the current protocol version in use by the
-   group.
-
-   @return the set of members that has a protocol version that is less than
-           possible version accepted by the group.
+  /**
+   Compute the set of incompatible members after the state exchange has
+   finished.
+   A member M is incompatible if it is attempting to join a group that is
+   using protocol X, but M is using protocol Y s.t. X != Y.
+   @returns the set of incompatible members
    */
-  virtual std::vector<Gcs_member_identifier>
-  compute_incompatible_protocol_members() = 0;
+  virtual std::vector<Gcs_xcom_node_information>
+  compute_incompatible_members() = 0;
+
+  /**
+   Recovers any missing packets required for the member to join the group.
+   @retval true if successful
+   @retval false otherwise
+   */
+  virtual bool process_recovery_state() = 0;
 
   /**
     Retrieves the new view identifier after a State Exchange.
@@ -369,6 +494,11 @@ class Gcs_xcom_state_exchange_interface {
 
   virtual std::map<Gcs_member_identifier, Xcom_member_state *>
       *get_member_states() = 0;
+
+  /**
+   Computes the maximum protocol version supported by the group.
+   */
+  virtual void compute_maximum_supported_protocol_version() = 0;
 };
 
 /**
@@ -396,19 +526,23 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
   void end();
 
-  bool state_exchange(synode_no configuration_id,
-                      std::vector<Gcs_member_identifier *> &total,
-                      std::vector<Gcs_member_identifier *> &left,
-                      std::vector<Gcs_member_identifier *> &joined,
-                      std::vector<Gcs_message_data *> &exchangeable_data,
-                      Gcs_view *current_view, std::string *group,
-                      const Gcs_member_identifier &local_info);
+  bool state_exchange(
+      synode_no configuration_id, std::vector<Gcs_member_identifier *> &total,
+      std::vector<Gcs_member_identifier *> &left,
+      std::vector<Gcs_member_identifier *> &joined,
+      std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data,
+      Gcs_view *current_view, std::string *group,
+      const Gcs_member_identifier &local_info,
+      const Gcs_xcom_nodes &xcom_nodes);
 
-  bool process_member_state(Xcom_member_state *ms_info,
-                            const Gcs_member_identifier &p_id,
-                            const unsigned int protocol_version);
+  bool process_member_state(
+      Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
+      Gcs_protocol_version maximum_supported_protocol_version,
+      Gcs_protocol_version used_protocol_version);
 
-  std::vector<Gcs_member_identifier> compute_incompatible_protocol_members();
+  std::vector<Gcs_xcom_node_information> compute_incompatible_members();
+
+  bool process_recovery_state();
 
   Gcs_xcom_view_identifier *get_new_view_id();
 
@@ -423,6 +557,8 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
   }
 
   std::string *get_group() { return m_group_name; }
+
+  void compute_maximum_supported_protocol_version();
 
  private:
   /**
@@ -442,6 +578,13 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
   bool is_joining();
 
   /**
+   Update the communication system with information on membership.
+
+   @param xcom_nodes List of nodes that belong to the current membership.
+   */
+  void update_communication_channel(const Gcs_xcom_nodes &xcom_nodes);
+
+  /**
     Broadcasts the local state to all nodes in the Cluster.
 
     @param[in] proposed_view proposed view to broadcast
@@ -450,7 +593,7 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
   enum_gcs_error broadcast_state(
       const Gcs_xcom_view_identifier &proposed_view,
-      std::vector<Gcs_message_data *> &exchangeable_data);
+      std::vector<std::unique_ptr<Gcs_message_data>> &exchangeable_data);
 
   /**
     Updates the structure that waits for State Exchanges.
@@ -469,19 +612,41 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
                        std::set<Gcs_member_identifier *> &pset);
 
   /**
-   * Stores the member's state and protocol version.
-   *
-   * @param ms_info state
-   * @param p_id member
-   * @param protocol_version protocol version
+   Stores the member's state and protocol version.
+
+   @param ms_info state
+   @param p_id member
+   @param protocol_version protocol version
    */
-  void save_member_state(Xcom_member_state *ms_info,
-                         const Gcs_member_identifier &p_id,
-                         const unsigned int protocol_version);
+  void save_member_state(
+      Xcom_member_state *ms_info, const Gcs_member_identifier &p_id,
+      Gcs_protocol_version maximum_supported_protocol_version,
+      Gcs_protocol_version used_protocol_version);
+
+  /**
+   Auxiliary method that checks whether @c snapshot_to_recover contains all
+   the synodes required.
+   */
+  bool snapshot_is_enough(Gcs_xcom_synode_set const &snapshot_to_recover) const;
+
+  /**
+   Checks whether this server is incompatible with the group.
+   @retval true If it is incompatible
+   @retval false If it is compatible
+   */
+  bool incompatible_with_group() const;
+
+  /**
+   Computes the set of incompatible nodes that are trying to join the group.
+   @returns the set of incompatible joiners
+   */
+  std::vector<Gcs_xcom_node_information> compute_incompatible_joiners();
 
   Gcs_communication_interface *m_broadcaster;
 
   std::map<Gcs_member_identifier, uint> m_awaited_vector;
+
+  std::map<Gcs_member_identifier, uint> m_recover_vector;
 
   /* Set of ids in GCS native format as reported by View-change handler. */
   std::set<Gcs_member_identifier *> m_ms_total, m_ms_left, m_ms_joined;
@@ -490,7 +655,10 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
   std::map<Gcs_member_identifier, Xcom_member_state *> m_member_states;
 
   /* Collection of protocol version in use per member. */
-  std::map<Gcs_member_identifier, unsigned int> m_member_versions;
+  std::map<Gcs_member_identifier, Gcs_protocol_version> m_member_versions;
+
+  /* Collection of maximum protocol version supported per member. */
+  std::map<Gcs_member_identifier, Gcs_protocol_version> m_member_max_versions;
 
   // Group name to exchange state
   std::string *m_group_name;
@@ -500,6 +668,11 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 
   /* Configuration identifier in use when the state exchange phase started */
   synode_no m_configuration_id;
+
+  std::vector<synode_no> cached_ids;
+
+  /* XCom identifiers of the members in m_ms_total */
+  Gcs_xcom_nodes m_ms_xcom_nodes;
 
   /*
     Disabling the copy constructor and assignment operator.

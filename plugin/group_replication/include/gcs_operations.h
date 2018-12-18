@@ -24,11 +24,14 @@
 #define GCS_OPERATIONS_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+#include <future>
 #include <string>
+#include <utility>
 
 #include "plugin/group_replication/include/gcs_logger.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/gcs_view_modification_notifier.h"
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
 /**
@@ -271,7 +274,35 @@ class Gcs_operations {
   enum enum_gcs_error set_write_concurrency(uint32_t new_write_concurrency);
 
   /**
-   * @return the communication engine being used
+    Retrieves the group's "group communication protocol" value.
+
+    @retval the protocol version
+   */
+  Gcs_protocol_version get_protocol_version();
+
+  /**
+   Modifies the GCS protocol version in use.
+
+   The method is non-blocking. It returns a future on which the caller can
+   wait for the action to finish.
+
+   @param new_version The desired GCS protocol version
+
+   @retval {true, future} If successful
+   @retval {false, _} If unsuccessful because @c new_version is unsupported
+   */
+  std::pair<bool, std::future<void>> set_protocol_version(
+      Gcs_protocol_version gcs_protocol);
+
+  /**
+   Get the maximum protocol version currently supported by the group.
+
+   @returns the maximum protocol version currently supported by the group
+   */
+  Gcs_protocol_version get_maximum_protocol_version();
+
+  /**
+   @return the communication engine being used
    */
   static const std::string &get_gcs_engine();
 
@@ -282,6 +313,7 @@ class Gcs_operations {
   */
   enum enum_gcs_error do_set_debug_options(std::string &debug_options) const;
   Gcs_group_management_interface *get_gcs_group_manager() const;
+  Gcs_communication_interface *get_gcs_communication() const;
 
   static const std::string gcs_engine;
   Gcs_gr_logger_impl gcs_logger;

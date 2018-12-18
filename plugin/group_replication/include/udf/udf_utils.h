@@ -25,6 +25,7 @@
 
 #include "my_dbug.h"
 #include "plugin/group_replication/include/group_actions/group_action.h"
+#include "plugin/group_replication/include/member_version.h"
 
 const char *const member_offline_or_minority_str =
     "Member must be ONLINE and in the majority partition.";
@@ -174,5 +175,14 @@ void log_group_action_result_message(Group_action_diagnostics *result_area,
  * @retval false if tables are locked (@c message is written to)
  */
 bool check_locked_tables(char *message);
+
+/**
+ * Checks whether the group contains a member older than the specified version.
+ *
+ * @param min_required_version Minimum version required
+ * @returns true if there is some older member, false otherwise
+ */
+bool group_contains_member_older_than(
+    Member_version const &min_required_version);
 
 #endif /* PLUGIN_GR_INCLUDE_UDF_UTILS_H */

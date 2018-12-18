@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"  // gcs_protocol_to_mysql_version
 
 #include <assert.h>
 #include <errno.h>
@@ -28,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <algorithm>  // std::find_if
 #include <iostream>
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
@@ -45,6 +47,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"  // my_xdr_free
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
@@ -54,16 +57,23 @@ using std::map;
 
 Gcs_xcom_communication::Gcs_xcom_communication(
     Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
-    Gcs_xcom_view_change_control_interface *view_control)
+    Gcs_xcom_view_change_control_interface *view_control,
+    Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
+    Gcs_group_identifier const &group_id)
     : event_listeners(),
       stats(stats),
       m_xcom_proxy(proxy),
       m_view_control(view_control),
       m_msg_pipeline(),
-      m_buffered_messages()
-/* purecov: begin deadcode */
-{}
-/* purecov: end */
+      m_buffered_packets(),
+      m_myself(xcom_node_address.get_member_address()),
+      m_xcom_nodes(),
+      m_gid_hash(),
+      m_protocol_changer(xcom_node_address, *gcs_engine, m_msg_pipeline) {
+  m_gid_hash =
+      Gcs_xcom_utils::mhash((unsigned char *)group_id.get_group_id().c_str(),
+                            group_id.get_group_id().size());
+}
 
 Gcs_xcom_communication::~Gcs_xcom_communication() {}
 
@@ -92,9 +102,8 @@ enum_gcs_error Gcs_xcom_communication::send_message(
     return GCS_NOK;
   }
 
-  message_result = this->send_binding_message(
-      message_to_send, &message_length,
-      Gcs_internal_message_header::cargo_type::CT_USER_DATA);
+  message_result = this->do_send_message(message_to_send, &message_length,
+                                         Cargo_type::CT_USER_DATA);
 
   if (message_result == GCS_OK) {
     this->stats->update_message_sent(message_length);
@@ -103,79 +112,71 @@ enum_gcs_error Gcs_xcom_communication::send_message(
   return message_result;
 }
 
-enum_gcs_error Gcs_xcom_communication::send_binding_message(
-    const Gcs_message &msg, unsigned long long *msg_len,
-    Gcs_internal_message_header::cargo_type cargo) {
+enum_gcs_error Gcs_xcom_communication::do_send_message(
+    const Gcs_message &msg, unsigned long long *msg_len, Cargo_type cargo) {
   enum_gcs_error ret = GCS_NOK;
-  Gcs_message_data &msg_data = msg.get_message_data();
-  unsigned long long msg_total_length = 0;
-  unsigned char *data_buffer = nullptr;
-  Gcs_internal_message_header gcs_header;
-  bool sent_to_xcom = false;
+  const Gcs_message_data &msg_data = msg.get_message_data();
+  unsigned long long total_buffers_length = 0;
+  bool pipeline_error = true;
+  std::vector<Gcs_packet> packets_out;
+  std::size_t nr_packets_to_send = 0;
+
+  m_protocol_changer.atomically_increment_nr_packets_in_transit(cargo);
 
   /*
-   Configure the header to carry metadata information.
+     Apply transformations and move the result to a vector of packets as
+     the content may be fragmented into small pieces.
    */
-  gcs_header.set_payload_length(msg_data.get_encode_size());
-  gcs_header.set_cargo_type(cargo);
-
-  /*
-   Configure the packet which will carry the payload information.
-   */
-  Gcs_packet gcs_packet(gcs_header);
-  uint64_t buffer_size = gcs_packet.get_capacity();
-
-  if (gcs_packet.get_buffer() == NULL) {
-    MYSQL_GCS_LOG_ERROR("Error generating the binding message.")
-    goto end;
-  }
-
-  /*
-   Copy the payload content to the packet.
-   */
-  if (msg_data.encode(gcs_packet.get_payload(), &buffer_size)) {
-    MYSQL_GCS_LOG_ERROR("Error inserting the payload in the binding message.")
-    goto end;
-  }
-
-  MYSQL_GCS_LOG_TRACE(
-      "Pipelining message with payload length %llu",
-      static_cast<unsigned long long>(gcs_packet.get_payload_length()))
-
-  // apply transformations
-  if (m_msg_pipeline.outgoing(gcs_header, gcs_packet)) {
+  std::tie(pipeline_error, packets_out) =
+      m_msg_pipeline.process_outgoing(msg_data, cargo);
+  if (pipeline_error) {
     MYSQL_GCS_LOG_ERROR("Error preparing the message for sending.")
     goto end;
   }
 
-  /*
-    Note that XCom will own the packet buffer now, so we don't need to
-    free it before exiting.
-  */
-  msg_total_length = gcs_packet.get_total_length();
-  MYSQL_GCS_LOG_TRACE("Sending message with payload length %llu",
-                      msg_total_length)
-  /* Pass ownership of the buffer to xcom_client_send_data. */
-  data_buffer = gcs_packet.swap_buffer(nullptr, 0);
-  sent_to_xcom = m_xcom_proxy->xcom_client_send_data(
-      msg_total_length, reinterpret_cast<char *>(data_buffer));
-  if (!sent_to_xcom) {
-    if (!m_view_control->is_leaving() && m_view_control->belongs_to_group()) {
-      MYSQL_GCS_LOG_ERROR(
-          "Error pushing message into group communication engine.")
-    }
-    goto end;
+  nr_packets_to_send = packets_out.size();
+  if (nr_packets_to_send > 1) {
+    m_protocol_changer.adjust_nr_packets_in_transit(cargo,
+                                                    nr_packets_to_send - 1);
   }
 
-  *msg_len = msg_total_length;
+  /*
+    The packet is now part of a vector and it may have been split so we
+    have to iterate over each individual packet in the vector and send it.
+  */
+  for (auto &result_packet : packets_out) {
+    Gcs_packet::buffer_ptr serialized_packet;
+    unsigned long long msg_buffer_length = 0;
+    std::tie(serialized_packet, msg_buffer_length) = result_packet.serialize();
+    total_buffers_length += msg_buffer_length;
+
+    MYSQL_GCS_LOG_DEBUG_WITH_OPTION(GCS_DEBUG_MSG_FLOW,
+                                    "Sending message with payload length %llu",
+                                    msg_buffer_length)
+
+    /* Pass ownership of the buffer to xcom_client_send_data. */
+    unsigned char *msg_buffer = serialized_packet.release();
+    bool const sent_to_xcom = m_xcom_proxy->xcom_client_send_data(
+        msg_buffer_length, reinterpret_cast<char *>(msg_buffer));
+
+    if (!sent_to_xcom) {
+      if (!m_view_control->is_leaving() && m_view_control->belongs_to_group()) {
+        /* purecov: begin inspected */
+        MYSQL_GCS_LOG_ERROR(
+            "Error pushing message into group communication engine.")
+        /* purecov: end */
+      }
+      goto end;
+    }
+  }
+
+  *msg_len = total_buffers_length;
   ret = GCS_OK;
 
 end:
-  if (ret == GCS_NOK) free(gcs_packet.get_buffer());
-
-  MYSQL_GCS_LOG_TRACE(
-      "send_binding_message enum_gcs_error result(%u). Bytes sent(%llu)",
-      static_cast<unsigned int>(ret), msg_total_length)
+  MYSQL_GCS_LOG_DEBUG_WITH_OPTION(GCS_DEBUG_MSG_FLOW,
+                                  "do_send_message enum_gcs_error result(%u).",
+                                  static_cast<unsigned int>(ret))
 
   return ret;
 }
@@ -195,38 +196,6 @@ int Gcs_xcom_communication::add_event_listener(
 
 void Gcs_xcom_communication::remove_event_listener(int event_listener_handle) {
   event_listeners.erase(event_listener_handle);
-}
-
-bool Gcs_xcom_communication::xcom_receive_data(Gcs_message *message) {
-  /*
-    If a view exchange phase is being executed, messages are buffered
-    and then delivered to the application after the view has been
-    installed. This is done to avoid delivering messages to the
-    application in nodes that are joining because it would be strange
-    to receive messages before any view.
-
-    We could have relaxed this a little bit and could have let nodes
-    from an old view to immediately deliver messages. However, we
-    don't do this because we want to provide virtual synchrony. Note
-    that we don't guarantee that a message sent in a view will be
-    delivered in the same view.
-
-    It is also important to note that this method must be executed by
-    the same thread that processes global view messages and data
-    message in order to avoid any concurrency issue.
-  */
-  if (m_view_control->is_view_changing()) {
-    buffer_message(message);
-    return false;
-  }
-
-  /*
-    The node belongs to a group and is not executing the state
-    exchange phase.
-  */
-  notify_received_message(message);
-
-  return true;
 }
 
 void Gcs_xcom_communication::notify_received_message(Gcs_message *message) {
@@ -249,35 +218,374 @@ void Gcs_xcom_communication::notify_received_message(Gcs_message *message) {
   delete message;
 }
 
-void Gcs_xcom_communication::buffer_message(Gcs_message *message) {
-  assert(m_view_control->is_view_changing());
-  MYSQL_GCS_LOG_TRACE("Buffering message: %p", message);
-  m_buffered_messages.push_back(message);
+void Gcs_xcom_communication::buffer_incoming_packet(
+    Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+  DBUG_ASSERT(m_view_control->is_view_changing());
+
+  MYSQL_GCS_LOG_TRACE("Buffering packet cargo=%u", packet.get_cargo_type());
+
+  m_buffered_packets.push_back(
+      std::make_pair(std::move(packet), std::move(xcom_nodes)));
 }
 
-void Gcs_xcom_communication::deliver_buffered_messages() {
-  std::vector<Gcs_message *>::iterator buffer_msg_it;
+void Gcs_xcom_communication::deliver_buffered_packets() {
+  for (auto &pair : m_buffered_packets) {
+    Gcs_packet &packet = pair.first;
+    std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes = pair.second;
 
-  for (buffer_msg_it = m_buffered_messages.begin();
-       buffer_msg_it != m_buffered_messages.end(); buffer_msg_it++) {
-    MYSQL_GCS_LOG_TRACE("Delivering buffered message: %p", *buffer_msg_it);
-    notify_received_message(*buffer_msg_it);
+    MYSQL_GCS_LOG_TRACE("Delivering buffered packet: cargo=%u",
+                        packet.get_cargo_type());
+
+    deliver_user_data_packet(std::move(packet), std::move(xcom_nodes));
   }
 
-  m_buffered_messages.clear();
+  m_buffered_packets.clear();
 }
 
-void Gcs_xcom_communication::cleanup_buffered_messages() {
-  std::vector<Gcs_message *>::iterator buffer_msg_it;
+void Gcs_xcom_communication::cleanup_buffered_packets() {
+  m_buffered_packets.clear();
+}
 
-  for (buffer_msg_it = m_buffered_messages.begin();
-       buffer_msg_it != m_buffered_messages.end(); buffer_msg_it++) {
-    delete *buffer_msg_it;
+size_t Gcs_xcom_communication::number_buffered_packets() {
+  return m_buffered_packets.size();
+}
+
+void Gcs_xcom_communication::update_members_information(
+    const Gcs_member_identifier &me, const Gcs_xcom_nodes &members) {
+  m_msg_pipeline.update_members_information(me, members);
+  m_xcom_nodes.add_nodes(members);
+}
+
+std::vector<Gcs_xcom_node_information>
+Gcs_xcom_communication::possible_packet_recovery_donors() const {
+  auto const &all_members = m_xcom_nodes.get_nodes();
+  DBUG_ASSERT(!all_members.empty());
+
+  std::vector<Gcs_xcom_node_information> donors;
+  auto not_me_predicate = [this](Gcs_xcom_node_information const &xcom_node) {
+    bool const is_me = (xcom_node.get_member_id() == m_myself);
+    return !is_me;
+  };
+  std::copy_if(all_members.cbegin(), all_members.cend(),
+               std::back_inserter(donors), not_me_predicate);
+  DBUG_ASSERT(donors.size() == all_members.size() - 1);
+
+  return donors;
+}
+
+Gcs_xcom_communication::packet_recovery_result
+Gcs_xcom_communication::process_recovered_packet(
+    synode_app_data const &recovered_data) {
+  auto result = packet_recovery_result::ERROR;
+  Gcs_pipeline_incoming_result error_code = Gcs_pipeline_incoming_result::ERROR;
+  Gcs_packet packet;
+  Gcs_packet packet_in;
+
+  /*
+   The buffer with the raw data for a given packet needs to be owned by the
+   packet, i.e. have the same lifetime of the packet. Therefore, we need an
+   individual buffer for each packet.
+   */
+  auto const &data_len = recovered_data.data.data_len;
+  // Create the new buffer.
+  Gcs_packet::buffer_ptr data(static_cast<unsigned char *>(std::malloc(
+                                  data_len * sizeof(unsigned char))),
+                              Gcs_packet_buffer_deleter());
+  if (data == nullptr) {
+    /* purecov: begin inspected */
+    result = packet_recovery_result::NO_MEMORY;
+    goto end;
+    /* purecov: end */
+  }
+  // Copy the recovered data to the new buffer.
+  std::memcpy(data.get(), recovered_data.data.data_val, data_len);
+  // Create the packet.
+  packet = Gcs_packet::make_incoming_packet(
+      std::move(data), data_len, recovered_data.synode, m_msg_pipeline);
+
+  /*
+   The packet should always be a user data packet, but rather than asserting
+   that, treat it as a failure if it is not.
+   */
+  if (packet.get_cargo_type() != Cargo_type::CT_USER_DATA) {
+    result = packet_recovery_result::PACKET_UNEXPECTED_CARGO;
+    goto end;
   }
 
-  m_buffered_messages.clear();
+  /* Send the packet through the pipeline. */
+  std::tie(error_code, packet_in) =
+      m_msg_pipeline.process_incoming(std::move(packet));
+
+  /*
+   The pipeline should process the packet successfully and *not* output
+   packets, because the packet we sent through the pipeline is supposed to be
+   a fragment.
+   But rather than asserting that, treat it as a failure if it does not
+   happen.
+   */
+  switch (error_code) {
+    case Gcs_pipeline_incoming_result::OK_NO_PACKET:
+      break;
+    case Gcs_pipeline_incoming_result::OK_PACKET:
+      result = packet_recovery_result::PIPELINE_UNEXPECTED_OUTPUT;
+      goto end;
+    /* purecov: begin inspected */
+    case Gcs_pipeline_incoming_result::ERROR:
+      result = packet_recovery_result::PIPELINE_ERROR;
+      goto end;
+      /* purecov: end */
+  }
+
+  result = packet_recovery_result::OK;
+
+end:
+  return result;
 }
 
-size_t Gcs_xcom_communication::number_buffered_messages() {
-  return m_buffered_messages.size();
+Gcs_xcom_communication::packet_recovery_result
+Gcs_xcom_communication::process_recovered_packets(
+    synode_app_data_array const &recovered_data) {
+  auto result = packet_recovery_result::ERROR;
+
+  auto const &nr_synodes = recovered_data.synode_app_data_array_len;
+
+  for (u_int i = 0; i < nr_synodes; i++) {
+    synode_app_data const &recovered_synode_data =
+        recovered_data.synode_app_data_array_val[i];
+
+    result = process_recovered_packet(recovered_synode_data);
+    if (result != packet_recovery_result::OK) goto end;
+  }
+
+  result = packet_recovery_result::OK;
+
+end:
+  return result;
+}
+
+Gcs_xcom_communication::packet_recovery_result
+Gcs_xcom_communication::recover_packets_from_donor(
+    Gcs_xcom_node_information const &donor,
+    std::unordered_set<Gcs_xcom_synode> const &synodes,
+    synode_app_data_array &recovered_data) {
+  auto result = packet_recovery_result::ERROR;
+
+  /* Request the payloads from the donor's XCom. */
+  bool successful = m_xcom_proxy->xcom_get_synode_app_data(
+      donor, m_gid_hash, synodes, recovered_data);
+
+  if (successful) {
+    /*
+     This should always be true, but rather than asserting it, treat it as a
+     failure if it is not.
+     */
+    successful = (recovered_data.synode_app_data_array_len == synodes.size());
+  }
+
+  if (!successful) {
+    result = packet_recovery_result::PACKETS_UNRECOVERABLE;
+  } else {
+    result = packet_recovery_result::OK;
+  }
+
+  return result;
+}
+
+void Gcs_xcom_communication::log_packet_recovery_failure(
+    packet_recovery_result const &error_code,
+    Gcs_xcom_node_information const &donor) const {
+  switch (error_code) {
+    case Gcs_xcom_communication::packet_recovery_result::OK:
+      break;
+    case packet_recovery_result::PACKETS_UNRECOVERABLE:
+      MYSQL_GCS_LOG_DEBUG(
+          "%s did not have the GCS packets this server requires to safely join "
+          "the group.",
+          donor.get_member_id().get_member_id().c_str());
+      break;
+    /* purecov: begin inspected */
+    case packet_recovery_result::NO_MEMORY:
+      MYSQL_GCS_LOG_DEBUG(
+          "Could not allocate memory to process the recovered GCS packets this "
+          "server requires to safely join the group.");
+      break;
+    /* purecov: end */
+    case packet_recovery_result::PIPELINE_ERROR:
+      MYSQL_GCS_LOG_DEBUG(
+          "The pipeline encountered an error processing the recovered GCS "
+          "packets this server requires to safely join the group.");
+      break;
+    case packet_recovery_result::PIPELINE_UNEXPECTED_OUTPUT:
+      MYSQL_GCS_LOG_DEBUG(
+          "The pipeline produced an unexpected packet while processing the "
+          "recovered GCS packets this server requires to safely join the "
+          "group.");
+      break;
+    case packet_recovery_result::PACKET_UNEXPECTED_CARGO:
+      MYSQL_GCS_LOG_DEBUG(
+          "One of the recovered GCS packets this server requires to safely "
+          "join the group is of an unexpected type.");
+      break;
+    case packet_recovery_result::ERROR:
+      MYSQL_GCS_LOG_DEBUG(
+          "There was an error processing the recovered GCS packets this server "
+          "requires to safely join the group.");
+      break;
+  }
+}
+
+bool Gcs_xcom_communication::recover_packets(
+    std::unordered_set<Gcs_xcom_synode> const &synodes) {
+  u_int const nr_synodes = synodes.size();
+  bool successful = false;
+  packet_recovery_result error_code = packet_recovery_result::ERROR;
+
+  auto donors = possible_packet_recovery_donors();
+
+  /* Go through the possible donors until we can recover from one. */
+  for (auto donor_it = donors.begin(); !successful && donor_it != donors.end();
+       donor_it++) {
+    Gcs_xcom_node_information const &donor = *donor_it;
+
+    MYSQL_GCS_LOG_DEBUG(
+        "This server requires %u missing GCS packets to join the group safely. "
+        "It will attempt to recover the needed GCS packets from %s.",
+        nr_synodes, donor.get_member_id().get_member_id().c_str());
+
+    synode_app_data_array recovered_data;
+    recovered_data.synode_app_data_array_len = 0;
+    recovered_data.synode_app_data_array_val = nullptr;
+
+    error_code = recover_packets_from_donor(donor, synodes, recovered_data);
+    if (error_code != packet_recovery_result::OK) {
+      log_packet_recovery_failure(error_code, donor);
+      continue;  // Next donor.
+    }
+
+    error_code = process_recovered_packets(recovered_data);
+    if (error_code != packet_recovery_result::OK) {
+      log_packet_recovery_failure(error_code, donor);
+      continue;  // Next donor.
+    }
+
+    successful = true;
+
+    ::my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+                  reinterpret_cast<char *>(&recovered_data));
+  }
+
+  return successful;
+}
+
+Gcs_message *Gcs_xcom_communication::convert_packet_to_message(
+    Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+  Gcs_message_data *message_data = nullptr;
+  Gcs_xcom_synode packet_synode;
+  Gcs_xcom_node_information const *node = nullptr;
+  Gcs_member_identifier origin;
+  Gcs_xcom_interface *intf = nullptr;
+  Gcs_group_identifier *destination = nullptr;
+  Gcs_message *message = nullptr;
+
+  /* Send the packet through the pipeline. */
+  Gcs_pipeline_incoming_result error_code;
+  Gcs_packet packet_in;
+  std::tie(error_code, packet_in) =
+      m_msg_pipeline.process_incoming(std::move(packet));
+  switch (error_code) {
+    case Gcs_pipeline_incoming_result::OK_PACKET:
+      break;
+    case Gcs_pipeline_incoming_result::OK_NO_PACKET:
+      goto end;
+    case Gcs_pipeline_incoming_result::ERROR:
+      MYSQL_GCS_LOG_ERROR(
+          "Rejecting message since it wasn't processed correctly in the "
+          "pipeline.")
+      goto end;
+  }
+
+  /*
+   Transform the incoming packet into the message that will be delivered to
+   the upper layer.
+
+   Decode the incoming packet into the message.
+   */
+  message_data = new Gcs_message_data(packet_in.get_payload_length());
+  if (message_data->decode(packet_in.get_payload_pointer(),
+                           packet_in.get_payload_length())) {
+    /* purecov: begin inspected */
+    delete message_data;
+    MYSQL_GCS_LOG_WARN("Discarding message. Unable to decode it.");
+    goto end;
+    /* purecov: end */
+  }
+  // Get packet origin.
+  packet_synode = packet_in.get_delivery_synode();
+  node = xcom_nodes->get_node(packet_synode.get_synod().node);
+  origin = Gcs_member_identifier(node->get_member_id());
+  intf = static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  destination =
+      intf->get_xcom_group_information(packet_synode.get_synod().group_id);
+  DBUG_ASSERT(destination != nullptr);
+  // Construct the message.
+  message = new Gcs_message(origin, *destination, message_data);
+
+end:
+  return message;
+}
+
+void Gcs_xcom_communication::process_user_data_packet(
+    Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+  m_protocol_changer.decrement_nr_packets_in_transit(packet, *xcom_nodes.get());
+
+  /*
+   If a view exchange phase is being executed, messages are buffered
+   and then delivered to the application after the view has been
+   installed. This is done to avoid delivering messages to the
+   application in nodes that are joining because it would be strange
+   to receive messages before any view.
+
+   We could have relaxed this a little bit and could have let nodes
+   from an old view to immediately deliver messages. However, we
+   don't do this because we want to provide virtual synchrony. Note
+   that we don't guarantee that a message sent in a view will be
+   delivered in the same view.
+
+   It is also important to note that this method must be executed by
+   the same thread that processes global view messages and data
+   message in order to avoid any concurrency issue.
+ */
+  if (!m_view_control->is_view_changing()) {
+    deliver_user_data_packet(std::move(packet), std::move(xcom_nodes));
+  } else {
+    buffer_incoming_packet(std::move(packet), std::move(xcom_nodes));
+  }
+}
+
+void Gcs_xcom_communication::deliver_user_data_packet(
+    Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+  Gcs_message *message =
+      convert_packet_to_message(std::move(packet), std::move(xcom_nodes));
+
+  bool const error = (message == nullptr);
+  if (!error) notify_received_message(message);
+}
+
+Gcs_protocol_version Gcs_xcom_communication::get_protocol_version() const {
+  return m_protocol_changer.get_protocol_version();
+}
+
+std::pair<bool, std::future<void>> Gcs_xcom_communication::set_protocol_version(
+    Gcs_protocol_version new_version) {
+  return m_protocol_changer.set_protocol_version(new_version);
+}
+
+Gcs_protocol_version
+Gcs_xcom_communication::get_maximum_supported_protocol_version() const {
+  return m_protocol_changer.get_maximum_supported_protocol_version();
+}
+
+void Gcs_xcom_communication::set_maximum_supported_protocol_version(
+    Gcs_protocol_version version) {
+  return m_protocol_changer.set_maximum_supported_protocol_version(version);
 }

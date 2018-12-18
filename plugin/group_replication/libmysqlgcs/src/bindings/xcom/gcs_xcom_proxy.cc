@@ -116,6 +116,17 @@ bool Gcs_xcom_proxy_impl::xcom_client_set_event_horizon(
   return successful;
 }
 
+bool Gcs_xcom_proxy_impl::xcom_client_get_synode_app_data(
+    connection_descriptor *fd, uint32_t gid, synode_no_array &synodes,
+    synode_app_data_array &reply) {
+  bool successful = false;
+
+  successful =
+      (::xcom_client_get_synode_app_data(fd, gid, &synodes, &reply) == 1);
+
+  return successful;
+}
+
 bool Gcs_xcom_proxy_impl::xcom_client_boot(node_list *nl, uint32_t gid) {
   app_data_ptr data = new_app_data();
   data = init_config_with_group(data, nl, unified_boot_type, gid);
@@ -648,6 +659,63 @@ bool Gcs_xcom_proxy_base::xcom_set_event_horizon(
     uint32_t group_id_hash, xcom_event_horizon event_horizon) {
   MYSQL_GCS_LOG_DEBUG("Reconfiguring event horizon to %" PRIu32, event_horizon);
   return xcom_client_set_event_horizon(group_id_hash, event_horizon);
+}
+
+static bool convert_synode_set_to_synode_array(
+    synode_no_array &to,
+    std::unordered_set<Gcs_xcom_synode> const &synode_set) {
+  bool constexpr SUCCESS = true;
+  bool constexpr FAILURE = false;
+  bool result = FAILURE;
+  u_int const nr_synodes = synode_set.size();
+  std::size_t index = 0;
+
+  to.synode_no_array_len = 0;
+  to.synode_no_array_val =
+      static_cast<synode_no *>(malloc(nr_synodes * sizeof(synode_no)));
+  if (to.synode_no_array_val == nullptr) goto end;
+  to.synode_no_array_len = nr_synodes;
+
+  for (auto &gcs_synod : synode_set) {
+    to.synode_no_array_val[index] = gcs_synod.get_synod();
+    index++;
+  }
+
+  result = SUCCESS;
+
+end:
+  return result;
+}
+
+bool Gcs_xcom_proxy_base::xcom_get_synode_app_data(
+    Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
+    std::unordered_set<Gcs_xcom_synode> const &synode_set,
+    synode_app_data_array &reply) {
+  assert(!synode_set.empty());
+  bool successful = false;
+  synode_no_array synodes;
+
+  /* Connect to XCom. */
+  Gcs_xcom_node_address xcom_address(
+      xcom_instance.get_member_id().get_member_id());
+  connection_descriptor *con = xcom_client_open_connection(
+      xcom_address.get_member_ip(), xcom_address.get_member_port());
+  bool const connected_to_xcom = (con != nullptr);
+  if (!connected_to_xcom) goto end;
+
+  successful = convert_synode_set_to_synode_array(synodes, synode_set);
+  if (!successful) goto end;
+
+  /* Request the data decided at synodes.
+   * synodes is passed with moved semantics, so no need to free afterwards. */
+  successful =
+      xcom_client_get_synode_app_data(con, group_id_hash, synodes, reply);
+
+  /* Close the connection to XCom. */
+  xcom_client_close_connection(con);
+
+end:
+  return successful;
 }
 
 bool Gcs_xcom_proxy_base::xcom_force_nodes(Gcs_xcom_nodes &nodes,

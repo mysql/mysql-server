@@ -23,8 +23,11 @@
 #ifndef GCS_MESSAGE_STAGE_LZ4_H
 #define GCS_MESSAGE_STAGE_LZ4_H
 
+#include <lz4.h>
 #include <utility>
+#include <vector>
 
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
 
 /**
@@ -32,33 +35,30 @@
   service class, thence it is thread safe.
  */
 class Gcs_message_stage_lz4 : public Gcs_message_stage {
- private:
+ public:
   /*
    Methods inherited from the Gcs_message_stage class.
    */
   virtual Gcs_message_stage::stage_status skip_apply(
-      const Gcs_packet &packet) const;
+      uint64_t const &original_payload_size) const;
+
+  std::unique_ptr<Gcs_stage_metadata> get_stage_header();
+
+ protected:
+  std::pair<bool, std::vector<Gcs_packet>> apply_transformation(
+      Gcs_packet &&packet);
+
+  std::pair<Gcs_pipeline_incoming_result, Gcs_packet> revert_transformation(
+      Gcs_packet &&packet);
 
   virtual Gcs_message_stage::stage_status skip_revert(
       const Gcs_packet &packet) const;
-
-  virtual unsigned long long calculate_payload_length(Gcs_packet &packet) const;
-
-  virtual std::pair<bool, unsigned long long> transform_payload_apply(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length);
-
-  virtual std::pair<bool, unsigned long long> transform_payload_revert(
-      unsigned int version, unsigned char *new_payload_ptr,
-      unsigned long long new_payload_length, unsigned char *old_payload_ptr,
-      unsigned long long old_payload_length);
 
  public:
   /**
    The default threshold value in bytes.
    */
-  static const unsigned long long DEFAULT_THRESHOLD = 1024;
+  static constexpr unsigned long long DEFAULT_THRESHOLD = 1024;
 
   /**
    Creates an instance of the stage with the default threshold in bytes set.
@@ -80,7 +80,7 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   /*
    Return the stage code.
    */
-  virtual stage_code get_stage_code() const { return stage_code::ST_LZ4; }
+  virtual Stage_code get_stage_code() const { return Stage_code::ST_LZ4_V1; }
 
   /**
     Sets the threshold in bytes after which compression kicks in.
@@ -93,7 +93,15 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   /**
    Return the maximum payload size in bytes that can be compressed.
    */
-  static unsigned long long max_input_compression();
+  static constexpr unsigned long long max_input_compression() noexcept {
+    /*
+    The code expects that the following assumption will always hold.
+    */
+    static_assert(
+        LZ4_MAX_INPUT_SIZE <= std::numeric_limits<int>::max(),
+        "Maximum input size for lz compression exceeds the expected value");
+    return LZ4_MAX_INPUT_SIZE;
+  }
 
  private:
   /**
@@ -103,4 +111,28 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
   unsigned long long m_threshold;
 };
 
+class Gcs_message_stage_lz4_v2 : public Gcs_message_stage_lz4 {
+ public:
+  /**
+   Creates an instance of the stage with the default threshold in bytes.
+   */
+  explicit Gcs_message_stage_lz4_v2() : Gcs_message_stage_lz4() {}
+
+  /**
+   Creates an instance of the stage with the given threshold in bytes.
+
+   @param compress_threshold messages with the payload larger
+   than compress_threshold in bytes are compressed.
+   */
+  explicit Gcs_message_stage_lz4_v2(bool enabled,
+                                    unsigned long long compress_threshold)
+      : Gcs_message_stage_lz4(enabled, compress_threshold) {}
+
+  virtual ~Gcs_message_stage_lz4_v2() {}
+
+  /*
+   Return the stage code.
+   */
+  virtual Stage_code get_stage_code() const { return Stage_code::ST_LZ4_V2; }
+};
 #endif /* GCS_MESSAGE_STAGE_LZ4_H */

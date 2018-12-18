@@ -88,4 +88,12 @@ TEST(GcsXcomProxyImpl, XcomClientSendDataBiggerThanUINT32) {
   test_logger.assert_error(error_message.str());
 }
 
+TEST(GcsXComUtils, GcsProtocolOutOfRange) {
+  ASSERT_FALSE(is_valid_protocol("1000000000000000000000000000000000000000"));
+}
+
+TEST(GcsXComUtils, InvalidGcsProtocolToConvertToMysqlVersion) {
+  ASSERT_EQ(gcs_protocol_to_mysql_version(Gcs_protocol_version::UNKNOWN), "");
+}
+
 }  // namespace gcs_xcom_utils_unittest

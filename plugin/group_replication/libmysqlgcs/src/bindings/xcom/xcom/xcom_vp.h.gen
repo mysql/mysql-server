@@ -45,6 +45,7 @@ enum xcom_proto {
 	x_1_3 = 4,
 	x_1_4 = 5,
 	x_1_5 = 6,
+	x_1_6 = 7,
 };
 typedef enum xcom_proto xcom_proto;
 
@@ -169,6 +170,7 @@ enum cargo_type {
 	set_cache_limit = 20,
 	get_event_horizon_type = 21,
 	set_event_horizon_type = 22,
+	get_synode_app_data_type = 23,
 };
 typedef enum cargo_type cargo_type;
 
@@ -220,6 +222,7 @@ struct app_u {
 		node_set present;
 		uint64_t cache_limit;
 		xcom_event_horizon event_horizon;
+		synode_no_array synodes;
 	} app_u_u;
 };
 typedef struct app_u app_u;
@@ -448,9 +451,44 @@ struct pax_msg_1_4 {
 	xcom_event_horizon event_horizon;
 };
 typedef struct pax_msg_1_4 pax_msg_1_4;
+
+struct synode_app_data {
+	synode_no synode;
+	checked_data data;
+};
+typedef struct synode_app_data synode_app_data;
+
+typedef struct {
+	u_int synode_app_data_array_len;
+	synode_app_data *synode_app_data_array_val;
+} synode_app_data_array;
+
+struct pax_msg_1_6 {
+	node_no to;
+	node_no from;
+	uint32_t group_id;
+	synode_no max_synode;
+	start_t start_type;
+	ballot reply_to;
+	ballot proposal;
+	pax_op op;
+	synode_no synode;
+	pax_msg_type msg_type;
+	bit_set *receivers;
+	app_data *a;
+	snapshot *snap;
+	gcs_snapshot *gcs_snap;
+	client_reply_code cli_err;
+	bool_t force_delivery;
+	int32_t refcnt;
+	synode_no delivered_msg;
+	xcom_event_horizon event_horizon;
+	synode_app_data_array requested_synode_app_data;
+};
+typedef struct pax_msg_1_6 pax_msg_1_6;
 #ifndef PAX_MSG_TYPEDEF
 #define PAX_MSG_TYPEDEF
-typedef pax_msg_1_4 pax_msg;
+typedef pax_msg_1_6 pax_msg;
 extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif
 
@@ -502,6 +540,9 @@ extern  bool_t xdr_client_reply_code (XDR *, client_reply_code*);
 extern  bool_t xdr_pax_msg_1_1 (XDR *, pax_msg_1_1*);
 extern  bool_t xdr_pax_msg_1_2 (XDR *, pax_msg_1_2*);
 extern  bool_t xdr_pax_msg_1_4 (XDR *, pax_msg_1_4*);
+extern  bool_t xdr_synode_app_data (XDR *, synode_app_data*);
+extern  bool_t xdr_synode_app_data_array (XDR *, synode_app_data_array*);
+extern  bool_t xdr_pax_msg_1_6 (XDR *, pax_msg_1_6*);
 
 #else /* K&R C */
 extern bool_t xdr_xcom_proto ();
@@ -549,6 +590,9 @@ extern bool_t xdr_client_reply_code ();
 extern bool_t xdr_pax_msg_1_1 ();
 extern bool_t xdr_pax_msg_1_2 ();
 extern bool_t xdr_pax_msg_1_4 ();
+extern bool_t xdr_synode_app_data ();
+extern bool_t xdr_synode_app_data_array ();
+extern bool_t xdr_pax_msg_1_6 ();
 
 #endif /* K&R C */
 

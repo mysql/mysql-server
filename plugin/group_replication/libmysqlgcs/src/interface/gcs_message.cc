@@ -33,6 +33,19 @@
 /**
   Gcs_message_data implementation
 */
+Gcs_message_data::Gcs_message_data()
+    : m_header(nullptr),
+      m_header_slider(nullptr),
+      m_header_len(0),
+      m_header_capacity(0),
+      m_payload(nullptr),
+      m_payload_slider(nullptr),
+      m_payload_len(0),
+      m_payload_capacity(0),
+      m_buffer(nullptr),
+      m_buffer_len(0),
+      m_owner(true) {}
+
 Gcs_message_data::Gcs_message_data(const uint32_t header_capacity,
                                    const uint64_t payload_capacity)
     : m_header(NULL),
@@ -138,7 +151,7 @@ bool Gcs_message_data::append_to_payload(const uchar *to_append,
 /* purecov: begin deadcode */
 void Gcs_message_data::release_ownership() { m_owner = false; }
 
-bool Gcs_message_data::encode(uchar **buffer, uint64_t *buffer_len) {
+bool Gcs_message_data::encode(uchar **buffer, uint64_t *buffer_len) const {
   uint32_t header_len = get_header_length();
   uint64_t payload_len = get_payload_length();
   uint32_t header_len_enc = htole32(header_len);
@@ -172,7 +185,7 @@ bool Gcs_message_data::encode(uchar **buffer, uint64_t *buffer_len) {
 }
 /* purecov: end */
 
-bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len) {
+bool Gcs_message_data::encode(uchar *buffer, uint64_t *buffer_len) const {
   uint32_t header_len = get_header_length();
   uint64_t payload_len = get_payload_length();
   uint32_t header_len_enc = htole32(header_len);

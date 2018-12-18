@@ -263,6 +263,7 @@
 #endif
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/get_synode_app_data.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
@@ -1815,6 +1816,7 @@ static int proposer_task(task_arg arg) {
   double delay;
   site_def const *site;
   size_t size;
+  size_t nr_batched_app_data;
   END_ENV;
 
   TASK_BEGIN
@@ -1829,6 +1831,7 @@ static int proposer_task(task_arg arg) {
   ep->msgno = current_message;
   ep->site = 0;
   ep->size = 0;
+  ep->nr_batched_app_data = 0;
 
   MAY_DBG(FN; NDBG(ep->self, d); NDBG(task_now(), f));
 
@@ -1842,10 +1845,16 @@ static int proposer_task(task_arg arg) {
     /* Grab rest of messages in queue as well, but never batch config messages,
      * which need a unique number */
 
+    /* The batch is limited either by size or number of batched app_datas.
+     * We limit the number of elements because the XDR deserialization
+     * implementation is recursive, and batching too many app_datas will cause a
+     * call stack overflow. */
     if (!is_config(ep->client_msg->p->a->body.c_t) &&
         !is_view(ep->client_msg->p->a->body.c_t)) {
       ep->size = app_data_size(ep->client_msg->p->a);
+      ep->nr_batched_app_data = 1;
       while (AUTOBATCH && ep->size <= MAX_BATCH_SIZE &&
+             ep->nr_batched_app_data <= MAX_BATCH_APP_DATA &&
              !link_empty(&prop_input_queue
                               .data)) { /* Batch payloads into single message */
         msg_link *tmp;
@@ -1854,8 +1863,10 @@ static int proposer_task(task_arg arg) {
         CHANNEL_GET(&prop_input_queue, &tmp, msg_link);
         atmp = tmp->p->a;
         ep->size += app_data_size(atmp);
+        ep->nr_batched_app_data++;
         /* Abort batching if config or too big batch */
         if (is_config(atmp->body.c_t) || is_view(atmp->body.c_t) ||
+            ep->nr_batched_app_data > MAX_BATCH_APP_DATA ||
             ep->size > MAX_BATCH_SIZE) {
           channel_put_front(&prop_input_queue, &tmp->l);
           break;
@@ -4188,6 +4199,61 @@ void dispatch_get_event_horizon(site_def const *site, pax_msg *p,
   SEND_REPLY;
 }
 
+/*
+ * Log the result of the get_synode_app_data command.
+ */
+static void log_get_synode_app_data_failure(
+    xcom_get_synode_app_data_result error_code) {
+  switch (error_code) {
+    case XCOM_GET_SYNODE_APP_DATA_OK:
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_ERROR:
+      G_DEBUG("Could not reply successfully to request for synode data.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_CACHED:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "some of the requested synodes are no longer cached.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_DECIDED:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "some of the requested synodes are still undecided.");
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NO_MEMORY:
+      G_DEBUG(
+          "Could not reply successfully to request for synode data because "
+          "memory could not be allocated.");
+      break;
+  }
+}
+
+void dispatch_get_synode_app_data(site_def const *site, pax_msg *p,
+                                  linkage *reply_queue) {
+  DBGOUT(FN; STRLIT("Got get_synode_app_data from client"); SYCEXP(p->synode););
+
+  CREATE_REPLY(p);
+  reply->op = xcom_client_reply;
+
+  xcom_get_synode_app_data_result error_code;
+  error_code = xcom_get_synode_app_data(&p->a->body.app_u_u.synodes,
+                                        &reply->requested_synode_app_data);
+  switch (error_code) {
+    case XCOM_GET_SYNODE_APP_DATA_OK:
+      reply->cli_err = REQUEST_OK;
+      break;
+    case XCOM_GET_SYNODE_APP_DATA_NOT_CACHED:
+    case XCOM_GET_SYNODE_APP_DATA_NOT_DECIDED:
+    case XCOM_GET_SYNODE_APP_DATA_NO_MEMORY:
+    case XCOM_GET_SYNODE_APP_DATA_ERROR:
+      reply->cli_err = REQUEST_FAIL;
+      log_get_synode_app_data_failure(error_code);
+      break;
+  }
+
+  SEND_REPLY;
+}
+
 pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
   pax_machine *pm = NULL;
   site_def *dsite = find_site_def_rw(p->synode);
@@ -4261,6 +4327,10 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
       }
       if (p->a && (p->a->body.c_t == get_event_horizon_type)) {
         dispatch_get_event_horizon(site, p, reply_queue);
+        break;
+      }
+      if (p->a && (p->a->body.c_t == get_synode_app_data_type)) {
+        dispatch_get_synode_app_data(site, p, reply_queue);
         break;
       }
       if (p->a && (p->a->body.c_t == add_node_type ||
@@ -4968,6 +5038,16 @@ app_data_ptr init_app_msg(app_data *a, char *payload, u_int payload_size) {
 app_data_ptr init_terminate_command(app_data *a) {
   init_app_data(a);
   a->body.c_t = x_terminate_and_exit;
+  return a;
+}
+
+static app_data_ptr init_get_synode_app_data_msg(
+    app_data *a, uint32_t group_id, synode_no_array *const synodes) {
+  init_app_data(a);
+  a->app_key.group_id = a->group_id = group_id;
+  a->body.c_t = get_synode_app_data_type;
+  // Move synodes (as in C++ move semantics) into a->body.app_u_u.synodes.
+  synode_array_move(&a->body.app_u_u.synodes, synodes);
   return a;
 }
 
@@ -6005,12 +6085,13 @@ int are_we_allowed_to_upgrade_to_v6(app_data_ptr a) {
   return is_v4_reachable;
 }
 
-static int64_t xcom_send_client_app_data(connection_descriptor *fd,
-                                         app_data_ptr a, int force) {
+int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
+                                  int force) {
   pax_msg *msg = pax_msg_new(null_synode, 0);
   uint32_t buflen = 0;
   char *buf = 0;
   int64_t retval = 0;
+  int serialized = 0;
 
   if (!proto_done(fd)) {
     xcom_proto x_proto;
@@ -6058,15 +6139,18 @@ static int64_t xcom_send_client_app_data(connection_descriptor *fd,
   msg->op = client_msg;
   msg->force_delivery = force;
 
-  serialize_msg(msg, fd->x_proto, &buflen, &buf);
-  if (buflen) {
+  serialized = serialize_msg(msg, fd->x_proto, &buflen, &buf);
+  if (serialized) {
     retval = socket_write(fd, buf, buflen);
     if (buflen != retval) {
       DBGOUT(FN; STRLIT("write failed "); NDBG(fd->fd, d); NDBG(buflen, d);
              NDBG64(retval));
     }
-    X_FREE(buf);
+  } else {
+    // Failed to serialize, set retval accordingly.
+    retval = -1;
   }
+  X_FREE(buf);
 end:
   msg->a = 0; /* Do not deallocate a */
   XCOM_XDR_FREE(xdr_pax_msg, msg);
@@ -6377,6 +6461,62 @@ int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
       fd, init_set_event_horizon_msg(&a, group_id, event_horizon), 0);
   my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
+}
+
+int xcom_client_get_synode_app_data(connection_descriptor *const fd,
+                                    uint32_t group_id,
+                                    synode_no_array *const synodes,
+                                    synode_app_data_array *const reply) {
+  bool_t const success = TRUE;
+  bool_t const failure = FALSE;
+  bool_t result = failure;
+  pax_msg p;
+  app_data a;
+  u_int const nr_synodes_requested = synodes->synode_no_array_len;
+
+  // This call moves, as in C++ move semantics, synodes into app_data a.
+  init_get_synode_app_data_msg(&a, group_id, synodes);
+
+  xcom_send_app_wait_result res = xcom_send_app_wait_and_get(fd, &a, 0, &p);
+  switch (res) {
+    case RECEIVE_REQUEST_FAILED:
+    case REQUEST_BOTCHED:
+    case RETRIES_EXCEEDED:
+    case SEND_REQUEST_FAILED:
+    case REQUEST_FAIL_RECEIVED: {
+      G_TRACE(
+          "xcom_client_get_synode_app_data: XCom did not have the required "
+          "%u "
+          "synodes.",
+          nr_synodes_requested);
+      break;
+    }
+    case REQUEST_OK_RECEIVED: {
+      u_int const nr_synodes_received =
+          p.requested_synode_app_data.synode_app_data_array_len;
+      G_TRACE(
+          "xcom_client_get_synode_app_data: Got %u synode payloads, we asked "
+          "for %u.",
+          nr_synodes_received, nr_synodes_requested);
+
+      /* This should always be true.
+       * But rather than asserting it, let's treat an unexpected number of
+       * synode payloads in the reply as a failure. */
+      bool_t const got_what_we_asked_for =
+          (nr_synodes_received == nr_synodes_requested);
+      if (got_what_we_asked_for) {
+        // Move (as in C++ move semantics) into reply
+        synode_app_data_array_move(reply, &p.requested_synode_app_data);
+        result = success;
+      }
+      break;
+    }
+  }
+
+  my_xdr_free((xdrproc_t)xdr_pax_msg, (char *)&p);
+  my_xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
+
+  return result;
 }
 
 #ifdef NOTDEF

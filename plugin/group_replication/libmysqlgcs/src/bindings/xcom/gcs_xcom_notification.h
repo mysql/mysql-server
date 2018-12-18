@@ -25,12 +25,14 @@
 
 #include <queue>
 
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_control_interface.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/interface/gcs_tagged_lock.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 /**
@@ -661,4 +663,59 @@ class Expel_notification : public Parameterized_notification<false> {
   Expel_notification(Expel_notification const &);
   Expel_notification &operator=(Expel_notification const &);
 };
+
+class Gcs_xcom_communication_protocol_changer;
+typedef void(xcom_protocol_change_functor)(
+    Gcs_xcom_communication_protocol_changer *, Gcs_tagged_lock::Tag const);
+/**
+  Notification used to finish a protocol change.
+*/
+class Protocol_change_notification : public Parameterized_notification<false> {
+ public:
+  /**
+    Constructor for Protocol_change_notification.
+
+    @param functor Pointer to a function that contains that actual
+                    core of the execution.
+    @param control_if Reference to Communication Interface.
+  */
+
+  explicit Protocol_change_notification(
+      xcom_protocol_change_functor *functor,
+      Gcs_xcom_communication_protocol_changer *protocol_changer,
+      Gcs_tagged_lock::Tag const tag);
+
+  /**
+    Destructor for Protocol_change_notification.
+  */
+  ~Protocol_change_notification();
+
+ private:
+  /**
+    Task implemented by this notification.
+  */
+
+  void do_execute();
+
+  /*
+    Pointer to a function that contains that actual core of the
+    execution.
+  */
+  xcom_protocol_change_functor *m_functor;
+
+  /*
+    Pointer to a function that contains that actual core of the
+    execution.
+  */
+  Gcs_xcom_communication_protocol_changer *m_protocol_changer;
+
+  Gcs_tagged_lock::Tag const m_tag;
+
+  /*
+    Disabling the copy constructor and assignment operator.
+  */
+  Protocol_change_notification(Protocol_change_notification const &);
+  Protocol_change_notification &operator=(Protocol_change_notification const &);
+};
+
 #endif  // GCS_XCOM_NOTIFICATION_INCLUDED

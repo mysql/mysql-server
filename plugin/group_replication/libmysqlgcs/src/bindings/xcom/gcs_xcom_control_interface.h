@@ -335,7 +335,7 @@ class Gcs_suspicions_manager {
 */
 class Gcs_xcom_control : public Gcs_control_interface {
  public:
-  static constexpr int s_connection_attempts = 10;
+  static constexpr int CONNECTION_ATTEMPTS = 10;
 
   /**
     Gcs_xcom_control_interface constructor.
@@ -449,7 +449,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
                                 i.e. state exchange message
   */
 
-  void process_control_message(Gcs_message *msg, unsigned int protocol_version);
+  void process_control_message(
+      Gcs_message *msg, Gcs_protocol_version maximum_supported_protocol_version,
+      Gcs_protocol_version used_protocol_version);
 
   std::map<int, const Gcs_control_event_listener &> *get_event_listeners();
 
@@ -457,6 +459,13 @@ class Gcs_xcom_control : public Gcs_control_interface {
     Return the address associated with the current node.
   */
   Gcs_xcom_node_address *get_node_address();
+
+  /**
+    Return the information associated with the current node.
+   */
+  Gcs_xcom_node_information *get_node_information() {
+    return m_local_node_info;
+  }
 
   /**
     Return a pointer to the proxy object used to access XCOM.
@@ -655,6 +664,14 @@ class Gcs_xcom_control : public Gcs_control_interface {
   std::pair<bool, connection_descriptor *> connect_to_peer(
       Gcs_xcom_node_address &peer,
       std::map<std::string, int> const &my_addresses);
+
+  /**
+   * Expel the given members from XCom.
+   *
+   * @param incompatible_members the members to expel
+   */
+  void expel_incompatible_members(
+      std::vector<Gcs_xcom_node_information> const &incompatible_members);
 
   // The group that this interface pertains
   Gcs_group_identifier *m_gid;

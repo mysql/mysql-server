@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/group_actions/group_action_coordinator.h"
+#include "plugin/group_replication/include/group_actions/communication_protocol_action.h"
 #include "plugin/group_replication/include/group_actions/multi_primary_migration_action.h"
 #include "plugin/group_replication/include/group_actions/primary_election_action.h"
 #include "plugin/group_replication/include/plugin.h"
@@ -495,6 +496,9 @@ bool Group_action_coordinator::handle_action_start_message(
     else if (message_type ==
              Group_action_message::ACTION_PRIMARY_ELECTION_MESSAGE)
       action_info->executing_action = new Primary_election_action();
+    else if (message_type ==
+             Group_action_message::ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE)
+      action_info->executing_action = new Communication_protocol_action();
   }
   /*
    In the unlikely case a member of a higher version sent an unknown action

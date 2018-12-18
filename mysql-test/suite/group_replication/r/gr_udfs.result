@@ -4,14 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 
-# 1. When plugin is installed the 5 functions shall be registered
-include/assert.inc ["There are 5 UDF functions registered"]
+# 1. When plugin is installed the 7 functions shall be registered
+include/assert.inc ["There are 7 UDF functions registered"]
 
 # 2. After UNINSTALL the plugin all functions shall be unregistered
 include/uninstall_group_replication_plugin.inc
 include/assert.inc ['There are 0 UDF functions registered']
 
-# The unregistered 5 functions must fail to execute
+# The unregistered 7 functions must fail to execute
 SELECT group_replication_switch_to_multi_primary_mode();
 ERROR 42000: FUNCTION test.group_replication_switch_to_multi_primary_mode does not exist
 SELECT group_replication_switch_to_single_primary_mode();
@@ -24,22 +24,26 @@ SELECT group_replication_get_write_concurrency();
 ERROR 42000: FUNCTION test.group_replication_get_write_concurrency does not exist
 SELECT group_replication_set_write_concurrency(10);
 ERROR 42000: FUNCTION test.group_replication_set_write_concurrency does not exist
+SELECT group_replication_get_group_communication_protocol();
+ERROR 42000: FUNCTION test.group_replication_get_group_communication_protocol does not exist
+SELECT group_replication_set_group_communication_protocol("5.7.14");
+ERROR 42000: FUNCTION test.group_replication_set_group_communication_protocol does not exist
 
-# 3. After INSTALL the plugin shall register 5 functions
+# 3. After INSTALL the plugin shall register 7 functions
 include/install_group_replication_plugin.inc
-include/assert.inc ["There are 5 UDF functions registered"]
+include/assert.inc ["There are 7 UDF functions registered"]
 SET @@global.group_replication_group_seeds="GROUP_SEEDS";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS";
 
-# 4. After START GROUP_REPLICATION the plugin shall have 5 functions
+# 4. After START GROUP_REPLICATION the plugin shall have 7 functions
 #    registered
 include/start_and_bootstrap_group_replication.inc
-include/assert.inc ["There are 5 UDF functions registered"]
+include/assert.inc ["There are 7 UDF functions registered"]
 include/stop_group_replication.inc
 
-# 5. After STOP GROUP_REPLICATION the plugin shall have 5 functions
+# 5. After STOP GROUP_REPLICATION the plugin shall have 7 functions
 #    registered
-include/assert.inc ["There are 5 UDF functions registered"]
+include/assert.inc ["There are 7 UDF functions registered"]
 
 # 6. Cleanup
 include/group_replication_end.inc

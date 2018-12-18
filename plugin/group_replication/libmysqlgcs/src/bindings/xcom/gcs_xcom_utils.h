@@ -83,6 +83,15 @@ class Gcs_xcom_utils {
   virtual ~Gcs_xcom_utils();
 };
 
+/**
+ * Converts the given GCS protocol version into the MySQL version that
+ * introduced it.
+ *
+ * @param protocol the GCS protocol
+ * @return the MySQL version that introduced it, in format major.minor.patch
+ */
+std::string gcs_protocol_to_mysql_version(Gcs_protocol_version protocol);
+
 /*****************************************************
  *****************************************************
 
@@ -108,6 +117,13 @@ inline bool is_number(const std::string &s) {
  @return true if it is a valid URL, false otherwise.
  */
 bool is_valid_hostname(const std::string &server_and_port);
+
+/**
+ Checks whether the given string is a valid GCS protocol known by this node.
+
+ @returns true If it is, false otherwise.
+ */
+bool is_valid_protocol(std::string const &protocol);
 
 /**
  Does some transformations on the parameters. For instance, replaces

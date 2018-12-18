@@ -52,47 +52,6 @@ const unsigned long long GcsPacketTest::LARGE_PAYLOAD_LEN =
 const unsigned long long GcsPacketTest::SMALL_PAYLOAD_LEN =
     1024 - Gcs_internal_message_header::WIRE_TOTAL_FIXED_HEADER_SIZE;
 
-TEST_F(GcsPacketTest, PacketCapacity) {
-  Gcs_internal_message_header gcs_hd;
-
-  /*
-   Verify if the packet is allocating the right capacity.
-   */
-  gcs_hd.set_payload_length(1023 - gcs_hd.get_fixed_header_length());
-  Gcs_packet p1(gcs_hd);
-  ASSERT_EQ(p1.get_capacity(), Gcs_packet::BLOCK_SIZE);
-
-  gcs_hd.set_payload_length(1023 + gcs_hd.get_fixed_header_length());
-  Gcs_packet p2(gcs_hd);
-  ASSERT_EQ(p2.get_capacity(), 2 * Gcs_packet::BLOCK_SIZE);
-
-  /*
-   Verify if the capacity is being calculated properly.
-   */
-  ASSERT_EQ(p1.calculate_capacity(Gcs_packet::BLOCK_SIZE - 1),
-            Gcs_packet::BLOCK_SIZE);
-  ASSERT_EQ(p1.calculate_capacity(Gcs_packet::BLOCK_SIZE),
-            Gcs_packet::BLOCK_SIZE);
-  ASSERT_EQ(p1.calculate_capacity(2 * Gcs_packet::BLOCK_SIZE - 1),
-            2 * Gcs_packet::BLOCK_SIZE);
-
-  ASSERT_EQ(
-      p1.calculate_capacity(p1.calculate_capacity(Gcs_packet::BLOCK_SIZE - 1)),
-      Gcs_packet::BLOCK_SIZE);
-  ASSERT_EQ(
-      p1.calculate_capacity(p1.calculate_capacity(Gcs_packet::BLOCK_SIZE)),
-      Gcs_packet::BLOCK_SIZE);
-  ASSERT_EQ(p1.calculate_capacity(
-                p1.calculate_capacity(2 * Gcs_packet::BLOCK_SIZE - 1)),
-            2 * Gcs_packet::BLOCK_SIZE);
-
-  /*
-   Free allocated buffers.
-   */
-  p1.free_buffer();
-  p2.free_buffer();
-}
-
 TEST_F(GcsPacketTest, PacketInit) {
   const char content[] = "OLA123";
   unsigned int content_len = sizeof(content);
@@ -103,8 +62,7 @@ TEST_F(GcsPacketTest, PacketInit) {
    */
   Gcs_member_identifier origin(std::string("luis"));
   Gcs_message msg(origin, new Gcs_message_data(0, content_len));
-  Gcs_internal_message_header::cargo_type cargo =
-      Gcs_internal_message_header::cargo_type::CT_INTERNAL_STATE_EXCHANGE;
+  Cargo_type cargo = Cargo_type::CT_INTERNAL_STATE_EXCHANGE;
   msg.get_message_data().append_to_payload((const unsigned char *)content,
                                            content_len);
 
@@ -115,40 +73,33 @@ TEST_F(GcsPacketTest, PacketInit) {
   Gcs_message_data &msg_data = msg.get_message_data();
   unsigned long long payload_length = msg_data.get_encode_size();
 
-  Gcs_internal_message_header gcs_hd;
-  gcs_hd.set_payload_length(payload_length);
-  gcs_hd.set_dynamic_headers_length(0);
-  gcs_hd.set_cargo_type(cargo);
-
-  Gcs_packet p(gcs_hd);
-  uint64_t buffer_size = p.get_capacity();
-
-  ASSERT_NE(p.get_buffer(), (void *)NULL);
+  bool packet_ok;
+  Gcs_packet p;
+  std::tie(packet_ok, p) = Gcs_packet::make_outgoing_packet(
+      cargo, Gcs_protocol_version::V1, {}, {}, payload_length);
+  ASSERT_TRUE(packet_ok);
 
   /*
    Encode the payload encapsulated in the group replication message into
-   the gcs message and write the header information into the gcs message.
+   the gcs message.
    */
-  msg_data.encode(p.get_payload(), &buffer_size);
-  gcs_hd.encode(p.get_buffer());
+  uint64_t buffer_size = p.get_payload_length();
+  ASSERT_FALSE(msg_data.encode(p.get_payload_pointer(), &buffer_size));
 
   ASSERT_EQ(p.get_payload_length(), payload_length);
   ASSERT_EQ(p.get_total_length(),
             payload_length +
                 Gcs_internal_message_header::WIRE_TOTAL_FIXED_HEADER_SIZE);
-  ASSERT_GE(p.get_capacity(), p.BLOCK_SIZE);
 
   /*
    Decode the payload from the gcs message into the group replication
    message.
    */
   Gcs_message_data msg_decoded(p.get_payload_length());
-  msg_decoded.decode(p.get_payload(), p.get_payload_length());
+  msg_decoded.decode(p.get_payload_pointer(), p.get_payload_length());
 
   ASSERT_TRUE(strncmp((const char *)msg_decoded.get_payload(),
                       (const char *)content, content_len) == 0);
-
-  free(p.get_buffer());
 }
 
 }  // namespace gcs_xcom_packet_unittest

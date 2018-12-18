@@ -473,9 +473,9 @@ bool Gcs_xcom_control::send_add_node_request(
     std::map<std::string, int> const &my_addresses) {
   bool add_node_accepted = false;
 
-  // Go through the seed list s_connection_attempts times.
+  // Go through the seed list S_CONNECTION_ATTEMPTS times.
   for (int attempt_nr = 0;
-       !add_node_accepted && attempt_nr < s_connection_attempts; attempt_nr++) {
+       !add_node_accepted && attempt_nr < CONNECTION_ATTEMPTS; attempt_nr++) {
     add_node_accepted = try_send_add_node_request_to_seeds(my_addresses);
   }
 
@@ -1293,7 +1293,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
   std::map<int, const Gcs_control_event_listener &>::const_iterator listener_it;
   std::map<int, const Gcs_control_event_listener &>::const_iterator
       listener_ends;
-  std::vector<Gcs_message_data *> exchange_data;
+  std::vector<std::unique_ptr<Gcs_message_data>> exchange_data;
 
   /*
     If there is no previous view installed, there is no current set
@@ -1360,7 +1360,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
    We save the information on the nodes reported by the global view.
    This is necessary if want to reconfigure the group. In the future,
    we should revisit this decision and check whether we should copy
-   such information to the view.
+   such information to the view or dynamically fetch it from XCOM.
    */
   m_xcom_group_management->set_xcom_nodes(*xcom_nodes);
 
@@ -1495,11 +1495,12 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
   for (listener_it = event_listeners.begin(); listener_it != listener_ends;
        ++listener_it) {
     Gcs_message_data *msg_data = (*listener_it).second.get_exchangeable_data();
-    exchange_data.push_back(msg_data);
+    exchange_data.push_back(std::unique_ptr<Gcs_message_data>(msg_data));
   }
   m_state_exchange->state_exchange(
       message_id, alive_members, left_members, joined_members, exchange_data,
-      current_view, &group_name, m_local_node_info->get_member_id());
+      current_view, &group_name, m_local_node_info->get_member_id(),
+      *xcom_nodes);
   MYSQL_GCS_LOG_TRACE("::xcom_receive_global_view():: state exchange started.")
 
 end:
@@ -1535,14 +1536,15 @@ end:
   return ret;
 }
 
-void Gcs_xcom_control::process_control_message(Gcs_message *msg,
-                                               unsigned int protocol_version) {
+void Gcs_xcom_control::process_control_message(
+    Gcs_message *msg, Gcs_protocol_version maximum_supported_protocol_version,
+    Gcs_protocol_version used_protocol_version) {
   MYSQL_GCS_LOG_TRACE(
       "::process_control_message():: Received a control message")
 
-  Xcom_member_state *ms_info =
-      new Xcom_member_state(msg->get_message_data().get_payload(),
-                            msg->get_message_data().get_payload_length());
+  Xcom_member_state *ms_info = new Xcom_member_state(
+      maximum_supported_protocol_version, msg->get_message_data().get_payload(),
+      msg->get_message_data().get_payload_length());
 
   MYSQL_GCS_LOG_TRACE(
       "Reading message that carries exchangeable data: (payload)=%llu",
@@ -1589,19 +1591,20 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg,
 
   Gcs_member_identifier pid(msg->get_origin());
   // takes ownership of ms_info
-  bool can_install_view =
-      m_state_exchange->process_member_state(ms_info, pid, protocol_version);
+  bool state_exchange_done = m_state_exchange->process_member_state(
+      ms_info, pid, maximum_supported_protocol_version, used_protocol_version);
 
   // If state exchange has finished
-  if (can_install_view) {
-    MYSQL_GCS_LOG_TRACE("::process_control_message()::Install new view")
+  if (state_exchange_done) {
+    std::vector<Gcs_xcom_node_information> incompatible_members =
+        m_state_exchange->compute_incompatible_members();
 
-    /*
-      Check if all members have a protocol version number that is compatible
-      with the current protocol version number in use.
-     */
-    assert(m_state_exchange->compute_incompatible_protocol_members().size() ==
-           0);
+    m_state_exchange->compute_maximum_supported_protocol_version();
+
+    bool const recovered_successfully =
+        m_state_exchange->process_recovery_state();
+
+    MYSQL_GCS_LOG_TRACE("::process_control_message()::Install new view")
 
     // Make a copy of the state exchange provided view id
     Gcs_xcom_view_identifier *provided_view_id =
@@ -1617,6 +1620,21 @@ void Gcs_xcom_control::process_control_message(Gcs_message *msg,
                  m_state_exchange->get_joined());
 
     delete new_view_id;
+
+    // Expel ourselves if we fail to recover the missing packets.
+    if (!recovered_successfully) {
+      incompatible_members.push_back(*m_local_node_info);
+
+      MYSQL_GCS_LOG_WARN(
+          "This server was unable to recover some messages that were "
+          "previously delivered to the group. This server needed those "
+          "messages to safely join the group, so this server will expel itself "
+          "from the group. Please try again. If this server keeps failing to "
+          "join the group, increase the maximum message size of the group's "
+          "members, and reduce the group's load.");
+    }
+
+    expel_incompatible_members(incompatible_members);
   } else {
     MYSQL_GCS_LOG_TRACE(
         "::process_control_message():: Still waiting for more State "
@@ -1768,6 +1786,26 @@ void Gcs_xcom_control::clear_peer_nodes() {
 
     m_initial_peers.clear();
   }
+}
+
+void Gcs_xcom_control::expel_incompatible_members(
+    std::vector<Gcs_xcom_node_information> const &incompatible_members) {
+  bool removed_myself = false;
+
+  /* Remove incompatible members from XCom. */
+  for (auto const &incompatible_member : incompatible_members) {
+    MYSQL_GCS_LOG_DEBUG(
+        "expel_incompatible_members: Removing incompatible member=%s",
+        incompatible_member.get_member_id().get_member_id().c_str());
+
+    m_xcom_proxy->xcom_remove_node(incompatible_member, m_gid_hash);
+
+    removed_myself = removed_myself || (incompatible_member.get_member_id() ==
+                                        m_local_node_info->get_member_id());
+  }
+
+  // If I am removing myself, fail-fast by immediately delivering an expel view.
+  if (removed_myself) install_leave_view(Gcs_view::MEMBER_EXPELLED);
 }
 
 Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy,

@@ -81,7 +81,6 @@ class Gcs_group_management_interface {
 
     @retval GCS_OK if successful
     @retval GCS_NOK if unsuccessful
-
   */
   virtual enum_gcs_error set_write_concurrency(uint32_t write_concurrency) = 0;
 

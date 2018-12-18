@@ -82,4 +82,25 @@ void add_synode_event(synode_no const synode) {
 }
 #endif
 
+void synode_array_move(synode_no_array *const to, synode_no_array *const from) {
+  if (to->synode_no_array_val != NULL) free(to->synode_no_array_val);
+
+  *to = *from;
+
+  from->synode_no_array_len = 0;
+  from->synode_no_array_val = NULL;
+}
+
+void synode_app_data_array_move(synode_app_data_array *const to,
+                                synode_app_data_array *const from) {
+  if (to->synode_app_data_array_val != NULL) {
+    free(to->synode_app_data_array_val);
+  }
+
+  *to = *from;
+
+  from->synode_app_data_array_len = 0;
+  from->synode_app_data_array_val = NULL;
+}
+
 /* purecov: end */

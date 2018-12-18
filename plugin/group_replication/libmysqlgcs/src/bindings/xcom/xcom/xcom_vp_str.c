@@ -96,6 +96,8 @@ const char *cargo_type_to_str(cargo_type x) {
       return "get_event_horizon_type";
     case set_event_horizon_type:
       return "set_event_horizon_type";
+    case get_synode_app_data_type:
+      return "get_synode_app_data_type";
     default:
       return "???";
   }

@@ -17,7 +17,7 @@
 #
 ###############################################################################
 
---let $nr_gr_udfs= 5
+--let $nr_gr_udfs= 7
 
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -64,6 +64,12 @@ SELECT group_replication_get_write_concurrency();
 
 --error ER_SP_DOES_NOT_EXIST
 SELECT group_replication_set_write_concurrency(10);
+
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_get_group_communication_protocol();
+
+--error ER_SP_DOES_NOT_EXIST
+SELECT group_replication_set_group_communication_protocol("5.7.14");
 
 --echo
 --echo # 3. After INSTALL the plugin shall register $nr_gr_udfs functions

@@ -34,8 +34,6 @@
 #include "gcs_internal_message.h"
 #include "gcs_xcom_utils.h"
 
-#include "synode_no.h"
-
 namespace gcs_xcom_state_exchange_unittest {
 
 class mock_gcs_control_interface : public Gcs_control_interface {
@@ -65,15 +63,75 @@ class mock_gcs_xcom_communication_interface
   MOCK_METHOD1(add_event_listener,
                int(const Gcs_communication_event_listener &event_listener));
   MOCK_METHOD1(remove_event_listener, void(int event_listener_handle));
-  MOCK_METHOD3(send_binding_message,
+  MOCK_METHOD3(do_send_message,
                enum_gcs_error(const Gcs_message &message_to_send,
                               unsigned long long *message_length,
-                              Gcs_internal_message_header::cargo_type type));
-  MOCK_METHOD1(xcom_receive_data, bool(Gcs_message *message));
-  MOCK_METHOD1(buffer_message, void(Gcs_message *message));
-  MOCK_METHOD0(deliver_buffered_messages, void());
-  MOCK_METHOD0(cleanup_buffered_messages, void());
-  MOCK_METHOD0(number_buffered_messages, size_t());
+                              Cargo_type type));
+  /* Mocking fails compilation on Windows. It attempts to copy the
+   * std::unique_ptr which is non-copyable. */
+  void buffer_incoming_packet(Gcs_packet &&packet,
+                              std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+    buffer_incoming_packet_mock(packet, xcom_nodes);
+  }
+  MOCK_METHOD2(buffer_incoming_packet_mock,
+               void(Gcs_packet &packet,
+                    std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
+  MOCK_METHOD0(deliver_buffered_packets, void());
+  MOCK_METHOD0(cleanup_buffered_packets, void());
+  MOCK_METHOD0(number_buffered_packets, size_t());
+  MOCK_METHOD2(update_members_information, void(const Gcs_member_identifier &me,
+                                                const Gcs_xcom_nodes &members));
+  MOCK_METHOD1(
+      recover_packets,
+      bool(std::unordered_set<Gcs_xcom_synode> const &required_synods));
+  /*
+   Mocking fails compilation on Windows. It attempts to copy the
+   std::unique_ptr which is non-copyable.
+   */
+  Gcs_message *convert_packet_to_message(
+      Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+    return convert_packet_to_message_mock(packet, xcom_nodes);
+  }
+  MOCK_METHOD2(convert_packet_to_message_mock,
+               Gcs_message *(Gcs_packet &packet,
+                             std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
+  /*
+   Mocking fails compilation on Windows. It attempts to copy the
+   std::unique_ptr which is non-copyable.
+   */
+  void process_user_data_packet(Gcs_packet &&packet,
+                                std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
+    process_user_data_packet_mock(packet, xcom_nodes);
+  }
+  MOCK_METHOD2(process_user_data_packet_mock,
+               void(Gcs_packet &packet,
+                    std::unique_ptr<Gcs_xcom_nodes> &xcom_nodes));
+  MOCK_CONST_METHOD0(get_protocol_version, Gcs_protocol_version());
+  /*
+   Mocking fails compilation on Windows. It attempts to copy the std::future
+   which is non-copyable.
+   */
+  std::pair<bool, std::future<void>> set_protocol_version(
+      Gcs_protocol_version new_version) {
+    auto future = std::async([this, new_version]() {
+      return set_protocol_version_mock(new_version);
+    });
+    return std::make_pair(true, std::move(future));
+  }
+  MOCK_METHOD1(set_protocol_version_mock,
+               void(Gcs_protocol_version new_version));
+  MOCK_METHOD2(update_in_transit,
+               void(Gcs_message const &message, Cargo_type cargo));
+  MOCK_CONST_METHOD0(is_protocol_change_ongoing, bool());
+  MOCK_METHOD1(set_groups_maximum_supported_protocol_version,
+               void(Gcs_protocol_version version));
+  MOCK_CONST_METHOD0(get_maximum_supported_protocol_version,
+                     Gcs_protocol_version());
+
+  virtual Gcs_message_pipeline &get_msg_pipeline() { return m_msg_pipeline; }
+
+ private:
+  Gcs_message_pipeline m_msg_pipeline;
 };
 
 class XComStateExchangeTest : public GcsBaseTest {
@@ -97,9 +155,11 @@ class XComStateExchangeTest : public GcsBaseTest {
   mock_gcs_xcom_communication_interface *comm_mock;
 };
 
+static Gcs_xcom_synode_set cache_snapshot;
+
 TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest) {
   // Setting expectations
-  EXPECT_CALL(*comm_mock, send_binding_message(_, _, _))
+  EXPECT_CALL(*comm_mock, do_send_message(_, _, _))
       .Times(1)
       .WillOnce(Return(GCS_OK));
 
@@ -116,15 +176,20 @@ TEST_F(XComStateExchangeTest, StateExchangeBroadcastJoinerTest) {
 
   std::vector<Gcs_member_identifier *> left_members;
 
-  std::vector<Gcs_message_data *> data_to_exchange;
+  std::vector<std::unique_ptr<Gcs_message_data>> data_to_exchange;
 
   std::string group_name("group_name");
 
   Gcs_member_identifier *mi = new Gcs_member_identifier(member_2_addr);
   synode_no configuration_id = null_synode;
+
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(Gcs_xcom_node_information(member_1_addr));
+  nodes.add_node(Gcs_xcom_node_information(member_2_addr));
+
   bool leaving = state_exchange->state_exchange(
       configuration_id, total_members, left_members, joined_members,
-      data_to_exchange, NULL, &group_name, *mi);
+      data_to_exchange, NULL, &group_name, *mi, nodes);
 
   ASSERT_FALSE(leaving);
 
@@ -142,7 +207,7 @@ enum_gcs_error copy_message_content(const Gcs_message &msg) {
 }
 
 TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
-  EXPECT_CALL(*comm_mock, send_binding_message(_, _, _))
+  EXPECT_CALL(*comm_mock, do_send_message(_, _, _))
       .WillOnce(WithArgs<0>(Invoke(copy_message_content)));
 
   /*
@@ -169,26 +234,30 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
 
   std::vector<Gcs_member_identifier *> left_members;
 
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(Gcs_xcom_node_information(member_1_addr));
+  nodes.add_node(Gcs_xcom_node_information(member_2_addr));
+
   /*
     No application metadata shall be sent during the state exchange
     process.
   */
-  std::vector<Gcs_message_data *> data_to_exchange;
+  std::vector<std::unique_ptr<Gcs_message_data>> data_to_exchange;
 
   /*
     Send a state exchange message on behalf of member 1.
   */
   bool leaving = state_exchange->state_exchange(
       configuration_id, total_members, left_members, joined_members,
-      data_to_exchange, NULL, &group_name, *member_id_1);
+      data_to_exchange, NULL, &group_name, *member_id_1, nodes);
   ASSERT_FALSE(leaving);
 
   /*
     Check whether the state exchange message was properly sent
     and the state exchange state machine has the expected data.
   */
-  Xcom_member_state *state_1 =
-      new Xcom_member_state(copied_payload, copied_length);
+  Xcom_member_state *state_1 = new Xcom_member_state(
+      Gcs_protocol_version::HIGHEST_KNOWN, copied_payload, copied_length);
 
   ASSERT_TRUE(state_1->get_view_id()->get_fixed_part() != 0);
   ASSERT_EQ(state_1->get_view_id()->get_monotonic_part(), 0u);
@@ -204,8 +273,9 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
   /*
     Simulate message received by member 1.
   */
-  bool can_install =
-      state_exchange->process_member_state(state_1, *member_id_1, 1);
+  bool can_install = state_exchange->process_member_state(
+      state_1, *member_id_1, Gcs_protocol_version::V1,
+      Gcs_protocol_version::V1);
   ASSERT_FALSE(can_install);
   ASSERT_EQ(state_exchange->get_member_states()->size(), 1u);
 
@@ -213,9 +283,12 @@ TEST_F(XComStateExchangeTest, StateExchangeProcessStatesPhase) {
     Simulate message received by member 2.
   */
   const Gcs_xcom_view_identifier view_id_2(99999, 0);
-  Xcom_member_state *state_2 =
-      new Xcom_member_state(view_id_2, configuration_id, NULL, 0);
-  can_install = state_exchange->process_member_state(state_2, *member_id_2, 1);
+  Gcs_xcom_synode_set snapshot;
+  Xcom_member_state *state_2 = new Xcom_member_state(
+      view_id_2, configuration_id, Gcs_protocol_version::V1, snapshot, NULL, 0);
+  can_install = state_exchange->process_member_state(state_2, *member_id_2,
+                                                     Gcs_protocol_version::V1,
+                                                     Gcs_protocol_version::V1);
   ASSERT_TRUE(can_install);
   ASSERT_EQ(state_exchange->get_member_states()->size(), 2u);
 
@@ -263,8 +336,10 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
   Gcs_xcom_view_identifier *new_view_id = NULL;
 
   Gcs_xcom_view_identifier view_id_1(99999, 0);
-  Xcom_member_state *state_1 =
-      new Xcom_member_state(view_id_1, configuration_id, NULL, 0);
+  Gcs_xcom_synode_set snapshot;
+  Xcom_member_state *state_1 = new Xcom_member_state(
+      view_id_1, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_1] = state_1;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 1u);
@@ -276,8 +351,9 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
     with the greater member identifier is picked.
   */
   Gcs_xcom_view_identifier view_id_2(88888, 0);
-  Xcom_member_state *state_2 =
-      new Xcom_member_state(view_id_2, configuration_id, NULL, 0);
+  Xcom_member_state *state_2 = new Xcom_member_state(
+      view_id_2, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_2] = state_2;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
@@ -290,8 +366,9 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
     with the greater member identifier is picked.
   */
   Gcs_xcom_view_identifier view_id_3(66666, 0);
-  Xcom_member_state *state_3 =
-      new Xcom_member_state(view_id_3, configuration_id, NULL, 0);
+  Xcom_member_state *state_3 = new Xcom_member_state(
+      view_id_3, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_3] = state_3;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 3u);
@@ -311,8 +388,9 @@ TEST_F(XComStateExchangeTest, StateExchangeChoosingView) {
     view identifier.
   */
   Gcs_xcom_view_identifier view_id_4(77777, 1);
-  Xcom_member_state *state_4 =
-      new Xcom_member_state(view_id_4, configuration_id, NULL, 0);
+  Xcom_member_state *state_4 = new Xcom_member_state(
+      view_id_4, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_4] = state_4;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 4u);
@@ -374,13 +452,16 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
   */
   synode_no configuration_id = null_synode;
   Gcs_xcom_view_identifier view_id_1(99999, 1);
-  Xcom_member_state *state_1 =
-      new Xcom_member_state(view_id_1, configuration_id, NULL, 0);
+  Gcs_xcom_synode_set snapshot;
+  Xcom_member_state *state_1 = new Xcom_member_state(
+      view_id_1, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_1] = state_1;
 
   Gcs_xcom_view_identifier view_id_2(88888, 1);
-  Xcom_member_state *state_2 =
-      new Xcom_member_state(view_id_2, configuration_id, NULL, 0);
+  Xcom_member_state *state_2 = new Xcom_member_state(
+      view_id_2, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_2] = state_2;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
@@ -396,13 +477,15 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
     zero but they don't match. This situation cannot happen in practice.
   */
   Gcs_xcom_view_identifier view_id_3(99999, 1);
-  Xcom_member_state *state_3 =
-      new Xcom_member_state(view_id_3, configuration_id, NULL, 0);
+  Xcom_member_state *state_3 = new Xcom_member_state(
+      view_id_3, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_3] = state_3;
 
   Gcs_xcom_view_identifier view_id_4(99999, 2);
-  Xcom_member_state *state_4 =
-      new Xcom_member_state(view_id_4, configuration_id, NULL, 0);
+  Xcom_member_state *state_4 = new Xcom_member_state(
+      view_id_4, configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
   (*member_states)[*member_id_4] = state_4;
   new_view_id = state_exchange->get_new_view_id();
   ASSERT_EQ(member_states->size(), 2u);
@@ -421,8 +504,7 @@ TEST_F(XComStateExchangeTest, StateExchangeWrongAssumptionsView) {
 }
 
 TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
-  EXPECT_CALL(*comm_mock, send_binding_message(_, _, _))
-      .WillOnce(Return(GCS_OK));
+  EXPECT_CALL(*comm_mock, do_send_message(_, _, _)).WillOnce(Return(GCS_OK));
 
   /*
     Define that the first view delivered has two members, i.e.
@@ -452,24 +534,30 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
     No application metadata shall be sent during the state exchange
     process.
   */
-  std::vector<Gcs_message_data *> data_to_exchange;
+  std::vector<std::unique_ptr<Gcs_message_data>> data_to_exchange;
+
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(Gcs_xcom_node_information(member_1_addr));
 
   /*
     Send a state exchange message on behalf of member 1.
   */
   state_exchange->state_exchange(configuration_id, total_members, left_members,
                                  joined_members, data_to_exchange, NULL,
-                                 &group_name, *member_id_1);
+                                 &group_name, *member_id_1, nodes);
 
   /*
     If the synode does not match, the state exchange message is
     ignored.
   */
   const Gcs_xcom_view_identifier view_id_1(99999, 0);
-  Xcom_member_state *state_1 =
-      new Xcom_member_state(view_id_1, invalid_configuration_id, NULL, 0);
-  bool can_install =
-      state_exchange->process_member_state(state_1, *member_id_1, 1);
+  Gcs_xcom_synode_set snapshot;
+  Xcom_member_state *state_1 = new Xcom_member_state(
+      view_id_1, invalid_configuration_id, Gcs_protocol_version::HIGHEST_KNOWN,
+      snapshot, NULL, 0);
+  bool can_install = state_exchange->process_member_state(
+      state_1, *member_id_1, Gcs_protocol_version::V1,
+      Gcs_protocol_version::V1);
   ASSERT_FALSE(can_install);
   ASSERT_EQ(state_exchange->get_member_states()->size(), 0u);
 

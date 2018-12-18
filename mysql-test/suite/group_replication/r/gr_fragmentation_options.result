@@ -1,0 +1,73 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#########################################################################
+# 1. When GROUP is OFFLINE, set variable group_replication_communication_max_message_size to 0, i.e. disabled.
+[connection server2]
+SET GLOBAL group_replication_communication_max_message_size= 0;
+SET GLOBAL group_replication_compression_threshold= 0;
+[connection server1]
+SET GLOBAL group_replication_communication_max_message_size= 0;
+SET GLOBAL group_replication_compression_threshold= 0;
+#########################################################################
+# 2. Check it asserts that:
+[connection server1]
+# 2.a. The variable does not take invalid inputs.
+SET GLOBAL group_replication_communication_max_message_size="AAAA";
+ERROR 42000: Incorrect argument type to variable 'group_replication_communication_max_message_size'
+# 2.b. The variable does not take over the max inputs.
+SET GLOBAL group_replication_communication_max_message_size=4294967297;
+ERROR 42000: The value 4294967297 is not within the range of accepted values for the communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
+# 2.c. The variable does not take negative inputs.
+SET GLOBAL group_replication_communication_max_message_size=-1;
+ERROR 42000: The value -1 is not within the range of accepted values for the communication_max_message_size option. Use 0 to disable message fragmentation, or specify a value up to 1073741824.
+# 2.d. The variable can be set to DEFAULT.
+SET GLOBAL group_replication_communication_max_message_size=DEFAULT;
+include/assert.inc [Assert that communication_max_message_size was changed to the default value]
+# 2.e. The variable can be set to a valid value.
+SET GLOBAL group_replication_communication_max_message_size=50000;
+include/assert.inc [Assert that communication_max_message_size was changed]
+#########################################################################
+# 3. Bootstrap M1 and start M2 to make them ONLINE.
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+#########################################################################
+# 4. Assert that on running member variable cannot be changed.
+SET GLOBAL group_replication_communication_max_message_size=100000;
+ERROR HY000: The communication_max_message_size option cannot be set while Group Replication is running
+include/assert.inc [Assert that the communication_max_message_size remains unchanged]
+#########################################################################
+# 5. Check if two servers with and without fragmentation enabled are able to exchange messages and still comunicate with each other.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1, REPEAT('A', 100000));
+INSERT INTO t1 VALUES(2, 'B');
+[connection server2]
+include/rpl_sync.inc
+include/assert.inc [Assert that the communication_max_message_size is disabled]
+INSERT INTO t1 VALUES(3, REPEAT('C', 100000));
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.t1,server2:test.t1]
+#########################################################################
+# 6, Confirm, in the error log, the servers start with the expected fragmentation threshold.
+include/assert_grep.inc [Fragmentation was active and logged to the error log]
+include/assert_grep.inc [Fragmentation was disabled and logged to the error log]
+include/assert_grep.inc [Fragmentation was always disabled]
+#########################################################################
+# Clean up
+DROP TABLE t1;
+include/rpl_sync.inc
+[connection server1]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_communication_max_message_size= SAVED_VALUE;
+SET GLOBAL group_replication_compression_threshold= SAVED_VALUE;
+include/start_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_communication_max_message_size= SAVED_VALUE;
+SET GLOBAL group_replication_compression_threshold= SAVED_VALUE;
+include/start_group_replication.inc
+include/group_replication_end.inc

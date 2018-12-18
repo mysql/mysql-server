@@ -24,8 +24,8 @@
 #define SYNODE_NO_H
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp.h.gen"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +46,10 @@ static const synode_no null_synode = NULL_SYNODE;
 synode_no vp_count_to_synode(u_long high, u_long low, node_no nodeid,
                              uint32_t groupid);
 void add_synode_event(synode_no const synode);
+
+void synode_array_move(synode_no_array *const to, synode_no_array *const from);
+void synode_app_data_array_move(synode_app_data_array *const to,
+                                synode_app_data_array *const from);
 
 #ifdef __cplusplus
 }

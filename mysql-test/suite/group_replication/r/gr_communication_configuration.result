@@ -16,6 +16,7 @@ call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave th
 call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
 call mtr.add_suppression("\\[GCS\\] read failed");
 call mtr.add_suppression("\\[GCS\\] Invalid hostname or IP address.*");
+call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node,");
 SET SESSION sql_log_bin= 1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
@@ -28,6 +29,7 @@ call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communic
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
 call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node,");
 SET SESSION sql_log_bin= 1;
 [connection server1]
 [connection server2]

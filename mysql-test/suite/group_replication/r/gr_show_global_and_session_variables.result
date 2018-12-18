@@ -7,8 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 include/stop_group_replication.inc
 
-# Test#1: Basic check that there are 47 GR variables.
-include/assert.inc [There are 47 GR variables at present.]
+# Test#1: Basic check that there are 49 GR variables.
+include/assert.inc [There are 49 GR variables at present.]
 
 # Test#2: Verify group replication related variables at GLOBAL scope.
 SET @@SESSION.group_replication_allow_local_lower_version_join= 1;
@@ -83,6 +83,10 @@ SET @@SESSION.group_replication_exit_state_action= "READ_ONLY";
 ERROR HY000: Variable 'group_replication_exit_state_action' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@SESSION.group_replication_member_expel_timeout= 120;
 ERROR HY000: Variable 'group_replication_member_expel_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_communication_max_message_size= 2048;
+ERROR HY000: Variable 'group_replication_communication_max_message_size' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@SESSION.group_replication_communication_protocol_join= "";
+ERROR HY000: Variable 'group_replication_communication_protocol_join' is a GLOBAL variable and should be set with SET GLOBAL
 
 # Test#3: Verify group replication related variables at SESSION scope.
 SET @@SESSION.group_replication_consistency= "EVENTUAL";
@@ -238,6 +242,14 @@ include/assert.inc [Verify GLOBAL value of group_replication_consistency]
 include/assert.inc [Verify GLOBAL value of group_replication_consistency]
 include/assert.inc [Verify SESSION value of group_replication_consistency]
 include/assert.inc [Verify SESSION value of group_replication_consistency]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_max_message_size]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_max_message_size]
+include/assert.inc [Verify SESSION value of group_replication_communication_max_message_size]
+include/assert.inc [Verify SESSION value of group_replication_communication_max_message_size]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_protocol_join]
+include/assert.inc [Verify GLOBAL value of group_replication_communication_protocol_join]
+include/assert.inc [Verify SESSION value of group_replication_communication_protocol_join]
+include/assert.inc [Verify SESSION value of group_replication_communication_protocol_join]
 
 # Clean up
 include/stop_group_replication.inc

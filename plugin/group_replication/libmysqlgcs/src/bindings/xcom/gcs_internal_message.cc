@@ -22,101 +22,359 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 
-#include <stdlib.h>
-#include <string.h>
-#include <memory>
-#include <string>
-
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/byteorder.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
 
-const unsigned short Gcs_internal_message_header::WIRE_VERSION_SIZE;
-const unsigned short Gcs_internal_message_header::WIRE_HD_LEN_SIZE;
-const unsigned short Gcs_internal_message_header::WIRE_TOTAL_LEN_SIZE;
-const unsigned short Gcs_internal_message_header::WIRE_DYNAMIC_HDRS_LEN_SIZE;
-const unsigned short Gcs_internal_message_header::WIRE_CARGO_TYPE_SIZE;
-const unsigned short Gcs_internal_message_header::WIRE_MSG_LEN_OFFSET;
-const unsigned short Gcs_internal_message_header::WIRE_DYNAMIC_HDRS_LEN_OFFSET;
-const unsigned short Gcs_internal_message_header::WIRE_TOTAL_FIXED_HEADER_SIZE;
-const unsigned short Gcs_packet::BLOCK_SIZE;
+Gcs_packet::Gcs_packet() noexcept
+    : m_fixed_header(),
+      m_dynamic_headers(),
+      m_stage_metadata(),
+      m_next_stage_index(0),
+      m_serialized_packet(nullptr, Gcs_packet_buffer_deleter()),
+      m_serialized_packet_size(0),
+      m_serialized_payload_offset(0),
+      m_serialized_payload_size(0),
+      m_serialized_stage_metadata_size(0),
+      m_delivery_synode() {}
 
-void Gcs_packet::reload_header(const Gcs_internal_message_header &hd) {
-  m_total_len = hd.get_total_length();
-  m_payload_len = hd.get_total_length() - hd.get_fixed_header_length();
-  m_header_len = hd.get_fixed_header_length();
-  m_dyn_headers_len = hd.get_dynamic_headers_length();
-  m_version = hd.get_version();
+std::pair<bool, Gcs_packet> Gcs_packet::make_outgoing_packet(
+    Cargo_type const &cargo, Gcs_protocol_version const &current_version,
+    std::vector<Gcs_dynamic_header> &&dynamic_headers,
+    std::vector<std::unique_ptr<Gcs_stage_metadata>> &&stage_metadata,
+    unsigned long long const &payload_size) {
+  bool successful = true;
+
+  Gcs_packet packet(cargo, current_version, std::move(dynamic_headers),
+                    std::move(stage_metadata), payload_size);
+
+  bool const couldnt_allocate = packet.allocate_serialization_buffer();
+
+  // Do not return a partially initialized packet.
+  if (couldnt_allocate) {
+    /* purecov: begin inspected */
+    packet = Gcs_packet();
+    successful = false;
+    /* purecov: end */
+  }
+
+  return std::make_pair(successful, std::move(packet));
 }
 
-bool Gcs_internal_message_header::encode(unsigned char *buffer) const {
-  unsigned char *slider = buffer;
-  unsigned short s_cargo_type = static_cast<unsigned short>(m_cargo_type);
+Gcs_packet::Gcs_packet(
+    Cargo_type const &cargo, Gcs_protocol_version const &current_version,
+    std::vector<Gcs_dynamic_header> &&dynamic_headers,
+    std::vector<std::unique_ptr<Gcs_stage_metadata>> &&stage_metadata,
+    unsigned long long const &payload_size)
+    : m_fixed_header(),
+      m_dynamic_headers(std::move(dynamic_headers)),
+      m_stage_metadata(std::move(stage_metadata)),
+      m_next_stage_index(0),
+      m_serialized_packet(nullptr, Gcs_packet_buffer_deleter()),
+      m_serialized_packet_size(0),
+      m_serialized_payload_offset(0),
+      m_serialized_payload_size(0),
+      m_serialized_stage_metadata_size(0),
+      m_delivery_synode() {
+  auto const nr_stages = m_dynamic_headers.size();
+  DBUG_ASSERT(nr_stages == m_stage_metadata.size());
 
-  unsigned int le_version = htole32(m_version);
-  memcpy(slider, &le_version, WIRE_VERSION_SIZE);
-  slider += WIRE_VERSION_SIZE;
-  static_assert(sizeof(decltype(m_version)) == sizeof(decltype(le_version)),
-                "The m_version size is not equal to le_version size");
+  /* Calculate the size of the stage metadata. */
+  for (auto const &metadata : m_stage_metadata) {
+    m_serialized_stage_metadata_size += metadata->calculate_encode_length();
+  }
 
-  unsigned short le_hdr_len = htole16(m_fixed_header_len);
-  memcpy(slider, &le_hdr_len, WIRE_HD_LEN_SIZE);
-  slider += WIRE_HD_LEN_SIZE;
-  static_assert(
-      sizeof(decltype(m_fixed_header_len)) == sizeof(decltype(le_hdr_len)),
-      "The m_fixed_header_len size is not equal to le_hdr_len size");
-
-  unsigned long long le_total_len = htole64(m_total_len);
-  memcpy(slider, &le_total_len, WIRE_TOTAL_LEN_SIZE);
-  slider += WIRE_TOTAL_LEN_SIZE;
-  static_assert(sizeof(decltype(m_total_len)) == sizeof(decltype(le_total_len)),
-                "The m_total_len size is not equal to le_total_len size");
-
-  unsigned int le_dyn_len = htole32(m_dynamic_headers_len);
-  memcpy(slider, &le_dyn_len, WIRE_DYNAMIC_HDRS_LEN_SIZE);
-  slider += WIRE_DYNAMIC_HDRS_LEN_SIZE;
-  static_assert(
-      sizeof(decltype(m_dynamic_headers_len)) == sizeof(decltype(le_dyn_len)),
-      "The m_dynamic_headers_len size is not equal to le_dyn_len size");
-
-  s_cargo_type = htole16(s_cargo_type);
-  memcpy(slider, &s_cargo_type, WIRE_CARGO_TYPE_SIZE);
-  slider += WIRE_CARGO_TYPE_SIZE;
-  static_assert(
-      sizeof(decltype(m_cargo_type)) == sizeof(decltype(s_cargo_type)),
-      "The m_cargo_type size is not equal to s_cargo_type size");
-
-  return false;
+  /* Populate the fixed header. */
+  m_fixed_header.set_used_version(current_version);
+  m_fixed_header.set_maximum_version(Gcs_protocol_version::HIGHEST_KNOWN);
+  m_fixed_header.set_dynamic_headers_length(
+      nr_stages * Gcs_dynamic_header::calculate_length());
+  m_fixed_header.set_cargo_type(cargo);
+  set_payload_length(payload_size);
 }
 
-bool Gcs_internal_message_header::decode(const unsigned char *buffer) {
-  const unsigned char *slider = buffer;
-  unsigned short s_cargo_type = 0;
+std::pair<bool, Gcs_packet> Gcs_packet::make_from_existing_packet(
+    Gcs_packet const &original_packet,
+    unsigned long long const &new_payload_size) {
+  bool successful = true;
 
-  memcpy(&m_version, slider, WIRE_VERSION_SIZE);
-  m_version = le32toh(m_version);
-  slider += WIRE_VERSION_SIZE;
+  Gcs_packet packet(original_packet, new_payload_size);
 
-  memcpy(&m_fixed_header_len, slider, WIRE_HD_LEN_SIZE);
-  m_fixed_header_len = le16toh(m_fixed_header_len);
-  slider += WIRE_HD_LEN_SIZE;
+  bool const couldnt_allocate = packet.allocate_serialization_buffer();
 
-  memcpy(&m_total_len, slider, WIRE_TOTAL_LEN_SIZE);
-  m_total_len = le64toh(m_total_len);
-  slider += WIRE_TOTAL_LEN_SIZE;
+  // Do not return a partially initialized packet.
+  if (couldnt_allocate) {
+    /* purecov: begin inspected */
+    packet = Gcs_packet();
+    successful = false;
+    /* purecov: end */
+  }
 
-  memcpy(&m_dynamic_headers_len, slider, WIRE_DYNAMIC_HDRS_LEN_SIZE);
-  m_dynamic_headers_len = le32toh(m_dynamic_headers_len);
-  slider += WIRE_DYNAMIC_HDRS_LEN_SIZE;
+  return std::make_pair(successful, std::move(packet));
+}
 
-  memcpy(&s_cargo_type, slider, WIRE_CARGO_TYPE_SIZE);
-  s_cargo_type = le16toh(s_cargo_type);
+Gcs_packet::Gcs_packet(Gcs_packet const &original_packet,
+                       unsigned long long const &new_payload_size)
+    : m_fixed_header(original_packet.get_fixed_header()),
+      m_dynamic_headers(original_packet.get_dynamic_headers()),
+      m_stage_metadata(),
+      m_next_stage_index(original_packet.get_next_stage_index()),
+      m_serialized_packet(nullptr, Gcs_packet_buffer_deleter()),
+      m_serialized_packet_size(0),
+      m_serialized_payload_offset(0),
+      m_serialized_payload_size(new_payload_size),
+      m_serialized_stage_metadata_size(0),
+      m_delivery_synode(original_packet.get_delivery_synode()) {
+  /* Copy the stage metadata. */
+  for (auto const &original_metadata : original_packet.get_stage_metadata()) {
+    auto metadata = original_metadata->clone();
+    m_serialized_stage_metadata_size += metadata->calculate_encode_length();
+    m_stage_metadata.push_back(std::move(metadata));
+  }
 
-  m_cargo_type =
-      static_cast<Gcs_internal_message_header::cargo_type>(s_cargo_type);
-  static_assert(
-      sizeof(decltype(m_cargo_type)) == sizeof(decltype(s_cargo_type)),
-      "The m_cargo_type size is not equal to s_cargo_type size");
-  slider += WIRE_CARGO_TYPE_SIZE;
+  /* Update this packet's payload length. */
+  set_payload_length(new_payload_size);
+}
 
-  return false;
+Gcs_packet Gcs_packet::make_incoming_packet(
+    buffer_ptr &&buffer, unsigned long long buffer_size,
+    synode_no const &synode, Gcs_message_pipeline const &pipeline) {
+  Gcs_packet packet(synode);
+
+  packet.deserialize(std::move(buffer), buffer_size, pipeline);
+
+  return packet;
+}
+
+Gcs_packet::Gcs_packet(synode_no const &synode)
+    : m_fixed_header(),
+      m_dynamic_headers(),
+      m_stage_metadata(),
+      m_next_stage_index(0),
+      m_serialized_packet(nullptr, Gcs_packet_buffer_deleter()),
+      m_serialized_packet_size(0),
+      m_serialized_payload_offset(0),
+      m_serialized_payload_size(0),
+      m_serialized_stage_metadata_size(0),
+      m_delivery_synode(synode) {}
+
+Gcs_packet::Gcs_packet(Gcs_packet &&packet) noexcept
+    : m_fixed_header(std::move(packet.m_fixed_header)),
+      m_dynamic_headers(std::move(packet.m_dynamic_headers)),
+      m_stage_metadata(std::move(packet.m_stage_metadata)),
+      m_next_stage_index(std::move(packet.m_next_stage_index)),
+      m_serialized_packet(std::move(packet.m_serialized_packet)),
+      m_serialized_packet_size(std::move(packet.m_serialized_packet_size)),
+      m_serialized_payload_offset(
+          std::move(packet.m_serialized_payload_offset)),
+      m_serialized_payload_size(std::move(packet.m_serialized_payload_size)),
+      m_serialized_stage_metadata_size(
+          std::move(packet.m_serialized_stage_metadata_size)),
+      m_delivery_synode(std::move(packet.m_delivery_synode)) {
+  packet.m_fixed_header = Gcs_internal_message_header();
+  packet.m_next_stage_index = 0;
+  packet.m_serialized_packet_size = 0;
+  packet.m_serialized_payload_offset = 0;
+  packet.m_serialized_payload_size = 0;
+  packet.m_serialized_stage_metadata_size = 0;
+}
+
+Gcs_packet &Gcs_packet::operator=(Gcs_packet &&packet) noexcept {
+  m_fixed_header = std::move(packet.m_fixed_header);
+  m_dynamic_headers = std::move(packet.m_dynamic_headers);
+  m_stage_metadata = std::move(packet.m_stage_metadata);
+  m_next_stage_index = std::move(packet.m_next_stage_index);
+  m_serialized_packet = std::move(packet.m_serialized_packet);
+  m_serialized_packet_size = packet.m_serialized_packet_size;
+  m_serialized_payload_offset = std::move(packet.m_serialized_payload_offset);
+  m_serialized_payload_size = std::move(packet.m_serialized_payload_size);
+  m_serialized_stage_metadata_size =
+      std::move(packet.m_serialized_stage_metadata_size);
+  m_delivery_synode = std::move(packet.m_delivery_synode);
+
+  packet.m_fixed_header = Gcs_internal_message_header();
+  packet.m_next_stage_index = 0;
+  packet.m_serialized_packet_size = 0;
+  packet.m_serialized_payload_offset = 0;
+  packet.m_serialized_payload_size = 0;
+  packet.m_serialized_stage_metadata_size = 0;
+
+  return (*this);
+}
+
+Gcs_internal_message_header const &Gcs_packet::get_fixed_header() const {
+  return m_fixed_header;
+}
+
+std::vector<Gcs_dynamic_header> const &Gcs_packet::get_dynamic_headers() const {
+  return m_dynamic_headers;
+}
+
+std::vector<std::unique_ptr<Gcs_stage_metadata>> const &
+
+Gcs_packet::get_stage_metadata() const {
+  return m_stage_metadata;
+}
+
+std::size_t const &Gcs_packet::get_next_stage_index() const {
+  return m_next_stage_index;
+}
+
+void Gcs_packet::prepare_for_next_outgoing_stage() { m_next_stage_index++; }
+
+void Gcs_packet::prepare_for_next_incoming_stage() { m_next_stage_index--; }
+
+Gcs_dynamic_header &Gcs_packet::get_current_dynamic_header() {
+  return m_dynamic_headers.at(m_next_stage_index);
+}
+
+Gcs_stage_metadata &Gcs_packet::get_current_stage_header() {
+  return *m_stage_metadata.at(m_next_stage_index);
+}
+
+unsigned char *Gcs_packet::get_payload_pointer() {
+  return &m_serialized_packet.get()[m_serialized_payload_offset];
+}
+
+void Gcs_packet::set_payload_length(unsigned long long const &new_length) {
+  m_serialized_payload_size = new_length;
+  m_fixed_header.set_payload_length(m_serialized_stage_metadata_size +
+                                    new_length);
+}
+
+Gcs_protocol_version Gcs_packet::get_maximum_version() const {
+  return m_fixed_header.get_maximum_version();
+}
+
+Gcs_protocol_version Gcs_packet::get_used_version() const {
+  return m_fixed_header.get_used_version();
+}
+
+Cargo_type Gcs_packet::get_cargo_type() const {
+  return m_fixed_header.get_cargo_type();
+}
+
+unsigned long long Gcs_packet::get_total_length() const {
+  return m_fixed_header.get_total_length();
+}
+
+unsigned long long const &Gcs_packet::get_payload_length() const {
+  return m_serialized_payload_size;
+}
+
+bool Gcs_packet::allocate_serialization_buffer() {
+  DBUG_ASSERT(m_serialized_payload_size > 0);
+
+  bool error = true;
+
+  /* Allocate the serialization buffer. */
+  unsigned long long buffer_size = m_fixed_header.get_total_length();
+  unsigned char *buffer =
+      static_cast<unsigned char *>(std::malloc(buffer_size));
+  if (buffer != nullptr) {
+    m_serialized_packet.reset(buffer);
+    m_serialized_packet_size = buffer_size;
+    m_serialized_payload_offset = buffer_size - m_serialized_payload_size;
+    error = false;
+  }
+
+  return error;
+}
+
+std::pair<Gcs_packet::buffer_ptr, unsigned long long> Gcs_packet::serialize() {
+  DBUG_ASSERT(m_serialized_packet.get() != nullptr);
+
+  // Serialize the headers.
+  unsigned char *slider = m_serialized_packet.get();
+  slider += m_fixed_header.encode(slider);
+  for (auto &dynamic_header : m_dynamic_headers) {
+    slider += dynamic_header.encode(slider);
+  }
+  for (auto &stage_header : m_stage_metadata) {
+    slider += stage_header->encode(slider);
+  }
+
+  // clang-format off
+  MYSQL_GCS_DEBUG_EXECUTE_WITH_OPTION(
+      GCS_DEBUG_MSG_FLOW,
+      std::ostringstream output;
+      dump(output);
+      MYSQL_GCS_LOG_DEBUG_WITH_OPTION(GCS_DEBUG_MSG_FLOW, "Output %s",
+                                      output.str().c_str());
+  )
+  // clang-format on
+
+  // We transfer ownership of the serialized buffer to the caller.
+  m_serialized_packet_size = 0;
+  m_serialized_payload_size = 0;
+
+  return std::make_pair(std::move(m_serialized_packet),
+                        m_fixed_header.get_total_length());
+}
+
+void Gcs_packet::deserialize(buffer_ptr &&buffer,
+                             unsigned long long buffer_size,
+                             Gcs_message_pipeline const &pipeline) {
+  m_serialized_packet = std::move(buffer);
+  m_serialized_packet_size = buffer_size;
+
+  unsigned char *slider = m_serialized_packet.get();
+
+  slider += m_fixed_header.decode(slider);
+
+  // Decode the dynamic headers.
+  unsigned long long processed_size = 0;
+  for (unsigned long long size = m_fixed_header.get_dynamic_headers_length();
+       size > 0; size -= processed_size) {
+    Gcs_dynamic_header dynamic_header;
+    processed_size = dynamic_header.decode(slider);
+    m_dynamic_headers.push_back(std::move(dynamic_header));
+    slider += processed_size;
+  }
+
+  // Decode the stage headers.
+  processed_size = 0;
+  for (Gcs_dynamic_header const &dynamic_header : m_dynamic_headers) {
+    auto const &stage_code = dynamic_header.get_stage_code();
+    auto &stage = pipeline.get_stage(stage_code);
+    m_stage_metadata.push_back(stage.get_stage_header());
+    auto &stage_header = m_stage_metadata.back();
+    processed_size = stage_header->decode(slider);
+    slider += processed_size;
+  }
+  m_serialized_stage_metadata_size = processed_size;
+
+  // Adjust payload information.
+  m_serialized_payload_offset = slider - m_serialized_packet.get();
+  m_serialized_payload_size =
+      m_serialized_packet.get() + m_fixed_header.get_total_length() - slider;
+
+  // Ready to be processed by the pipeline.
+  m_next_stage_index = (m_dynamic_headers.size() - 1);
+
+  // clang-format off
+  MYSQL_GCS_DEBUG_EXECUTE_WITH_OPTION(
+      GCS_DEBUG_MSG_FLOW,
+      std::ostringstream output;
+      dump(output);
+      MYSQL_GCS_LOG_DEBUG_WITH_OPTION(GCS_DEBUG_MSG_FLOW, "Input %s",
+                                      output.str().c_str());
+  )
+  // clang-format on
+}
+
+void Gcs_packet::dump(std::ostringstream &output) const {
+  m_fixed_header.dump(output);
+
+  for (auto &dynamic_header : m_dynamic_headers) {
+    dynamic_header.dump(output);
+  }
+
+  for (auto &stage_header : m_stage_metadata) {
+    stage_header->dump(output);
+  }
+}
+
+Gcs_xcom_synode const &Gcs_packet::get_delivery_synode() const {
+  return m_delivery_synode;
 }

@@ -45,6 +45,7 @@
  */
 class Gcs_message_data {
  public:
+  Gcs_message_data();
   /**
     Constructor of Gcs_message_data which pre-allocates space to store
     the header and payload and should be used when creating messages to
@@ -125,7 +126,7 @@ class Gcs_message_data {
    @return true on error, false otherwise.
   */
 
-  bool encode(uchar **buffer, uint64_t *buffer_len);
+  bool encode(uchar **buffer, uint64_t *buffer_len) const;
 
   /**
    Encodes the header and payload into a buffer provided by the caller.
@@ -140,7 +141,7 @@ class Gcs_message_data {
    @return true on error, false otherwise.
    */
 
-  bool encode(uchar *buffer, uint64_t *buffer_len);
+  bool encode(uchar *buffer, uint64_t *buffer_len) const;
 
   /**
     Decodes data received via GCS and that belongs to a message. After
@@ -186,7 +187,7 @@ class Gcs_message_data {
     @return the size of the encoded data when put on the wire.
   */
 
-  uint64_t get_encode_size() const;
+  virtual uint64_t get_encode_size() const;
 
   /**
     @return the size of the encoded payload when put on the wire.

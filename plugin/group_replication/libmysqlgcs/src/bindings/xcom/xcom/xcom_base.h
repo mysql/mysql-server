@@ -36,6 +36,7 @@ extern "C" {
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_input_request.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_os_layer.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
@@ -260,6 +261,12 @@ int xcom_client_set_event_horizon(connection_descriptor *fd, uint32_t group_id,
 int xcom_client_terminate_and_exit(connection_descriptor *fd);
 int xcom_client_set_cache_limit(connection_descriptor *fd,
                                 uint64_t cache_limit);
+int xcom_client_get_synode_app_data(connection_descriptor *const fd,
+                                    uint32_t group_id,
+                                    synode_no_array *const synodes,
+                                    synode_app_data_array *const reply);
+int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
+                                  int force);
 
 static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #if defined(_WIN32)
@@ -284,6 +291,8 @@ void set_max_synode_from_unified_boot(synode_no unified_boot_synode);
     G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__);     \
     G_DEBUG("new state %s", s);                             \
   } while (0)
+
+int pm_finished(pax_machine *p);
 
 #ifdef __cplusplus
 }

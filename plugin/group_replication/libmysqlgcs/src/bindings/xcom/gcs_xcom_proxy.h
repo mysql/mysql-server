@@ -24,10 +24,12 @@
 #define GCS_XCOM_PROXY_INCLUDED
 
 #include <string>
+#include <unordered_set>  // std::unordered_set
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_cond.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_input_queue.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
@@ -194,6 +196,24 @@ class Gcs_xcom_proxy {
   */
   virtual bool xcom_client_set_event_horizon(
       uint32_t group_id, xcom_event_horizon event_horizon) = 0;
+
+  /**
+   This member function is responsible for retrieving the application payloads
+   decided in the synodes in @c synodes, from the XCom instance connected to
+   via @c fd.
+
+   @param[in] fd The file descriptor to the XCom connection established
+   earlier
+   @param[in] group_id The identifier of the group from which the payloads
+   will be retrieved
+   @param[in] synodes The desired synodes
+   @param[out] reply Where the requested payloads will be written to
+   @returns true (false) on success (failure). Success means that XCom had the
+   requested payloads, which were written to @c reply.
+   */
+  virtual bool xcom_client_get_synode_app_data(
+      connection_descriptor *fd, uint32_t group_id, synode_no_array &synodes,
+      synode_app_data_array &reply) = 0;
 
   /**
     This member function is responsible for pushing data into consensus on
@@ -620,6 +640,21 @@ class Gcs_xcom_proxy {
                                       xcom_event_horizon &event_horizon) = 0;
 
   /**
+   Function to retrieve the application payloads decided on a set of synodes.
+
+   @param[in] xcom_instace The XCom instance to connect to
+   @param[in] group_id_hash Hash of group identifier.
+   @param[in] synode_set The desired synodes
+   @param[out] reply Where the requested payloads will be written to
+   @returns true (false) on success (failure). Success means that XCom had the
+   requested payloads, which were written to @c reply.
+   */
+  virtual bool xcom_get_synode_app_data(
+      Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
+      const std::unordered_set<Gcs_xcom_synode> &synode_set,
+      synode_app_data_array &reply) = 0;
+
+  /**
     Function to reconfigure XCOM's event horizon.
 
     @param group_id_hash Hash of group identifier.
@@ -741,6 +776,10 @@ class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
                               xcom_event_horizon &event_horizon);
   bool xcom_set_event_horizon(uint32_t group_id_hash,
                               xcom_event_horizon event_horizon);
+  bool xcom_get_synode_app_data(
+      Gcs_xcom_node_information const &xcom_instance, uint32_t group_id_hash,
+      const std::unordered_set<Gcs_xcom_synode> &synode_set,
+      synode_app_data_array &reply);
   bool xcom_force_nodes(Gcs_xcom_nodes &nodes, uint32_t group_id_hash);
 
  private:
@@ -777,6 +816,11 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
                                      xcom_event_horizon &event_horizon);
   bool xcom_client_set_event_horizon(uint32_t group_id,
                                      xcom_event_horizon event_horizon);
+  bool xcom_client_get_synode_app_data(connection_descriptor *con,
+                                       uint32_t group_id_hash,
+                                       synode_no_array &synodes,
+                                       synode_app_data_array &reply);
+
   bool xcom_client_boot(node_list *nl, uint32_t group_id);
   connection_descriptor *xcom_client_open_connection(std::string,
                                                      xcom_port port);

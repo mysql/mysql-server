@@ -196,4 +196,9 @@ bool is_gtid_committed(const Gtid &gtid);
 */
 unsigned long get_slave_max_allowed_packet();
 
+/**
+  @returns the maximum value of slave_max_allowed_packet.
+ */
+unsigned long get_max_slave_max_allowed_packet();
+
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

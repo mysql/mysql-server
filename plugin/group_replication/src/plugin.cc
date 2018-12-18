@@ -30,6 +30,7 @@
 #include "my_io.h"
 #include "plugin/group_replication/include/consistency_manager.h"
 #include "plugin/group_replication/include/hold_transactions.h"
+#include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
 #include "plugin/group_replication/include/observer_trans.h"
@@ -137,6 +138,9 @@ static TYPELIB plugin_bool_typelib = {
 char *ip_whitelist_var = NULL;
 const char *IP_WHITELIST_DEFAULT = "AUTOMATIC";
 
+char *communication_protocol_join_var = NULL;
+const char *COMMUNICATION_PROTOCOL_JOIN_DEFAULT = "";
+
 // The plugin auto increment handler
 Plugin_group_replication_auto_increment *auto_increment_handler = NULL;
 Plugin_gcs_events_handler *events_handler = NULL;
@@ -227,6 +231,13 @@ ulong auto_increment_increment_var = DEFAULT_AUTO_INCREMENT_INCREMENT;
 #define MIN_COMPRESSION_THRESHOLD 0
 ulong compression_threshold_var = DEFAULT_COMPRESSION_THRESHOLD;
 
+/* fragmentation options */
+#define DEFAULT_COMMUNICATION_MAX_MESSAGE_SIZE 10485760
+#define MAX_COMMUNICATION_MAX_MESSAGE_SIZE get_max_slave_max_allowed_packet()
+#define MIN_COMMUNICATION_MAX_MESSAGE_SIZE 0
+ulong communication_max_message_size_var =
+    DEFAULT_COMMUNICATION_MAX_MESSAGE_SIZE;
+
 /* GTID assignment block size options */
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
@@ -302,7 +313,8 @@ static int check_flow_control_min_recovery_quota_long(
 static int check_flow_control_max_quota_long(longlong value,
                                              bool is_var_update = false);
 
-int configure_group_communication(st_server_ssl_variables *ssl_variables);
+int configure_group_communication(st_server_ssl_variables *ssl_variables,
+                                  unsigned int server_version);
 int configure_group_member_manager(char *hostname, char *uuid, uint port,
                                    unsigned int server_version);
 bool check_async_channel_running_on_secondary();
@@ -653,7 +665,8 @@ int initialize_plugin_and_join(
                         &server_ssl_variables);
 
   // Setup GCS.
-  if ((error = configure_group_communication(&server_ssl_variables))) {
+  if ((error = configure_group_communication(&server_ssl_variables,
+                                             server_version))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_COMMUNICATION_ENGINE);
     goto err;
   }
@@ -1175,6 +1188,9 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
 }
 
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
+  plugin_is_waiting_to_set_server_read_mode = false;
+  plugin_is_being_uninstalled = false;
+
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
@@ -1520,11 +1536,13 @@ int terminate_applier_module() {
   return error;
 }
 
-int configure_group_communication(st_server_ssl_variables *ssl_variables) {
+int configure_group_communication(st_server_ssl_variables *ssl_variables,
+                                  unsigned int server_version) {
   DBUG_ENTER("configure_group_communication");
 
   // GCS interface parameters.
   Gcs_interface_parameters gcs_module_parameters;
+
   gcs_module_parameters.add_parameter("group_name",
                                       std::string(group_name_var));
   if (local_address_var != NULL)
@@ -1555,6 +1573,16 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables) {
   } else {
     gcs_module_parameters.add_parameter(
         "compression", std::string("off")); /* purecov: inspected */
+  }
+
+  // Fragmentation parameter
+  if (communication_max_message_size_var > 0) {
+    std::stringstream ss;
+    ss << communication_max_message_size_var;
+    gcs_module_parameters.add_parameter("fragmentation", std::string("on"));
+    gcs_module_parameters.add_parameter("fragmentation_threshold", ss.str());
+  } else {
+    gcs_module_parameters.add_parameter("fragmentation", std::string("off"));
   }
 
   // SSL parameters.
@@ -1653,6 +1681,38 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables) {
   gcs_module_parameters.add_parameter("communication_debug_path",
                                       mysql_real_data_home);
 
+  /*
+   * Convert the MySQL version specified by communication_protocol_join into the
+   * GCS protocol version and pass it along to GCS.
+   */
+  bool const user_specified_join_protocol =
+      (communication_protocol_join_var != NULL &&
+       strcmp(communication_protocol_join_var,
+              COMMUNICATION_PROTOCOL_JOIN_DEFAULT) != 0);
+  if (user_specified_join_protocol) {
+    if (valid_mysql_version_string(communication_protocol_join_var)) {
+      Member_version const mysql_server_version =
+          convert_to_member_version(communication_protocol_join_var);
+      Gcs_protocol_version gcs_protocol = convert_to_gcs_protocol(
+          mysql_server_version, Member_version(server_version));
+      bool const invalid_protocol =
+          (gcs_protocol == Gcs_protocol_version::UNKNOWN);
+      if (!invalid_protocol) {
+        gcs_module_parameters.add_parameter(
+            "communication_protocol_join",
+            std::to_string(static_cast<unsigned short>(gcs_protocol)));
+      } else {
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL,
+                     communication_protocol_join_var);
+        DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
+      }
+    } else {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL,
+                   communication_protocol_join_var);
+      DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
+    }
+  }
+
   // Configure GCS.
   if (gcs_module->configure(gcs_module_parameters)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
@@ -1662,7 +1722,9 @@ int configure_group_communication(st_server_ssl_variables *ssl_variables) {
                group_name_var, local_address_var, group_seeds_var,
                bootstrap_group_var ? "true" : "false", poll_spin_loops_var,
                compression_threshold_var, ip_whitelist_var,
-               communication_debug_options_var, member_expel_timeout_var);
+               communication_debug_options_var, member_expel_timeout_var,
+               communication_max_message_size_var,
+               communication_protocol_join_var);
 
   DBUG_RETURN(0);
 }
@@ -2539,6 +2601,45 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
   DBUG_RETURN(0);
 }
 
+static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
+                                                void *save,
+                                                struct st_mysql_value *value) {
+  DBUG_ENTER("check_communication_max_message_size");
+
+  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+
+  longlong in_val;
+  value->val_int(value, &in_val);
+
+  if (plugin_is_group_replication_running()) {
+    mysql_mutex_unlock(&plugin_running_mutex);
+    my_message(
+        ER_GROUP_REPLICATION_RUNNING,
+        "The communication_max_message_size option cannot be set while Group "
+        "Replication is running",
+        MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  if (in_val > static_cast<longlong>(MAX_COMMUNICATION_MAX_MESSAGE_SIZE) ||
+      in_val < MIN_COMMUNICATION_MAX_MESSAGE_SIZE) {
+    mysql_mutex_unlock(&plugin_running_mutex);
+    std::stringstream ss;
+    ss << "The value " << in_val
+       << " is not within the range of accepted values for the "
+          "communication_max_message_size option. Use 0 to disable message "
+          "fragmentation, or specify a value up to "
+       << MAX_COMMUNICATION_MAX_MESSAGE_SIZE << ".";
+    my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
+    DBUG_RETURN(1);
+  }
+
+  *(longlong *)save = in_val;
+
+  mysql_mutex_unlock(&plugin_running_mutex);
+  DBUG_RETURN(0);
+}
+
 static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
                                struct st_mysql_value *value) {
   DBUG_ENTER("check_force_members");
@@ -2986,6 +3087,18 @@ static MYSQL_SYSVAR_ULONG(
     0                             /* block */
 );
 
+static MYSQL_SYSVAR_STR(communication_protocol_join,     /* name */
+                        communication_protocol_join_var, /* var */
+                        /* optional var | malloc string */
+                        PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
+                            PLUGIN_VAR_PERSIST_AS_READ_ONLY,
+                        "The communication protocol version announced by the "
+                        "server when joining a group",
+                        NULL,                               /* check func*/
+                        NULL,                               /* update func*/
+                        COMMUNICATION_PROTOCOL_JOIN_DEFAULT /* default*/
+);
+
 // Recovery module variables
 
 static MYSQL_SYSVAR_ULONG(
@@ -3229,6 +3342,19 @@ static MYSQL_SYSVAR_ULONG(
     MIN_COMPRESSION_THRESHOLD,     /* min */
     MAX_COMPRESSION_THRESHOLD,     /* max */
     0                              /* block */
+);
+
+static MYSQL_SYSVAR_ULONG(
+    communication_max_message_size,                        /* name */
+    communication_max_message_size_var,                    /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "The maximum message size in bytes after which a message is fragmented.",
+    check_communication_max_message_size,   /* check func. */
+    nullptr,                                /* update func. */
+    DEFAULT_COMMUNICATION_MAX_MESSAGE_SIZE, /* default */
+    MIN_COMMUNICATION_MAX_MESSAGE_SIZE,     /* min */
+    MAX_COMMUNICATION_MAX_MESSAGE_SIZE,     /* max */
+    0                                       /* block */
 );
 
 static MYSQL_SYSVAR_ULONGLONG(
@@ -3546,6 +3672,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(allow_local_lower_version_join),
     MYSQL_SYSVAR(auto_increment_increment),
     MYSQL_SYSVAR(compression_threshold),
+    MYSQL_SYSVAR(communication_max_message_size),
     MYSQL_SYSVAR(gtid_assignment_block_size),
     MYSQL_SYSVAR(ssl_mode),
     MYSQL_SYSVAR(ip_whitelist),
@@ -3567,6 +3694,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(flow_control_hold_percent),
     MYSQL_SYSVAR(flow_control_release_percent),
     MYSQL_SYSVAR(member_expel_timeout),
+    MYSQL_SYSVAR(communication_protocol_join),
     NULL,
 };
 

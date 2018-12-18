@@ -115,6 +115,17 @@ class Gcs_xcom_node_address {
 class Gcs_xcom_uuid {
  public:
   /*
+   Default constructor.
+   */
+  Gcs_xcom_uuid() = default;
+
+  /*
+   Constructor from a string that represents the uuid in use.
+   */
+  explicit Gcs_xcom_uuid(const std::string xcom_uuid) noexcept
+      : actual_value(xcom_uuid) {}
+
+  /*
     Create a GCS unique identifier.
   */
 

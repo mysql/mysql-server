@@ -1,0 +1,36 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+SELECT group_replication_set_communication_protocol("8.0.15");
+group_replication_set_communication_protocol("8.0.15")
+The operation group_replication_set_communication_protocol completed successfully
+###############################################################################
+# 2. Verify M2 fails to join group announcing older protocol
+include/stop_group_replication.inc
+SET GLOBAL group_replication_communication_protocol_join="5.7.14";
+include/start_group_replication.inc
+include/stop_group_replication.inc
+###############################################################################
+# 3. Verify M2 joins group after upgrading announced protocol
+SET GLOBAL group_replication_communication_protocol_join="8.0.15";
+include/start_group_replication.inc
+###############################################################################
+# 4. Downgrade group, verify M2 fails to join group announcing newer protocol
+SELECT group_replication_set_communication_protocol("5.7.14");
+group_replication_set_communication_protocol("5.7.14")
+The operation group_replication_set_communication_protocol completed successfully
+include/stop_group_replication.inc
+include/start_group_replication.inc
+include/stop_group_replication.inc
+###############################################################################
+# 5. Verify M2 joins group after downgrading announced protocol
+SET GLOBAL group_replication_communication_protocol_join="5.7.14";
+include/start_group_replication.inc
+###############################################################################
+# 6. Cleanup
+SET GLOBAL group_replication_communication_protocol_join= default;
+[connection server1]
+include/group_replication_end.inc

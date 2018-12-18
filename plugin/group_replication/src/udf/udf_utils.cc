@@ -182,3 +182,26 @@ bool check_locked_tables(char *message) {
   }
   return true;
 }
+
+bool group_contains_member_older_than(
+    Member_version const &min_required_version) {
+  bool constexpr OLDER_MEMBER_EXISTS = true;
+  bool constexpr ALL_MEMBERS_OK = false;
+  bool result = OLDER_MEMBER_EXISTS;
+
+  std::vector<Group_member_info *> *members =
+      group_member_mgr->get_all_members();
+  auto it =
+      std::find_if(members->begin(), members->end(),
+                   [&min_required_version](Group_member_info *member) {
+                     return member->get_member_version() < min_required_version;
+                   });
+
+  result = (it == members->end() ? ALL_MEMBERS_OK : OLDER_MEMBER_EXISTS);
+
+  // Cleanup.
+  for (auto *member : *members) delete member;
+  delete members;
+
+  return result;
+}

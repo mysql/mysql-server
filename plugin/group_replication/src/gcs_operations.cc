@@ -597,4 +597,74 @@ uint32_t Gcs_operations::get_maximum_write_concurrency() const {
   DBUG_RETURN(result);
 }
 
+Gcs_communication_interface *Gcs_operations::get_gcs_communication() const {
+  std::string const group_name(group_name_var);
+  Gcs_group_identifier const group_id(group_name);
+  Gcs_control_interface *gcs_control = nullptr;
+  Gcs_communication_interface *gcs_communication = nullptr;
+  if (gcs_interface == nullptr || !gcs_interface->is_initialized()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GRP_MEMBER_OFFLINE);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_control = gcs_interface->get_control_session(group_id);
+  if (gcs_control == nullptr || !gcs_control->belongs_to_group()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+  gcs_communication = gcs_interface->get_communication_session(group_id);
+  if (gcs_communication == nullptr) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GCS_INTERFACE_ERROR);
+    goto end;
+    /* purecov: end */
+  }
+end:
+  return gcs_communication;
+}
+
+Gcs_protocol_version Gcs_operations::get_protocol_version() {
+  DBUG_ENTER("Gcs_operations::get_protocol_version");
+  Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
+  gcs_operations_lock->rdlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    protocol = gcs_communication->get_protocol_version();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(protocol);
+}
+
+Gcs_protocol_version Gcs_operations::get_maximum_protocol_version() {
+  DBUG_ENTER("Gcs_operations::get_maximum_protocol_version");
+  Gcs_protocol_version protocol = Gcs_protocol_version::UNKNOWN;
+  gcs_operations_lock->rdlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    protocol = gcs_communication->get_maximum_supported_protocol_version();
+  }
+  gcs_operations_lock->unlock();
+  DBUG_RETURN(protocol);
+}
+
+std::pair<bool, std::future<void>> Gcs_operations::set_protocol_version(
+    Gcs_protocol_version gcs_protocol) {
+  DBUG_ENTER("Gcs_operations::set_protocol_version");
+  bool will_change_protocol = false;
+  std::future<void> future;
+
+  gcs_operations_lock->wrlock();
+  Gcs_communication_interface *gcs_communication = get_gcs_communication();
+  if (gcs_communication != nullptr) {
+    std::tie(will_change_protocol, future) =
+        gcs_communication->set_protocol_version(gcs_protocol);
+  }
+  gcs_operations_lock->unlock();
+
+  DBUG_RETURN(std::make_pair(will_change_protocol, std::move(future)));
+}
+
 const std::string &Gcs_operations::get_gcs_engine() { return gcs_engine; }

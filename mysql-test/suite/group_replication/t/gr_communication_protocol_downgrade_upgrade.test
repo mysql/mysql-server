@@ -1,0 +1,90 @@
+###############################################################################
+# WL#11610
+# Perform downgrade/upgrade tests using the communication_protocol_join
+# sysvar and group_communication_{get,set}_communication_protocol UDFs.
+#
+# This test uses 2 servers M1, M2.
+# M1 -> server1,  M2 -> server2
+#
+# Test:
+# 1. Start 2 servers and add them into group replication group using protocol
+#    8.0.15
+# 2. Verify M2 fails to join group announcing older protocol
+# 3. Verify M2 joins group after upgrading announced protocol
+# 4. Downgrade group, verify M2 fails to join group announcing newer protocol
+# 5. Verify M2 joins group after downgrading announced protocol
+# 6. Cleanup
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--source include/group_replication.inc
+
+# Suppress expected errors
+--disable_query_log
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The server .*:[0-9]*, which is attempting to join the group, is running communication protocol .*, which is incompatible with the protocol this server is running (.*). The server .*:[0-9]* will be expelled from the group.");
+SET SESSION sql_log_bin= 1;
+--enable_query_log
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--disable_query_log
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The server .*:[0-9]*, which is attempting to join the group, is running communication protocol .*, which is incompatible with the protocol this server is running (.*). The server .*:[0-9]* will be expelled from the group.");
+call mtr.add_suppression("This server is running communication protocol .*, which is incompatible with the group member .*:[0-9]* running protocol .*. This server will be expelled from the group.");
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression(".* read failed");
+call mtr.add_suppression("All donors left. Aborting group replication recovery.");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+--enable_query_log
+
+--let $gr_protocol_new= 8.0.15
+--let $gr_protocol_old= 5.7.14
+
+--eval SELECT group_replication_set_communication_protocol("$gr_protocol_new")
+
+--echo ###############################################################################
+--echo # 2. Verify M2 fails to join group announcing older protocol
+--source include/stop_group_replication.inc
+
+--eval SET GLOBAL group_replication_communication_protocol_join="$gr_protocol_old"
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+--echo ###############################################################################
+--echo # 3. Verify M2 joins group after upgrading announced protocol
+--eval SET GLOBAL group_replication_communication_protocol_join="$gr_protocol_new"
+
+--source include/start_group_replication.inc
+
+--echo ###############################################################################
+--echo # 4. Downgrade group, verify M2 fails to join group announcing newer protocol
+--eval SELECT group_replication_set_communication_protocol("$gr_protocol_old")
+
+--source include/stop_group_replication.inc
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+--echo ###############################################################################
+--echo # 5. Verify M2 joins group after downgrading announced protocol
+--eval SET GLOBAL group_replication_communication_protocol_join="$gr_protocol_old"
+
+--source include/start_group_replication.inc
+
+--echo ###############################################################################
+--echo # 6. Cleanup
+SET GLOBAL group_replication_communication_protocol_join= default;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/group_replication_end.inc
