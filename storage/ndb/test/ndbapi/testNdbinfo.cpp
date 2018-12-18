@@ -309,6 +309,7 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
     };
 
     int lastRows = 0;
+    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != nullptr);
     for (int l = 0; l < (int)(sizeof(limits)/sizeof(limits[0])); l++)
     {
 
@@ -346,16 +347,20 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
       ndbinfo.releaseScanOperation(scanOp);
 
       ndbout_c("[%u,%u] rows: %d", maxRows, maxBytes, row);
-      if (lastRows != 0)
+      // Check if the number of rows is as expected:
+      // Expected scenario 1: Same number of rows as last round (or)
+      // Expected scenario 2: Same or increased number of rows for tables which
+      //                      might be still getting filled.
+      if (lastRows != 0 &&
+          (row != lastRows &&
+           !(rows_may_increase && row > lastRows)))
       {
-        // Check that the number of rows is same as last round on same table
-        if (lastRows != row)
-        {
-          g_err << "Got different number of rows this round, expected: "
-                << lastRows << ", got: " << row << endl;
-          ndbinfo.closeTable(table);
-          return NDBT_FAILED;
-        }
+        g_err << "Got different number of rows this round, table: "
+          << table->getName() << ", expected: "
+          << ((rows_may_increase)?"equal to or more than ":"")
+          << lastRows << ", got: " << row << endl;
+        ndbinfo.closeTable(table);
+        return NDBT_FAILED;
       }
       lastRows = row;
     }
