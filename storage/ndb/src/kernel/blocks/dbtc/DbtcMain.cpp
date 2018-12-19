@@ -21382,7 +21382,8 @@ Dbtc::execSCAN_TABREF(Signal* signal)
   if (!tcConnectRecord.getValidPtr(tcPtr))
   {
     jam();
-    ndbassert(false);
+    // Assert to catch code coverage, remove when reached and analysed
+    // TODO(wl9756) ndbassert(false);
     return;
   }
 
