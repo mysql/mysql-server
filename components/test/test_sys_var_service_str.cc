@@ -39,6 +39,9 @@ const char *filename = "test_component_sys_var_service_str.log";
 #define WRITE_LOG(format, lit_log_text)                   \
   log_text_len = sprintf(log_text, format, lit_log_text); \
   fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
+#define WRITE_LOG2(format, a1, a2)                  \
+  log_text_len = sprintf(log_text, format, a1, a2); \
+  fwrite((uchar *)log_text, sizeof(char), log_text_len, outfile)
 
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_register);
 REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
@@ -71,6 +74,20 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
 
+  {
+    char var[160];
+    char *pvar;
+    size_t len = sizeof(var) - 1;
+
+    pvar = &var[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG("%s\n",
+                "get_variable mysql_server.character_set_server failed.");
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, var);
+    }
+  }
   WRITE_LOG("%s\n", "test_component_sys_var_str end of init:");
 
   fclose(outfile);
