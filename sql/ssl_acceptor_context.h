@@ -32,9 +32,10 @@
 /** helper class to deal with optionally empty strings */
 class OptionalString {
  public:
-  OptionalString() : value_(), empty_(true){};
-  OptionalString(const char *s) : value_(s ? s : ""), empty_(!s){};
-  ~OptionalString(){};
+  OptionalString() : value_(), empty_(true) {}
+  OptionalString(const char *s) : value_(s ? s : ""), empty_(!s) {}
+  ~OptionalString() {}
+  OptionalString(const OptionalString &) = default;
 
   const char *c_str() const { return empty_ ? NULL : value_.c_str(); }
   OptionalString &assign(const char *s) {
@@ -132,7 +133,7 @@ class SslAcceptorContext {
   class AutoLock : SslAcceptorContextLockType::ReadLock {
    public:
     AutoLock()
-        : SslAcceptorContextLockType::ReadLock(SslAcceptorContext::lock){};
+        : SslAcceptorContextLockType::ReadLock(SslAcceptorContext::lock) {}
     ~AutoLock() {}
 
     /**

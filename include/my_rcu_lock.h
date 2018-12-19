@@ -111,7 +111,7 @@ class MyRcuLock {
     /** get the value through the scope guard */
     operator const T *() { return _lock->rcu_global_; }
     /** construct a new read lock scope guard */
-    ReadLock(MyRcuLock *l) : _lock(l) { _lock->rcu_read(); };
+    ReadLock(MyRcuLock *l) : _lock(l) { _lock->rcu_read(); }
     ReadLock(const ReadLock &) = delete;
     ~ReadLock() { _lock->rcu_end_read(); }
 
