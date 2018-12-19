@@ -34,10 +34,6 @@
 #include "sql/mysqld.h"     // LOCK_global_system_variables
 #include "sql/ndb_require.h"
 
-
-/* from other files */
-extern struct st_ndb_status g_ndb_status;
-
 // Implementation still uses its own instance
 extern Ndb_index_stat_thread ndb_index_stat_thread;
 

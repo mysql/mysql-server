@@ -110,6 +110,7 @@ Ndb_schema_locks_count	#
 Ndb_slave_max_replicated_epoch	#
 Ndb_sorted_scan_count	#
 Ndb_system_name	#
+Ndb_trans_hint_count_session	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
 Variable_name NOT LIKE 'ndb_dbg\_%';
 Variable_name	Value
