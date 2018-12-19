@@ -2202,8 +2202,8 @@ class Ndb_binlog_setup {
     // Full name of table to use in log printouts
     std::string m_name;
 
-    const char *db_name() const { return m_util_table.db_name(); };
-    const char *table_name() const { return m_util_table.table_name(); };
+    const char *db_name() const { return m_util_table.db_name(); }
+    const char *table_name() const { return m_util_table.table_name(); }
 
     Util_table_creator() = delete;
     Util_table_creator(const Util_table_creator &) = delete;

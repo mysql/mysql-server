@@ -39,7 +39,7 @@ class Ndb_apply_status_table : public Ndb_util_table {
 
  public:
   Ndb_apply_status_table(class Thd_ndb *);
-  ~Ndb_apply_status_table();
+  virtual ~Ndb_apply_status_table();
 
   bool check_schema() const override;
 

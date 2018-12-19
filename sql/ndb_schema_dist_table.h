@@ -42,7 +42,7 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   static const char* COL_NAME;
 
   Ndb_schema_dist_table(class Thd_ndb*);
-  ~Ndb_schema_dist_table();
+  virtual ~Ndb_schema_dist_table();
 
   bool check_schema() const override;
 
