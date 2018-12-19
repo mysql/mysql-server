@@ -31,6 +31,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/sql_thd_internal_api.h"
+#include "sql/ssl_acceptor_context.h"
 #include "sql_common.h"
 
 void clone_protocol_service_init() { return; }
@@ -131,13 +132,19 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
     if (ssl_ctx->m_ssl_certificate_authority != nullptr) {
       client_ssl_mode = SSL_MODE_VERIFY_CA;
     }
-    mysql_ssl_set(mysql, ssl_ctx->m_ssl_private_key, ssl_ctx->m_ssl_certificate,
-                  ssl_ctx->m_ssl_certificate_authority, opt_ssl_capath,
-                  opt_ssl_cipher);
 
-    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-    mysql_options(mysql, MYSQL_OPT_TLS_VERSION, opt_tls_version);
+    OptionalString capath, cipher, crl, crlpath, version;
+
+    SslAcceptorContext::read_parameters(nullptr, &capath, &version, nullptr,
+                                        &cipher, nullptr, &crl, &crlpath);
+
+    mysql_ssl_set(mysql, ssl_ctx->m_ssl_private_key, ssl_ctx->m_ssl_certificate,
+                  ssl_ctx->m_ssl_certificate_authority, capath.c_str(),
+                  cipher.c_str());
+
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, crl.c_str());
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str());
+    mysql_options(mysql, MYSQL_OPT_TLS_VERSION, version.c_str());
   }
 
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &client_ssl_mode);

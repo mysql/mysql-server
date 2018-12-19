@@ -473,7 +473,7 @@ class set_var_collation_client : public set_var_base {
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_profiling;
 
-extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_symlink, have_dlopen;
 extern SHOW_COMP_OPTION have_query_cache;
 extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_compress;

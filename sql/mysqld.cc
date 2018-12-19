@@ -664,6 +664,7 @@ The documentation is based on the source files such as:
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_test.h"   // mysql_print_status
 #include "sql/sql_udf.h"
+#include "sql/ssl_acceptor_context.h"
 #include "sql/sys_vars.h"         // fixup_enforce_gtid_consistency_...
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/table_cache.h"      // table_cache_manager
@@ -901,6 +902,7 @@ static PSI_cond_key key_COND_start_signal_handler;
 static PSI_mutex_key key_LOCK_server_started;
 static PSI_cond_key key_COND_server_started;
 static PSI_mutex_key key_LOCK_keyring_operations;
+static PSI_mutex_key key_LOCK_tls_ctx_options;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1035,6 +1037,7 @@ mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
 mysql_mutex_t LOCK_password_history;
 mysql_mutex_t LOCK_password_reuse_interval;
+mysql_mutex_t LOCK_tls_ctx_options;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
@@ -1267,7 +1270,7 @@ CHARSET_INFO *character_set_filesystem;
 MY_LOCALE *my_default_lc_messages;
 MY_LOCALE *my_default_lc_time_names;
 
-SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen, have_query_cache;
+SHOW_COMP_OPTION have_symlink, have_dlopen, have_query_cache;
 SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 SHOW_COMP_OPTION have_compress;
 SHOW_COMP_OPTION have_profiling;
@@ -1576,16 +1579,8 @@ static bool dynamic_plugins_are_initialized = false;
 static const char *default_dbug_option;
 #endif
 
-bool opt_use_ssl = 1;
-char *opt_ssl_ca = NULL, *opt_ssl_capath = NULL, *opt_ssl_cert = NULL,
-     *opt_ssl_cipher = NULL, *opt_ssl_key = NULL, *opt_ssl_crl = NULL,
-     *opt_ssl_crlpath = NULL, *opt_tls_version = NULL;
+bool opt_use_ssl = true;
 ulong opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
-
-#ifdef HAVE_OPENSSL
-struct st_VioSSLFd *ssl_acceptor_fd;
-SSL *ssl_acceptor;
-#endif /* HAVE_OPENSSL */
 
 /* Function declarations */
 
@@ -2282,6 +2277,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_start_signal_handler);
 #endif
   mysql_mutex_destroy(&LOCK_keyring_operations);
+  mysql_mutex_destroy(&LOCK_tls_ctx_options);
 }
 
 /****************************************************************************
@@ -4440,127 +4436,9 @@ static int init_thread_environment() {
 
   mysql_mutex_init(key_LOCK_keyring_operations, &LOCK_keyring_operations,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_tls_ctx_options, &LOCK_tls_ctx_options,
+                   MY_MUTEX_INIT_FAST);
   return 0;
-}
-
-static ssl_artifacts_status auto_detect_ssl() {
-  MY_STAT cert_stat, cert_key, ca_stat;
-  uint result = 1;
-  ssl_artifacts_status ret_status = SSL_ARTIFACTS_VIA_OPTIONS;
-
-  if ((!opt_ssl_cert || !opt_ssl_cert[0]) &&
-      (!opt_ssl_key || !opt_ssl_key[0]) && (!opt_ssl_ca || !opt_ssl_ca[0]) &&
-      (!opt_ssl_capath || !opt_ssl_capath[0]) &&
-      (!opt_ssl_crl || !opt_ssl_crl[0]) &&
-      (!opt_ssl_crlpath || !opt_ssl_crlpath[0])) {
-    result =
-        result << (my_stat(DEFAULT_SSL_SERVER_CERT, &cert_stat, MYF(0)) ? 1 : 0)
-               << (my_stat(DEFAULT_SSL_SERVER_KEY, &cert_key, MYF(0)) ? 1 : 0)
-               << (my_stat(DEFAULT_SSL_CA_CERT, &ca_stat, MYF(0)) ? 1 : 0);
-
-    switch (result) {
-      case 8:
-        opt_ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
-        opt_ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
-        opt_ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
-        ret_status = SSL_ARTIFACTS_AUTO_DETECTED;
-        break;
-      case 4:
-      case 2:
-        ret_status = SSL_ARTIFACT_TRACES_FOUND;
-        break;
-      default:
-        ret_status = SSL_ARTIFACTS_NOT_FOUND;
-        break;
-    };
-  }
-
-  return ret_status;
-}
-
-static int warn_one(const char *file_name) {
-  char *issuer = NULL;
-  char *subject = NULL;
-  X509 *ca_cert;
-  BIO *bio;
-  FILE *fp;
-
-  if (!(fp = my_fopen(file_name, O_RDONLY | MY_FOPEN_BINARY, MYF(MY_WME)))) {
-    LogErr(ERROR_LEVEL, ER_CANT_OPEN_CA);
-    return 1;
-  }
-
-  bio = BIO_new(BIO_s_file());
-  if (!bio) {
-    LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_SSL_BIO);
-    my_fclose(fp, MYF(0));
-    return 1;
-  }
-  BIO_set_fp(bio, fp, BIO_NOCLOSE);
-  ca_cert = PEM_read_bio_X509(bio, 0, 0, 0);
-  BIO_free(bio);
-
-  if (!ca_cert) {
-    /* We are not interested in anything other than X509 certificates */
-    my_fclose(fp, MYF(MY_WME));
-    return 0;
-  }
-
-  issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
-  subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
-
-  /* Suppressing warning which is not relevant during initialization */
-  if (!strcmp(issuer, subject) &&
-      !(opt_initialize || opt_initialize_insecure)) {
-    LogErr(WARNING_LEVEL, ER_CA_SELF_SIGNED, file_name);
-  }
-
-  OPENSSL_free(issuer);
-  OPENSSL_free(subject);
-  X509_free(ca_cert);
-  my_fclose(fp, MYF(MY_WME));
-  return 0;
-}
-
-static int warn_self_signed_ca() {
-  int ret_val = 0;
-  if (opt_ssl_ca && opt_ssl_ca[0]) {
-    if (warn_one(opt_ssl_ca)) return 1;
-  }
-  if (opt_ssl_capath && opt_ssl_capath[0]) {
-    /* We have ssl-capath. So search all files in the dir */
-    MY_DIR *ca_dir;
-    uint file_count;
-    DYNAMIC_STRING file_path;
-    char dir_separator[FN_REFLEN];
-    size_t dir_path_length;
-
-    init_dynamic_string(&file_path, opt_ssl_capath, FN_REFLEN, FN_REFLEN);
-    dir_separator[0] = FN_LIBCHAR;
-    dir_separator[1] = 0;
-    dynstr_append(&file_path, dir_separator);
-    dir_path_length = file_path.length;
-
-    if (!(ca_dir =
-              my_dir(opt_ssl_capath, MY_WANT_STAT | MY_DONT_SORT | MY_WME))) {
-      LogErr(ERROR_LEVEL, ER_CANT_ACCESS_CAPATH);
-      return 1;
-    }
-
-    for (file_count = 0; file_count < ca_dir->number_off_files; file_count++) {
-      if (!MY_S_ISDIR(ca_dir->dir_entry[file_count].mystat->st_mode)) {
-        file_path.length = dir_path_length;
-        dynstr_append(&file_path, ca_dir->dir_entry[file_count].name);
-        if ((ret_val = warn_one(file_path.str))) break;
-      }
-    }
-    my_dirend(ca_dir);
-    dynstr_free(&file_path);
-
-    ca_dir = 0;
-    memset(&file_path, 0, sizeof(file_path));
-  }
-  return ret_val;
 }
 
 #if !defined(HAVE_WOLFSSL) && defined(HAVE_OPENSSL) && !defined(__sun)
@@ -4591,7 +4469,7 @@ static void init_ssl() {
       {&key_memory_openssl, "openssl_malloc", 0, 0,
        "All memory used by openSSL"}};
   mysql_memory_register("mysqld_openssl", all_openssl_memory,
-                        array_elements(all_openssl_memory));
+                        (int)array_elements(all_openssl_memory));
 #endif /* defined(HAVE_PSI_MEMORY_INTERFACE) */
   int ret = CRYPTO_set_mem_functions(my_openssl_malloc, my_openssl_realloc,
                                      my_openssl_free);
@@ -4604,7 +4482,6 @@ static void init_ssl() {
 }
 
 static int init_ssl_communication() {
-#ifdef HAVE_OPENSSL
 #ifndef HAVE_WOLFSSL
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
   int ret_fips_mode = set_fips_mode(opt_ssl_fips_mode, ssl_err_string);
@@ -4613,76 +4490,21 @@ static int init_ssl_communication() {
     return 1;
   }
 #endif
-  if (opt_use_ssl) {
-    ssl_artifacts_status auto_detection_status = auto_detect_ssl();
-    if (auto_detection_status == SSL_ARTIFACTS_AUTO_DETECTED)
-      LogErr(INFORMATION_LEVEL, ER_SSL_TRYING_DATADIR_DEFAULTS,
-             DEFAULT_SSL_CA_CERT, DEFAULT_SSL_SERVER_CERT,
-             DEFAULT_SSL_SERVER_KEY);
-#ifndef HAVE_WOLFSSL
-    if (do_auto_cert_generation(auto_detection_status) == false) return 1;
-#endif
+  if (SslAcceptorContext::singleton_init(opt_use_ssl)) return 1;
 
-    enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
-    long ssl_ctx_flags = process_tls_version(opt_tls_version);
-    /* having ssl_acceptor_fd != 0 signals the use of SSL */
-    ssl_acceptor_fd = new_VioSSLAcceptorFd(
-        opt_ssl_key, opt_ssl_cert, opt_ssl_ca, opt_ssl_capath, opt_ssl_cipher,
-        &error, opt_ssl_crl, opt_ssl_crlpath, ssl_ctx_flags);
-    DBUG_PRINT("info", ("ssl_acceptor_fd: %p", ssl_acceptor_fd));
 #ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-    ERR_remove_thread_state(0);
+  ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
-    if (!ssl_acceptor_fd) {
-    /*
-      No real need for opt_use_ssl to be enabled in bootstrap mode,
-      but we want the SSL materal generation and/or validation (if supplied).
-      So we keep it on.
 
-      For wolfSSL (since it can't auto-generate the certs from inside the
-      server) we need to hush the warning if in bootstrap mode, as in
-      that mode the server won't be listening for connections and thus
-      the lack of SSL material makes no real difference.
-      However if the user specified any of the --ssl options we keep the
-      warning as it's showing problems with the values supplied.
-
-      For openssl, we don't hush the option since it would indicate a failure
-      in auto-generation, bad key material explicitly specified or
-      auto-generation disabled explcitly while SSL is still on.
-    */
-#ifdef HAVE_WOLFSSL
-      if (!opt_initialize || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
-#endif
-      {
-        LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
-      }
-      opt_use_ssl = 0;
-      have_ssl = SHOW_OPTION_DISABLED;
-    } else {
-      /* Check if CA certificate is self signed */
-      if (warn_self_signed_ca()) return 1;
-      /* create one SSL that we can use to read information from */
-      if (!(ssl_acceptor = SSL_new(ssl_acceptor_fd->ssl_context))) return 1;
-    }
-  } else {
-    have_ssl = SHOW_OPTION_DISABLED;
-  }
   if (init_rsa_keys()) return 1;
-#endif /* HAVE_OPENSSL */
   return 0;
 }
 
 static void end_ssl() {
-#ifdef HAVE_OPENSSL
-  if (ssl_acceptor_fd) {
-    if (ssl_acceptor) SSL_free(ssl_acceptor);
-    free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
-    ssl_acceptor_fd = 0;
-  }
+  SslAcceptorContext::singleton_deinit();
   deinit_rsa_keys();
-#endif /* HAVE_OPENSSL */
 }
 
 /**
@@ -6397,7 +6219,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifdef _WIN32
   if (opt_require_secure_transport && !opt_enable_shared_memory &&
-      !opt_use_ssl && !opt_initialize) {
+      !SslAcceptorContext::have_ssl() && !opt_initialize) {
     LogErr(ERROR_LEVEL, ER_TRANSPORTS_WHAT_TRANSPORTS);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -7550,11 +7372,9 @@ struct my_option my_long_options[] = {
      "Option used by mysql-test for debugging and testing of replication.",
      &opt_sporadic_binlog_dump_fail, &opt_sporadic_binlog_dump_fail, 0,
      GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_OPENSSL
     {"ssl", 0,
      "Enable SSL for connection (automatically enabled with other flags).",
      &opt_use_ssl, &opt_use_ssl, 0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-#endif
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
      0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -7926,183 +7746,6 @@ static int show_table_definitions(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-#if defined(HAVE_OPENSSL)
-/* Functions relying on CTX */
-static int show_ssl_ctx_sess_accept(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_accept(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_accept_good(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_accept_good(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_connect_good(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_connect_good(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_accept_renegotiate(THD *, SHOW_VAR *var,
-                                                char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_accept_renegotiate(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_connect_renegotiate(THD *, SHOW_VAR *var,
-                                                 char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_connect_renegotiate(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_cb_hits(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_cb_hits(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_hits(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0 : SSL_CTX_sess_hits(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_cache_full(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_cache_full(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_misses(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_misses(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_timeouts(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_timeouts(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_number(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_number(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_connect(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd ? 0
-                        : SSL_CTX_sess_connect(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_sess_get_cache_size(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_sess_get_cache_size(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_get_verify_mode(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_get_verify_mode(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_get_verify_depth(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_LONG;
-  var->value = buff;
-  *((long *)buff) =
-      (!ssl_acceptor_fd
-           ? 0
-           : SSL_CTX_get_verify_depth(ssl_acceptor_fd->ssl_context));
-  return 0;
-}
-
-static int show_ssl_ctx_get_session_cache_mode(THD *, SHOW_VAR *var, char *) {
-  var->type = SHOW_CHAR;
-  if (!ssl_acceptor_fd)
-    var->value = const_cast<char *>("NONE");
-  else
-    switch (SSL_CTX_get_session_cache_mode(ssl_acceptor_fd->ssl_context)) {
-      case SSL_SESS_CACHE_OFF:
-        var->value = const_cast<char *>("OFF");
-        break;
-      case SSL_SESS_CACHE_CLIENT:
-        var->value = const_cast<char *>("CLIENT");
-        break;
-      case SSL_SESS_CACHE_SERVER:
-        var->value = const_cast<char *>("SERVER");
-        break;
-      case SSL_SESS_CACHE_BOTH:
-        var->value = const_cast<char *>("BOTH");
-        break;
-      case SSL_SESS_CACHE_NO_AUTO_CLEAR:
-        var->value = const_cast<char *>("NO_AUTO_CLEAR");
-        break;
-      case SSL_SESS_CACHE_NO_INTERNAL_LOOKUP:
-        var->value = const_cast<char *>("NO_INTERNAL_LOOKUP");
-        break;
-      default:
-        var->value = const_cast<char *>("Unknown");
-        break;
-    }
-  return 0;
-}
-
 /*
    Functions relying on SSL
    Note: In the show_ssl_* functions, we need to check if we have a
@@ -8191,93 +7834,6 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
   *buff = 0;
   return 0;
 }
-
-static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, int len) {
-  int n_read;
-  char *res = NULL;
-  BIO *bio = BIO_new(BIO_s_mem());
-
-  if (bio == NULL) return NULL;
-
-  if (!ASN1_TIME_print(bio, time)) goto end;
-
-  n_read = BIO_read(bio, buf, len - 1);
-
-  if (n_read > 0) {
-    buf[n_read] = 0;
-    res = buf;
-  }
-
-end:
-  BIO_free(bio);
-  return res;
-}
-
-/**
-  Handler function for the 'ssl_get_server_not_before' variable
-
-  @param      var  the data for the variable
-  @param[out] buf  the string to put the value of the variable into
-
-  @return          status
-  @retval     0    success
-*/
-
-static int show_ssl_get_server_not_before(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_CHAR;
-  if (ssl_acceptor_fd) {
-    X509 *cert = SSL_get_certificate(ssl_acceptor);
-    ASN1_TIME *not_before = X509_get_notBefore(cert);
-
-    if (not_before == NULL) {
-      var->value = empty_c_string;
-      return 0;
-    }
-
-    var->value =
-        my_asn1_time_to_string(not_before, buff, SHOW_VAR_FUNC_BUFF_SIZE);
-    if (var->value == NULL) {
-      var->value = empty_c_string;
-      return 1;
-    }
-  } else
-    var->value = empty_c_string;
-  return 0;
-}
-
-/**
-  Handler function for the 'ssl_get_server_not_after' variable
-
-  @param      var  the data for the variable
-  @param[out] buf  the string to put the value of the variable into
-
-  @return          status
-  @retval     0    success
-*/
-
-static int show_ssl_get_server_not_after(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_CHAR;
-  if (ssl_acceptor_fd) {
-    X509 *cert = SSL_get_certificate(ssl_acceptor);
-    ASN1_TIME *not_after = X509_get_notAfter(cert);
-
-    if (not_after == NULL) {
-      var->value = empty_c_string;
-      return 0;
-    }
-
-    var->value =
-        my_asn1_time_to_string(not_after, buff, SHOW_VAR_FUNC_BUFF_SIZE);
-    if (var->value == NULL) {
-      var->value = empty_c_string;
-      return 1;
-    }
-  } else
-    var->value = empty_c_string;
-  return 0;
-}
-
-#endif /* HAVE_OPENSSL */
 
 static int show_slave_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   var->type = SHOW_INT;
@@ -8508,54 +8064,89 @@ SHOW_VAR status_vars[] = {
     {"Sort_scan", (char *)offsetof(System_status_var, filesort_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
 #ifdef HAVE_OPENSSL
-    {"Ssl_accept_renegotiates", (char *)&show_ssl_ctx_sess_accept_renegotiate,
+    {"Ssl_accept_renegotiates",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_accepts", (char *)&show_ssl_ctx_sess_accept, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
-    {"Ssl_callback_cache_hits", (char *)&show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
+    {"Ssl_accepts", (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Ssl_callback_cache_hits",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cb_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_cipher", (char *)&show_ssl_get_cipher, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Ssl_cipher_list", (char *)&show_ssl_get_cipher_list, SHOW_FUNC,
      SHOW_SCOPE_ALL},
-    {"Ssl_client_connects", (char *)&show_ssl_ctx_sess_connect, SHOW_FUNC,
+    {"Ssl_client_connects",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Ssl_connect_renegotiates", (char *)&show_ssl_ctx_sess_connect_renegotiate,
+    {"Ssl_connect_renegotiates",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_ctx_verify_depth", (char *)&show_ssl_ctx_get_verify_depth, SHOW_FUNC,
+    {"Ssl_ctx_verify_depth",
+     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Ssl_ctx_verify_mode", (char *)&show_ssl_ctx_get_verify_mode, SHOW_FUNC,
+    {"Ssl_ctx_verify_mode",
+     (char *)&SslAcceptorContext::show_ssl_ctx_get_verify_mode, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Ssl_default_timeout", (char *)&show_ssl_get_default_timeout, SHOW_FUNC,
      SHOW_SCOPE_ALL},
-    {"Ssl_finished_accepts", (char *)&show_ssl_ctx_sess_accept_good, SHOW_FUNC,
+    {"Ssl_finished_accepts",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Ssl_finished_connects", (char *)&show_ssl_ctx_sess_connect_good,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_hits", (char *)&show_ssl_ctx_sess_hits, SHOW_FUNC,
+    {"Ssl_finished_connects",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_connect_good, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_misses", (char *)&show_ssl_ctx_sess_misses, SHOW_FUNC,
+    {"Ssl_session_cache_hits",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_hits, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_mode", (char *)&show_ssl_ctx_get_session_cache_mode,
+    {"Ssl_session_cache_misses",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_misses, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ssl_session_cache_mode",
+     (char *)&SslAcceptorContext::show_ssl_ctx_get_session_cache_mode,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_overflows", (char *)&show_ssl_ctx_sess_cache_full,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_size", (char *)&show_ssl_ctx_sess_get_cache_size,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-    {"Ssl_session_cache_timeouts", (char *)&show_ssl_ctx_sess_timeouts,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Ssl_session_cache_overflows",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_cache_full, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ssl_session_cache_size",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_get_cache_size, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Ssl_session_cache_timeouts",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_timeouts, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Ssl_sessions_reused", (char *)&show_ssl_session_reused, SHOW_FUNC,
      SHOW_SCOPE_ALL},
-    {"Ssl_used_session_cache_entries", (char *)&show_ssl_ctx_sess_number,
-     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Ssl_used_session_cache_entries",
+     (char *)&SslAcceptorContext::show_ssl_ctx_sess_number, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {"Ssl_verify_depth", (char *)&show_ssl_get_verify_depth, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_verify_mode", (char *)&show_ssl_get_verify_mode, SHOW_FUNC,
      SHOW_SCOPE_ALL},
     {"Ssl_version", (char *)&show_ssl_get_version, SHOW_FUNC, SHOW_SCOPE_ALL},
-    {"Ssl_server_not_before", (char *)&show_ssl_get_server_not_before,
-     SHOW_FUNC, SHOW_SCOPE_ALL},
-    {"Ssl_server_not_after", (char *)&show_ssl_get_server_not_after, SHOW_FUNC,
+    {"Ssl_server_not_before",
+     (char *)&SslAcceptorContext::show_ssl_get_server_not_before, SHOW_FUNC,
      SHOW_SCOPE_ALL},
+    {"Ssl_server_not_after",
+     (char *)&SslAcceptorContext::show_ssl_get_server_not_after, SHOW_FUNC,
+     SHOW_SCOPE_ALL},
+    {"Current_tls_ca", (char *)&SslAcceptorContext::show_ssl_get_ssl_ca,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_capath", (char *)&SslAcceptorContext::show_ssl_get_ssl_capath,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cert", (char *)&SslAcceptorContext::show_ssl_get_ssl_cert,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_key", (char *)&SslAcceptorContext::show_ssl_get_ssl_key,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_version",
+     (char *)&SslAcceptorContext::show_ssl_get_tls_version, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+    {"Current_tls_cipher", (char *)&SslAcceptorContext::show_ssl_get_ssl_cipher,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_crl", (char *)&SslAcceptorContext::show_ssl_get_ssl_crl,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+    {"Current_tls_crlpath",
+     (char *)&SslAcceptorContext::show_ssl_get_ssl_crlpath, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
 #ifndef HAVE_WOLFSSL
     {"Rsa_public_key", (char *)&show_rsa_public_key, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -8809,12 +8400,6 @@ static int mysql_init_variables() {
   have_profiling = SHOW_OPTION_NO;
 #endif
 
-#ifdef HAVE_OPENSSL
-  have_ssl = SHOW_OPTION_YES;
-#else
-  have_ssl = SHOW_OPTION_NO;
-#endif
-
   have_symlink = SHOW_OPTION_YES;
 
   have_dlopen = SHOW_OPTION_YES;
@@ -8827,9 +8412,6 @@ static int mysql_init_variables() {
 
   /* Always true */
   have_compress = SHOW_OPTION_YES;
-#ifdef HAVE_OPENSSL
-  ssl_acceptor_fd = 0;
-#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   shared_memory_base_name = default_shared_memory_base_name;
 #endif
@@ -9040,7 +8622,6 @@ bool mysqld_get_one_option(int optid,
     case OPT_BINLOG_EXPIRE_LOGS_SECONDS:
       binlog_expire_logs_seconds_supplied = true;
       break;
-#if defined(HAVE_OPENSSL)
     case OPT_SSL_KEY:
     case OPT_SSL_CERT:
     case OPT_SSL_CA:
@@ -9054,14 +8635,7 @@ bool mysqld_get_one_option(int optid,
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
-#ifdef HAVE_WOLFSSL
-      /* crl has no effect in wolfSSL. */
-      opt_ssl_crl = NULL;
-      opt_ssl_crlpath = NULL;
-      opt_ssl_fips_mode = SSL_FIPS_MODE_OFF;
-#endif /* HAVE_WOLFSSL */
       break;
-#endif /* HAVE_OPENSSL */
     case 'V':
       print_server_version();
       exit(MYSQLD_SUCCESS_EXIT);
@@ -10362,7 +9936,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_reuse_interval, "LOCK_password_reuse_interval", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options"}
 };
 /* clang-format on */
 

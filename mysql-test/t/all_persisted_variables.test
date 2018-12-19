@@ -36,9 +36,10 @@
 --source include/have_debug.inc
 --source include/not_windows.inc
 --source include/have_binlog_format_row.inc
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 
 let $total_global_vars=`SELECT COUNT(*) FROM performance_schema.global_variables where variable_name NOT LIKE 'ndb_%'`;
-let $total_persistent_vars=362;
+let $total_persistent_vars=370;
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global

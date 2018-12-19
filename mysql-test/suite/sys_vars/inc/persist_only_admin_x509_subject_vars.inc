@@ -50,18 +50,6 @@ SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY socket = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_ca = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_capath = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_cert = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_crl = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_crlpath = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
-SET PERSIST_ONLY ssl_key = DEFAULT;
---error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY tmpdir = DEFAULT;
 --error $persist_only_admin_x509_subject_vars_result
 SET PERSIST_ONLY caching_sha2_password_auto_generate_rsa_keys = DEFAULT;

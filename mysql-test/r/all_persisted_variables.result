@@ -2,6 +2,7 @@
 * Run only on debug build,non-windows as few server variables are not
 * available on all platforms.
 ***********************************************************************
+call mtr.add_suppression("Failed to set up SSL because of the following SSL library error");
 ***************************************************************
 * 0. Verify that variables present in performance_schema.global
 * variables are actually global variables and can be set using
@@ -42,7 +43,7 @@ include/assert.inc ['Expect 554 variables in the table. Due to open Bugs, we are
 
 # Test SET PERSIST
 
-include/assert.inc [Expect 362 persisted variables in the table. Due to open Bugs, we are checking for 357]
+include/assert.inc [Expect 370 persisted variables in the table. Due to open Bugs, we are checking for 365]
 
 ************************************************************
 * 3. Restart server, it must preserve the persisted variable
@@ -50,9 +51,9 @@ include/assert.inc [Expect 362 persisted variables in the table. Due to open Bug
 ************************************************************
 # restart
 
-include/assert.inc [Expect 357 persisted variables in persisted_variables table.]
-include/assert.inc [Expect 357 persisted variables shown as PERSISTED in variables_info table.]
-include/assert.inc [Expect 357 persisted variables with matching peristed and global values.]
+include/assert.inc [Expect 365 persisted variables in persisted_variables table.]
+include/assert.inc [Expect 365 persisted variables shown as PERSISTED in variables_info table.]
+include/assert.inc [Expect 365 persisted variables with matching peristed and global values.]
 
 ************************************************************
 * 4. Test RESET PERSIST IF EXISTS. Verify persisted variable

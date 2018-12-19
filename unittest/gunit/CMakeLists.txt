@@ -353,8 +353,9 @@ SET(TESTS
   val_int_compare
   varlen_sort
   collation_loader
+  my_rcu_lock
   )
- 
+
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()

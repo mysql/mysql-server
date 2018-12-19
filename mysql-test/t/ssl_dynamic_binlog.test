@@ -1,0 +1,16 @@
+-- source include/have_ssl.inc
+
+--echo ################## FR1.6 ALTER INSTANCE RELOAD TLS not binlogged
+
+CREATE TABLE t1(a INT);
+ALTER INSTANCE RELOAD TLS;
+DROP TABLE t1;
+
+# Check that statements were executed/binlogged in correct order.
+let $show_binlog_events_mask_columns=1,2,4,5;
+source include/show_binlog_events.inc;
+
+--echo # Cleanup
+RESET MASTER;
+
+--echo ################## End of dynamic SSL tests

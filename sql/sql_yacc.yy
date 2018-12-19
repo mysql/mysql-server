@@ -14794,6 +14794,30 @@ alter_instance_action:
               MYSQL_YYABORT;
             }
           }
+          | RELOAD ident
+          {
+            if (is_identifier($2, "TLS"))
+            {
+              $$ = ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR;
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
+          | RELOAD ident NO_SYM ROLLBACK_SYM ON_SYM ERROR_SYM
+          {
+            if (is_identifier($2, "TLS"))
+            {
+              $$ = ALTER_INSTANCE_RELOAD_TLS;
+            }
+            else
+            {
+              YYTHD->syntax_error_at(@2);
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 /*

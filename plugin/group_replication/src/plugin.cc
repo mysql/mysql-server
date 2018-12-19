@@ -793,6 +793,15 @@ err:
     }
   }
 
+  my_free(server_ssl_variables.ssl_ca);
+  my_free(server_ssl_variables.ssl_capath);
+  my_free(server_ssl_variables.tls_version);
+  my_free(server_ssl_variables.ssl_cert);
+  my_free(server_ssl_variables.ssl_cipher);
+  my_free(server_ssl_variables.ssl_key);
+  my_free(server_ssl_variables.ssl_crl);
+  my_free(server_ssl_variables.ssl_crlpath);
+
   delete sql_command_interface;
   plugin_is_auto_starting_on_install = false;
 

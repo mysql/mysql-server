@@ -34,6 +34,7 @@
 #include <vector> /* std::vector */
 
 #include <mysql/components/my_service.h>
+#include <sql/ssl_acceptor_context.h>
 #include "crypt_genhash_impl.h"  // generate_user_salt
 #include "m_string.h"
 #include "map_helpers.h"
@@ -1163,12 +1164,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name) {
   return auth_plugin_is_built_in(plugin_name);
 }
 
-/* few defines to have less ifdef's in the code below */
-#ifndef HAVE_OPENSSL
-#define ssl_acceptor_fd 0
-#define sslaccept(A, B, C) 1
-#endif /* HAVE_OPENSSL */
-
 /**
   a helper function to report an access denied error in all the proper places
 */
@@ -1341,7 +1336,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
 
   protocol->add_client_capability(CAN_CLIENT_COMPRESS);
 
-  if (ssl_acceptor_fd) {
+  if (SslAcceptorContext::have_ssl()) {
     protocol->add_client_capability(CLIENT_SSL);
     protocol->add_client_capability(CLIENT_SSL_VERIFY_SERVER_CERT);
   }
@@ -2415,12 +2410,13 @@ skip_to_ssl:
     uint ssl_charset_code = 0;
 #endif
 
+    SslAcceptorContext::AutoLock c;
     /* Do the SSL layering. */
-    if (!ssl_acceptor_fd) return packet_error;
+    if (c.empty()) return packet_error;
 
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, protocol->get_vio(),
-                  protocol->get_net()->read_timeout, &errptr)) {
+    if (sslaccept(c, protocol->get_vio(), protocol->get_net()->read_timeout,
+                  &errptr)) {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       return packet_error;
     }
@@ -4918,12 +4914,16 @@ end:
   do_auto_cert_generation().
 
   @param [in] auto_detection_status Status of SSL artifacts detection process
+  @param [out] ssl_ca  pointer to the generated CA certificate file
+  @param [out] ssl_key pointer to the generated key file
+  @param [out] ssl_cert pointer to the generated certificate file.
 
   @returns
     @retval true i Generation is successful or skipped
     @retval false Generation failed.
 */
-bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status) {
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
+                             char **ssl_ca, char **ssl_key, char **ssl_cert) {
   if (opt_auto_generate_certs == true) {
     /*
       Do not generate SSL certificates/RSA keys,
@@ -4985,9 +4985,9 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status) {
                DEFAULT_SSL_CA_CERT) == false)) {
         return false;
       }
-      opt_ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
-      opt_ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
-      opt_ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
+      *ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
+      *ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
+      *ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
       LogErr(INFORMATION_LEVEL, ER_AUTH_CERTS_SAVED_TO_DATADIR);
     }
     return true;

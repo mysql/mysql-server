@@ -67,18 +67,6 @@ SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
 ERROR HY000: Variable 'slave_load_tmpdir' is a non persistent read only variable
 SET PERSIST_ONLY socket = DEFAULT;
 ERROR HY000: Variable 'socket' is a non persistent read only variable
-SET PERSIST_ONLY ssl_ca = DEFAULT;
-ERROR HY000: Variable 'ssl_ca' is a non persistent read only variable
-SET PERSIST_ONLY ssl_capath = DEFAULT;
-ERROR HY000: Variable 'ssl_capath' is a non persistent read only variable
-SET PERSIST_ONLY ssl_cert = DEFAULT;
-ERROR HY000: Variable 'ssl_cert' is a non persistent read only variable
-SET PERSIST_ONLY ssl_crl = DEFAULT;
-ERROR HY000: Variable 'ssl_crl' is a non persistent read only variable
-SET PERSIST_ONLY ssl_crlpath = DEFAULT;
-ERROR HY000: Variable 'ssl_crlpath' is a non persistent read only variable
-SET PERSIST_ONLY ssl_key = DEFAULT;
-ERROR HY000: Variable 'ssl_key' is a non persistent read only variable
 SET PERSIST_ONLY tmpdir = DEFAULT;
 ERROR HY000: Variable 'tmpdir' is a non persistent read only variable
 SET PERSIST_ONLY caching_sha2_password_auto_generate_rsa_keys = DEFAULT;

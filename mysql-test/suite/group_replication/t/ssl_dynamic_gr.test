@@ -1,0 +1,40 @@
+-- source include/have_ssl.inc
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--connection server1
+--echo server1
+
+--echo ################## FR8: GR do not follow SSL changes
+
+--echo # Save the defaults
+SET @orig_ssl_ca= @@global.ssl_ca;
+SET @orig_ssl_cert= @@global.ssl_cert;
+SET @orig_ssl_key= @@global.ssl_key;
+SET @orig_group_replication_recovery_ssl_ca= @@global.group_replication_recovery_ssl_ca;
+SET @orig_group_replication_recovery_ssl_cert= @@global.group_replication_recovery_ssl_cert;
+SET @orig_group_replication_recovery_ssl_key= @@global.group_replication_recovery_ssl_key;
+
+--echo # setting new values for ssl_cert, ssl_key and ssl_ca
+--replace_result "$MYSQL_TEST_DIR" MYSQL_TEST_DIR
+eval SET GLOBAL ssl_cert = "$MYSQL_TEST_DIR/std_data/server-cert-sha512.pem";
+--replace_result "$MYSQL_TEST_DIR" MYSQL_TEST_DIR
+eval SET GLOBAL ssl_key = "$MYSQL_TEST_DIR/std_data/server-key-sha512.pem";
+--replace_result "$MYSQL_TEST_DIR" MYSQL_TEST_DIR
+eval SET GLOBAL ssl_ca = "$MYSQL_TEST_DIR/std_data/ca-sha512.pem";
+ALTER INSTANCE RELOAD TLS;
+
+--echo # Check that GR variables are not altered
+--vertical_results
+SELECT @@global.group_replication_recovery_ssl_ca = @orig_group_replication_recovery_ssl_ca,
+       @@global.group_replication_recovery_ssl_cert = @orig_group_replication_recovery_ssl_cert,
+       @@global.group_replication_recovery_ssl_key = @orig_group_replication_recovery_ssl_key;
+
+--echo # cleanup
+SET GLOBAL ssl_cert = @orig_ssl_cert;
+SET GLOBAL ssl_key = @orig_ssl_key;
+SET GLOBAL ssl_ca = @orig_ssl_ca;
+ALTER INSTANCE RELOAD TLS;
+
+--source include/group_replication_end.inc

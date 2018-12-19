@@ -29,6 +29,7 @@
 #include <string>
 #include <utility>
 
+#include <sql/ssl_acceptor_context.h>
 #include "keycache.h"
 #include "m_string.h"
 #include "my_base.h"
@@ -1591,12 +1592,55 @@ bool Sql_cmd_shutdown::execute(THD *thd) {
   DBUG_RETURN(res);
 }
 
+class Alter_instance_reload_tls : public Alter_instance {
+ public:
+  explicit Alter_instance_reload_tls(THD *thd, bool force = false)
+      : Alter_instance(thd), force_(force) {}
+
+  bool execute() {
+    Security_context *sctx = m_thd->security_context();
+    if (!sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CONNECTION_ADMIN");
+      return true;
+    }
+
+    bool res = false;
+    enum enum_ssl_init_error error = SSL_INITERR_NOERROR;
+    SslAcceptorContext::singleton_flush(&error, force_);
+    if (error != SSL_INITERR_NOERROR) {
+      const char *error_text = sslGetErrString(error);
+      if (force_) {
+        push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                            ER_SSL_LIBRARY_ERROR,
+                            ER_THD(m_thd, ER_SSL_LIBRARY_ERROR), error_text);
+        LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
+      } else {
+        my_error(ER_SSL_LIBRARY_ERROR, MYF(0), error_text);
+        res = true;
+      }
+    }
+
+    if (!res) my_ok(m_thd);
+    return res;
+  }
+  ~Alter_instance_reload_tls() {}
+
+ protected:
+  bool force_;
+};
+
 bool Sql_cmd_alter_instance::execute(THD *thd) {
   bool res = true;
   DBUG_ENTER("Sql_cmd_alter_instance::execute");
   switch (alter_instance_action) {
     case ROTATE_INNODB_MASTER_KEY:
       alter_instance = new Rotate_innodb_master_key(thd);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS:
+      alter_instance = new Alter_instance_reload_tls(thd, true);
+      break;
+    case ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR:
+      alter_instance = new Alter_instance_reload_tls(thd);
       break;
     default:
       DBUG_ASSERT(false);

@@ -5,7 +5,7 @@ COUNT(@@GLOBAL.ssl_cipher)
 0 Expected
 '#---------------------BS_STVARS_048_02----------------------#'
 SET @@GLOBAL.ssl_cipher=1;
-ERROR HY000: Variable 'ssl_cipher' is a read only variable
+ERROR 42000: Incorrect argument type to variable 'ssl_cipher'
 Expected error 'Read only variable'
 SELECT COUNT(@@GLOBAL.ssl_cipher);
 COUNT(@@GLOBAL.ssl_cipher)

@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <boost/graph/properties.hpp>
 
+#include <sql/ssl_acceptor_context.h>
 #include "m_ctype.h"
 #include "m_string.h"  // LEX_CSTRING
 #include "my_base.h"
@@ -1430,7 +1431,7 @@ static void validate_user_plugin_records() {
       }
       if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
                                                         acl_user->plugin) &&
-          sha256_rsa_auth_status() && !ssl_acceptor_fd) {
+          sha256_rsa_auth_status() && !SslAcceptorContext::have_ssl()) {
 #if !defined(HAVE_WOLFSSL)
         const char *missing = "but neither SSL nor RSA keys are";
 #else

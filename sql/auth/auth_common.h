@@ -813,7 +813,8 @@ typedef enum ssl_artifacts_status {
 ulong get_global_acl_cache_size();
 #if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 extern bool opt_auto_generate_certs;
-bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
+bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
+                             char **ssl_ca, char **ssl_key, char **ssl_cert);
 #endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 #define DEFAULT_SSL_CA_CERT "ca.pem"

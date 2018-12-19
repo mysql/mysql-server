@@ -1,0 +1,21 @@
+#
+# Bug #29009331: SSL CLIENT CONNECTION ALLOWED ON
+#  SERVER WHICH FAILED TO SETUP SSL CONFIGURATION
+#
+SET PERSIST_ONLY ssl_ca = 'mohit';
+CALL mtr.add_suppression('Failed to set up SSL because of the following SSL library error');
+# restart
+# Must be mohit
+SELECT @@global.ssl_ca;
+@@global.ssl_ca
+mohit
+# Must be mohit
+SHOW STATUS LIKE '%tls_ca';
+Variable_name	Value
+Current_tls_ca	mohit
+# Must be empty
+SHOW STATUS LIKE 'ssl_cipher';
+Variable_name	Value
+Ssl_cipher	
+RESET PERSIST;
+# restart

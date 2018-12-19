@@ -47,7 +47,7 @@ SELECT count(*) from performance_schema.persisted_variables;
 
 CALL mtr.add_suppression("Plugin audit_log reported *");
 
---echo # Both queries must return 100 rows.
+--echo # Both queries must return 101 rows.
 SELECT * FROM performance_schema.persisted_variables;
 SELECT VARIABLE_NAME FROM performance_schema.variables_info WHERE VARIABLE_SOURCE = 'PERSISTED';
 

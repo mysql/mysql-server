@@ -316,18 +316,6 @@ SET @@persist_only.secure_file_priv= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.slave_load_tmpdir= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_ca= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_capath= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_cert= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_crlpath= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_crl= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@persist_only.ssl_key= "/";
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.tmpdir= "/";
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@persist_only.relay_log= "/";

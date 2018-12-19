@@ -671,6 +671,7 @@ extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
 extern mysql_mutex_t LOCK_keyring_operations;
 extern mysql_mutex_t LOCK_collect_instance_log;
+extern mysql_mutex_t LOCK_tls_ctx_options;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -679,9 +680,6 @@ extern mysql_cond_t COND_manager;
 extern mysql_rwlock_t LOCK_sys_init_connect;
 extern mysql_rwlock_t LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
-
-extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
-    *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath, *opt_tls_version;
 
 extern ulong opt_ssl_fips_mode;
 

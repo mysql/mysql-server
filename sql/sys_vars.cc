@@ -123,6 +123,7 @@
 #include "sql/sql_locale.h"     // my_locale_by_number
 #include "sql/sql_parse.h"      // killall_non_super_threads
 #include "sql/sql_tmp_table.h"  // internal_tmp_mem_storage_engine_names
+#include "sql/ssl_acceptor_context.h"
 #include "sql/system_variables.h"
 #include "sql/table_cache.h"  // Table_cache_manager
 #include "sql/transaction.h"  // trans_commit_stmt
@@ -3051,7 +3052,7 @@ static bool check_require_secure_transport(
   */
 
   if (!var->save_result.ulonglong_value) return false;
-  if ((have_ssl == SHOW_OPTION_YES) || opt_enable_shared_memory) return false;
+  if (SslAcceptorContext::have_ssl() || opt_enable_shared_memory) return false;
   /* reject if SSL and shared memory are both disabled: */
   my_error(ER_NO_SECURE_TRANSPORTS_CONFIGURED, MYF(0));
   return true;
@@ -4226,31 +4227,6 @@ static Sys_var_ulong Sys_max_execution_time(
     HINT_UPDATEABLE SESSION_VAR(max_execution_time), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
-#if defined(HAVE_OPENSSL)
-#define SSL_OPT(X) CMD_LINE(REQUIRED_ARG, X)
-#endif
-
-/*
-  If you are adding new system variable for SSL communication, please take a
-  look at do_auto_cert_generation() function in sql_authentication.cc and
-  add new system variable in checks if required.
-*/
-
-static Sys_var_charptr Sys_ssl_ca(
-    "ssl_ca", "CA file in PEM format (check OpenSSL docs, implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_ca), SSL_OPT(OPT_SSL_CA),
-    IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_charptr Sys_ssl_capath(
-    "ssl_capath", "CA directory (check OpenSSL docs, implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_capath), SSL_OPT(OPT_SSL_CAPATH),
-    IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_charptr Sys_tls_version(
-    "tls_version", "TLS version, permitted values are TLSv1, TLSv1.1, TLSv1.2",
-    READ_ONLY GLOBAL_VAR(opt_tls_version), SSL_OPT(OPT_TLS_VERSION),
-    IN_FS_CHARSET, "TLSv1,TLSv1.1,TLSv1.2");
-
 #ifndef HAVE_WOLFSSL
 static bool update_fips_mode(sys_var *, THD *, enum_var_type) {
   char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
@@ -4277,7 +4253,7 @@ static Sys_var_enum Sys_ssl_fips_mode(
 #else
     "permitted values are: OFF",
 #endif
-    GLOBAL_VAR(opt_ssl_fips_mode), SSL_OPT(OPT_SSL_FIPS_MODE),
+    GLOBAL_VAR(opt_ssl_fips_mode), CMD_LINE(REQUIRED_ARG, OPT_SSL_FIPS_MODE),
     ssl_fips_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(NULL),
 #ifndef HAVE_WOLFSSL
@@ -4286,32 +4262,6 @@ static Sys_var_enum Sys_ssl_fips_mode(
     ON_UPDATE(NULL),
 #endif
     NULL);
-
-static Sys_var_charptr Sys_ssl_cert(
-    "ssl_cert", "X509 cert in PEM format (implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_cert), SSL_OPT(OPT_SSL_CERT),
-    IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_charptr Sys_ssl_cipher("ssl_cipher",
-                                      "SSL cipher to use (implies --ssl)",
-                                      READ_ONLY GLOBAL_VAR(opt_ssl_cipher),
-                                      SSL_OPT(OPT_SSL_CIPHER), IN_FS_CHARSET,
-                                      DEFAULT(0));
-
-static Sys_var_charptr Sys_ssl_key(
-    "ssl_key", "X509 key in PEM format (implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_key), SSL_OPT(OPT_SSL_KEY),
-    IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_charptr Sys_ssl_crl(
-    "ssl_crl", "CRL file in PEM format (check OpenSSL docs, implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crl), SSL_OPT(OPT_SSL_CRL),
-    IN_FS_CHARSET, DEFAULT(0));
-
-static Sys_var_charptr Sys_ssl_crlpath(
-    "ssl_crlpath", "CRL directory (check OpenSSL docs, implies --ssl)",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(opt_ssl_crlpath), SSL_OPT(OPT_SSL_CRLPATH),
-    IN_FS_CHARSET, DEFAULT(0));
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 static Sys_var_bool Sys_auto_generate_certs(
@@ -5226,9 +5176,15 @@ static Sys_var_have Sys_have_geometry(
     "have_geometry", "have_geometry",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
-static Sys_var_have Sys_have_openssl("have_openssl", "have_openssl",
-                                     READ_ONLY NON_PERSIST GLOBAL_VAR(have_ssl),
-                                     NO_CMD_LINE);
+static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
+  return SslAcceptorContext::have_ssl() ? SHOW_OPTION_YES
+                                        : SHOW_OPTION_DISABLED;
+}
+
+enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;
+
+static Sys_var_have_func Sys_have_openssl("have_openssl", "have_openssl",
+                                          have_ssl_func);
 
 static Sys_var_have Sys_have_profiling(
     "have_profiling", "have_profiling",
@@ -5248,9 +5204,7 @@ static Sys_var_have Sys_have_rtree_keys(
     "have_rtree_keys", "have_rtree_keys",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
 
-static Sys_var_have Sys_have_ssl("have_ssl", "have_ssl",
-                                 READ_ONLY NON_PERSIST GLOBAL_VAR(have_ssl),
-                                 NO_CMD_LINE);
+static Sys_var_have_func Sys_have_ssl("have_ssl", "have_ssl", have_ssl_func);
 
 static Sys_var_have Sys_have_symlink(
     "have_symlink", "have_symlink",
