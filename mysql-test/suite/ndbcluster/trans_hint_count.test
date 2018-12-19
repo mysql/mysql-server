@@ -1,0 +1,77 @@
+#
+# Test for "Ndb_trans_hint_count_session" status variable
+#
+--source include/have_ndb.inc
+
+# Show that the counter is visible in SHOW STATUS and SHOW VARIABLES.
+# The variable is visible both in GLOBAL and SESSION scope
+# but always show the session value(this is indicated by
+# the suffix _session in the variable name).
+#
+--replace_column 2 #
+SHOW GLOBAL STATUS LIKE 'Ndb_trans_hint_count_session';
+--replace_column 2 #
+SHOW SESSION STATUS LIKE 'Ndb_trans_hint_count_session';
+--replace_column 2 #
+SHOW STATUS LIKE 'Ndb_trans_hint_count_session';
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session';
+SELECT VARIABLE_NAME FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session';
+
+# Get initial counter value before using NDB
+let $initial_trans_hint =
+`SELECT VARIABLE_VALUE FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session'`;
+#echo initial_trans_hint: $initial_trans_hint;
+
+# Get initial counter value for number of started NDB transactions
+let $initial_trans_start =
+`SELECT VARIABLE_VALUE FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_api_trans_start_count_session'`;
+#echo initial_trans_start: $initial_trans_start;
+
+CREATE TABLE t1 (
+  a int PRIMARY KEY
+) ENGINE = NDB;
+
+--echo # Show that counter is still same, no transactions ran yet
+let $trans_hint =
+`SELECT VARIABLE_VALUE FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session'`;
+#echo trans_hint: $trans_hint;
+--disable_query_log ONCE
+eval select $trans_hint - $initial_trans_hint as still_zero;
+
+--echo # Run some NDB transactions
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 (a) VALUES (11);
+INSERT INTO t1 (a) VALUES (12), (37);
+SELECT * FROM t1 WHERE a = 1;
+REPLACE t1 (a) VALUES (12);
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+DELETE FROM t1;
+
+--echo # Show that counter increased after performing NDB transactions
+let $trans_hint =
+`SELECT VARIABLE_VALUE FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session'`;
+#echo trans_hint: $trans_hint;
+--disable_query_log ONCE
+eval select $trans_hint - $initial_trans_hint as seven_hinted_transactions;
+
+--echo # Compare with counter showing number of started NDB transactions, should
+--echo # be somewhat larger as not all transactions are hinted.
+let $trans_start =
+`SELECT VARIABLE_VALUE FROM performance_schema.session_status
+  WHERE VARIABLE_NAME LIKE 'Ndb_api_trans_start_count_session'`;
+#echo trans_start: $trans_start;
+--disable_query_log ONCE
+eval select $trans_start - $initial_trans_start as twelve_started_transactions;
+
+DROP TABLE t1;
+
+
+

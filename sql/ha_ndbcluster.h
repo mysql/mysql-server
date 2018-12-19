@@ -121,6 +121,7 @@ struct st_ndb_status {
   long number_of_ready_data_nodes;
   long connect_count;
   long execute_count;
+  long trans_hint_count;
   long scan_count;
   long pruned_scan_count;
   long schema_locks_count;
@@ -131,8 +132,6 @@ struct st_ndb_status {
   long pushed_reads;
   long long last_commit_epoch_server;
   long long last_commit_epoch_session;
-  long transaction_no_hint_count[MAX_NDB_NODES];
-  long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
   const char * system_name;
 };

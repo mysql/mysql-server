@@ -25,6 +25,7 @@
 // Implements the interface defined in
 #include "sql/ndb_util_table.h"
 
+#include "mysql_version.h"
 #include "sql/ndb_thd_ndb.h"
 
 class Db_name_guard {

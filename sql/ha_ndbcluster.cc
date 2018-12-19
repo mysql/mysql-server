@@ -490,8 +490,7 @@ static ulong multi_range_fixed_size(int num_ranges);
 static ulong multi_range_max_entry(NDB_INDEX_TYPE keytype, ulong reclength);
 
 /* Status variables shown with 'show status like 'Ndb%' */
-
-struct st_ndb_status g_ndb_status;
+static st_ndb_status g_ndb_status;
 
 static long long g_slave_api_client_stats[Ndb::NumClientStatistics];
 
@@ -707,6 +706,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   if (thd_ndb)
   {
     ns->execute_count= thd_ndb->m_execute_count;
+    ns->trans_hint_count = thd_ndb->hinted_trans_count();
     ns->scan_count= thd_ndb->m_scan_count;
     ns->pruned_scan_count= thd_ndb->m_pruned_scan_count;
     ns->sorted_scan_count= thd_ndb->m_sorted_scan_count;
@@ -715,11 +715,6 @@ static int update_status_variables(Thd_ndb *thd_ndb,
     ns->pushed_queries_executed= thd_ndb->m_pushed_queries_executed;
     ns->pushed_reads= thd_ndb->m_pushed_reads;
     ns->last_commit_epoch_session = thd_ndb->m_last_commit_epoch_session;
-    for (int i= 0; i < MAX_NDB_NODES; i++)
-    {
-      ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
-      ns->transaction_hint_count[i]= thd_ndb->m_transaction_hint_count[i];
-    }
     for (int i=0; i < Ndb::NumClientStatistics; i++)
     {
       ns->api_client_stats[i] = thd_ndb->ndb->getClientStat(i);
@@ -811,6 +806,9 @@ static SHOW_VAR ndb_status_vars_dynamic[]=
   {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"schema_locks_count", (char*) &g_ndb_status.schema_locks_count,    SHOW_LONG, SHOW_SCOPE_GLOBAL},
   NDBAPI_COUNTERS("_session", &g_ndb_status.api_client_stats),
+  {"trans_hint_count_session",
+   reinterpret_cast<char *>(&g_ndb_status.trans_hint_count), SHOW_LONG,
+   SHOW_SCOPE_GLOBAL},
   {"sorted_scan_count",  (char*) &g_ndb_status.sorted_scan_count,     SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"pushed_queries_defined", (char*) &g_ndb_status.pushed_queries_defined, 
    SHOW_LONG, SHOW_SCOPE_GLOBAL},
@@ -1308,8 +1306,6 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_pushed_queries_dropped= 0;
   m_pushed_queries_executed= 0;
   m_pushed_reads= 0;
-  memset(m_transaction_no_hint_count, 0, sizeof(m_transaction_no_hint_count));
-  memset(m_transaction_hint_count, 0, sizeof(m_transaction_hint_count));
 
   init_alloc_root(PSI_INSTRUMENT_ME,
                   &m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
@@ -1319,29 +1315,8 @@ Thd_ndb::~Thd_ndb()
 {
   DBUG_ASSERT(global_schema_lock_count == 0);
 
-  if (unlikely(opt_ndb_extra_logging > 1))
-  {
-    /*
-      print some stats about the connection at disconnect
-    */
-    for (int i= 0; i < MAX_NDB_NODES; i++)
-    {
-      if (m_transaction_hint_count[i] > 0 ||
-          m_transaction_no_hint_count[i] > 0)
-      {
-        ndb_log_info("tid %u: node[%u] "
-                     "transaction_hint=%u, transaction_no_hint=%u",
-                     m_thd->thread_id(), i,
-                     m_transaction_hint_count[i],
-                     m_transaction_no_hint_count[i]);
-      }
-    }
-  }
-  if (ndb)
-  {
-    delete ndb;
-    ndb= NULL;
-  }
+  delete ndb;
+
   free_root(&m_batch_mem_root, MYF(0));
 }
 
@@ -8694,7 +8669,7 @@ ha_ndbcluster::start_transaction_row(const NdbRecord *ndb_record,
 
   if (trans)
   {
-    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
+    m_thd_ndb->increment_hinted_trans_count();
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -8726,7 +8701,7 @@ ha_ndbcluster::start_transaction_key(uint inx_no,
 
   if (trans)
   {
-    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
+    m_thd_ndb->increment_hinted_trans_count();
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -8757,7 +8732,8 @@ ha_ndbcluster::start_transaction(int &error)
   m_thd_ndb->connection->set_optimized_node_selection(opti_node_select & 1);
   if ((trans= m_thd_ndb->ndb->startTransaction(m_table)))
   {
-    m_thd_ndb->m_transaction_no_hint_count[trans->getConnectedNodeId()]++;
+    // NOTE! No hint provided when starting transaction
+
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -8779,7 +8755,7 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
 
   if ((trans= m_thd_ndb->ndb->startTransaction(m_table, part_id)))
   {
-    m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
+    m_thd_ndb->increment_hinted_trans_count();
     DBUG_PRINT("info", ("Delayed allocation of TC"));
     DBUG_RETURN(m_thd_ndb->trans= trans);
   }
@@ -16276,7 +16252,6 @@ bool
 ndbcluster_show_status(handlerton*, THD* thd, stat_print_fn *stat_print,
                        enum ha_stat_type stat_type)
 {
-  char name[16];
   char buf[IO_SIZE];
   uint buflen;
   DBUG_ENTER("ndbcluster_show_status");
@@ -16311,22 +16286,6 @@ ndbcluster_show_status(handlerton*, THD* thd, stat_print_fn *stat_print,
   if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
                  STRING_WITH_LEN("connection"), buf, buflen))
     DBUG_RETURN(true);
-
-  for (int i= 0; i < MAX_NDB_NODES; i++)
-  {
-    if (ns.transaction_hint_count[i] > 0 ||
-        ns.transaction_no_hint_count[i] > 0)
-    {
-      uint namelen= (uint)snprintf(name, sizeof(name), "node[%d]", i);
-      buflen= (uint)snprintf(buf, sizeof(buf),
-                          "transaction_hint=%ld, transaction_no_hint=%ld",
-                          ns.transaction_hint_count[i],
-                          ns.transaction_no_hint_count[i]);
-      if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
-                     name, namelen, buf, buflen))
-        DBUG_RETURN(true);
-    }
-  }
 
   if (ndb)
   {

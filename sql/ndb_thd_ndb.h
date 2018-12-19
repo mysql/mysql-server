@@ -26,18 +26,15 @@
 #define NDB_THD_NDB_H
 
 #include "map_helpers.h"
-#include "my_base.h"          // ha_rows
 #include "sql/ndb_share.h"
-#include "storage/ndb/include/kernel/ndb_limits.h" // MAX_NDB_NODES
-
-/*
-  Place holder for ha_ndbcluster thread specific data
-*/
 
 struct THD_NDB_SHARE;
 class THD;
 
-class Thd_ndb 
+/*
+  Class for ndbcluster thread specific data
+*/
+class Thd_ndb
 {
   THD* const m_thd;
 
@@ -73,7 +70,7 @@ public:
       any DDL operations it performs are not distributed.
     */
     NO_LOG_SCHEMA_OP=  1 << 0,
-    /* 
+    /*
       This Thd_ndb is a participant in a global schema distribution.
       Whenver a GSL lock is required, it is acquired by the coordinator.
       The participant can then assume that the GSL lock is already held
@@ -188,9 +185,9 @@ public:
 
   /** This is the number of NdbQueryDef objects that the handler has created.*/
   uint m_pushed_queries_defined;
-  /** 
-    This is the number of cases where the handler decided not to use an 
-    NdbQuery object that it previously created for executing a particular 
+  /**
+    This is the number of cases where the handler decided not to use an
+    NdbQuery object that it previously created for executing a particular
     instance of a query fragment. This may happen if for examle the optimizer
     decides to use another type of access operation than originally assumed.
   */
@@ -203,13 +200,23 @@ public:
   uint m_pushed_queries_executed;
   /**
     This is the number of lookup operations (via unique index or primary key)
-    that were eliminated by pushing linked operations (NdbQuery) to the data 
+    that were eliminated by pushing linked operations (NdbQuery) to the data
     nodes.
    */
   uint m_pushed_reads;
 
-  uint m_transaction_no_hint_count[MAX_NDB_NODES];
-  uint m_transaction_hint_count[MAX_NDB_NODES];
+  /**
+    The number of hinted transactions started by this thread. Using hinted
+    transaction is normally more efficient as it tries to select a transaction
+    coordinator close to the data, in most cases on the node where the primary
+    replica of the data resides.
+  */
+ private:
+  uint m_hinted_trans_count{0};
+
+ public:
+  void increment_hinted_trans_count() { m_hinted_trans_count++; }
+  uint hinted_trans_count() const { return m_hinted_trans_count; }
 
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;

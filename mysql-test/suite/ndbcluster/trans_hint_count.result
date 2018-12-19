@@ -1,0 +1,47 @@
+SHOW GLOBAL STATUS LIKE 'Ndb_trans_hint_count_session';
+Variable_name	Value
+Ndb_trans_hint_count_session	#
+SHOW SESSION STATUS LIKE 'Ndb_trans_hint_count_session';
+Variable_name	Value
+Ndb_trans_hint_count_session	#
+SHOW STATUS LIKE 'Ndb_trans_hint_count_session';
+Variable_name	Value
+Ndb_trans_hint_count_session	#
+SELECT VARIABLE_NAME FROM performance_schema.global_status
+WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session';
+VARIABLE_NAME
+Ndb_trans_hint_count_session
+SELECT VARIABLE_NAME FROM performance_schema.session_status
+WHERE VARIABLE_NAME LIKE 'Ndb_trans_hint_count_session';
+VARIABLE_NAME
+Ndb_trans_hint_count_session
+CREATE TABLE t1 (
+a int PRIMARY KEY
+) ENGINE = NDB;
+# Show that counter is still same, no transactions ran yet
+still_zero
+0
+# Run some NDB transactions
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 (a) VALUES (11);
+INSERT INTO t1 (a) VALUES (12), (37);
+SELECT * FROM t1 WHERE a = 1;
+a
+1
+REPLACE t1 (a) VALUES (12);
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+a
+12
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+3
+DELETE FROM t1;
+# Show that counter increased after performing NDB transactions
+seven_hinted_transactions
+7
+# Compare with counter showing number of started NDB transactions, should
+# be somewhat larger as not all transactions are hinted.
+twelve_started_transactions
+12
+DROP TABLE t1;
