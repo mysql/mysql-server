@@ -87,9 +87,9 @@ case "$1" in
 
 	server_stop
 
-	db_input high mysql-@DEB_PRODUCTNAME@-server/remove-data-dir || true
+	db_input high mysql-server/remove-data-dir || true
 	db_go
-	db_get mysql-@DEB_PRODUCTNAME@-server/remove-data-dir && RMDATADIR=${RET}
+	db_get mysql-server/remove-data-dir && RMDATADIR=${RET}
 	if [ "${RMDATADIR}" = "true" ];
 	then
 		if [ -d ${MYSQLRUN} ] || [ -L ${MYSQLRUN} ];
