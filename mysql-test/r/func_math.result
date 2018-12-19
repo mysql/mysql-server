@@ -1397,3 +1397,10 @@ CREATE TABLE t(a int);
 INSERT INTO t VALUES(hex(rtrim(1.040739e+308)));
 ERROR 22003: Out of range value for column 'a' at row 1
 DROP TABLE t;
+#
+# Bug#28706832 WINDOWS ALLOWS NUMERIC VALUES OUT OF BOUNDS
+#
+SELECT 1-CAST(POW(2,100) AS SIGNED);
+ERROR 22003: BIGINT value is out of range in 'pow(2,100)'
+SELECT 1-CAST(POW(2,1000) AS SIGNED);
+ERROR 22003: BIGINT value is out of range in 'pow(2,1000)'

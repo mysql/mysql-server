@@ -9396,6 +9396,15 @@ void Item_result_field::cleanup() {
   DBUG_VOID_RETURN;
 }
 
+void Item_result_field::raise_numeric_overflow(const char *type_name) {
+  char buf[256];
+  String str(buf, sizeof(buf), system_charset_info);
+  str.length(0);
+  print(current_thd, &str, QT_NO_DATA_EXPANSION);
+  str.append('\0');
+  my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr());
+}
+
 /**
   Helper method: Convert string to the given charset, then print.
 

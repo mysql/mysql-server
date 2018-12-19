@@ -370,14 +370,6 @@ void Item_func::traverse_cond(Cond_traverser traverser, void *argument,
     (*traverser)(this, argument);
 }
 
-void Item_func::raise_numeric_overflow(const char *type_name) {
-  char buf[256];
-  String str(buf, sizeof(buf), system_charset_info);
-  str.length(0);
-  print(current_thd, &str, QT_NO_DATA_EXPANSION);
-  my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
-}
-
 /**
   Transform an Item_func object with a transformer callback function.
 
@@ -1217,12 +1209,7 @@ longlong Item_func_numhybrid::val_int() {
     case INT_RESULT:
       return int_op();
     case REAL_RESULT: {
-      double realval = real_op();
-      if (realval < LLONG_MIN || realval > LLONG_MAX) {
-        raise_integer_overflow();
-        return error_int();
-      }
-      return llrint(realval);
+      return llrint_with_overflow_check(real_op());
     }
     case STRING_RESULT: {
       switch (data_type()) {

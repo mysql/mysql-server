@@ -1813,19 +1813,17 @@ bool Item_sum_sum::add() {
 }
 
 longlong Item_sum_sum::val_int() {
-  DBUG_ENTER("Item_sum_sum::val_int");
   DBUG_ASSERT(fixed == 1);
   if (m_window != nullptr) {
     if (hybrid_type == REAL_RESULT) {
-      longlong result = llrint(val_real());
-      DBUG_RETURN(result);
+      return llrint_with_overflow_check(val_real());
     }
     longlong result = 0;
     my_decimal tmp;
     my_decimal *r = Item_sum_sum::val_decimal(&tmp);
     if (r != nullptr && !null_value)
       my_decimal2int(E_DEC_FATAL_ERROR, r, unsigned_flag, &result);
-    DBUG_RETURN(result);
+    return result;
   }
 
   if (aggr) aggr->endup();
@@ -1833,10 +1831,9 @@ longlong Item_sum_sum::val_int() {
     longlong result;
     my_decimal2int(E_DEC_FATAL_ERROR, dec_buffs + curr_dec_buff, unsigned_flag,
                    &result);
-    DBUG_RETURN(result);
+    return result;
   }
-  longlong result = (longlong)rint(val_real());
-  DBUG_RETURN(result);
+  return llrint_with_overflow_check(val_real());
 }
 
 double Item_sum_sum::val_real() {

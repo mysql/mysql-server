@@ -453,19 +453,7 @@ class Item_func : public Item_result_field {
                 Item_transformer transformer, uchar *arg_t) override;
   void traverse_cond(Cond_traverser traverser, void *arg,
                      traverse_order order) override;
-  void raise_numeric_overflow(const char *type_name);
-  inline double raise_float_overflow() {
-    raise_numeric_overflow("DOUBLE");
-    return 0.0;
-  }
-  inline longlong raise_integer_overflow() {
-    raise_numeric_overflow(unsigned_flag ? "BIGINT UNSIGNED" : "BIGINT");
-    return 0;
-  }
-  inline int raise_decimal_overflow() {
-    raise_numeric_overflow(unsigned_flag ? "DECIMAL UNSIGNED" : "DECIMAL");
-    return E_DEC_OVERFLOW;
-  }
+
   /**
      Throw an error if the input double number is not finite, i.e. is either
      +/-INF or NAN.
@@ -661,10 +649,7 @@ class Item_real_func : public Item_func {
   my_decimal *val_decimal(my_decimal *decimal_value) override;
   longlong val_int() override {
     DBUG_ASSERT(fixed);
-    const double realval = val_real();
-    // Rounding error, llrint() may return LLONG_MIN.
-    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
-    return retval;
+    return llrint_with_overflow_check(val_real());
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_real(ltime, fuzzydate);

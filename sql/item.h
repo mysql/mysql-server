@@ -4503,6 +4503,33 @@ class Item_result_field : public Item {
                                     result_field);
     return rc;
   }
+
+  longlong llrint_with_overflow_check(double realval) {
+    if (realval < LLONG_MIN || realval > LLONG_MAX) {
+      raise_integer_overflow();
+      return error_int();
+    }
+    // Rounding error, llrint() may return LLONG_MIN.
+    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
+    return retval;
+  }
+
+  void raise_numeric_overflow(const char *type_name);
+
+  double raise_float_overflow() {
+    raise_numeric_overflow("DOUBLE");
+    return 0.0;
+  }
+
+  longlong raise_integer_overflow() {
+    raise_numeric_overflow(unsigned_flag ? "BIGINT UNSIGNED" : "BIGINT");
+    return 0;
+  }
+
+  int raise_decimal_overflow() {
+    raise_numeric_overflow(unsigned_flag ? "DECIMAL UNSIGNED" : "DECIMAL");
+    return E_DEC_OVERFLOW;
+  }
 };
 
 class Item_ref : public Item_ident {

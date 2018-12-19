@@ -916,7 +916,7 @@ class Item_sum_num : public Item_sum {
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
     DBUG_ASSERT(fixed == 1);
-    return (longlong)rint(val_real()); /* Real as default */
+    return llrint_with_overflow_check(val_real()); /* Real as default */
   }
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
@@ -1110,7 +1110,7 @@ class Item_sum_num_field : public Item_sum_hybrid_field {
  public:
   longlong val_int() override {
     /* can't be fix_fields()ed */
-    return (longlong)rint(val_real());
+    return llrint_with_overflow_check(val_real());
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_numeric(ltime, fuzzydate); /* Decimal or real */
@@ -1280,7 +1280,7 @@ class Item_sum_avg final : public Item_sum_sum {
   bool add() override;
   double val_real() override;
   // In SPs we might force the "wrong" type with select into a declare variable
-  longlong val_int() override { return llrint(val_real()); }
+  longlong val_int() override { return llrint_with_overflow_check(val_real()); }
   my_decimal *val_decimal(my_decimal *) override;
   String *val_str(String *str) override;
   void reset_field() override;
