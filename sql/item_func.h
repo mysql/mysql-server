@@ -188,7 +188,9 @@ class Item_func : public Item_result_field {
     MINUTE_FUNC,
     SECOND_FUNC,
     MICROSECOND_FUNC,
-    DATETIME_LITERAL
+    DATETIME_LITERAL,
+    GREATEST_FUNC,
+    LEAST_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -1394,6 +1396,7 @@ class Item_func_min final : public Item_func_min_max {
   Item_func_min(const POS &pos, PT_item_list *opt_list)
       : Item_func_min_max(pos, opt_list, true) {}
   const char *func_name() const override { return "least"; }
+  enum Functype functype() const override { return LEAST_FUNC; }
 };
 
 class Item_func_max final : public Item_func_min_max {
@@ -1401,6 +1404,7 @@ class Item_func_max final : public Item_func_min_max {
   Item_func_max(const POS &pos, PT_item_list *opt_list)
       : Item_func_min_max(pos, opt_list, false) {}
   const char *func_name() const override { return "greatest"; }
+  enum Functype functype() const override { return GREATEST_FUNC; }
 };
 
 /*
