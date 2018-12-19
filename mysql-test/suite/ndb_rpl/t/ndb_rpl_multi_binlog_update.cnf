@@ -37,6 +37,7 @@ ndb-wait-setup=60
 
 [mysqld.1.1]
 server-id= 1
+ndb-log-bin=1
 log-bin= master-bin
 binlog_format=row
 
@@ -50,6 +51,7 @@ server-id= 2
 
 [mysqld.3.1]
 server-id= 3
+ndb-log-bin=1
 log-bin= master-bin
 binlog_format=row
 
@@ -74,7 +76,7 @@ slave-load-tmpdir= ../../../tmp
 ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
-
+ndb-log-bin=1
 
 
 [mysqld.3.slave]
@@ -87,7 +89,7 @@ ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
 log-bin= slave-master-bin
 binlog_format=row
 log-slave-updates
-
+ndb-log-bin=1
 
 
 [ENV]

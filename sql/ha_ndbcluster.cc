@@ -19674,7 +19674,7 @@ static MYSQL_SYSVAR_BOOL(
   "the binary log has been turned on for the server.",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
-  1                                  /* default */
+  0                                  /* default */
 );
 
 

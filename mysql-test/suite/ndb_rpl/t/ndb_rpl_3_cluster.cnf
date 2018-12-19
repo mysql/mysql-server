@@ -32,6 +32,7 @@ slave-allow-batching
 ndb-log-orig
 # Turn on bin logging
 log-bin=                       cluster1-bin
+ndb-log-bin=1
 # for performance reasons
 ndb-table-temporary=1
 ndb-extra-logging=99

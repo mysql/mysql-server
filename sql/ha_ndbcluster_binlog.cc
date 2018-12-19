@@ -172,11 +172,15 @@ static mysql_cond_t  injector_data_cond;
   without holding the mutex! (As there are no other threads updating it)
 */
 
-/*
-  Flag showing if the ndb binlog should be created, if so == true
-  false if not
+/**
+  ndb_binlog_running
+  Changes to NDB tables should be written to the binary log. I.e the
+  ndb binlog injector thread subscribes to changes in the cluster
+  and when such changes are received, they will be written to the
+  binary log
 */
 bool ndb_binlog_running= false;
+
 static bool ndb_binlog_tables_inited= false;  //injector_data_mutex, relaxed
 static bool ndb_binlog_is_ready= false;       //injector_data_mutex, relaxed
  
@@ -7847,6 +7851,8 @@ restart_cluster_failure:
 
   if (opt_bin_log && opt_ndb_log_bin)
   {
+    // Binary log has been enabled for the server and changes
+    // to NDB tables should be logged
     ndb_binlog_running= true;
   }
   log_verbose(1, "Setup completed");
