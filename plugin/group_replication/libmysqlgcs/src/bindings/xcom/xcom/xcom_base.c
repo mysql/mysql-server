@@ -2651,6 +2651,41 @@ static bool_t unsafe_event_horizon_reconfiguration(app_data_ptr a) {
   return result;
 }
 
+static bool_t are_there_dead_nodes_in_new_config(app_data_ptr a) {
+  assert(a->body.c_t == force_config_type);
+
+  u_int nr_nodes_to_add = a->body.app_u_u.nodes.node_list_len;
+  node_address *nodes_to_change = a->body.app_u_u.nodes.node_list_val;
+  uint32_t i;
+  G_DEBUG("Checking for dead nodes in Forced Configuration")
+  for (i = 0; i < nr_nodes_to_add; i++) {
+    node_no node = find_nodeno(get_site_def(), nodes_to_change[i].address);
+
+    if (node == get_nodeno(get_site_def()))
+      continue;  // No need to validate myself
+
+    if (node == VOID_NODE_NO) {
+      G_ERROR(
+          "%s is not in the current configuration."
+          "Only members in the current configuration can be present"
+          " in a forced configuration list",
+          nodes_to_change[i].address)
+      return true;
+    }
+
+    if (may_be_dead(get_site_def()->detected, node, task_now())) {
+      G_ERROR(
+          "%s is suspected to be failed."
+          "Only alive members in the current configuration should be present"
+          " in a forced configuration list",
+          nodes_to_change[i].address)
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Reconfigure the event horizon.
  *
@@ -4127,6 +4162,10 @@ static client_reply_code can_execute_cfgchange(pax_msg *p) {
 
   if (a && a->body.c_t == set_event_horizon_type &&
       unsafe_event_horizon_reconfiguration(a))
+    return REQUEST_FAIL;
+
+  if (a && a->body.c_t == force_config_type &&
+      are_there_dead_nodes_in_new_config(a))
     return REQUEST_FAIL;
 
   return REQUEST_OK;
