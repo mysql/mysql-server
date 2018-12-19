@@ -52,6 +52,13 @@ bool is_existing_windows_group_name(const char *group_name)
 
 bool is_valid_named_pipe_full_access_group(const char *group_name)
 {
+  // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
+  // as a special case: we (later) convert it to the "world" SID
+  if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0)
+  {
+    return true;
+  }
+
   if (!group_name || group_name[0] == '\0' ||
       is_existing_windows_group_name(group_name))
   {
@@ -76,25 +83,44 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
   DWORD size_referencedDomainName= MAX_PATH;
   SID_NAME_USE sid_name_use;
 
-  if (!LookupAccountName(NULL, group_name, soughtSID, &size_sid,
-                         referencedDomainName, &size_referencedDomainName,
-                         &sid_name_use))
+  // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
+  // as a special case: we  convert it to the "world" SID
+  if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0)
   {
-    DWORD last_error_num= GetLastError();
-    FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL, last_error_num,
-                  MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
-                  sizeof(last_error_msg) / sizeof(TCHAR), NULL);
-    sql_print_error("my_security_attr_add_rights_to_group, LookupAccountName failed: %s",
-                    last_error_msg);
-    return true;
+    if (!CreateWellKnownSid(WinWorldSid, NULL, soughtSID, &size_sid))
+    {
+      DWORD last_error_num= GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("my_security_attr_add_rights_to_group, CreateWellKnownSid failed: %s",
+                      last_error_msg);
+      return true;
+    }
   }
-
-  // sid_name_use is SidTypeAlias when group_name is a local group
-  if (sid_name_use != SidTypeAlias && sid_name_use != SidTypeWellKnownGroup)
+  else
   {
-    sql_print_error("LookupAccountName failed: unexpected sid_name_use");
-    return true;
+    if (!LookupAccountName(NULL, group_name, soughtSID, &size_sid,
+                           referencedDomainName, &size_referencedDomainName,
+                           &sid_name_use))
+    {
+      DWORD last_error_num= GetLastError();
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, last_error_num,
+                    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), last_error_msg,
+                    sizeof(last_error_msg) / sizeof(TCHAR), NULL);
+      sql_print_error("my_security_attr_add_rights_to_group, LookupAccountName failed: %s",
+                      last_error_msg);
+      return true;
+    }
+
+    // sid_name_use is SidTypeAlias when group_name is a local group
+    if (sid_name_use != SidTypeAlias && sid_name_use != SidTypeWellKnownGroup)
+    {
+      sql_print_error("LookupAccountName failed: unexpected sid_name_use");
+      return true;
+    }
   }
 
   PACL pNewDACL= NULL;
