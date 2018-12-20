@@ -4739,7 +4739,8 @@ sub run_testcase ($) {
     $test_timeout = 0;
 
     # Check if it was secondary engine server that died
-    if (grep($proc eq $_, started(secondary_engine_servers()))) {
+    if ($tinfo->{'secondary-engine'} and
+        grep($proc eq $_, started(secondary_engine_servers()))) {
       # Secondary engine server is shutdown automatically when
       # mysqld server is shutdown.
       next if ($proc->{EXIT_STATUS} == 0);
@@ -5284,14 +5285,16 @@ sub check_warnings ($) {
   return 0 unless (keys %started);
   wait_for_check_warnings(\%started, $tinfo);
 
-  # Search for unexpected warnings in secondary engine server error
-  # log file. Start the mysqltest processes in parallel to save time
-  # also makes it possible to wait for any process to exit during
-  # the check.
-  foreach my $secondary_engine_server (secondary_engine_servers()) {
-    if (defined $secondary_engine_server->{'proc'}) {
-      my $proc = start_check_warnings($tinfo, $secondary_engine_server);
-      $started{ $proc->pid() } = $proc;
+  if ($tinfo->{'secondary-engine'}) {
+    # Search for unexpected warnings in secondary engine server error
+    # log file. Start the mysqltest processes in parallel to save time
+    # also makes it possible to wait for any process to exit during
+    # the check.
+    foreach my $secondary_engine_server (secondary_engine_servers()) {
+      if (defined $secondary_engine_server->{'proc'}) {
+        my $proc = start_check_warnings($tinfo, $secondary_engine_server);
+        $started{ $proc->pid() } = $proc;
+      }
     }
   }
 
