@@ -509,12 +509,12 @@ DataBuffer<sz, Pool, Type_id>::getSegmentSize()
 template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 Uint32
-DataBuffer<sz, Pool>::getSegmentSizeInBytes(){
+DataBuffer<sz, Pool, Type_id>::getSegmentSizeInBytes(){
   return 4 * sz;
 }
 
 
-template<Uint32 sz, typename Pool>
+template<Uint32 sz, typename Pool, Uint32 Type_id>
 inline
 bool
 DataBuffer<sz, Pool, Type_id>::first(DataBufferIterator & it)
