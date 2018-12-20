@@ -245,7 +245,7 @@
    @defgroup group_cs_capabilities_flags Capabilities Flags
    @ingroup group_cs
 
-   @brief Values for the capabilities flag bitmask used by @ref PAGE_PROTOCOL
+   @brief Values for the capabilities flag bitmask used by the MySQL protocol
 
    Currently need to fit into 32 bits.
 

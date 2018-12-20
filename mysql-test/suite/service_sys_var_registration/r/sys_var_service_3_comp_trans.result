@@ -91,6 +91,7 @@ variable value : 1024
 get_variable failed.
 test_component_sys_var_int end of deinit:
 test_component_sys_var_str init:
+character_set_server=[utf8mb4]
 test_component_sys_var_str end of init:
 test_component_sys_var_str deinit:
 variable value : 
