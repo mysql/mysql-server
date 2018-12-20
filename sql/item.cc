@@ -9402,7 +9402,7 @@ void Item_result_field::raise_numeric_overflow(const char *type_name) {
   str.length(0);
   print(current_thd, &str, QT_NO_DATA_EXPANSION);
   str.append('\0');
-  my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr());
+  my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.ptr());
 }
 
 /**
