@@ -130,6 +130,8 @@ INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
 --echo #
 --let $rpl_connection_name= $group_replication_primary_server_connection_var
 --source include/rpl_connection.inc
+--let $wait_condition= SELECT @@GLOBAL.read_only = '0'
+--source include/wait_condition_or_abort.inc
 DROP TABLE `table1`;
 
 # restore this

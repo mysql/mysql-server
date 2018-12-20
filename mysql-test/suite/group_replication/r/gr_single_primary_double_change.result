@@ -67,6 +67,7 @@ include/assert.inc ['The value of Count_conflicts_detected should be 0 on server
 SET SESSION sql_log_bin= 0;
 SET GLOBAL read_only= 0;
 DROP USER recovery_user;
+SET GLOBAL super_read_only= 1;
 SET SESSION sql_log_bin= 1;
 [connection server2]
 DROP TABLE t1;
