@@ -357,8 +357,11 @@ insert into t2 values (15, 'white');
 insert into t2 values (7, 'green');
 select * from t1;
 select * from t2;
+--sorted_result
 select * from t2 natural join t1;
+--sorted_result
 select t2.count, t1.name from t2 natural join t1;
+--sorted_result
 select t2.count, t1.name from t2 inner join t1 using (color);
 drop table t1;
 drop table t2;

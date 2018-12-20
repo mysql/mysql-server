@@ -1572,6 +1572,7 @@ insert into t1 values(''), (' '), ('xxxxxxxxxxxxxxx');
 create table t2(a int);
 insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
 
+--sorted_result
 select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
 drop table t1,t2;
 

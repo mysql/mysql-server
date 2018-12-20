@@ -80,6 +80,7 @@ INSERT INTO t2 VALUES ('1'), ('2'), ('3'), ('2');
 
 --enable_metadata
 SELECT v1.c1 FROM v1 JOIN t2 ON c1=c2 ORDER BY 1;
+--sorted_result
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1 ORDER BY v2.c2;

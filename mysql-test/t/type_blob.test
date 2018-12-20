@@ -50,6 +50,7 @@ insert into t1 values (null,"a","A");
 insert into t1 values (null,"bbb","BBB");
 insert into t1 values (null,"ccc","CCC");
 select last_insert_id();
+--sorted_result
 select * from t1,t1 as t2;
 
 drop table t1;

@@ -1387,7 +1387,9 @@ create table v_27690_2 as select * from t_27690_1;
 
 prepare stmt from "select * from v_27690_1, v_27690_2";
 
+--sorted_result
 execute stmt;
+--sorted_result
 execute stmt;
 
 drop table v_27690_1;

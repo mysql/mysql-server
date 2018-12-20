@@ -23,9 +23,14 @@ c3 CHAR(250),
 c4 CHAR(250),
 INDEX i1_key (i1)
 ) ENGINE=InnoDB;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t1 depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
 INSERT INTO t1_innodb
 SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
-FROM t0 AS a0, t0 AS a1;
+FROM t0 AS a0, t0 AS a1 ORDER BY a0.i1, a1.i1;
 ANALYZE TABLE t1_innodb;
 Table	Op	Msg_type	Msg_text
 test.t1_innodb	analyze	status	OK
@@ -36,7 +41,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "12.25"
+      "query_cost": "12.75"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -45,9 +50,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "2.25",
+        "read_cost": "2.75",
         "eval_cost": "10.00",
-        "prefix_cost": "12.25",
+        "prefix_cost": "12.75",
         "data_read_per_join": "392K"
       },
       "used_columns": [
@@ -94,7 +99,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "58.00"
+      "query_cost": "62.00"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -103,9 +108,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "18.00",
+        "read_cost": "22.00",
         "eval_cost": "40.00",
-        "prefix_cost": "58.00",
+        "prefix_cost": "62.00",
         "data_read_per_join": "392K"
       },
       "used_columns": [
@@ -153,7 +158,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "46.00"
+      "query_cost": "54.00"
     },
     "table": {
       "table_name": "t1_innodb",
@@ -162,9 +167,9 @@ EXPLAIN
       "rows_produced_per_join": 100,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "36.00",
+        "read_cost": "44.00",
         "eval_cost": "10.00",
-        "prefix_cost": "46.00",
+        "prefix_cost": "54.00",
         "data_read_per_join": "392K"
       },
       "used_columns": [

@@ -820,7 +820,7 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` TRIGGER `trg2` BEFORE INSERT ON `t2` FOR EACH ROW begin
 insert into t3 select * from t3;
 end	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
-select * from t2, t3 limit 1;
+select * from t2, t3 order by t2.a, t3.a limit 1;
 a	a
 first	first
 # Trace exposed content of t1 which we could see anyway:

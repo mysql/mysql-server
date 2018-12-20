@@ -1626,14 +1626,14 @@ prepare stmt from "select * from v_27690_1, v_27690_2";
 execute stmt;
 a	b	a	b
 1	1	1	1
-2	2	1	1
 1	1	2	2
+2	2	1	1
 2	2	2	2
 execute stmt;
 a	b	a	b
 1	1	1	1
-2	2	1	1
 1	1	2	2
+2	2	1	1
 2	2	2	2
 drop table v_27690_1;
 execute stmt;

@@ -281,6 +281,7 @@ INSERT INTO t2(infoID, shipcode) VALUES
       (1, 'Z001'),
       (2, 'R002');
 
+--sorted_result
 SELECT DISTINCTROW email, shipcode FROM t1, t2 WHERE t1.infoID=t2.infoID;
 --source include/turn_off_only_full_group_by.inc
 SELECT DISTINCTROW email FROM t1 ORDER BY dateentered DESC;

@@ -1540,6 +1540,7 @@ INSERT INTO t4 (companynr, companyname) VALUES (00,'Unknown');
 # Test of stright join to force a full join.
 #
 
+--sorted_result
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
@@ -1549,6 +1550,7 @@ select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t
 #
 
 select * from t1,t1 t12;
+--sorted_result
 select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 250505 and t22.fld1 >= 250501 and t22.fld1 <= 250505;
 
 #

@@ -310,6 +310,7 @@ update v1 set c=c+1;
 select * from t1;
 # join of such VIEWs test
 create view v2 (c) as select b from t1 where a>=3;
+--sorted_result
 select * from v1, v2;
 drop view v1, v2;
 drop table t1;
@@ -631,6 +632,7 @@ create table t2 (s2 int);
 insert into t1 values (1), (2);
 insert into t2 values (2), (3);
 create view v1 as select * from t1,t2 union all select * from t1,t2;
+--sorted_result
 select * from v1;
 drop view v1;
 drop tables t1, t2;
@@ -1191,6 +1193,7 @@ select * from t2;
 prepare stmt1 from "select * from v2;";
 execute stmt1;
 insert into t1 values (0);
+--sorted_result
 execute stmt1;
 deallocate prepare stmt1;
 drop view v2;
@@ -1388,17 +1391,21 @@ set updatable_views_with_limit=NO;
 update v2 set a= 10 where a=200 limit 1;
 set updatable_views_with_limit=DEFAULT;
 # just view selects
+--sorted_result
 select * from v3;
+--sorted_result
 select * from v2;
 # prepare statement with updating join view
 set @a= 10;
 set @b= 100;
 prepare stmt1 from "update v3 set a= ? where a=?";
 execute stmt1 using @a,@b;
+--sorted_result
 select * from v3;
 set @a= 300;
 set @b= 10;
 execute stmt1 using @a,@b;
+--sorted_result
 select * from v3;
 deallocate prepare stmt1;
 drop view v3,v2;
@@ -1635,8 +1642,10 @@ INSERT INTO t1 VALUES (1), (2), (3), (4);
 INSERT INTO t2 VALUES (4), (2);
 
 CREATE VIEW v1 AS SELECT * FROM t1,t2 WHERE t1.a=t2.b;
+--sorted_result
 SELECT * FROM v1;
 CREATE VIEW v2 AS SELECT * FROM v1;
+--sorted_result
 SELECT * FROM v2;
 
 DROP VIEW v2,v1;
@@ -3793,13 +3802,16 @@ INSERT INTO t1 VALUES (1), (2);
 
 --error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 1 FROM t1,t1 AS c;
+--sorted_result
 SELECT * FROM v1;
 --error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
+--sorted_result
 SELECT * FROM v1;
 DELETE FROM t1 WHERE a=3;
 INSERT INTO v1(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v1`.`a`= 1;
+--sorted_result
 SELECT * FROM v1;
 
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
@@ -4855,7 +4867,9 @@ SELECT * FROM v1;
 let $q=
 SELECT * FROM $derived;
 
+--sorted_result
 eval $qv;
+--sorted_result
 eval $q;
 --replace_column 10 # 11 #
 eval explain $qv;

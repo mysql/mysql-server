@@ -70,6 +70,7 @@ execute stmt1 using @a;
 set @a= 301;
 execute stmt1 using @a;
 deallocate prepare stmt1;
+--sorted_result
 select * from v3 ;
 
 drop view v3;

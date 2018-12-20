@@ -1338,18 +1338,18 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
+00	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
+50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
-50	company 11
-00	Unknown
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
@@ -2314,10 +2314,10 @@ a	a
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
 a	a
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
@@ -3693,7 +3693,16 @@ SET SQL_MODE=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
-insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
+# The "ANALYZE TABLE"-command that is executed further down will get
+# different results depending on the order of rows in table t2. Since the
+# INSERT INTO ... SELECT may be executed using different execution plans,
+# we've added ORDER BY to ensure that we rows has the same order every
+# time. If not, the estimated number of rows for t2 (alias 'a') in the
+# EXPLAIN may change on different platforms. Note that both table t1 and
+# t2 may be MyISAM, since many of the test files that includes this file
+# forces MyISAM as the default storage engine.
+insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C
+ORDER BY A.a, B.a, C.a;
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
@@ -4864,9 +4873,19 @@ SELECT a FROM t1 ORDER BY a;
 DROP TABLE t1;
 CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
 INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t1 depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
+# Note that the tables may be MyISAM, since many of the test files that
+# includes this file forces MyISAM as the default storage engine.
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort

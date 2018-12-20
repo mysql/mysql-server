@@ -194,6 +194,7 @@ SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b);
 
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b=2;
 EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,2);
+--sorted_result
 SELECT * FROM t1,t2 WHERE t1.a=1 and t1.b=t2.b;
 SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,2);
 
@@ -201,6 +202,7 @@ EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b+1);
 SELECT * FROM t1,t2 WHERE (t1.a,t1.b)=(t2.a,t2.b+1);
 
 EXPLAIN SELECT * FROM t1,t2 WHERE (t1.a-1,t1.b)=(t2.a-1,t2.b+1);
+--sorted_result
 SELECT * FROM t1,t2 WHERE (t1.a-1,t1.b)=(t2.a-1,t2.b+1);
 
 EXPLAIN SELECT * FROM t2 WHERE a=3 AND b=2;

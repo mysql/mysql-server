@@ -64,6 +64,7 @@ insert into join_test values ("User performed a usual SQL query", "Query");
 insert into join_test values ("New DB connection was registered", "Connect");
 insert into join_test values ("Get the table info", "Field List");
 
+--sorted_result
 --replace_column 2 USER_HOST
 select verbose_comment, user_host, argument
   from  mysql.general_log join join_test

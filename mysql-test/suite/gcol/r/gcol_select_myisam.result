@@ -541,11 +541,6 @@ GROUP BY field1 HAVING field1 = 91
 ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
 alias1.col_time_key ASC, field1;
 field1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
 #

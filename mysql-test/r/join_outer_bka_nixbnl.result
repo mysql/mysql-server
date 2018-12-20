@@ -526,8 +526,8 @@ count	color
 7	green
 select * from t2 natural join t1;
 color	count	name
-green	10	lime
 black	5	grape
+green	10	lime
 green	7	lime
 select t2.count, t1.name from t2 natural join t1;
 count	name

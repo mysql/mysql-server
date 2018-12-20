@@ -21,18 +21,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -49,10 +49,10 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
@@ -1134,18 +1134,18 @@ ERROR 42000: Not unique table/alias: 'qn'
 WITH qn AS (SELECT b as a FROM t1)
 SELECT qn.a, qn2.a  FROM qn, qn as qn2;
 a	a
-NULL	NULL
+3	3
 3	NULL
 NULL	3
-3	3
+NULL	NULL
 WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT c FROM t1 WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.c  FROM qn, qn2;
 a	c
-NULL	NULL
-NULL	4
-3	NULL
 3	4
+3	NULL
+NULL	4
+NULL	NULL
 # qn2 ref qn:
 WITH qn AS (SELECT 10*a as a FROM t1),
 qn2 AS (SELECT 3*a FROM qn)
@@ -1162,10 +1162,10 @@ WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;
 a	a
-NULL	NULL
-NULL	3
-3	NULL
 3	3
+3	NULL
+NULL	3
+NULL	NULL
 EXPLAIN WITH qn AS (SELECT b as a FROM t1),
 qn2 AS (SELECT a FROM qn WHERE a IS NULL or a>0)
 SELECT qn.a, qn2.a  FROM qn, qn2;

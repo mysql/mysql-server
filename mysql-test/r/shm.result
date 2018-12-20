@@ -1336,16 +1336,16 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
-37	company 4
-36	company 3
-50	company 11
-58	company 8
 29	company 1
-40	company 5
-53	company 7
-65	company 9
-41	company 6
 34	company 2
+36	company 3
+37	company 4
+40	company 5
+41	company 6
+50	company 11
+53	company 7
+58	company 8
+65	company 9
 68	company 10
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname

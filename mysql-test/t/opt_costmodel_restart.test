@@ -33,9 +33,15 @@ CREATE TABLE t1_innodb (
   INDEX i1_key (i1)
 ) ENGINE=InnoDB;
 
+--echo # Since ANALYZE TABLE only reads a subset of the data, the statistics for
+--echo # table t1 depends on the row order. And since the INSERT INTO ... SELECT
+--echo # may be executed using different execution plans, we've added ORDER BY
+--echo # to ensure that we rows has the same order every time. If not, the
+--echo # estimated number of rows in EXPLAIN may change on different platforms.
+
 INSERT INTO t1_innodb
 SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
-FROM t0 AS a0, t0 AS a1;
+FROM t0 AS a0, t0 AS a1 ORDER BY a0.i1, a1.i1;
 
 ANALYZE TABLE t1_innodb;
 

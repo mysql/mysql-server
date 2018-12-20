@@ -526,19 +526,19 @@ count	color
 7	green
 select * from t2 natural join t1;
 color	count	name
+black	5	grape
 green	10	lime
 green	7	lime
-black	5	grape
 select t2.count, t1.name from t2 natural join t1;
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 select t2.count, t1.name from t2 inner join t1 using (color);
 count	name
 10	lime
-7	lime
 5	grape
+7	lime
 drop table t1;
 drop table t2;
 CREATE TABLE t1 (

@@ -426,12 +426,12 @@ a	b
 create view v2 (c) as select b from t1 where a>=3;
 select * from v1, v2;
 c	c
-21	40
-31	40
-21	50
-31	50
 21	100
+21	40
+21	50
 31	100
+31	40
+31	50
 drop view v1, v2;
 drop table t1;
 create table t1 (a int, b int, primary key(a));
@@ -722,12 +722,12 @@ create view v1 as select * from t1,t2 union all select * from t1,t2;
 select * from v1;
 s1	s2
 1	2
-2	2
-1	3
-2	3
 1	2
-2	2
 1	3
+1	3
+2	2
+2	2
+2	3
 2	3
 drop view v1;
 drop tables t1, t2;
@@ -1286,8 +1286,8 @@ s1
 insert into t1 values (0);
 execute stmt1;
 s1
-1
 0
+1
 deallocate prepare stmt1;
 drop view v2;
 drop table t1, t2;
@@ -1531,34 +1531,34 @@ Got one of the listed errors
 set updatable_views_with_limit=DEFAULT;
 select * from v3;
 a	b
-2	1
 10	1
-2	3
 10	3
+2	1
+2	3
 select * from v2;
 a	b
-200	1
 100	1
-200	3
 100	3
+200	1
+200	3
 set @a= 10;
 set @b= 100;
 prepare stmt1 from "update v3 set a= ? where a=?";
 execute stmt1 using @a,@b;
 select * from v3;
 a	b
-2	1
 10	1
-2	3
 10	3
+2	1
+2	3
 set @a= 300;
 set @b= 10;
 execute stmt1 using @a,@b;
 select * from v3;
 a	b
 2	1
-300	1
 2	3
+300	1
 300	3
 deallocate prepare stmt1;
 drop view v3,v2;
@@ -3853,16 +3853,16 @@ ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 REPLACE INTO v1(a) SELECT 3 FROM t1,t1 AS c;
 ERROR HY000: Can not delete from join view 'test.v1'
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 DELETE FROM t1 WHERE a=3;
 INSERT INTO v1(a) SELECT 1 FROM t1,t1 AS c
@@ -3870,8 +3870,8 @@ ON DUPLICATE KEY UPDATE `v1`.`a`= 1;
 SELECT * FROM v1;
 a
 1
-2
 1
+2
 2
 CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;

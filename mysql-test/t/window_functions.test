@@ -647,6 +647,7 @@ DROP TABLE t3;
 --echo ----------------------------------------------------------------------
 SELECT user_id, ROW_NUMBER() OVER (PARTITION BY user_id) FROM t2 t1;
 
+--sorted_result
 SELECT * FROM t1,t2 WHERE t1.id=t2.user_id;
 
 SELECT sex, id, date, ROW_NUMBER() OVER w AS row_no, RANK() OVER w AS `rank` FROM t1,t2
@@ -2422,13 +2423,15 @@ CREATE TABLE t (
 
 INSERT INTO t VALUES ('2017-01-10'), ('2017-01-18');
 
+--sorted_result
 SELECT
-   FIRST_VALUE(alias1.col_date) OVER () FV,
+   MIN(alias1.col_date) OVER () FV,
    DENSE_RANK() OVER (ORDER BY alias2.col_date
                       RANGE UNBOUNDED PRECEDING) DR,
    RANK() OVER (ORDER BY alias1.col_date
                 RANGE BETWEEN INTERVAL 1 WEEK PRECEDING AND CURRENT ROW) R
    FROM (t AS alias1, t AS alias2);
+
 DROP TABLE t;
 
 --echo

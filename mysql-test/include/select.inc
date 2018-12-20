@@ -1530,6 +1530,7 @@ INSERT INTO t4 (companynr, companyname) VALUES (00,'Unknown');
 
 # We see the functional dependency implied by WHERE and primary key of t4!
 
+--sorted_result
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
@@ -1539,6 +1540,7 @@ select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t
 #
 
 select * from t1,t1 t12;
+--sorted_result
 select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 250505 and t22.fld1 >= 250501 and t22.fld1 <= 250505;
 
 #
@@ -1866,13 +1868,19 @@ insert into t1 values ();
 insert into t1 values ();
 insert into t1 values ();
 # ,
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)), t1;
+--sorted_result
 select * from t1, (t1 as t2 left join t1 as t3 using (a));
 # stright_join
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) straight_join t1;
+--sorted_result
 select * from t1 straight_join (t1 as t2 left join t1 as t3 using (a));
 # inner join on
+--sorted_result
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
+--sorted_result
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 # inner join using
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 using ( a );
@@ -2327,8 +2335,10 @@ INSERT INTO t2 VALUES (1,NULL), (2,10);
 ALTER TABLE t1 ENABLE KEYS;
 
 EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+--sorted_result
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
+--sorted_result
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 DROP TABLE IF EXISTS t1,t2;
 
@@ -2590,7 +2600,9 @@ insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(2,2),(3,3);
 insert into t3 values (1,1),(2,1),(3,1),(4,1);
 # the following two queries must return the same result
+--sorted_result
 select * from t1 natural join t2 natural join t3;
+--sorted_result
 select * from t1 natural join t3 natural join t2;
 drop table t1, t2, t3;
 
@@ -2968,7 +2980,18 @@ SET SQL_MODE=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
-insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
+
+--echo # The "ANALYZE TABLE"-command that is executed further down will get
+--echo # different results depending on the order of rows in table t2. Since the
+--echo # INSERT INTO ... SELECT may be executed using different execution plans,
+--echo # we've added ORDER BY to ensure that we rows has the same order every
+--echo # time. If not, the estimated number of rows for t2 (alias 'a') in the
+--echo # EXPLAIN may change on different platforms. Note that both table t1 and
+--echo # t2 may be MyISAM, since many of the test files that includes this file
+--echo # forces MyISAM as the default storage engine.
+
+insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C
+  ORDER BY A.a, B.a, C.a;
 analyze table t2;
 select 'In next EXPLAIN, B.rows must be exactly 10:' Z;
 
@@ -3922,9 +3945,21 @@ CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
 --disable_warnings
 INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
 --enable_warnings
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+
+--echo # Since ANALYZE TABLE only reads a subset of the data, the statistics for
+--echo # table t1 depends on the row order. And since the INSERT INTO ... SELECT
+--echo # may be executed using different execution plans, we've added ORDER BY
+--echo # to ensure that we rows has the same order every time. If not, the
+--echo # estimated number of rows in EXPLAIN may change on different platforms.
+--echo # Note that the tables may be MyISAM, since many of the test files that
+--echo # includes this file forces MyISAM as the default storage engine.
+
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+  ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+  ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+  ORDER BY t11.a, t11.b, t11.c;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 SELECT a FROM t1 ORDER BY a LIMIT 5;
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;

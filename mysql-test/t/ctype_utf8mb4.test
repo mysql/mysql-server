@@ -687,6 +687,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 
+--sorted_result
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 
 DROP TABLE t1,t2;
@@ -1422,6 +1423,7 @@ UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
 
 # Returns utfmb4
 SELECT HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8')) FROM t1;
+--sorted_result
 SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
 
 #--error ER_INVALID_CHARACTER_STRING

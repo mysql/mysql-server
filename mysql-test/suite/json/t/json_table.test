@@ -370,6 +370,7 @@ EXPLAIN SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
   JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
                                  val INT PATH '$')) AS jt;
 
+--sorted_result
 SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
   FROM t1,
     JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -985,6 +986,7 @@ ANALYZE TABLE t1;
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT * FROM t1 as jj1,
   (SELECT tt2.* FROM t1 as tt2,
     JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;

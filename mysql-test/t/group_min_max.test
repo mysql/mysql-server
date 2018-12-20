@@ -542,6 +542,7 @@ where exists ( select * from t2 where a1 = t_00.a1 );
 # BUG #8532 - SELECT DISTINCT a, a causes server to crash
 select distinct a1,a1 from t1;
 select distinct a2,a1,a2,a1 from t1;
+--sorted_result
 select distinct t1.a1,t2.a1 from t1,t2;
 
 

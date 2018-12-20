@@ -404,8 +404,8 @@ WHERE tb.d=tc.e));
 a	b
 2	10
 2	20
-3	20
 2	30
+3	20
 4	40
 set @@optimizer_switch='materialization=off,semijoin=on';
 EXPLAIN SELECT * FROM t1 AS ta
@@ -426,8 +426,8 @@ WHERE tb.d=tc.e));
 a	b
 2	10
 2	20
-3	20
 2	30
+3	20
 4	40
 # Reference above the parent query block (should not be affected)
 set @@optimizer_switch='materialization=off,semijoin=off';

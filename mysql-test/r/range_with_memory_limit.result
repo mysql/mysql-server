@@ -3183,8 +3183,8 @@ SELECT a, b FROM t1 WHERE (a = 0 AND b = 0) OR (a = 1 AND b = 1);
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3204,8 +3204,8 @@ FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0));
 a	b
 0	0
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -3226,8 +3226,8 @@ SELECT a, b FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3248,8 +3248,8 @@ SELECT a, b, c FROM t2 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 a	b	c
 0	0	0
 1	1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -3270,8 +3270,8 @@ SELECT a, b, c FROM t3 WHERE (a, b, c) IN ((0, 0, 0), (1, 1, 1));
 a	b	c
 0	0	0
 1	1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3292,8 +3292,8 @@ SELECT a, b FROM t1 WHERE a = 0 AND b = 0 OR (a, b) IN ((1, 1));
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3314,8 +3314,8 @@ SELECT a, b FROM t1 WHERE (a, b) IN ((1, 1)) OR a = 0 AND b = 0;
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3336,8 +3336,8 @@ SELECT a, b FROM t2 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -3358,8 +3358,8 @@ SELECT a, b FROM t3 WHERE (a, b, c) IN ((1, 1, 1)) OR a = 0 AND b = 0 AND c = 0;
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3380,8 +3380,8 @@ FLUSH STATUS;
 SELECT a, b FROM t1 WHERE (a, b) IN (((SELECT 1), 1));
 a	b
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -3402,8 +3402,8 @@ SELECT a, b FROM t1 WHERE (a, b) IN (('0', 0), (1, 1));
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3425,8 +3425,8 @@ SELECT a, b FROM t1 WHERE (a, b) IN ((@v, 0), (1, 1));
 a	b
 0	0
 1	1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3549,12 +3549,12 @@ FROM t5 JOIN t6 ON t5.a = t6.a JOIN t7
 WHERE t7.a IN (t5.b, t6.b);
 a	b	a	b	a	b
 3	1	3	2	1	1
-4	1	4	2	1	1
 3	1	3	2	2	2
+4	1	4	2	1	1
 4	1	4	2	2	2
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warnings:
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3582,9 +3582,9 @@ WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 a	b	a	b	a	b
 3	1	3	2	1	1
 4	1	4	2	1	1
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warnings:
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3664,8 +3664,8 @@ SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 a
 0
 1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -3686,8 +3686,8 @@ SELECT DISTINCT a FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
 a
 0
 1
-Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
+Warnings:
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1

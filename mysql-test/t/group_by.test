@@ -560,7 +560,8 @@ insert into t2 select
    concat('val-', x3.a + 3*x4.a), -- 12
    concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
    concat('val-', @a + 120*D.a)
-from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4
+order by x3.a, x4.a, C.a, D.a;
 
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
 

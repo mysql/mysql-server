@@ -1240,14 +1240,14 @@ CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
 ENGINE=MERGE  UNION=(t1,t2);
 SELECT t1.a FROM mm1,t1;
 a
-NULL
+1
+1
+1
 1
 NULL
-1
 NULL
-1
 NULL
-1
+NULL
 DROP TABLE t1, t2, mm1;
 #
 # Bug #54468: crash after item's print() function when ordering/grouping 

@@ -117,41 +117,41 @@ insert into t1 values (''),(null),(null),(''),(''),('');
 select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
 a
 0
-NULL
-NULL
 0
 0
 0
 0
-NULL
-NULL
 0
 0
 0
 0
-NULL
-NULL
 0
 0
 0
 0
-NULL
-NULL
 0
 0
 0
 0
-NULL
-NULL
+0
+0
+0
 0
 0
 0
 0
 NULL
 NULL
-0
-0
-0
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
+NULL
 drop table t1;
 CREATE TABLE t1( a SET('a', 'b', 'c') );
 CREATE TABLE t2( a SET('a', 'b', 'c') );

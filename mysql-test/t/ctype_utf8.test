@@ -854,6 +854,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES ('1234567890',2,'2005-05-24 13:53:25');
 
+--sorted_result
 SELECT content, t2.msisdn FROM t1, t2 WHERE t1.msisdn = '1234567890';
 
 DROP TABLE t1,t2;

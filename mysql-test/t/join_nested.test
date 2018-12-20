@@ -56,6 +56,7 @@ SELECT t3.a,t3.b
 SELECT t4.a,t4.b
   FROM t4;
 
+--sorted_result
 SELECT t3.a,t3.b,t4.a,t4.b
   FROM t3,t4;
 
@@ -130,6 +131,7 @@ SELECT t2.a,t2.b,t34.a3,t34.b3,t34.a4,t34.b4
 SELECT t5.a,t5.b
   FROM t5;
 
+--sorted_result
 SELECT t3.a,t3.b,t4.a,t4.b,t5.a,t5.b
   FROM t3,t4,t5;
 
@@ -204,6 +206,7 @@ SELECT t6.a,t6.b
 SELECT t7.a,t7.b
   FROM t7;
 
+--sorted_result
 SELECT t6.a,t6.b,t7.a,t7.b
   FROM t6,t7;
 
@@ -725,6 +728,7 @@ SELECT t1.a,t1.b,t2.a,t2.b,t3.a,t3.b
        )
     WHERE t1.a <= 2;
 
+--sorted_result
 SELECT t3.a,t3.b,t4.a,t4.b
   FROM t3,t4;
 

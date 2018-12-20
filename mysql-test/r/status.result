@@ -165,7 +165,7 @@ x
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	0.898000
-SELECT * FROM t1 a, t1 b LIMIT 1;
+SELECT * FROM t1 a, t1 b ORDER BY a.a, b.a LIMIT 1;
 a	a
 1	1
 SHOW SESSION STATUS LIKE 'Last_query_cost';

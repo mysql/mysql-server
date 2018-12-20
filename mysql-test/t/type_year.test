@@ -129,10 +129,12 @@ CREATE TABLE t1 (y YEAR NOT NULL, s VARCHAR(4));
 INSERT IGNORE INTO t1 (s) VALUES ('bad');
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 
+--sorted_result
 SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
 SELECT * FROM t1 WHERE t1.y = 0;
 SELECT * FROM t1 WHERE t1.y = 2000;
 
+--sorted_result
 SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb_y;
 
 DROP TABLE t1;

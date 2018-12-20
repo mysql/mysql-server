@@ -83,6 +83,7 @@ drop table if exists t1;
 create table t1 (f1 set('test1','test2','test3') character set utf8 default null)
 default charset=latin1;
 insert into t1 values (''),(null),(null),(''),(''),('');
+--sorted_result
 select find_in_set(f1,f1) as a from t1,(select find_in_set(f1,f1) as b from t1) a;
 drop table t1;
 #

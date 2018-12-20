@@ -204,6 +204,7 @@ insert into t2 values('01-01-01 00:00:00'),('01-02-03 12:34:56'),('02-04-06 11:2
 select * from t2 where f2 in ('01-01-01','01-02-03 12:34:56','01-02-03');
 select * from t1,t2 where '01-01-02' in (f1, cast(f2 as date));
 select * from t1,t2 where '01-01-01' in (f1, '01-02-03');
+--sorted_result
 select * from t1,t2 where if(1,'01-02-03 12:34:56','') in (f1, f2);
 create table t3(f3 varchar(20));
 insert into t3 select * from t2;

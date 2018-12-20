@@ -55,13 +55,13 @@ last_insert_id()
 select * from t1,t1 as t2;
 nr	b	str	nr	b	str
 1	a	A	1	a	A
-2	bbb	BBB	1	a	A
-3	ccc	CCC	1	a	A
 1	a	A	2	bbb	BBB
-2	bbb	BBB	2	bbb	BBB
-3	ccc	CCC	2	bbb	BBB
 1	a	A	3	ccc	CCC
+2	bbb	BBB	1	a	A
+2	bbb	BBB	2	bbb	BBB
 2	bbb	BBB	3	ccc	CCC
+3	ccc	CCC	1	a	A
+3	ccc	CCC	2	bbb	BBB
 3	ccc	CCC	3	ccc	CCC
 drop table t1;
 create table t1 (a text);

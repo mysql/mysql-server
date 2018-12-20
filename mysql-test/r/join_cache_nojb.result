@@ -2019,13 +2019,13 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 INSERT INTO t2 VALUES (2),(3);
 
 # The query shall return 1 record with a max value 9 and one of the 
-# int_key values inserted above (undefined which one). A changed 
-# execution plan may change the value in the second column
+# int_key values inserted above (undefined which one, so it's replaced
+# with "#").
 SELECT  MAX(t1.int_key), t1.int_key
 FROM t1 STRAIGHT_JOIN t2  
 ORDER BY t1.int_key;
 MAX(t1.int_key)	int_key
-9	0
+9	#
 
 explain 
 SELECT  MAX(t1.int_key), t1.int_key

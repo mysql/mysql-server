@@ -1920,24 +1920,24 @@ b	d	b	d
 select distinct t1.a1,t2.a1 from t1,t2;
 a1	a1
 a	a
-b	a
-c	a
-d	a
 a	b
-b	b
-c	b
-d	b
 a	c
-b	c
-c	c
-d	c
 a	d
-b	d
-c	d
-d	d
 a	e
+b	a
+b	b
+b	c
+b	d
 b	e
+c	a
+c	b
+c	c
+c	d
 c	e
+d	a
+d	b
+d	c
+d	d
 d	e
 explain select distinct a1,a2,b from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

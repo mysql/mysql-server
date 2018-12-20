@@ -4378,29 +4378,29 @@ create table t2(a int);
 insert into t2 values(0),(0),(1),(0),(10),(-2),(30),(NULL);
 select t1.a as str, length(t1.a) as str_length, t2.a as pos, t2.a + 10 as length, insert(t1.a, t2.a, t2.a + 10, '1234567') as 'insert' from t1, t2;
 str	str_length	pos	length	insert
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	1	11	
- 	1	1	11	1234567
-xxxxxxxxxxxxxxx	15	1	11	1234567xxxx
-	0	0	10	
- 	1	0	10	 
-xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
-	0	10	20	
- 	1	10	20	 
-xxxxxxxxxxxxxxx	15	10	20	xxxxxxxxx1234567
 	0	-2	8	
- 	1	-2	8	 
-xxxxxxxxxxxxxxx	15	-2	8	xxxxxxxxxxxxxxx
+	0	0	10	
+	0	0	10	
+	0	0	10	
+	0	1	11	
+	0	10	20	
 	0	30	40	
- 	1	30	40	 
-xxxxxxxxxxxxxxx	15	30	40	xxxxxxxxxxxxxxx
 	0	NULL	NULL	NULL
+ 	1	-2	8	 
+ 	1	0	10	 
+ 	1	0	10	 
+ 	1	0	10	 
+ 	1	1	11	1234567
+ 	1	10	20	 
+ 	1	30	40	 
  	1	NULL	NULL	NULL
+xxxxxxxxxxxxxxx	15	-2	8	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	0	10	xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx	15	1	11	1234567xxxx
+xxxxxxxxxxxxxxx	15	10	20	xxxxxxxxx1234567
+xxxxxxxxxxxxxxx	15	30	40	xxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxx	15	NULL	NULL	NULL
 drop table t1,t2;
 #

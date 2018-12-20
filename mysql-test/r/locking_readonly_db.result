@@ -150,13 +150,13 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 SELECT * FROM t1, t2 FOR SHARE OF t1 FOR SHARE OF t2;
 a	b	a
 1	1	10
-2	2	10
-3	3	10
 1	1	20
-2	2	20
-3	3	20
 1	1	30
+2	2	10
+2	2	20
 2	2	30
+3	3	10
+3	3	20
 3	3	30
 SELECT * FROM t1 FOR SHARE OF t1 NOWAIT;
 a	b
@@ -171,13 +171,13 @@ a	b
 SELECT * FROM t1, t2 FOR SHARE OF t1 NOWAIT FOR SHARE OF t2 NOWAIT;
 a	b	a
 1	1	10
-2	2	10
-3	3	10
 1	1	20
-2	2	20
-3	3	20
 1	1	30
+2	2	10
+2	2	20
 2	2	30
+3	3	10
+3	3	20
 3	3	30
 COMMIT;
 connection con1;
@@ -191,13 +191,13 @@ BEGIN;
 SELECT * FROM t1, t2 FOR UPDATE OF t1 FOR SHARE OF t2;
 a	b	a
 1	1	10
-2	2	10
-3	3	10
 1	1	20
-2	2	20
-3	3	20
 1	1	30
+2	2	10
+2	2	20
 2	2	30
+3	3	10
+3	3	20
 3	3	30
 connection default;
 set global read_only=ON;

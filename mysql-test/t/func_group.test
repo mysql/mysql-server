@@ -148,6 +148,7 @@ explain select max(t1.a1), max(t2.a2) from t1, t2;
 
 insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
+--sorted_result
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 
 select max(t1.a1), max(t2.a1) from t1, t2 where t2.a2=9;
@@ -1096,15 +1097,19 @@ select min(f1),max(f1) from t1;
 select min(f2),max(f2) from t1;
 select min(f3),max(f3) from t1;
 select min(f4),max(f4) from t1;
+--sorted_result
 select a.f1 as a, b.f1 as b, a.f1 > b.f1 as gt,
        a.f1 < b.f1 as lt, a.f1<=>b.f1 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
        a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
        a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
+--sorted_result
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
        a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;

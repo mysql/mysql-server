@@ -128,13 +128,13 @@ c1
 3
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
-def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
-c1	c2
 1	1
 2	2
-3	3
 2	2
+3	3
+c1	c2
+def	test	v1	v1	c1	c1	254	4	1	Y	0	0	255
+def	test	v2	v2	c2	c2	254	4	1	Y	0	0	255
 SELECT v1.c1, v2.c2 FROM v1 JOIN v2 ON c1=c2 GROUP BY v1.c1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	test	t1	v1	c1	c1	254	4	1	Y	32768	0	255

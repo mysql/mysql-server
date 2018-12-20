@@ -66,11 +66,11 @@ Note	1105	Query 'WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT c1 FR
 WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT * FROM qn, qn AS qn1;
 a	b	a	b
 3	2	3	2
-6	2	3	2
 3	2	6	2
+6	2	3	2
 6	2	6	2
-Warnings:
 Note	1105	Query 'WITH qn AS ( SELECT c1 FROM test.t2 WHERE c2 = 1 ) SELECT * FROM qn, qn AS qn1' rewritten to 'WITH qn(a,b) AS ( SELECT c1,c2+1 FROM test.t1 WHERE c2 = 1 ) SELECT * FROM qn, qn AS qn1' by a query rewrite plugin
+Warnings:
 DROP TABLE t1;
 DROP TABLE t2;
 SET sql_mode = DEFAULT;
