@@ -3536,6 +3536,14 @@ static int set_native_salt(const char *password, unsigned int password_len,
 #if defined(HAVE_OPENSSL)
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
+  /*
+   Deprecate message for SHA-256 authentication plugin.
+  */
+  LogPluginErr(
+      WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+      Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD));
   if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
       my_validate_password_policy(inbuf, inbuflen))
     return 1;
@@ -3983,6 +3991,14 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   DBUG_ENTER("sha256_password_authenticate");
 
+  /*
+   Deprecate message for SHA-256 authentication plugin.
+  */
+  LogPluginErr(
+      WARNING_LEVEL, ER_SERVER_WARN_DEPRECATED,
+      Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD));
   generate_user_salt(scramble, SCRAMBLE_LENGTH + 1);
 
   /*

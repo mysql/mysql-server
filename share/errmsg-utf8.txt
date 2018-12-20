@@ -18855,6 +18855,9 @@ ER_INVALID_NAMED_PIPE_FULL_ACCESS_GROUP
 ER_PREPARE_FOR_SECONDARY_ENGINE
   eng "Retry the statement using a secondary storage engine."
 
+ER_SERVER_WARN_DEPRECATED
+  eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

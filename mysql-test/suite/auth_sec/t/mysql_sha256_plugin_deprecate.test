@@ -1,0 +1,12 @@
+--source include/have_ssl.inc
+--source include/have_openssl.inc
+
+CREATE USER 'test_user1'@'localhost' IDENTIFIED WITH 'sha256_password' BY 'password';
+
+# Test:Deprecate Warning message for sha256_password plugin authentication
+--echo Test:Deprecate Warning message for sha256_password plugin authentication
+connect(con1,localhost,test_user1,password,,);
+disconnect con1;
+
+connection default;
+DROP USER 'test_user1'@'localhost';
