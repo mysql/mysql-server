@@ -96,6 +96,7 @@ SET @@AUTOCOMMIT=1;
 XA START 'xa1';
 XA END 'xa1';
 XA PREPARE 'xa1';
+--let $connection_id= `SELECT CONNECTION_ID()`
 --disconnect other_conn
 # Wait for the `other_conn` to be cleared from the server
 --connection default
