@@ -668,22 +668,22 @@ tc_block_instance	bigint(21) unsigned	YES		NULL
 
 select count(*) from table_distribution_status;
 count(*)
-8
+9
 select count(*) from ndb$table_distribution_status_all;
 count(*)
-16
+18
 select count(*) from table_fragments;
 count(*)
-56
+64
 select count(*) from ndb$table_fragments_all;
 count(*)
-112
+128
 select count(*) from table_replicas;
 count(*)
-112
+128
 select count(*) from ndb$table_replicas_all;
 count(*)
-224
+256
 
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra

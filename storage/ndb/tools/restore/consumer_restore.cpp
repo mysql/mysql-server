@@ -2681,6 +2681,7 @@ BackupRestore::createSystable(const TableS & tables){
   if( strcmp(tablename, NDB_REP_DB "/def/" NDB_APPLY_TABLE) != 0 &&
       strcmp(tablename, NDB_REP_DB "/def/" NDB_SCHEMA_TABLE) != 0 )
   {
+    // Dont restore any other system table than those listed above
     return true;
   }
 

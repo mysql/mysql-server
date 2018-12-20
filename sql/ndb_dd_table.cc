@@ -93,11 +93,6 @@ ndb_dd_table_mark_as_hidden(dd::Table* table_def)
   DBUG_ENTER("ndb_dd_table_mark_as_hidden");
   DBUG_PRINT("enter", ("table_name: %s", table_def->name().c_str()));
 
-  // Only allow mysql.ndb_schema table to be hidden for now, there are a
-  // few hacks elsewehere in these ndb_dd_* files and those need to be
-  // hacked to keep the table hidden
-  DBUG_ASSERT(table_def->name() == "ndb_schema");
-
   // Mark it as hidden by SE. I.e "Table which is implicitly
   // created and dropped by SE"
   table_def->set_hidden(dd::Abstract_table::HT_HIDDEN_SE);

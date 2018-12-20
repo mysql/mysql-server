@@ -56,6 +56,7 @@
 #include "sql/ndb_require.h"
 #include "sql/ndb_retry.h"
 #include "sql/ndb_schema_dist_table.h"
+#include "sql/ndb_schema_result_table.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
@@ -2553,6 +2554,13 @@ public:
      ndb_log_info("Simulate 'ndb_binlog_setup_incomplete' -> return error");
      return false;
    }
+
+   Ndb_schema_result_table schema_result_table(thd_ndb);
+   Util_table_creator schema_result_table_creator(m_thd, thd_ndb,
+                                                  schema_result_table);
+   if (!schema_result_table_creator.create_or_upgrade(
+           opt_ndb_schema_dist_upgrade_allowed))
+     return false;
 
    Ndb_apply_status_table apply_status_table(thd_ndb);
    Util_table_creator apply_table_creator(m_thd, thd_ndb, apply_status_table);
