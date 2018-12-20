@@ -5138,6 +5138,7 @@ sub start_check_warnings ($$) {
 
   my $name      = "warnings-" . $exe->name();
   my $log_error = $exe->value('#log-error');
+  my ($group_prefix) = split(/\./, $exe->name()); # First part of name
 
   # To be communicated to the test
   $ENV{MTR_LOG_ERROR} = $log_error;
@@ -5147,7 +5148,7 @@ sub start_check_warnings ($$) {
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $exe->suffix());
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $exe->after($group_prefix));
   mtr_add_arg($args, "--test-file=%s",  "include/check-warnings.test");
   mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 

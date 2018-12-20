@@ -87,4 +87,4 @@ if (`SELECT @result = 0`) {
 }
 
 --echo ^ Found warnings in $log_error
---exit;
+--exit
