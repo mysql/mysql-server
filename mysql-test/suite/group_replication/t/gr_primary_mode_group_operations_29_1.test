@@ -131,6 +131,10 @@ LOCK TABLE t2 READ;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+# Insert might not have started, UNLOCK will unblock internal SET READ_ONLY
+--let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE state LIKE "%Waiting for global read lock%" AND info lIKE "%INSERT INTO t2%" AND USER="root"
+--source include/wait_condition.inc
+
 UNLOCK TABLES;
 
 --echo
