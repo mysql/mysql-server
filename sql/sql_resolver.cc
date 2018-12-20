@@ -4017,9 +4017,13 @@ bool SELECT_LEX::change_func_or_wf_group_ref(THD *thd, Item *func,
 
     for (ORDER *group = group_list.first; group; group = group->next) {
       if (real_item->eq((*group->item)->real_item(), 0)) {
-        Item *new_item;
+        // If to-be-replaced Item is alias, make replacing Item an alias.
+        bool alias_of_expr = (item->type() == Item::FIELD_ITEM ||
+                              item->type() == Item::REF_ITEM) &&
+                             down_cast<Item_ident *>(item)->is_alias_of_expr();
+        Item_ref *new_item;
         if (!(new_item = new Item_ref(&context, group->item, 0,
-                                      item->item_name.ptr())))
+                                      item->item_name.ptr(), alias_of_expr)))
           return true; /* purecov: inspected */
 
         if (wf) {

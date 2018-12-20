@@ -1555,3 +1555,27 @@ GROUP BY t1.b;
 ERROR 42000: Expression #5 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t3.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2, t3;
 DROP FUNCTION show_json_object;
+#
+# Bug#29006668 UNEXPECTED ERROR: "ORDER BY CLAUSE IS NOT IN GROUP BY CLAUSE" WITH ROLLUP
+#
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES (-1),(2),(1);
+SELECT ABS(i) AS a FROM t GROUP BY abs(i)             ORDER BY a + 1;
+a
+1
+2
+SELECT ABS(i) AS a FROM t GROUP BY abs(i) WITH ROLLUP ORDER BY a + 1;
+a
+NULL
+1
+2
+SELECT ABS(i) AS a FROM t GROUP BY a                  ORDER BY a + 1;
+a
+1
+2
+SELECT ABS(i) AS a FROM t GROUP BY a      WITH ROLLUP ORDER BY a + 1;
+a
+NULL
+1
+2
+DROP TABLE t;

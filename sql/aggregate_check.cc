@@ -369,7 +369,10 @@ bool Group_check::is_fd_on_source(Item *item) {
       transformation. But there cannot be a key-based or equality-based
       functional dependency on a NULL literal.
       Moreover, there are no FDs in a UNION.
-      So if the query has ROLLUP, we can stop here.
+      So if the query has ROLLUP, we can stop here. Above, we have tested the
+      column against the group columns and that's enough.
+      See test group_by_fd_no_prot for examples of queries with ROLLUP which
+      are accepted or not.
     */
     return false;
   }
