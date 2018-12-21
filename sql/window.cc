@@ -1267,6 +1267,10 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
     /* Do this last, after any re-ordering */
     windows[windows.elements - 1]->m_last = true;
   }
+
+  if (select->olap == ROLLUP_TYPE && select->resolve_rollup_wfs(thd))
+    return true; /* purecov: inspected */
+
   return false;
 }
 

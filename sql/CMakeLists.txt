@@ -439,6 +439,7 @@ SET(SQL_SHARED_SOURCES
   sql_call.cc
   sql_class.cc
   sql_component.cc
+  sql_const_folding.cc
   sql_cmd_ddl_table.cc
   sql_cmd_srs.cc
   sql_connect.cc

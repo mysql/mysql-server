@@ -215,6 +215,32 @@ inline timestamp_type field_type_to_timestamp_type(enum enum_field_types type) {
 ulonglong gmt_time_to_local_time(ulonglong time);
 
 /**
+  In lieu of a proper constructor for the C struct MYSQL_TIME, this method
+  initializes the struct.
+*/
+MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
+                       unsigned long ms, bool negative,
+                       enum_mysql_timestamp_type type);
+/**
+  Return the number of significant second fraction decimals in ts, e.g.
+  for ts->second_part == 120300, return 4.
+
+  @param ts the time value for which we wnat the number of decmals
+  @return the number of decimals
+*/
+uint actual_decimals(const MYSQL_TIME *ts);
+
+/**
+  For a time fraction with a given number of decimals, return maximum fraction,
+  if any, can be are present in a time value. For example, if 2 decimals are
+  specified, return 990000. If none, 0.
+
+  @param decimals the number of decimals
+  @return the maximum fraction
+*/
+size_t max_fraction(uint decimals);
+
+/**
    @} (end of ingroup SQL_TIME)
 */
 

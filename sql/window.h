@@ -180,7 +180,7 @@ class Window {
     int64 m_rowno;
     bool m_from_last;
     st_offset() : m_rowno(0), m_from_last(false) {}
-    /*
+    /**
       Used for sorting offsets in ascending order for faster traversal of
       frame buffer tmp file
     */
@@ -190,7 +190,7 @@ class Window {
   struct st_ll_offset {
     int64 m_rowno;  ///< negative values is LEAD
     st_ll_offset() : m_rowno(INT_MIN64 /* uninitialized marker*/) {}
-    /*
+    /**
       Used for sorting offsets in ascending order for faster traversal of
       frame buffer tmp file
     */
@@ -198,7 +198,8 @@ class Window {
   };
 
   struct st_nth {
-    Mem_root_array_YY<st_offset> m_offsets;  // sorted set of NTH_VALUE offsets
+    Mem_root_array_YY<st_offset>
+        m_offsets;  ///< sorted set of NTH_VALUE offsets
   };
 
   struct st_lead_lag {
@@ -262,7 +263,7 @@ class Window {
   };
 
   /**
-    Execution state: used iff m_needs_frame_buffering. Holds four pointers to
+    Execution state: used iff m_needs_frame_buffering. Holds pointers to
     positions in the file in m_frame_buffer. We use these saved positions to
     avoid having to position to the first row in the partition and then
     making many read calls to find the desired row. By repositioning to a

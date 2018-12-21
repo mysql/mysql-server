@@ -435,9 +435,9 @@ static inline dec1 *remove_leading_zeroes(const decimal_t *from,
     from    number for processing
 */
 
-int decimal_actual_fraction(decimal_t *from) {
+int decimal_actual_fraction(const decimal_t *from) {
   int frac = from->frac, i;
-  dec1 *buf0 = from->buf + ROUND_UP(from->intg) + ROUND_UP(frac) - 1;
+  const dec1 *buf0 = from->buf + ROUND_UP(from->intg) + ROUND_UP(frac) - 1;
 
   if (frac == 0) return 0;
 
@@ -973,6 +973,30 @@ fatal_error:
   return error;
 }
 
+/**
+  Add zeros behind comma to increase precision of decimal.
+
+  @param         new_frac the new fraction
+  @param[in,out] d        the decimal target
+
+  new_frac is exected to be larger or equal than cd->frac and
+  new fraction is expected to fit in d.
+*/
+void widen_fraction(int new_frac, decimal_t *d) {
+  const int frac = d->frac;
+  const int intg = d->intg;
+  const int frac1 = ROUND_UP(frac);
+  const int intg1 = ROUND_UP(intg);
+  int new_frac1 = ROUND_UP(new_frac);
+
+  if (new_frac < frac || intg1 + new_frac1 > d->len) {
+    DBUG_ASSERT(false);
+    return;
+  }
+  decimal_digit_t *buf = d->buf + intg1 + frac1;
+  std::fill_n(buf, new_frac1 - frac1, 0);
+  d->frac = new_frac;
+}
 /*
   Convert decimal to double
 

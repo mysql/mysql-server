@@ -940,7 +940,7 @@ FROM aa AS innr1 JOIN cte AS innrcte
 ON innr1.pk = innrcte.field1
 WHERE outr1 . col_int_key <> 0
 ORDER BY innr1 . col_blob );
-ERROR 22007: Incorrect datetime value: 'g' for column 'field1' at row 1
+ERROR 22007: Incorrect datetime value: 'g' for column 'x' at row 1
 DROP VIEW view_c, view_bb;
 DROP TABLE aa,b,bb,c,e;
 #

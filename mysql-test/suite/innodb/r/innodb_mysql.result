@@ -687,7 +687,7 @@ WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	idx_b,idx_c	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`c` >= '2007-01-02') and (`test`.`t1`.`c` <= '2007-01-03')) or (`test`.`t1`.`b` >= 1))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (((`test`.`t1`.`c` >= TIMESTAMP'2007-01-02 00:00:00') and (`test`.`t1`.`c` <= TIMESTAMP'2007-01-03 00:00:00')) or (`test`.`t1`.`b` >= 1))
 SELECT COUNT(*) FROM t1 
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)
@@ -698,7 +698,7 @@ WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	idx_b,idx_c	idx_c,idx_b	5,4	NULL	#	#	Using sort_union(idx_c,idx_b); Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= '2007-01-02') and (`test`.`t1`.`c` <= '2007-01-03')) or (`test`.`t1`.`b` >= 1))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= TIMESTAMP'2007-01-02 00:00:00') and (`test`.`t1`.`c` <= TIMESTAMP'2007-01-03 00:00:00')) or (`test`.`t1`.`b` >= 1))
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)
@@ -1923,7 +1923,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DERIVED	t1	NULL	ref	c3,c2	c3	7	const	2	40.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2)) group by `test`.`t1`.`c2`) `x`
+Note	1003	/* select#1 */ select 1 AS `1` from (/* select#2 */ select count(distinct `test`.`t1`.`c1`) AS `COUNT(DISTINCT c1)` from `test`.`t1` where ((`test`.`t1`.`c2` in (1,1)) and (`test`.`t1`.`c3` = 2.00)) group by `test`.`t1`.`c2`) `x`
 DROP TABLE t1;
 End of 5.1 tests
 #
@@ -2586,7 +2586,7 @@ c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= '2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= '2009-10-09 00:00:00.00') and multiple equal('TEST', `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` >= TIMESTAMP'2009-10-09 00:00:00.001') and (`test`.`t1`.`c` <= TIMESTAMP'2009-10-09 00:00:00') and multiple equal('TEST', `test`.`t1`.`a`))
 DROP TABLE t1;
 #
 # Bug #46175: NULL read_view and consistent read assertion

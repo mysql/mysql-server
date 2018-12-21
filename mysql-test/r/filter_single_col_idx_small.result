@@ -208,7 +208,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 # NOT NULL (not nullable column)
 EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	90.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
 EXPLAIN SELECT * FROM t1 WHERE t1.col4 != NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	90.00	Using where

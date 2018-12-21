@@ -778,6 +778,8 @@ prepare stmt1 from 'select c4 FROM t9 where
     c13 = (select MAX(b) from t1 where a = ?) and c22 = ? ' ;
 execute stmt1 using @arg01, @arg02;
 c4
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'two'
 prepare stmt1 from ' select a, b FROM t1 outer_table where
    a = (select a from t1 where b = outer_table.b ) order by a ';
 execute stmt1 ;

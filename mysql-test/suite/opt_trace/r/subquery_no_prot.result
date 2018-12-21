@@ -607,44 +607,14 @@ WHERE NOT EXISTS
                                       },
                                       {
                                         "transformation": "trivial_condition_removal",
-                                        "resulting_condition": "((`t2`.`a` = 50) and (`t2`.`b` = 3))"
+                                        "resulting_condition": null
                                       }
                                     ] /* steps */
                                   } /* condition_processing */
-                                },
-                                {
-                                  "substitute_generated_columns": {
-                                  } /* substitute_generated_columns */
-                                },
-                                {
-                                  "table_dependencies": [
-                                    {
-                                      "table": "`t2`",
-                                      "row_may_be_null": false,
-                                      "map_bit": 0,
-                                      "depends_on_map_bits": [
-                                      ] /* depends_on_map_bits */
-                                    }
-                                  ] /* table_dependencies */
-                                },
-                                {
-                                  "ref_optimizer_key_uses": [
-                                  ] /* ref_optimizer_key_uses */
-                                },
-                                {
-                                  "rows_estimation": [
-                                    {
-                                      "table": "`t2`",
-                                      "rows": 1,
-                                      "cost": 1,
-                                      "table_type": "system",
-                                      "empty": true
-                                    }
-                                  ] /* rows_estimation */
                                 }
                               ] /* steps */,
                               "empty_result": {
-                                "cause": "no matching row in const table"
+                                "cause": "Impossible WHERE"
                               } /* empty_result */
                             } /* join_optimization */
                           },

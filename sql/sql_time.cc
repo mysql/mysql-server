@@ -808,6 +808,30 @@ ulonglong gmt_time_to_local_time(ulonglong gmt_time) {
   return TIME_to_ulonglong_datetime(time);
 }
 
+MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
+                       unsigned long ms, bool negative,
+                       enum_mysql_timestamp_type type) {
+  return {y, m, d, h, mi, s, ms, negative, type};
+}
+
+uint actual_decimals(const MYSQL_TIME *ts) {
+  uint count = DATETIME_MAX_DECIMALS;
+  for (int i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+    if (ts->second_part % log_10_int[i] != 0) break;
+    count--;
+  }
+  return count;
+}
+
+size_t max_fraction(uint decimals) {
+  size_t res = 0;
+  for (uint i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+    res *= 10;
+    if (i <= decimals) res += 9;
+  }
+  return res;
+}
+
 /**
    @} (end of defgroup SQL_TIME)
 */

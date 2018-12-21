@@ -394,7 +394,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
     }
     if (conds) {
-      conds = substitute_for_best_equal_field(conds, cond_equal, 0);
+      conds = substitute_for_best_equal_field(thd, conds, cond_equal, 0);
       if (conds == NULL) DBUG_RETURN(true);
 
       conds->update_used_tables();

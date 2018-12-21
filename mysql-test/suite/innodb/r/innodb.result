@@ -1730,9 +1730,9 @@ count(*)
 0
 explain select count(*) from t1 where x > -16;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	2	50.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	8	NULL	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`x` > <cache>(-(16)))
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where 1
 select count(*) from t1 where x > -16;
 count(*)
 2

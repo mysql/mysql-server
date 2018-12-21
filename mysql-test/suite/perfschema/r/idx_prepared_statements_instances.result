@@ -34,7 +34,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
-where OBJECT_INSTANCE_BEGIN < "impossible";
+where OBJECT_INSTANCE_BEGIN < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -70,7 +70,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
-where STATEMENT_ID < "impossible";
+where STATEMENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -106,7 +106,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
-where STATEMENT_NAME < "impossible";
+where STATEMENT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ALL	STATEMENT_NAME	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -142,7 +142,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
-where OWNER_THREAD_ID < "impossible";
+where OWNER_THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -176,7 +176,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
 where OWNER_THREAD_ID = @o_tid
-and OWNER_EVENT_ID < "impossible";
+and OWNER_EVENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_THREAD_ID	OWNER_THREAD_ID	8	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -214,7 +214,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
-where OWNER_OBJECT_TYPE < "impossible";
+where OWNER_OBJECT_TYPE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ALL	OWNER_OBJECT_TYPE	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -248,7 +248,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
 where OWNER_OBJECT_TYPE = @o_otype
-and OWNER_OBJECT_SCHEMA < "impossible";
+and OWNER_OBJECT_SCHEMA < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	2	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -287,7 +287,7 @@ explain select SUM_ERRORS
 from performance_schema.prepared_statements_instances
 where OWNER_OBJECT_TYPE = @o_otype
 and OWNER_OBJECT_SCHEMA = @o_oschema
-and OWNER_OBJECT_NAME < "impossible";
+and OWNER_OBJECT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	prepared_statements_instances	NULL	ref	OWNER_OBJECT_TYPE	OWNER_OBJECT_TYPE	261	const,const	#	33.33	Using where
 ############ Explain for Query ####################################

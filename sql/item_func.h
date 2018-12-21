@@ -187,7 +187,8 @@ class Item_func : public Item_result_field {
     HOUR_FUNC,
     MINUTE_FUNC,
     SECOND_FUNC,
-    MICROSECOND_FUNC
+    MICROSECOND_FUNC,
+    DATETIME_LITERAL
   };
   enum optimize_type {
     OPTIMIZE_NONE,

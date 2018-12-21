@@ -28,7 +28,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select ENABLED
 from performance_schema.setup_objects
-where OBJECT_TYPE < "impossible";
+where OBJECT_TYPE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	setup_objects	NULL	ALL	OBJECT	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -62,7 +62,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select ENABLED
 from performance_schema.setup_objects
 where OBJECT_TYPE = "PROCEDURE"
-and OBJECT_SCHEMA < "impossible";
+and OBJECT_SCHEMA < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	setup_objects	NULL	ref	OBJECT	OBJECT	1	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -101,7 +101,7 @@ explain select ENABLED
 from performance_schema.setup_objects
 where OBJECT_TYPE = "PROCEDURE"
 and OBJECT_SCHEMA = "explain_test_db"
-and OBJECT_NAME < "impossible";
+and OBJECT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	setup_objects	NULL	ref	OBJECT	OBJECT	260	const,const	#	33.33	Using where
 ############ Explain for Query ####################################

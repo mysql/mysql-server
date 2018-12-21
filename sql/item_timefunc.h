@@ -966,6 +966,7 @@ class Item_datetime_literal final : public Item_datetime_func {
     fixed = true;
   }
   const char *func_name() const override { return "datetime_literal"; }
+  enum Functype functype() const override { return DATETIME_LITERAL; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   longlong val_date_temporal() override {

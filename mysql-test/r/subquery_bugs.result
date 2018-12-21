@@ -422,9 +422,9 @@ SELECT s.Id FROM s3 s WHERE Id=1 AND u IS NOT NULL)
 ORDER BY Id DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	p	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
-1	SIMPLE	s	NULL	ref	o	o	4	const	2	50.00	Using where; Using index; FirstMatch(p)
+1	SIMPLE	s	NULL	ref	o	o	4	const	2	100.00	Using index; FirstMatch(p)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `Id` from `test`.`p` semi join (`test`.`s3` `s`) where ((`test`.`s`.`Id` = 1) and (`test`.`s`.`u` is not null)) order by '1' desc
+Note	1003	/* select#1 */ select '1' AS `Id` from `test`.`p` semi join (`test`.`s3` `s`) where (`test`.`s`.`Id` = 1) order by '1' desc
 SELECT p.Id FROM (p) WHERE p.Id IN (
 SELECT s.Id FROM s2 s WHERE Id=1 AND u IS NULL) ORDER BY Id DESC;
 Id

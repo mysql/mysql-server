@@ -481,11 +481,11 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     return cmp.cmp_collation.collation;
   }
   void top_level_item() override { abort_on_null = true; }
+  bool is_top_level_item() const { return abort_on_null; }
   void cleanup() override {
     Item_bool_func::cleanup();
     cmp.cleanup();
   }
-
   friend class Arg_comparator;
 };
 
@@ -2094,6 +2094,7 @@ class Item_equal final : public Item_bool_func {
   ~Item_equal() override { destroy(eval_item); }
 
   inline Item *get_const() { return const_item; }
+  void set_const(Item *c) { const_item = c; }
   bool compare_const(THD *thd, Item *c);
   bool add(THD *thd, Item *c, Item_field *f);
   bool add(THD *thd, Item *c);
@@ -2152,7 +2153,7 @@ class Item_equal final : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-
+  Item *m_const_folding[2];  ///< temporary area used for constant folding
  private:
   void check_covering_prefix_keys();
 };
@@ -2250,6 +2251,9 @@ inline Item *and_conds(Item *a, Item *b) {
 longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
                             const Item *warn_item, bool *is_null);
 
+// TODO: the next two functions should be moved to sql_time.{h,cc}
+bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
+                                     MYSQL_TIME_STATUS *status);
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
 /*

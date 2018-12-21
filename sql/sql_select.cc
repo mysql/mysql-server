@@ -397,6 +397,11 @@ static bool validate_use_secondary_engine(const LEX *lex) {
 bool Sql_cmd_dml::prepare(THD *thd) {
   DBUG_ENTER("Sql_cmd_dml::prepare");
 
+  bool error_handler_active = false;
+
+  Ignore_error_handler ignore_handler;
+  Strict_error_handler strict_handler;
+
   // @todo: Move this to constructor?
   lex = thd->lex;
   result = lex->result;
@@ -407,6 +412,21 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   DBUG_ASSERT(!unit->is_prepared() && !unit->is_optimized() &&
               !unit->is_executed());
+
+  /*
+    Constant folding could cause warnings during preparation. Make
+    sure they are promoted to errors when strict mode is enabled.
+  */
+  if (is_data_change_stmt()) {
+    // Push ignore / strict error handler
+    if (lex->is_ignore()) {
+      thd->push_internal_handler(&ignore_handler);
+      error_handler_active = true;
+    } else if (thd->is_strict_mode()) {
+      thd->push_internal_handler(&strict_handler);
+      error_handler_active = true;
+    }
+  }
 
   // Perform a coarse statement-specific privilege check.
   if (precheck(thd)) goto err;
@@ -425,6 +445,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
           needs_explicit_preparation() ? MYSQL_OPEN_FORCE_SHARED_MDL : 0)) {
     if (thd->is_error())  // @todo - dictionary code should be fixed
       goto err;
+    if (error_handler_active) thd->pop_internal_handler();
     (void)unit->cleanup(thd, false);
     DBUG_RETURN(true);
   }
@@ -445,11 +466,16 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   set_prepared();
 
+  // Pop ignore / strict error handler
+  if (error_handler_active) thd->pop_internal_handler();
+
   DBUG_RETURN(false);
 
 err:
   DBUG_ASSERT(thd->is_error());
   DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
+
+  if (error_handler_active) thd->pop_internal_handler();
 
   (void)unit->cleanup(thd, false);
 
@@ -3802,7 +3828,6 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   @retval  0    if ok
   @retval  1    if error
 */
-
 bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
                                           List<Item> &curr_sel_fields) {
   List_iterator_fast<Item> it(curr_all_fields);
@@ -3835,7 +3860,7 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
       */
       Item *ref_array_item = ref_array_start[ref_array_ix];
       if (ref_array_item->type() == Item::NULL_RESULT_ITEM ||
-          ref_array_item->has_rollup_field() ||
+          ref_array_item->has_rollup_expr() ||
           (ref_array_item->type() == Item::SUM_FUNC_ITEM &&
            !ref_array_item->m_is_window_function)) {
         has_rollup_fields = true;
@@ -3843,7 +3868,9 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
       if (real_fields) {
         (void)new_it_fields_list++;  // Point to next item
         (void)new_it_all_fields++;
-        // Replace all the items which do not need ROLLUP nulls for evaluation
+        /*
+          Replace all the items which do not need ROLLUP nulls for evaluation
+        */
         if (!has_rollup_fields) {
           ref_array_start[ref_array_ix] = item;
           new_it_fields_list.replace(item);  // Replace previous
@@ -3851,7 +3878,9 @@ bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
         }
         ref_array_ix++;
       } else {
-        // Replace all the items which do not need ROLLUP nulls for evaluation
+        /*
+          Replace all the items which do not need ROLLUP nulls for evaluation
+        */
         if (!has_rollup_fields) {
           ref_array_start[ref_array_ix] = item;
           rollup.all_fields[pos].replace(ref_array_ix, item);

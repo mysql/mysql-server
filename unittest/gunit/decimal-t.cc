@@ -190,6 +190,12 @@ void dump_decimal(decimal_t *d) {
     do_test_pr(p1, p2, p3, p4, p5, p6); \
   }
 
+#define test_widen_fraction(p1, p2, p3) \
+  {                                     \
+    SCOPED_TRACE("");                   \
+    do_test_widen_fraction(p1, p2, p3); \
+  }
+
 #define test_sh(p1, p2, p3, p4) \
   {                             \
     SCOPED_TRACE("");           \
@@ -511,6 +517,23 @@ void do_test_pr(const char *s1, int prec, int dec, char filler,
   }
 }
 
+void do_test_widen_fraction(const char *s1, int increase, const char *orig) {
+  decimal_t a;
+  decimal_digit_t buf1[9];
+  a.buf = buf1;
+  a.len = array_elements(buf1);
+
+  const char *end = strend(s1);
+  string2decimal(s1, &a, &end);
+  widen_fraction(a.frac + increase, &a);
+
+  char s[100];
+  int slen = sizeof(s);
+  int result = decimal2string(&a, s, &slen, 0, 0, 0);
+  EXPECT_EQ(result, 0);
+  EXPECT_STREQ(orig, s) << " arguments were: " << s1;
+}
+
 void do_test_sh(const char *s1, int shift, const char *orig, int ex) {
   char s[100];
   int res;
@@ -800,6 +823,13 @@ TEST_F(DecimalTest, Decimal2String) {
   test_pr("123.123", 8, 6, '0', "23.123000", 2);
 }
 
+TEST_F(DecimalTest, WidenFraction) {
+  test_widen_fraction("123.0", 1, "123.00");
+  test_widen_fraction("1234567890.123456789", 1, "1234567890.1234567890");
+  test_widen_fraction("123.0", 0, "123.0");
+  test_widen_fraction("123.0", 4, "123.00000");
+}
+
 TEST_F(DecimalTest, DecimalShift) {
   test_sh("123.123", 1, "1231.23", 0);
   test_sh("123457189.123123456789000", 1, "1234571891.23123456789", 0);
@@ -1010,4 +1040,4 @@ static void BM_Bin2Decimal_10_2(size_t iters) {
             dummy);  // To keep the optimizer from removing the loop.
 }
 BENCHMARK(BM_Bin2Decimal_10_2)
-}
+}  // namespace decimal_unittest

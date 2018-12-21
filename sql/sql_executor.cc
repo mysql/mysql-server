@@ -7088,7 +7088,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
                  real_pos->type() == Item::CACHE_ITEM ||
                  real_pos->type() == Item::COND_ITEM) &&
                 !real_pos->has_aggregation() &&
-                !real_pos->has_rollup_field())) {  // Save for send fields
+                !real_pos->has_rollup_expr())) {  // Save for send fields
       pos = real_pos;
       /* TODO:
          In most cases this result will be sent to the user.

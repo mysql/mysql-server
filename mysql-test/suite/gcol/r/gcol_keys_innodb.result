@@ -203,7 +203,7 @@ outr.col_datetime_key = '2009-09-27');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	outr	NULL	index_merge	col_time_key,col_datetime_key	col_time_key,col_datetime_key	4,6	NULL	x	x	Using sort_union(col_time_key,col_datetime_key); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_time_key` AS `x` from `test`.`c` `outr` where ((`test`.`outr`.`col_varchar_nokey` in ('c','x','i')) and (isnull(`test`.`outr`.`col_time_key`) or (`test`.`outr`.`col_datetime_key` = '2009-09-27')))
+Note	1003	/* select#1 */ select `test`.`outr`.`col_time_key` AS `x` from `test`.`c` `outr` where ((`test`.`outr`.`col_varchar_nokey` in ('c','x','i')) and (isnull(`test`.`outr`.`col_time_key`) or (`test`.`outr`.`col_datetime_key` = TIMESTAMP'2009-09-27 00:00:00')))
 SELECT
 outr.col_time_key AS x
 FROM c AS outr

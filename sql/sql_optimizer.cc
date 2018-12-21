@@ -1,24 +1,24 @@
 /* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -79,12 +79,13 @@
 #include "sql/sql_base.h"  // init_ftfuncs
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
+#include "sql/sql_const_folding.h"
 #include "sql/sql_error.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
 #include "sql/sql_planner.h"      // calculate_condition_filter
 #include "sql/sql_resolver.h"     // subquery_allows_materialization
 #include "sql/sql_test.h"         // print_where
-#include "sql/sql_tmp_table.h"    // get_max_key_and_part_length
+#include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/window.h"
@@ -460,7 +461,7 @@ int JOIN::optimize() {
   */
   if (where_cond) {
     where_cond =
-        substitute_for_best_equal_field(where_cond, cond_equal, map2table);
+        substitute_for_best_equal_field(thd, where_cond, cond_equal, map2table);
     if (thd->is_error()) {
       error = 1;
       DBUG_PRINT("error", ("Error from substitute_for_best_equal"));
@@ -478,7 +479,7 @@ int JOIN::optimize() {
     JOIN_TAB *const tab = best_ref[i];
     if (tab->position() && tab->join_cond()) {
       tab->set_join_cond(substitute_for_best_equal_field(
-          tab->join_cond(), tab->cond_equal, map2table));
+          thd, tab->join_cond(), tab->cond_equal, map2table));
       if (thd->is_error()) {
         error = 1;
         DBUG_PRINT("error", ("Error from substitute_for_best_equal"));
@@ -4037,6 +4038,7 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
       f=item_equal->get_first().
     All generated equality are added to the cond conjunction.
 
+  @param thd             the session context
   @param cond            condition to add the generated equality to
   @param upper_levels    structure to access multiple equality of upper levels
   @param item_equal      multiple equality to generate simple equality from
@@ -4067,10 +4069,11 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
     - 0, otherwise.
 */
 
-static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
+static Item *eliminate_item_equal(THD *thd, Item *cond,
+                                  COND_EQUAL *upper_levels,
                                   Item_equal *item_equal) {
   List<Item> eq_list;
-  Item_func_eq *eq_item = NULL;
+  Item *eq_item = NULL;
   if (((Item *)item_equal)->const_item() && !item_equal->val_int())
     return new Item_int((longlong)0, 1);
   Item *const item_const = item_equal->get_const();
@@ -4157,8 +4160,22 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     if (eq_item) eq_list.push_back(eq_item);
 
     eq_item = new Item_func_eq(item_field, head);
-    if (!eq_item || eq_item->set_cmp_func()) return NULL;
+    if (!eq_item || down_cast<Item_func_eq *>(eq_item)->set_cmp_func())
+      return nullptr;
     eq_item->quick_fix_field();
+    if (item_const != nullptr) {
+      eq_item->top_level_item();
+      Item::cond_result res;
+      if (fold_condition(thd, eq_item, &eq_item, &res)) return nullptr;
+      if (res == Item::COND_FALSE) {
+        eq_item = new (thd->mem_root) Item_int(0, 1);
+        if (eq_item == nullptr) return nullptr;
+        return eq_item;  // entire AND is false
+      } else if (res == Item::COND_TRUE) {
+        eq_item = new (thd->mem_root) Item_int(1, 1);
+        if (eq_item == nullptr) return nullptr;
+      }
+    }
   }  // ... while ((item_field= it++))
 
   if (!cond && !eq_list.head()) {
@@ -4187,20 +4204,21 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     The function retrieves the cond condition and for each encountered
     multiple equality predicate it sorts the field references in it
     according to the order of tables specified by the table_join_idx
-    parameter. Then it eliminates the multiple equality predicate it
-    replacing it by the conjunction of simple equality predicates
+    parameter. Then it eliminates the multiple equality predicate by
+    replacing it with the conjunction of simple equality predicates
     equating every field from the multiple equality to the first
     field in it, or to the constant, if there is any.
-    After this the function retrieves all other conjuncted
-    predicates substitute every field reference by the field reference
+    After this, the function retrieves all other conjuncted
+    predicates and substitutes every field reference by the field reference
     to the first equal field or equal constant if there are any.
 
+  @param thd             the session context
   @param cond            condition to process
   @param cond_equal      multiple equalities to take into consideration
   @param table_join_idx  index to tables determining field preference
 
   @note
-    At the first glance full sort of fields in multiple equality
+    At the first glance, a full sort of fields in multiple equality
     seems to be an overkill. Yet it's not the case due to possible
     new fields in multiple equality item of lower levels. We want
     the order in them to comply with the order of upper levels.
@@ -4209,7 +4227,8 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     The transformed condition, or NULL in case of error
 */
 
-Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
+Item *substitute_for_best_equal_field(THD *thd, Item *cond,
+                                      COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx) {
   Item_equal *item_equal;
 
@@ -4234,8 +4253,8 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
     List_iterator<Item> li(*cond_list);
     Item *item;
     while ((item = li++)) {
-      Item *new_item =
-          substitute_for_best_equal_field(item, cond_equal, table_join_idx);
+      Item *new_item = substitute_for_best_equal_field(thd, item, cond_equal,
+                                                       table_join_idx);
       if (new_item == NULL) return NULL;
       /*
         This works OK with PS/SP re-execution as changes are made to
@@ -4247,7 +4266,8 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
     if (and_level) {
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
       while ((item_equal = it++)) {
-        cond = eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
+        cond = eliminate_item_equal(thd, cond, cond_equal->upper_levels,
+                                    item_equal);
         if (cond == NULL) return NULL;
         // This occurs when eliminate_item_equal() founds that cond is
         // always false and substitutes it with Item_int 0.
@@ -4268,7 +4288,7 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
     });
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal = cond_equal->upper_levels;
-    return eliminate_item_equal(0, cond_equal, item_equal);
+    return eliminate_item_equal(thd, 0, cond_equal, item_equal);
   } else
     cond->transform(&Item::replace_equal_field, 0);
   return cond;
@@ -9411,15 +9431,16 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
         also applies to MEPs, so the MEP in a) will become 42=x=y=z.
      c) remove conditions that are always false or always true
 
-  @param thd              Thread handler
-  @param[in,out] cond     WHERE or HAVING condition to optimize
-  @param[out] cond_equal  The built multiple equalities
-  @param join_list        list of join operations with join conditions
-                          = NULL: Called for HAVING condition
-  @param[out] cond_value  Not changed if cond was empty
-                            COND_TRUE if cond is always true
-                            COND_FALSE if cond is impossible
-                            COND_OK otherwise
+  @param thd                Thread handler
+  @param[in,out] cond       WHERE or HAVING condition to optimize
+  @param[out] cond_equal    The built multiple equalities
+  @param join_list          list of join operations with join conditions
+                            = NULL: Called for HAVING condition
+  @param[out] cond_value    Not changed if cond was empty
+                              COND_TRUE if cond is always true
+                              COND_FALSE if cond is impossible
+                              COND_OK otherwise
+
 
   @returns false if success, true if error
 */
@@ -9494,9 +9515,23 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     }
     step_wrapper.add("resulting_condition", *cond);
   }
-  DBUG_ASSERT(!thd->is_error());
   if (thd->is_error()) DBUG_RETURN(true);
   DBUG_RETURN(false);
+}
+
+static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
+                                     Item::cond_result *cond_value);
+/**
+  Calls fold_condition. If that made the condition constant for execution,
+  simplify and fold again. @see fold_condition() for arguments.
+*/
+static bool fold_condition_exec(THD *thd, Item *cond, Item **retcond,
+                                Item::cond_result *cond_value) {
+  if (fold_condition(thd, cond, retcond, cond_value)) return true;
+  if (*retcond != nullptr && (*retcond)->const_for_execution() &&
+      !(*retcond)->is_expensive())  // simplify further maybe
+    return internal_remove_eq_conds(thd, *retcond, retcond, cond_value);
+  return false;
 }
 
 /**
@@ -9506,7 +9541,6 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
   @param cond            the condition to handle.
   @param[out] retcond    Modified condition after removal
   @param[out] cond_value the resulting value of the condition
-
   @see remove_eq_conds() for more details on argument
 
   @returns false if success, true if error
@@ -9519,7 +9553,6 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     const bool and_level = item_cond->functype() == Item_func::COND_AND_FUNC;
     List_iterator<Item> li(*item_cond->argument_list());
     bool should_fix_fields = false;
-
     *cond_value = Item::COND_UNDEF;
     Item *item;
     while ((item = li++)) {
@@ -9646,6 +9679,8 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       *retcond = NULL;
       return false;
     }
+
+    return fold_condition_exec(thd, cond, retcond, cond_value);
   } else if (cond->const_for_execution() && !cond->is_expensive()) {
     bool value;
     if (eval_const_cond(thd, cond, &value)) return true;
@@ -9655,8 +9690,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
   } else {  // boolan compare function
     *cond_value = cond->eq_cmp_result();
     if (*cond_value == Item::COND_OK) {
-      *retcond = cond;
-      return false;
+      return fold_condition_exec(thd, cond, retcond, cond_value);
     }
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
@@ -9668,9 +9702,7 @@ static bool internal_remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       }
     }
   }
-  *cond_value = Item::COND_OK;
-  *retcond = cond;  // Point at next and level
-  return false;
+  return fold_condition_exec(thd, cond, retcond, cond_value);
 }
 
 /**

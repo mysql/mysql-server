@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select TOTAL_CONNECTIONS
 from performance_schema.accounts
-where USER < "impossible";
+where USER < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	accounts	NULL	ALL	ACCOUNT	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -53,7 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select TOTAL_CONNECTIONS
 from performance_schema.accounts
 where USER = "foo"
-and HOST < "impossible";
+and HOST < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	accounts	NULL	ref	ACCOUNT	ACCOUNT	129	const	#	33.33	Using where
 ############ Explain for Query ####################################

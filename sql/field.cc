@@ -4338,22 +4338,28 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val) {
                                           : (double)nr);
 }
 
-/*
+/**
   If a field has fixed length, truncate the double argument pointed to by 'nr'
   appropriately.
-  Also ensure that the argument is within [-max_value; max_value] range.
+  Also ensure that the argument is within [min_value; max_value] where
+  min_value == 0 if unsigned_flag is set, else -max_value.
+
+  @param[in,out] nr         the real number (FLOAT or DOUBLE) to be truncated
+  @param[in]     max_value  the maximum (absolute) value of the real type
+
+  @returns truncation result
 */
 
-bool Field_real::truncate(double *nr, double max_value) {
+Field_real::Truncate_result Field_real::truncate(double *nr, double max_value) {
   if (std::isnan(*nr)) {
     *nr = 0;
     set_null();
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    return true;
+    return TR_POSITIVE_OVERFLOW;
   } else if (unsigned_flag && *nr < 0) {
     *nr = 0;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    return true;
+    return TR_NEGATIVE_OVERFLOW;
   }
 
   if (!not_fixed) {
@@ -4376,14 +4382,14 @@ bool Field_real::truncate(double *nr, double max_value) {
   if (*nr < -max_value) {
     *nr = -max_value;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    return true;
+    return TR_NEGATIVE_OVERFLOW;
   } else if (*nr > max_value) {
     *nr = max_value;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
-    return true;
+    return TR_POSITIVE_OVERFLOW;
   }
 
-  return false;
+  return TR_OK;
 }
 
 type_conversion_status Field_real::store_decimal(const my_decimal *dm) {
@@ -5594,7 +5600,7 @@ type_conversion_status Field_year::store(const char *from, size_t len,
   type_conversion_status ret = TYPE_OK;
   longlong nr = cs->cset->strntoull10rnd(cs, from, len, 0, &end, &conv_error);
 
-  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155 ||
+  if (nr < 0 || (nr >= 100 && nr < MIN_YEAR) || nr > MAX_YEAR ||
       conv_error == MY_ERRNO_ERANGE) {
     *ptr = 0;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -5626,7 +5632,7 @@ type_conversion_status Field_year::store(const char *from, size_t len,
 }
 
 type_conversion_status Field_year::store(double nr) {
-  if (nr < 0.0 || nr > 2155.0) {
+  if (nr < 0.0 || nr > MAX_YEAR) {
     (void)Field_year::store((longlong)-1, false);
     return TYPE_WARN_OUT_OF_RANGE;
   }
@@ -5648,7 +5654,7 @@ type_conversion_status Field_year::store_time(
 
 type_conversion_status Field_year::store(longlong nr, bool) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  if (nr < 0 || (nr >= 100 && nr <= 1900) || nr > 2155) {
+  if (nr < 0 || (nr >= 100 && nr < MIN_YEAR) || nr > MAX_YEAR) {
     *ptr = 0;
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return TYPE_WARN_OUT_OF_RANGE;

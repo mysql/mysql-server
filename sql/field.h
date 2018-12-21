@@ -2000,6 +2000,11 @@ class Field_longstr : public Field_str {
 class Field_real : public Field_num {
  public:
   bool not_fixed;
+  enum Truncate_result {
+    TR_OK = 0,
+    TR_POSITIVE_OVERFLOW = 1,
+    TR_NEGATIVE_OVERFLOW = 2
+  };
 
   Field_real(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, uchar auto_flags_arg,
@@ -2013,7 +2018,7 @@ class Field_real : public Field_num {
   my_decimal *val_decimal(my_decimal *) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
-  bool truncate(double *nr, double max_length);
+  Truncate_result truncate(double *nr, double max_length);
   uint32 max_display_length() const override { return field_length; }
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                               bool low_byte_first) override;
@@ -2705,6 +2710,7 @@ class Field_temporal : public Field {
   virtual my_time_flags_t date_flags(const THD *thd MY_ATTRIBUTE((unused))) {
     return 0;
   }
+
   /**
     Flags that are passed as "flag" argument to
     check_date(), number_to_datetime(), str_to_datetime().
@@ -3090,6 +3096,7 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
 
 class Field_year : public Field_tiny {
  public:
+  enum Limits { MIN_YEAR = 1901, MAX_YEAR = 2155 };
   Field_year(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
              uchar null_bit_arg, uchar auto_flags_arg,
              const char *field_name_arg)

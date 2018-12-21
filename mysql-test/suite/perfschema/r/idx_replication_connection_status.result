@@ -25,7 +25,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_connection_status
-where CHANNEL_NAME < "impossible";
+where CHANNEL_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	replication_connection_status	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -61,7 +61,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_connection_status
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	replication_connection_status	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

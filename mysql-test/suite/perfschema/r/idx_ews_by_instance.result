@@ -21,7 +21,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_instance
-where OBJECT_INSTANCE_BEGIN < "impossible";
+where OBJECT_INSTANCE_BEGIN < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_waits_summary_by_instance	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -57,7 +57,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_instance
-where EVENT_NAME < "impossible";
+where EVENT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_waits_summary_by_instance	NULL	ALL	EVENT_NAME	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

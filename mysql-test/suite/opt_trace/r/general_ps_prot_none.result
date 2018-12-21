@@ -1312,7 +1312,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 select length(@trace);
 length(@trace)
 12713
-set @max_mem_size=13900;
+set @max_mem_size=13807;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
@@ -10075,7 +10075,7 @@ select @trace;
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`t1`.`data` = 'c')"
+                  "resulting_condition": "(`t1`.`data` = 0)"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -10136,13 +10136,13 @@ select @trace;
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(`t1`.`data` = 'c')",
+              "original_condition": "(`t1`.`data` = 0)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`data` = 'c')"
+                  "attached": "(`t1`.`data` = 0)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10155,8 +10155,8 @@ select @trace;
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "(`t1`.`data` = 'c')",
-                "final_table_condition   ": "(`t1`.`data` = 'c')"
+                "original_table_condition": "(`t1`.`data` = 0)",
+                "final_table_condition   ": "(`t1`.`data` = 0)"
               }
             ] /* finalizing_table_conditions */
           },

@@ -446,7 +446,15 @@ void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 
 void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
-  m_accum_properties = 0;
+
+  /*
+    Rollup property not always derivable from arguments, so don't reset that,
+    cf. "GROUP BY (a+b) WITH ROLLUP": the a and the b are never marked, cf. the
+    logic in `resolve_rollup_item', `resolve_rollup_wfs' and
+    `change_func_or_wf_group_ref', so "a+b" being a rollup expression can't be
+    derived from a or b.
+  */
+  m_accum_properties &= PROP_ROLLUP_EXPR;
 
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
@@ -624,7 +632,7 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     the same object as we need to detect if ROLLUP NULL's
     need to be written for this item (in has_rollup_result).
   */
-  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_field()) {
+  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_expr()) {
     Item *result = new Item_field(result_field);
     DBUG_RETURN(result);
   }

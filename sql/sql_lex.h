@@ -100,6 +100,7 @@
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
+class Item_cond;
 class Item_func_set_user_var;
 class Item_sum;
 class Parse_tree_root;
@@ -1799,10 +1800,13 @@ class SELECT_LEX {
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
+  bool resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
-  bool change_func_or_wf_group_ref(THD *thd, Item *func, bool *changed);
 
  public:
+  bool resolve_rollup_wfs(THD *thd);
+  bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);
+  bool change_group_ref_for_cond(THD *thd, Item_cond *cond, bool *changed);
   bool flatten_subqueries(THD *thd);
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;

@@ -626,7 +626,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 'test1' AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` IGNORE INDEX (PRIMARY) on(((`test`.`t2`.`b` = '20161213') and (`test`.`t2`.`a` = 'test1'))) where 1
+Note	1003	/* select#1 */ select 'test1' AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` IGNORE INDEX (PRIMARY) on(((`test`.`t2`.`b` = DATE'2016-12-13') and (`test`.`t2`.`a` = 'test1'))) where 1
 SELECT *
 FROM t1 LEFT JOIN t2
 ON t2.a = 'test1' AND t2.b = '20161213'

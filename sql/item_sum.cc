@@ -660,8 +660,9 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
 void Item_sum::update_used_tables() {
   if (!forced_const) {
     used_tables_cache = 0;
-    // Re-accumulate all properties except two
-    m_accum_properties &= (PROP_AGGREGATION | PROP_WINDOW_FUNCTION);
+    // Re-accumulate all properties except three
+    m_accum_properties &=
+        (PROP_AGGREGATION | PROP_WINDOW_FUNCTION | PROP_ROLLUP_EXPR);
 
     for (uint i = 0; i < arg_count; i++) {
       args[i]->update_used_tables();
@@ -5818,28 +5819,6 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
     return true;
   }
 
-  /*
-    If GROUPING() is present in HAVING clause, check if all the
-    arguments are present in GROUP BY.
-  */
-  if (select->resolve_place == SELECT_LEX::RESOLVE_HAVING) {
-    for (uint i = 0; i < arg_count; i++) {
-      Item *const real_item = args[i]->real_item();
-      bool found_in_group = false;
-
-      for (ORDER *group = select->group_list.first; group;
-           group = group->next) {
-        if (real_item->eq((*group->item)->real_item(), 0)) {
-          found_in_group = true;
-          break;
-        }
-      }
-      if (!found_in_group) {
-        my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i + 1));
-        return true;
-      }
-    }
-  }
   return false;
 }
 
@@ -5902,6 +5881,8 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg) {
 
 void Item_func_grouping::update_used_tables() {
   Item_int_func::update_used_tables();
+  set_grouping_func();
+  set_rollup_expr();
   /*
     GROUPING function can never be a constant item. It's
     result always depends on ROLLUP result.

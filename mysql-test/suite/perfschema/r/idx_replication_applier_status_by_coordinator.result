@@ -29,7 +29,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_applier_status_by_coordinator
-where CHANNEL_NAME < "impossible";
+where CHANNEL_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	replication_applier_status_by_coordinator	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -65,7 +65,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select SERVICE_STATE
 from performance_schema.replication_applier_status_by_coordinator
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	replication_applier_status_by_coordinator	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

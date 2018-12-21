@@ -2591,14 +2591,15 @@ class Item_nth_value : public Item_sum {
 */
 class Item_func_grouping : public Item_int_func {
  public:
-  Item_func_grouping(const POS &pos, PT_item_list *a) : Item_int_func(pos, a) {}
+  Item_func_grouping(const POS &pos, PT_item_list *a) : Item_int_func(pos, a) {
+    set_grouping_func();
+  }
   const char *func_name() const override { return "grouping"; }
   enum Functype functype() const override { return GROUPING_FUNC; }
   longlong val_int() override;
   bool aggregate_check_group(uchar *arg) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void update_used_tables() override;
-  bool has_grouping_func_processor(uchar *) override { return true; }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

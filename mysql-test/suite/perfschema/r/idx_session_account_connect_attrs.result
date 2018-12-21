@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select ORDINAL_POSITION
 from performance_schema.session_account_connect_attrs
-where PROCESSLIST_ID < "impossible";
+where PROCESSLIST_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	session_account_connect_attrs	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -53,7 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select ORDINAL_POSITION
 from performance_schema.session_account_connect_attrs
 where PROCESSLIST_ID = @plid
-and ATTR_NAME < "impossible";
+and ATTR_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	session_account_connect_attrs	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
 ############ Explain for Query ####################################

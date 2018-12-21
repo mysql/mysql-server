@@ -37,7 +37,7 @@ WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index_merge	idx_b,idx_c	idx_c,idx_b	5,4	NULL	#	100.00	Using sort_union(idx_c,idx_b); Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= '2007-01-02') and (`test`.`t1`.`c` <= '2007-01-03')) or (`test`.`t1`.`b` >= 1))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`idx_c`) FORCE INDEX (`idx_b`) where (((`test`.`t1`.`c` >= TIMESTAMP'2007-01-02 00:00:00') and (`test`.`t1`.`c` <= TIMESTAMP'2007-01-03 00:00:00')) or (`test`.`t1`.`b` >= 1))
 SELECT COUNT(*) FROM t1 FORCE INDEX(idx_b, idx_c)
 WHERE (c >= '2007-01-02' AND c <= '2007-01-03') OR b >= 1;
 COUNT(*)

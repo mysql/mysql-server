@@ -132,7 +132,6 @@ Item::Item()
       unsigned_flag(false),
       m_is_window_function(false),
       derived_used(false),
-      m_has_rollup_field(false),
       m_accum_properties(0) {
 #ifndef DBUG_OFF
   contextualized = true;
@@ -162,7 +161,6 @@ Item::Item(THD *thd, Item *item)
       unsigned_flag(item->unsigned_flag),
       m_is_window_function(item->m_is_window_function),
       derived_used(item->derived_used),
-      m_has_rollup_field(item->m_has_rollup_field),
       m_accum_properties(item->m_accum_properties) {
 #ifndef DBUG_OFF
   DBUG_ASSERT(item->contextualized);
@@ -193,7 +191,6 @@ Item::Item(const POS &)
       unsigned_flag(false),
       m_is_window_function(false),
       derived_used(false),
-      m_has_rollup_field(false),
       m_accum_properties(0) {}
 
 /**
@@ -474,7 +471,10 @@ type_conversion_status Item::save_time_in_field(Field *field) {
 
 type_conversion_status Item::save_date_in_field(Field *field) {
   MYSQL_TIME ltime;
-  if (get_date(&ltime, TIME_FUZZY_DATE))
+  my_time_flags_t flags = TIME_FUZZY_DATE;
+  const sql_mode_t mode = field->table->in_use->variables.sql_mode;
+  if (mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
+  if (get_date(&ltime, flags))
     return set_field_to_null_with_conversions(field, 0);
   field->set_notnull();
   return field->store_time(&ltime, decimals);

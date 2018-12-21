@@ -26,7 +26,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances
-where OBJECT_INSTANCE_BEGIN < "impossible";
+where OBJECT_INSTANCE_BEGIN < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	rwlock_instances	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -62,7 +62,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances
-where NAME < "impossible";
+where NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	rwlock_instances	NULL	ALL	NAME	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################

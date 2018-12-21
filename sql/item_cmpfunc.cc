@@ -443,6 +443,22 @@ longlong Item_func_nop_all::val_int() {
 }
 
 /**
+  Return an an unsigned Item_int containing the value of the year as stored in
+  field. The item is typed as a YEAR.
+  @param field   the field containign the year value
+
+  @return the year wrapped in an Item in as described above, or nullptr on
+          error.
+*/
+static Item *make_year_constant(Field *field) {
+  Item_int *year = new Item_int(field->val_int());
+  if (year == nullptr) return nullptr;
+  year->unsigned_flag = field->flags & UNSIGNED_FLAG;
+  year->set_data_type(MYSQL_TYPE_YEAR);
+  return year;
+}
+
+/**
   Convert a constant item to an int and replace the original item.
 
     The function converts a constant expression or string to an integer.
@@ -557,8 +573,11 @@ static bool convert_constant_item(THD *thd, Item_field *field_item, Item **item,
                         (*item)->val_date_temporal(), *item)
                     :
 #endif
-                    new Item_int_with_ref(field->type(), field->val_int(),
-                                          *item, field->flags & UNSIGNED_FLAG);
+                    field->type() == MYSQL_TYPE_YEAR
+                        ? make_year_constant(field)
+                        : new Item_int_with_ref(field->type(), field->val_int(),
+                                                *item,
+                                                field->flags & UNSIGNED_FLAG);
         if (tmp == NULL) return true;
 
         thd->change_item_tree(item, tmp);
@@ -753,6 +772,27 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
   return false;
 }
 
+/**
+  A minion of get_mysql_time_from_str, see its description.
+  This version doesn't issue any warnings, leaving that to its parent.
+  This method has one extra argument which resturn warnings.
+
+  @param[in]   thd           Thread handle
+  @param[in]   str           A string to convert
+  @param[out]  l_time        The MYSQL_TIME objects is initialized.
+  @param[in, out] status     Any warnings given are returned here
+  @returns true if error
+*/
+bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
+                                     MYSQL_TIME_STATUS *status) {
+  my_time_flags_t flags = TIME_FUZZY_DATE | TIME_INVALID_DATES;
+
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags |= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  if (thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
+  return str_to_datetime(str, l_time, flags, status);
+}
 /**
   Parse date provided in a string to a MYSQL_TIME.
 

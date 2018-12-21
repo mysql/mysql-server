@@ -53,7 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_locks
-where ENGINE_LOCK_ID < "impossible";
+where ENGINE_LOCK_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -87,7 +87,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_locks
 where ENGINE_LOCK_ID = @lock_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ref	PRIMARY	PRIMARY	514	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -125,7 +125,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_locks
-where ENGINE_TRANSACTION_ID < "impossible";
+where ENGINE_TRANSACTION_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ALL	ENGINE_TRANSACTION_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -159,7 +159,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_locks
 where ENGINE_TRANSACTION_ID = @trx_id
-and ENGINE < "impossible";
+and ENGINE < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ref	ENGINE_TRANSACTION_ID	ENGINE_TRANSACTION_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -197,7 +197,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_locks
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ALL	THREAD_ID	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -231,7 +231,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_locks
 where THREAD_ID = @thread_id
-and EVENT_ID < "impossible";
+and EVENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ref	THREAD_ID	THREAD_ID	9	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -269,7 +269,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.data_locks
-where OBJECT_SCHEMA < "impossible";
+where OBJECT_SCHEMA < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ALL	OBJECT_SCHEMA	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -303,7 +303,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select COUNT(*)
 from performance_schema.data_locks
 where OBJECT_SCHEMA = "explain_test_db"
-and OBJECT_NAME < "impossible";
+and OBJECT_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ref	OBJECT_SCHEMA	OBJECT_SCHEMA	259	const	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -342,7 +342,7 @@ explain select COUNT(*)
 from performance_schema.data_locks
 where OBJECT_SCHEMA = "explain_test_db"
 and OBJECT_NAME = "explain_test_table"
-and PARTITION_NAME < "impossible";
+and PARTITION_NAME < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	data_locks	NULL	ref	OBJECT_SCHEMA	OBJECT_SCHEMA	518	const,const	#	33.33	Using where
 ############ Explain for Query ####################################

@@ -49,7 +49,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
-#include "mysqld_error.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"  // Derivation
 #include "sql/mem_root_array.h"
@@ -1794,8 +1793,9 @@ class Item : public Parse_tree_node {
     - refers no subqueries that refers any tables.
     - refers no non-deterministic functions.
     - refers no statement parameters.
+    - contains no group expression under rollup
   */
-  bool const_item() const { return used_tables() == 0; }
+  bool const_item() const { return (used_tables() == 0); }
   /**
     Returns true if item is constant during one query execution.
     If const_for_execution() is true but const_item() is false, value is
@@ -2517,6 +2517,25 @@ class Item : public Parse_tree_node {
   /// Set the "has window function" property
   void set_wf() { m_accum_properties |= PROP_WINDOW_FUNCTION; }
 
+  /**
+    @return true if this item or any of its decendents within the same query
+    has a reference to a ROLLUP expression
+  */
+  bool has_rollup_expr() const { return m_accum_properties & PROP_ROLLUP_EXPR; }
+
+  /// Set the property: this item (tree) contains a reference to a ROLLUP expr
+  void set_rollup_expr() { m_accum_properties |= PROP_ROLLUP_EXPR; }
+
+  /**
+    @return true if this item or any of underlying items is a GROUPING function
+   */
+  bool has_grouping_func() const {
+    return m_accum_properties & PROP_GROUPING_FUNC;
+  }
+
+  /// Set the property: this item is a call to GROUPING
+  void set_grouping_func() { m_accum_properties |= PROP_GROUPING_FUNC; }
+
   /// Whether this Item was created by the IN->EXISTS subquery transformation
   virtual bool created_by_in2exists() const { return false; }
 
@@ -2572,12 +2591,6 @@ class Item : public Parse_tree_node {
   }
   virtual Field *get_orig_field() { return NULL; }
   virtual void set_orig_field(Field *) {}
-  void set_has_rollup_field() {
-    m_has_rollup_field = true;
-    return;
-  }
-  bool has_rollup_field() { return m_has_rollup_field; }
-  virtual bool has_grouping_func_processor(uchar *) { return false; }
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
@@ -2696,7 +2709,6 @@ class Item : public Parse_tree_node {
     which is actually used by outer query.
   */
   bool derived_used;
-  bool m_has_rollup_field;
 
  protected:
   /**
@@ -2710,7 +2722,16 @@ class Item : public Parse_tree_node {
   static constexpr uint8 PROP_STORED_PROGRAM = 0x02;
   static constexpr uint8 PROP_AGGREGATION = 0x04;
   static constexpr uint8 PROP_WINDOW_FUNCTION = 0x08;
-
+  /**
+    Set if the item or one or more of the underlying items contains a
+    ROLLUP expression. The rolled up expression itself is not so marked.
+  */
+  static constexpr uint8 PROP_ROLLUP_EXPR = 0x10;
+  /**
+    Set if the item or one or more of the underlying items is a GROUPING
+    function.
+  */
+  static constexpr uint8 PROP_GROUPING_FUNC = 0x20;
   uint8 m_accum_properties;
 
  public:
@@ -4620,11 +4641,21 @@ class Item_ref : public Item_ident {
   }
   Item *get_tmp_table_item(THD *thd) override;
   table_map used_tables() const override {
-    return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables();
+    if (depended_from != nullptr) return OUTER_REF_TABLE_BIT;
+    const table_map map = (*ref)->used_tables();
+    if (map != 0) return map;
+    // rollup constant: ensure it is non-constant by returning RAND_TABLE_BIT
+    if (has_rollup_expr()) return RAND_TABLE_BIT;
+    return 0;
   }
   void update_used_tables() override {
     if (!depended_from) (*ref)->update_used_tables();
-    set_accum_properties(*ref);
+    /*
+      Reset all flags except rollup, since we do not mark the rollup expression
+      itself.
+    */
+    m_accum_properties &= PROP_ROLLUP_EXPR;
+    add_accum_properties(*ref);
   }
 
   table_map not_null_tables() const override {

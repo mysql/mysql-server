@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 ############ Explain for Query ####################################
 explain select END_EVENT_ID
 from performance_schema.events_stages_history
-where THREAD_ID < "impossible";
+where THREAD_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_stages_history	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	33.33	Using where
 ############ Explain for Query ####################################
@@ -53,7 +53,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 explain select END_EVENT_ID
 from performance_schema.events_stages_history
 where THREAD_ID = @tid_default
-and EVENT_ID < "impossible";
+and EVENT_ID < "2";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	events_stages_history	NULL	ref	PRIMARY	PRIMARY	8	const	#	33.33	Using where
 ############ Explain for Query ####################################
