@@ -678,7 +678,7 @@ DROP TABLE t;
 --echo # Bug#28976533 ASSERTION `JOIN->BEST_READ < DOUBLE(1.79769313486231570814527423731704357E+308L)
 --echo #
 
-CREATE TABLE BB (
+CREATE TABLE bb (
 pk INTEGER AUTO_INCREMENT,
 col_int INTEGER ,
 col_int_key INTEGER ,
@@ -696,32 +696,32 @@ KEY (col_time_key DESC)
 SET SQL_MODE='';
 let $query=
 SELECT
-GRANDPARENT1.col_varchar_key AS g1 FROM BB AS GRANDPARENT1
-LEFT JOIN BB AS GRANDPARENT2 USING ( col_time )
-WHERE GRANDPARENT1.col_int_key IN
+grandparent1.col_varchar_key AS g1 FROM bb AS grandparent1
+LEFT JOIN bb AS grandparent2 USING ( col_time )
+WHERE grandparent1.col_int_key IN
 (
   WITH qn AS (
-               SELECT  PARENT1.col_int AS p1
-               FROM BB AS PARENT1 LEFT JOIN BB AS PARENT2 USING ( col_varchar )
-               WHERE PARENT1.col_varchar_key IN
+               SELECT  parent1.col_int AS p1
+               FROM bb AS parent1 LEFT JOIN bb AS parent2 USING ( col_varchar )
+               WHERE parent1.col_varchar_key IN
                (
                  WITH qn1 AS (
-                               SELECT DISTINCT CHILD1.col_varchar_key AS C1
-                               FROM BB AS CHILD1 LEFT JOIN BB AS CHILD2
-                               ON CHILD1.col_varchar_key <= CHILD2.col_varchar
-                               WHERE CHILD1.col_time > GRANDPARENT1.col_datetime
+                               SELECT DISTINCT child1.col_varchar_key AS C1
+                               FROM bb AS child1 LEFT JOIN bb AS child2
+                               ON child1.col_varchar_key <= child2.col_varchar
+                               WHERE child1.col_time > grandparent1.col_datetime
                              )
                  SELECT  * FROM qn1
                )
-               AND PARENT1.col_time_key BETWEEN '2008-03-18' AND
+               AND parent1.col_time_key BETWEEN '2008-03-18' AND
                '2004-11-14'
              )
   SELECT /*+ MERGE(qn) */ * FROM qn
 )
-GROUP BY GRANDPARENT1.col_int;
+GROUP BY grandparent1.col_int;
 
 eval EXPLAIN $query;
 eval $query;
 
-DROP TABLE BB;
+DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
