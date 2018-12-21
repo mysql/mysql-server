@@ -38,8 +38,8 @@ while (`select @pool > 0`)
 {
   set @pool = @pool - 1;
 
-  # TODO pool 7, DBTC (Line: 2844) 0x00000002 Check keyInfoSection.sz == keylen failed
-  # TODO pool 7, DBACC (Line: 1686) 0x00000002 Check operationRecPtr.p->tupkeylen <= fragrecptr.p->keyLength failed
+  # Testing of two pools are disabled:
+  # Pool 7: Bug#29131828 OUT OF DBTC::CACHERECORD CAUSE MEMORY CORRUPTION LIKE
   # Overuse GCP record pool (11) will abort nodes, can not recover from that.
   if (`select @pool not in (7, 11)`)
   {
