@@ -119,8 +119,22 @@ void StreamHandler::do_log(const Record &record) {
 // class FileHandler
 
 FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level)
-    : StreamHandler(fstream_, format_messages, level),
-      fstream_(path.str(), ofstream::app) {
+    : StreamHandler(fstream_, format_messages, level), file_path_(path) {
+  reopen();  // not opened yet so it's just for open in this context
+}
+
+void FileHandler::reopen() {
+  // here we need to lock the mutex that's used while logging
+  // to prevent other threads from trying to log to invalid stream
+  std::lock_guard<std::mutex> lock(stream_mutex_);
+
+  // if was open before, close first
+  if (fstream_.is_open()) {
+    fstream_.close();
+    fstream_.clear();
+  }
+
+  fstream_.open(file_path_.str(), ofstream::app);
   if (fstream_.fail()) {
     // get the last-error early as with VS2015 it has been seen
     // that something in std::system_error() called SetLastError(0)
@@ -132,16 +146,24 @@ FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level)
 #endif
         ;
 
-    if (path.exists()) {
+    if (file_path_.exists()) {
       throw std::system_error(
           last_error, std::system_category(),
-          "File exists, but cannot open for writing " + path.str());
+          "File exists, but cannot open for writing " + file_path_.str());
     } else {
       throw std::system_error(
           last_error, std::system_category(),
-          "Cannot create file in directory " + path.dirname().str());
+          "Cannot create file in directory " + file_path_.dirname().str());
     }
   }
+}
+
+void FileHandler::do_log(const Record &record) {
+  std::lock_guard<std::mutex> lock(stream_mutex_);
+  stream_ << format(record) << std::endl;
+  // something is wrong with the logging file, let's at least log it on the
+  // std error as a fallback
+  if (stream_.fail()) std::cerr << format(record) << std::endl;
 }
 
 // satisfy ODR

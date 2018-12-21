@@ -50,6 +50,9 @@ class SyslogHandler final : public mysql_harness::logging::Handler {
 
   void close() { closelog(); }
 
+  // does nothing for the syslog handler
+  void reopen() override {}
+
  private:
   void do_log(const mysql_harness::logging::Record &record) override {
     syslog(static_cast<int>(record.level), "%s", record.message.c_str());

@@ -168,6 +168,11 @@ class HARNESS_EXPORT Registry {
    */
   bool is_ready() const noexcept { return ready_; }
 
+  /**
+   * Force the flush (reopen) on all registered logger handlers
+   */
+  void flush_all_loggers();
+
  private:
   mutable std::mutex mtx_;
   std::map<std::string, Logger> loggers_;  // key = log domain

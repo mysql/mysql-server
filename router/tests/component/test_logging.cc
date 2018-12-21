@@ -25,9 +25,14 @@
 #include "dim.h"
 #include "gmock/gmock.h"
 #include "mysql_session.h"
+#include "mysqlrouter/utils.h"
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
+
+#ifndef _WIN32
+#include <signal.h>
+#endif
 
 #include <condition_variable>
 #include <fstream>
@@ -43,6 +48,7 @@
 
 using testing::HasSubstr;
 using testing::StartsWith;
+using namespace std::chrono_literals;
 Path g_origin_path;
 
 class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
@@ -669,7 +675,7 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
            metadata_caches +
            "user=mysql_router1_user\n"
            "metadata_cluster=test\n"
-           "ttl=500\n\n";
+           "ttl=0.1\n\n";
   }
 
   std::string get_metadata_cache_routing_section(const std::string &role,
@@ -689,10 +695,12 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     return result;
   }
 
-  std::string init_keyring_and_config_file(const std::string &conf_dir) {
+  std::string init_keyring_and_config_file(const std::string &conf_dir,
+                                           bool log_to_console = false) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
-    default_section["logging_folder"] = get_logging_dir().str();
+    default_section["logging_folder"] =
+        log_to_console ? "" : get_logging_dir().str();
     return create_config_file(
         conf_dir,
         "[logger]\nlevel = DEBUG\n" + metadata_cache_section + routing_section,
@@ -787,6 +795,212 @@ TEST_F(MetadataCacheLoggingTest,
                            warning_matcher, std::chrono::milliseconds(10000)))
       << get_router_log_output();
 }
+
+#ifndef _WIN32
+/**
+ * @test Checks that the logs rotation works (meaning Router will recreate
+ * it's log file when it was moved and HUP singnal was sent to the Router).
+ */
+TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir));
+  bool router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  std::this_thread::sleep_for(500ms);
+
+  auto log_file = get_logging_dir();
+  log_file.append("mysqlrouter.log");
+
+  EXPECT_TRUE(log_file.exists());
+
+  // now let's simulate what logrotate script does
+  // move the log_file appending '.1' to its name
+  auto log_file_1 = get_logging_dir();
+  log_file_1.append("mysqlrouter.log.1");
+  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+  const auto pid = static_cast<pid_t>(router.get_pid());
+  ::kill(pid, SIGHUP);
+
+  // let's wait  until something new gets logged (metadata cache TTL has
+  // expired), to be sure the default file that we moved is back.
+  // Now both old and new files should exist
+  unsigned retries = 10;
+  const auto kSleep = 100ms;
+  do {
+    std::this_thread::sleep_for(kSleep);
+  } while ((--retries > 0) && !log_file.exists());
+
+  EXPECT_TRUE(log_file.exists()) << get_router_log_output();
+  EXPECT_TRUE(log_file_1.exists());
+}
+
+/**
+ * @test Checks that the Router continues to log to the file when the
+ * SIGHUP gets sent to it and no file replacement is done.
+ */
+TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir));
+  bool router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  std::this_thread::sleep_for(500ms);
+
+  auto log_file = get_logging_dir();
+  log_file.append("mysqlrouter.log");
+
+  EXPECT_TRUE(log_file.exists());
+
+  // grab the current log content
+  const std::string log_content = get_router_log_output();
+
+  // send the log-rotate signal
+  const auto pid = static_cast<pid_t>(router.get_pid());
+  ::kill(pid, SIGHUP);
+
+  // wait until something new gets logged;
+  std::string log_content_2;
+  unsigned step = 0;
+  do {
+    std::this_thread::sleep_for(100ms);
+    log_content_2 = get_router_log_output();
+  } while ((log_content_2 == log_content) && (step++ < 20));
+
+  // The logfile should still exist
+  EXPECT_TRUE(log_file.exists());
+  // It should still contain what was there before and more (Router should keep
+  // logging)
+  EXPECT_THAT(log_content_2, StartsWith(log_content));
+  EXPECT_STRNE(log_content_2.c_str(), log_content.c_str());
+}
+
+/**
+ * @test Checks that the logs Router continues to log to the file when the
+ * SIGHUP gets sent to it and no file replacement is done.
+ */
+TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir));
+  bool router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  std::this_thread::sleep_for(500ms);
+
+  auto log_file = get_logging_dir();
+  log_file.append("mysqlrouter.log");
+
+  EXPECT_TRUE(log_file.exists());
+
+  // now stop the router
+  int res = router.kill();
+  EXPECT_EQ(0, res) << router.get_full_output();
+
+  // move the log_file appending '.1' to its name
+  auto log_file_1 = get_logging_dir();
+  log_file_1.append("mysqlrouter.log.1");
+  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+
+  // make the new file read-only
+  chmod(log_file_1.c_str(), S_IRUSR);
+
+  // start the router again and check that the new log file got created
+  auto router2 = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir));
+  router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+  std::this_thread::sleep_for(500ms);
+  EXPECT_TRUE(log_file.exists());
+}
+
+/**
+ * @test Checks that the logs Router continues to log to the file when the
+ * SIGHUP gets sent to it and no file replacement is done.
+ */
+TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir));
+  bool router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  auto log_file = get_logging_dir();
+  log_file.append("mysqlrouter.log");
+
+  unsigned retries = 5;
+  const auto kSleep = 100ms;
+  do {
+    std::this_thread::sleep_for(kSleep);
+  } while ((--retries > 0) && !log_file.exists());
+
+  EXPECT_TRUE(log_file.exists());
+
+  // move the log_file appending '.1' to its name
+  auto log_file_1 = get_logging_dir();
+  log_file_1.append("mysqlrouter.log.1");
+  mysqlrouter::rename_file(log_file.str(), log_file_1.str());
+
+  // "manually" recreate the log file and make it read only
+  {
+    std::ofstream logf(log_file.str());
+    EXPECT_TRUE(logf.good());
+  }
+  chmod(log_file.c_str(), S_IRUSR);
+
+  // send the log-rotate signal
+  const auto pid = static_cast<pid_t>(router.get_pid());
+  ::kill(pid, SIGHUP);
+
+  // we expect the router to exit,
+  // as the logfile is no longer usable it will fallback to logging to the
+  // stderr
+  EXPECT_EQ(router.wait_for_exit(), 1) << router.get_full_output();
+  EXPECT_THAT(router.get_full_output(),
+              HasSubstr("File exists, but cannot open for writing"));
+  EXPECT_THAT(router.get_full_output(), HasSubstr("Unloading all plugins."));
+}
+
+/**
+ * @test Checks that the logs rotation does not cause any crash in case of
+ * not logging to the file (logging_foler empty == logging to the std:cerr)
+ */
+TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+
+  // launch the router with metadata-cache configuration
+  auto router = RouterComponentTest::launch_router(
+      "-c " + init_keyring_and_config_file(conf_dir, /*log_to_console=*/true));
+  bool router_ready = wait_for_port_ready(router_port, 10000);
+  EXPECT_TRUE(router_ready) << router.get_full_output();
+
+  std::this_thread::sleep_for(200ms);
+  const auto pid = static_cast<pid_t>(router.get_pid());
+  ::kill(pid, SIGHUP);
+  std::this_thread::sleep_for(200ms);
+}
+
+#endif
 
 int main(int argc, char *argv[]) {
   init_windows_sockets();

@@ -264,8 +264,7 @@ void MySQLRouter::init(const vector<string> &arguments) {
       mysql_harness::LoaderConfig &config = DIM::instance().get_Config();
 
       // reinit logger (right now the logger is configured to log to STDERR,
-      // here
-      //                we re-configure it with settings from config file)
+      // here we re-configure it with settings from config file)
       init_main_logger(config, true);  // true = raw logging mode
     }
 
