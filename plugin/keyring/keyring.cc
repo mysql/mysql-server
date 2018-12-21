@@ -215,8 +215,12 @@ static bool mysql_key_generate(const char *key_id, const char *key_type,
 
 static void mysql_key_iterator_init(void **key_iterator) {
   *key_iterator = new Keys_iterator(logger.get());
-  mysql_key_iterator_init<keyring::Key>(
-      static_cast<Keys_iterator *>(*key_iterator), "keyring_file");
+  if (mysql_key_iterator_init<keyring::Key>(
+          static_cast<Keys_iterator *>(*key_iterator), "keyring_file") ==
+      true) {
+    delete static_cast<Keys_iterator *>(*key_iterator);
+    *key_iterator = nullptr;
+  }
 }
 
 static void mysql_key_iterator_deinit(void *key_iterator) {

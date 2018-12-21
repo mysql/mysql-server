@@ -215,6 +215,7 @@ bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove) {
 }
 
 bool mysql_keyring_iterator_init(Keys_iterator *key_iterator) {
+  if (!is_keys_container_initialized) return true;
   mysql_rwlock_rdlock(&LOCK_keyring);
   key_iterator->init();
   mysql_rwlock_unlock(&LOCK_keyring);

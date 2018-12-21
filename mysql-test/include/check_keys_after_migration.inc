@@ -30,9 +30,15 @@ eval SELECT '$wl9769_destination_key1_len' = '$wl9769_source_key1_len';
 eval SELECT '$wl9769_destination_key2_len' = '$wl9769_source_key2_len';
 eval SELECT '$wl9769_destination_key3_len' = '$wl9769_source_key3_len';
 
+--replace_result $key_name1 <key_name1> $key_name2 <key_name2> $key_name3 <key_name3>
+eval SELECT COUNT(*) FROM performance_schema.keyring_keys WHERE KEY_ID IN ('$key_name1', '$key_name2', '$key_name3');
+
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key1_timestamp/
 eval SELECT keyring_key_remove('$key_name1');
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key2_timestamp/
 eval SELECT keyring_key_remove('$key_name2');
 --replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*.[0-9]*/key3_timestamp/
 eval SELECT keyring_key_remove('$key_name3');
+
+--replace_result $key_name1 <key_name1> $key_name2 <key_name2> $key_name3 <key_name3>
+eval SELECT COUNT(*) FROM performance_schema.keyring_keys WHERE KEY_ID IN ('$key_name1', '$key_name2', '$key_name3');

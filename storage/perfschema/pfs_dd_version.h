@@ -92,8 +92,12 @@
   - events_statements_history, added column QUERY_ID
   - events_statements_history_long, added column QUERY_ID
 
-  Version published is now 80014.
+  80015:
+
+  performance_schema.keyring_keys
+
+  Version published is now 80015.
 */
-static const uint PFS_DD_VERSION = 80014;
+static const uint PFS_DD_VERSION = 80015;
 
 #endif /* PFS_DD_VERSION_H */

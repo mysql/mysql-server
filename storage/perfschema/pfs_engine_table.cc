@@ -96,6 +96,7 @@
 #include "storage/perfschema/table_global_variables.h"
 #include "storage/perfschema/table_host_cache.h"
 #include "storage/perfschema/table_hosts.h"
+#include "storage/perfschema/table_keyring_keys.h"
 #include "storage/perfschema/table_md_locks.h"
 #include "storage/perfschema/table_mems_by_account_by_event_name.h"
 #include "storage/perfschema/table_mems_by_host_by_event_name.h"
@@ -627,6 +628,8 @@ static PFS_engine_table_share *all_shares[] = {
 
     &table_session_connect_attrs::m_share,
     &table_session_account_connect_attrs::m_share,
+
+    &table_keyring_keys::s_share,
 
     &table_mems_global_by_event_name::m_share,
     &table_mems_by_account_by_event_name::m_share,

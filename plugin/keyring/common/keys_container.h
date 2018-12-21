@@ -56,7 +56,10 @@ class Keys_container : public IKeys_container {
 
   ~Keys_container();
 
-  ulong get_number_of_keys() { return keys_hash->size(); }
+  size_t get_number_of_keys() { return keys_hash->size(); }
+
+  /** Internal function, returns the key from the internal hash, no locks */
+  IKey *get_key_from_hash(IKey *key);
 
  protected:
   Keys_container(const Keys_container &);
@@ -67,7 +70,6 @@ class Keys_container : public IKeys_container {
                                              size_t source_key_data_size);
   bool load_keys_from_keyring_storage();
   void free_keys_hash();
-  IKey *get_key_from_hash(IKey *key);
   bool store_key_in_hash(IKey *key);
   bool remove_key_from_hash(IKey *key);
   virtual bool flush_to_backup();

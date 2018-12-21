@@ -1,0 +1,15 @@
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.keyring_keys
+  ADD COLUMN foo INTEGER;
+
+-- error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.keyring_keys;
+
+-- error ER_DBACCESS_DENIED_ERROR
+ALTER TABLE performance_schema.keyring_keys ADD INDEX test_index(KEY_ID);
+
+-- error ER_DBACCESS_DENIED_ERROR
+CREATE UNIQUE INDEX test_index ON performance_schema.keyring_keys(KEY_ID);
+-- error ER_DBACCESS_DENIED_ERROR
+DROP INDEX `PRIMARY`
+  ON performance_schema.keyring_keys;

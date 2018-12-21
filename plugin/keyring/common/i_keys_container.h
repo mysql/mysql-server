@@ -47,6 +47,8 @@ class IKeys_container : public Keyring_alloc {
                     std::string keyring_storage_url) = 0;
   virtual bool store_key(IKey *key) = 0;
   virtual IKey *fetch_key(IKey *key) = 0;
+  /** Internal function, returns the key from the internal hash, no locks */
+  virtual IKey *get_key_from_hash(IKey *key) = 0;
   virtual bool remove_key(IKey *key) = 0;
   virtual std::string get_keyring_storage_url() = 0;
   virtual void set_keyring_io(IKeyring_io *keyring_io) = 0;
