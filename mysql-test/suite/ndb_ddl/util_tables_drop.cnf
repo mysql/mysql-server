@@ -1,0 +1,4 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+ndb-log-bin=1
