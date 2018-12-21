@@ -52,7 +52,7 @@ while (`select @pool > 0`)
     # Send DUMP to all data nodes to set new max size of pool for fired triggers.
     #   TcSetTransientPoolMaxSize(2556)
     #   MAX_SIZE(0)
-    exec $NDB_MGM --no-defaults --verbose=1 --execute "ALL DUMP 2556 $pool 0";
+    exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 2556 $pool 0";
 
     error 0,1296,1297;
     insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1+(x1.n+x2.n+x3.n) MOD 3, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3;

@@ -15,7 +15,6 @@ set @pool = 13;
 set @pool = @pool - 1;
 === Make pool 12 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x0000000c 0x00000000 
 Sending dump signal with data:
@@ -66,7 +65,6 @@ set @pool = @pool - 1;
 set @pool = @pool - 1;
 === Make pool 10 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x0000000a 0x00000000 
 Sending dump signal with data:
@@ -117,7 +115,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 9 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000009 0x00000000 
 Sending dump signal with data:
@@ -168,7 +165,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 8 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000008 0x00000000 
 Sending dump signal with data:
@@ -220,7 +216,6 @@ set @pool = @pool - 1;
 set @pool = @pool - 1;
 === Make pool 6 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000006 0x00000000 
 Sending dump signal with data:
@@ -272,7 +267,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 5 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000005 0x00000000 
 Sending dump signal with data:
@@ -324,7 +318,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 4 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000004 0x00000000 
 Sending dump signal with data:
@@ -376,7 +369,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 3 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000003 0x00000000 
 Sending dump signal with data:
@@ -422,7 +414,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 2 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000002 0x00000000 
 Sending dump signal with data:
@@ -470,7 +461,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 1 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000001 0x00000000 
 Sending dump signal with data:
@@ -518,7 +508,6 @@ delete from t0;
 set @pool = @pool - 1;
 === Make pool 0 out of memory ===
 insert into t0 (c) values (1),(2),(3),(4);
-Connected to Management Server at: localhost:13000
 Sending dump signal with data:
 0x000009fc 0x00000000 0x00000000 
 Sending dump signal with data:
