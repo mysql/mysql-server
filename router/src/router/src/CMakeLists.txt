@@ -63,6 +63,12 @@ ENDIF()
 
 SET(source_files main.cc)
 
+IF(WIN32)
+  LIST(APPEND source_files
+    ../../harness/src/logging/eventlog_rc/message.rc
+    ../../harness/src/logging/eventlog_rc/msg00001.bin)
+ENDIF()
+
 IF(NOT WIN32)
   ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
 ELSE()

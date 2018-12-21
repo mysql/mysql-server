@@ -114,6 +114,7 @@ Path g_origin;
 class AppTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
+    init_test_logger();
 #ifndef _WIN32
     mock_sys_user_operations.reset(new MockSysUserOperations());
 #endif
@@ -510,12 +511,16 @@ TEST_F(AppTest, SetCommandLineUserBeforeInitializingLogger) {
       .WillOnce(Return(0));
   EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid))
       .Times(1)
-      .WillOnce(testing::DoAll(testing::InvokeWithoutArgs([&] {
-                                 ASSERT_FALSE(mysql_harness::DIM::instance()
-                                                  .get_LoggingRegistry()
-                                                  .is_ready());
-                               }),
-                               (Return(0))));
+      .WillOnce(testing::DoAll(
+          testing::InvokeWithoutArgs([&] {
+            ASSERT_FALSE(mysql_harness::DIM::instance()
+                             .get_LoggingRegistry()
+                             .is_ready());
+          }),
+          // we proved that the user got set first, now init the logger properly
+          // for the further loader to use it
+          testing::InvokeWithoutArgs([&] { init_test_logger(); }),
+          (Return(0))));
 
   MySQLRouter r(g_origin, argv, std::cout, std::cerr,
                 mock_sys_user_operations.get());
@@ -580,12 +585,16 @@ TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
       .WillOnce(Return(0));
   EXPECT_CALL(*mock_sys_user_operations, setuid(user_info.pw_uid))
       .Times(1)
-      .WillOnce(testing::DoAll(testing::InvokeWithoutArgs([&] {
-                                 ASSERT_FALSE(mysql_harness::DIM::instance()
-                                                  .get_LoggingRegistry()
-                                                  .is_ready());
-                               }),
-                               (Return(0))));
+      .WillOnce(testing::DoAll(
+          testing::InvokeWithoutArgs([&] {
+            ASSERT_FALSE(mysql_harness::DIM::instance()
+                             .get_LoggingRegistry()
+                             .is_ready());
+          }),
+          // we proved that the user got set first, now init the logger properly
+          // for the further loader to use it
+          testing::InvokeWithoutArgs([&] { init_test_logger(); }),
+          (Return(0))));
 
   MySQLRouter r(g_origin, argv, std::cout, std::cerr,
                 mock_sys_user_operations.get());
@@ -1111,17 +1120,11 @@ TEST_F(AppLoggerTest, TestLogger) {
       mysql_harness::DIM::instance().get_LoggingRegistry().get_logger_names();
   EXPECT_THAT(loggers, testing::UnorderedElementsAre(
                            mysql_harness::logging::kMainLogger, "magic",
-                           "lifecycle", "lifecycle3", "sql"));
+                           "lifecycle", "lifecycle3", "sql", "logger"));
 
   // verify the log contains what we expect it to contain. We're looking for
   // lines like this:
   {
-    // 2017-05-03 11:30:23 main DEBUG [7ffff7fd4780] Main logger initialized,
-    // logging to STDERR
-    EXPECT_THAT(get_log_stream().str(), HasSubstr(" main DEBUG "));
-    EXPECT_THAT(get_log_stream().str(),
-                HasSubstr(" Main logger initialized, logging to STDERR"));
-
     // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
     EXPECT_THAT(get_log_stream().str(), HasSubstr(" magic INFO "));
     EXPECT_THAT(get_log_stream().str(), HasSubstr(" It is some kind of magic"));
@@ -1142,7 +1145,6 @@ TEST_F(AppTest, EmptyConfigPath) {
 int main(int argc, char *argv[]) {
   g_origin = Path(argv[0]).dirname();
 
-  register_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

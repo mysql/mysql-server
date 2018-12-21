@@ -111,7 +111,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
    */
-  mysqlrouter::mkdir(config_file_, 0700);
+  mysql_harness::mkdir(config_file_, 0700);
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
@@ -147,7 +147,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
    */
-  mysqlrouter::mkdir(config_file_, 0700);
+  mysql_harness::mkdir(config_file_, 0700);
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
@@ -194,7 +194,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
    */
-  mysqlrouter::mkdir(config_file_, 0700);
+  mysql_harness::mkdir(config_file_, 0700);
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
@@ -237,7 +237,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
    * Create directory with the same name as mysql router's config file to force
    * bootstrap to fail.
    */
-  mysqlrouter::mkdir(config_file_, 0700);
+  mysql_harness::mkdir(config_file_, 0700);
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode

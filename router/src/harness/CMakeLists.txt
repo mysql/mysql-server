@@ -76,14 +76,20 @@ SET(harness_source
   src/dynamic_state.cc
   src/dynamic_state_schema.cc
   src/loader_config.cc
-  src/common.cc  src/filesystem.cc
+  src/common.cc
+  src/filesystem.cc
+  src/string_utils.cc
   src/arg_handler.cc
+  src/builtin_plugins.cc
   src/dim.cc
   src/hostname_validator.cc
   src/mysql_router_thread.cc
   src/process_launcher.cc
+  src/logging/consolelog_plugin.cc
+  src/logging/filelog_plugin.cc
   src/logging/handler.cc
   src/logging/logger.cc
+  src/logging/logger_plugin.cc
   src/logging/logging.cc
   src/logging/registry.cc
   src/random_generator.cc
@@ -110,10 +116,16 @@ SET(harness_source ${harness_source} ${MY_AES_IMPL})
 
 IF(WIN32)
   LIST(APPEND harness_source
-    src/filesystem-windows.cc src/utilities-windows.cc src/loader-windows.cc)
+    src/filesystem-windows.cc
+    src/utilities-windows.cc
+    src/loader-windows.cc
+    src/logging/eventlog_plugin.cc)
 ELSE()
   LIST(APPEND harness_source
-    src/filesystem-posix.cc src/utilities-posix.cc src/loader-posix.cc)
+    src/filesystem-posix.cc
+    src/utilities-posix.cc
+    src/loader-posix.cc
+    src/logging/syslog_plugin.cc)
 ENDIF()
 
 INCLUDE_DIRECTORIES(

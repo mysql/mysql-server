@@ -25,6 +25,7 @@
 #include "mysqlrouter/utils.h"
 #include "common.h"
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"
 
 #include <string.h>
 #include <algorithm>
@@ -57,6 +58,7 @@ extern "C" bool g_windows_service;
 }
 #endif
 
+using mysql_harness::trim;
 using std::string;
 
 const string kValidIPv6Chars = "abcdefgABCDEFG0123456789:";
@@ -187,42 +189,6 @@ int rename_file(const std::string &from, const std::string &to) {
   else
     return -1;
 #endif
-}
-
-namespace {
-int mkdir_wrapper(const std::string &dir, perm_mode mode) {
-#ifndef _WIN32
-  return ::mkdir(dir.c_str(), mode);
-#else
-  return _mkdir(dir.c_str());
-#endif
-}
-
-int mkdir_recursive(const mysql_harness::Path &path, perm_mode mode) {
-  if (path.str().empty() || path.c_str() == mysql_harness::Path::root_directory)
-    return -1;
-
-  // mkdir -p succeeds even if the directory one tries to create exists
-  if (path.exists()) {
-    return path.is_directory() ? 0 : -1;
-  }
-
-  const auto parent = path.dirname();
-  if (!parent.exists()) {
-    auto res = mkdir_recursive(parent, mode);
-    if (res != 0) return res;
-  }
-
-  return mkdir_wrapper(path.str(), mode);
-}
-}  // namespace
-
-int mkdir(const std::string &dir, perm_mode mode, bool recursive /*= false */) {
-  if (!recursive) {
-    return mkdir_wrapper(dir, mode);
-  }
-
-  return mkdir_recursive(mysql_harness::Path(dir), mode);
 }
 
 bool substitute_envvar(std::string &line) noexcept {
@@ -372,46 +338,6 @@ uint16_t get_tcp_port(const string &data) {
     throw std::runtime_error("impossible port number");
   }
   return static_cast<uint16_t>(port);
-}
-
-std::vector<string> split_string(const string &data, const char delimiter,
-                                 bool allow_empty) {
-  std::stringstream ss(data);
-  std::string token;
-  std::vector<string> result;
-
-  if (data.empty()) {
-    return {};
-  }
-
-  while (std::getline(ss, token, delimiter)) {
-    if (token.empty() && !allow_empty) {
-      // Skip empty
-      continue;
-    }
-    result.push_back(token);
-  }
-
-  // When last character is delimiter, it denotes an empty token
-  if (allow_empty && data.back() == delimiter) {
-    result.push_back("");
-  }
-
-  return result;
-}
-
-void left_trim(string &str) {
-  str.erase(str.begin(), std::find_if_not(str.begin(), str.end(), ::isspace));
-}
-
-void right_trim(string &str) {
-  str.erase(std::find_if_not(str.rbegin(), str.rend(), ::isspace).base(),
-            str.end());
-}
-
-void trim(string &str) {
-  left_trim(str);
-  right_trim(str);
 }
 
 string hexdump(const unsigned char *buffer, size_t count, long start,

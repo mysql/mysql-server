@@ -120,6 +120,29 @@ void StreamHandler::do_log(const Record &record) {
 
 FileHandler::FileHandler(const Path &path, bool format_messages, LogLevel level)
     : StreamHandler(fstream_, format_messages, level), file_path_(path) {
+  // create a directory if it does not exist
+  {
+    std::string log_path(path.str());  // log_path = /path/to/file.log
+    size_t pos;
+    pos = log_path.find_last_of('/');
+    if (pos != std::string::npos) log_path.erase(pos);  // log_path = /path/to
+
+    // mkdir if it doesn't exist
+    if (mysql_harness::Path(log_path).exists() == false &&
+        mkdir(log_path, kStrictDirectoryPerm) != 0) {
+      auto last_error =
+#ifdef _WIN32
+          GetLastError()
+#else
+          errno
+#endif
+          ;
+      throw std::system_error(last_error, std::system_category(),
+                              "Error when creating dir '" + log_path +
+                                  "': " + std::to_string(last_error));
+    }
+  }
+
   reopen();  // not opened yet so it's just for open in this context
 }
 
@@ -156,7 +179,7 @@ void FileHandler::reopen() {
           "Cannot create file in directory " + file_path_.dirname().str());
     }
   }
-}
+}  // namespace logging
 
 void FileHandler::do_log(const Record &record) {
   std::lock_guard<std::mutex> lock(stream_mutex_);

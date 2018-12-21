@@ -38,16 +38,17 @@
 #include <stdexcept>
 #include <vector>
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"
 #include "mysqlrouter/utils.h"
 
 const std::string kIPv6AddrRange = "fd84:8829:117d:63d5";
 
 using ::testing::ContainerEq;
 using ::testing::Pair;
+using mysql_harness::split_string;
 using mysqlrouter::get_tcp_port;
 using mysqlrouter::hexdump;
 using mysqlrouter::split_addr_port;
-using mysqlrouter::split_string;
 using std::string;
 
 class SplitAddrPortTest : public ::testing::Test {
@@ -152,68 +153,6 @@ class UtilsTests : public ::testing::Test {
  protected:
   virtual void SetUp() {}
 };
-
-TEST_F(UtilsTests, SplitStringWithEmpty) {
-  std::vector<string> exp;
-  std::string tcase;
-
-  exp = {"val1", "val2"};
-  EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';')));
-
-  exp = {"", "val1", "val2"};
-  EXPECT_THAT(exp, ContainerEq(split_string(";val1;val2", ';')));
-
-  exp = {"val1", "val2", ""};
-  EXPECT_THAT(exp, ContainerEq(split_string("val1;val2;", ';')));
-
-  exp = {};
-  EXPECT_THAT(exp, ContainerEq(split_string("", ';')));
-
-  exp = {"", ""};
-  EXPECT_THAT(exp, ContainerEq(split_string(";", ';')));
-
-  // No trimming
-  exp = {"  val1", "val2  "};
-  EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&')));
-}
-
-TEST_F(UtilsTests, SplitStringWithoutEmpty) {
-  std::vector<string> exp;
-  std::string tcase;
-
-  exp = {"val1", "val2"};
-  EXPECT_THAT(exp, ContainerEq(split_string("val1;val2", ';', false)));
-
-  exp = {"val1", "val2"};
-  EXPECT_THAT(exp, ContainerEq(split_string(";val1;val2", ';', false)));
-
-  exp = {"val1", "val2"};
-  EXPECT_THAT(exp, ContainerEq(split_string("val1;val2;", ';', false)));
-
-  exp = {};
-  EXPECT_THAT(exp, ContainerEq(split_string("", ';', false)));
-
-  exp = {};
-  EXPECT_THAT(exp, ContainerEq(split_string(";", ';', false)));
-
-  // No trimming
-  exp = {"  val1", "val2  "};
-  EXPECT_THAT(exp, ContainerEq(split_string("  val1&val2  ", '&', false)));
-}
-
-TEST_F(UtilsTests, delete_dir_recursive) {
-  using mysqlrouter::mkdir;
-  std::ofstream ofs;
-  mkdir("testdir", 0700);
-  mkdir("testdir/a", 0700);
-  mkdir("testdir/a/b", 0700);
-  mkdir("testdir/a/a", 0700);
-  std::ofstream().open("testdir/f");
-  std::ofstream().open("testdir/f2");
-  std::ofstream().open("testdir/a/f");
-  std::ofstream().open("testdir/a/b/f");
-  EXPECT_EQ(0, mysql_harness::delete_dir_recursive("testdir"));
-}
 
 static bool files_equal(const std::string &f1, const std::string &f2) {
   std::ifstream if1(f1);

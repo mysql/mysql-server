@@ -198,6 +198,59 @@ TEST(TestFilesystem, IsNotReadableIfFileCanNotBeRead) {
 #endif
 }
 
+TEST(TestFilesystem, delete_dir_recursive) {
+  using mysql_harness::mkdir;
+  std::ofstream ofs;
+  mkdir("testdir", 0700);
+  mkdir("testdir/a", 0700);
+  mkdir("testdir/a/b", 0700);
+  mkdir("testdir/a/a", 0700);
+  std::ofstream().open("testdir/f");
+  std::ofstream().open("testdir/f2");
+  std::ofstream().open("testdir/a/f");
+  std::ofstream().open("testdir/a/b/f");
+  EXPECT_EQ(0, mysql_harness::delete_dir_recursive("testdir"));
+}
+
+/*
+ * Tests mysql_harness::mkdir()
+ */
+
+TEST(TestFilesystem, Mkdir) {
+  constexpr auto kMode = 0700;
+
+  auto tmp_dir = mysql_harness::get_tmp_dir("test");
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { mysql_harness::delete_dir_recursive(tmp_dir); });
+
+  // non-recursive should fail
+  EXPECT_NE(0, mysql_harness::mkdir(tmp_dir + "/a/b/c/d", kMode));
+
+  // recursive should be fine
+  EXPECT_EQ(0, mysql_harness::mkdir(tmp_dir + "/a/b/c/d", kMode, true));
+
+  // make sure it really exists
+  mysql_harness::Path my_path(tmp_dir + "/a/b/c/d");
+  EXPECT_TRUE(my_path.exists());
+
+  // we just created one, trying to recursively create it once more
+  // should succeed as 'mkdir -p' does
+  EXPECT_EQ(0, mysql_harness::mkdir(tmp_dir + "/a/b/c/d", kMode, true));
+
+  // create a regular file and try to create a directory with the same name,
+  // that should fail
+  {
+    mysql_harness::Path file_path(tmp_dir + "/a/b/c/regular_file");
+    std::fstream f;
+    f.open(file_path.str(), std::ios::out);
+  }
+  EXPECT_NE(0,
+            mysql_harness::mkdir(tmp_dir + "/a/b/c/regular_file", kMode, true));
+
+  // empty path should throw
+  EXPECT_THROW(mysql_harness::mkdir("", kMode, true), std::invalid_argument);
+}
+
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
 

@@ -28,6 +28,7 @@
 
 ////////////////////////////////////////
 // Package include files
+#include "builtin_plugins.h"
 #include "designator.h"
 #include "dim.h"
 #include "exception.h"
@@ -466,9 +467,17 @@ Plugin *Loader::load_from(const std::string &plugin_name,
 Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
   log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
-  ConfigSection &plugin = config_.get(plugin_name, key);  // throws bad_section
-  const std::string &library_name = plugin.get("library");
-  return load_from(plugin_name, library_name);  // throws bad_plugin
+  if (BuiltinPlugins::instance().has(plugin_name)) {
+    Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
+    PluginInfo info(nullptr, plugin);
+    plugins_.emplace(plugin_name, std::move(info));
+    return plugin;
+  } else {
+    ConfigSection &plugin =
+        config_.get(plugin_name, key);  // throws bad_section
+    const std::string &library_name = plugin.get("library");
+    return load_from(plugin_name, library_name);  // throws bad_plugin
+  }
 }
 
 Plugin *Loader::load(const std::string &plugin_name) {
@@ -497,6 +506,15 @@ void Loader::start() {
   // unload plugins on exit
   std::shared_ptr<void> exit_guard(nullptr, [this](void *) { unload_all(); });
 
+  // check if there is anything to load; if not we currently treat is as an
+  // error, not letting the user to run "idle" router that would close right
+  // away
+  if (external_plugins_to_load_count() == 0) {
+    throw std::runtime_error(
+        "Error: MySQL Router not configured to load or start any plugin. "
+        "Exiting.");
+  }
+
   // load plugins
   load_all();  // throws bad_plugin on load error, causing an early return
 
@@ -505,6 +523,17 @@ void Loader::start() {
   if (first_eptr) {
     std::rethrow_exception(first_eptr);
   }
+}
+
+size_t Loader::external_plugins_to_load_count() {
+  size_t result = 0;
+  for (std::pair<const std::string &, std::string> name : available()) {
+    if (!BuiltinPlugins::instance().has(name.first)) {
+      result++;
+    }
+  }
+
+  return result;
 }
 
 void Loader::load_all() {
@@ -526,6 +555,8 @@ void Loader::unload_all() {
   // this stage has no implementation so far; however, we want to flag that we
   // reached this stage
   log_info("Unloading all plugins.");
+  // If that ever gets implemented make sure to not attempt unloading
+  // built-in plugins
 }
 
 std::exception_ptr Loader::run() {
@@ -644,8 +675,15 @@ std::exception_ptr Loader::init_all() {
   log_info("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
+  order_.reverse();  // we need reverse-topo order for non-built-in plugins
 
-  order_.reverse();  // we need reverse-topo order
+  // we put the built-in plugins at the beginning
+  for (const std::pair<const std::string, PluginInfo> &plugin : plugins_) {
+    if (BuiltinPlugins::instance().has(plugin.first)) {
+      order_.push_front(plugin.first);
+    }
+  }
+
   for (auto it = order_.begin(); it != order_.end(); ++it) {
     const std::string &plugin_name = *it;
     PluginInfo &info = plugins_.at(plugin_name);
@@ -909,10 +947,16 @@ std::exception_ptr Loader::deinit_all() {
 bool Loader::topsort() {
   std::map<std::string, Loader::Status> status;
   std::list<std::string> order;
+
+  // for the non-builtin plugins do the sorting that takes their dependencies
+  // into account
   for (std::pair<const std::string, PluginInfo> &plugin : plugins_) {
-    bool succeeded = visit(plugin.first, &status, &order);
-    if (!succeeded) return false;
+    if (!BuiltinPlugins::instance().has(plugin.first)) {
+      bool succeeded = visit(plugin.first, &status, &order);
+      if (!succeeded) return false;
+    }
   }
+
   order_.swap(order);
   return true;
 }

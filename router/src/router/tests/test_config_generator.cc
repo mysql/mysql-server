@@ -118,6 +118,8 @@ class ReplayerWithMockSSL : public MySQLSessionReplayer {
 class ConfigGeneratorTest : public ConsoleOutputTest {
  protected:
   virtual void SetUp() {
+    init_test_logger();
+
     mysql_harness::DIM::instance().set_RandomGenerator(
         []() {
           static mysql_harness::FakeRandomGenerator rg;
@@ -2097,7 +2099,7 @@ TEST_F(ConfigGeneratorTest, empty_config_file) {
   const std::string conf_path(test_dir + "/mysqlrouter.conf");
 
   delete_dir_recursive(test_dir);
-  mysqlrouter::mkdir(test_dir, 0700);
+  mysql_harness::mkdir(test_dir, 0700);
 
   std::ofstream file(conf_path, std::ofstream::out | std::ofstream::trunc);
   file.close();
@@ -3213,8 +3215,6 @@ int main(int argc, char *argv[]) {
   // "/fake/path/to/mysqlrouter", but unfortunately, this path goes through
   // realpath() and therefore has to actually exist.
   g_program_name = "/";
-
-  init_test_logger();
 
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

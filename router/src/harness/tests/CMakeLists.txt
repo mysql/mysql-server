@@ -64,6 +64,7 @@ SET(TESTS
   test_dynamic_state.cc
   test_arg_handler.cc
   test_vt100.cc
+  test_string_utils.cc
 )
 
 FOREACH(TEST ${TESTS})

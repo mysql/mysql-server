@@ -21,7 +21,6 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/filesystem.h"
 
@@ -96,7 +95,8 @@ void LoaderConfig::read(const Path &path) {
 }
 
 bool LoaderConfig::logging_to_file() const {
-  return !get_default("logging_folder").empty();
+  constexpr const char *kFolderOption = "logging_folder";
+  return has_default(kFolderOption) && !get_default(kFolderOption).empty();
 }
 
 Path LoaderConfig::get_log_file() const {

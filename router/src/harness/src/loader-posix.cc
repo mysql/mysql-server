@@ -78,7 +78,7 @@ class Loader::PluginInfo::Impl {
   ~Impl();
 
   Path path;
-  void *handle;
+  void *handle{nullptr};
 };
 
 Loader::PluginInfo::Impl::Impl(const std::string &plugin_folder,

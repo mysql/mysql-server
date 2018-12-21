@@ -168,7 +168,7 @@ class MySQLRouter {
    * - bad configuration
    *
    * @note This function is static and public, because unlike
-   * init_plugin_loggers(), it's also meant to be called very early during
+   * create_plugin_loggers(), it's also meant to be called very early during
    * startup, close to main().
    */
   static void init_main_logger(mysql_harness::LoaderConfig &config,
@@ -439,8 +439,6 @@ class MySQLRouter {
    * @throw std::runtime_error
    */
   void init_keyring_using_prompted_password();
-
-  void init_plugin_loggers(mysql_harness::LoaderConfig &config);
 
   // throws std::runtime_error
   void init_loader(mysql_harness::LoaderConfig &config);

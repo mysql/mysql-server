@@ -382,4 +382,10 @@ SecurityDescriptorPtr get_security_descriptor(const std::string &file_name) {
   return sec_desc;
 }
 
+int mkdir_wrapper(const std::string &dir, perm_mode mode) {
+  auto res = _mkdir(dir.c_str());
+  if (res != 0) return errno;
+  return 0;
+}
+
 }  // namespace mysql_harness

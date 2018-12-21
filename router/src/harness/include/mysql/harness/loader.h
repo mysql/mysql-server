@@ -887,6 +887,7 @@ class HARNESS_EXPORT Loader {
   std::exception_ptr
   deinit_all();  // returns first exception triggered by deinit()
   void unload_all();
+  size_t external_plugins_to_load_count();
 
   /**
    * Topological sort of all plugins and their dependencies.
@@ -928,7 +929,7 @@ class HARNESS_EXPORT Loader {
 
    private:
     class Impl;
-    Impl *impl_;
+    Impl *impl_{nullptr};
   };
 
   using PluginMap = std::map<std::string, PluginInfo>;

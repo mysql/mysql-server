@@ -48,6 +48,7 @@ Path g_origin;
 class Bug22572346 : public ConsoleOutputTest {
  protected:
   virtual void SetUp() {
+    init_test_logger();
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));
@@ -229,7 +230,6 @@ int main(int argc, char *argv[]) {
   init_windows_sockets();
   g_origin = Path(argv[0]).dirname();
   g_cwd = Path(argv[0]).dirname().str();
-  register_test_logger();
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

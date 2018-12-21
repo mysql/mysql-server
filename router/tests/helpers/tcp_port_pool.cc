@@ -119,7 +119,7 @@ std::string UniqueId::get_lock_file_dir() const {
 
 UniqueId::UniqueId(unsigned start_from, unsigned range) {
   const std::string lock_file_dir = get_lock_file_dir();
-  mysqlrouter::mkdir(lock_file_dir, 0777);
+  mysql_harness::mkdir(lock_file_dir, 0777);
 
   for (unsigned i = 0; i < range; i++) {
     id_ = start_from + i;

@@ -386,7 +386,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
  * option is used and bootstrap fails, then original keyring file is restored.
  */
 TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
-  mysqlrouter::mkdir(Path(tmp_dir_).join("data").str(), 0777);
+  mysql_harness::mkdir(Path(tmp_dir_).join("data").str(), 0777);
   // create keyring file
   Path keyring_path(Path(tmp_dir_).join("data").join("keyring").str());
 
@@ -729,8 +729,8 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
    */
   void init_tmp_dir() {
     tmp_dir_ = get_tmp_dir();
-    mysqlrouter::mkdir(tmp_dir_ + "/stage", 0700);
-    mysqlrouter::mkdir(tmp_dir_ + "/stage/bin", 0700);
+    mysql_harness::mkdir(tmp_dir_ + "/stage", 0700);
+    mysql_harness::mkdir(tmp_dir_ + "/stage/bin", 0700);
     exec_file_ = tmp_dir_ + "/stage/bin/mysqlrouter";
     mysqlrouter::copy_file(get_mysqlrouter_exec().str(), exec_file_);
 #ifndef _WIN32
@@ -898,7 +898,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        KeyringFileRestoredWhenBootstrapFails) {
-  mysqlrouter::mkdir(Path(tmp_dir_).join("stage").join("data").str(), 0777);
+  mysql_harness::mkdir(Path(tmp_dir_).join("stage").join("data").str(), 0777);
   // create keyring file
   Path keyring_path(
       Path(tmp_dir_).join("stage").join("data").join("keyring").str());

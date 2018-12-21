@@ -27,10 +27,20 @@
 #include <cstring>
 #include <fstream>
 #include <ostream>
+#ifndef _WIN32
+#include <fcntl.h>
+#include <sys/stat.h>
+#endif
 
 using std::string;
 
 namespace mysql_harness {
+
+#ifndef _WIN32
+const perm_mode kStrictDirectoryPerm = S_IRWXU;
+#else
+const perm_mode kStrictDirectoryPerm = 0;
+#endif
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -214,6 +224,34 @@ std::string get_tests_data_dir(const std::string &runtime_dir) {
 
     return result.str();
   }
+}
+
+int mkdir_wrapper(const std::string &dir, perm_mode mode);
+
+int mkdir_recursive(const Path &path, perm_mode mode) {
+  if (path.str().empty() || path.c_str() == Path::root_directory) return -1;
+
+  // "mkdir -p" on Unix succeeds even if the directory one tries to create
+  // exists, we want to mimic that
+  if (path.exists()) {
+    return path.is_directory() ? 0 : -1;
+  }
+
+  const auto parent = path.dirname();
+  if (!parent.exists()) {
+    auto res = mkdir_recursive(parent, mode);
+    if (res != 0) return res;
+  }
+
+  return mkdir_wrapper(path.str(), mode);
+}
+
+int mkdir(const std::string &dir, perm_mode mode, bool recursive) {
+  if (!recursive) {
+    return mkdir_wrapper(dir, mode);
+  }
+
+  return mkdir_recursive(mysql_harness::Path(dir), mode);
 }
 
 }  // namespace mysql_harness

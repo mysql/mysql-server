@@ -1148,9 +1148,9 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
       },
       [](mysql_harness::RandomGeneratorInterface *) {});
 
-  mysqlrouter::mkdir(Path(bootstrap_dir).str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir).str(), 0777);
   std::string master_key_path = Path(bootstrap_dir).join("master_key").str();
-  mysqlrouter::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
+  mysql_harness::mkdir(Path(bootstrap_dir).join("data").str(), 0777);
   std::string keyring_path =
       Path(bootstrap_dir).join("data").join("keyring").str();
 

@@ -157,10 +157,9 @@ static void init_DIM() {
   );
   mysql_harness::logging::Registry &registry = dim.get_LoggingRegistry();
 
-  mysql_harness::logging::g_HACK_default_log_level = "warning";
-  mysql_harness::Config config;
-  mysql_harness::logging::init_loggers(
-      registry, config, {mysql_harness::logging::kMainLogger, "sql"},
+  mysql_harness::logging::create_module_loggers(
+      registry, mysql_harness::logging::LogLevel::kWarning,
+      {mysql_harness::logging::kMainLogger, "sql"},
       mysql_harness::logging::kMainLogger);
   mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
 

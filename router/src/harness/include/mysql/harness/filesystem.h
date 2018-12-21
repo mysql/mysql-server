@@ -32,6 +32,9 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#ifndef _WIN32
+#include <fcntl.h>
+#endif
 
 #ifdef _WIN32
 #include <aclapi.h>
@@ -501,6 +504,27 @@ HARNESS_EXPORT SecurityDescriptorPtr
 get_security_descriptor(const std::string &file_name);
 
 #endif
+
+#ifndef _WIN32
+using perm_mode = mode_t;
+extern const perm_mode kStrictDirectoryPerm;
+#else
+using perm_mode = int;
+extern const perm_mode kStrictDirectoryPerm;
+#endif
+
+/** @brief Creates a directory
+ * *
+ * @param dir       name (or path) of the directory to create
+ * @param mode      permission mode for the created directory
+ * @param recursive if true then immitated unix `mkdir -p` recursively
+ *                  creating parent directories if needed
+ * @retval 0 operation succeeded
+ * @retval -1 operation failed because of wrong parameters
+ * @retval > 0 errno for failure to mkdir() system call
+ */
+HARNESS_EXPORT
+int mkdir(const std::string &dir, perm_mode mode, bool recursive = false);
 
 }  // namespace mysql_harness
 

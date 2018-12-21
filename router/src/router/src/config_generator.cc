@@ -22,10 +22,10 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "config_generator.h"
-
 #define MYSQL_ROUTER_LOG_DOMAIN \
   ::mysql_harness::logging::kMainLogger  // must precede #include "logging.h"
+
+#include "config_generator.h"
 
 #include <rapidjson/rapidjson.h>
 #include "common.h"
@@ -640,7 +640,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   if (!path.exists()) {
-    if (mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
+    if (mysql_harness::mkdir(directory.c_str(), kStrictDirectoryPerm) < 0) {
       log_error("Cannot create directory '%s': %s",
                 truncate_string(directory).c_str(),
                 get_strerror(errno).c_str());
@@ -707,13 +707,15 @@ void ConfigGenerator::bootstrap_directory_deployment(
       }
     }
     if (do_mkdir) {
-      if (mkdir(options[option_name].c_str(), kStrictDirectoryPerm) < 0) {
-        if (errno != EEXIST) {
+      int res = mysql_harness::mkdir(options[option_name].c_str(),
+                                     kStrictDirectoryPerm);
+      if (res != 0) {
+        if (res != EEXIST) {
           log_error("Cannot create directory '%s': %s",
                     truncate_string(options[option_name]).c_str(),
                     get_strerror(errno).c_str());
           throw std::runtime_error("Could not create " + option_name +
-                                   "directory");
+                                   " directory: " + options[option_name]);
         }
       } else {
         auto_clean.add_directory_delete(options[option_name]);

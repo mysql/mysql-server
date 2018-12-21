@@ -66,14 +66,14 @@ static void start(PluginFuncEnv *env) {
   try {
     interval = std::stoi(section->get("interval"));
   } catch (...) {
-    // Anything in valid will result in using the default.
+    // Anything invalid will result in using the default.
   }
 
   int runs = kRuns;
   try {
     runs = std::stoi(section->get("runs"));
   } catch (...) {
-    // Anything in valid will result in using the default.
+    // Anything invalid will result in using the default.
   }
 
   std::string name = section->name;

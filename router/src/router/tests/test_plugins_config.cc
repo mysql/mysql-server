@@ -68,10 +68,11 @@ TEST_F(PluginsConfigTest, NoPluginLoaded) {
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();
   auto cmd_result = cmd_exec(cmd, true);
 
-  ASSERT_THAT(
-      cmd_result.output,
-      HasSubstr(
-          "MySQL Router not configured to load or start any plugin. Exiting."));
+  ASSERT_THAT(cmd_result.output,
+              HasSubstr("Error: MySQL Router not configured to load or start "
+                        "any plugin. Exiting."));
+
+  EXPECT_EQ(1, cmd_result.exit_code);
 }
 
 TEST_F(PluginsConfigTest, OnePluginLoaded) {
@@ -84,9 +85,6 @@ TEST_F(PluginsConfigTest, OnePluginLoaded) {
   auto cmd_result = cmd_exec(cmd, true);
 
   EXPECT_EQ(0, cmd_result.exit_code);
-  ASSERT_THAT(cmd_result.output,
-              Not(HasSubstr("MySQL Router not configured to load or start any "
-                            "plugin. Exiting.")));
 }
 
 TEST_F(PluginsConfigTest, TwoMetadadaCacheSections) {

@@ -23,6 +23,7 @@
 */
 
 #include "mysqlrouter/uri.h"
+#include "mysql/harness/string_utils.h"
 #include "mysqlrouter/utils.h"
 #include "utils.h"
 
@@ -34,6 +35,7 @@
 #include <stdexcept>
 #include <string>
 
+using mysql_harness::split_string;
 using std::string;
 
 // RFC 3986

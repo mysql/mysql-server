@@ -66,10 +66,6 @@ const std::map<std::string, LogLevel> Registry::kLogLevels{
     {"debug", LogLevel::kDebug},
 };
 
-// log level is stored in this hacky global variable; see place where it's
-// set for exaplanation
-std::string g_HACK_default_log_level;
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // logger CRUD
@@ -244,17 +240,15 @@ void create_main_logfile_handler(Registry &registry, const std::string &program,
   }
 }
 
-void init_logger(Registry &registry, const Config &config,
-                 const std::string &logger_name) {
-  registry.create_logger(logger_name, get_default_log_level(config));
+void create_logger(Registry &registry, const LogLevel level,
+                   const std::string &logger_name) {
+  registry.create_logger(logger_name, level);
 }
 
-void init_loggers(Registry &registry, const Config &config,
-                  const std::list<std::string> &modules,
-                  const std::string &main_app) {
+void create_module_loggers(Registry &registry, const LogLevel level,
+                           const std::list<std::string> &modules,
+                           const std::string &main_app) {
   // Create a logger for each module in the logging registry.
-  LogLevel level =
-      get_default_log_level(config);  // throws std::invalid_argument
   for (const std::string &module : modules)
     registry.create_logger(module, level);  // throws std::logic_error
 
@@ -263,33 +257,17 @@ void init_loggers(Registry &registry, const Config &config,
   harness_assert(registry.get_logger_names().size() > 0);
 }
 
-LogLevel get_default_log_level(const Config &config) {
-  // What we do here is an UGLY HACK. See code where g_HACK_default_log_level
-  // is set for explanation.
-  //
-  // Before introducing this hack in Router v8.0, we used to obtain the default
-  // log level from configuration, like so:
-  //
-  //   // We get the default log level from the configuration.
-  //   auto level_name = config.get_default("log_level");
-  //
-  // Once we have a proper remedy, something analogous should be reinstated.
-
-  // Obtain default log level (through UGLY HACK)
-  (void)config;  // after we remove this hack, config will be used once again
-  std::string level_name = mysql_harness::logging::g_HACK_default_log_level;
-
-  std::transform(level_name.begin(), level_name.end(), level_name.begin(),
-                 ::tolower);
+HARNESS_EXPORT
+LogLevel log_level_from_string(std::string name) {
+  std::transform(name.begin(), name.end(), name.begin(), ::tolower);
 
   // Return its enum representation
   try {
-    return Registry::kLogLevels.at(level_name);
-  } catch (std::out_of_range &exc) {
+    return Registry::kLogLevels.at(name);
+  } catch (const std::out_of_range &) {
     std::stringstream buffer;
 
-    buffer << "Log level '" << level_name
-           << "' is not valid. Valid values are: ";
+    buffer << "Log level '" << name << "' is not valid. Valid values are: ";
 
     // Print the entries using a serial comma
     std::vector<std::string> alternatives;
@@ -298,6 +276,26 @@ LogLevel get_default_log_level(const Config &config) {
     serial_comma(buffer, alternatives.begin(), alternatives.end());
     throw std::invalid_argument(buffer.str());
   }
+}
+
+LogLevel get_default_log_level(const Config &config, bool raw_mode) {
+  constexpr const char kNone[] = "";
+
+  // aliases with shorter names
+  constexpr const char *kLogLevel =
+      mysql_harness::logging::kConfigOptionLogLevel;
+  constexpr const char *kLogger = mysql_harness::logging::kConfigSectionLogger;
+
+  std::string level_name;
+  // extract log level from [logger] section/log level entry, if it exists
+  if (config.has(kLogger) && config.get(kLogger, kNone).has(kLogLevel))
+    level_name = config.get(kLogger, kNone).get(kLogLevel);
+  // otherwise, set it to default
+  else
+    level_name = raw_mode ? mysql_harness::logging::kRawLogLevelName
+                          : mysql_harness::logging::kDefaultLogLevelName;
+
+  return log_level_from_string(level_name);  // throws std::invalid_argument
 }
 
 ////////////////////////////////////////////////////////////////////////////////

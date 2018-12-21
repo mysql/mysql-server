@@ -24,6 +24,7 @@
 
 #include "dim.h"
 #include "gmock/gmock.h"
+#include "mysql/harness/logging/logging.h"
 #include "mysql_session.h"
 #include "mysqlrouter/utils.h"
 #include "random_generator.h"
@@ -46,7 +47,9 @@
  * @brief Component Tests for loggers
  */
 
+using mysql_harness::logging::LogLevel;
 using testing::HasSubstr;
+using testing::Not;
 using testing::StartsWith;
 using namespace std::chrono_literals;
 Path g_origin_path;
@@ -61,8 +64,9 @@ class RouterLoggingTest : public RouterComponentTest, public ::testing::Test {
   TcpPortPool port_pool_;
 };
 
-/**
- * @test early starting messages are written to STDERR directly.
+/** @test This test verifies that fatal error messages thrown before switching
+ * to logger specified in config file (before Loader::run() runs
+ * logger_plugin.cc:init()) are properly logged to STDERR
  */
 TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   auto conf_params = get_DEFAULT_defaults();
@@ -71,25 +75,25 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   const std::string conf_dir = get_tmp_dir("conf");
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(conf_dir); });
-  const std::string conf_file = create_config_file(conf_dir, "", &conf_params);
+  const std::string conf_file =
+      create_config_file(conf_dir, "[invalid]", &conf_params);
 
   // run the router and wait for it to exit
   auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
-  // 2017-06-18 15:24:32 main ERROR [7ffff7fd4780] Error: MySQL Router not
-  // configured to load or start any plugin. Exiting.
+  // plugin 'invalid' failed to
+  // load: ./plugin_output_directory/invalid.so: cannot open shared object
+  // file: No such file or directory
   const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
-  EXPECT_THAT(out.c_str(), HasSubstr("MySQL Router not configured to "
-                                     "load or start any plugin. Exiting."));
+  EXPECT_THAT(out.c_str(), HasSubstr("plugin 'invalid' failed to load"));
 }
 
+/** @test This test is similar to log_startup_failure_to_logfile(), but the
+ * failure message is expected to be logged into a logfile
+ */
 TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
-  // This test is the same as log_startup_failure_to_logfile(), but the failure
-  // message is expected to be logged into a logfile
-
   // create tmp dir where we will log
   const std::string logging_folder = get_tmp_dir();
   std::shared_ptr<void> exit_guard1(nullptr,
@@ -101,30 +105,31 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   const std::string conf_dir = get_tmp_dir("conf");
   std::shared_ptr<void> exit_guard2(nullptr,
                                     [&](void *) { purge_dir(conf_dir); });
-  const std::string conf_file = create_config_file(conf_dir, "", &params);
+  const std::string conf_file =
+      create_config_file(conf_dir, "[routing]", &params);
 
   // run the router and wait for it to exit
   auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear in log:
-  // 2017-06-18 15:24:32 main ERROR [7ffff7fd4780] Error: MySQL Router not
-  // configured to load or start any plugin. Exiting.
+  // 2018-12-19 03:54:04 main ERROR [7f539f628780] Configuration error: option
+  // destinations in [routing] is required
   auto matcher = [](const std::string &line) -> bool {
-    return line.find(" main ERROR ") != line.npos &&
-           line.find(
-               "Error: MySQL Router not configured to load or start any "
-               "plugin. Exiting.") != line.npos;
+    return line.find(
+               "Configuration error: option destinations in [routing] is "
+               "required") != line.npos;
   };
+
   EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher))
-      << get_router_log_output("mysqlrouter.log", get_logging_dir().str());
+      << "log:" << get_router_log_output("mysqlrouter.log", logging_folder);
 }
 
+/** @test This test verifies that invalid logging_folder is properly handled and
+ * appropriate message is printed on STDERR. Router tries to
+ * mkdir(logging_folder) if it doesn't exist, then write its log inside of it.
+ */
 TEST_F(RouterLoggingTest, bad_logging_folder) {
-  // This test verifies that invalid logging_folder is properly handled and
-  // appropriate message is printed on STDERR. Router tries to
-  // mkdir(logging_folder) if it doesn't exist, then write its log inside of it.
-
   // create tmp dir to contain our tests
   const std::string tmp_dir = get_tmp_dir();
   std::shared_ptr<void> exit_guard1(nullptr,
@@ -148,7 +153,8 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     const std::string conf_dir = get_tmp_dir("conf");
     std::shared_ptr<void> exit_guard2(nullptr,
                                       [&](void *) { purge_dir(conf_dir); });
-    const std::string conf_file = create_config_file(conf_dir, "", &params);
+    const std::string conf_file =
+        create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " + conf_file);
@@ -157,8 +163,10 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // expect something like this to appear on STDERR
     // Error: Error when creating dir '/bla': 13
     const std::string out = router.get_full_output();
-    EXPECT_THAT(out.c_str(), StartsWith("Error: Error when creating dir '" +
-                                        logging_dir + "': 13"));
+    EXPECT_THAT(
+        out.c_str(),
+        HasSubstr("plugin 'logger' init failed: Error when creating dir '" +
+                  logging_dir + "': 13"));
   }
 
   // logging_folder exists but is not writeable
@@ -171,7 +179,8 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     const std::string conf_dir = get_tmp_dir("conf");
     std::shared_ptr<void> exit_guard2(nullptr,
                                       [&](void *) { purge_dir(conf_dir); });
-    const std::string conf_file = create_config_file(conf_dir, "", &params);
+    const std::string conf_file =
+        create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " + conf_file);
@@ -182,9 +191,11 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // denied
     const std::string out = router.get_full_output();
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(),
-                StartsWith("Error: Cannot create file in directory " +
-                           logging_dir + ": Permission denied\n"));
+    EXPECT_THAT(
+        out.c_str(),
+        HasSubstr(
+            "plugin 'logger' init failed: Cannot create file in directory " +
+            logging_dir + ": Permission denied\n"));
 #endif
   }
 
@@ -210,7 +221,8 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     const std::string conf_dir = get_tmp_dir("conf");
     std::shared_ptr<void> exit_guard2(nullptr,
                                       [&](void *) { purge_dir(conf_dir); });
-    const std::string conf_file = create_config_file(conf_dir, "", &params);
+    const std::string conf_file =
+        create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
     auto router = launch_router("-c " + conf_file);
@@ -221,46 +233,23 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // directory
     const std::string out = router.get_full_output();
 #ifndef _WIN32
-    EXPECT_THAT(out.c_str(),
-                StartsWith("Error: Cannot create file in directory " +
-                           logging_dir + ": Not a directory\n"));
+    EXPECT_THAT(out.c_str(), HasSubstr("Cannot create file in directory " +
+                                       logging_dir + ": Not a directory\n"));
 #else
     // on Windows emulate (wine) we get ENOTDIR
     // with native windows we get ENOENT
+
     EXPECT_THAT(
         out.c_str(),
         ::testing::AllOf(
-            StartsWith("Error: Cannot create file in directory " + logging_dir),
+            ::testing::HasSubstr("Cannot create file in directory " +
+                                 logging_dir),
             ::testing::AnyOf(
                 ::testing::EndsWith("Directory name invalid.\n\n"),
                 ::testing::EndsWith(
                     "The system cannot find the path specified.\n\n"))));
 #endif
   }
-}
-
-TEST_F(RouterLoggingTest, logger_section_with_key) {
-  // This test verifies that [logger:with_some_key] section is handled properly
-  // Router should report the error on STDERR and exit
-
-  auto conf_params = get_DEFAULT_defaults();
-  // we want to log to the console
-  conf_params["logging_folder"] = "";
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { purge_dir(conf_dir); });
-  const std::string conf_file =
-      create_config_file(conf_dir, "[logger:some_key]\n", &conf_params);
-
-  // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
-  EXPECT_EQ(router.wait_for_exit(), 1);
-
-  // expect something like this to appear on STDERR
-  // Error: Section 'logger' does not support keys
-  const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(),
-              StartsWith("Error: Section 'logger' does not support keys"));
 }
 
 TEST_F(RouterLoggingTest, multiple_logger_sections) {
@@ -285,8 +274,31 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
   const std::string out = router.get_full_output();
   EXPECT_THAT(
       out.c_str(),
-      StartsWith(
+      ::testing::HasSubstr(
           "Error: Configuration error: Section 'logger' already exists"));
+}
+
+TEST_F(RouterLoggingTest, logger_section_with_key) {
+  // This test verifies that [logger:with_some_key] section is handled properly
+  // Router should report the error on STDERR and exit
+  auto conf_params = get_DEFAULT_defaults();
+  // we want to log to the console
+  conf_params["logging_folder"] = "";
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_file =
+      create_config_file(conf_dir, "[logger:some_key]\n", &conf_params);
+
+  // run the router and wait for it to exit
+  auto router = launch_router("-c " + conf_file);
+  EXPECT_EQ(router.wait_for_exit(), 1);
+
+  // expect something like this to appear on STDERR
+  // Error: Section 'logger' does not support key
+  const std::string out = router.get_full_output();
+  EXPECT_THAT(out.c_str(),
+              HasSubstr("Error: Section 'logger' does not support keys"));
 }
 
 TEST_F(RouterLoggingTest, bad_loglevel) {
@@ -307,53 +319,672 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
-  // 2017-08-14 16:03:44 main ERROR [7f7a61be6780] Configuration error: Log
-  // level 'unknown' is not valid. Valid values are: debug, error, fatal, info,
-  // and warning
+  // Configuration error: Log level 'unknown' is not valid. Valid values are:
+  // debug, error, fatal, info, and warning
   const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), HasSubstr(" main ERROR "));
   EXPECT_THAT(
       out.c_str(),
-      HasSubstr(" Configuration error: Log level 'unknown' is not valid. Valid "
+      HasSubstr("Configuration error: Log level 'unknown' is not valid. Valid "
                 "values are: debug, error, fatal, info, and warning"));
 }
 
-TEST_F(RouterLoggingTest, bad_loglevel_gets_logged) {
-  // This test is the same as bad_loglevel(), but the failure
-  // message is expected to be logged into a logfile
+/**************************************************/
+/* Tests for valid logger configurations          */
+/**************************************************/
 
-  // create tmp dir where we will log
-  const std::string logging_folder = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(logging_folder); });
+struct LoggingConfigOkParams {
+  std::string logger_config;
+  bool logging_folder_empty;
 
-  // create config with logging_folder set to that directory
-  std::map<std::string, std::string> params = get_DEFAULT_defaults();
-  params.at("logging_folder") = logging_folder;
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
-  const std::string conf_file =
-      create_config_file(conf_dir, "[logger]\nlevel = UNKNOWN\n", &params);
+  LogLevel consolelog_expected_level;
+  LogLevel filelog_expected_level;
 
-  // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  LoggingConfigOkParams(const std::string &logger_config_,
+                        const bool logging_folder_empty_,
+                        const LogLevel consolelog_expected_level_,
+                        const LogLevel filelog_expected_level_)
+      : logger_config(logger_config_),
+        logging_folder_empty(logging_folder_empty_),
+        consolelog_expected_level(consolelog_expected_level_),
+        filelog_expected_level(filelog_expected_level_) {}
+};
 
-  // expect something like this to appear on STDERR
-  // 2017-08-14 16:03:44 main ERROR [7f7a61be6780] Configuration error: Log
-  // level 'unknown' is not valid. Valid values are: debug, error, fatal, info,
-  // and warning
-  auto matcher = [](const std::string &line) -> bool {
-    return line.find(" main ERROR ") != line.npos &&
-           line.find(
-               " Configuration error: Log level 'unknown' is not valid. Valid "
-               "values are: debug, error, fatal, info, and warning") !=
-               line.npos;
-  };
-  EXPECT_TRUE(find_in_file(logging_folder + "/mysqlrouter.log", matcher))
-      << get_router_log_output("mysqlrouter.log", logging_folder);
+::std::ostream &operator<<(::std::ostream &os,
+                           const LoggingConfigOkParams &ltp) {
+  return os << "config=" << ltp.logger_config
+            << ", logging_folder_empty=" << ltp.logging_folder_empty;
 }
+
+class RouterLoggingTestConfig
+    : public RouterComponentTest,
+      public ::testing::TestWithParam<LoggingConfigOkParams> {
+ protected:
+  virtual void SetUp() override {
+    set_origin(g_origin_path);
+    RouterComponentTest::init();
+  }
+};
+
+/** @test This test verifies that a proper loggs are written to selected sinks
+ * for various sinks/levels combinations.
+ */
+TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
+  auto test_params = GetParam();
+
+  const std::string tmp_dir = get_tmp_dir();
+  TcpPortPool port_pool;
+  const unsigned router_port = port_pool.get_next_available();
+  const unsigned server_port = port_pool.get_next_available();
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(tmp_dir); });
+
+  // These are different level log entries that are expected to get logged after
+  // the logger plugin has been initialized
+  const std::string kDebugLogEntry = "plugin 'logger:' doesn't implement start";
+  const std::string kInfoLogEntry = "[routing] started: listening on 127.0.0.1";
+  const std::string kWarningLogEntry =
+      "Can't connect to remote MySQL server for client";
+
+  // to trigger the warning entry in the log
+  const std::string kRoutingConfig =
+      "[routing]\n"
+      "bind_address=127.0.0.1:" +
+      std::to_string(router_port) +
+      "\n"
+      "destinations=localhost:" +
+      std::to_string(server_port) +
+      "\n"
+      "routing_strategy=round-robin\n";
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] =
+      test_params.logging_folder_empty ? "" : tmp_dir;
+
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_text =
+      test_params.logger_config + "\n" + kRoutingConfig;
+
+  const std::string conf_file =
+      create_config_file(conf_dir, conf_text, &conf_params);
+
+  auto router = launch_router("-c " + conf_file);
+
+  bool ready = wait_for_port_ready(router_port, 1000);
+  EXPECT_TRUE(ready) << router.get_full_output();
+
+  // try to make a connection; this will fail but should generate a warning in
+  // the logs
+  mysqlrouter::MySQLSession client;
+  try {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  } catch (const std::exception &exc) {
+    if (std::string(exc.what()).find("Error connecting to MySQL server") !=
+        std::string::npos) {
+      // that's what we expect
+    } else
+      throw;
+  }
+
+  const std::string console_log_txt = router.get_full_output();
+
+  // check the console log if it contains what's expected
+  if (test_params.consolelog_expected_level >= LogLevel::kDebug &&
+      test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(console_log_txt, HasSubstr(kDebugLogEntry)) << "console:\n"
+                                                            << console_log_txt;
+  } else {
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kDebugLogEntry)))
+        << "console:\n"
+        << console_log_txt;
+  }
+
+  if (test_params.consolelog_expected_level >= LogLevel::kInfo &&
+      test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(console_log_txt, HasSubstr(kInfoLogEntry)) << "console:\n"
+                                                           << console_log_txt;
+  } else {
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kInfoLogEntry)))
+        << "console:\n"
+        << console_log_txt;
+  }
+
+  if (test_params.consolelog_expected_level >= LogLevel::kWarning &&
+      test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(console_log_txt, HasSubstr(kWarningLogEntry))
+        << "console:\n"
+        << console_log_txt;
+  } else {
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kWarningLogEntry)))
+        << "console:\n"
+        << console_log_txt;
+  }
+
+  // check the file log if it contains what's expected
+  const std::string file_log_txt =
+      get_router_log_output("mysqlrouter.log", tmp_dir);
+
+  if (test_params.filelog_expected_level >= LogLevel::kDebug &&
+      test_params.filelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(file_log_txt, HasSubstr(kDebugLogEntry))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  } else {
+    EXPECT_THAT(file_log_txt, Not(HasSubstr(kDebugLogEntry)))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  }
+
+  if (test_params.filelog_expected_level >= LogLevel::kInfo &&
+      test_params.filelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(file_log_txt, HasSubstr(kInfoLogEntry))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  } else {
+    EXPECT_THAT(file_log_txt, Not(HasSubstr(kInfoLogEntry)))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  }
+
+  if (test_params.filelog_expected_level >= LogLevel::kWarning &&
+      test_params.filelog_expected_level != LogLevel::kNotSet) {
+    EXPECT_THAT(file_log_txt, HasSubstr(kWarningLogEntry))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  } else {
+    EXPECT_THAT(file_log_txt, Not(HasSubstr(kWarningLogEntry)))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTest, RouterLoggingTestConfig,
+    ::testing::Values(
+        // no logger section, no sinks sections
+        // logging_folder not empty so we are expected to log to the file
+        // with a warning level so info and debug logs will not be there
+        /*0*/ LoggingConfigOkParams(
+            "",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kWarning),
+
+        // no logger section, no sinks sections
+        // logging_folder empty so we are expected to log to the console
+        // with a warning level so info and debug logs will not be there
+        /*1*/
+        LoggingConfigOkParams(
+            "",
+            /* logging_folder_empty = */ true,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kNotSet),
+
+        // logger section, no sinks sections
+        // logging_folder not empty so we are expected to log to the file
+        // with a warning level as level is not redefined in the [logger]
+        // section
+        /*2*/
+        LoggingConfigOkParams(
+            "[logger]",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kWarning),
+
+        // logger section, no sinks sections
+        // logging_folder not empty so we are expected to log to the file
+        // with a level defined in the logger section
+        /*3*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=info\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kInfo),
+
+        // logger section, no sinks sections; logging_folder is empty so we are
+        // expected to log to the console with a level defined in the logger
+        // section
+        /*4*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=info\n",
+            /* logging_folder_empty = */ true,
+            /* consolelog_expected_level =  */ LogLevel::kInfo,
+            /* filelog_expected_level =  */ LogLevel::kNotSet),
+
+        // consolelog configured as a sink; it does not have its section in the
+        // config but that is not an error; even though the logging folder is
+        // not empty, we still don't log to the file as sinks= setting wants use
+        // the console
+        /*5*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=debug\n"
+            "sinks=consolelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kNotSet),
+
+        // 2 sinks have sections but consolelog is not defined as a sink in the
+        // [logger] section so there should be no logging to the console (after
+        // [logger] is initialised; prior to that all is logged to the console
+        // by default)
+        /*6*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog\n"
+            "level=debug\n"
+            "[filelog]\n"
+            "[consolelog]\n"
+            "level=debug\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+
+        // 2 sinks, both should inherit log level from [logger] section (which
+        // is debug)
+        /*7*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=debug\n"
+            "[filelog]\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+
+        // 2 sinks, both should inherit log level from [logger] section (which
+        // is info); debug logs are not expected for both sinks
+        /*8*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=info\n"
+            "[filelog]\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kInfo,
+            /* filelog_expected_level =  */ LogLevel::kInfo),
+
+        // 2 sinks, both should inherit log level from [logger] section (which
+        // is warning); neither debug not info logs are not expected for both
+        // sinks
+        /*9*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=warning\n"
+            "[filelog]\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kWarning),
+
+        // 2 sinks, one overwrites the default log level, the other inherits
+        // default from [logger] section
+        /*10*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=info\n"
+            "[filelog]\n"
+            "level=debug\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kInfo,
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+
+        // 2 sinks, each defines its own custom log level that overwrites the
+        // default from [logger] section
+        /*11*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=info\n"
+            "[filelog]\n"
+            "level=debug\n"
+            "[consolelog]\n"
+            "level=warning\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kDebug),
+
+        // 2 sinks, each defines its own custom log level that overwrites the
+        // default from [logger] section
+        /*12*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=warning\n"
+            "[filelog]\n"
+            "level=info\n"
+            "[consolelog]\n"
+            "level=warning\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kInfo),
+
+        // 2 sinks, each defines its own custom log level (that is more strict)
+        // that overwrites the default from [logger] section
+        /*13*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "level=debug\n"
+            "[filelog]\n"
+            "level=info\n"
+            "[consolelog]\n"
+            "level=warning\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kInfo),
+
+        // 2 sinks,no level in the [logger] section and no level in the sinks
+        // sections; default log level should be used (which is warning)
+        /*14*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "[filelog]\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kWarning),
+
+        // 2 sinks, level in the [logger] section is warning; it should be
+        // used by the sinks as they don't redefine it in their sections
+        /*15*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=warning\n"
+            "sinks=filelog,consolelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kWarning),
+
+        // 2 sinks, level in the [logger] section is error; it should be used
+        // by the sinks as they don't redefine it in their sections
+        /*16*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=error\n"
+            "sinks=filelog,consolelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kError,
+            /* filelog_expected_level =  */ LogLevel::kError),
+
+        // 2 sinks, no level in the [logger] section, each defines it's own
+        // level
+        /*17*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "[filelog]\n"
+            "level=error\n"
+            "[consolelog]\n"
+            "level=debug\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kDebug,
+            /* filelog_expected_level =  */ LogLevel::kError),
+
+        // 2 sinks, no level in the [logger] section, one defines it's own
+        // level, the other expected to go with default (warning)
+        /*18*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "sinks=filelog,consolelog\n"
+            "[filelog]\n"
+            "level=error\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kWarning,
+            /* filelog_expected_level =  */ LogLevel::kError)));
+
+/**************************************************/
+/* Tests for logger configuration errors          */
+/**************************************************/
+
+struct LoggingConfigErrorParams {
+  std::string logger_config;
+  bool logging_folder_empty;
+
+  std::string expected_error;
+
+  LoggingConfigErrorParams(const std::string &logger_config_,
+                           const bool logging_folder_empty_,
+                           const std::string &expected_error_)
+      : logger_config(logger_config_),
+        logging_folder_empty(logging_folder_empty_),
+        expected_error(expected_error_) {}
+};
+
+::std::ostream &operator<<(::std::ostream &os,
+                           const LoggingConfigErrorParams &ltp) {
+  return os << "config=" << ltp.logger_config
+            << ", logging_folder_empty=" << ltp.logging_folder_empty;
+}
+
+class RouterLoggingConfigError
+    : public RouterComponentTest,
+      public ::testing::TestWithParam<LoggingConfigErrorParams> {
+ protected:
+  virtual void SetUp() override {
+    set_origin(g_origin_path);
+    RouterComponentTest::init();
+  }
+};
+
+/** @test This test verifies that a proper error gets printed on the console for
+ * a particular logging configuration
+ */
+TEST_P(RouterLoggingConfigError, LoggingConfigError) {
+  auto test_params = GetParam();
+
+  const std::string tmp_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard1(nullptr,
+                                    [&](void *) { purge_dir(tmp_dir); });
+
+  auto conf_params = get_DEFAULT_defaults();
+  conf_params["logging_folder"] =
+      test_params.logging_folder_empty ? "" : tmp_dir;
+
+  const std::string conf_dir = get_tmp_dir("conf");
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(conf_dir); });
+  const std::string conf_text = "[keepalive]\n" + test_params.logger_config;
+
+  const std::string conf_file =
+      create_config_file(conf_dir, conf_text, &conf_params);
+
+  auto router = launch_router("-c " + conf_file);
+
+  EXPECT_EQ(1, router.wait_for_exit());
+
+  // the error happens during the logger initialization so we expect the message
+  // on the console which is the default sink until we switch to the
+  // configuration from the config file
+  const std::string console_log_txt = router.get_full_output();
+
+  EXPECT_THAT(console_log_txt, HasSubstr(test_params.expected_error))
+      << "\nconsole:\n"
+      << console_log_txt;
+}
+
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigError, RouterLoggingConfigError,
+    ::testing::Values(
+        // Unknown sink name in the [logger] section
+        /*0*/ LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=unknown\n"
+            "level=debug\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Unsupported logger sink type: 'unknown'"),
+
+        // Empty sinks option
+        /*1*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: sinks option does not contain any "
+            "valid sink name, was ''"),
+
+        // Empty sinks list
+        /*2*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=,\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+
+        // Leading comma on a sinks list
+        /*3*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=,consolelog\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+
+        // Terminating comma on a sinks list
+        /*4*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog,\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+
+        // Two commas separating sinks
+        /*5*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog,,filelog\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+
+        // Empty space as a sink name
+        /*6*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks= \n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "plugin 'logger' init failed: sinks option does not contain any "
+            "valid sink name, was ''"),
+
+        // Invalid log level in the [logger] section
+        /*7*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog\n"
+            "level=invalid\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Log level 'invalid' is not valid. Valid "
+            "values are: debug, error, fatal, info, and warning"),
+
+        // Invalid log level in the sink section
+        /*8*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=consolelog\n"
+            "[consolelog]\n"
+            "level=invalid\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Log level 'invalid' is not valid. Valid "
+            "values are: debug, error, fatal, info, and warning"),
+
+        // Both level and sinks valuse invalid in the [logger] section
+        /*9*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=invalid\n"
+            "level=invalid\n"
+            "[consolelog]\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Log level 'invalid' is not valid. Valid "
+            "values are: debug, error, fatal, info, and warning"),
+
+        // Logging folder is empty but we request filelog as sink
+        /*10*/
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=filelog\n",
+            /* logging_folder_empty = */ true,
+            /* expected_error =  */
+            "plugin 'logger' init failed: filelog sink configured but the "
+            "logging_folder is empty")));
+
+#ifndef _WIN32
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigErrorUnix, RouterLoggingConfigError,
+    ::testing::Values(
+        // We can't reliably check if the syslog logging is working with a
+        // component test as this is too operating system intrusive and we are
+        // supposed to run on pb2 environment. Let's at least check that this
+        // sink type is supported
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=syslog\n"
+            "[syslog]\n"
+            "level=invalid\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Log level 'invalid' is not valid. Valid "
+            "values are: debug, error, fatal, info, and warning"),
+
+        // Let's also check that the eventlog is NOT supported
+        LoggingConfigErrorParams("[logger]\n"
+                                 "sinks=eventlog\n"
+                                 "[eventlog]\n"
+                                 "level=invalid\n",
+                                 /* logging_folder_empty = */ false,
+                                 /* expected_error =  */
+                                 "plugin 'eventlog' failed to load")));
+#else
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigErrorWindows, RouterLoggingConfigError,
+    ::testing::Values(
+        // We can't reliably check if the eventlog logging is working with a
+        // component test as this is too operating system intrusive and also
+        // requires admin priviledges to setup and we are supposed to run on pb2
+        // environment. Let's at least check that this sink type is supported
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=eventlog\n"
+            "[eventlog]\n"
+            "level=invalid\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Configuration error: Log level 'invalid' is not valid. Valid "
+            "values are: debug, error, fatal, info, and warning"),
+
+        // Let's also check that the syslog is NOT supported
+        LoggingConfigErrorParams("[logger]\n"
+                                 "sinks=syslog\n"
+                                 "[syslog]\n"
+                                 "level=invalid\n",
+                                 /* logging_folder_empty = */ false,
+                                 /* expected_error =  */
+                                 "plugin 'syslog' failed to load")));
+#endif
 
 TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // This test verifies that a very long router name gets truncated in the

@@ -236,10 +236,9 @@ class LifecycleTest : public BasicConsoleOutputTest {
                         "runtime_folder = " + test_data_dir + "\n" +
                         "config_folder  = " + test_data_dir + "\n" +
                         "data_folder    = " + test_data_dir + "\n" +
-                        // TODO: restore this after after [logger] hack is
-                        // reverted (grep for g_HACK_default_log_level)
-                        //    " \n"
-                        //    "[logger] \n" "level = DEBUG \n"
+                        "                                               \n"
+                        "[logger]                                       \n"
+                        "level = DEBUG                                  \n"
                         "                                               \n"
                         "[lifecycle3]                                   \n"
                         "                                               \n"
@@ -259,6 +258,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
 
   void init_test_without_lifecycle_plugin(std::istream &config_text) {
     loader_.read(config_text);
+    loader_.Loader::load_all();
     clear_log();
   }
 
@@ -429,7 +429,7 @@ TEST_F(LifecycleTest, Simple_None) {
   EXPECT_EQ(loader_.main_loop(), nullptr);
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -458,7 +458,7 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -501,7 +501,7 @@ TEST_F(LifecycleTest, Simple_Init) {
   EXPECT_EQ(loader_.main_loop(), nullptr);
   EXPECT_EQ(loader_.deinit_all(), nullptr);
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -528,7 +528,7 @@ TEST_F(LifecycleTest, Simple_StartStop) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -573,7 +573,7 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP_SYNC:sleeping");
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -616,7 +616,7 @@ TEST_F(LifecycleTest, Simple_Start) {
   unfreeze_and_wait_for_msg(
       bus, "lifecycle:instance1 start():EXIT_ON_STOP:sleeping");
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -653,7 +653,7 @@ TEST_F(LifecycleTest, Simple_Stop) {
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -690,7 +690,7 @@ TEST_F(LifecycleTest, Simple_Deinit) {
   loader_.start_all();
   EXPECT_EQ(loader_.main_loop(), nullptr);
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -743,7 +743,7 @@ TEST_F(LifecycleTest, ThreeInstances_NoError) {
 
   // all 3 plugins should have remained on the list of "to be deinitialized",
   // since they all should have initialized properly
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -812,7 +812,7 @@ TEST_F(LifecycleTest, BothLifecycles_NoError) {
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() { loader_.run(); });
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle", "lifecycle2"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -958,7 +958,7 @@ TEST_F(LifecycleTest, ThreeInstances_InitFails) {
 
   // lifecycle should not be on the list of to-be-deinitialized, since it
   // failed initialisation
-  const std::list<std::string> initialized = {"magic", "lifecycle3"};
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3"};
   EXPECT_EQ(initialized, loader_.order_);
 
   refresh_log();
@@ -1002,7 +1002,7 @@ TEST_F(LifecycleTest, BothLifecycles_InitFails) {
   // lifecycle should not be on the list of to-be-deinitialized, since it
   // failed initialisation; neither should lifecycle2, because it never reached
   // initialisation phase
-  const std::list<std::string> initialized = {"magic", "lifecycle3"};
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3"};
   EXPECT_EQ(initialized, loader_.order_);
 
   refresh_log();
@@ -1053,7 +1053,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
     FAIL() << "start() should throw std::runtime_error";
   }
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -1108,7 +1108,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
     FAIL() << "start() should throw std::runtime_error";
   }
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -1163,7 +1163,7 @@ TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
     FAIL() << "start() should throw std::runtime_error";
   }
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -1219,7 +1219,7 @@ TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
     FAIL() << "start() should throw std::runtime_error";
   }
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -1379,7 +1379,7 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
     FAIL() << "start() should throw std::runtime_error";
   }
 
-  const std::list<std::string> initialized = {"magic", "lifecycle3",
+  const std::list<std::string> initialized = {"logger", "magic", "lifecycle3",
                                               "lifecycle"};
   EXPECT_EQ(initialized, loader_.order_);
 
@@ -1413,6 +1413,12 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
 }
 
 TEST_F(LifecycleTest, NoInstances) {
+  // This test tests Loader's ability to correctly start up and shut down
+  // without any plugins.  However note, that currently we expect our Router to
+  // exit with an error when there's not plugins to run, but that is a
+  // higher-level concern.  So while the check happens inside Loader (because
+  // it's not possible to check from the outside), this test bypasses this
+  // check.
   const std::string plugin_dir = mysql_harness::get_plugin_dir(g_here.str());
   config_text_.str(
       "[DEFAULT]                                      \n"
@@ -1422,11 +1428,9 @@ TEST_F(LifecycleTest, NoInstances) {
       "\n"
       "runtime_folder = {prefix}                      \n"
       "config_folder  = {prefix}                      \n"
-      // TODO: restore this after after [logger] hack is reverted (grep for
-      // g_HACK_default_log_level)
-      //    "                                               \n"
-      //    "[logger]                                       \n"
-      //    "level = DEBUG                                  \n"
+      "                                               \n"
+      "[logger]                                       \n"
+      "level = DEBUG                                  \n"
       "                                               \n");
   init_test_without_lifecycle_plugin(config_text_);
 
