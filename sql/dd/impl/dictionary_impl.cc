@@ -66,6 +66,7 @@
 #include "sql/mdl.h"
 #include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
+#include "sql/sql_base.h"   // close_cached_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/system_variables.h"
 #include "sql/thd_raii.h"                       // Disable_autocommit_guard
@@ -637,10 +638,12 @@ bool reset_tables_and_tablespaces() {
   if (ddse->dict_cache_reset_tables_and_tablespaces != nullptr)
     ddse->dict_cache_reset_tables_and_tablespaces();
 
+  bool ret = close_cached_tables(nullptr, nullptr, false, LONG_TIMEOUT);
+
   // Release transactional metadata locks.
   thd.thd->mdl_context.release_transactional_locks();
 
-  return false;
+  return ret;
 }
 
 bool commit_or_rollback_tablespace_change(THD *thd, dd::Tablespace *space,
