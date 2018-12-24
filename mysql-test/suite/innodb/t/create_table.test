@@ -46,5 +46,11 @@ SELECT COUNT(*) FROM t1;
 CREATE TABLE fts_0000000000000424_config (id int);
 SHOW WARNINGS;
 
+--echo # Try to create a table when InnoDB runs out of free undo logs.
+SET GLOBAL innodb_trx_rseg_n_slots_debug=1;
+--error ER_TOO_MANY_CONCURRENT_TRXS
+CREATE TABLE t1 (f1 CHAR(6), FULLTEXT KEY(f1));
+SET GLOBAL innodb_trx_rseg_n_slots_debug=default;
+
 # Reset STRICT mode to default
 SET innodb_strict_mode = default;

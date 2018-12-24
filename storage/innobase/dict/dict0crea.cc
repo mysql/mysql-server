@@ -124,8 +124,11 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
     return DB_IO_ERROR;
   }
 
-  log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(), false,
-                                  true);
+  err = log_ddl->write_delete_space_log(trx, NULL, space, datafile->filepath(),
+                                        false, true);
+  if (err != DB_SUCCESS) {
+    return err;
+  }
 
   /* We create a new generic empty tablespace.
   We initially let it be 4 pages:
@@ -236,7 +239,11 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
       return DB_IO_ERROR;
     }
 
-    log_ddl->write_delete_space_log(trx, table, space, filepath, false, false);
+    err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
+                                          false);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
 
     /* We create a new single-table tablespace for the table.
     We initially let it be 4 pages:

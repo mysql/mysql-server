@@ -4312,9 +4312,10 @@ static void validate_tablespace_encryption(fil_space_t *space) {
 #endif
 
 /** Resume Encrypt/Unencrypt for tablespace(s) post recovery.
-@param[in]	thd	background thread
-@return 0 for success, otherwise error code */
-static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
+If an error occurs while processing any tablespace needing encryption,
+post an error for that space and keep going.
+@param[in]	thd	background thread */
+static void resume_alter_encrypt_tablespace(THD *thd) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
   char operation_name[3][20] = {"NONE", "ENCRYPTION", "UNENCRYPTION"};
@@ -4414,91 +4415,91 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
       ib::error(ER_IB_MSG_1280)
           << operation_name[operation] << " for tablespace " << space->name
           << ":" << space_id << " could not be done successfully.";
-      return (err);
-    } else {
-    update_dd:
-      /* At this point, encryption/unencryption process would have been
-      finished and all pages in tablespace should have been written
-      correctly and flushed to disk. Now :
-        - Set/Update tablespace flags encryption.
-        - Remove In-mem encryption info from tablespace (If Unencrypted).
-        - Reset operation in progress to NONE. */
-      mtr_start(&mtr);
-      buf_block_t *block =
-          buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
-      page_t *page = buf_block_get_frame(block);
-      ulint latest_fsp_flags = fsp_header_get_flags(page);
-      if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
-        FSP_FLAGS_SET_ENCRYPTION(space->flags);
-      } else {
-        FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
-      }
-      ut_ad(space->flags == latest_fsp_flags);
-      mtr_commit(&mtr);
-
-      if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-        /* Reset In-mem encryption for tablespace */
-        err = fil_reset_encryption(space_id);
-        ut_ad(err == DB_SUCCESS);
-      }
-
-      space->encryption_op_in_progress = NONE;
-
-      /* In case of crash/recovery, following has to be set explicitly
-          - DD tablespace flags.
-          - DD encryption option value. */
-      while (
-          acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-        os_thread_sleep(20);
-      }
-
-      while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
-        os_thread_sleep(20);
-      }
-
-      while (client->acquire_for_modification<dd::Tablespace>(space->name,
-                                                              &recv_dd_space)) {
-        os_thread_sleep(20);
-      }
-
-      if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-        /* Update DD Option value, for Unencryption */
-        recv_dd_space->options().set("encryption", "N");
-
-      } else {
-        /* Update DD Option value, for Encryption */
-        recv_dd_space->options().set("encryption", "Y");
-      }
-
-      /* Update DD flags for tablespace */
-      recv_dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                           static_cast<uint32>(space->flags));
-
-      /* Validate tablespace In-mem representation */
-      ut_d(validate_tablespace_encryption(space));
-
-      /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
-      transactional locks to be released only in case of successful commit */
-      while (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
-                                                      true)) {
-        os_thread_sleep(20);
-      }
-
-      ib::info(ER_IB_MSG_1281)
-          << "Finished " << operation_name[operation] << " for tablespace "
-          << space->name << ":" << space_id << ".";
+      continue;
     }
+
+  update_dd:
+    /* At this point, encryption/unencryption process would have been
+    finished and all pages in tablespace should have been written
+    correctly and flushed to disk. Now :
+    - Set/Update tablespace flags encryption.
+    - Remove In-mem encryption info from tablespace (If Unencrypted).
+    - Reset operation in progress to NONE. */
+    mtr_start(&mtr);
+    block = buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
+    page = buf_block_get_frame(block);
+    ulint latest_fsp_flags = fsp_header_get_flags(page);
+    if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
+      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+    } else {
+      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+    }
+    ut_ad(space->flags == latest_fsp_flags);
+    mtr_commit(&mtr);
+
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      /* Reset In-mem encryption for tablespace */
+      err = fil_reset_encryption(space_id);
+      ut_ad(err == DB_SUCCESS);
+    }
+
+    space->encryption_op_in_progress = NONE;
+
+    /* In case of crash/recovery, following has to be set explicitly
+        - DD tablespace flags.
+        - DD encryption option value. */
+    while (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
+      os_thread_sleep(20);
+    }
+
+    while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
+      os_thread_sleep(20);
+    }
+
+    while (client->acquire_for_modification<dd::Tablespace>(space->name,
+                                                            &recv_dd_space)) {
+      os_thread_sleep(20);
+    }
+
+    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+      /* Update DD Option value, for Unencryption */
+      recv_dd_space->options().set("encryption", "N");
+
+    } else {
+      /* Update DD Option value, for Encryption */
+      recv_dd_space->options().set("encryption", "Y");
+    }
+
+    /* Update DD flags for tablespace */
+    recv_dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                         static_cast<uint32>(space->flags));
+
+    /* Validate tablespace In-mem representation */
+    ut_d(validate_tablespace_encryption(space));
+
+    /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
+    transactional locks to be released only in case of successful commit */
+    while (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
+                                                    true)) {
+      os_thread_sleep(20);
+    }
+
+    ib::info(ER_IB_MSG_1281)
+        << "Finished " << operation_name[operation] << " for tablespace "
+        << space->name << ":" << space_id << ".";
+
     /* Release MDL on tablespace explicitly */
     dd_release_mdl((*mdl_it));
     mdl_it = shared_mdl_list.erase(mdl_it);
   }
+
   /* Delete DDL logs now */
-  log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
+  err = log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
+
   ts_encrypt_ddl_records.clear();
   /* All MDLs should have been released and removed from list by now */
   ut_ad(shared_mdl_list.empty());
   shared_mdl_list.clear();
-  return (err);
 }
 
 /* Initiate roll-forward of alter encrypt in background thread */
@@ -4513,8 +4514,7 @@ void fsp_init_resume_alter_encrypt_tablespace() {
   THD *thd = create_thd(false, true, true, 0);
 #endif
 
-  err = resume_alter_encrypt_tablespace(thd);
-  ut_a(err == DB_SUCCESS);
+  resume_alter_encrypt_tablespace(thd);
 
   srv_threads.m_ts_alter_encrypt_thread_active = false;
 

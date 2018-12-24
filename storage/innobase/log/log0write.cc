@@ -775,7 +775,8 @@ static inline uint64_t log_max_spins_when_waiting_in_user_thread(
     might be used. */
     const double r = 1.0 * (hwm / 2 - cpu) / (hwm / 2);
 
-    max_spins = min_non_zero_value + r * min_non_zero_value * 9;
+    max_spins =
+        static_cast<uint64_t>(min_non_zero_value + r * min_non_zero_value * 9);
   }
 
   return (max_spins);
@@ -1002,7 +1003,8 @@ struct Log_thread_waiting {
       is no real gain from spinning in log threads then. */
 
       spin_delay = 0;
-      min_timeout = req_interval < 1000 ? req_interval : 1000;
+      min_timeout =
+          static_cast<uint32_t>(req_interval < 1000 ? req_interval : 1000);
     }
 
     const auto wait_stats =

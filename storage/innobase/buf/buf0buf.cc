@@ -3402,7 +3402,7 @@ struct Buf_fetch {
   buf_block_t *m_guess{};
   Page_fetch m_mode;
   const char *m_file{};
-  int m_line{};
+  ulint m_line{};
   mtr_t *m_mtr{};
   bool m_dirty_with_no_latch{};
   size_t m_retries{};

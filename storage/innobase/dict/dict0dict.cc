@@ -1609,7 +1609,10 @@ dberr_t dict_table_rename_in_cache(
     }
   }
 
-  log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  err = log_ddl->write_rename_table_log(table, new_name, table->name.m_name);
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
   /* Remove table from the hash tables of tables */
   HASH_DELETE(dict_table_t, name_hash, dict_sys->table_hash,
