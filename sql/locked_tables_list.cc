@@ -435,11 +435,48 @@ void Locked_tables_list::add_rename_tablespace_mdls(MDL_ticket *src,
   m_rename_tablespace_mdls.push_back({src, dst});
 }
 
+namespace {
+/*
+  For purposes of Locked_tables_list::adjust_renamed_tablespace_mdls()
+  we need to treat two tickets belonging to the same lock as equal.
+*/
+struct MDL_ticket_same_lock_hash {
+  size_t operator()(const MDL_ticket *ticket) const {
+    return std::hash<MDL_lock *>()(ticket->get_lock());
+  }
+};
+
+struct MDL_ticket_same_lock_eq {
+  bool operator()(const MDL_ticket *a, const MDL_ticket *b) const {
+    return a->get_lock() == b->get_lock();
+  }
+};
+}  // namespace
+
 void Locked_tables_list::adjust_renamed_tablespace_mdls(MDL_context *mctx) {
+  /*
+    Iterate through MDLs on renamed tablespaces and figure out which
+    should be released and which should be kept.
+    We can't simply release all locks on source and keep locks on destination
+    as it won't work correctly when the same name is used multiple times within
+    the same RENAME TABLES.
+  */
+  std::unordered_set<MDL_ticket *, MDL_ticket_same_lock_hash,
+                     MDL_ticket_same_lock_eq>
+      to_release, to_keep;
+
   for (auto &mp : m_rename_tablespace_mdls) {
-    mctx->release_all_locks_for_name(mp.m_src);
-    mctx->set_lock_duration(mp.m_dst, MDL_EXPLICIT);
-    mp.m_dst->downgrade_lock(MDL_INTENTION_EXCLUSIVE);
+    to_release.insert(mp.m_src);
+    to_keep.erase(mp.m_src);
+    to_keep.insert(mp.m_dst);
+    to_release.erase(mp.m_dst);
   }
   m_rename_tablespace_mdls.clear();
+
+  for (MDL_ticket *t : to_release) mctx->release_all_locks_for_name(t);
+
+  for (MDL_ticket *t : to_keep) {
+    mctx->set_lock_duration(t, MDL_EXPLICIT);
+    t->downgrade_lock(MDL_INTENTION_EXCLUSIVE);
+  }
 }
