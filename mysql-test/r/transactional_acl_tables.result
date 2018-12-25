@@ -1931,7 +1931,7 @@ INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',
 'mysql.session', 'user', 'root\@localhost',
 CURRENT_TIMESTAMP, 'Select', '');
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema',
 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',
 'N','N','N','N','N','N','N');
 FLUSH PRIVILEGES;

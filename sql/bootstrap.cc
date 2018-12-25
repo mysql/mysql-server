@@ -122,8 +122,8 @@ static bool handle_bootstrap_impl(THD *thd) {
 
   thd->thread_stack = (char *)&thd;
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
-  thd->security_context()->assign_priv_user("", 0);
-  thd->security_context()->assign_priv_host("", 0);
+  thd->security_context()->skip_grants("", "");
+
   /*
     Make the "client" handle multiple results. This is necessary
     to enable stored procedures with SELECTs and Dynamic SQL

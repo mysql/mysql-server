@@ -2055,11 +2055,12 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
           check_global_access(thd, PROCESS_ACL))
         break;
       query_logger.general_log_print(thd, command, NullS);
-      mysqld_list_processes(thd,
-                            thd->security_context()->check_access(PROCESS_ACL)
-                                ? NullS
-                                : thd->security_context()->priv_user().str,
-                            0);
+      mysqld_list_processes(
+          thd,
+          thd->security_context()->check_access(PROCESS_ACL, thd->db().str)
+              ? NullS
+              : thd->security_context()->priv_user().str,
+          0);
       break;
     case COM_PROCESS_KILL: {
       push_deprecated_warn(thd, "COM_PROCESS_KILL",
@@ -2390,11 +2391,15 @@ static bool sp_process_definer(THD *thd) {
     if ((strcmp(lex->definer->user.str,
                 thd->security_context()->priv_user().str) ||
          my_strcasecmp(system_charset_info, lex->definer->host.str,
-                       thd->security_context()->priv_host().str)) &&
-        !(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
-      DBUG_RETURN(true);
+                       thd->security_context()->priv_host().str))) {
+      if (!(sctx->check_access(SUPER_ACL) ||
+            sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+                 "SUPER or SET_USER_ID");
+        DBUG_RETURN(true);
+      }
+      if (sctx->can_operate_with({lex->definer}, consts::system_user))
+        DBUG_RETURN(true);
     }
   }
 
@@ -4445,8 +4450,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
         if ((update_password_only || user->discard_old_password) && is_self) {
           changing_own_password = update_password_only;
           if (second_password) {
-            if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
-                !sctx->check_access(CREATE_USER_ACL) &&
+            if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL,
+                             1, 1) &&
+                !sctx->check_access(CREATE_USER_ACL, consts::mysql.c_str()) &&
                 !(sctx->has_global_grant(
                           STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"))
                       .first)) {

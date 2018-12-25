@@ -447,7 +447,6 @@ bool Event_scheduler::start(int *err_no) {
   bool ret = false;
   my_thread_handle th;
   struct scheduler_param *scheduler_param_value;
-  ulong master_access;
   DBUG_ENTER("Event_scheduler::start");
 
   LOCK_DATA();
@@ -475,11 +474,15 @@ bool Event_scheduler::start(int *err_no) {
     We should run the event scheduler thread under the super-user privileges.
     In particular, this is needed to be able to lock the mysql.events table
     for writing when the server is running in the read-only mode.
-
     Same goes for transaction access mode. Set it to read-write for this thd.
+
+    In case the definer has SYSTEM_USER privileges then event scheduler thread
+    can drop the event only if the same privilege is granted to it.
+    Therefore, assign all privileges to this thread.
   */
-  master_access = new_thd->security_context()->master_access();
-  new_thd->security_context()->set_master_access(master_access | SUPER_ACL);
+  new_thd->security_context()->skip_grants();
+  new_thd->security_context()->set_host_or_ip_ptr((char *)my_localhost,
+                                                  strlen(my_localhost));
   new_thd->variables.transaction_read_only = false;
   new_thd->tx_read_only = false;
 

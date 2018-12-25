@@ -639,6 +639,19 @@ INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(gr
 FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege SYSTEM_USER for every user who has privilege SET_USER_ID privilege
+SET @hadSystemUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_USER');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER',
+IF (WITH_GRANT_OPTION = 'Y', 'Y', 'N') FROM global_grants WHERE priv = 'SET_USER_ID' AND @hadSystemUserPriv = 0;
+COMMIT;
+
+-- Add the privilege SYSTEM_USER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege SYSTEM_USER
+SET @hadSystemUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_USER');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSystemUserPriv = 0;
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct
@@ -966,13 +979,21 @@ UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.se
 
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
 
-INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema', 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
+INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance\_schema', 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N');
+
+DELETE FROM mysql.db where User= 'mysql.session' AND Db= 'performance_schema';
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'PERSIST_RO_VARIABLES_ADMIN', 'N');
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SESSION_VARIABLES_ADMIN', 'N');
+
+# mysql.session is granted the SUPER and other administrative privileges.
+# This user should not be modified inadvertently. Therefore, server grants
+# the SYSTEM_USER privilege to this user at the time of initialization or
+# upgrade.
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_USER', 'N');
 
 FLUSH PRIVILEGES;
 

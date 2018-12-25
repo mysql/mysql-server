@@ -48,6 +48,30 @@
 
 extern bool initialized;
 
+Security_context::Security_context() : m_restrictions(nullptr) { init(); }
+Security_context::Security_context(MEM_ROOT *mem_root)
+    : m_restrictions(mem_root) {
+  init();
+}
+Security_context::~Security_context() { destroy(); }
+
+Security_context::Security_context(const Security_context &src_sctx)
+    : m_restrictions(nullptr) {
+  copy_security_ctx(src_sctx);
+}
+
+Security_context &Security_context::operator=(
+    const Security_context &src_sctx) {
+  DBUG_ENTER("Security_context::operator =");
+
+  if (this != &src_sctx) {
+    destroy();
+    copy_security_ctx(src_sctx);
+  }
+
+  DBUG_RETURN(*this);
+}
+
 void Security_context::init() {
   DBUG_ENTER("Security_context::init");
 
@@ -64,6 +88,7 @@ void Security_context::init() {
   m_map_checkout_count = 0;
   m_password_expired = false;
   m_is_locked = false;
+  m_is_skip_grants_user = false;
   m_has_drop_policy = false;
   m_executed_drop_policy = false;
   DBUG_VOID_RETURN;
@@ -78,6 +103,7 @@ void Security_context::logout() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = 0;
     clear_active_roles();
+    clear_db_restrictions();
   }
 }
 
@@ -103,9 +129,7 @@ void Security_context::set_drop_policy(
 
 void Security_context::destroy() {
   DBUG_ENTER("Security_context::destroy");
-  if (m_has_drop_policy && !m_executed_drop_policy) {
-    (*m_drop_policy)(this);
-  }
+  execute_drop_policy();
   if (m_acl_map) {
     DBUG_PRINT(
         "info",
@@ -131,18 +155,29 @@ void Security_context::destroy() {
 
   m_master_access = m_db_access = 0;
   m_password_expired = false;
-
+  m_is_skip_grants_user = false;
+  clear_db_restrictions();
   DBUG_VOID_RETURN;
 }
 
-void Security_context::skip_grants() {
+/**
+  Grants all privilegs to user. Sets the user and host name of privilege user.
+
+  @param[in]  user User name for current_user to set.
+                   Default value is "skip-grants user"
+  @param[in]  host Host name for the current user to set.
+                   Default value is "skip-grants host"
+*/
+void Security_context::skip_grants(const char *user /*= "skip-grants user"*/,
+                                   const char *host /*= "skip-grants host"*/) {
   DBUG_ENTER("Security_context::skip_grants");
 
   /* privileges for the user are unknown everything is allowed */
   set_host_or_ip_ptr("", 0);
-  assign_priv_user(C_STRING_WITH_LEN("skip-grants user"));
-  assign_priv_host(C_STRING_WITH_LEN("skip-grants host"));
+  assign_priv_user(user, strlen(user));
+  assign_priv_host(host, strlen(host));
   m_master_access = ~NO_ACCESS;
+  m_is_skip_grants_user = true;
   DBUG_VOID_RETURN;
 }
 
@@ -173,6 +208,7 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   m_acl_map = 0;  // acl maps are reference counted we can't copy or share them!
   m_has_drop_policy = false;  // you cannot copy a drop policy
   m_executed_drop_policy = false;
+  m_restrictions = src_sctx.restrictions();
   DBUG_VOID_RETURN;
 }
 
@@ -247,7 +283,8 @@ bool Security_context::change_security_context(THD *thd,
   if (needs_change) {
     if (acl_getroot(thd, this, const_cast<char *>(definer_user.str),
                     const_cast<char *>(definer_host.str),
-                    const_cast<char *>(definer_host.str), db->str)) {
+                    const_cast<char *>(definer_host.str),
+                    (db ? db->str : nullptr))) {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user.str, definer_host.str);
       DBUG_RETURN(true);
     }
@@ -272,17 +309,28 @@ bool Security_context::user_matches(Security_context *them) {
               !strcmp(m_user.ptr(), them_user));
 }
 
-bool Security_context::check_access(ulong want_access, bool match_any) {
+bool Security_context::check_access(ulong want_access,
+                                    const std::string &db_name /* = "" */,
+                                    bool match_any) {
   DBUG_ENTER("Security_context::check_access");
+  if ((want_access & DB_ACLS) &&
+      (is_access_restricted_on_db(want_access, db_name))) {
+    DBUG_RETURN(false);
+  }
   DBUG_RETURN((match_any ? (m_master_access & want_access)
                          : ((m_master_access & want_access) == want_access)));
+}
+
+ulong Security_context::master_access(const std::string &db_name) const {
+  return filter_access(m_master_access, db_name);
 }
 
 /**
   This method pushes a role to the list of active roles. It requires
   Acl_cache_lock_guard.
 
-  This method allocates memory which must be freed when the role is deactivated.
+  This method allocates memory which must be freed when the role is
+  deactivated.
 
   @param role The role name
   @param role_host The role hostname-part.
@@ -324,14 +372,14 @@ void Security_context::checkout_access_maps(void) {
     However, if we've just authenticated we don't need to checkout a new map
     so we check if there has been any previous checkouts.
   */
-  if (m_acl_map != 0) {
+  if (m_acl_map != nullptr) {
     DBUG_PRINT(
         "info",
         ("(checkout) Security_context for %s@%s returns Acl_map to cache. "
          "Map reference count= %u",
          m_user.c_ptr(), m_host.c_ptr(), m_acl_map->reference_count()));
     get_global_acl_cache()->return_acl_map(m_acl_map);
-    m_acl_map = 0;
+    m_acl_map = nullptr;
   }
 
   if (m_active_roles.size() == 0) DBUG_VOID_RETURN;
@@ -343,11 +391,11 @@ void Security_context::checkout_access_maps(void) {
   uid.second.length = this->m_host_or_ip.length();
   m_acl_map =
       get_global_acl_cache()->checkout_acl_map(this, uid, m_active_roles);
-  if (m_acl_map != 0) {
+  if (m_acl_map != nullptr) {
     DBUG_PRINT("info", ("Roles are active and global access for %s@%s is set to"
                         " %lu",
                         user().str, host_or_ip().str, m_acl_map->global_acl()));
-    set_master_access(m_acl_map->global_acl());
+    set_master_access(m_acl_map->global_acl(), m_acl_map->restrictions());
   } else {
     set_master_access(0);
   }
@@ -400,7 +448,7 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) {
           access |= it->second;
         }
       }
-      DBUG_RETURN(access);
+      DBUG_RETURN(filter_access(access, key));
     } else {
       DBUG_PRINT("info", ("Db %s not found in cache (no pattern matching)",
                           key.c_str()));
@@ -408,7 +456,7 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) {
     }
   } else {
     DBUG_PRINT("info", ("Found exact match for db %s", key.c_str()));
-    DBUG_RETURN(it->second);
+    DBUG_RETURN(filter_access(it->second, key));
   }
 }
 
@@ -424,7 +472,7 @@ ulong Security_context::procedure_acl(LEX_CSTRING db,
     append_identifier(&q_name, procedure_name.str, procedure_name.length);
     it = m_acl_map->sp_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->sp_acls()->end()) return 0;
-    return it->second;
+    return filter_access(it->second, q_name.c_ptr());
   }
 }
 
@@ -439,7 +487,7 @@ ulong Security_context::function_acl(LEX_CSTRING db, LEX_CSTRING func_name) {
     SP_access_map::iterator it;
     it = m_acl_map->func_acls()->find(q_name.c_ptr());
     if (it == m_acl_map->func_acls()->end()) return 0;
-    return it->second;
+    return filter_access(it->second, q_name.c_ptr());
   }
 }
 
@@ -460,7 +508,7 @@ Grant_table_aggregate Security_context::table_and_column_acls(
 ulong Security_context::table_acl(LEX_CSTRING db, LEX_CSTRING table) {
   if (m_acl_map == 0) return 0;
   Grant_table_aggregate aggr = table_and_column_acls(db, table);
-  return aggr.table_access;
+  return filter_access(aggr.table_access, db.str ? db.str : "");
 }
 
 bool Security_context::has_with_admin_acl(const LEX_CSTRING &role_name,
@@ -507,11 +555,28 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db) {
   return false;
 }
 
+/**
+  Checks if the Current_user has the asked dynamic privilege.
+
+  if the server is initializing the datadir, or current_user is
+  --skip-grants-user then it returns that user has privilege with
+  grant option.
+
+  @param [in] priv      privilege to check
+  @param [in] priv_len  length of privilege
+
+  @returns  pair/<has_privilege, has_with_grant_option/>
+    @retval /<true, true/>  has required privilege with grant option
+    @retval /<true, false/> has required privilege without grant option
+    @retval /<false, false/> does not have the required privilege
+*/
 std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                                          size_t priv_len) {
   /* server started with --skip-grant-tables */
-  if (!initialized) return std::make_pair(true, true);
+  if (!initialized || m_is_skip_grants_user) return std::make_pair(true, true);
+
   std::string privilege(priv, priv_len);
+
   if (m_acl_map == 0) {
     Acl_cache_lock_guard acl_cache_lock(current_thd,
                                         Acl_cache_lock_mode::READ_MODE);
@@ -535,10 +600,508 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
   return std::make_pair(false, false);
 }
 
+/**
+  Checks if the Auth_id have the asked dynamic privilege.
+
+  @param [in] auth_id     Auth_id that could represent either a user or a role
+  @param [in] privilege   privilege to check for
+  @param [in] cumulative  Flag to decide how to fetch the privileges of ACL_USER
+                          false - privilege granted directly or set through
+                                  a role
+                          true  - privileges granted directly or coming through
+                                  roles granted to it irrespective the roles are
+                                  active or not.
+
+  @returns  pair/<has_privilege, has_with_grant_option/>
+    @retval /<true, true/>  has required privilege with grant option
+    @retval /<true, false/> has required privilege without grant option
+    @retval /<false, false/> does not have the required privilege, OR
+                             auth_id does not exist.
+*/
+std::pair<bool, bool> Security_context::has_global_grant(
+    const Auth_id &auth_id, const std::string &privilege,
+    bool cumulative /*= false*/) {
+  std::pair<bool, bool> has_privilege{false, false};
+  Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                      Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock(false)) return has_privilege;
+
+  ACL_USER *acl_user =
+      find_acl_user(auth_id.host().c_str(), auth_id.user().c_str(), true);
+  if (!acl_user) return has_privilege;
+
+  return fetch_global_grant(*acl_user, privilege, cumulative);
+}
+
+/**
+  Checks if the specified auth_id with privilege can work with the current_user.
+  If the auth_id has the specified privilege then current_user must also have
+  the same privilege. Throws error is the auth_id has the privilege but
+  current_user does not have it.
+
+  @param  [in]  auth_id     Auth_id that could represent either a user or a role
+  @param  [in]  privilege   Privilege to check for mismatch
+  @param  [in]  cumulative  Flag to decide how to check the privileges of
+                            auth_id
+                            false - privilege granted directly or set
+                                    through a role
+                            true  - privileges granted directly or coming
+                                    through roles granted to it irrespective
+                                    the roles are active or not.
+  @param  [in]  ignore_if_nonextant Flag to decide how to treat the non-existing
+                                    auth_id.
+                                    true  - consider as privilege exists
+                                    false - consider as privilege do not exist
+
+  @return
+    @retval true    auth_id has the privilege but the current_auth does not
+    @retval false   Otherwise
+*/
+bool Security_context::can_operate_with(const Auth_id &auth_id,
+                                        const std::string &privilege,
+                                        bool cumulative /*= false */,
+                                        bool ignore_if_nonextant /*= true */) {
+  DBUG_ENTER("check_privilege_mismatch");
+  Acl_cache_lock_guard acl_cache_lock(current_thd,
+                                      Acl_cache_lock_mode::READ_MODE);
+  if (!acl_cache_lock.lock()) {
+    DBUG_PRINT("error", ("Could not check for the SYSTEM_USER privilege. "
+                         "Could not lock Acl caches.\n"));
+    DBUG_RETURN(true);
+  }
+  ACL_USER *acl_user =
+      find_acl_user(auth_id.host().c_str(), auth_id.user().c_str(), true);
+  if (!acl_user) DBUG_RETURN(ignore_if_nonextant ? false : true);
+
+  bool is_mismatch = false;
+  if (fetch_global_grant(*acl_user, privilege, cumulative).first) {
+    is_mismatch = has_global_grant(privilege.c_str(), privilege.length()).first
+                      ? false
+                      : true;
+  }
+  if (is_mismatch) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege.c_str());
+  }
+  DBUG_RETURN(is_mismatch);
+}
+
 LEX_CSTRING Security_context::priv_user() const {
   LEX_CSTRING priv_user;
   DBUG_ENTER("Security_context::priv_user");
   priv_user.str = m_priv_user;
   priv_user.length = m_priv_user_length;
   DBUG_RETURN(priv_user);
+}
+
+/**
+  Getter method for member m_user.
+
+  @retval LEX_CSTRING object having constant pointer to m_user.Ptr
+          and its length.
+*/
+LEX_CSTRING Security_context::user() const {
+  LEX_CSTRING user;
+
+  DBUG_ENTER("Security_context::user");
+
+  user.str = m_user.ptr();
+  user.length = m_user.length();
+
+  DBUG_RETURN(user);
+}
+
+/**
+  Setter method for member m_user.
+  Function just sets the user_arg pointer value to the
+  m_user, user_arg value is *not* copied.
+
+  @param[in]    user_arg         New user value for m_user.
+  @param[in]    user_arg_length  Length of "user_arg" param.
+*/
+
+void Security_context::set_user_ptr(const char *user_arg,
+                                    const size_t user_arg_length) {
+  DBUG_ENTER("Security_context::set_user_ptr");
+
+  if (user_arg == m_user.ptr()) DBUG_VOID_RETURN;
+
+  // set new user value to m_user.
+  m_user.set(user_arg, user_arg_length, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_user.
+
+  Copies user_arg value to the m_user if it is not null else m_user is set
+  to NULL.
+
+  @param[in]    user_arg         New user value for m_user.
+  @param[in]    user_arg_length  Length of "user_arg" param.
+*/
+
+void Security_context::assign_user(const char *user_arg,
+                                   const size_t user_arg_length) {
+  DBUG_ENTER("Security_context::assign_user");
+
+  if (user_arg == m_user.ptr()) DBUG_VOID_RETURN;
+
+  if (user_arg)
+    m_user.copy(user_arg, user_arg_length, system_charset_info);
+  else
+    m_user.set((const char *)0, 0, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Getter method for member m_host.
+
+  @retval LEX_CSTRING object having constant pointer to m_host.Ptr
+          and its length.
+*/
+LEX_CSTRING Security_context::host() const {
+  LEX_CSTRING host;
+
+  DBUG_ENTER("Security_context::host");
+
+  host.str = m_host.ptr();
+  host.length = m_host.length();
+
+  DBUG_RETURN(host);
+}
+
+/**
+  Setter method for member m_host.
+  Function just sets the host_arg pointer value to the
+  m_host, host_arg value is *not* copied.
+  host_arg value must not be NULL.
+
+  @param[in]    host_arg         New user value for m_host.
+  @param[in]    host_arg_length  Length of "host_arg" param.
+*/
+void Security_context::set_host_ptr(const char *host_arg,
+                                    const size_t host_arg_length) {
+  DBUG_ENTER("Security_context::set_host_ptr");
+
+  DBUG_ASSERT(host_arg != nullptr);
+
+  if (host_arg == m_host.ptr()) DBUG_VOID_RETURN;
+
+  // set new host value to m_host.
+  m_host.set(host_arg, host_arg_length, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_host.
+
+  Copies host_arg value to the m_host if it is not null else m_user is set
+  to empty string.
+
+
+  @param[in]    host_arg         New user value for m_host.
+  @param[in]    host_arg_length  Length of "host_arg" param.
+*/
+
+void Security_context::assign_host(const char *host_arg,
+                                   const size_t host_arg_length) {
+  DBUG_ENTER("Security_context::assign_host");
+
+  if (host_arg == nullptr) {
+    m_host.set("", 0, system_charset_info);
+    goto end;
+  } else if (host_arg == m_host.ptr()) {
+    goto end;
+  } else if (*host_arg) {
+    m_host.copy(host_arg, host_arg_length, system_charset_info);
+    goto end;
+  }
+
+end:
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Getter method for member m_ip.
+
+  @retval LEX_CSTRING object having constant pointer to m_ip.Ptr
+          and its length
+*/
+LEX_CSTRING Security_context::ip() const {
+  LEX_CSTRING ip;
+
+  DBUG_ENTER("Security_context::ip");
+
+  ip.str = m_ip.ptr();
+  ip.length = m_ip.length();
+
+  DBUG_RETURN(ip);
+}
+
+/**
+  Setter method for member m_ip.
+  Function just sets the ip_arg pointer value to the
+  m_ip, ip_arg value is *not* copied.
+
+  @param[in]    ip_arg         New user value for m_ip.
+  @param[in]    ip_arg_length  Length of "ip_arg" param.
+*/
+
+void Security_context::set_ip_ptr(const char *ip_arg, const int ip_arg_length) {
+  DBUG_ENTER("Security_context::set_ip_ptr");
+
+  if (ip_arg == m_ip.ptr()) DBUG_VOID_RETURN;
+
+  // set new ip value to m_ip.
+  m_ip.set(ip_arg, ip_arg_length, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_ip.
+
+  Copies ip_arg value to the m_ip if it is not null else m_ip is set
+  to NULL.
+
+
+  @param[in]    ip_arg         New user value for m_ip.
+  @param[in]    ip_arg_length  Length of "ip_arg" param.
+*/
+
+void Security_context::assign_ip(const char *ip_arg, const int ip_arg_length) {
+  DBUG_ENTER("Security_context::assign_ip");
+
+  if (ip_arg == m_ip.ptr()) DBUG_VOID_RETURN;
+
+  if (ip_arg)
+    m_ip.copy(ip_arg, ip_arg_length, system_charset_info);
+  else
+    m_ip.set((const char *)0, 0, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_external_user.
+  Function just sets the ext_user_arg pointer to the
+  m_external_user, ext_user_arg is *not* copied.
+
+  @param[in]    ext_user_arg         New user value for m_external_user.
+  @param[in]    ext_user_arg_length  Length of "ext_user_arg" param.
+*/
+
+void Security_context::set_external_user_ptr(const char *ext_user_arg,
+                                             const int ext_user_arg_length) {
+  DBUG_ENTER("Security_context::set_external_user_ptr");
+
+  if (ext_user_arg == m_external_user.ptr()) DBUG_VOID_RETURN;
+
+  // set new ip value to m_ip.
+  m_external_user.set(ext_user_arg, ext_user_arg_length, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_external_user.
+
+  Copies ext_user_arg value to the m_external_user if it is not null
+  else m_external_user is set to NULL.
+
+  @param[in]    ext_user_arg         New user value for m_external_user.
+  @param[in]    ext_user_arg_length  Length of "ext_user_arg" param.
+*/
+
+void Security_context::assign_external_user(const char *ext_user_arg,
+                                            const int ext_user_arg_length) {
+  DBUG_ENTER("Security_context::assign_external_user");
+
+  if (ext_user_arg == m_external_user.ptr()) DBUG_VOID_RETURN;
+
+  if (ext_user_arg)
+    m_external_user.copy(ext_user_arg, ext_user_arg_length,
+                         system_charset_info);
+  else
+    m_external_user.set((const char *)0, 0, system_charset_info);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Setter method for member m_priv_user.
+
+  @param[in]    priv_user_arg         New user value for m_priv_user.
+  @param[in]    priv_user_arg_length  Length of "priv_user_arg" param.
+*/
+
+void Security_context::assign_priv_user(const char *priv_user_arg,
+                                        const size_t priv_user_arg_length) {
+  DBUG_ENTER("Security_context::assign_priv_user");
+
+  if (priv_user_arg_length) {
+    m_priv_user_length =
+        std::min(priv_user_arg_length, sizeof(m_priv_user) - 1);
+    strmake(m_priv_user, priv_user_arg, m_priv_user_length);
+  } else {
+    *m_priv_user = 0;
+    m_priv_user_length = 0;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Getter method for member m_proxy_user.
+
+  @retval LEX_CSTRING object having constant pointer to m_proxy_user.Ptr
+          and its length
+*/
+LEX_CSTRING Security_context::proxy_user() const {
+  LEX_CSTRING proxy_user;
+
+  DBUG_ENTER("Security_context::proxy_user");
+
+  proxy_user.str = m_proxy_user;
+  proxy_user.length = m_proxy_user_length;
+
+  DBUG_RETURN(proxy_user);
+}
+
+/**
+  Setter method for member m_proxy_user.
+
+  @param[in]    proxy_user_arg         New user value for m_proxy_user.
+  @param[in]    proxy_user_arg_length  Length of "proxy_user_arg" param.
+*/
+
+void Security_context::assign_proxy_user(const char *proxy_user_arg,
+                                         const size_t proxy_user_arg_length) {
+  DBUG_ENTER("Security_context::assign_proxy_user");
+
+  if (proxy_user_arg_length) {
+    m_proxy_user_length =
+        std::min(proxy_user_arg_length, sizeof(m_proxy_user) - 1);
+    strmake(m_proxy_user, proxy_user_arg, m_proxy_user_length);
+  } else {
+    *m_proxy_user = 0;
+    m_proxy_user_length = 0;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Getter method for member m_priv_host.
+
+  @retval LEX_CSTRING object having constant pointer to m_priv_host.Ptr
+          and its length
+*/
+LEX_CSTRING Security_context::priv_host() const {
+  LEX_CSTRING priv_host;
+
+  DBUG_ENTER("Security_context::priv_host");
+
+  priv_host.str = m_priv_host;
+  priv_host.length = m_priv_host_length;
+
+  DBUG_RETURN(priv_host);
+}
+
+/**
+  Setter method for member m_priv_host.
+
+  @param[in]    priv_host_arg         New user value for m_priv_host.
+  @param[in]    priv_host_arg_length  Length of "priv_host_arg" param.
+*/
+
+void Security_context::assign_priv_host(const char *priv_host_arg,
+                                        const size_t priv_host_arg_length) {
+  DBUG_ENTER("Security_context::assign_priv_host");
+
+  if (priv_host_arg_length) {
+    m_priv_host_length =
+        std::min(priv_host_arg_length, sizeof(m_priv_host) - 1);
+    strmake(m_priv_host, priv_host_arg, m_priv_host_length);
+  } else {
+    *m_priv_host = 0;
+    m_priv_host_length = 0;
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+void Security_context::init_restrictions(const Restrictions &restrictions) {
+  m_restrictions = restrictions;
+}
+
+bool Security_context::is_access_restricted_on_db(
+    ulong want_access, const std::string &db_name) const {
+  ulong filtered_access = filter_access(want_access, db_name);
+  return (filtered_access != want_access);
+}
+
+/**
+  If there is a restriction attached to an access on the given database
+  then remove that access otherwise return the access without any change.
+
+  @param[in]  access    access mask to be scanned to remove
+  @param[in]  db_name   database to be searched in the restrictions
+
+  @retval filtered access mask
+*/
+ulong Security_context::filter_access(const ulong access,
+                                      const std::string &db_name) const {
+  ulong access_mask = access;
+  auto &db_restrictions = m_restrictions.db();
+  if (db_restrictions.is_not_empty()) {
+    ulong restrictions_mask;
+    if (db_restrictions.find(db_name, restrictions_mask))
+      access_mask = (access_mask & restrictions_mask) ^ access;
+  }
+  return access_mask;
+}
+
+/**
+  Checks if the acl_user does have the asked dynamic privilege.
+  This method assumes acl_cache_lock is already taken and ACL_USER is valid
+
+  @param [in] acl_user    ACL_USER to check for privilege
+  @param [in] privilege   privilege to check for
+  @param [in] cumulative  Flag to decide how to fetch the privileges of ACL_USER
+                          false - privilege granted directly or set through
+                                  a role
+                          true  - privileges granted directly or coming through
+                                  roles granted to it irrespective the roles are
+                                  active or not.
+  @returns  pair/<has_privilege, has_with_grant_option/>
+    @retval /<true, true/>   has required privilege with grant option
+    @retval /<true, false/>  has required privilege without grant option
+    @retval /<false, false/> does not have the required privilege
+*/
+std::pair<bool, bool> Security_context::fetch_global_grant(
+    const ACL_USER &acl_user, const std::string &privilege,
+    bool cumulative /*= false */) {
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  std::pair<bool, bool> has_privilege{false, false};
+  Security_context sctx;
+
+  const char *user = acl_user.user;
+  const char *host = acl_user.host.get_host();
+  // Anonymous user
+  if (user == nullptr) user = "";
+  if (host == nullptr) host = "";
+
+  sctx.assign_priv_user(user, strlen(user));
+  sctx.assign_priv_host(acl_user.host.get_host(), acl_user.host.get_host_len());
+  if (cumulative) {
+    activate_all_granted_roles(&acl_user, &sctx);
+    sctx.checkout_access_maps();
+  }
+  /* Check if AuthID being processed has dynamic privilege */
+  has_privilege = sctx.has_global_grant(privilege.c_str(), privilege.length());
+  return has_privilege;
 }

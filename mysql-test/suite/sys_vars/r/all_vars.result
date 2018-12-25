@@ -39,6 +39,8 @@ keyring_operations
 keyring_operations
 mandatory_roles
 mandatory_roles
+partial_revokes
+partial_revokes
 password_require_current
 password_require_current
 regexp_stack_limit

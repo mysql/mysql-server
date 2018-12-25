@@ -54,5 +54,9 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --replace_column 2 ####
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root';
 
-connection master;
+# Current master connects using $IPv6= ::1. This user happens to be deleted
+# first in the inc file below. With WL#12098, the current user loses
+# the ability to delete other users if it deletes itself first.
+# Therefore, connecting with user which is deleted in the end.
+connect (master_IPv4,127.0.0.1,root,,test,$MASTER_MYPORT);
 --source include/remove_extra_root_users.inc

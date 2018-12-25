@@ -32,9 +32,9 @@ GRANT SELECT ON db_1.test_table TO some_user@localhost;
 SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
 SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
 
-DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP USER user_name_robert_golebiowski1234@localhost;
 DROP USER some_user@localhost;
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP DATABASE db_1;
 
 --connection default

@@ -1401,3 +1401,17 @@ bool is_global_audit_mask_set() {
   }
   return false;
 }
+
+size_t make_user_name(Security_context *sctx, char *buf) {
+  LEX_CSTRING sctx_user = sctx->user();
+  LEX_CSTRING sctx_host = sctx->host();
+  LEX_CSTRING sctx_ip = sctx->ip();
+  LEX_CSTRING sctx_priv_user = sctx->priv_user();
+  return static_cast<size_t>(
+      strxnmov(buf, MAX_USER_HOST_SIZE,
+               sctx_priv_user.str[0] ? sctx_priv_user.str : "", "[",
+               sctx_user.length ? sctx_user.str : "", "] @ ",
+               sctx_host.length ? sctx_host.str : "", " [",
+               sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
+      buf);
+}

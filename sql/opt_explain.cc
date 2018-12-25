@@ -2305,6 +2305,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
   bool send_ok = false;
   char *user;
   bool unlock_thd_data = false;
+  const std::string &db_name = thd->db().str ? thd->db().str : "";
   THD::Query_plan *qp;
   DEBUG_SYNC(thd, "before_explain_other");
   /*
@@ -2313,9 +2314,9 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
     2) has switched to another user
     then it's not super user.
   */
-  if (!(thd->m_main_security_ctx.check_access(GLOBAL_ACLS &
-                                              ~GRANT_ACL)) ||  // (1)
-      (0 != strcmp(thd->m_main_security_ctx.priv_user().str,   // (2)
+  if (!(thd->m_main_security_ctx.check_access(GLOBAL_ACLS & ~GRANT_ACL,
+                                              db_name)) ||    // (1)
+      (0 != strcmp(thd->m_main_security_ctx.priv_user().str,  // (2)
                    thd->security_context()->priv_user().str) ||
        0 != my_strcasecmp(system_charset_info,
                           thd->m_main_security_ctx.priv_host().str,

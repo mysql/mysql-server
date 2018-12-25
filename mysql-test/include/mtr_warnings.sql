@@ -261,6 +261,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("The SSL library function CRYPTO_set_mem_functions failed"),
 
+ /*
+   partial_revokes
+ */
+ ("mysqlbinlog tool may not be able to process"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

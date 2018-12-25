@@ -6,3 +6,7 @@ ALTER TABLE mysql.user DROP COLUMN Password_reuse_history;
 ALTER TABLE mysql.user DROP COLUMN Password_reuse_time;
 ALTER TABLE mysql.user DROP COLUMN Password_require_current;
 ALTER TABLE mysql.user DROP COLUMN User_attributes;
+
+# Remove the SYSTEM_USER privilege granted to existing users.
+DELETE FROM mysql.global_grants WHERE User= 'root' AND PRIV= 'SYSTEM_USER';
+DELETE FROM mysql.global_grants WHERE User= 'mysql.session' AND PRIV= 'SYSTEM_USER';

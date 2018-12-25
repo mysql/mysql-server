@@ -238,18 +238,18 @@ bool Table_trigger_dispatcher::create_trigger(
     that the current user has SUPER privilege (in order to create trigger
     under another user one must have SUPER privilege).
   */
-
+  Security_context *sctx = thd->security_context();
   if (lex->definer &&
-      (strcmp(lex->definer->user.str,
-              thd->security_context()->priv_user().str) ||
+      (strcmp(lex->definer->user.str, sctx->priv_user().str) ||
        my_strcasecmp(system_charset_info, lex->definer->host.str,
-                     thd->security_context()->priv_host().str))) {
-    Security_context *sctx = thd->security_context();
+                     sctx->priv_host().str))) {
     if (!sctx->check_access(SUPER_ACL) &&
         !sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       return true;
     }
+    if (sctx->can_operate_with({lex->definer}, consts::system_user, true))
+      return true;
   }
 
   if (lex->definer &&

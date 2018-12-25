@@ -52,12 +52,15 @@
 #include "sql/sql_connect.h"         // USER_RESOURCES
 #include "violite.h"                 // SSL_type
 
+/* Forward declarations */
 class Security_context;
 class String;
 class THD;
 struct TABLE;
 template <typename Element_type, size_t Prealloc>
 class Prealloced_array;
+class Acl_restrictions;
+class Restrictions;
 
 /* Classes */
 
@@ -189,8 +192,14 @@ class ACL_USER : public ACL_ACCESS {
   */
   Acl_credential credentials[NUM_CREDENTIALS];
 
+  /**
+    Restriction list
+  */
+  Acl_restrictions *acl_restrictions;
+
   ACL_USER *copy(MEM_ROOT *root);
   ACL_USER();
+  const Restrictions &restrictions() const;
 };
 
 class ACL_DB : public ACL_ACCESS {
@@ -347,7 +356,7 @@ Acl_user_ptr_list *cached_acl_users_for_name(const char *name);
 void rebuild_cached_acl_users_for_name(void);
 
 /* Data Structures */
-
+extern size_t num_partial_revokes;
 extern MEM_ROOT global_acl_memory;
 extern MEM_ROOT memex;
 const size_t ACL_PREALLOC_SIZE = 10U;
@@ -478,7 +487,7 @@ using in_edge_itr_t =
 class Acl_map {
  public:
   Acl_map(Security_context *sctx, uint64 ver);
-  Acl_map(const Acl_map &map);
+  Acl_map(const Acl_map &map) = delete;
   Acl_map(const Acl_map &&map);
   ~Acl_map();
 
@@ -500,6 +509,7 @@ class Acl_map {
   SP_access_map *func_acls();
   Grant_acl_set *grant_acls();
   Dynamic_privileges *dynamic_privileges();
+  Restrictions &restrictions();
   uint64 version() { return m_version; }
   uint32 reference_count() { return m_reference_count.load(); }
 
@@ -514,6 +524,7 @@ class Acl_map {
   SP_access_map m_func_acls;
   Grant_acl_set m_with_admin_acls;
   Dynamic_privileges m_dynamic_privileges;
+  Restrictions m_restrictions;
 };
 
 typedef LF_HASH Acl_cache_internal;
@@ -537,7 +548,7 @@ class Acl_cache {
     Returns a pointer to an acl map to the caller and increase the reference
     count on the object, iff the object version is the same as the global
     graph version.
-    If no acl map exists which correspond ot the current authorization id of
+    If no acl map exists which correspond to the current authorization id of
     the security context, a new acl map is calculated, inserted into the cache
     and returned to the user.
     A new object will also be created if the role graph version counter is

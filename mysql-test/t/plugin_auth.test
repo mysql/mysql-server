@@ -115,6 +115,7 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 
 --echo # ALL PRIVILEGES doesn't include PROXY
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
+REVOKE SYSTEM_USER ON *.* FROM grant_plug;
 --disable_query_log
 # This should fail, no grant
 --error ER_ACCESS_DENIED_ERROR

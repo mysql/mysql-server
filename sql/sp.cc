@@ -874,6 +874,15 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
   if (error) DBUG_RETURN(SP_INTERNAL_ERROR);
 
   if (routine == nullptr) DBUG_RETURN(SP_DOES_NOT_EXISTS);
+  /*
+    If definer has the SYSTEM_USER privilege then invoker can drop procedure
+    only if latter also has same privilege.
+  */
+  Auth_id definer(routine->definer_user().c_str(),
+                  routine->definer_host().c_str());
+  Security_context *sctx = thd->security_context();
+  if (sctx->can_operate_with(definer, consts::system_user, true))
+    DBUG_RETURN(SP_INTERNAL_ERROR);
 
   // Drop routine.
   if (thd->dd_client()->drop(routine)) goto err_with_rollback;
@@ -1003,6 +1012,15 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
              thd->lex->spname->m_qname.str);
     DBUG_RETURN(true);
   }
+  /*
+    If definer has the SYSTEM_USER privilege then invoker can alter procedure
+    only if latter also has same privilege.
+  */
+  Auth_id definer(routine->definer_user().c_str(),
+                  routine->definer_host().c_str());
+  Security_context *sctx = thd->security_context();
+  if (sctx->can_operate_with(definer, consts::system_user, true))
+    DBUG_RETURN(true);
 
   if (mysql_bin_log.is_open() && type == enum_sp_type::FUNCTION &&
       !trust_function_creators &&
@@ -1211,11 +1229,11 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     Correct solution to this issue will be provided with the WL#8131 and
     WL#9049.
   */
-  bool full_access = (thd->security_context()->check_access(SELECT_ACL) ||
-                      (!strcmp(routine->definer_user().c_str(),
-                               thd->security_context()->priv_user().str) &&
-                       !strcmp(routine->definer_host().c_str(),
-                               thd->security_context()->priv_host().str)));
+  Security_context *sctx = thd->security_context();
+  bool full_access =
+      (sctx->check_access(SELECT_ACL, sp->m_db.str) ||
+       (!strcmp(routine->definer_user().c_str(), sctx->priv_user().str) &&
+        !strcmp(routine->definer_host().c_str(), sctx->priv_host().str)));
 
   if (!full_access &&
       check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,

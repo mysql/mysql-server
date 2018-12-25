@@ -259,8 +259,8 @@ DROP USER root_caching_sha2@localhost;
 SHOW GRANTS FOR "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SUPER ON *.* TO `mysql.session`@`localhost`
-GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
-GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance\_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
 mysql.columns_priv                                 Table is already up to date
@@ -303,8 +303,8 @@ sys.sys_config                                     Table is already up to date
 SHOW GRANTS FOR "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SUPER ON *.* TO `mysql.session`@`localhost`
-GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
-GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
+GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance\_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 #
 # Bug #28855207: 8.0.13 - MYSQL_UPGRADE FAILS DUE TO PRIMARY KEY ERROR WITHOUT STATING THE TABLE

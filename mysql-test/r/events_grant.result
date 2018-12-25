@@ -11,6 +11,7 @@ CREATE DATABASE events_test2;
 CREATE USER ev_test@localhost;
 GRANT ALL ON events_test.* to ev_test@localhost;
 GRANT ALL ON events_test2.* to ev_test@localhost;
+GRANT SYSTEM_USER ON *.* TO ev_test@localhost;
 REVOKE EVENT ON events_test2.* FROM ev_test@localhost;
 select "NEW CONNECTION";
 NEW CONNECTION
@@ -21,6 +22,7 @@ ev_test@localhost	events_test2
 SHOW GRANTS;
 Grants for ev_test@localhost
 GRANT USAGE ON *.* TO `ev_test`@`localhost`
+GRANT SYSTEM_USER ON *.* TO `ev_test`@`localhost`
 GRANT ALL PRIVILEGES ON `events_test`.* TO `ev_test`@`localhost`
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, TRIGGER ON `events_test2`.* TO `ev_test`@`localhost`
 "Here comes an error:";

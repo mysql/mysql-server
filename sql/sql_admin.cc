@@ -1926,7 +1926,7 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
     Thus we raise the flag (drop_role) in this case.
   */
   bool on_create_user_priv =
-      thd->security_context()->check_access(CREATE_USER_ACL, true);
+      thd->security_context()->check_access(CREATE_USER_ACL, "", true);
   if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
     DBUG_RETURN(true);
   if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors,

@@ -51,13 +51,18 @@ struct HA_CREATE_INFO;
 struct LEX_USER;
 template <class T>
 class List;
-
 typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;
+struct MEM_ROOT;
 struct TABLE_LIST;
 enum class role_enum;
 enum class Consumer_type;
+
+namespace consts {
+extern const std::string mysql;
+extern const std::string system_user;
+}  // namespace consts
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
 typedef std::pair<LEX_CSTRING, LEX_CSTRING> Auth_id_ref;
@@ -182,8 +187,7 @@ class IS_internal_schema_access : public ACL_internal_schema_access {
 
 /* Data Structures */
 
-extern const char *command_array[];
-extern uint command_lengths[];
+extern const std::vector<std::string> global_acls_vector;
 
 enum mysql_db_table_field {
   MYSQL_DB_FIELD_HOST = 0,
@@ -678,6 +682,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 bool mysql_rename_user(THD *thd, List<LEX_USER> &list);
 
 /* sql_auth_cache */
+void init_acl_memory();
 int wild_case_compare(CHARSET_INFO *cs, const char *str, const char *wildstr);
 int wild_case_compare(CHARSET_INFO *cs, const char *str, size_t str_len,
                       const char *wildstr, size_t wildstr_len);
@@ -696,15 +701,15 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
 bool check_acl_tables_intact(THD *thd);
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
+bool wildcard_db_grant_exists();
 
 /* sql_authorization */
 bool skip_grant_tables();
-bool has_grant_role_privilege(THD *thd);
-bool has_revoke_role_privilege(THD *thd);
 int mysql_set_active_role_none(THD *thd);
 int mysql_set_role_default(THD *thd);
 int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users);
 int mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list);
+bool mysql_set_active_role_for_applier(THD *thd, LEX_CSTRING roles_string);
 bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
@@ -791,8 +796,6 @@ bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
 Auth_id_ref create_authid_from(const LEX_USER *user);
 std::string create_authid_str_from(const LEX_USER *user);
 void append_identifier(String *packet, const char *name, size_t length);
-void append_identifier_with_q(int q, String *packet, const char *name,
-                              size_t length);
 bool is_role_id(LEX_USER *authid);
 void shutdown_acl_cache();
 bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
@@ -823,7 +826,7 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
 #define DEFAULT_SSL_SERVER_KEY "server-key.pem"
 
 void update_mandatory_roles(void);
-bool check_authorization_id_string(const char *buffer, size_t length);
+bool check_authorization_id_string(THD *thd, const char *buffer, size_t length);
 void func_current_role(const THD *thd, String *active_role);
 
 extern volatile uint32 global_password_history, global_password_reuse_interval;
@@ -899,9 +902,12 @@ class Security_context_factory {
         m_static_privileges(static_priv),
         m_drop_policy(drop_policy) {}
 
-  Sctx_ptr<Security_context> create();
+  Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
+  void apply_policies_to_security_ctx();
 
  private:
+  bool apply_pre_constructed_policies(Security_context *sctx);
+
   THD *m_thd;
   std::string m_user;
   std::string m_host;
@@ -921,6 +927,10 @@ class Default_local_authid : public Create_authid<Default_local_authid> {
   const THD *m_thd;
 };
 
+/**
+  Grant the privilege temporarily to the in-memory global privleges map.
+  This class is not thread safe.
+ */
 class Grant_temporary_dynamic_privileges
     : public Grant_privileges<Grant_temporary_dynamic_privileges> {
  public:
@@ -952,9 +962,52 @@ class Grant_temporary_static_privileges
   bool grant_privileges(Security_context *sctx);
 
  private:
+  /** THD handle */
   const THD *m_thd;
+
+  /** Privileges */
   const ulong m_privs;
 };
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
+bool is_partial_revoke_exists(THD *thd);
+
+/**
+  Storage container for default auth ids. Default roles are only weakly
+  depending on ACL_USERs. You can retain a default role even if the
+  corresponding ACL_USER is missing in the acl_cache.
+*/
+class Auth_id {
+ public:
+  Auth_id();
+  Auth_id(const char *user, size_t user_len, const char *host, size_t host_len);
+  Auth_id(const Auth_id_ref &id);
+  Auth_id(const LEX_CSTRING &user, const LEX_CSTRING &host);
+  Auth_id(const std::string &user, const std::string &host);
+  Auth_id(LEX_USER *lex_user);
+
+  ~Auth_id();
+  Auth_id(const Auth_id &id);
+  Auth_id &operator=(const Auth_id &) = default;
+
+  bool operator<(const Auth_id &id) const;
+  void auth_str(std::string *out) const;
+
+  const std::string &user() const;
+  const std::string &host() const;
+
+ private:
+  /** User part */
+  std::string m_user;
+  /** Host part */
+  std::string m_host;
+};
+
+/*
+  As of now Role_id is an alias of Auth_id.
+  We may extend the Auth_id as Role_id once
+  more substances are added to latter.
+*/
+using Role_id = Auth_id;
+
 #endif /* AUTH_COMMON_INCLUDED */

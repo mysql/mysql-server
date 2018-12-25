@@ -597,7 +597,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (lower_case_table_names && dbname != any_db)
     my_casedn_str(files_charset_info, dbname);
 
-  if (sctx->check_access(DB_ACLS))
+  if (sctx->check_access(DB_ACLS, orig_dbname))
     db_access = DB_ACLS;
   else {
     if (sctx->get_active_roles()->size() > 0 && dbname != 0) {
@@ -605,7 +605,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     } else {
       db_access = (acl_get(thd, sctx->host().str, sctx->ip().str,
                            sctx->priv_user().str, dbname, 0) |
-                   sctx->master_access());
+                   sctx->master_access(dbname ? dbname : ""));
     }
   }
   if (!(db_access & DB_ACLS) && check_grant_db(thd, dbname)) {

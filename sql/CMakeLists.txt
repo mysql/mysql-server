@@ -288,6 +288,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
 
 SET(SQL_SHARED_SOURCES
   abstract_query_plan.cc
+  auth/auth_acls.cc
   auth/auth_common.cc
   auth/dynamic_privileges_impl.cc
   auth/dynamic_privilege_table.cc
@@ -297,6 +298,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_authorization.cc
   auth/sql_user_table.cc
   auth/sql_user.cc
+  auth/partial_revokes.cc
   auth/password.cc
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc

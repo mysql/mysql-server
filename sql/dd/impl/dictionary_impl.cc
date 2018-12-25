@@ -106,8 +106,6 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
     Dictionary_impl::s_instance = d.release();
   }
 
-  acl_init(true);
-
   /*
     Initialize the cost model, but delete it after the dd is initialized.
     This is because the cost model is needed for the dd initialization, but
@@ -162,8 +160,6 @@ bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
 
-  // TODO: See above.
-  acl_free(true);
   return result;
 }
 

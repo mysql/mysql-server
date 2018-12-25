@@ -3549,6 +3549,32 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     *start++ = thd->variables.sql_require_primary_key;
   }
 
+  if (thd && thd->need_binlog_invoker()) {
+    LEX_CSTRING thd_active_roles;
+    String roles;
+    memset(&thd_active_roles, 0, sizeof(thd_active_roles));
+    if (thd->slave_thread && thd->has_active_roles()) {
+      thd_active_roles = thd->get_active_roles();
+    } else {
+      roles.set((char *)NULL, 0, system_charset_info);
+      func_current_role(thd, &roles);
+      thd_active_roles.length = roles.length();
+      thd_active_roles.str = (char *)roles.c_ptr();
+    }
+
+    *start++ = Q_ACTIVE_ROLES;
+
+    /* Store active_roles length and active_roles */
+    int2store(start, thd_active_roles.length);
+    start += 2;
+    memcpy(start, thd_active_roles.str, thd_active_roles.length);
+    start += thd_active_roles.length;
+  }
+
+  if (thd && cant_replay_with_mysqlbinlog) {
+    *start++ = Q_CANT_REPLAY_WITH_MYSQLBINLOG;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -3624,6 +3650,23 @@ static bool is_sql_require_primary_key_needed(const LEX *lex) {
     case SQLCOM_CREATE_TABLE:
     case SQLCOM_ALTER_TABLE:
       return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+/**
+  Returns whether or not the statement held by the `LEX` object parameter
+  can be safely replayed by mysqlbinlog
+*/
+static bool is_unsafe_for_mysqlbinlog(const LEX *lex) {
+  enum enum_sql_command cmd = lex->sql_command;
+  switch (cmd) {
+    case SQLCOM_GRANT:
+    case SQLCOM_REVOKE:
+    case SQLCOM_REVOKE_ALL:
+      return mysqld_partial_revokes();
     default:
       break;
   }
@@ -3973,6 +4016,8 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
   }
 
   need_sql_require_primary_key = is_sql_require_primary_key_needed(lex);
+
+  cant_replay_with_mysqlbinlog = is_unsafe_for_mysqlbinlog(lex);
 
   DBUG_ASSERT(event_cache_type != Log_event::EVENT_INVALID_CACHE);
   DBUG_ASSERT(event_logging_type != Log_event::EVENT_INVALID_LOGGING);
@@ -4586,6 +4631,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         host_lex.length = strlen(host);
       }
       thd->set_invoker(&user_lex, &host_lex);
+
+      LEX_STRING active_roles_lex = LEX_STRING();
+      if (active_roles_len) {
+        active_roles_lex.str = const_cast<char *>(active_roles);
+      }
+      active_roles_lex.length = active_roles_len;
+      thd->set_active_roles(&active_roles_lex);
       /*
         Flag if we need to rollback the statement transaction on
         slave if it by chance succeeds.

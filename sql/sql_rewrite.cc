@@ -1021,7 +1021,8 @@ bool Rewriter_grant::rewrite() const {
       if (comma_inner || (lex->grant & priv))  // show privilege name
       {
         comma_maybe(rlb, &comma);
-        rlb->append(command_array[c], command_lengths[c]);
+        rlb->append(global_acls_vector[c].c_str(),
+                    global_acls_vector[c].length());
         if (!(lex->grant & priv))  // general outranks specific
           rlb->append(cols);
       }

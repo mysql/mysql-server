@@ -20,43 +20,54 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/auth/acl_table_user.h"     /* For user table data */
-#include "my_dbug.h"                     /* DBUG macros */
-#include "sql/auth/auth_acls.h"          /* ACLs */
-#include "sql/auth/auth_internal.h"      /* acl_print_ha_error */
+#include "sql/auth/acl_table_user.h" /* For user table data */
+#include "my_dbug.h"                 /* DBUG macros */
+#include "sql/auth/auth_acls.h"      /* ACLs */
+#include "sql/auth/auth_internal.h"  /* acl_print_ha_error */
+#include "sql/auth/partial_revokes.h"
 #include "sql/auth/sql_auth_cache.h"     /* global_acl_memory */
 #include "sql/auth/sql_authentication.h" /* Cached_authentication_plugins */
 #include "sql/auth/sql_user_table.h"     /* Acl_table_intact */
 #include "sql/auth/user_table.h"         /* replace_user_table */
 #include "sql/item_func.h"               /* mqh_used */
-#include "sql/mysqld.h"                  /* specialflag */
-#include "sql/sql_class.h"               /* THD */
-#include "sql/sql_lex.h"                 /* LEX_CSTRING */
-#include "sql/sql_time.h"                /* str_to_time_with_warn */
-#include "sql/sql_update.h"              /* compare_records */
-#include "sql/tztime.h"                  /* Time_zone */
+#include "sql/json_dom.h"
+#include "sql/mysqld.h"     /* specialflag */
+#include "sql/sql_class.h"  /* THD */
+#include "sql/sql_lex.h"    /* LEX_CSTRING */
+#include "sql/sql_time.h"   /* str_to_time_with_warn */
+#include "sql/sql_update.h" /* compare_records */
+#include "sql/tztime.h"     /* Time_zone */
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
-namespace acl_table {
-
-/** Empty string */
-const std::string empty_string("");
+namespace consts {
+/** Initial timestamp */
+const struct timeval BEGIN_TIMESTAMP = {0, 0};
 
 /** Error indicating table operation error */
 const int CRITICAL_ERROR = -1;
 
-/** Initial timestamp */
-const struct timeval BEGIN_TIMESTAMP = {0, 0};
+/** Empty string */
+const std::string empty_string("");
 
-/** Fields we store in mysql.user.user_attributes */
-enum class User_attribute_type { ADDITIONAL_PASSWORD = 0 };
+/* Name of the fields in mysql.user.user_attributes */
+
+/** For secondary password */
+const std::string additional_password("additional_password");
+
+/** For partial revokes */
+const std::string Restrictions("Restrictions");
+}  // namespace consts
+
+namespace acl_table {
 
 /** Keys used in mysql.user.user_attributes */
 static std::map<const User_attribute_type, const std::string>
     attribute_type_to_str = {
-        {User_attribute_type::ADDITIONAL_PASSWORD, "additional_password"}};
+        {User_attribute_type::ADDITIONAL_PASSWORD, consts::additional_password},
+        {User_attribute_type::RESTRICTIONS, consts::Restrictions}};
 
+namespace {
 /**
   Class to handle information stored in mysql.user.user_attributes
 */
@@ -64,9 +75,14 @@ class Acl_user_attributes {
  public:
   /**
     Default constructor.
-    At this point we do not need initialization list.
   */
-  Acl_user_attributes() {}
+  Acl_user_attributes(MEM_ROOT *mem_root, bool read, Auth_id &auth_id,
+                      ulong global_privs);
+
+  Acl_user_attributes(MEM_ROOT *mem_root, bool read, Auth_id &auth_id,
+                      Restrictions *m_restrictions);
+
+  ~Acl_user_attributes();
 
  public:
   /**
@@ -78,22 +94,7 @@ class Acl_user_attributes {
       @retval false Success
       @retval true  Error parsing the JSON object
   */
-  bool deserialize(const Json_object &json_object) {
-    {
-      /** Second password */
-      const Json_dom *additional_password_dom = json_object.get(
-          attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD]);
-      if (additional_password_dom) {
-        if (additional_password_dom->json_type() != enum_json_type::J_STRING)
-          return true;
-
-        const Json_string *additional_password =
-            down_cast<const Json_string *>(additional_password_dom);
-        m_additional_password = additional_password->value();
-      }
-    }
-    return false;
-  }
+  bool deserialize(const Json_object &json_object);
 
   /**
     Create JSON object from user attributes
@@ -104,16 +105,7 @@ class Acl_user_attributes {
       @retval false Success
       @retval true  Error serializing user attributes
   */
-  bool serialize(Json_object &json_object) const {
-    if (m_additional_password.length()) {
-      Json_string additional_password(m_additional_password);
-      if (json_object.add_clone(
-              attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD],
-              &additional_password))
-        return true;
-    }
-    return false;
-  }
+  bool serialize(Json_object &json_object) const;
 
   /**
     Update second password for user. We replace existing one if any.
@@ -124,41 +116,222 @@ class Acl_user_attributes {
       @retval false Success
       @retval true  Error. Second password is empty
   */
-  bool update_additional_password(std::string &credential) {
-    if (credential.length()) {
-      m_additional_password = credential;
-    } else {
-      return true;
-    }
-    return false;
-  }
+  bool update_additional_password(std::string &credential);
 
   /**
     Discard second password.
   */
-  void discard_additional_password() { m_additional_password.clear(); }
+  void discard_additional_password();
 
   /**
     Get second password
 
     @returns second password
   */
-  const std::string get_additional_password() const {
-    return m_additional_password;
-  }
+  const std::string get_additional_password() const;
+
+  /**
+    Get the restriction list for the user
+
+    @returns Restriction list
+  */
+  Restrictions get_restrictions() const;
+
+  void update_restrictions(const Restrictions &restricitions);
 
  private:
+  void report_and_remove_invalid_db_restrictions(
+      DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
+      ulonglong errcode);
+
+ private:
+  /** Mem root */
+  MEM_ROOT *m_mem_root;
+  /** Operation */
+  bool m_read;
+  /** Auth ID */
+  Auth_id m_auth_id;
   /** Second password for user */
   std::string m_additional_password;
+  /** Restrictions_list on certain databases for user */
+  Restrictions m_restrictions;
+  /** Global static privileges */
+  ulong m_global_privs;
 };
 
-/** Default constructor for return status objects */
-Acl_table_user_writer_status::Acl_table_user_writer_status()
+Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root, bool read,
+                                         Auth_id &auth_id, ulong global_privs)
+    : m_mem_root(mem_root),
+      m_read(read),
+      m_auth_id(auth_id),
+      m_additional_password(),
+      m_restrictions(mem_root),
+      m_global_privs(global_privs) {}
+
+Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root, bool read,
+                                         Auth_id &auth_id,
+                                         Restrictions *restrictions)
+    : Acl_user_attributes(mem_root, read, auth_id, ~NO_ACCESS) {
+  if (restrictions) m_restrictions = *restrictions;
+}
+
+Acl_user_attributes::~Acl_user_attributes() { m_restrictions.clear_db(); }
+
+void Acl_user_attributes::report_and_remove_invalid_db_restrictions(
+    DB_restrictions &db_restrictions, ulong mask, enum loglevel level,
+    ulonglong errcode) {
+  for (auto &itr : db_restrictions()) {
+    ulong privs = itr.second;
+    if (privs != (privs & mask)) {
+      std::string invalid_privs;
+      std::string separator(", ");
+      bool second = false;
+      ulong filtered_privs = privs & ~mask;
+      if (filtered_privs)
+        db_restrictions.remove(itr.first.c_str(), filtered_privs);
+      while (filtered_privs != 0) {
+        std::string one_priv = get_one_priv(filtered_privs);
+        if (one_priv.length()) {
+          if (second) invalid_privs.append(separator);
+          invalid_privs.append(one_priv);
+          if (!second) second = true;
+        }
+      }
+      if (!invalid_privs.length()) invalid_privs.append("<unknown_privileges>");
+      std::string auth_id;
+      m_auth_id.auth_str(&auth_id);
+
+      LogErr(level, errcode, auth_id.c_str(), invalid_privs.c_str(),
+             itr.first.length() ? itr.first.c_str() : "<invalid_database>");
+    }
+  }
+  /*
+    Now, remove the databases with no restrictions without invalidating
+    the internal container of DB_restrictions
+  */
+  db_restrictions.remove(0);
+}
+
+bool Acl_user_attributes::deserialize(const Json_object &json_object) {
+  {
+    /** Second password */
+    const Json_dom *additional_password_dom = json_object.get(
+        attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD]);
+    if (additional_password_dom) {
+      if (additional_password_dom->json_type() != enum_json_type::J_STRING)
+        return true;
+
+      const Json_string *additional_password =
+          down_cast<const Json_string *>(additional_password_dom);
+      m_additional_password = additional_password->value();
+    }
+  }
+
+  /* In case of writes, DB restrictions are always overwritten */
+  if (m_read) {
+    DB_restrictions db_restrictions(nullptr);
+    if (db_restrictions.add(json_object)) return true;
+    /* Filtering & warnings */
+    report_and_remove_invalid_db_restrictions(
+        db_restrictions, DB_ACLS, WARNING_LEVEL,
+        ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS);
+    report_and_remove_invalid_db_restrictions(db_restrictions, m_global_privs,
+                                              WARNING_LEVEL,
+                                              ER_WARN_INVALID_DB_RESTRICTIONS);
+    m_restrictions.set_db(db_restrictions);
+  }
+
+  return false;
+}
+
+bool Acl_user_attributes::serialize(Json_object &json_object) const {
+  if (m_additional_password.length()) {
+    Json_string additional_password(m_additional_password);
+    if (json_object.add_clone(
+            attribute_type_to_str[User_attribute_type::ADDITIONAL_PASSWORD],
+            &additional_password))
+      return true;
+  }
+
+  if (m_restrictions.db().is_not_empty()) {
+    Json_array restrictions_array;
+    m_restrictions.db().get_as_json(restrictions_array);
+    if (json_object.add_clone(
+            attribute_type_to_str[User_attribute_type::RESTRICTIONS],
+            &restrictions_array))
+      return true;
+  }
+
+  return false;
+}
+
+bool Acl_user_attributes::update_additional_password(std::string &credential) {
+  if (credential.length()) {
+    m_additional_password = credential;
+  } else {
+    return true;
+  }
+  return false;
+}
+
+void Acl_user_attributes::discard_additional_password() {
+  m_additional_password.clear();
+}
+
+const std::string Acl_user_attributes::get_additional_password() const {
+  return m_additional_password;
+}
+
+Restrictions Acl_user_attributes::get_restrictions() const {
+  return m_restrictions;
+}
+
+void Acl_user_attributes::update_restrictions(
+    const Restrictions &restricitions) {
+  m_restrictions = restricitions;
+}
+
+/**
+  Helper function to parse mysql.user.user_attributes column
+
+  @param [in]  thd             Thread handle
+  @param [in]  table           Handle to mysql.user table
+  @param [in]  table_schema    mysql.user schema version
+  @param [out] user_attributes Deserialized user attributes
+
+  @returns status of parsing user_attributes column
+    @retval false Success
+    @retval true  Problem parsing the column
+*/
+bool parse_user_attributes(THD *thd, TABLE *table,
+                           User_table_schema *table_schema,
+                           Acl_user_attributes &user_attributes) {
+  const Json_object *json_object;
+  Json_wrapper json_wrapper;
+  if (!table->field[table_schema->user_attributes_idx()]->is_null()) {
+    if ((down_cast<Field_json *>(
+             table->field[table_schema->user_attributes_idx()])
+             ->val_json(&json_wrapper)))
+      return true;
+
+    Json_dom *json_dom = json_wrapper.to_dom(thd);
+    if (!json_dom || json_dom->json_type() != enum_json_type::J_OBJECT)
+      return true;
+
+    json_object = down_cast<const Json_object *>(json_dom);
+    if (user_attributes.deserialize(*json_object)) return true;
+  }
+  return false;
+}
+}  // namespace
+
+Acl_table_user_writer_status::Acl_table_user_writer_status(MEM_ROOT *mem_root)
     : skip_cache_update(true),
       updated_rights(NO_ACCESS),
-      error(CRITICAL_ERROR),
-      password_change_timestamp(BEGIN_TIMESTAMP),
-      second_cred(empty_string) {}
+      error(consts::CRITICAL_ERROR),
+      password_change_timestamp(consts::BEGIN_TIMESTAMP),
+      second_cred(consts::empty_string),
+      restrictions(mem_root) {}
 
 /**
   mysql.user table writer constructor
@@ -172,17 +345,20 @@ Acl_table_user_writer_status::Acl_table_user_writer_status()
   @param [in] revoke_grant     If its REVOKE statement
   @param [in] can_create_user  Whether user has ability to create new user
   @param [in] what_to_update   Things to be updated
+  @param [in] restrictions     Restrictions of the user, if there is any
 */
 Acl_table_user_writer::Acl_table_user_writer(
     THD *thd, TABLE *table, LEX_USER *combo, ulong rights, bool revoke_grant,
-    bool can_create_user, Pod_user_what_to_update what_to_update)
+    bool can_create_user, Pod_user_what_to_update what_to_update,
+    Restrictions *restrictions)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_INSERT),
       m_combo(combo),
       m_rights(rights),
       m_revoke_grant(revoke_grant),
       m_can_create_user(can_create_user),
       m_what_to_update(what_to_update),
-      m_table_schema(nullptr) {
+      m_table_schema(nullptr),
+      m_restrictions(restrictions) {
   if (table) {
     User_table_schema_factory user_table_schema_factory;
     m_table_schema = user_table_schema_factory.get_user_table_schema(table);
@@ -205,8 +381,8 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   bool update_password = (m_what_to_update.m_what & PLUGIN_ATTR);
   Table_op_error_code error;
   LEX *lex = m_thd->lex;
-  Acl_table_user_writer_status return_value;
-  Acl_table_user_writer_status err_return_value;
+  Acl_table_user_writer_status return_value(m_thd->mem_root);
+  Acl_table_user_writer_status err_return_value(m_thd->mem_root);
 
   DBUG_ENTER("acl_table_user_writer_status Acl_table_user_writer::driver");
   DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
@@ -220,7 +396,8 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   if (m_operation == Acl_table_operation::OP_UPDATE) {
     if ((lex->sql_command != SQLCOM_ALTER_USER) && !m_rights &&
         lex->ssl_type == SSL_TYPE_NOT_SPECIFIED && !lex->mqh.specified_limits &&
-        !m_revoke_grant && (!builtin_plugin || !update_password)) {
+        !m_revoke_grant && (!builtin_plugin || !update_password) &&
+        !m_restrictions) {
       DBUG_PRINT("info", ("Dynamic privileges exit path"));
       /*
         At this point, even though there is no error,
@@ -283,7 +460,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
       uchar user_key[MAX_KEY_LENGTH];
       Acl_table_intact table_intact(m_thd);
       LEX_CSTRING old_plugin;
-      error = CRITICAL_ERROR;
+      error = consts::CRITICAL_ERROR;
       builtin_plugin = false;
       if (table_intact.check(m_table, ACL_TABLES::TABLE_USER)) return true;
 
@@ -369,7 +546,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
 
         if (!find_acl_user(m_combo->host.str, m_combo->user.str, false)) {
           my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-          error = CRITICAL_ERROR;
+          error = consts::CRITICAL_ERROR;
           return true;
         }
 
@@ -429,7 +606,7 @@ Acl_table_op_status Acl_table_user_writer::finish_operation(
       if (out_error) {
         if (!m_table->file->is_ignorable_error(out_error)) {
           acl_print_ha_error(out_error);
-          out_error = CRITICAL_ERROR;
+          out_error = consts::CRITICAL_ERROR;
           return Acl_table_op_status::OP_ERROR_CRITICAL;
         }
       }
@@ -452,7 +629,7 @@ Acl_table_op_status Acl_table_user_writer::finish_operation(
                         out_error = HA_ERR_LOCK_DEADLOCK;);
         if (out_error && out_error != HA_ERR_RECORD_IS_THE_SAME) {
           acl_print_ha_error(out_error);
-          out_error = CRITICAL_ERROR;
+          out_error = consts::CRITICAL_ERROR;
           return Acl_table_op_status::OP_ERROR_CRITICAL;
         } else
           out_error = 0;
@@ -858,39 +1035,6 @@ bool Acl_table_user_writer::update_password_require_current() {
 }
 
 /**
-  Helper function to parse mysql.user.user_attributes column
-
-  @param [in]  thd             Thread handle
-  @param [in]  table           Handle to mysql.user table
-  @param [in]  table_schema    mysql.user schema version
-  @param [out] user_attributes Deserialized user attributes
-
-  @returns status of parsing user_attributes column
-    @retval false Success
-    @retval true  Problem parsing the column
-*/
-static bool parse_user_attributes(THD *thd, TABLE *table,
-                                  User_table_schema *table_schema,
-                                  Acl_user_attributes &user_attributes) {
-  const Json_object *json_object;
-  Json_wrapper json_wrapper;
-  if (!table->field[table_schema->user_attributes_idx()]->is_null()) {
-    if ((down_cast<Field_json *>(
-             table->field[table_schema->user_attributes_idx()])
-             ->val_json(&json_wrapper)))
-      return true;
-
-    Json_dom *json_dom = json_wrapper.to_dom(thd);
-    if (!json_dom || json_dom->json_type() != enum_json_type::J_OBJECT)
-      return true;
-
-    json_object = down_cast<const Json_object *>(json_dom);
-    if (user_attributes.deserialize(*json_object)) return true;
-  }
-  return false;
-}
-
-/**
   User_attributes updates
 
   Raises error in DA if mysql.user table does not have
@@ -906,7 +1050,9 @@ bool Acl_table_user_writer::update_user_attributes(
     if (m_table->s->fields >= m_table_schema->user_attributes_idx()) {
       /* Attributes that can only be updated for existing users */
       if (m_operation == Acl_table_operation::OP_UPDATE) {
-        Acl_user_attributes user_attributes;
+        Auth_id auth_id(std::make_pair(m_combo->user, m_combo->host));
+        Acl_user_attributes user_attributes(m_thd->mem_root, false, auth_id,
+                                            m_restrictions);
         if (parse_user_attributes(m_thd, m_table, m_table_schema,
                                   user_attributes))
           return true;
@@ -926,7 +1072,12 @@ bool Acl_table_user_writer::update_user_attributes(
             USER_ATTRIBUTE_DISCARD_PASSWORD) {
           /* We don't care if element was present or not */
           user_attributes.discard_additional_password();
-          return_value.second_cred = empty_string;
+          return_value.second_cred = consts::empty_string;
+        }
+
+        /* Update restrictions */
+        if (m_what_to_update.m_user_attributes & USER_ATTRIBUTE_RESTRICTIONS) {
+          user_attributes.update_restrictions(*m_restrictions);
         }
 
         /* Update the column */
@@ -946,6 +1097,7 @@ bool Acl_table_user_writer::update_user_attributes(
             m_table->field[m_table_schema->user_attributes_idx()]->set_null();
           }
         }
+        return_value.restrictions = user_attributes.get_restrictions();
       }
       /*
         At present we don't have any user attributes that can be set while
@@ -1012,6 +1164,7 @@ std::string Acl_table_user_writer::get_current_credentials() {
 Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
     : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ) {
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
+  m_restrictions = new Restrictions(&m_mem_root);
 }
 
 /**
@@ -1019,6 +1172,7 @@ Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
 */
 Acl_table_user_reader::~Acl_table_user_reader() {
   if (m_table_schema) delete m_table_schema;
+  if (m_restrictions) delete m_restrictions;
   free_root(&m_mem_root, MYF(0));
 }
 
@@ -1548,7 +1702,12 @@ void Acl_table_user_reader::read_password_require_current(ACL_USER &user) {
 bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
   /* Read user_attributes field */
   if (m_table->s->fields > m_table_schema->user_attributes_idx()) {
-    Acl_user_attributes user_attributes;
+    Auth_id auth_id(user.user ? user.user : "",
+                    user.user ? strlen(user.user) : 0,
+                    user.host.get_host() ? user.host.get_host() : "",
+                    user.host.get_host() ? strlen(user.host.get_host()) : 0);
+    Acl_user_attributes user_attributes(&m_mem_root, true, auth_id,
+                                        user.access);
     if (!m_table->field[m_table_schema->user_attributes_idx()]->is_null()) {
       if (parse_user_attributes(m_thd, m_table, m_table_schema,
                                 user_attributes)) {
@@ -1598,6 +1757,7 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       // user_attributes column is NULL. So use suitable defaults.
       user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
     }
+    *m_restrictions = user_attributes.get_restrictions();
   } else {
     user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
   }
@@ -1639,7 +1799,7 @@ void Acl_table_user_reader::add_row_to_acl_users(ACL_USER &user) {
                     user.ssl_cipher, user.x509_issuer, user.x509_subject,
                     &user.user_resource, user.access, user.plugin, auth,
                     second_auth, user.password_last_changed, password_life,
-                    false);
+                    false, *m_restrictions);
 }
 
 /**
@@ -1700,6 +1860,7 @@ bool Acl_table_user_reader::driver() {
   if (setup_table(is_old_db_layout)) DBUG_RETURN(true);
   allow_all_hosts = 0;
   int read_rec_errcode;
+  num_partial_revokes = 0;
   while (!(read_rec_errcode = m_read_record_info->Read())) {
     if (read_row(is_old_db_layout, super_users_with_empty_plugin))
       DBUG_RETURN(true);
@@ -1731,6 +1892,7 @@ bool Acl_table_user_reader::driver() {
   @param [in] can_create_user  Set true if it's allowed to create user
   @param [in] what_to_update   Bitmap indicating which attributes need to be
                                updated.
+  @param [in] restrictions     Restrictions handle if there is any
 
   @return  Operation result
   @retval  0    OK.
@@ -1741,10 +1903,12 @@ bool Acl_table_user_reader::driver() {
 
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
-                       acl_table::Pod_user_what_to_update &what_to_update) {
-  acl_table::Acl_table_user_writer user_table(
-      thd, table, combo, rights, revoke_grant, can_create_user, what_to_update);
-  acl_table::Acl_table_user_writer_status return_value;
+                       acl_table::Pod_user_what_to_update &what_to_update,
+                       Restrictions *restrictions /*= nullptr*/) {
+  acl_table::Acl_table_user_writer user_table(thd, table, combo, rights,
+                                              revoke_grant, can_create_user,
+                                              what_to_update, restrictions);
+  acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
 
   DBUG_ENTER("replace_user_table");
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
@@ -1776,12 +1940,13 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                       &lex->mqh, return_value.updated_rights, combo->plugin,
                       combo->auth, return_value.second_cred,
                       password_change_time, combo->alter_status,
-                      what_to_update);
+                      return_value.restrictions, what_to_update);
     else
       acl_insert_user(thd, combo->user.str, combo->host.str, lex->ssl_type,
                       lex->ssl_cipher, lex->x509_issuer, lex->x509_subject,
                       &lex->mqh, return_value.updated_rights, combo->plugin,
-                      combo->auth, password_change_time, combo->alter_status);
+                      combo->auth, password_change_time, combo->alter_status,
+                      return_value.restrictions);
   }
   DBUG_RETURN(return_value.error);
 }

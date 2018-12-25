@@ -86,6 +86,7 @@ CREATE USER grant_plug_dest IDENTIFIED BY 'grant_plug_dest_passwd';
 CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 # ALL PRIVILEGES doesn't include PROXY
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
+REVOKE SYSTEM_USER ON *.* FROM grant_plug;
 ERROR 28000: Access denied for user 'grant_plug'@'localhost' (using password: YES)
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',PROXY ON grant_plug_dest TO grant_plug' at line 1

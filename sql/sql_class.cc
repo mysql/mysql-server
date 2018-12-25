@@ -536,6 +536,7 @@ THD::THD(bool enable_plugins)
   m_binlog_invoker = false;
   memset(&m_invoker_user, 0, sizeof(m_invoker_user));
   memset(&m_invoker_host, 0, sizeof(m_invoker_host));
+  memset(&m_active_roles, 0, sizeof(m_active_roles));
 
   binlog_next_event_pos.file_name = NULL;
   binlog_next_event_pos.pos = 0;

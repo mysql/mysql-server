@@ -97,6 +97,7 @@ using std::move;
 using std::string;
 using std::unique_ptr;
 
+size_t num_partial_revokes = 0;
 PSI_mutex_key key_LOCK_acl_cache_flush;
 PSI_mutex_info all_acl_cache_mutexes[] = {
     {&key_LOCK_acl_cache_flush, "LOCK_acl_cache_flush", PSI_FLAG_SINGLETON, 0,
@@ -161,8 +162,26 @@ bool allow_all_hosts = 1;
 uint grant_version = 0; /* Version of priv tables */
 bool validate_user_plugins = true;
 
+std::atomic<bool> wildcard_db_grants;
+
+bool wildcard_db_grant_exists() {
+  return wildcard_db_grants.load(std::memory_order_relaxed);
+}
+
+void set_wildcard_db_grants(bool value) {
+  wildcard_db_grants.store(value, std::memory_order_relaxed);
+}
+
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
+
+/**
+  Allocates the memory in the the global_acl_memory MEM_ROOT.
+*/
+void init_acl_memory() {
+  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE,
+                 0);
+}
 
 /**
   Add an internal schema to the registry.
@@ -301,6 +320,8 @@ ACL_USER::ACL_USER() {
   use_default_password_reuse_interval = false;
   password_require_current = Lex_acl_attrib_udyn::DEFAULT;
   /* Acl_credentials is initialized by its constructor */
+  acl_restrictions =
+      new (&global_acl_memory) Acl_restrictions(&global_acl_memory);
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
@@ -332,7 +353,14 @@ ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
   }
   dst->host.update_hostname(safe_strdup_root(root, host.get_host()));
   dst->password_require_current = password_require_current;
+  dst->acl_restrictions = new (root) Acl_restrictions(root);
+  dst->acl_restrictions->m_restrictions = acl_restrictions->m_restrictions;
   return dst;
+}
+
+const Restrictions &ACL_USER::restrictions() const {
+  DBUG_ASSERT(acl_restrictions != nullptr);
+  return acl_restrictions->m_restrictions;
 }
 
 void ACL_PROXY_USER::init(const char *host_arg, const char *user_arg,
@@ -1343,7 +1371,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
           }
         }  // end if
       }    // end for
-      sctx->set_master_access(acl_user->access);
+      sctx->set_master_access(acl_user->access, acl_user->restrictions());
     }  // end if
     sctx->assign_priv_user(user, user ? strlen(user) : 0);
     sctx->assign_priv_host(
@@ -1356,7 +1384,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
 
   if (acl_user && sctx->get_active_roles()->size() > 0) {
     sctx->checkout_access_maps();
-    ulong db_acl = sctx->db_acl({db, strlen(db)});
+    ulong db_acl = db ? sctx->db_acl({db, strlen(db)}) : 0;
     sctx->cache_current_db_access(db_acl);
   }
   DBUG_RETURN(res);
@@ -1573,6 +1601,52 @@ void clean_user_cache() {
   acl_users->clear();
 }
 
+/**
+  Checks related to partial reovkes and inconsistency in DB grants.
+  Sets appropriate flags if required.
+
+  @param [in] user     User name
+  @param [in] host     Host name
+  @param [in] db       Database name
+  @param [in] db_privs Privileges
+
+  @returns if entry is to be ignored or note
+    @retval true  Skip adding entry to cache
+    @retval false Add enty to cache
+*/
+bool check_partial_revoke_inconsistency(const char *user, const char *host,
+                                        const char *db, ulong db_privs) {
+  DBUG_ENTER("check_partial_revoke_inconsistency");
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  bool ignore = false;
+  ACL_USER *acl_user = find_acl_user(host ? host : "", user ? user : "", true);
+  if (!acl_user) DBUG_RETURN(ignore);
+  auto &restrictions = acl_user->acl_restrictions->m_restrictions.db();
+  for (auto &db_entry : restrictions.get()) {
+    if (!wild_compare(db_entry.first.c_str(), (int)db_entry.first.length(),
+                      db ? db : "", db ? strlen(db) : 0, true)) {
+      if (db_entry.second & db_privs)
+        LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT,
+               user ? user : "", host ? host : "%", db ? db : "");
+      break;
+    }
+  }
+
+  std::string db_name(db);
+  bool wildcard_db_grant = has_wildcards_in_db_grant(db_name);
+  if (db && wildcard_db_grant) {
+    if (mysqld_partial_revokes()) {
+      LogErr(WARNING_LEVEL,
+             ER_WARN_WILDCARD_DB_GRANT_IGNORED_WITH_PARTIAL_REVOKES,
+             db ? db : "", user ? user : "", host ? host : "%");
+      ignore = true;
+    } else {
+      set_wildcard_db_grants(true);
+    }
+  }
+  DBUG_RETURN(ignore);
+}
+
 /*
   Initialize structures responsible for user/db-level privilege checking
   and load information about grants from open privilege tables.
@@ -1615,9 +1689,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   grant_version++; /* Privileges updated */
 
   clear_and_init_db_cache();  // Clear locked hostname cache
-
-  init_sql_alloc(key_memory_acl_mem, &global_acl_memory, ACL_ALLOC_BLOCK_SIZE,
-                 0);
+  init_acl_memory();          // Allocate the memory blocks in the MEM_ROOT
 
   if (read_user_table(thd, tables[0].table)) goto end;
 
@@ -1629,6 +1701,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     goto end;
   table->use_all_columns();
   acl_dbs->clear();
+  set_wildcard_db_grants(false);
   int read_rec_errcode;
   while (!(read_rec_errcode = read_record_info->Read())) {
     /* Reading record in mysql.db */
@@ -1667,6 +1740,9 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
       if (db.access & CREATE_ACL)
         db.access |= REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
     }
+    if (check_partial_revoke_inconsistency(db.user, db.host.get_host(), db.db,
+                                           db.access))
+      continue;
     acl_dbs->push_back(db);
   }  // END reading records from mysql.db tables
 
@@ -1737,7 +1813,6 @@ void free_name_to_userlist() {
 }
 
 void acl_free(bool end /*= false*/) {
-  free_root(&global_acl_memory, MYF(0));
   free_name_to_userlist();
   delete acl_users;
   acl_users = NULL;
@@ -1760,6 +1835,7 @@ void acl_free(bool end /*= false*/) {
       acl_cache_initialized = false;
     }
   }
+  free_root(&global_acl_memory, MYF(0));
 }
 
 bool check_engine_type_for_acl_table(THD *thd) {
@@ -1910,6 +1986,7 @@ bool acl_reload(THD *thd) {
   Role_index_map *old_authid_to_vertex = nullptr;
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   User_to_dynamic_privileges_map *old_dyn_priv_map;
+  size_t old_num_partial_revokes = num_partial_revokes;
   DBUG_ENTER("acl_reload");
 
   // Interchange the global role cache ptrs with the local role cache ptrs.
@@ -1990,7 +2067,6 @@ bool acl_reload(THD *thd) {
   old_acl_users = acl_users;
   old_acl_dbs = acl_dbs;
   old_acl_proxy_users = acl_proxy_users;
-
   swap_role_cache();
   roles_init();
 
@@ -2025,6 +2101,7 @@ bool acl_reload(THD *thd) {
     acl_dbs = old_acl_dbs;
     acl_proxy_users = old_acl_proxy_users;
     global_acl_memory = move(old_mem);
+    num_partial_revokes = old_num_partial_revokes;
     // Revert to the old role caches
     swap_role_cache();
     // Old caches must be pointing to the global role caches right now
@@ -2033,15 +2110,15 @@ bool acl_reload(THD *thd) {
     init_check_host();
     delete swap_dynamic_privileges_map(old_dyn_priv_map);
     if (!old_dyn_priv_map) dynamic_privileges_init();
-    rebuild_cached_acl_users_for_name();
+    if (acl_users) rebuild_cached_acl_users_for_name();
   } else {
-    free_root(&old_mem, MYF(0));
     delete old_acl_users;
     delete old_acl_dbs;
     delete old_acl_proxy_users;
     delete old_dyn_priv_map;
     // Delete the old role caches
     delete_old_role_cache();
+    free_root(&old_mem, MYF(0));
   }
 
 end:
@@ -2104,6 +2181,11 @@ bool grant_init(bool skip_grant_tables) {
   if (return_val && thd->get_stmt_da()->is_error())
     LogErr(ERROR_LEVEL, ER_AUTHCACHE_CANT_INIT_GRANT_SUBSYSTEM,
            thd->get_stmt_da()->message_text());
+
+  if (opt_mandatory_roles.length > 0) {
+    return_val |= check_authorization_id_string(thd, opt_mandatory_roles.str,
+                                                opt_mandatory_roles.length);
+  }
 
   thd->release_resources();
   delete thd;
@@ -2462,7 +2544,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
                      ulong privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth, const std::string &second_auth,
                      const MYSQL_TIME &password_change_time,
-                     const LEX_ALTER &password_life,
+                     const LEX_ALTER &password_life, Restrictions &restrictions,
                      acl_table::Pod_user_what_to_update &what_to_update) {
   DBUG_ENTER("acl_update_user");
   DBUG_ASSERT(assert_acl_cache_write_lock(current_thd));
@@ -2586,6 +2668,23 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           acl_user->password_require_current =
               password_life.update_password_require_current;
         }
+        {
+          Restrictions &user_restrictions =
+              acl_user->acl_restrictions->m_restrictions;
+          if (restrictions.db().is_not_empty()) {
+            if (user_restrictions.db().is_empty()) ++num_partial_revokes;
+            /* If there is restriction list then add that to the global cache */
+            user_restrictions.set_db(restrictions.db());
+          } else {
+            /*
+              No restriction list means we would want to remove that from global
+              cache as well
+            */
+            if (user_restrictions.db().is_not_empty()) --num_partial_revokes;
+            user_restrictions.clear_db();
+          }
+        }
+
         /* search complete: */
         break;
       }
@@ -2601,7 +2700,8 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                        ulong privileges, const LEX_CSTRING &plugin,
                        const LEX_CSTRING &auth, const LEX_CSTRING &second_auth,
                        const MYSQL_TIME &password_change_time,
-                       const LEX_ALTER &password_life, bool add_role_vertex) {
+                       const LEX_ALTER &password_life, bool add_role_vertex,
+                       Restrictions &restrictions) {
   DBUG_ENTER("acl_users_add_one");
   ACL_USER acl_user;
 
@@ -2685,6 +2785,11 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
         password_life.update_password_require_current;
   }
 
+  if (restrictions.db().size()) {
+    acl_user.acl_restrictions->m_restrictions = restrictions;
+    ++num_partial_revokes;
+  }
+
   set_user_salt(&acl_user);
   /* New user is not a role by default. */
   acl_user.is_role = false;
@@ -2708,11 +2813,12 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                      ulong privileges, const LEX_CSTRING &plugin,
                      const LEX_CSTRING &auth,
                      const MYSQL_TIME &password_change_time,
-                     const LEX_ALTER &password_life) {
+                     const LEX_ALTER &password_life,
+                     Restrictions &restrictions) {
   DBUG_ENTER("acl_insert_user");
   acl_users_add_one(thd, user, host, ssl_type, ssl_cipher, x509_issuer,
                     x509_subject, mqh, privileges, plugin, auth, EMPTY_CSTR,
-                    password_change_time, password_life, true);
+                    password_change_time, password_life, true, restrictions);
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   rebuild_cached_acl_users_for_name();
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -2881,15 +2987,19 @@ bool create_acl_cache_hash_key(uchar **out_key, unsigned *key_len,
   for (; it != active_roles.end(); ++it) {
     active_roles_size += it->first.length + it->second.length + 2;
   }
-  *key_len = uid.first.length + uid.second.length + 2 + sizeof(uint64) +
+  auto auth_id(uid);
+  *key_len = auth_id.first.length + auth_id.second.length + 2 + sizeof(uint64) +
              active_roles_size;
   *out_key =
       (uchar *)my_malloc(key_memory_acl_map_cache, *key_len, MYF(MY_WME));
   if (out_key == NULL) return false;
-  memcpy(*out_key, uid.first.str, uid.first.length);
+  auth_id.first.str = auth_id.first.str ? auth_id.first.str : "";
+  auth_id.second.str = auth_id.second.str ? auth_id.second.str : "";
+  memcpy(*out_key, auth_id.first.str, auth_id.first.length);
   *(*out_key + uid.first.length) = '@';
-  memcpy(*out_key + uid.first.length + 1, uid.second.str, uid.second.length);
-  uint offset = uid.first.length + uid.second.length + 1;
+  memcpy(*out_key + auth_id.first.length + 1, auth_id.second.str,
+         auth_id.second.length);
+  uint offset = auth_id.first.length + auth_id.second.length + 1;
   /* Separator between version and role */
   *(*out_key + offset) = '`';
   ++offset;
@@ -2930,7 +3040,7 @@ Acl_cache::~Acl_cache() {
 }
 
 Acl_map::Acl_map(Security_context *sctx, uint64 ver)
-    : m_reference_count(0), m_version(ver) {
+    : m_reference_count(0), m_version(ver), m_restrictions(nullptr) {
   DBUG_ENTER("Acl_map::Acl_map");
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -2941,9 +3051,9 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
     DBUG_VOID_RETURN;
   }
   m_global_acl = 0;
-  const ACL_USER *acl_user =
+  ACL_USER *acl_user =
       find_acl_user(sctx->priv_host().str, sctx->priv_user().str, true);
-  if (acl_user == 0) {
+  if (acl_user == nullptr) {
     DBUG_PRINT("error", ("Acl_map could not be constructed for user %s@%s => "
                          "No such user",
                          sctx->priv_user().str, sctx->priv_host().str));
@@ -2951,9 +3061,9 @@ Acl_map::Acl_map(Security_context *sctx, uint64 ver)
   }
   List_of_granted_roles granted_roles;
   get_privilege_access_maps(
-      const_cast<ACL_USER *>(acl_user), sctx->get_active_roles(), &m_global_acl,
-      &m_db_acls, &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls,
-      &granted_roles, &m_with_admin_acls, &m_dynamic_privileges);
+      acl_user, sctx->get_active_roles(), &m_global_acl, &m_db_acls,
+      &m_db_wild_acls, &m_table_acls, &m_sp_acls, &m_func_acls, &granted_roles,
+      &m_with_admin_acls, &m_dynamic_privileges, m_restrictions);
   DBUG_VOID_RETURN;
 }
 
@@ -2961,12 +3071,9 @@ Acl_map::~Acl_map() {
   // Db_access_map is automatically destroyed and cleaned up.
 }
 
-Acl_map::Acl_map(const Acl_map &) {
-  // An Acl_map should not be copied
-  DBUG_ASSERT(false);
+Acl_map::Acl_map(const Acl_map &&map) : m_restrictions(nullptr) {
+  operator=(map);
 }
-
-Acl_map::Acl_map(const Acl_map &&map) { operator=(map); }
 
 Acl_map &Acl_map::operator=(Acl_map &&map) {
   m_db_acls = move(map.m_db_acls);
@@ -2977,6 +3084,7 @@ Acl_map &Acl_map::operator=(Acl_map &&map) {
   m_func_acls = move(map.m_func_acls);
   m_with_admin_acls = move(map.m_with_admin_acls);
   m_version = map.m_version;
+  m_restrictions = map.m_restrictions;
   map.m_reference_count = 0;
   return *this;
 }
@@ -3000,6 +3108,8 @@ SP_access_map *Acl_map::func_acls() { return &m_func_acls; }
 Dynamic_privileges *Acl_map::dynamic_privileges() {
   return &m_dynamic_privileges;
 }
+
+Restrictions &Acl_map::restrictions() { return m_restrictions; }
 
 void Acl_map::increase_reference_count() { ++m_reference_count; }
 
@@ -3392,4 +3502,23 @@ bool ACL_compare::operator()(const ACL_ACCESS &a, const ACL_ACCESS &b) {
 */
 bool ACL_compare::operator()(const ACL_ACCESS *a, const ACL_ACCESS *b) {
   return a->sort > b->sort;
+}
+
+bool is_partial_revoke_exists(THD *thd) {
+  bool partial_revoke = false;
+  if (thd) {
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(false)) {
+      return true;
+    }
+    partial_revoke = (num_partial_revokes > 0);
+  } else {
+    /*
+      We need to determine the number of partial revokes at the time of server
+      start. In that case thd(s) is not be available so it is safe to determine
+      the number of partial revokes without lock.
+    */
+    partial_revoke = (num_partial_revokes > 0);
+  }
+  return partial_revoke;
 }

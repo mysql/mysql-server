@@ -142,12 +142,17 @@ bool check_change_password(THD *thd, const char *host, const char *user,
       my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
       return true;
     }
-    if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0)) return (1);
+    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1, 0))
+      return (true);
+
+    if (sctx->can_operate_with({user, host}, consts::system_user))
+      return (true);
   }
 
   if (retain_current_password) {
-    if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
-        !(sctx->check_access(CREATE_USER_ACL)) &&
+    if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
+                     1) &&
+        !(sctx->check_access(CREATE_USER_ACL, consts::mysql)) &&
         !(sctx->has_global_grant(STRING_WITH_LEN("APPLICATION_PASSWORD_ADMIN"))
               .first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
@@ -829,6 +834,8 @@ bool set_and_validate_user_attributes(
 
   what_to_set.m_what = NONE_ATTR;
   what_to_set.m_user_attributes = acl_table::USER_ATTRIBUTE_NONE;
+  DBUG_ASSERT(assert_acl_cache_read_lock(thd) ||
+              assert_acl_cache_write_lock(thd));
 
   if (history_check_done) *history_check_done = false;
   /* update plugin,auth str attributes */
@@ -1550,6 +1557,9 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
             my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
             DBUG_RETURN(-1);
           }
+          const DB_restrictions &db_restrictions =
+              acl_user->acl_restrictions->m_restrictions.db();
+          if (db_restrictions.is_not_empty()) --num_partial_revokes;
           acl_users->erase(idx);
           rebuild_cached_acl_users_for_name();
           /*
@@ -1894,6 +1904,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   DBUG_ENTER("mysql_create_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -1907,6 +1918,11 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     DBUG_RETURN(result != 1);
 
   if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
@@ -2100,6 +2116,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   std::vector<Role_id> mandatory_roles;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2113,6 +2130,11 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
     DBUG_RETURN(result != 1);
 
   if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
@@ -2220,11 +2242,14 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
   LEX_USER *user_to, *tmp_user_to;
   List_iterator<LEX_USER> user_list(list);
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
+  std::unique_ptr<Security_context> orig_sctx = nullptr;
   bool transactional_tables;
   DBUG_ENTER("mysql_rename_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock()) DBUG_RETURN(true);
+
+  if (check_system_user_privilege(thd, list)) DBUG_RETURN(true);
 
   /* Is this auth id a role id? */
   {
@@ -2315,6 +2340,15 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     roles_rename_authid(thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
                         tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table,
                         user_from, user_to);
+    /* Update the security context if user renames self */
+    if (do_update_sctx(thd->security_context(), user_from)) {
+      /* Keep a copy of original security context if not done already */
+      if (orig_sctx == nullptr) {
+        orig_sctx = std::make_unique<Security_context>();
+        *(orig_sctx.get()) = *(thd->security_context());
+      }
+      update_sctx(thd->security_context(), tmp_user_to);
+    }
   }
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -2328,7 +2362,18 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     result =
         populate_roles_caches(thd, (tables + ACL_TABLES::TABLE_ROLE_EDGES));
 
+  /*
+    Restore the orignal security context temporarily because binlog must
+    write the original definer/invoker in the binlog in order for slave
+    to work
+  */
+  Security_context *current_sctx = thd->security_context();
+  current_sctx->restore_security_context(thd, orig_sctx.get());
+
   result = log_and_commit_acl_ddl(thd, transactional_tables);
+
+  /* Restore the updated security context */
+  current_sctx->restore_security_context(thd, current_sctx);
 
   {
     /* Notify audit plugin. We will ignore the return value. */
@@ -2382,6 +2427,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   DBUG_ENTER("mysql_alter_user");
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The binlog state will be cleared here to
@@ -2394,6 +2440,11 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     DBUG_RETURN(result != 1);
 
   if (!acl_cache_lock.lock()) {
+    commit_and_close_mysql_tables(thd);
+    DBUG_RETURN(true);
+  }
+
+  if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }

@@ -84,6 +84,8 @@ class Memroot_allocator {
 
   explicit Memroot_allocator(MEM_ROOT *memroot) : m_memroot(memroot) {}
 
+  explicit Memroot_allocator() : m_memroot(nullptr) {}
+
   template <class U>
   Memroot_allocator(const Memroot_allocator<U> &other)
       : m_memroot(other.memroot()) {}

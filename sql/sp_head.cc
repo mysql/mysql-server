@@ -3357,7 +3357,7 @@ bool sp_head::check_show_access(THD *thd, bool *full_access) {
     WL#9049.
   */
   *full_access =
-      (thd->security_context()->check_access(SELECT_ACL) ||
+      (thd->security_context()->check_access(SELECT_ACL, m_db.str) ||
        (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
         !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 

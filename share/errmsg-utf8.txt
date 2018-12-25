@@ -8769,6 +8769,9 @@ ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
   eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
+ER_CLIENT_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY
+  eng "mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18887,12 +18890,50 @@ ER_PREPARE_FOR_SECONDARY_ENGINE
 
 ER_SERVER_WARN_DEPRECATED
   eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
+ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+  eng "Cannot set mandatory_roles: AuthId `%.64s`@`%.64s` has '%s' privilege."
 
 ER_SERVER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
   eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
 
 ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
   eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+
+ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+  eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
+
+ER_PARTIAL_REVOKE_AND_DB_GRANT_BOTH_EXISTS
+  eng "'%s' privilege for database '%s' exists both as partial revoke and mysql.db simultaneously. It could mean 'mysql' schema is corrupted."
+
+ER_DB_ACCESS_DENIED
+  eng "Access denied for AuthId `%.64s`@`%.64s` to database '%-.192s'."
+
+ER_PARTIAL_REVOKES_EXIST
+  eng "At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON."
+
+ER_TURNING_ON_PARTIAL_REVOKES
+  eng "At least one partial revoke exists on a database. Turning ON the system variable '@@partial_revokes'."
+
+ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT
+  eng "For user '%s'@'%s', one or more privileges granted through mysql.db for database '%s', conflict with partial revoke. It could mean 'mysql' schema is corrupted."
+
+ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS
+  eng "For user %s, ignored restrictions for privilege(s) '%s' for database '%s' as these are not valid database privileges."
+
+ER_WARN_INVALID_DB_RESTRICTIONS
+  eng "For user %s, ignored restrictions for privilege(s) '%s' for database '%s' as corresponding global privilege(s) are not granted."
+
+ER_NO_WILDCARD_DB_GRANT_WITH_PARTIAL_REVOKES
+  eng "Use of wildcards in database grant is not permitted because --partial_revokes is set to ON."
+
+ER_WILDCARD_DB_GRANT_CONFLICTS_WITH_PARTIAL_REVOKES
+  eng "Can not set --partial_revokes to ON at runtime if database grants with wildcard characters exists. Please remove such grants first."
+
+ER_WARN_WILDCARD_DB_GRANT_IGNORED_WITH_PARTIAL_REVOKES
+  eng "Ignored database grant with wildcard characters '%s' for user '%s'@'%s' because --partial_revokes is set to ON."
+
+ER_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY
+  eng "mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

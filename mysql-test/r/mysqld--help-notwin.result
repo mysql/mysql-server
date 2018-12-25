@@ -726,6 +726,8 @@ The following options may be given as the first argument:
  Offset of first optimizer trace to show; see manual
  --parser-max-mem-size=# 
  Maximum amount of memory available to the parser
+ --partial-revokes   Access of database objects can be restricted, even if
+ user has global privileges granted.
  --password-history=# 
  The number of old passwords to check in the history. Set
  to 0 (the default) to turn the checks off
@@ -1538,6 +1540,7 @@ optimizer-trace-limit 1
 optimizer-trace-max-mem-size 1048576
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
+partial-revokes FALSE
 password-history 0
 password-require-current FALSE
 password-reuse-interval 0

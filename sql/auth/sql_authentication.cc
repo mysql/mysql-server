@@ -3285,8 +3285,8 @@ int acl_authenticate(THD *thd, enum_server_command command) {
                           auth_user, acl_user->user));
       acl_cache_lock.unlock();
     }
-
-    sctx->set_master_access(acl_user->access);
+    sctx->set_master_access(acl_user->access,
+                            const_cast<ACL_USER *>(acl_user)->restrictions());
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
     /* Assign default role */
     {

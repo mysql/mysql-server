@@ -6,8 +6,8 @@
 
 --disable_warnings
 --disable_query_log
-DROP USER 'root'@'127.0.0.1';
 DROP USER 'root'@'::1';
+DROP USER 'root'@'127.0.0.1';
 
 if ($extra_root_users_for_slave)
 {

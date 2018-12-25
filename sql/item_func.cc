@@ -7544,7 +7544,7 @@ longlong Item_func_can_access_database::val_int() {
 
   // Check access
   Security_context *sctx = thd->security_context();
-  if (!(sctx->master_access() & (DB_ACLS | SHOW_DB_ACL) ||
+  if (!(sctx->master_access(schema_name_ptr->ptr()) & (DB_ACLS | SHOW_DB_ACL) ||
         acl_get(thd, sctx->host().str, sctx->ip().str, sctx->priv_user().str,
                 schema_name_ptr->ptr(), 0) ||
         !check_grant_db(thd, schema_name_ptr->ptr()))) {
@@ -7714,7 +7714,8 @@ longlong Item_func_can_access_routine::val_int() {
   char sp_user[USER_HOST_BUFF_SIZE];
   strxmov(sp_user, thd->security_context()->priv_user().str, "@",
           thd->security_context()->priv_host().str, NullS);
-  bool full_access = (thd->security_context()->check_access(SELECT_ACL) ||
+  bool full_access = (thd->security_context()->check_access(
+                          SELECT_ACL, schema_name_ptr->ptr()) ||
                       !strcmp(sp_user, definer_ptr->ptr()));
 
   if (check_full_access) {

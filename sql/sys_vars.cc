@@ -831,6 +831,53 @@ static Sys_var_bool Sys_password_require_current(
     "Current password is needed to be specified in order to change it",
     GLOBAL_VAR(password_require_current), CMD_LINE(OPT_ARG), DEFAULT(false));
 
+/**
+  Checks,
+  if there exists at least a partial revoke on a database at the time
+  of turning OFF the system variable "@@partial_revokes". If it does then
+  throw error.
+  if there exists at least a DB grant with wildcard entry at the time of
+  turning ON the system variable "@@partial_revokes". If it does then
+  throw error.
+
+  @retval true failure
+  @retval false success
+
+  @param self the system variable to set value for
+  @param thd the session context
+  @param setv the SET operations metadata
+*/
+static bool check_partial_revokes(sys_var *self, THD *thd, set_var *setv) {
+  if (is_partial_revoke_exists(thd) && setv->save_result.ulonglong_value == 0) {
+    my_error(ER_PARTIAL_REVOKES_EXIST, MYF(0), self->name.str);
+    return true;
+  }
+
+  if (setv->save_result.ulonglong_value == 1 && wildcard_db_grant_exists()) {
+    my_error(ER_WILDCARD_DB_GRANT_CONFLICTS_WITH_PARTIAL_REVOKES, MYF(0),
+             self->name.str);
+    return true;
+  }
+  return false;
+}
+
+/** Sets the changed value to the corresponding atomic system variable */
+static bool partial_revokes_update(sys_var *, THD *thd, enum_var_type) {
+  if (opt_partial_revokes)
+    push_warning(thd,
+                 ER_CLIENT_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY);
+  set_mysqld_partial_revokes(opt_partial_revokes);
+  return false;
+}
+
+static Sys_var_bool Sys_partial_revokes(
+    "partial_revokes",
+    "Access of database objects can be restricted, "
+    "even if user has global privileges granted.",
+    GLOBAL_VAR(opt_partial_revokes), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_partial_revokes),
+    ON_UPDATE(partial_revokes_update), 0, sys_var::PARSE_EARLY);
+
 static bool fix_binlog_cache_size(sys_var *, THD *thd, enum_var_type) {
   check_binlog_cache_size(thd);
   return false;
@@ -6086,7 +6133,7 @@ static bool sysvar_check_authid_string(sys_var *, THD *thd, set_var *var) {
     var->save_result.string_value.str = const_cast<char *>("");
     var->save_result.string_value.length = 0;
   }
-  return check_authorization_id_string(var->save_result.string_value.str,
+  return check_authorization_id_string(thd, var->save_result.string_value.str,
                                        var->save_result.string_value.length);
 }
 

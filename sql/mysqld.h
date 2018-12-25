@@ -253,6 +253,19 @@ extern char *mysql_home_ptr, *pidfile_name_ptr;
 extern char *default_auth_plugin;
 extern uint default_password_lifetime;
 extern volatile bool password_require_current;
+/*
+  @warning : The real value is in @ref partial_revokes. The @ref
+  opt_partial_revokes is just a tool to trick the Sys_var class into
+  operating on an atomic variable.
+
+  Thus : do not use or access @ref opt_partial_revokes in your code.
+         If you need the value of the flag please use the @ref partial_revokes
+         global.
+  @todo :
+    @ref opt_partial_revokes to be removed when the Sys_var classes can operate
+         safely on an atomic.
+ */
+extern bool opt_partial_revokes;
 extern char *my_bind_addr_str;
 extern char *my_admin_bind_addr_str;
 extern uint mysqld_admin_port;
@@ -738,6 +751,23 @@ inline bool mysqld_offline_mode() { return offline_mode.load(); }
   @param value true or false indicating the offline mode status of server.
 */
 inline void set_mysqld_offline_mode(bool value) { offline_mode.store(value); }
+
+/**
+  Get status partial_revokes on server
+
+  @return a bool indicating partial_revokes status of the server.
+    @retval true  Parital revokes is ON
+    @retval flase Partial revokes is OFF
+*/
+bool mysqld_partial_revokes();
+
+/**
+  Set partial_revokes with a given value
+
+  @param value true or false indicating the status of partial revokes
+               turned ON/OFF on server.
+*/
+void set_mysqld_partial_revokes(bool value);
 
 #ifdef _WIN32
 

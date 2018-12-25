@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef AUTH_ACLS_INCLUDED
 #define AUTH_ACLS_INCLUDED
+
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 /* Total Number of ACLs present in mysql.user */
 #define NUM_ACLS 31
@@ -63,6 +67,7 @@
   3. mysql_system_tables.sql and mysql_system_tables_fix.sql
   4. acl_init() or whatever - to define behaviour for old privilege tables
   5. sql_yacc.yy - for GRANT/REVOKE to work
+  6. global_privileges map and vector
 */
 
 #define NO_ACCESS (1L << 31)
@@ -148,4 +153,8 @@
 #define get_rights_for_procedure(A)                           \
   ((((A)&EXECUTE_ACL) >> 18) | (((A)&ALTER_PROC_ACL) >> 23) | \
    (((A)&GRANT_ACL) >> 8))
+
+extern const std::vector<std::string> global_acls_vector;
+extern const std::unordered_map<std::string, int> global_acls_map;
+
 #endif /* AUTH_ACLS_INCLUDED */

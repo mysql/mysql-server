@@ -534,6 +534,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
       res = true;
       goto err;
+    } else if (sctx->can_operate_with({lex->definer}, consts::system_user,
+                                      true)) {
+      res = true;
+      goto err;
     } else {
       if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
         push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
@@ -1537,15 +1541,20 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       For suid views prepare a security context for checking underlying
       objects of the view.
     */
-    if (!(view_ref->view_sctx = (Security_context *)thd->stmt_arena->mem_calloc(
-              sizeof(Security_context)))) {
+    try {
+      DBUG_ASSERT(thd->stmt_arena->mem_root);
+      void *view_sctx_memory =
+          alloc_root(thd->stmt_arena->mem_root, sizeof(Security_context));
+      if (view_sctx_memory == nullptr) {
+        result = true;
+        DBUG_RETURN(true);
+      }
+      view_ref->view_sctx = new (view_sctx_memory) Security_context();
+    } catch (...) {
       result = true;
       DBUG_RETURN(true);
     }
-    // TODO Do we need to initialize this context to get the correct active
-    // roles (ie the default roles)
     security_ctx = view_ref->view_sctx;
-    security_ctx->init();
     DBUG_PRINT("info",
                ("Allocated suid view. Active roles: %lu",
                 (ulong)view_ref->view_sctx->get_active_roles()->size()));
@@ -1651,6 +1660,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
     DBUG_RETURN(true);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  Security_context *sctx = thd->security_context();
 
   // First check which views exist
   String non_existant_views;
@@ -1718,6 +1728,16 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
 
     DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
                 at->type() == dd::enum_table_type::USER_VIEW);
+
+    const dd::View *vw = dynamic_cast<const dd::View *>(at);
+    DBUG_ASSERT(vw);
+    /*
+      If definer has the SYSTEM_USER privilege then invoker can drop view
+      only if latter also has same privilege.
+    */
+    Auth_id definer(vw->definer_user().c_str(), vw->definer_host().c_str());
+    if (sctx->can_operate_with(definer, consts::system_user, true))
+      DBUG_RETURN(true);
 
     Uncommitted_tables_guard uncommitted_tables(thd);
     /*

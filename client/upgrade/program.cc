@@ -174,7 +174,8 @@ class Program : public Base::Abstract_connection_program {
         "Table_name='user' "
         "UNION ALL "
         "SELECT COUNT(*) as count FROM mysql.db WHERE "
-        "Select_priv='Y' and User='mysql.session' and Db='performance_schema' "
+        "Select_priv='Y' and User='mysql.session' and Db in "
+        "('performance\\_schema', 'performance_schema') "
         "UNION ALL "
         "SELECT COUNT(*) as count FROM mysql.user WHERE "
         "Super_priv='Y' and User='mysql.session') as user_priv;",

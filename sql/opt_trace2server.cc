@@ -504,7 +504,8 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *) {
     without optimizer trace, a highly privileged user must always inspect the
     body of such object before invoking it.
   */
-  if (!(thd->security_context()->check_access(GLOBAL_ACLS & ~GRANT_ACL)) &&
+  if (!(thd->security_context()->check_access((GLOBAL_ACLS & ~GRANT_ACL),
+                                              tables->get_db_name())) &&
       (0 != strcmp(thd->m_main_security_ctx.priv_user().str,
                    thd->security_context()->priv_user().str) ||
        0 != my_strcasecmp(system_charset_info,

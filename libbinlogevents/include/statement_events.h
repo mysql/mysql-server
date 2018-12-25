@@ -517,7 +517,17 @@ class Query_event : public Binary_log_event {
     /*
       Replicate sql_require_primary_key.
     */
-    Q_SQL_REQUIRE_PRIMARY_KEY
+    Q_SQL_REQUIRE_PRIMARY_KEY,
+
+    /*
+      Replicate active roles
+    */
+    Q_ACTIVE_ROLES,
+
+    /*
+      Incompatible statement for mysqlbinlog utility
+    */
+    Q_CANT_REPLAY_WITH_MYSQLBINLOG
   };
   const char *query;
   const char *db;
@@ -632,6 +642,14 @@ class Query_event : public Binary_log_event {
   /* Default collation for the utf8mb4 set. Used in cross-version replication */
   uint16_t default_collation_for_utf8mb4_number;
   uint8_t sql_require_primary_key;
+
+  /* Active role information */
+  const char *active_roles;
+  size_t active_roles_len;
+
+  /* Incompatible for mysqlbinlog */
+  bool cant_replay_with_mysqlbinlog;
+
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.

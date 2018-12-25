@@ -1034,6 +1034,8 @@ std::atomic<bool> offline_mode;
 uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 volatile bool password_require_current = false;
+std::atomic<bool> partial_revokes;
+bool opt_partial_revokes;
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
@@ -6303,6 +6305,23 @@ int mysqld_main(int argc, char **argv)
     opt_noacl = true;
     LogErr(WARNING_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
   }
+
+  /*
+   if running with --initialize, explicitly allocate the memory
+   to be used by ACL objects.
+  */
+  if (opt_initialize) init_acl_memory();
+
+  /*
+    Turn ON the system variable '@@partial_revokes' during server
+    start in case there exist at least one restrictions instance.
+  */
+  if (mysqld_partial_revokes() == false && is_partial_revoke_exists(nullptr)) {
+    set_mysqld_partial_revokes(true);
+    LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY);
+    LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
+  }
+
   if (abort || my_tz_init((THD *)0, default_tz_name, opt_initialize) ||
       grant_init(opt_noacl)) {
     set_connection_events_loop_aborted(true);
@@ -8338,6 +8357,7 @@ static int mysql_init_variables() {
   opt_using_transactions = 0;
   set_connection_events_loop_aborted(false);
   set_mysqld_offline_mode(false);
+  set_mysqld_partial_revokes(opt_partial_revokes);
   server_operational_state = SERVER_BOOTING;
   aborted_threads = 0;
   delayed_insert_threads = delayed_insert_writes = delayed_rows_in_use = 0;
@@ -10582,3 +10602,24 @@ bool update_named_pipe_full_access_group(const char *new_group_name) {
 }
 
 #endif  // _WIN32
+
+/**
+  Get status partial_revokes on server
+
+  @return a bool indicating partial_revokes status of the server.
+    @retval true  Parital revokes is ON
+    @retval flase Partial revokes is OFF
+*/
+bool mysqld_partial_revokes() {
+  return partial_revokes.load(std::memory_order_relaxed);
+}
+
+/**
+  Set partial_revokes with a given value
+
+  @param value true or false indicating the status of partial revokes
+               turned ON/OFF on server.
+*/
+void set_mysqld_partial_revokes(bool value) {
+  partial_revokes.store(value, std::memory_order_relaxed);
+}

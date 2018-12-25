@@ -1,6 +1,6 @@
 # Tests for WL#8131
 # The test includes show_binlog_events.inc, which requires that
-# binlog is endabled. So we just run it when binlog is enabled.
+# binlog is enabled. So we just run it when binlog is enabled.
 --source include/have_log_bin.inc
 
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
@@ -484,6 +484,7 @@ PRIMARY KEY (USER,HOST,PRIV)
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 --source include/restart_mysqld.inc
 DROP USER u1@localhost;
 --echo # restore root privileges

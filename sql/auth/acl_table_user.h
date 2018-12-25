@@ -24,16 +24,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define ACL_TABLE_USER_INCLUDED
 
 #include "sql/auth/acl_table_base.h"
-#include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
-#include "sql/auth/sql_auth_cache.h"
-#include "sql/json_dom.h"
+#include "sql/auth/partial_revokes.h"
 
 namespace acl_table {
+enum class User_attribute_type { ADDITIONAL_PASSWORD = 0, RESTRICTIONS };
 
-typedef std::pair<Table_op_error_code, struct timeval>
-    acl_table_user_writer_status;
+// Forward and alias declarations
+using acl_table_user_writer_status =
+    std::pair<Table_op_error_code, struct timeval>;
 
 /**
   mysql.user table writer. It updates or drop a one single row from the table.
@@ -41,26 +41,31 @@ typedef std::pair<Table_op_error_code, struct timeval>
 
 class Acl_table_user_writer_status {
  public:
-  Acl_table_user_writer_status();
+  Acl_table_user_writer_status(MEM_ROOT *mem_root);
   Acl_table_user_writer_status(bool skip, ulong rights, Table_op_error_code err,
-                               struct timeval pwd_timestamp, std::string cred)
+                               struct timeval pwd_timestamp, std::string cred,
+                               MEM_ROOT *mem_root)
       : skip_cache_update(skip),
         updated_rights(rights),
         error(err),
         password_change_timestamp(pwd_timestamp),
-        second_cred(cred) {}
+        second_cred(cred),
+        restrictions(mem_root) {}
+
   bool skip_cache_update;
   ulong updated_rights;
   Table_op_error_code error;
   struct timeval password_change_timestamp;
   std::string second_cred;
+  Restrictions restrictions;
 };
 
 class Acl_table_user_writer : public Acl_table {
  public:
   Acl_table_user_writer(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                         bool revoke_grant, bool can_create_user,
-                        Pod_user_what_to_update what_to_update);
+                        Pod_user_what_to_update what_to_update,
+                        Restrictions *restrictions = nullptr);
   virtual ~Acl_table_user_writer();
   virtual Acl_table_op_status finish_operation(Table_op_error_code &error);
   Acl_table_user_writer_status driver();
@@ -90,6 +95,7 @@ class Acl_table_user_writer : public Acl_table {
   bool m_can_create_user;
   Pod_user_what_to_update m_what_to_update;
   User_table_schema *m_table_schema;
+  Restrictions *m_restrictions;
 };
 
 /**
@@ -129,6 +135,7 @@ class Acl_table_user_reader : public Acl_table {
   User_table_schema *m_table_schema;
   READ_RECORD m_read_record_info;
   MEM_ROOT m_mem_root;
+  Restrictions *m_restrictions;
 };
 
 }  // namespace acl_table

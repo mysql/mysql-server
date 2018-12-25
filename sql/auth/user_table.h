@@ -27,11 +27,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_class.h"
 #include "sql/table.h"
 
+// Forward declarations
+class Restrictions;
+
 namespace acl_table {
 
 const ulong USER_ATTRIBUTE_NONE = 0L;
 const ulong USER_ATTRIBUTE_RETAIN_PASSWORD = (1L << 0);
 const ulong USER_ATTRIBUTE_DISCARD_PASSWORD = (1L << 1);
+const ulong USER_ATTRIBUTE_RESTRICTIONS = (1L << 3);
 
 class Pod_user_what_to_update {
  public:
@@ -43,7 +47,8 @@ class Pod_user_what_to_update {
 
 int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                        bool revoke_grant, bool can_create_user,
-                       acl_table::Pod_user_what_to_update &what_to_update);
+                       acl_table::Pod_user_what_to_update &what_to_update,
+                       Restrictions *restrictions = nullptr);
 
 bool read_user_table(THD *thd, TABLE *table);
 #endif /* USER_TABLE_INCLUDED */

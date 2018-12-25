@@ -1,0 +1,5 @@
+--partial_revokes=ON
+# We observe test failure in MTS mode with type database because we are
+# executing dependent CREATE TABLE and CREATE VIEW statments with different
+# databases.
+--slave_parallel_type=logical_clock

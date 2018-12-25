@@ -23,6 +23,7 @@
 #ifndef MAP_HELPERS_INCLUDED
 #define MAP_HELPERS_INCLUDED
 
+#include <map>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -297,4 +298,40 @@ class memroot_unordered_set
             /*bucket_count=*/10, Hash(), KeyEqual(),
             Memroot_allocator<Key>(mem_root)) {}
 };
+
+/**
+  A less function that compares std::strings according to a MySQL collation.
+*/
+template <typename Key>
+class Collation_key_less {
+ public:
+  explicit Collation_key_less(const CHARSET_INFO *cs_arg)
+      : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
+
+  size_t operator()(const Key &a, const Key &b) const {
+    return strnncollsp(cs, pointer_cast<const uchar *>(a.data()), a.size(),
+                       pointer_cast<const uchar *>(b.data()), b.size()) < 0;
+  }
+
+ private:
+  const CHARSET_INFO *cs;
+  decltype(cs->coll->strnncollsp) strnncollsp;
+};
+
+/**
+  std::map, but collation aware and allocated on a MEM_ROOT.
+*/
+
+template <class Key, class Value>
+class memroot_collation_map
+    : public std::map<Key, Value, Collation_key_less<Key>,
+                      Memroot_allocator<std::pair<const Key, Value>>> {
+ public:
+  memroot_collation_map(const CHARSET_INFO *cs, MEM_ROOT *mem_root)
+      : std::map<Key, Value, Collation_key_less<Key>,
+                 Memroot_allocator<std::pair<const Key, Value>>>(
+            Collation_key_less<Key>(cs),
+            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
+};
+
 #endif  // MAP_HELPERS_INCLUDED

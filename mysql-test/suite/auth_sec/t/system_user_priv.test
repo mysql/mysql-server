@@ -1,0 +1,396 @@
+###############################################################################
+# WL#12098: MySQL system users                                                #
+#   This test file covers the scenarios around the SYSTEM_USER dynamic        #
+#   privilege.                                                                #
+#                                                                             #
+###############################################################################
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #------------------------------------------------------------------------
+--echo # 1. Create the Users and Roles. Grant/REVOKE the SYSTEM_USER
+--echo #    privilege from them.
+--echo #------------------------------------------------------------------------
+
+--echo
+--echo # 1.1 User is granted SYSTEM_USER priv only if it is granted explictly
+CREATE USER sys_usr IDENTIFIED BY 'pwd';
+SHOW GRANTS FOR sys_usr;
+GRANT SYSTEM_USER ON *.* TO sys_usr WITH GRANT OPTION;
+SHOW GRANTS FOR sys_usr;
+
+--echo
+--echo # 1.2 Revoke the SYSTEM_USER privilege from user;
+CREATE USER non_sys_usr IDENTIFIED BY 'pwd';
+GRANT ALL ON *.* TO non_sys_usr;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_usr;
+# We shall partially revoke the update access from mysql.* once the former
+# feature will be available.
+REVOKE UPDATE ON *.* FROM non_sys_usr;
+SHOW GRANTS FOR non_sys_usr;
+
+--echo
+--echo # 1.3 Role is granted SYSTEM_USER priv only if it is granted explictly
+CREATE ROLE sys_role;
+SHOW GRANTS FOR sys_role;
+GRANT SYSTEM_USER ON *.* TO sys_role WITH GRANT OPTION;
+SHOW GRANTS FOR sys_role;
+
+--echo
+--echo # 1.4 Revoke the SYSTEM_USER privilege from user;
+CREATE USER non_sys_role;
+GRANT ALL ON *.* TO non_sys_role;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_role;
+SHOW GRANTS FOR non_sys_role;
+
+--echo #------------------------------------------------------------------------
+--echo # 2. sys_usr cannot modify the other users properties unless the former
+--echo #    is granted the relevant properties to do so
+--echo #------------------------------------------------------------------------
+connect(sys_usr_con,localhost,sys_usr,pwd,);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE USER test_usr;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER USER non_sys_usr IDENTIFIED BY 'pwd';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RENAME USER non_sys_usr TO power_usr;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP USER non_sys_usr;
+connection default;
+
+--echo #------------------------------------------------------------------------
+--echo # 3. non_sys_usr cannot modify the other sys_usr even if former is
+--echo #    granted global privileges
+--echo #------------------------------------------------------------------------
+connect(non_sys_usr_con,localhost,non_sys_usr,pwd,);
+CREATE USER test_user;
+ALTER USER test_user IDENTIFIED BY 'pwd';
+RENAME USER test_user TO temp_user;
+DROP USER temp_user;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER USER sys_usr IDENTIFIED BY 'pwd';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+RENAME USER sys_usr TO power_usr;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP USER sys_usr;
+connection default;
+
+--echo #------------------------------------------------------------------------
+--echo # 4. non_sys_usr cannot grant/revoke SYSTEM_USER privilege to /from
+--echo #    other users/roles
+--echo #------------------------------------------------------------------------
+connection non_sys_usr_con;
+CREATE USER test_user;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT SYSTEM_USER ON *.* TO test_user;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+REVOKE SYSTEM_USER FROM sys_usr;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT SYSTEM_USER ON *.* TO sys_role;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT SYSTEM_USER ON *.* TO non_sys_role;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+REVOKE SYSTEM_USER ON *.* FROM sys_role;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT sys_role to test_user;
+connection default;
+GRANT sys_role TO test_user;
+SHOW GRANTS FOR test_user;
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+REVOKE sys_role FROM test_user;
+DROP USER test_user;
+connection default;
+
+--echo #------------------------------------------------------------------------
+--echo # 5. Mandatory Roles
+--echo #------------------------------------------------------------------------
+--echo
+--echo # 5.1 Check with root user
+--error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+
+--error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+
+SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
+--echo
+--echo # 5.2 Check with user who does not have system user privilege
+connection non_sys_usr_con;
+--error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+
+--error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+
+SET @@GLOBAL.MANDATORY_ROLES='non_sys_role';
+--echo
+--echo # 5.3 Check with user who has system user privilege
+connection sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.MANDATORY_ROLES='sys_role,non_sys_role';
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@GLOBAL.MANDATORY_ROLES='sys_role';
+--echo
+--echo # 5.4 Non existing mandatory_role which is granted the SYSTEM_USER priv
+--echo #     later
+connection default;
+SET @@GLOBAL.MANDATORY_ROLES='test_role';
+CREATE ROLE test_role;
+--error ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+connection sys_usr_con;
+--error ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+GRANT SYSTEM_USER ON *.* TO 'test_role';
+connection default;
+# Clear the mandatory_role and delete the test_role
+SET @@GLOBAL.MANDATORY_ROLES='';
+DROP ROLE test_role;
+--echo
+--echo # 5.5 None of the roles in the role's hierarchy should have SYSTEM_USER
+--echo #     privilege if former is set as mandatory_role.
+CREATE ROLE r1, r2;
+GRANT r1 TO r2;
+GRANT sys_role TO r1;
+--error ER_AUTH_ID_WITH_SYSTEM_USER_PRIV_IN_MANDATORY_ROLES
+SET @@GLOBAL.MANDATORY_ROLES='r2';
+DROP ROLE r1, r2;
+--echo #------------------------------------------------------------------------
+--echo # 6. If the definer has SYSTEM_USER privilege then owner must also have
+--echo #    the SYSTEM_USER privilege.
+--echo #------------------------------------------------------------------------
+CREATE TABLE test.t1 (c1 INT);
+CREATE DATABASE restricted;
+CREATE TABLE restricted.t1 (c1 int, restricted int);
+INSERT INTO restricted.t1 VALUES (1,2);
+GRANT SET_USER_ID ON *.* TO sys_usr;
+--echo
+--echo # 6.1 Stored procedure and functions
+connection sys_usr_con;
+SELECT CURRENT_USER();
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM restricted.t1;
+USE test;
+CREATE DEFINER=root@localhost PROCEDURE p1() SELECT * FROM restricted.t1;
+--echo # With the SET_USER_ID privilege we can escalate the authorization
+CALL p1();
+CREATE DEFINER=root@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+--echo # With the SET_USER_ID privilege we can escalate the authorization
+SELECT f1(2);
+connection non_sys_usr_con;
+--echo
+SELECT CURRENT_USER();
+USE test;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost PROCEDURE p2() SELECT * FROM restricted.t1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost FUNCTION f2(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+--echo # Invoker has EXECUTE privilege but not SYSTEM_USER privilege
+CALL p1();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP PROCEDURE test.p1;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP FUNCTION test.f1;
+--echo
+--echo # 6.2 Create trigger
+connection sys_usr_con;
+SELECT CURRENT_USER();
+CREATE DEFINER=root@localhost TRIGGER test.tr1 BEFORE INSERT ON test.t1
+FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
+--echo # Use trigger to escalate privileges
+INSERT INTO test.t1 VALUES (1);
+connection default;
+SELECT * FROM restricted.t1;
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost TRIGGER test.tr2 BEFORE INSERT ON test.t1
+FOR EACH ROW INSERT INTO restricted.t1 VALUES (1,1);
+--echo
+--echo # 6.3 Create View
+connection default;
+--echo # We need some privilege on the column for CREATE VIEW to work
+GRANT INSERT(restricted) ON restricted.t1 TO sys_usr;
+connection sys_usr_con;
+SHOW GRANTS FOR CURRENT_USER();
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.restricted FROM restricted.t1 as a;
+--echo # Use escalated privileges to read restricted column.
+SELECT * FROM v1;
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost SQL SECURITY DEFINER VIEW v2 AS
+SELECT a.restricted FROM restricted.t1 as a;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.restricted FROM restricted.t1 as a;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP VIEW v1;
+--echo
+--echo # 6.4 Create Event
+connection sys_usr_con;
+DELIMITER $$;
+CREATE DEFINER=root@localhost EVENT test.eve1 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 HOUR
+DO BEGIN
+  INSERT INTO restricted.t1 VALUES (5,5);
+END ;$$
+DELIMITER ;$$
+connection non_sys_usr_con;
+DELIMITER $$;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+CREATE DEFINER=root@localhost EVENT test.eve2 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 SECOND
+DO BEGIN
+  INSERT INTO restricted.t1 VALUES (5,5);
+END ;$$
+DELIMITER ;$$
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP EVENT test.eve1;
+--echo # Cleanup
+connection default;
+DROP TRIGGER test.tr1;
+DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP DATABASE restricted;
+DROP VIEW test.v1;
+DROP TABLE test.t1;
+DROP EVENT test.eve1;
+--echo #------------------------------------------------------------------------
+--echo # 7. If SYSTEM_USER privilege is granted to definer and invoker
+--echo #    through roles
+--echo #------------------------------------------------------------------------
+USE test;
+CREATE TABLE test.t1 (c1 int, c2 int);
+INSERT INTO test.t1 VALUES(1,2);
+CREATE USER test_user@localhost;
+GRANT sys_role TO test_user@localhost;
+GRANT ALL ON test.* TO test_user@localhost;
+GRANT EXECUTE ON *.*  TO test_user@localhost;
+--echo
+--echo #  7.1 Invoker is not granted SYSTEM_USER priv through roles
+--echo #  7.1.1 ALTER AND DROP STORED PROCEDURE
+CREATE DEFINER=test_user@localhost PROCEDURE p1() SELECT * FROM test.t1;
+SHOW GRANTS FOR test_user@localhost;
+connection non_sys_usr_con;
+CALL p1();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP PROCEDURE test.p1;
+--echo # 7.1.2 ALTER and DROP FUNCTIONS
+CREATE DEFINER=test_user@localhost FUNCTION f1(i INT) RETURNS INT(10) DETERMINISTIC
+RETURN i*10;
+connection non_sys_usr_con;
+SELECT f1(2);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP FUNCTION test.f1;
+--echo # 7.1.3 ALTER and DROP View
+connection default;
+CREATE DEFINER=test_user@localhost SQL SECURITY DEFINER VIEW v1 AS
+SELECT a.c1 FROM test.t1 as a;
+SELECT * FROM v1;
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP VIEW v1;
+--echo
+--echo # 7.1.4 ALTER and DROP EVENT
+connection default;
+DELIMITER $$;
+CREATE DEFINER=test_user@localhost EVENT test.eve1 ON SCHEDULE AT
+CURRENT_TIMESTAMP + INTERVAL 2 HOUR
+DO BEGIN
+  INSERT INTO test.t1 VALUES (5,5);
+END ;$$
+DELIMITER ;$$
+connection non_sys_usr_con;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP EVENT test.eve1;
+--echo
+--echo #  7.2 Invoker is also granted SYSTEM_USER priv through roles
+connection default;
+CREATE ROLE r1, r2;
+GRANT SYSTEM_USER ON *.* TO r1;
+GRANT r1 TO r2;
+GRANT r2 TO non_sys_usr;
+--echo #  7.2.1 ALTER and DROP PROCEDURE
+connection non_sys_usr_con;
+CALL p1();
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP PROCEDURE test.p1;
+--echo # Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER PROCEDURE test.p1 SQL SECURITY INVOKER;
+CALL p1();
+DROP PROCEDURE test.p1;
+SET ROLE NONE;
+--echo # 7.2.2 ALTER and DROP FUNCTIONS
+SELECT f1(2);
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP FUNCTION test.f1;
+SELECT f1(2);
+--echo # Activate the role to  get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER FUNCTION test.f1 SQL SECURITY INVOKER;
+DROP FUNCTION test.f1;
+SET ROLE NONE;
+--echo # 7.2.3 ALTER and DROP VIEW
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP VIEW v1;
+--echo # Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER ALGORITHM=MERGE VIEW v1 AS SELECT a.c1 FROM test.t1 as a;
+DROP VIEW v1;
+SET ROLE NONE;
+--echo
+--echo # 7.2.4 ALTER and DROP EVENT
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+DROP EVENT test.eve1;
+--echo # Activate the role to get the SYSTEM_USER priv
+SET ROLE r2;
+ALTER EVENT test.eve1 RENAME TO test.eve2;
+DROP EVENT test.eve2;
+SET ROLE NONE;
+--echo # Cleanup
+connection default;
+DROP USER test_user@localhost;
+DROP ROLE r1, r2;
+DROP TABLE test.t1;
+--echo #
+--echo # Global clean up
+--echo #
+DROP USER sys_usr;
+DROP USER non_sys_usr;
+DROP USER sys_role;
+DROP USER non_sys_role;
+disconnect sys_usr_con;
+disconnect non_sys_usr_con;
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+
+call mtr.add_suppression(".*Cannot set mandatory_roles: AuthId.* privilege.");

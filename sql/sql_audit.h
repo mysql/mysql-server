@@ -29,9 +29,9 @@
 #include "m_string.h"
 #include "my_command.h"
 #include "mysql/plugin_audit.h"
-#include "sql/auth/sql_security_ctx.h"  // Security_context
 
 class THD;
+class Security_context;
 struct TABLE_LIST;
 
 static const size_t MAX_USER_HOST_SIZE = 512;
@@ -44,19 +44,7 @@ static const size_t MAX_USER_HOST_SIZE = 512;
 bool is_audit_plugin_class_active(THD *thd, unsigned long event_class);
 bool is_global_audit_mask_set();
 
-static inline size_t make_user_name(Security_context *sctx, char *buf) {
-  LEX_CSTRING sctx_user = sctx->user();
-  LEX_CSTRING sctx_host = sctx->host();
-  LEX_CSTRING sctx_ip = sctx->ip();
-  LEX_CSTRING sctx_priv_user = sctx->priv_user();
-  return static_cast<size_t>(
-      strxnmov(buf, MAX_USER_HOST_SIZE,
-               sctx_priv_user.str[0] ? sctx_priv_user.str : "", "[",
-               sctx_user.length ? sctx_user.str : "", "] @ ",
-               sctx_host.length ? sctx_host.str : "", " [",
-               sctx_ip.length ? sctx_ip.str : "", "]", NullS) -
-      buf);
-}
+size_t make_user_name(Security_context *sctx, char *buf);
 
 struct st_plugin_int;
 
