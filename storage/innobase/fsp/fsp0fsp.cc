@@ -4504,8 +4504,6 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-  dberr_t err = DB_SUCCESS;
-
   my_thread_init();
 #ifdef UNIV_PFS_THREAD
   THD *thd =
