@@ -16,18 +16,18 @@ Wait for Binlog-on-disk
 flush logs;
 Check that we have the expected extra row data in the Binlog
 create table raw_data(txt varchar(1000));
-select replace(txt, '\r', '') from raw_data where txt like '%### Extra row data format%' order by txt;
+select replace(txt, '\r', '') from raw_data where txt like '%### Extra row ndb info: data_format:%' order by txt;
 replace(txt, '\r', '')
-### Extra row data format: 0, len: 0 :
-### Extra row data format: 1, len: 1 :0x01
-### Extra row data format: 2, len: 2 :0x0202
-### Extra row data format: 3, len: 3 :0x030303
-### Extra row data format: 4, len: 4 :0x04040404
-### Extra row data format: 5, len: 5 :0x0505050505
-### Extra row data format: 6, len: 6 :0x060606060606
-### Extra row data format: 7, len: 7 :0x07070707070707
-### Extra row data format: 8, len: 8 :0x0808080808080808
-### Extra row data format: 9, len: 9 :0x090909090909090909
+### Extra row ndb info: data_format: 0, len: 0, data: ""
+### Extra row ndb info: data_format: 1, len: 1, data: 0x01
+### Extra row ndb info: data_format: 2, len: 2, data: 0x0202
+### Extra row ndb info: data_format: 3, len: 3, data: 0x030303
+### Extra row ndb info: data_format: 4, len: 4, data: 0x04040404
+### Extra row ndb info: data_format: 5, len: 5, data: 0x0505050505
+### Extra row ndb info: data_format: 6, len: 6, data: 0x060606060606
+### Extra row ndb info: data_format: 7, len: 7, data: 0x07070707070707
+### Extra row ndb info: data_format: 8, len: 8, data: 0x0808080808080808
+### Extra row ndb info: data_format: 9, len: 9, data: 0x090909090909090909
 drop table raw_data;
 Generate some more insert, update, delete traffic
 INSERT INTO t1 SELECT a+10 FROM t1;

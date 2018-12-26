@@ -149,7 +149,6 @@
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"  // Time_zone
 #include "thr_lock.h"
-
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle slave_ignored_err_throttle(
     window_size, INFORMATION_LEVEL, ER_SERVER_SLAVE_IGNORED_TABLE, "Repl",
@@ -2241,26 +2240,42 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
                 ? enum_row_image_type::DELETE_BI
                 : enum_row_image_type::UPDATE_BI;
 
-  if (m_extra_row_data) {
-    uint8 extra_data_len = m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
-    uint8 extra_payload_len = extra_data_len - EXTRA_ROW_INFO_HDR_BYTES;
-    assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
+  if (m_extra_row_info.have_ndb_info() ||
+      DBUG_EVALUATE_IF("simulate_error_in_ndb_info_print", 1, 0)) {
+    int extra_row_ndb_info_payload_len =
+        m_extra_row_info.get_ndb_length() - EXTRA_ROW_INFO_HEADER_LENGTH;
 
-    my_b_printf(file, "### Extra row data format: %u, len: %u :",
-                m_extra_row_data[EXTRA_ROW_INFO_FORMAT_OFFSET],
-                extra_payload_len);
-    if (extra_payload_len) {
-      /*
-         Buffer for hex view of string, including '0x' prefix,
-         2 hex chars / byte and trailing 0
-      */
-      const int buff_len = 2 + (256 * 2) + 1;
-      char buff[buff_len];
-      str_to_hex(buff,
-                 (const char *)&m_extra_row_data[EXTRA_ROW_INFO_HDR_BYTES],
-                 extra_payload_len);
-      my_b_printf(file, "%s", buff);
+    if (m_extra_row_info.get_ndb_length() < EXTRA_ROW_INFO_HEADER_LENGTH) {
+      my_b_printf(file,
+                  "***Error: The number of extra_row_ndb_info is smaller"
+                  " than the minimum acceptable value.\n");
+      return;
     }
+    unsigned char *ndb_info = m_extra_row_info.get_ndb_info();
+    my_b_printf(file, "### Extra row ndb info: data_format: %u, len: %u, ",
+                ndb_info[EXTRA_ROW_INFO_FORMAT_OFFSET],
+                extra_row_ndb_info_payload_len);
+    /*
+       Buffer for hex view of string, including '0x' prefix,
+       2 hex chars / byte and trailing 0
+    */
+    const int buff_len = 2 + (256 * 2) + 1;
+    char buff[buff_len];
+    str_to_hex(buff, (const char *)&(ndb_info[EXTRA_ROW_INFO_HEADER_LENGTH]),
+               extra_row_ndb_info_payload_len);
+    my_b_printf(file, "data: %s\n", buff);
+  }
+
+  if (m_extra_row_info.have_part()) {
+    if (general_type_code == binary_log::UPDATE_ROWS_EVENT) {
+      my_b_printf(file,
+                  "### Extra row info for partitioning: source_partition: %d"
+                  " target_partition: %d",
+                  m_extra_row_info.get_source_partition_id(),
+                  m_extra_row_info.get_partition_id());
+    } else
+      my_b_printf(file, "### Extra row info for partitioning: partition: %u",
+                  m_extra_row_info.get_partition_id());
     my_b_printf(file, "\n");
   }
 
@@ -7277,7 +7292,7 @@ const String *Load_query_generator::generate(size_t *fn_start, size_t *fn_end) {
 #endif  // MYSQL_SERVER
 #ifndef DBUG_OFF
 #ifdef MYSQL_SERVER
-static uchar dbug_extra_row_data_val = 0;
+static uchar dbug_extra_row_ndb_info_val = 0;
 
 /**
    set_extra_data
@@ -7290,11 +7305,11 @@ static uchar dbug_extra_row_data_val = 0;
    @param arr  Buffer to use
 */
 static const uchar *set_extra_data(uchar *arr) {
-  uchar val = (dbug_extra_row_data_val++) %
+  uchar val = (dbug_extra_row_ndb_info_val++) %
               (EXTRA_ROW_INFO_MAX_PAYLOAD + 1); /* 0 .. MAX_PAYLOAD + 1 */
-  arr[EXTRA_ROW_INFO_LEN_OFFSET] = val + EXTRA_ROW_INFO_HDR_BYTES;
+  arr[EXTRA_ROW_INFO_LEN_OFFSET] = val + EXTRA_ROW_INFO_HEADER_LENGTH;
   arr[EXTRA_ROW_INFO_FORMAT_OFFSET] = val;
-  for (uchar i = 0; i < val; i++) arr[EXTRA_ROW_INFO_HDR_BYTES + i] = val;
+  for (uchar i = 0; i < val; i++) arr[EXTRA_ROW_INFO_HEADER_LENGTH + i] = val;
 
   return arr;
 }
@@ -7302,7 +7317,7 @@ static const uchar *set_extra_data(uchar *arr) {
 #endif  // #ifdef MYSQL_SERVER
 
 /**
-   check_extra_data
+   check_extra_row_ndb_info
 
    Called during self-test to check that
    binlog row event extra data is self-
@@ -7311,19 +7326,28 @@ static const uchar *set_extra_data(uchar *arr) {
 
    Will assert(false) if not.
 
-   @param extra_row_data
+   @param extra_row_ndb_info
 */
-static void check_extra_data(uchar *extra_row_data) {
-  assert(extra_row_data);
-  uint16 len = extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
-  uint8 val = len - EXTRA_ROW_INFO_HDR_BYTES;
-  assert(extra_row_data[EXTRA_ROW_INFO_FORMAT_OFFSET] == val);
-  for (uint16 i = 0; i < val; i++) {
-    assert(extra_row_data[EXTRA_ROW_INFO_HDR_BYTES + i] == val);
+static void check_extra_row_ndb_info(uchar *extra_row_ndb_info) {
+  assert(extra_row_ndb_info);
+  size_t len = extra_row_ndb_info[EXTRA_ROW_INFO_LEN_OFFSET];
+  size_t val = len - EXTRA_ROW_INFO_HEADER_LENGTH;
+  assert(extra_row_ndb_info[EXTRA_ROW_INFO_FORMAT_OFFSET] == val);
+  for (size_t i = 0; i < val; i++) {
+    assert(extra_row_ndb_info[EXTRA_ROW_INFO_HEADER_LENGTH + i] == val);
   }
 }
 
 #endif  // #ifndef DBUG_OFF
+
+int get_rpl_part_id(partition_info *part_info) {
+  uint32_t part_id = binary_log::Rows_event::Extra_row_info::UNDEFINED;
+  longlong func_value;
+  if (part_info != nullptr) {
+    part_info->get_partition_id(part_info, &part_id, &func_value);
+  }
+  return static_cast<int>(part_id);
+}
 
   /**************************************************************************
           Rows_log_event member functions
@@ -7333,7 +7357,7 @@ static void check_extra_data(uchar *extra_row_data) {
 Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                const Table_id &tid, MY_BITMAP const *cols,
                                bool using_trans, Log_event_type event_type,
-                               const uchar *extra_row_info)
+                               const unsigned char *extra_row_ndb_info)
     : binary_log::Rows_event(event_type),
       Log_event(thd_arg, 0,
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
@@ -7355,7 +7379,6 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   m_rows_end = 0;
   m_flags = 0;
   m_type = event_type;
-  m_extra_row_data = 0;
 
   DBUG_ASSERT(tbl_arg && tbl_arg->s && tid.is_valid());
 
@@ -7365,21 +7388,22 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
     set_flags(RELAXED_UNIQUE_CHECKS_F);
 #ifndef DBUG_OFF
   uchar extra_data[255];
-  DBUG_EXECUTE_IF("extra_row_data_set",
+  DBUG_EXECUTE_IF("extra_row_ndb_info_set",
                   /* Set extra row data to a known value */
-                  extra_row_info = set_extra_data(extra_data););
+                  extra_row_ndb_info = set_extra_data(extra_data););
 #endif
-  if (extra_row_info) {
+  partition_info *part_info = tbl_arg->part_info;
+  auto part_id = get_rpl_part_id(part_info);
+  if (part_id != binary_log::Rows_event::Extra_row_info::UNDEFINED) {
+    m_extra_row_info.set_partition_id(part_id);
+  }
+  /* Copy Extra ndb data from thd into new event */
+  if (extra_row_ndb_info) {
     /* Copy Extra data from thd into new event */
-    uint8 extra_data_len = extra_row_info[EXTRA_ROW_INFO_LEN_OFFSET];
-    assert(extra_data_len >= EXTRA_ROW_INFO_HDR_BYTES);
+    int extra_row_ndb_info_len = extra_row_ndb_info[EXTRA_ROW_INFO_LEN_OFFSET];
+    DBUG_ASSERT(extra_row_ndb_info_len >= EXTRA_ROW_INFO_HEADER_LENGTH);
 
-    m_extra_row_data =
-        (uchar *)my_malloc(key_memory_log_event, extra_data_len, MYF(MY_WME));
-
-    if (likely(m_extra_row_data != NULL)) {
-      memcpy(m_extra_row_data, extra_row_info, extra_data_len);
-    }
+    m_extra_row_info.set_ndb_info(extra_row_ndb_info, extra_row_ndb_info_len);
   }
 
   /* if bitmap_init fails, caught in is_valid() */
@@ -7442,10 +7466,10 @@ Rows_log_event::Rows_log_event(
 
   DBUG_ASSERT(header()->type_code == m_type);
 
-  if (m_extra_row_data)
-    DBUG_EXECUTE_IF("extra_row_data_check",
+  if (m_extra_row_info.have_ndb_info())
+    DBUG_EXECUTE_IF("extra_row_ndb_info_check",
                     /* Check extra data has expected value */
-                    check_extra_data(m_extra_row_data););
+                    check_extra_row_ndb_info(m_extra_row_info.get_ndb_info()););
 
   /*
      m_cols and m_cols_ai are of the type MY_BITMAP, which are members of
@@ -7625,11 +7649,14 @@ size_t Rows_log_event::get_data_size() {
   bool is_v2_event =
       common_header->type_code > binary_log::DELETE_ROWS_EVENT_V1;
   if (is_v2_event) {
-    data_size =
-        Binary_log_event::ROWS_HEADER_LEN_V2 +
-        (m_extra_row_data
-             ? ROWS_V_TAG_LEN + m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET]
-             : 0);
+    data_size = Binary_log_event::ROWS_HEADER_LEN_V2;
+    if (m_extra_row_info.have_ndb_info())
+      data_size +=
+          EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length();
+
+    if (m_extra_row_info.have_part())
+      data_size +=
+          EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length();
   } else {
     data_size = Binary_log_event::ROWS_HEADER_LEN_V1;
   }
@@ -9158,7 +9185,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     else
       thd->variables.option_bits &= ~OPTION_RELAXED_UNIQUE_CHECKS;
 
-    thd->binlog_row_event_extra_data = m_extra_row_data;
+    thd->binlog_row_event_extra_data = m_extra_row_info.get_ndb_info();
 
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) ==
@@ -9359,7 +9386,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     */
     thd->set_time(&(common_header->when));
 
-    thd->binlog_row_event_extra_data = m_extra_row_data;
+    thd->binlog_row_event_extra_data = m_extra_row_info.get_ndb_info();
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -9798,39 +9825,74 @@ bool Rows_log_event::write_data_header(Basic_ostream *ostream) {
   });
   int6store(buf + ROWS_MAPID_OFFSET, m_table_id.id());
   int2store(buf + ROWS_FLAGS_OFFSET, m_flags);
-  int rc = 0;
   if (likely(!log_bin_use_v1_row_events)) {
     /*
        v2 event, with variable header portion.
-       Determine length of variable header payload
+       Determine length of variable header payload(extra_row_info part)
     */
-    uint16 vhlen = 2;
-    uint16 vhpayloadlen = 0;
-    uint16 extra_data_len = 0;
-    if (m_extra_row_data) {
-      extra_data_len = m_extra_row_data[EXTRA_ROW_INFO_LEN_OFFSET];
-      vhpayloadlen = ROWS_V_TAG_LEN + extra_data_len;
+    uint extra_row_info_payloadlen = EXTRA_ROW_INFO_HEADER_LENGTH;
+    if (m_extra_row_info.have_ndb_info()) {
+      extra_row_info_payloadlen +=
+          (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_ndb_length());
+      ;
     }
 
+    if (m_extra_row_info.have_part()) {
+      extra_row_info_payloadlen +=
+          (EXTRA_ROW_INFO_TYPECODE_LENGTH + m_extra_row_info.get_part_length());
+    }
     /* Var-size header len includes len itself */
-    int2store(buf + ROWS_VHLEN_OFFSET, vhlen + vhpayloadlen);
-    rc = wrapper_my_b_safe_write(ostream, buf,
-                                 Binary_log_event::ROWS_HEADER_LEN_V2);
+    int2store(buf + ROWS_VHLEN_OFFSET, extra_row_info_payloadlen);
+    if (wrapper_my_b_safe_write(ostream, buf,
+                                Binary_log_event::ROWS_HEADER_LEN_V2))
+      return true;
 
     /* Write var-sized payload, if any */
-    if ((vhpayloadlen > 0) && (rc == 0)) {
+    if (m_extra_row_info.have_ndb_info()) {
       /* Add tag and extra row info */
-      uchar type_code = ROWS_V_EXTRAINFO_TAG;
-      rc = wrapper_my_b_safe_write(ostream, &type_code, ROWS_V_TAG_LEN);
-      if (rc == 0)
-        rc = wrapper_my_b_safe_write(ostream, m_extra_row_data, extra_data_len);
+      uint8 type_code = static_cast<uint8>(enum_extra_row_info_typecode::NDB);
+      if (wrapper_my_b_safe_write(ostream, &(type_code),
+                                  EXTRA_ROW_INFO_TYPECODE_LENGTH))
+        return true;
+      if (wrapper_my_b_safe_write(ostream, m_extra_row_info.get_ndb_info(),
+                                  m_extra_row_info.get_ndb_length()))
+        return true;
+    }
+    if (m_extra_row_info.have_part()) {
+      uint8 type_code;
+      type_code = static_cast<uint8>(enum_extra_row_info_typecode::PART);
+      uchar partition_buf[5];
+      uint8 extra_part_info_data_len = 0;
+      partition_buf[extra_part_info_data_len++] = type_code;
+
+      // partition_id occupies less than 2 bytes
+      // in all the cases because of the current range of allowed number
+      // of partitions 8192 for non-ndb and 12288 for ndb.
+      // So while writing the partition_id it is okay to use 2 bytes for it.
+
+      int write_partition_id = m_extra_row_info.get_partition_id();
+      int2store(partition_buf + extra_part_info_data_len,
+                static_cast<uint16>(write_partition_id));
+      extra_part_info_data_len += EXTRA_ROW_PART_INFO_VALUE_LENGTH;
+
+      if (get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) {
+        write_partition_id = m_extra_row_info.get_source_partition_id();
+        int2store(partition_buf + extra_part_info_data_len,
+                  static_cast<uint16>(write_partition_id));
+        extra_part_info_data_len += EXTRA_ROW_PART_INFO_VALUE_LENGTH;
+      }
+
+      if (wrapper_my_b_safe_write(ostream, partition_buf,
+                                  extra_part_info_data_len))
+        return true;
     }
   } else {
-    rc = wrapper_my_b_safe_write(ostream, buf,
-                                 Binary_log_event::ROWS_HEADER_LEN_V1);
+    if (wrapper_my_b_safe_write(ostream, buf,
+                                Binary_log_event::ROWS_HEADER_LEN_V1))
+      return true;
   }
 
-  return (rc != 0);
+  return false;
 }
 
 bool Rows_log_event::write_data_body(Basic_ostream *ostream) {
@@ -11200,10 +11262,9 @@ void Table_map_log_event::print_primary_key(
   Constructor used to build an event for writing to the binary log.
  */
 #if defined(MYSQL_SERVER)
-Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                           const Table_id &tid_arg,
-                                           bool is_transactional,
-                                           const uchar *extra_row_info)
+Write_rows_log_event::Write_rows_log_event(
+    THD *thd_arg, TABLE *tbl_arg, const Table_id &tid_arg,
+    bool is_transactional, const unsigned char *extra_row_ndb_info)
     : binary_log::Rows_event(log_bin_use_v1_row_events
                                  ? binary_log::WRITE_ROWS_EVENT_V1
                                  : binary_log::WRITE_ROWS_EVENT),
@@ -11211,7 +11272,7 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                      is_transactional,
                      log_bin_use_v1_row_events ? binary_log::WRITE_ROWS_EVENT_V1
                                                : binary_log::WRITE_ROWS_EVENT,
-                     extra_row_info) {
+                     extra_row_ndb_info) {
   common_header->type_code = m_type;
 }
 
@@ -11674,7 +11735,7 @@ void Write_rows_log_event::print(FILE *file,
 Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id &tid,
                                              bool is_transactional,
-                                             const uchar *extra_row_info)
+                                             const uchar *extra_row_ndb_info)
     : binary_log::Rows_event(log_bin_use_v1_row_events
                                  ? binary_log::DELETE_ROWS_EVENT_V1
                                  : binary_log::DELETE_ROWS_EVENT),
@@ -11682,7 +11743,7 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                      log_bin_use_v1_row_events
                          ? binary_log::DELETE_ROWS_EVENT_V1
                          : binary_log::DELETE_ROWS_EVENT,
-                     extra_row_info),
+                     extra_row_ndb_info),
       binary_log::Delete_rows_event() {
   common_header->type_code = m_type;
 }
@@ -11777,13 +11838,12 @@ binary_log::Log_event_type Update_rows_log_event::get_update_rows_event_type(
 /*
   Constructor used to build an event for writing to the binary log.
  */
-Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
-                                             const Table_id &tid,
-                                             bool is_transactional,
-                                             const uchar *extra_row_info)
+Update_rows_log_event::Update_rows_log_event(
+    THD *thd_arg, TABLE *tbl_arg, const Table_id &tid, bool is_transactional,
+    const unsigned char *extra_row_ndb_info)
     : binary_log::Rows_event(get_update_rows_event_type(thd_arg)),
       Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
-                     get_update_rows_event_type(thd_arg), extra_row_info),
+                     get_update_rows_event_type(thd_arg), extra_row_ndb_info),
       binary_log::Update_rows_event(get_update_rows_event_type(thd_arg)) {
   DBUG_ENTER("Update_rows_log_event::Update_rows_log_event");
   DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str()));

@@ -1385,13 +1385,14 @@ class THD : public MDL_context_owner,
   int binlog_write_table_map(TABLE *table, bool is_transactional,
                              bool binlog_rows_query);
   int binlog_write_row(TABLE *table, bool is_transactional,
-                       const uchar *new_data, const uchar *extra_row_info);
+                       const uchar *new_data,
+                       const unsigned char *extra_row_info);
   int binlog_delete_row(TABLE *table, bool is_transactional,
-                        const uchar *old_data, const uchar *extra_row_info);
+                        const uchar *old_data,
+                        const unsigned char *extra_row_info);
   int binlog_update_row(TABLE *table, bool is_transactional,
                         const uchar *old_data, const uchar *new_data,
                         const uchar *extra_row_info);
-
   void set_server_id(uint32 sid) { server_id = sid; }
 
   /*
@@ -1400,7 +1401,7 @@ class THD : public MDL_context_owner,
   template <class RowsEventT>
   Rows_log_event *binlog_prepare_pending_rows_event(
       TABLE *table, uint32 serv_id, size_t needed, bool is_transactional,
-      RowsEventT *hint, const uchar *extra_row_info);
+      const unsigned char *extra_row_info, uint32 source_part_id = INT_MAX);
   Rows_log_event *binlog_get_pending_rows_event(bool is_transactional) const;
   inline int binlog_flush_pending_rows_event(bool stmt_end) {
     return (binlog_flush_pending_rows_event(stmt_end, false) ||

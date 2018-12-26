@@ -45,14 +45,21 @@
 */
 #define EXTRA_ROW_INFO_LEN_OFFSET 0
 #define EXTRA_ROW_INFO_FORMAT_OFFSET 1
-#define EXTRA_ROW_INFO_HDR_BYTES 2
-#define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HDR_BYTES)
+#define EXTRA_ROW_INFO_HEADER_LENGTH 2
+#define EXTRA_ROW_INFO_MAX_PAYLOAD (255 - EXTRA_ROW_INFO_HEADER_LENGTH)
 
 #define ROWS_MAPID_OFFSET 0
 #define ROWS_FLAGS_OFFSET 6
 #define ROWS_VHLEN_OFFSET 8
-#define ROWS_V_TAG_LEN 1
-#define ROWS_V_EXTRAINFO_TAG 0
+#define EXTRA_ROW_INFO_TYPECODE_LENGTH 1
+#define EXTRA_ROW_PART_INFO_VALUE_LENGTH 2
+
+/**
+  This is the typecode defined for the different elements present in
+  the container Extra_row_info, this is different from the format information
+  stored inside extra_row_ndb_info at EXTRA_ROW_INFO_FORMAT_OFFSET.
+*/
+enum class enum_extra_row_info_typecode { NDB = 0, PART = 1 };
 
 namespace binary_log {
 /**
@@ -747,9 +754,47 @@ class Table_map_event : public Binary_log_event {
   </tr>
 
   <tr>
-    <td>extra_row_data</td>
-    <td>unsigned char pointer</td>
-    <td>Pointer to extra row data if any. If non null, first byte is length</td>
+    <td>extra_row_info</td>
+    <td>An object of class Extra_row_info</td>
+    <td>The class Extra_row_info will be storing the information related
+        to m_extra_row_ndb_info and partition info (partition_id and
+        source_partition_id). At any given time a Rows_event can have both, one
+        or none of ndb_info and partition_info present as part of Rows_event.
+        In case both ndb_info and partition_info are present then below will
+        be the order in which they will be stored.
+
+        @verbatim
+        +----------+--------------------------------------+
+        |type_code |        extra_row_ndb_info            |
+        +--- ------+--------------------------------------+
+        | NDB      |Len of ndb_info |Format |ndb_data     |
+        | 1 byte   |1 byte          |1 byte |len - 2 byte |
+        +----------+----------------+-------+-------------+
+
+        In case of INSERT/DELETE
+        +-----------+----------------+
+        | type_code | partition_info |
+        +-----------+----------------+
+        |   PART    |  partition_id  |
+        | (1 byte)  |     2 byte     |
+        +-----------+----------------+
+
+        In case of UPDATE
+        +-----------+------------------------------------+
+        | type_code |        partition_info              |
+        +-----------+--------------+---------------------+
+        |   PART    | partition_id | source_partition_id |
+        | (1 byte)  |    2 byte    |       2 byte        |
+        +-----------+--------------+---------------------+
+
+        source_partition_id is used only in the case of Update_event
+        to log the partition_id of the source partition.
+
+        @endverbatim
+        This is the format for any information stored as extra_row_info.
+        type_code is not a part of the class Extra_row_info as it is a constant
+        values used at the time of serializing and decoding the event.
+   </td>
   </tr>
 
   <tr>
@@ -848,11 +893,9 @@ class Rows_event : public Binary_log_event {
       : Binary_log_event(type_arg),
         m_table_id(0),
         m_width(0),
-        m_extra_row_data(0),
         columns_before_image(0),
         columns_after_image(0),
         row(0) {}
-
   /**
     The constructor is responsible for decoding the event contained in
     the buffer.
@@ -890,13 +933,76 @@ class Rows_event : public Binary_log_event {
   uint32_t n_bits_len;   /** value determined by (m_width + 7) / 8 */
   uint16_t var_header_len;
 
-  unsigned char *m_extra_row_data;
-
   std::vector<uint8_t> columns_before_image;
   std::vector<uint8_t> columns_after_image;
   std::vector<uint8_t> row;
 
  public:
+  class Extra_row_info {
+   private:
+    /** partition_id for a row in a partitioned table */
+    int m_partition_id;
+    /**
+      It is the partition_id of the source partition in case
+      of Update_event, the target's partition_id is m_partition_id.
+      This variable is used only in case of Update_event.
+    */
+    int m_source_partition_id;
+    /** The extra row info provided by NDB */
+    unsigned char *m_extra_row_ndb_info;
+
+   public:
+    Extra_row_info()
+        : m_partition_id(UNDEFINED),
+          m_source_partition_id(UNDEFINED),
+          m_extra_row_ndb_info(nullptr) {}
+
+    Extra_row_info(const Extra_row_info &) = delete;
+
+    int get_partition_id() const { return m_partition_id; }
+    void set_partition_id(int partition_id) {
+      BAPI_ASSERT(partition_id < 65535);
+      m_partition_id = partition_id;
+    }
+
+    int get_source_partition_id() const { return m_source_partition_id; }
+    void set_source_partition_id(int source_partition_id) {
+      BAPI_ASSERT(source_partition_id < 65535);
+      m_source_partition_id = source_partition_id;
+    }
+
+    unsigned char *get_ndb_info() const { return m_extra_row_ndb_info; }
+    void set_ndb_info(const unsigned char *ndb_info, size_t len) {
+      BAPI_ASSERT(!have_ndb_info());
+      m_extra_row_ndb_info =
+          static_cast<unsigned char *>(bapi_malloc(len, 16 /* flags */));
+      std::copy(ndb_info, ndb_info + len, m_extra_row_ndb_info);
+    }
+    /**
+      Compares the extra_row_info in a Row event, it checks three things
+      1. The m_extra_row_ndb_info pointers. It compares their significant bytes.
+      2. Partition_id
+      3. source_partition_id
+
+      @return
+       true   all the above variables are same in the event and the one passed
+              in parameter.
+       false  Any of the above variable has a different value.
+    */
+    bool compare_extra_row_info(const unsigned char *ndb_info_arg,
+                                int part_id_arg, int source_part_id);
+
+    bool have_part() const { return m_partition_id != UNDEFINED; }
+
+    bool have_ndb_info() const { return m_extra_row_ndb_info != nullptr; }
+    size_t get_ndb_length();
+    size_t get_part_length();
+    ~Extra_row_info();
+
+    static const int UNDEFINED{INT_MAX};
+  };
+  Extra_row_info m_extra_row_info;
+
   unsigned long long get_table_id() const { return m_table_id.id(); }
 
   enum_flag get_flags() const { return static_cast<enum_flag>(m_flags); }

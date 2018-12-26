@@ -310,7 +310,7 @@ static bool partition_default_handling(TABLE *table, partition_info *part_info,
 */
 
 int get_parts_for_update(const uchar *old_data,
-                         uchar *new_data MY_ATTRIBUTE((unused)),
+                         const uchar *new_data MY_ATTRIBUTE((unused)),
                          const uchar *rec0, partition_info *part_info,
                          uint32 *old_part_id, uint32 *new_part_id,
                          longlong *new_func_value) {

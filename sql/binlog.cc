@@ -70,6 +70,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
 #include "mysqld_error.h"
+#include "partition_info.h"
 #include "prealloced_array.h"
 #include "rows_event.h"
 #include "sql/binlog_ostream.h"
@@ -117,6 +118,7 @@
 #include "sql/table.h"
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "sql_partition.h"
 #include "statement_events.h"
 #include "table_id.h"
 #include "thr_lock.h"
@@ -177,7 +179,6 @@ static xa_status_code binlog_xa_rollback(handlerton *hton, XID *xid);
 static void exec_binlog_error_action_abort(const char *err_string);
 static int binlog_recover(Binlog_file_reader *binlog_file_reader,
                           my_off_t *valid_pos);
-static bool binlog_row_event_extra_data_eq(const uchar *a, const uchar *b);
 static void binlog_prepare_row_images(const THD *thd, TABLE *table);
 
 static inline bool has_commit_order_manager(THD *thd) {
@@ -10352,11 +10353,14 @@ bool THD::is_dml_gtid_compatible(bool some_transactional_table,
 template <class RowsEventT>
 Rows_log_event *THD::binlog_prepare_pending_rows_event(
     TABLE *table, uint32 serv_id, size_t needed, bool is_transactional,
-    RowsEventT *hint MY_ATTRIBUTE((unused)), const uchar *extra_row_info) {
+    const unsigned char *extra_row_info, uint32 source_part_id) {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const general_type_code = RowsEventT::TYPE_CODE;
+
+  partition_info *part_info = table->part_info;
+  auto part_id = get_rpl_part_id(part_info);
 
   Rows_log_event *pending = binlog_get_pending_rows_event(is_transactional);
 
@@ -10381,8 +10385,8 @@ Rows_log_event *THD::binlog_prepare_pending_rows_event(
       pending->get_general_type_code() != general_type_code ||
       pending->get_data_size() + needed > binlog_row_event_max_size ||
       pending->read_write_bitmaps_cmp(table) == false ||
-      !binlog_row_event_extra_data_eq(pending->get_extra_row_data(),
-                                      extra_row_info)) {
+      !(pending->m_extra_row_info.compare_extra_row_info(
+          extra_row_info, part_id, source_part_id))) {
     /* Create a new RowsEventT... */
     Rows_log_event *const ev = new RowsEventT(
         this, table, table->s->table_map_id, is_transactional, extra_row_info);
@@ -10642,7 +10646,7 @@ class Row_data_memory {
 }  // namespace
 
 int THD::binlog_write_row(TABLE *table, bool is_trans, uchar const *record,
-                          const uchar *extra_row_info) {
+                          const unsigned char *extra_row_info) {
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
 
   /*
@@ -10657,9 +10661,9 @@ int THD::binlog_write_row(TABLE *table, bool is_trans, uchar const *record,
   size_t const len = pack_row(table, table->write_set, row_data, record,
                               enum_row_image_type::WRITE_AI);
 
-  Rows_log_event *const ev = binlog_prepare_pending_rows_event(
-      table, server_id, len, is_trans, static_cast<Write_rows_log_event *>(0),
-      extra_row_info);
+  Rows_log_event *const ev =
+      binlog_prepare_pending_rows_event<Write_rows_log_event>(
+          table, server_id, len, is_trans, extra_row_info);
 
   if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
 
@@ -10669,7 +10673,7 @@ int THD::binlog_write_row(TABLE *table, bool is_trans, uchar const *record,
 int THD::binlog_update_row(TABLE *table, bool is_trans,
                            const uchar *before_record,
                            const uchar *after_record,
-                           const uchar *extra_row_info) {
+                           const unsigned char *extra_row_info) {
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error = 0;
 
@@ -10706,10 +10710,23 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
   DBUG_DUMP("before_row", before_row, before_size);
   DBUG_DUMP("after_row", after_row, after_size);
 
-  Rows_log_event *const ev = binlog_prepare_pending_rows_event(
-      table, server_id, before_size + after_size, is_trans,
-      static_cast<Update_rows_log_event *>(0), extra_row_info);
+  partition_info *part_info = table->part_info;
+  uint32 source_part_id = binary_log::Rows_event::Extra_row_info::UNDEFINED;
+  if (part_info) {
+    uint32 new_part_id = binary_log::Rows_event::Extra_row_info::UNDEFINED;
+    longlong func_value = 0;
+    get_parts_for_update(before_record, after_record, table->record[0],
+                         part_info, &source_part_id, &new_part_id, &func_value);
+  }
 
+  Rows_log_event *const ev =
+      binlog_prepare_pending_rows_event<Update_rows_log_event>(
+          table, server_id, before_size + after_size, is_trans, extra_row_info,
+          source_part_id);
+
+  if (part_info) {
+    ev->m_extra_row_info.set_source_partition_id(source_part_id);
+  }
   if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
 
   error = ev->add_row_data(before_row, before_size) ||
@@ -10724,7 +10741,7 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
 }
 
 int THD::binlog_delete_row(TABLE *table, bool is_trans, uchar const *record,
-                           const uchar *extra_row_info) {
+                           const unsigned char *extra_row_info) {
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
   int error = 0;
 
@@ -10756,9 +10773,9 @@ int THD::binlog_delete_row(TABLE *table, bool is_trans, uchar const *record,
   size_t const len = pack_row(table, table->read_set, row_data, record,
                               enum_row_image_type::DELETE_BI);
 
-  Rows_log_event *const ev = binlog_prepare_pending_rows_event(
-      table, server_id, len, is_trans, static_cast<Delete_rows_log_event *>(0),
-      extra_row_info);
+  Rows_log_event *const ev =
+      binlog_prepare_pending_rows_event<Delete_rows_log_event>(
+          table, server_id, len, is_trans, extra_row_info);
 
   if (unlikely(ev == 0)) return HA_ERR_OUT_OF_MEM;
 
@@ -10856,32 +10873,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional) {
   }
 
   DBUG_RETURN(error);
-}
-
-/**
-   binlog_row_event_extra_data_eq
-
-   Comparator for two binlog row event extra data
-   pointers.
-
-   It compares their significant bytes.
-
-   Null pointers are acceptable
-
-   @param a
-     first pointer
-
-   @param b
-     first pointer
-
-   @return
-     true if the referenced structures are equal
-*/
-static bool binlog_row_event_extra_data_eq(const uchar *a, const uchar *b) {
-  return ((a == b) ||
-          ((a != NULL) && (b != NULL) &&
-           (a[EXTRA_ROW_INFO_LEN_OFFSET] == b[EXTRA_ROW_INFO_LEN_OFFSET]) &&
-           (memcmp(a, b, a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
 
 #if !defined(DBUG_OFF)

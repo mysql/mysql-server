@@ -68,15 +68,15 @@ loadFromBuffer(const uchar* extra_row_info)
   assert(extra_row_info);
 
   Uint8 length = extra_row_info[ EXTRA_ROW_INFO_LEN_OFFSET ];
-  assert(length >= EXTRA_ROW_INFO_HDR_BYTES);
-  Uint8 payload_length = length - EXTRA_ROW_INFO_HDR_BYTES;
+  assert(length >= EXTRA_ROW_INFO_HEADER_LENGTH);
+  Uint8 payload_length = length - EXTRA_ROW_INFO_HEADER_LENGTH;
   Uint8 format = extra_row_info[ EXTRA_ROW_INFO_FORMAT_OFFSET ];
 
   if (likely(format == ERIF_NDB))
   {
     if (likely(payload_length >= FLAGS_SIZE))
     {
-      const uchar* data = &extra_row_info[ EXTRA_ROW_INFO_HDR_BYTES ];
+      const unsigned char* data = &extra_row_info[ EXTRA_ROW_INFO_HEADER_LENGTH ];
       Uint8 nextPos = 0;
 
       /* Have flags at least */
@@ -163,7 +163,7 @@ Ndb_binlog_extra_row_info::generateBuffer()
     Here we write out the buffer in network format,
     based on the current member settings.
   */
-  Uint8 nextPos = EXTRA_ROW_INFO_HDR_BYTES;
+  Uint8 nextPos = EXTRA_ROW_INFO_HEADER_LENGTH;
 
   if (flags)
   {

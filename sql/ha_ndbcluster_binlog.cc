@@ -7185,7 +7185,7 @@ handle_data_event(NdbEventOperation *pOp,
      Get NdbApi transaction id for this event to put into Binlog
   */
   Ndb_binlog_extra_row_info extra_row_info;
-  const uchar* extra_row_info_ptr = NULL;
+  const unsigned char* extra_row_info_ptr = NULL;
   Uint16 erif_flags = 0;
   if (opt_ndb_log_transaction_id)
   {

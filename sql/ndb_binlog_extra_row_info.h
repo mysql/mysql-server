@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ public:
   static const Uint32 TRANSID_SIZE = sizeof(Uint64);
   static const Uint32 CFT_FLAGS_SIZE = sizeof(Uint16);
   static const Uint32 MaxLen =
-    EXTRA_ROW_INFO_HDR_BYTES +
+    EXTRA_ROW_INFO_HEADER_LENGTH +
     FLAGS_SIZE +
     TRANSID_SIZE +
     CFT_FLAGS_SIZE;

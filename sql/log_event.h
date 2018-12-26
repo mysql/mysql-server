@@ -58,6 +58,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // SERVER_VERSION_LENGTH
+#include "partition_info.h"
 #include "rows_event.h"
 #include "sql/query_options.h"  // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"       // enum_gtid_type
@@ -357,6 +358,19 @@ int ignored_error_code(int err_code);
    Maximum value of binlog logical timestamp.
 */
 const int64 SEQ_MAX_TIMESTAMP = LLONG_MAX;
+
+/**
+  This method is used to extract the partition_id
+  from a partitioned table.
+
+  @param part_info  an object of class partition_info it will be used
+                    to call the methods responsible for returning the
+                    value of partition_id
+
+  @retval           The return value is the partition_id.
+
+*/
+int get_rpl_part_id(partition_info *part_info);
 
 #ifdef MYSQL_SERVER
 class Item;
@@ -2615,8 +2629,6 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 
   uint m_row_count; /* The number of rows added to the event */
 
-  const uchar *get_extra_row_data() const { return m_extra_row_data; }
-
  protected:
   /*
      The constructors are protected since you're supposed to inherit
@@ -2625,7 +2637,8 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 #ifdef MYSQL_SERVER
   Rows_log_event(THD *, TABLE *, const Table_id &table_id,
                  MY_BITMAP const *cols, bool is_transactional,
-                 Log_event_type event_type, const uchar *extra_row_info);
+                 Log_event_type event_type,
+                 const unsigned char *extra_row_ndb_info);
 #endif
   Rows_log_event(const char *row_data,
                  const Format_description_event *description_event);
@@ -3020,7 +3033,8 @@ class Write_rows_log_event : public Rows_log_event,
 
 #if defined(MYSQL_SERVER)
   Write_rows_log_event(THD *, TABLE *, const Table_id &table_id,
-                       bool is_transactional, const uchar *extra_row_info);
+                       bool is_transactional,
+                       const unsigned char *extra_row_ndb_info);
 #endif
   Write_rows_log_event(const char *buf,
                        const Format_description_event *description_event);
@@ -3106,10 +3120,12 @@ class Update_rows_log_event : public Rows_log_event,
 #ifdef MYSQL_SERVER
   Update_rows_log_event(THD *, TABLE *, const Table_id &table_id,
                         MY_BITMAP const *cols_bi, MY_BITMAP const *cols_ai,
-                        bool is_transactional, const uchar *extra_row_info);
+                        bool is_transactional,
+                        const unsigned char *extra_row_ndb_info);
 
   Update_rows_log_event(THD *, TABLE *, const Table_id &table_id,
-                        bool is_transactional, const uchar *extra_row_info);
+                        bool is_transactional,
+                        const unsigned char *extra_row_ndb_info);
 
   void init(MY_BITMAP const *cols, const MY_BITMAP &cols_to_subtract);
 #endif
@@ -3221,7 +3237,7 @@ class Delete_rows_log_event : public Rows_log_event,
 
 #ifdef MYSQL_SERVER
   Delete_rows_log_event(THD *, TABLE *, const Table_id &, bool is_transactional,
-                        const uchar *extra_row_info);
+                        const unsigned char *extra_row_ndb_info);
 #endif
   Delete_rows_log_event(const char *buf,
                         const Format_description_event *description_event);

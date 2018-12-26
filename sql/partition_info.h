@@ -218,12 +218,26 @@ class partition_info {
 
   /*
     If there is no subpartitioning, use only this func to get partition ids.
-    If there is subpartitioning, use the this func to get partition id when
-    you have both partition and subpartition fields.
+
+    If there is subpartitioning use this to get the partition_id which will
+    consider the subpartition as well. See the below example
+
+    A table with 3 partition and 0 subpartition then the return value will
+    lie in the range of [0, 2]
+
+    A table with 3 partition and 3 subpartition then the return value will
+    lie in the range of [0, 8(no of partition X no of sub_partition -1)].
   */
   get_part_id_func get_partition_id;
 
-  /* Get partition id when we don't have subpartition fields */
+  /* Get partition id when we don't have subpartitioning
+     OR
+     Have both partition and subpartition fields but we don't want to consider
+     the subpartitions.
+     For example:
+     A table with 3 partition and 3 subpartition then the return value will
+     lie in the range of [0, 2].
+  */
   get_part_id_func get_part_partition_id;
 
   /*

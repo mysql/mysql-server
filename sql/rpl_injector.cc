@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ int injector::transaction::use_table(server_id_type sid, table tbl) {
 
 int injector::transaction::write_row(server_id_type sid, table tbl,
                                      MY_BITMAP const *cols, record_type record,
-                                     const uchar *extra_row_info) {
+                                     const unsigned char *extra_row_info) {
   DBUG_ENTER("injector::transaction::write_row(...)");
 
   int error = check_state(ROW_STATE);
@@ -189,7 +189,7 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
                                       MY_BITMAP const *cols, record_type record,
-                                      const uchar *extra_row_info) {
+                                      const unsigned char *extra_row_info) {
   DBUG_ENTER("injector::transaction::delete_row(...)");
 
   int error = check_state(ROW_STATE);
@@ -214,7 +214,7 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
                                       MY_BITMAP const *before_cols,
                                       MY_BITMAP const *after_cols,
                                       record_type before, record_type after,
-                                      const uchar *extra_row_info) {
+                                      const unsigned char *extra_row_info) {
   DBUG_ENTER("injector::transaction::update_row(...)");
 
   int error = check_state(ROW_STATE);

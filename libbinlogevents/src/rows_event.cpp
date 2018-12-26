@@ -361,7 +361,6 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde),
       m_table_id(0),
       m_width(0),
-      m_extra_row_data(0),
       columns_before_image(0),
       columns_after_image(0),
       row(0) {
@@ -369,7 +368,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
   Log_event_type event_type = header()->type_code;
-  uint16_t var_header_len = 0;
+  size_t var_header_len = 0;
   size_t data_size = 0;
   uint8_t const post_header_len = fde->post_header_len[event_type - 1];
   m_type = event_type;
@@ -393,21 +392,40 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
     /* Iterate over var-len header, extracting 'chunks' */
     uint64_t end = READER_CALL(position) + var_header_len;
     while (READER_CALL(position) < end) {
-      uint8_t type;
-      READER_TRY_SET(type, read<uint8_t>);
+      int type_placeholder;
+      READER_TRY_SET(type_placeholder, read<uint8_t>);
+
+      enum_extra_row_info_typecode type;
+      type = (enum_extra_row_info_typecode)type_placeholder;
       switch (type) {
-        case ROWS_V_EXTRAINFO_TAG: {
+        case enum_extra_row_info_typecode::NDB: {
           /* Have an 'extra info' section, read it in */
-          uint8_t infoLen = 0;
-          READER_TRY_SET(infoLen, read<uint8_t>);
-          /* infoLen is part of the buffer to be copied below */
+          size_t ndb_infolen = 0;
+          READER_TRY_SET(ndb_infolen, read<uint8_t>);
+          /* ndb_infolen is part of the buffer to be copied below */
           READER_CALL(go_to, READER_CALL(position) - 1);
 
           /* Just store/use the first tag of this type, skip others */
-          if (!m_extra_row_data) {
-            READER_TRY_CALL(alloc_and_memcpy, &m_extra_row_data, infoLen, 16);
+          if (!m_extra_row_info.have_ndb_info()) {
+            const char *ndb_info;
+            READER_TRY_SET(ndb_info, ptr, ndb_infolen);
+            m_extra_row_info.set_ndb_info(
+                reinterpret_cast<const unsigned char *>(ndb_info), ndb_infolen);
+            ndb_info = nullptr;
           } else {
-            READER_TRY_CALL(forward, infoLen);
+            READER_TRY_CALL(forward, ndb_infolen);
+          }
+          break;
+        }
+        case enum_extra_row_info_typecode::PART: {
+          int part_id_placeholder = 0;
+          READER_TRY_SET(part_id_placeholder, read<uint16_t>);
+          m_extra_row_info.set_partition_id(part_id_placeholder);
+          if (event_type == UPDATE_ROWS_EVENT ||
+              event_type == UPDATE_ROWS_EVENT_V1 ||
+              event_type == PARTIAL_UPDATE_ROWS_EVENT) {
+            READER_TRY_SET(part_id_placeholder, read<uint16_t>);
+            m_extra_row_info.set_source_partition_id(part_id_placeholder);
           }
           break;
         }
@@ -440,10 +458,44 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   BAPI_VOID_RETURN;
 }
 
-Rows_event::~Rows_event() {
-  if (m_extra_row_data) {
-    bapi_free(m_extra_row_data);
-    m_extra_row_data = NULL;
+Rows_event::~Rows_event() {}
+
+bool Rows_event::Extra_row_info::compare_extra_row_info(
+    const unsigned char *ndb_info_arg, int part_id_arg,
+    int source_part_id_arg) {
+  const unsigned char *ndb_row_info = m_extra_row_ndb_info;
+  bool ndb_info = ((ndb_info_arg == ndb_row_info) ||
+                   ((ndb_info_arg != NULL) && (ndb_row_info != NULL) &&
+                    (ndb_info_arg[EXTRA_ROW_INFO_LEN_OFFSET] ==
+                     ndb_row_info[EXTRA_ROW_INFO_LEN_OFFSET]) &&
+                    (memcmp(ndb_info_arg, ndb_row_info,
+                            ndb_row_info[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
+
+  bool part_info = (part_id_arg == m_partition_id) &&
+                   (source_part_id_arg == m_source_partition_id);
+  return part_info && ndb_info;
+}
+
+size_t Rows_event::Extra_row_info::get_ndb_length() {
+  if (have_ndb_info())
+    return m_extra_row_ndb_info[EXTRA_ROW_INFO_LEN_OFFSET];
+  else
+    return 0;
+}
+
+size_t Rows_event::Extra_row_info::get_part_length() {
+  if (have_part()) {
+    if (m_source_partition_id != UNDEFINED)
+      return EXTRA_ROW_PART_INFO_VALUE_LENGTH * 2;
+    return EXTRA_ROW_PART_INFO_VALUE_LENGTH;
+  }
+  return 0;
+}
+
+Rows_event::Extra_row_info::~Extra_row_info() {
+  if (have_ndb_info()) {
+    bapi_free(m_extra_row_ndb_info);
+    m_extra_row_ndb_info = nullptr;
   }
 }
 
