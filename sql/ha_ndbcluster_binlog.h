@@ -23,6 +23,7 @@
 */
 
 #include <stddef.h>
+#include <string>
 
 namespace dd {
 class Table;
@@ -56,3 +57,31 @@ bool ndb_binlog_is_read_only(void);
 
 /* Prints ndb binlog status string in buf */
 size_t ndbcluster_show_status_binlog(char* buf, size_t buf_size);
+
+/**
+ @brief Queue up workitems which the ndb binlog thread needs to check for
+        schema changes
+ @param db_name     The name of database to check. This cannot be empty
+ @param table_name  The name of table to check. Empty string denotes that all
+                    tables in 'db_name' are to be synchronized
+ @return true if the workitem was accepted, false if not
+*/
+bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
+                                           const std::string &table_name);
+
+/**
+ @brief Queue up logfile group items which the ndb binlog thread needs to check
+        for changes
+ @param lfg_name  The name of logfile group to check. This cannot be empty
+ @return true if the workitem was accepted, false if not
+*/
+bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name);
+
+/**
+ @brief Queue up tablespace items which the ndb binlog thread needs to check for
+        changes
+ @param tablespace_name  The name of tablespace to check. This cannot be empty
+ @return true if the workitem was accepted, false if not
+*/
+bool
+ndbcluster_binlog_check_tablespace_asynch(const std::string &tablespace_name);

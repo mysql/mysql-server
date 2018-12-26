@@ -27,6 +27,7 @@
 #include <string.h>           // memcpy
 
 #include "my_byteorder.h"
+#include "sql/ndb_name_util.h" // ndb_name_is_temp
 
 
 void ndb_pack_varchar(const NdbDictionary::Table *ndbtab, unsigned column_index,
@@ -168,4 +169,82 @@ bool
 ndb_dict_check_NDB_error(NdbDictionary::Dictionary* dict)
 {
   return (dict->getNdbError().code != 0);
+}
+
+
+bool ndb_get_logfile_group_names(NdbDictionary::Dictionary* dict,
+                                 std::unordered_set<std::string>& lfg_names)
+{
+  NdbDictionary::Dictionary::List lfg_list;
+  if (dict->listObjects(lfg_list, NdbDictionary::Object::LogfileGroup) != 0)
+  {
+    return false;
+  }
+
+  for (uint i = 0; i < lfg_list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt = lfg_list.elements[i];
+    lfg_names.insert(elmt.name);
+  }
+  return true;
+}
+
+
+bool ndb_get_tablespace_names(NdbDictionary::Dictionary* dict,
+                              std::unordered_set<std::string>& tablespace_names)
+{
+  NdbDictionary::Dictionary::List tablespace_list;
+  if (dict->listObjects(tablespace_list, NdbDictionary::Object::Tablespace)
+      != 0)
+  {
+    return false;
+  }
+
+  for (uint i = 0; i < tablespace_list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt =
+      tablespace_list.elements[i];
+    tablespace_names.insert(elmt.name);
+  }
+  return true;
+}
+
+
+bool ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
+                                   const std::string &schema_name,
+                                   std::unordered_set<std::string>& table_names)
+{
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+  {
+    return false;
+  }
+
+  for (uint i = 0; i < list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt = list.elements[i];
+
+    if (schema_name != elmt.database)
+    {
+      continue;
+    }
+
+    if (ndb_name_is_temp(elmt.name) ||
+        ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_index_stat(elmt.name))
+    {
+      continue;
+    }
+
+    if (elmt.state == NdbDictionary::Object::StateOnline ||
+        elmt.state == NdbDictionary::Object::StateBackup ||
+        elmt.state == NdbDictionary::Object::StateBuilding)
+    {
+      // Only return the table if they're already usable i.e. StateOnline or
+      // StateBackup or if they're expected to be usable soon which is denoted
+      // by StateBuilding
+      table_names.insert(elmt.name);
+    }
+  }
+  return true;
 }

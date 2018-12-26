@@ -757,6 +757,12 @@ Ndb_dd_client::get_ndb_table_names_in_schema(const char* schema_name,
     DBUG_RETURN(false);
   }
 
+  if (schema == nullptr)
+  {
+    // Database does not exist
+    DBUG_RETURN(false);
+  }
+
   std::vector<const dd::Table*> tables;
   if (m_client->fetch_schema_components(schema, &tables))
   {

@@ -97,6 +97,7 @@ Ndb_index_stat_cache_query	#
 Ndb_index_stat_status	#
 Ndb_last_commit_epoch_server	#
 Ndb_last_commit_epoch_session	#
+Ndb_metadata_detected_count	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#
@@ -144,6 +145,8 @@ ndb_log_transaction_id	#
 ndb_log_update_as_write	#
 ndb_log_update_minimal	#
 ndb_log_updated_only	#
+ndb_metadata_check	#
+ndb_metadata_check_interval	#
 ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#

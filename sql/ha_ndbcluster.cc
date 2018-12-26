@@ -64,9 +64,10 @@
 #include "sql/ndb_local_connection.h"
 #include "sql/ndb_local_schema.h"
 #include "sql/ndb_log.h"
+#include "sql/ndb_metadata_change_monitor.h"
 #include "sql/ndb_mi.h"
-#include "sql/ndb_name_util.h"
 #include "sql/ndb_modifiers.h"
+#include "sql/ndb_name_util.h"
 #include "sql/ndb_require.h"
 #include "sql/ndb_schema_dist.h"
 #include "sql/ndb_schema_trans_guard.h"
@@ -400,6 +401,7 @@ ndbcluster_get_tablespace_statistics(const char *tablespace_name,
                                      const char *file_name,
                                      const dd::Properties &ts_se_private_data,
                                      ha_tablespace_statistics *stats);
+static void ndbcluster_pre_dd_shutdown(handlerton *);
 
 
 static handler *ndbcluster_create_handler(handlerton *hton, TABLE_SHARE *table,
@@ -13701,6 +13703,7 @@ bool ndbcluster_is_connected(uint max_wait_sec)
 
 
 Ndb_index_stat_thread ndb_index_stat_thread;
+Ndb_metadata_change_monitor ndb_metadata_change_monitor_thread;
 
 extern THD * ndb_create_thd(char * stackptr);
 
@@ -13755,6 +13758,7 @@ ndb_wait_setup_server_startup(void*)
   // Signal components that server is started
   ndb_index_stat_thread.set_server_started();
   ndbcluster_binlog_set_server_started();
+  ndb_metadata_change_monitor_thread.set_server_started();
 
   if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0)
   {
@@ -13915,6 +13919,11 @@ int ndbcluster_init(void* handlerton_ptr)
     ndbcluster_init_abort("Failed to initialize NDB Index Stat");
   }
 
+  if (ndb_metadata_change_monitor_thread.init())
+  {
+    ndbcluster_init_abort("Failed to initialize NDB Metadata Change Monitor");
+  }
+
   mysql_mutex_init(PSI_INSTRUMENT_ME, &ndbcluster_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(PSI_INSTRUMENT_ME, &ndbcluster_cond);
   ndb_dictionary_is_mysqld= 1;
@@ -13962,6 +13971,7 @@ int ndbcluster_init(void* handlerton_ptr)
                              HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS;
 
   hton->check_fk_column_compat = ndbcluster_check_fk_column_compat;
+  hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
 
   // Initialize NdbApi
   ndb_init_internal(1);
@@ -14018,6 +14028,12 @@ int ndbcluster_init(void* handlerton_ptr)
     ndbcluster_init_abort("Failed to start NDB Index Stat");
   }
 
+  // Create metadata change monitor thread
+  if (ndb_metadata_change_monitor_thread.start())
+  {
+    ndbcluster_init_abort("Failed to start NDB Metadata Change Monitor");
+  }
+
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
   ndbcluster_inited= 1;
@@ -14034,7 +14050,9 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function)
     DBUG_RETURN(0);
   ndbcluster_inited= 0;
 
-  /* Stop threads started by ndbcluster_init() */
+  // Stop threads started by ndbcluster_init() except the
+  // ndb_metadata_change_monitor_thread. This is stopped and deinited in the
+  // ndbcluster_pre_dd_shutdown() function
   ndb_index_stat_thread.stop();
   ndbcluster_binlog_end();
 
@@ -19189,6 +19207,21 @@ ha_ndbcluster::upgrade_table(THD* thd,
   return false;
 }
 
+
+/*
+  @brief Shut down ndbcluster background tasks that could access the DD
+
+  @param  hton  Handlerton of the SE
+
+  @return Void
+*/
+static void ndbcluster_pre_dd_shutdown(handlerton *)
+{
+  // Stop and deinitialize the ndb_metadata_change_monitor thread
+  ndb_metadata_change_monitor_thread.stop();
+  ndb_metadata_change_monitor_thread.deinit();
+}
+
 static
 int show_ndb_status(THD* thd, SHOW_VAR* var, char*)
 {
@@ -19235,6 +19268,8 @@ static SHOW_VAR ndb_status_vars[] =
   {"Ndb",          (char*) &ndb_status_vars_slave,    SHOW_ARRAY, SHOW_SCOPE_GLOBAL},
   {"Ndb",          (char*) &show_ndb_status_server_api,     SHOW_FUNC,  SHOW_SCOPE_GLOBAL},
   {"Ndb_index_stat", (char*) &show_ndb_status_index_stat, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+  {"Ndb",            (char*) &show_ndb_metadata_check, SHOW_FUNC,
+   SHOW_SCOPE_GLOBAL},
   {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}
 };
 
@@ -19553,6 +19588,40 @@ static MYSQL_SYSVAR_BOOL(
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   0                                  /* default */
+);
+
+bool opt_ndb_metadata_check;
+static MYSQL_SYSVAR_BOOL(
+  metadata_check,                           /* name */
+  opt_ndb_metadata_check,                   /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Enable the automatic detection of NDB metadata changes to be synchronized "
+  "with the DD",
+  NULL,                                     /* check func. */
+  NULL,                                     /* update func. */
+  true                                      /* default */
+);
+
+ulong opt_ndb_metadata_check_interval;
+static void metadata_check_interval_update(THD*, SYS_VAR*, void* var_ptr,
+                                           const void* save)
+{
+  const ulong updated_interval = *static_cast<const ulong*>(save);
+  *static_cast<ulong*>(var_ptr) = updated_interval;
+  ndb_metadata_change_monitor_thread.set_check_interval(updated_interval);
+}
+static MYSQL_SYSVAR_ULONG(
+  metadata_check_interval,                  /* name */
+  opt_ndb_metadata_check_interval,          /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Interval of time (in seconds) at which a check is done to see if there are "
+  "NDB metadata changes to be synchronized",
+  NULL,                                     /* check func. */
+  metadata_check_interval_update,           /* update func. */
+  60,                                       /* default */
+  0,                                        /* min */
+  ONE_YEAR_IN_SECONDS,                      /* max */
+  0                                         /* block */
 );
 
 static MYSQL_SYSVAR_BOOL(
@@ -19980,6 +20049,8 @@ static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(show_foreign_key_mock_tables),
   MYSQL_SYSVAR(slave_conflict_role),
   MYSQL_SYSVAR(default_column_format),
+  MYSQL_SYSVAR(metadata_check),
+  MYSQL_SYSVAR(metadata_check_interval),
   NULL
 };
 

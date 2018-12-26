@@ -1,0 +1,7 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+ndb_metadata_check = 0
+
+[ENV]
+NDB_BACKUP_DIR=                @cluster_config.ndbd.1.1.BackupDataDir

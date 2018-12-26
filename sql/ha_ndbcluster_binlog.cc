@@ -6655,6 +6655,57 @@ ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share)
 }
 
 
+bool ndbcluster_binlog_check_schema_asynch(const std::string &db_name,
+                                           const std::string &table_name)
+{
+  if (db_name.empty())
+  {
+    ndb_log_error("Database name of object to be synchronized not set");
+    return false;
+  }
+
+  // First implementation simply writes to log
+  if (table_name.empty())
+  {
+    ndb_log_info("Check schema database: '%s'", db_name.c_str());
+    return true;
+  }
+
+  ndb_log_info("Check schema table: '%s.%s'", db_name.c_str(),
+               table_name.c_str());
+  return true;
+}
+
+
+bool ndbcluster_binlog_check_logfile_group_asynch(const std::string &lfg_name)
+{
+  if (lfg_name.empty())
+  {
+    ndb_log_error("Name of logfile group to be synchronized not set");
+    return false;
+  }
+
+  // First implementation simply writes to log
+  ndb_log_info("Check schema logfile group: '%s'", lfg_name.c_str());
+  return true;
+}
+
+
+bool
+ndbcluster_binlog_check_tablespace_asynch(const std::string &tablespace_name)
+{
+  if (tablespace_name.empty())
+  {
+    ndb_log_error("Name of tablespace to be synchronized not set");
+    return false;
+  }
+
+  // First implementation simply writes to log
+  ndb_log_info("Check schema tablespace: '%s'", tablespace_name.c_str());
+  return true;
+}
+
+
 /********************************************************************
   Internal helper functions for differentd events from the stoarage nodes
   used by the ndb injector thread

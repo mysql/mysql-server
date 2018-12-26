@@ -89,3 +89,9 @@ bool ndb_name_is_blob_prefix(const char* name)
 {
   return is_prefix(name, "NDB$BLOB");
 }
+
+
+bool ndb_name_is_index_stat(const char* name)
+{
+  return is_prefix(name, "ndb_index_stat");
+}
