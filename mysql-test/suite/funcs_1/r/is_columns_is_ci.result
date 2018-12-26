@@ -310,7 +310,7 @@ def	information_schema	TABLES	CHECK_TIME	17	NULL	YES	datetime	NULL	NULL	NULL	NUL
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLES	CHECKSUM	19	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	TABLES	CREATE_OPTIONS	20	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
+def	information_schema	TABLES	TABLE_COMMENT	21	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLESPACES	ENGINE	2		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	TABLESPACES	TABLESPACE_TYPE	3		YES	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -762,7 +762,7 @@ NULL	information_schema	TABLES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	TABLES	TABLE_COLLATION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-3.0000	information_schema	TABLES	TABLE_COMMENT	varchar	256	768	utf8	utf8_general_ci	varchar(256)
+1.0000	information_schema	TABLES	TABLE_COMMENT	text	65535	65535	utf8	utf8_general_ci	text
 3.0476	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	ENGINE	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.0476	information_schema	TABLESPACES	TABLESPACE_TYPE	varchar	21	64	utf8	utf8_general_ci	varchar(64)

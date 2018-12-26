@@ -1343,9 +1343,12 @@ class Item_func_internal_get_comment_or_error final : public Item_str_func {
 
   enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override {
-    // maximum string length of all options is expected
-    // to be less than 256 characters.
-    set_data_type_string(256, system_charset_info);
+    /*
+      maximum expected string length to be less than 2048 characters,
+      which is same as size of column holding comments in dictionary,
+      i.e., the mysql.tables.comment DD column.
+    */
+    set_data_type_string(2048, system_charset_info);
     maybe_null = 1;
     null_on_null = false;
 
