@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,6 +163,9 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   client_flag&= ~(CLIENT_COMPRESS | CLIENT_PLUGIN_AUTH);
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
+
+  if (embedded_ssl_check(mysql))
+    goto error;
 
   mysql->info_buffer= my_malloc(PSI_NOT_INSTRUMENTED,
                                 MYSQL_ERRMSG_SIZE, MYF(0));

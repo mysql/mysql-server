@@ -68,5 +68,33 @@ Sync slave with master
 include/start_slave.inc
 SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:10');
 include/assert.inc [Rows until 10 in t1 must be replicated now]
+Test WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function with negative timeout
+value. When SQL_MODE is strict, then it will throw
+WRONG_ARGUMENTS error.
+SET @save_sql_mode=@@SESSION.SQL_MODE;
+SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:100', -1);;
+ERROR HY000: Incorrect arguments to WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+When SQL_MODE is non-strict mode, then it will return NULL immediately
+without doing any work and generates WRONG_ARGUMENTS warning.
+SET @@SESSION.SQL_MODE="";
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:100', -1);;
+WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:100', -1)
+NULL
+Warnings:
+Warning	1210	Incorrect arguments to WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS.
+SET @@SESSION.SQL_MODE=@save_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Test WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function with fractional timeout
+value. Earlier(before fix), 0.4 is read as integer value '0' and
+the function hanged forever (or till all the specified gtids are
+executed). Now(after fix) 0.4 will be read as double 0.4 and will waitfor
+atleast 0.4 seconds (or till all the specified  gtids are executed).
+Also check that function returns -1 if the timeout has been exceeded.
+include/assert.inc [WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS returns -1 if the timeout has been exceeded.]
 DROP TABLE t1;
 include/rpl_end.inc

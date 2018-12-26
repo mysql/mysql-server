@@ -371,6 +371,8 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT NOT NULL,b TIME NOT NULL DEFAULT '00:00:00')
 ENGINE=MyISAM
 PARTITION BY HASH (a) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (a INT) ENGINE=MYISAM;
 ALTER TABLE t1 EXCHANGE PARTITION p1 WITH TABLE t2;
 ERROR HY000: Tables have different definitions
@@ -401,6 +403,8 @@ ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE tsp (a INT,
 b VARCHAR(55),
 PRIMARY KEY (a))
@@ -413,9 +417,15 @@ SUBPARTITION sp1),
 PARTITION p1 VALUES LESS THAN MAXVALUE
 (SUBPARTITION sp2,
 SUBPARTITION sp3));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"), (99, "End of values");
 INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"), (200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"), (63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"), (163, "163"), (164, "164");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -433,6 +443,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 1	First value
@@ -471,6 +483,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 10	Ten
@@ -512,6 +526,8 @@ a	b
 62	Sixty two
 63	Sixty three
 64	Sixty four
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
 ERROR HY000: Found a row that does not match the partition
 SHOW CREATE TABLE t;
@@ -531,6 +547,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 1	First value
@@ -587,6 +605,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE tsp;
 Table	Create Table
 tsp	CREATE TABLE `tsp` (
@@ -602,6 +622,8 @@ SUBPARTITION BY HASH (a)
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp2 ENGINE = MyISAM,
   SUBPARTITION sp3 ENGINE = MyISAM)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 1	First value
@@ -641,6 +663,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 10	Ten
@@ -679,6 +703,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 1	First value
@@ -723,6 +749,8 @@ SUBPARTITION BY HASH (a)
  PARTITION p1 VALUES LESS THAN MAXVALUE
  (SUBPARTITION sp2 ENGINE = MyISAM,
   SUBPARTITION sp3 ENGINE = MyISAM)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 61	Sixty one
@@ -867,6 +895,8 @@ CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 RENAME TABLE t TO tmp2, tmp TO t;
 ALTER TABLE tp ENGINE = MyISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t CHARACTER SET = koi8r COLLATE koi8r_general_ci;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'CHARACTER SET' between partition and table
@@ -894,6 +924,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Non matching attribute 'MAX_ROWS' between partition and table
 SHOW WARNINGS;
@@ -904,8 +936,14 @@ DROP TABLE t;
 RENAME TABLE tmp2 TO t;
 ALTER TABLE t ADD KEY ba_key (b, a);
 ALTER TABLE tp ADD KEY ba_key (b, a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp ADD KEY ba_key (b, a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t;
 Table	Create Table
 t	CREATE TABLE `t` (
@@ -925,6 +963,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t;
 a	b
 10	Ten
@@ -961,6 +1001,8 @@ ALTER TABLE t CHANGE c a INT;
 # test temporary table
 ALTER TABLE t ENGINE = MyISAM;
 ALTER TABLE tp ENGINE = MyISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TEMPORARY TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
 ALTER TABLE t RENAME TO tmp2;
@@ -984,6 +1026,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Table to exchange with partition is temporary: 't'
 SHOW CREATE TABLE t;
@@ -1005,6 +1049,8 @@ tp	CREATE TABLE `tp` (
 /*!50100 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TEMPORARY TABLE t;
 ALTER TABLE tmp2 RENAME TO t;
 # Test non partitioned table
@@ -1021,6 +1067,8 @@ CREATE TABLE t LIKE general_log;
 ALTER TABLE t PARTITION BY RANGE (thread_id)
 (PARTITION p0 VALUES LESS THAN (123456789),
 PARTITION pMAX VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'mysql.t', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
 ERROR HY000: Incorrect usage of PARTITION and log table
 ALTER TABLE general_log ENGINE = CSV;

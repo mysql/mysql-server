@@ -1,0 +1,68 @@
+--echo # INPLACE ALTER WITH INPLACE_IGNORE FLAG AND CHANGE CREATE OPTION
+
+--echo # CHANGE THE COLUMN DEFAULT (INPLACE_IGNORE)
+--echo # AND TABLE CHARSET(CHANGE CREATE)
+
+CREATE TABLE t1(
+	id INT PRIMARY KEY,
+	f1 INT NOT NULL DEFAULT 0)ENGINE=INNODB;
+
+INSERT INTO t1 VALUES(1, 2);
+
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+
+ALTER TABLE t1 MODIFY COLUMN f1 INT NOT NULL DEFAULT 0,
+	       DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
+
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+
+if ($id_before_alter != $id_after_alter)
+{
+  --echo "Table rebuild happened";
+}
+
+DROP TABLE t1;
+
+--echo # CHANGE THE STORAGE TYPE OF COLUMN(INPLACE IGNORE)
+--echo # AND TABLE CHARSET(CHANGE CREATE)
+
+CREATE TABLE t1(
+	id INT STORAGE DISK)ENGINE=INNODB;
+
+INSERT INTO t1 values(1);
+
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+
+ALTER TABLE t1 MODIFY COLUMN id INT STORAGE MEMORY,
+	       DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
+
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+
+if ($id_before_alter != $id_after_alter)
+{
+  --echo "Table rebuild happened";
+}
+
+DROP TABLE t1;
+
+--echo # RENAME THE TABLE(INPLACE IGNORE)
+--echo # AND CHANGE TABLE CHARSET(CHANGE CREATE)
+
+CREATE TABLE t1(
+	f1 INT NOT NULL,
+	f2 INT NOT NULL)ENGINE=INNODB;
+
+INSERT INTO t1 VALUES(1, 2);
+
+let id_before_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t1"`;
+
+ALTER TABLE t1 RENAME t2, DEFAULT CHARSET=latin1, ALGORITHM=INPLACE;
+
+let id_after_alter =`SELECT table_id FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE name="test/t2"`;
+
+if ($id_before_alter != $id_after_alter)
+{
+  --echo "Table rebuild happened";
+}
+
+DROP TABLE t2;

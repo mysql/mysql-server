@@ -28,13 +28,13 @@
 namespace ngs
 {
 
-  class Client;
+  class Client_interface;
 
 
   class Capability_tls : public Capability_handler
   {
   public:
-    Capability_tls(Client& client) : m_client(client), tls_should_be_enabled(false)
+    Capability_tls(Client_interface& client) : m_client(client), tls_should_be_enabled(false)
     {
     }
 
@@ -47,7 +47,7 @@ namespace ngs
     virtual void commit();
 
   private:
-    Client& m_client;
+    Client_interface& m_client;
     bool    tls_should_be_enabled;
   };
 

@@ -1,0 +1,23 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+Socket
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Test lock file issue
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, lock file is empty");
+# restart: --loose-mysqlx-socket=SOCKET
+ERROR: No such file or directory connecting to SOCKET
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.dir.socket. failed, can't read lock file");
+call mtr.add_suppression("Plugin mysqlx reported: .* wasn't allocated by X Plugin ..+/mysqlx.dir.socket.lock");
+# restart: --loose-mysqlx-socket=SOCKET
+ERROR: No such file or directory connecting to SOCKET
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, invalid PID in UNIX socket lock file ");
+# restart: --loose-mysqlx-socket=SOCKET
+ERROR: No such file or directory connecting to SOCKET
+UNINSTALL PLUGIN mysqlx;

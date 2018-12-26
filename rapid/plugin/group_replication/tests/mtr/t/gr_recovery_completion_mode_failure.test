@@ -1,0 +1,153 @@
+################################################################################
+# This test evaluates that when a policy cannot be enforced, recovery fails
+#
+# Test:
+#   0. The test requires two servers.
+#   1. Create 2 tables (t1,t2) on both servers.
+#   2. Start group replication on server1 with some data inserted on t1.
+#      Change recovery policy on server2 to wait for transaction execution i.e.
+#      transactions_applied.
+#   3. Lock table t1 on server2 and start group replication to block first
+#      phase of recovery. Recovery will get stuck as the member can't execute
+#      data on t1.
+#   4. Insert some data on t2 on server1.
+#      Recovery application of cached data is waiting on the state transfer
+#      completion.
+#   5. Stop the applier thread for the Group Replication applier.
+#   6. Unlock t1 and recovery first phase will unblock.
+#      The member should error out as it can't execute cached transactions.
+#   7. Clean up.
+################################################################################
+
+--let $group_replication_group_name= a5980950-41c7-11e5-b970-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Create t1 and t2 on both servers
+--echo # Start group replication on server 1 and insert data on t1
+--echo #
+
+--connection server1
+--echo server1
+
+SET SESSION sql_log_bin=0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin=1;
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+INSERT INTO t1 VALUES (1);
+
+--connection server2
+--echo server2
+
+SET SESSION sql_log_bin=0;
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+call mtr.add_suppression("It is not possible to ensure the execution of group*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Can't evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.");
+SET SESSION sql_log_bin=1;
+
+--echo #
+--echo # Change recovery policy on server 2 to wait for transaction execution.
+--echo #
+
+--connection server2
+--echo server2
+
+SET @configured_rec_policy= @@GLOBAL.group_replication_recovery_complete_at;
+SET GLOBAL group_replication_recovery_complete_at= "transactions_applied";
+
+--echo #
+--echo # Lock table t1 on server 2
+--echo # Table t1: Blocks first phase of recovery
+--echo #
+
+--connection server_2
+--echo server_2 (server2)
+
+LOCK TABLE t1 READ;
+
+--echo #
+--echo # Start group replication on server 2 and check it is stuck on recovery
+--echo #
+
+--connection server2
+--echo server2
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Insert some transaction on server 1 that will be cached on server 2
+--echo #
+
+--connection server1
+--echo server1
+
+INSERT INTO t2 VALUES (1);
+
+--echo #
+--echo # Wait for the transactions to be cached on server 2
+--echo #
+
+--connection server2
+--echo server2
+
+--let $wait_condition= SELECT COUNT_TRANSACTIONS_IN_QUEUE=2 FROM performance_schema.replication_group_member_stats;
+--source include/wait_condition.inc
+
+--echo #
+--echo # Stop the group replication applier thread during recovery.
+--echo #
+
+--connection server2
+--echo server2
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo #
+--echo # UnLock table t1: First phase of recovery can carry on.
+--echo # Member 2 will error out as it can't wait for data execution
+--echo #
+
+--connection server_2
+--echo server_2 (server2)
+
+UNLOCK TABLES;
+
+--let $group_replication_member_state= ERROR
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Test cleanup
+--echo #
+
+--connection server1
+--echo server1
+
+--let $group_replication_number_of_members= 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--connection server2
+--echo server2
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+SET GLOBAL group_replication_recovery_complete_at= @configured_rec_policy;
+
+--source ../inc/group_replication_end.inc

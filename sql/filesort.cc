@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2134,9 +2134,6 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
        Called by Unique::get()
        Copy the first argument to param->unique_buff for unique removal.
        Store it also in 'to_file'.
-
-       This is safe as we know that there is always more than one element
-       in each block to merge (This is guaranteed by the Unique:: algorithm
     */
     merge_chunk= queue.top();
     memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
@@ -2150,6 +2147,17 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
     {
       error= 0;                                       /* purecov: inspected */
       goto end;                                       /* purecov: inspected */
+    }
+    // The top chunk may actually contain only a single element
+    if (merge_chunk->mem_count() == 0)
+    {
+      if (!(error= (int) read_to_buffer(from_file, merge_chunk, param)))
+      {
+        queue.pop();
+        reuse_freed_buff(merge_chunk, &queue);
+      }
+      else if (error == -1)
+        DBUG_RETURN(error);
     }
     queue.update_top();                   // Top element has been used
   }

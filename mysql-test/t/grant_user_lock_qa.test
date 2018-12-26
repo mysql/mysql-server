@@ -129,7 +129,7 @@ SHOW STATUS LIKE 'locked_connects';
 FLUSH STATUS;
 # Account access permission information for a user should NOT be available
 # through INFORMATION_SCHEMA.user_privileges. The LOGIN permission is NOT a privilege.
-SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%';
+SELECT * FROM INFORMATION_SCHEMA.user_privileges WHERE GRANTEE LIKE '%user%' AND GRANTEE NOT IN ("'mysql.session'@'localhost'");
 
 # Cleanup
 DROP USER user1,user2@localhost,user3,user4@localhost,user6,user7@localhost,

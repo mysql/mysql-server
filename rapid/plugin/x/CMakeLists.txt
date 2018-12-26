@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,18 +35,18 @@ INCLUDE(mysqlx_protobuf.cmake)
 IF(NOT PROTOBUF_FOUND)
   MESSAGE(WARNING "Disabling mysqlx plugin.")
 ELSE()
+  INCLUDE(mysqlx_variables.cmake)
   INCLUDE(source_files.cmake)
-
-  INCLUDE(mysqlx_error.cmake)
+  INCLUDE(mysqlx_configure.cmake)
 
   SET(GENERATED_LITE_PROTO_FILES)
   # Generate protobuf-lite versions of proto files.
   FOREACH(PROTOBUF_MYSQLX_FILE ${PROTOBUF_MYSQLX_FILES})
     GET_FILENAME_COMPONENT(MYSQLX_NAME_WD ${PROTOBUF_MYSQLX_FILE} NAME)
     LIST(APPEND GENERATED_LITE_PROTO_FILES
-      ${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD})
+      ${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD})
     ADD_CUSTOM_COMMAND(
-      OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD}"
+      OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD}"
       COMMAND ${CMAKE_COMMAND}
               -D CURRENT_BINARY_DIR="${CMAKE_CURRENT_BINARY_DIR}"
               -D PROTO_FILE="${PROTOBUF_MYSQLX_FILE}"
@@ -54,7 +54,7 @@ ELSE()
               -P ${CMAKE_CURRENT_SOURCE_DIR}/process_protobuf_file.cmake
       DEPENDS ${PROTOBUF_MYSQLX_FILE})
     SET_SOURCE_FILES_PROPERTIES(
-      "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite/${MYSQLX_NAME_WD}"
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite/${MYSQLX_NAME_WD}"
       PROPERTIES GENERATED TRUE)
   ENDFOREACH()
 
@@ -91,8 +91,8 @@ ELSE()
     ${CMAKE_CURRENT_SOURCE_DIR}/ngs/include
     ${CMAKE_SOURCE_DIR}/include #temporary
     ${CMAKE_CURRENT_SOURCE_DIR}/include/mysql
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
     ${SSL_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
   )
 
   INCLUDE_DIRECTORIES(SYSTEM
@@ -103,12 +103,17 @@ ELSE()
 
   IF(XPLUGIN_NO_LITE_PROTOBUF)
     SET(xplugin_PROTOBUF_SRC ${PROTO_SRCS} ${PROTO_HDRS})
-    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf")
+    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
     SET(xplugin_PROTOBUF_LIB ${PROTOBUF_LIBRARY})
   ELSE()
     SET(xplugin_PROTOBUF_SRC ${PROTO_LITE_SRCS} ${PROTO_LITE_HDRS})
-    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/protobuf_lite")
+    SET(xplugin_PROTOBUF_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf_lite")
     SET(xplugin_PROTOBUF_LIB ${PROTOBUF_LITE_LIBRARY})
+  ENDIF()
+
+  # Do not LINK_LIBRARIES below, do TARGET_LINK_LIBRARIES instead.
+  IF(WITH_PROTOBUF STREQUAL "system")
+    SET(xplugin_PROTOBUF_LIB)
   ENDIF()
 
   IF(MSVC)
@@ -124,31 +129,27 @@ ELSE()
       ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
   ENDIF()
 
-  # Built *without* -DMYSQL_DYNAMIC_PLUGIN
-  ADD_CONVENIENCE_LIBRARY(xplugin
-    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES})
-
   ADD_COMPILE_FLAGS(
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
-    COMPILE_FLAGS "-I${xplugin_PROTOBUF_DIR}")
+    COMPILE_FLAGS
+    "-I${xplugin_PROTOBUF_DIR}")
 
-  TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
-  IF(MSVC)
-    TARGET_LINK_LIBRARIES(xplugin strings) 
-  ENDIF(MSVC)
-  
-  # These are built *with* -DMYSQL_DYNAMIC_PLUGIN
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
-    LINK_LIBRARIES xplugin ${xplugin_PROTOBUF_LIB}
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES}
+    LINK_LIBRARIES ${xplugin_PROTOBUF_LIB} ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
     MODULE_ONLY MODULE_OUTPUT_NAME "mysqlx")
 
-  ADD_DEPENDENCIES(xplugin GenError)
+  IF(WITH_PROTOBUF STREQUAL "system")
+    TARGET_LINK_LIBRARIES(mysqlx "${PROTOBUF_LIBRARY}")
+  ENDIF()
+
+  ADD_DEPENDENCIES(mysqlx GenError)
   IF (WITH_LIBEVENT STREQUAL "bundled")
-    ADD_DEPENDENCIES(xplugin ${LIBEVENT_LIBRARY})
+    ADD_DEPENDENCIES(mysqlx ${LIBEVENT_LIBRARY})
   ENDIF()
 
   IF(XPLUGIN_LOG_PROTOBUF)
@@ -199,7 +200,8 @@ ELSE()
   ENDIF()
 
   GET_PROPERTY(OLD_COMPILE_FLAGS TARGET mysqlxtest PROPERTY COMPILE_FLAGS)
-  SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/protobuf")
+  SET_PROPERTY(TARGET mysqlxtest PROPERTY COMPILE_FLAGS
+    "${OLD_COMPILE_FLAGS} -I${CMAKE_CURRENT_BINARY_DIR}/generated/protobuf")
 
     GET_TARGET_PROPERTY(mysqlxtest_compile_definitions
       mysqlxtest COMPILE_DEFINITIONS)
@@ -213,10 +215,6 @@ ELSE()
 
   TARGET_LINK_LIBRARIES(mysqlxtest mysys strings mysqlclient)
   TARGET_LINK_LIBRARIES(mysqlxtest ${PROTOBUF_LIBRARY})
-
-  IF( WIN32 )
-    ADD_DEFINITIONS(-DMYSQLXTEST_EXPORTS)
-  ENDIF()
 
   IF(INSTALL_MYSQLTESTDIR)
     INSTALL(

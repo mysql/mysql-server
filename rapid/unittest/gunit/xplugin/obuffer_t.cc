@@ -21,7 +21,6 @@
 #include <string>
 #include <iostream>
 
-#include <boost/shared_ptr.hpp>
 #include <gtest/gtest.h>
 
 #include "ngs/protocol/output_buffer.h"
@@ -33,13 +32,13 @@ namespace im
   const ngs::Pool_config default_pool_config = { 0, 0, BUFFER_PAGE_SIZE };
 
   namespace tests {
-    std::vector<boost::shared_ptr<Page> > page_del;
+    std::vector<ngs::shared_ptr<Page> > page_del;
 
     static void add_pages(Output_buffer &ob, const size_t no_of_pages, const size_t page_size)
     {
       for (size_t i = 0; i < no_of_pages; i++)
       {
-        page_del.push_back(boost::shared_ptr<Page>(new Page(static_cast<uint32_t>(page_size))));
+        page_del.push_back(ngs::shared_ptr<Page>(new Page(static_cast<uint32_t>(page_size))));
         ob.push_back(page_del.back().get());
       }
     }

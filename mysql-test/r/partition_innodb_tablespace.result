@@ -391,6 +391,8 @@ PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
 (SUBPARTITION sp9 TABLESPACE ts_part4,
 SUBPARTITION sp10,
 SUBPARTITION sp11));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -444,6 +446,8 @@ PARTITION p3 VALUES LESS THAN (300) TABLESPACE innodb_file_per_table
 (SUBPARTITION sp9 TABLESPACE ts_part4,
 SUBPARTITION sp10,
 SUBPARTITION sp11));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (

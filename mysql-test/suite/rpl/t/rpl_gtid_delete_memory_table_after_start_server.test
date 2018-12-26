@@ -40,6 +40,8 @@
 --source include/master-slave.inc
 
 CALL mtr.add_suppression("Found 1 prepared XA transactions");
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+CALL mtr.add_suppression("Statement accesses nontransactional table as well as transactional or temporary table");
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE TABLE t1(c1 INT);
@@ -76,7 +78,9 @@ INSERT INTO db2.mem_t5 VALUES(1),(2),(3);
 --source include/rpl_connection_master.inc
 
 XA START 'xa1';
+--disable_warnings
 INSERT INTO t1 VALUES(1);
+--enable_warnings
 XA END 'xa1';
 XA PREPARE 'xa1';
 --source include/save_master_pos.inc

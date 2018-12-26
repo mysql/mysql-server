@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -505,6 +505,7 @@ dtype_get_fixed_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
+	// Fall through.
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:
@@ -585,6 +586,7 @@ dtype_get_min_size_low(
 			return(0);
 		}
 #endif /* UNIV_DEBUG */
+	// Fall through.
 	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_INT:

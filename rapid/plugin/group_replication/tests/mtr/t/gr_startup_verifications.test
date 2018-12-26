@@ -1,0 +1,97 @@
+################################################################################
+# The intent of this test is to verify if the validations that were
+# created within the Group Replication plugin in the startup process
+# are fully functional.
+#
+# It will test the dynamic variables:
+# - binlog_checksum. It will be set to CRC32 in order to fail.
+# - binlog_format. It will be set to STATEMENT in order to fail.
+# - transaction_write_set_extraction. It will be set to HASH_ALGORITHM_OFF in
+# order to fail.
+# - slave_parallel_workers. It will be set to 4 in order to fail.
+#
+# Test:
+# 0. The test requires one server.
+#  - Install plugin at startup.
+# 1. Set binlog_checksum=CRC32. START GROUP_REPLICATION must fail due to GR
+#    incompatible binlog_checksum.
+# 2. binlog_format=STATEMENT. START GROUP_REPLICATION must fail due to GR
+#    incompatible binlog_format.
+# 3. Set transaction_write_set_extraction=OFF. START GROUP_REPLICATION must fail
+#    due to GR incompatible binlog_format.
+# 4. Set SLAVE_PARALLEL_WORKERS=4, SLAVE_PARALLEL_TYPE=DATABASE. START
+#    GROUP_REPLICATION must fail due to GR incompatible SLAVE_PARALLEL_WORKERS.
+#  - Set SLAVE_PARALLEL_WORKERS=4, SLAVE_PARALLEL_TYPE=LOGICAL_CLOCK. START
+#    GROUP_REPLICATION must fail due to GR incompatible SLAVE_PARALLEL_WORKERS.
+# 5. Restore the old configuration values.
+################################################################################
+
+--source include/not_mts_slave_parallel_workers.inc
+--source ../inc/have_group_replication_plugin.inc
+
+--connection server1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--echo #
+--echo # Test if binlog_checksum with the wrong value will fail.
+--echo #
+
+--let $binlog_checksum_backup= `SELECT @@GLOBAL.binlog_checksum;`
+SET GLOBAL binlog_checksum= CRC32;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL binlog_checksum= $binlog_checksum_backup
+
+--echo #
+--echo # Test if binlog_format with the wrong value will fail.
+--echo #
+
+--let $binlog_format_backup= `SELECT @@GLOBAL.binlog_format`
+
+SET GLOBAL binlog_format= STATEMENT;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL binlog_format= $binlog_format_backup
+
+--let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+SET GLOBAL transaction_write_set_extraction=OFF;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--replace_result $transaction_write_set_extraction_backup WRITE_SET_EXTRACTION_ALGORITHM
+--eval SET GLOBAL transaction_write_set_extraction= $transaction_write_set_extraction_backup
+
+--echo #
+--echo # Test if parallel applier is enabled and that start
+--echo # Group Replication will fail.
+--echo #
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "DATABASE";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= "LOGICAL_CLOCK";
+SET GLOBAL SLAVE_PARALLEL_WORKERS= 4;
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+
+call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Extraction of transaction write sets requires*");
+call mtr.add_suppression("In order to use parallel applier on Group Replication, parameter slave-parallel-type must be set to 'LOGICAL_CLOCK'");
+call mtr.add_suppression("Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads.");
+
+--source ../inc/gr_clear_configuration.inc

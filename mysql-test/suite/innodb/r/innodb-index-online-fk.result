@@ -86,6 +86,7 @@ child	CREATE TABLE `child` (
 DELETE FROM parent where a = 1;
 SELECT * FROM child;
 a1	a2
+1	NULL
 2	3
 10	20
 SET foreign_key_checks = 0;

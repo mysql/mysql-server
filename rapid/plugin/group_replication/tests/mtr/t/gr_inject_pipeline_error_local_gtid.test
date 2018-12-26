@@ -1,0 +1,65 @@
+################################################################################
+# BUG#21180035 - ADD SUPPORT TO SKIP GTIDS ON GROUP REPLICATION
+#
+# This test verifies that incase of an error on the pipeline due to local
+# transactions with specified GTIDs that cant be added to the to the
+# group_gtid_executed set.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Bootstrap start M1. Create table t1 for further testing.
+# 2. Set a DEBUG point. Add a local transaction for M1 so that the debug point
+#    is hit.
+# 3. Check service_state of applier channel is OFF.
+# 4. Clean up.
+################################################################################
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--let $group_replication_group_name= 32e1761a-01d2-11e6-a992-02420ef39c5b
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (i int PRIMARY KEY);
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to add gtid information to the group_gtid_executed set when gtid was provided for local transactions");
+call mtr.add_suppression("Error at event handling! Got error: 1");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("Error. Leaving a group without being on one.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Error when trying to unblock non certified transactions.*");
+SET SESSION sql_log_bin= 1;
+
+# Add a local transaction for server1 so that the debug point is hit.
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,unable_to_add_specified_gtid_for_local_transaction';
+
+--eval SET GTID_NEXT= "$group_replication_group_name:4"
+--error 0, ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT INTO t1 VALUES(1);
+SET GTID_NEXT='AUTOMATIC';
+
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--echo
+--echo # Reset debug flag.
+--echo #
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_saved;
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source ../inc/group_replication_end.inc

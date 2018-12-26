@@ -2204,7 +2204,7 @@ PRIMARY KEY (clipid),
 KEY tape(Tape(255))
 ) CHARACTER SET=utf8mb4 ENGINE InnoDB;
 Warnings:
-Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1071	Specified key was too long; max key length is 255 bytes
 ALTER TABLE t1 ADD mos TINYINT DEFAULT 0 AFTER clipid;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2213,7 +2213,7 @@ t1	CREATE TABLE `t1` (
   `mos` tinyint(4) DEFAULT '0',
   `Tape` tinytext,
   PRIMARY KEY (`clipid`),
-  KEY `tape` (`Tape`(191))
+  KEY `tape` (`Tape`(63))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SET sql_mode = default;

@@ -147,6 +147,7 @@ id	LEFT(bfield,20)
 21	aaaaaaaaaaaaaaaaaaaa
 22	bbbbbbbbbbbbbbbbbbbb
 23	cccccccccccccccccccc
+SET GLOBAL innodb_fast_shutdown=0;
 "test misc 1"
 "test misc 3"
 "test misc 4"

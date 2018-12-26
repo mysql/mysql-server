@@ -1,0 +1,76 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Setup Group Replication on server 1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+#  2. Setup a asynchronous replication connection from server 2
+#     into group (server 1)
+[connection server1]
+CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=SERVER_2_PORT, MASTER_AUTO_POSITION=1 for channel 'ch2_1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+
+############################################################
+#  3. Execute some transactions on server 2.
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+############################################################
+#  4. Wait until transactions executed on server 2 are applied
+#     on group.
+include/sync_slave_sql_with_master.inc
+
+############################################################
+#  5. Activate group_replication_stop_all_channels_failure
+#     debug sync point, which will return
+#     ER_GROUP_REPLICATION_CONFIGURATION error, when stop
+#     group replication calls to stop all replication channels.
+[connection server1]
+# 5.1. Stop Group Replication
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_stop_all_channels_failure';
+STOP GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET @@GLOBAL.DEBUG= @debug_save;
+# 5.2. Verify member is OFFLINE
+include/gr_wait_for_member_state.inc
+# 5.3. Verify occurrence of error message
+Occurrences of 'Error stopping all replication channels while server was leaving the group. Please check the error log for additional details.' in the input file: 1
+Occurrences of 'Error stopping channel: ch2_1. Got error: 1, Error_code: 1' in the input file: 1
+Occurrences of 'Error stopping channel: . Got error: 1, Error_code: 1' in the input file: 1
+
+############################################################
+#  6. Execute data on server 2 and ensure it is not accepted on server 1.
+[connection server2]
+INSERT INTO t1 VALUES (1);
+
+############################################################
+#  7. Verify channel ch2_1 IO and SQL THREADS are OFF
+[connection server1]
+include/wait_for_slave_to_stop.inc
+include/assert.inc [Verify channel ch2_1 IO_THREAD is OFF]
+include/assert.inc [Verify channel ch2_1 SQL_THREAD is OFF]
+
+############################################################
+#  8. Verify data isn't replicated to group i.e. server1
+include/assert.inc ['There is no value 1 in table t1']
+
+############################################################
+#  9. Clean Up
+[connection server1]
+SET GLOBAL read_only= 0;
+RESET SLAVE ALL FOR CHANNEL 'ch2_1';
+DROP TABLE test.t1;
+[connection server2]
+DROP TABLE test.t1;
+include/group_replication_end.inc

@@ -5,8 +5,15 @@
 --echo # 1. Setup
 --echo # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
---error 0,1
---remove_file $error_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 let SEARCH_FILE= $error_log;
 
 --echo # Stop the server
@@ -101,6 +108,18 @@ let error_pattern= Could not write public key file: ;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
---error 0,1
---remove_file $restart_file
---remove_file $error_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/tmp/mysqld.1.expect";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+

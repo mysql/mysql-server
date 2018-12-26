@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,6 +143,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int   first_error=0;
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
 
@@ -526,6 +527,7 @@ static struct my_option my_long_options[] =
     " uses old (pre-4.1.1) protocol. Deprecated. Always TRUE",
     &opt_secure_auth, &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
   {"tab",'T',
    "Create tab-separated textfile for each table to given path. (Create .sql "
    "and .txt files.) NOTE: This only works if mysqldump is run on the same "
@@ -591,7 +593,8 @@ static int dump_tablespaces_for_databases(char** databases);
 static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
-
+static char const* fix_identifier_with_newline(char const* object_name,
+                                               my_bool* freemem);
 
 /*
   Print the supplied message if in verbose mode
@@ -699,13 +702,20 @@ static void write_header(FILE *sql_file, char *db_name)
   }
   else if (!opt_compact)
   {
+    my_bool freemem= FALSE;
+    char const* text= fix_identifier_with_newline(db_name, &freemem);
+
     print_comment(sql_file, 0,
                   "-- MySQL dump %s  Distrib %s, for %s (%s)\n--\n",
                   DUMP_VERSION, MYSQL_SERVER_VERSION, SYSTEM_TYPE,
                   MACHINE_TYPE);
     print_comment(sql_file, 0, "-- Host: %s    Database: %s\n",
                   current_host ? current_host : "localhost",
-                  db_name ? db_name : "");
+                  text);
+
+    if (freemem)
+      my_free((void*)text);
+
     print_comment(sql_file, 0,
                   "-- ------------------------------------------------------\n"
                  );
@@ -1362,6 +1372,37 @@ static void restore_cs_variables(FILE *sql_file,
           (const char *) delimiter);
 }
 
+/*
+ This function will remove specific sql mode.
+
+  @param[in]   sql_mode      Original sql mode from where input mode needs to
+                             be removed.
+  @param[in]   replace_mode  sql mode which needs to be removed from original
+                             sql mode.
+  @param[in]   replace_len   length of sql mode which needs to be removed.
+
+  @retval  1 replace_mode is not present
+           0 replace_mode is removed successfully
+*/
+static int remove_sql_mode(char* sql_mode, const char* replace_mode,
+  size_t replace_len) {
+  char *start = strstr(sql_mode, replace_mode);
+  /* nothing to replace */
+  if (!start)
+    return 1;
+  /* sql mode to replace is the only sql mode present or the last one */
+  if (strlen(start) == replace_len) {
+    if (start == sql_mode)
+      *start = 0;
+    else
+      start[-1] = 0;
+  }
+  else {
+    const char *next = start + replace_len + 1;
+    memmove(start, next, strlen(next) + 1);
+  }
+  return 0;
+}
 
 static void switch_sql_mode(FILE *sql_file,
                             const char *delimiter,
@@ -1478,6 +1519,7 @@ static char *cover_definer_clause(const char *stmt_str,
 
   char *query_str= NULL;
   char *query_ptr;
+  LEX_CSTRING comment= { C_STRING_WITH_LEN("*/ /*!") };
 
   if (!definer_begin)
     return NULL;
@@ -1495,10 +1537,10 @@ static char *cover_definer_clause(const char *stmt_str,
   query_str= alloc_query_str(stmt_length + 23);
 
   query_ptr= my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
-  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, comment.str, comment.length + 1);
   query_ptr= my_stpncpy(query_ptr, definer_version_str, definer_version_length);
   query_ptr= my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
-  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, comment.str, comment.length + 1);
   query_ptr= my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr= strxmov(query_ptr, definer_end, NullS);
 
@@ -1672,6 +1714,10 @@ static int connect_to_db(char *host, char *user,char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqldump");
+
+  set_server_public_key(&mysql_connection);
+  set_get_server_public_key_option(&mysql_connection);
+
   if (!(mysql= mysql_real_connect(&mysql_connection,host,user,passwd,
                                   NULL,opt_mysql_port,opt_mysql_unix_port,
                                   0)))
@@ -2113,6 +2159,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
     case '-':
       if (*(comment_string + 1) == '-')         /* Only one hyphen allowed. */
         break;
+      // Fall through.
     default:
       fputc(*comment_string, xml_file);
       break;
@@ -2148,6 +2195,84 @@ static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
   }
 
   print_xml_comment(sql_file, strlen(comment_buff), comment_buff);
+}
+
+/**
+  @brief Accepts object names and prefixes them with "-- " wherever
+         end-of-line character ('\n') is found.
+
+  @param[in]  object_name   object name list (concatenated string)
+  @param[out] freemem       should buffer be released after usage
+
+  @return
+    @retval                 pointer to a string with prefixed objects
+*/
+static char const* fix_identifier_with_newline(char const* object_name, my_bool* freemem)
+{
+  const size_t PREFIX_LENGTH= 3; // strlen ("-- ")
+
+  // static buffer for replacement procedure
+  static char storage[NAME_LEN + 1];
+  static char* buffer= storage;
+  static size_t buffer_size= sizeof(storage) - 1;
+  size_t index= 0;
+  size_t required_size= 0;
+
+  // we presume memory allocation won't be needed
+  *freemem= FALSE;
+
+  // traverse and reformat objects
+  while (object_name && *object_name)
+  {
+    ++required_size;
+    if (*object_name == '\n')
+      required_size+= PREFIX_LENGTH;
+
+    // do we need dynamic (re)allocation
+    if (required_size > buffer_size)
+    {
+      // new alloc size increased in COMMENT_LENGTH multiple
+      buffer_size= COMMENT_LENGTH * (1 + required_size/COMMENT_LENGTH);
+
+      // is our buffer already dynamically allocated
+      if (*freemem)
+      {
+        // just realloc
+        buffer= (char*)my_realloc(PSI_NOT_INSTRUMENTED, buffer, buffer_size + 1,
+                                  MYF(MY_WME));
+        if (!buffer)
+          exit(1);
+      }
+      else
+      {
+        // dynamic allocation + copy from static buffer
+        buffer= (char*)my_malloc(PSI_NOT_INSTRUMENTED, buffer_size + 1,
+                                 MYF(MY_WME));
+        if (!buffer)
+          exit(1);
+
+        strncpy(buffer, storage, index);
+        *freemem= TRUE;
+      }
+    }
+
+    // copy a character
+    buffer[index]= *object_name;
+    ++index;
+
+    // prefix new lines with double dash
+    if (*object_name == '\n')
+    {
+      strcpy(buffer + index, "-- ");
+      index += PREFIX_LENGTH;
+    }
+
+    ++object_name;
+  }
+
+  // don't forget null termination
+  buffer[index]= '\0';
+  return buffer;
 }
 
 
@@ -2210,6 +2335,8 @@ static uint dump_events_for_db(char *db)
 
   char       db_cl_name[MY_CS_NAME_SIZE];
   int        db_cl_altered= FALSE;
+  my_bool    freemem= FALSE;
+  char const *text= fix_identifier_with_newline(db, &freemem);
 
   DBUG_ENTER("dump_events_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2218,7 +2345,10 @@ static uint dump_events_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping events for database '%s'\n--\n", db);
+                "\n--\n-- Dumping events for database '%s'\n--\n",
+                text);
+  if (freemem)
+    my_free((void*)text);
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2318,7 +2448,7 @@ static uint dump_events_for_db(char *db)
                       "The following dump may be incomplete.\n"
                     "--\n");
           }
-
+          remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
           switch_sql_mode(sql_file, delimiter, row[1]);
 
           switch_time_zone(sql_file, delimiter, row[2]);
@@ -2423,6 +2553,8 @@ static uint dump_routines_for_db(char *db)
 
   char       db_cl_name[MY_CS_NAME_SIZE];
   int        db_cl_altered= FALSE;
+  my_bool    freemem= FALSE;
+  char const *text= fix_identifier_with_newline(db, &freemem);
 
   DBUG_ENTER("dump_routines_for_db");
   DBUG_PRINT("enter", ("db: '%s'", db));
@@ -2431,7 +2563,11 @@ static uint dump_routines_for_db(char *db)
                                  db, (ulong)strlen(db), '\'');
   /* nice comments */
   print_comment(sql_file, 0,
-                "\n--\n-- Dumping routines for database '%s'\n--\n", db);
+                "\n--\n-- Dumping routines for database '%s'\n--\n",
+                text);
+
+  if (freemem)
+    my_free((void*)text);
 
   /*
     not using "mysql_query_with_error_report" because we may have not
@@ -2486,11 +2622,17 @@ static uint dump_routines_for_db(char *db)
                              row[2] ? strlen(row[2]) : 0));
           if (row[2] == NULL)
           {
+            my_bool freemem= FALSE;
+            char const* text= fix_identifier_with_newline(current_user, &freemem);
+
             print_comment(sql_file, 1, "\n-- insufficient privileges to %s\n",
                           query_buff);
             print_comment(sql_file, 1,
                           "-- does %s have permissions on mysql.proc?\n\n",
-                          current_user);
+                          text);
+            if (freemem)
+              my_free((void*)text);
+
             maybe_die(EX_MYSQLERR,"%s has insufficent privileges to %s!", current_user, query_buff);
           }
           else if (strlen(row[2]))
@@ -2541,7 +2683,7 @@ static uint dump_routines_for_db(char *db)
                       "--\n");
             }
 
-
+            remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
             switch_sql_mode(sql_file, ";", row[1]);
 
             fprintf(sql_file,
@@ -2596,6 +2738,19 @@ static inline my_bool general_log_or_slow_log_tables(const char *db,
 }
 
 /*
+ slave_master_info,slave_relay_log_info and gtid_executed tables under
+ mysql database
+*/
+static inline my_bool replication_metadata_tables(const char *db,
+                                                  const char *table)
+{
+  return (!my_strcasecmp(charset_info, db, "mysql")) &&
+          (!my_strcasecmp(charset_info, table, "slave_master_info") ||
+           !my_strcasecmp(charset_info, table, "slave_relay_log_info") ||
+           !my_strcasecmp(charset_info, table, "gtid_executed"));
+}
+
+/*
   get_table_structure -- retrievs database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
   be dumping.
@@ -2632,6 +2787,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
   FILE       *sql_file= md_result_file;
   size_t     len;
   my_bool    is_log_table;
+  my_bool    is_replication_metadata_table;
   unsigned int colno;
   MYSQL_RES  *result;
   MYSQL_ROW  row;
@@ -2678,6 +2834,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       /* Make an sql-file, if path was given iow. option -T was given */
       char buff[20+FN_REFLEN];
       MYSQL_FIELD *field;
+      my_bool freemem= FALSE;
+      char const *text;
 
       my_snprintf(buff, sizeof(buff), "show create table %s", result_table);
 
@@ -2694,14 +2852,17 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         write_header(sql_file, db);
       }
 
+      text= fix_identifier_with_newline(result_table, &freemem);
       if (strcmp (table_type, "VIEW") == 0)         /* view */
         print_comment(sql_file, 0,
-                      "\n--\n-- Temporary view structure for view %s\n--\n\n",
-                      result_table);
+                      "\n--\n-- Temporary table structure for view %s\n--\n\n",
+                      text);
       else
         print_comment(sql_file, 0,
-                      "\n--\n-- Table structure for table %s\n--\n\n",
-                      result_table);
+                      "\n--\n-- Table structure for table %s\n--\n\n", text);
+
+      if (freemem)
+        my_free((void*)text);
 
       if (opt_drop)
       {
@@ -2710,8 +2871,10 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         view-specific code below fills in the DROP VIEW.
         We will skip the DROP TABLE for general_log and slow_log, since
         those stmts will fail, in case we apply dump by enabling logging.
+        We will skip this for replication metadata tables as well.
        */
-        if (!general_log_or_slow_log_tables(db, table))
+        if (!(general_log_or_slow_log_tables(db, table) ||
+              replication_metadata_tables(db, table)))
           fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n",
                   opt_quoted_table);
         check_io(sql_file);
@@ -2841,13 +3004,14 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       row= mysql_fetch_row(result);
 
       is_log_table= general_log_or_slow_log_tables(db, table);
-      if (is_log_table)
+      is_replication_metadata_table= replication_metadata_tables(db, table);
+      if (is_log_table || is_replication_metadata_table)
         row[1]+= 13; /* strlen("CREATE TABLE ")= 13 */
       if (opt_compatible_mode & 3)
       {
         fprintf(sql_file,
-                is_log_table ? "CREATE TABLE IF NOT EXISTS %s;\n" : "%s;\n",
-                row[1]);
+                (is_log_table || is_replication_metadata_table) ?
+                "CREATE TABLE IF NOT EXISTS %s;\n" : "%s;\n", row[1]);
       }
       else
       {
@@ -2856,8 +3020,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
                 "/*!40101 SET character_set_client = utf8 */;\n"
                 "%s%s;\n"
                 "/*!40101 SET character_set_client = @saved_cs_client */;\n",
-                is_log_table ? "CREATE TABLE IF NOT EXISTS " : "",
-                row[1]);
+                (is_log_table || is_replication_metadata_table) ?
+                "CREATE TABLE IF NOT EXISTS " : "", row[1]);
       }
 
       check_io(sql_file);
@@ -2979,6 +3143,9 @@ static uint get_table_structure(char *table, char *db, char *table_type,
     /* Make an sql-file, if path was given iow. option -T was given */
     if (!opt_no_create_info)
     {
+      my_bool freemem= FALSE;
+      char const *text;
+
       if (path)
       {
         if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
@@ -2986,9 +3153,13 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         write_header(sql_file, db);
       }
 
+      text= fix_identifier_with_newline(result_table, &freemem);
       print_comment(sql_file, 0,
                     "\n--\n-- Table structure for table %s\n--\n\n",
-                    result_table);
+                    text);
+      if (freemem)
+        my_free((void*)text);
+
       if (opt_drop)
         fprintf(sql_file, "DROP TABLE IF EXISTS %s;\n", result_table);
       if (!opt_xml)
@@ -3326,6 +3497,7 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
                         row[3],   /* character_set_results */
                         row[4]);  /* collation_connection */
 
+    remove_sql_mode(row[1], C_STRING_WITH_LEN("NO_AUTO_CREATE_USER"));
     switch_sql_mode(sql_file, ";", row[1]);
 
     if (opt_drop_trigger)
@@ -3595,6 +3767,12 @@ static void dump_table(char *table, char *db)
   if (strcmp(table_type, "VIEW") == 0)
     DBUG_VOID_RETURN;
 
+  /*
+    We don't dump data fo`r replication metadata tables.
+  */
+  if (replication_metadata_tables(db, table))
+    DBUG_VOID_RETURN;
+
   /* Check --no-data flag */
   if (opt_no_data)
   {
@@ -3702,16 +3880,23 @@ static void dump_table(char *table, char *db)
   }
   else
   {
-    print_comment(md_result_file, 0,
-                  "\n--\n-- Dumping data for table %s\n--\n",
-                  result_table);
-    
+    my_bool freemem= FALSE;
+    char const* text= fix_identifier_with_newline(result_table, &freemem);
+    print_comment(md_result_file, 0, "\n--\n-- Dumping data for table %s\n--\n",
+                  text);
+    if (freemem)
+      my_free((void*)text);
+
     dynstr_append_checked(&query_string, "SELECT /*!40001 SQL_NO_CACHE */ * FROM ");
     dynstr_append_checked(&query_string, result_table);
 
     if (where)
     {
-      print_comment(md_result_file, 0, "-- WHERE:  %s\n", where);
+      freemem= FALSE;
+      text= fix_identifier_with_newline(where, &freemem);
+      print_comment(md_result_file, 0, "-- WHERE:  %s\n", text);
+      if (freemem)
+        my_free((void*)text);
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
@@ -3728,7 +3913,11 @@ static void dump_table(char *table, char *db)
     }
     if (order_by)
     {
-      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", order_by);
+      freemem= FALSE;
+      text= fix_identifier_with_newline(order_by, &freemem);
+      print_comment(md_result_file, 0, "-- ORDER BY:  %s\n", text);
+      if (freemem)
+        my_free((void*)text);
 
       dynstr_append_checked(&query_string, " ORDER BY ");
       dynstr_append_checked(&query_string, order_by);
@@ -3822,9 +4011,8 @@ static void dump_table(char *table, char *db)
         /*
            63 is my_charset_bin. If charsetnr is not 63,
            we have not a BLOB but a TEXT column.
-           we'll dump in hex only BLOB columns.
         */
-        is_blob= (opt_hex_blob && field->charsetnr == 63 &&
+        is_blob= (field->charsetnr == 63 &&
                   (field->type == MYSQL_TYPE_BIT ||
                    field->type == MYSQL_TYPE_STRING ||
                    field->type == MYSQL_TYPE_VAR_STRING ||
@@ -3868,6 +4056,14 @@ static void dump_table(char *table, char *db)
                 }
                 else
                 {
+                  if (is_blob)
+                  {
+                    /*
+                      inform SQL parser that this string isn't in
+                      character_set_connection, so it doesn't emit a warning.
+                    */
+                    dynstr_append_checked(&extended_row, "_binary ");
+                  }
                   dynstr_append_checked(&extended_row,"'");
                   extended_row.length +=
                   mysql_real_escape_string_quote(&mysql_connection,
@@ -3939,7 +4135,14 @@ static void dump_table(char *table, char *db)
                 print_blob_as_hex(md_result_file, row[i], length);
               }
               else
+              {
+                if (is_blob)
+                {
+                  fputs("_binary ", md_result_file);
+                  check_io(md_result_file);
+                }
                 unescape(md_result_file, row[i], length);
+              }
             }
             else
             {
@@ -4570,9 +4773,13 @@ static int init_dumping(char *database, int init_func(char*))
       */
       char quoted_database_buf[NAME_LEN*2+3];
       char *qdatabase= quote_name(database,quoted_database_buf,opt_quoted);
+      my_bool freemem= FALSE;
+      char const* text= fix_identifier_with_newline(qdatabase, &freemem);
 
-      print_comment(md_result_file, 0,
-                    "\n--\n-- Current Database: %s\n--\n", qdatabase);
+      print_comment(md_result_file, 0, "\n--\n-- Current Database: %s\n--\n",
+                    text);
+      if (freemem)
+        my_free((void*)text);
 
       /* Call the view or table specific function */
       init_func(qdatabase);
@@ -5760,6 +5967,8 @@ static my_bool get_view_structure(char *table, char* db)
   char       table_buff2[NAME_LEN*2+3];
   char       query[QUERY_LENGTH];
   FILE       *sql_file= md_result_file;
+  my_bool    freemem= FALSE;
+  char const *text;
   DBUG_ENTER("get_view_structure");
 
   if (opt_no_create_info) /* Don't write table creation info */
@@ -5795,14 +6004,19 @@ static my_bool get_view_structure(char *table, char* db)
   if (path)
   {
     if (!(sql_file= open_sql_file_for_table(table, O_WRONLY)))
+    {
+      mysql_free_result(table_res);
       DBUG_RETURN(1);
+    }
 
     write_header(sql_file, db);
   }
 
+  text= fix_identifier_with_newline(result_table, &freemem);
   print_comment(sql_file, 0,
-                "\n--\n-- Final view structure for view %s\n--\n\n",
-                result_table);
+                "\n--\n-- Final view structure for view %s\n--\n\n", text);
+  if (freemem)
+    my_free((void*)text);
 
   verbose_msg("-- Dropping the temporary view structure created\n");
   fprintf(sql_file, "/*!50001 DROP VIEW IF EXISTS %s*/;\n", opt_quoted_table);

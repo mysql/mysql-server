@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -64,8 +64,9 @@ sub collect_test_cases_from_list ($$$$) {
         }
         # If not yet in list of suites add the suite to it.
         $$suites= $$suites.",".$suite if ($found);
-        # Add test to list of tests even if double.
-        push (@$opt_cases, $test);
+        # Passing the qualified test name so that if --no-reorder
+        # is passed, the test will not be looked for in all the suites.
+        push (@$opt_cases, $suite.".".$test);
         }
     }
     if (@$opt_cases == 0) {

@@ -1,0 +1,89 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Bootstrap start GR on server1 (Primary). Start GR on server2 (Secondary).
+#
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+#
+# Create parent and child tables.
+#
+[connection server1]
+CREATE TABLE tp1 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE tc1 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp1(c1) ON UPDATE CASCADE) ENGINE = InnoDB;
+CREATE TABLE tc2 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tp1(c1) ON UPDATE CASCADE ON DELETE RESTRICT) ENGINE = InnoDB;
+CREATE TABLE tc3 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tp1(c1) ON DELETE CASCADE) ENGINE = InnoDB;
+CREATE TABLE tc4 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tp1(c1) ON DELETE CASCADE ON UPDATE RESTRICT) ENGINE = InnoDB;
+#
+# Test child tables that fail due to ER_BEFORE_DML_VALIDATION_ERROR
+# when single_primary_mode=off; are allowed when single_primary_mode=ON.
+#
+INSERT INTO tp1 VALUES('a');
+INSERT INTO tc4 VALUES('a');
+UPDATE tc4 SET c1 = 'a';
+DELETE FROM tc4;
+INSERT INTO tc4 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc4, tp1 FROM tc4, tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tc4;
+REPLACE INTO tp1 VALUES('a');
+REPLACE INTO tc4(c1) VALUES('a');
+REPLACE INTO tc4 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc4, tp1 FROM tc4, tp1;
+UPDATE tc4, tp1 SET tc4.c1 = 'a';
+DROP TABLE tc4;
+INSERT INTO tp1 VALUES('a');
+INSERT INTO tc3 VALUES('a');
+UPDATE tc3 SET c1 = 'a';
+DELETE FROM tc3;
+INSERT INTO tc3 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc3, tp1 FROM tc3, tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tc3;
+REPLACE INTO tp1 VALUES('a');
+REPLACE INTO tc3(c1) VALUES('a');
+REPLACE INTO tc3 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc3, tp1 FROM tc3, tp1;
+UPDATE tc3, tp1 SET tc3.c1 = 'a';
+DROP TABLE tc3;
+INSERT INTO tp1 VALUES('a');
+INSERT INTO tc2 VALUES('a');
+UPDATE tc2 SET c1 = 'a';
+DELETE FROM tc2;
+INSERT INTO tc2 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc2, tp1 FROM tc2, tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tc2;
+REPLACE INTO tp1 VALUES('a');
+REPLACE INTO tc2(c1) VALUES('a');
+REPLACE INTO tc2 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc2, tp1 FROM tc2, tp1;
+UPDATE tc2, tp1 SET tc2.c1 = 'a';
+DROP TABLE tc2;
+INSERT INTO tp1 VALUES('a');
+INSERT INTO tc1 VALUES('a');
+UPDATE tc1 SET c1 = 'a';
+DELETE FROM tc1;
+INSERT INTO tc1 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc1, tp1 FROM tc1, tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tp1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE tc1;
+REPLACE INTO tp1 VALUES('a');
+REPLACE INTO tc1(c1) VALUES('a');
+REPLACE INTO tc1 (c1) SELECT tp1.c1 FROM tp1;
+DELETE tc1, tp1 FROM tc1, tp1;
+UPDATE tc1, tp1 SET tc1.c1 = 'a';
+DROP TABLE tc1;
+#
+# Clean up.
+#
+DROP TABLE tp1;
+include/group_replication_end.inc

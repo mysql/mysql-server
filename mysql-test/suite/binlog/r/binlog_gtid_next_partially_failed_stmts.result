@@ -1,5 +1,4 @@
 RESET MASTER;
-call mtr.add_suppression("Did not write failed .* into binary log while storing table level and column level grants in the privilege tables");
 CREATE TABLE t1(a INT, b INT);
 CREATE USER u1@h;
 #

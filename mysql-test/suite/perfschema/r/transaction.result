@@ -36,6 +36,8 @@ CALL clear_transaction_tables();
 SELECT @@global.tx_isolation;
 @@global.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT @@global.autocommit;
 @@global.autocommit
 1
@@ -45,6 +47,8 @@ ROW
 SELECT @@tx_isolation;
 @@tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT @@autocommit;
 @@autocommit
 0

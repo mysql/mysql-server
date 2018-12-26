@@ -2832,6 +2832,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join sql_no_cache count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
@@ -2839,11 +2840,14 @@ a	b	a	b
 1	NULL	2	1
 1	NULL	4	10
 2	10	4	10
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 EXPLAIN SELECT STRAIGHT_JOIN SQL_NO_CACHE COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select straight_join sql_no_cache count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
 SELECT STRAIGHT_JOIN SQL_NO_CACHE * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
@@ -2851,6 +2855,8 @@ a	b	a	b
 1	NULL	2	1
 1	NULL	4	10
 2	10	4	10
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
 CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));

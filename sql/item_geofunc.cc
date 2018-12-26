@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,12 +198,30 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   */
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
+    if (arg_count == 1)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO,
+                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO),
+                          func_name(), func_name());
+    }
+    else if (arg_count == 2)
+    {
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID,
+                          ER_THD(current_thd, ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID),
+                          func_name(), func_name());
+    }
+
     Geometry_buffer buff;
     if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
     }
+
 
     /*
       Check if SRID embedded into the Geometry value differs
@@ -1363,6 +1381,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
                    args[2]->maybe_null);
     }
+    // Fall through.
   case 2:
     {
       // Validate options argument
@@ -1373,6 +1392,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
       }
       maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
     }
+    // Fall through.
   case 1:
     {
       /*
@@ -1847,7 +1867,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
         }
         else
         {
-          bool result;
+          bool result= false;
           Json_array *points= new (std::nothrow) Json_array();
           if (points == NULL || collection->append_alias(points))
             return true;
@@ -1866,7 +1886,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
                                    add_short_crs_urn,
                                    add_long_crs_urn,
                                    geometry_srid);
-          else if (Geometry::wkb_multilinestring)
+          else if (header.wkb_type == Geometry::wkb_multilinestring)
             result= append_linestring(parser, points, mbr, calling_function,
                                       max_decimal_digits,
                                       add_bounding_box,

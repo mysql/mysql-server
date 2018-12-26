@@ -1463,3 +1463,15 @@ SELECT ST_LongFromGeoHash('xkcd');
 SELECT ST_LatFromGeoHash('xkcd');
 SELECT ST_GeoHash(ST_PointFromGeoHash('ebrb', 0), 4);
 SELECT ST_LatFromGeoHash('m7s9pyctu9bbwqkgbw5x6vutzkztd9szjh86gmz9w9nsz6792d');
+
+
+--echo #
+--echo # Bug#25912557 ST_LATFROMGEOHASH/ST_LONGFROMGEOHASH ODD INPUT TYPE
+--echo #              REQUIREMENT
+--echo #
+CREATE TABLE t1 (col1 CHAR(4));
+INSERT INTO t1 VALUES ('bbbb');
+SELECT ST_LatFromGeohash(col1) FROM t1;
+SELECT ST_LongFromGeohash(col1) FROM t1;
+SELECT ST_AsText(ST_PointFromGeohash(col1, 4326)) FROM t1;
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -225,16 +225,16 @@ static inline int count_leading_zeroes(int i, dec1 val)
   switch (i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 9: if (val >= 1000000000) break; ++ret;
-  case 8: if (val >= 100000000) break; ++ret;
-  case 7: if (val >= 10000000) break; ++ret;
-  case 6: if (val >= 1000000) break; ++ret;
-  case 5: if (val >= 100000) break; ++ret;
-  case 4: if (val >= 10000) break; ++ret;
-  case 3: if (val >= 1000) break; ++ret;
-  case 2: if (val >= 100) break; ++ret;
-  case 1: if (val >= 10) break; ++ret;
-  case 0: if (val >= 1) break; ++ret;
+  case 9: if (val >= 1000000000) break; ++ret;  // Fall through.
+  case 8: if (val >= 100000000) break; ++ret;  // Fall through.
+  case 7: if (val >= 10000000) break; ++ret;  // Fall through.
+  case 6: if (val >= 1000000) break; ++ret;  // Fall through.
+  case 5: if (val >= 100000) break; ++ret;  // Fall through.
+  case 4: if (val >= 10000) break; ++ret;  // Fall through.
+  case 3: if (val >= 1000) break; ++ret;  // Fall through.
+  case 2: if (val >= 100) break; ++ret;  // Fall through.
+  case 1: if (val >= 10) break; ++ret;  // Fall through.
+  case 0: if (val >= 1) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;
@@ -258,16 +258,16 @@ static inline int count_trailing_zeroes(int i, dec1 val)
   switch(i)
   {
   /* @note Intentional fallthrough in all case labels */
-  case 0: if ((val % 1) != 0) break; ++ret;
-  case 1: if ((val % 10) != 0) break; ++ret;
-  case 2: if ((val % 100) != 0) break; ++ret;
-  case 3: if ((val % 1000) != 0) break; ++ret;
-  case 4: if ((val % 10000) != 0) break; ++ret;
-  case 5: if ((val % 100000) != 0) break; ++ret;
-  case 6: if ((val % 1000000) != 0) break; ++ret;
-  case 7: if ((val % 10000000) != 0) break; ++ret;
-  case 8: if ((val % 100000000) != 0) break; ++ret;
-  case 9: if ((val % 1000000000) != 0) break; ++ret;
+  case 0: if ((val % 1) != 0) break; ++ret;  // Fall through.
+  case 1: if ((val % 10) != 0) break; ++ret;  // Fall through.
+  case 2: if ((val % 100) != 0) break; ++ret;  // Fall through.
+  case 3: if ((val % 1000) != 0) break; ++ret;  // Fall through.
+  case 4: if ((val % 10000) != 0) break; ++ret;  // Fall through.
+  case 5: if ((val % 100000) != 0) break; ++ret;  // Fall through.
+  case 6: if ((val % 1000000) != 0) break; ++ret;  // Fall through.
+  case 7: if ((val % 10000000) != 0) break; ++ret;  // Fall through.
+  case 8: if ((val % 100000000) != 0) break; ++ret;  // Fall through.
+  case 9: if ((val % 1000000000) != 0) break; ++ret;  // Fall through.
   default: { DBUG_ASSERT(FALSE); }
   }
   return ret;

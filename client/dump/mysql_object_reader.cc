@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -113,7 +113,7 @@ void Mysql_object_reader::read_table_rows_task(
     new Rows_fetching_context(this, item_to_process, has_generated_columns);
 
   runner->run_query(
-    "SELECT SQL_NO_CACHE " + column_names + "  FROM " +
+    "SELECT " + column_names + "  FROM " +
     this->get_quoted_object_full_name(table),
     new Mysql::Instance_callback<
       int64, const Mysql::Tools::Base::Mysql_query_runner::Row&,

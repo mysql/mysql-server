@@ -8,7 +8,7 @@ let $args=--no-defaults --datadir=$newdir --secure-file-priv="" --loose-skip-sha
 
 --echo # redo log from before MySQL 5.7.9
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log was created before MySQL 5\\.7\\.9\\.;
 --source include/search_pattern_in_file.inc
@@ -16,7 +16,7 @@ let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log
 --echo # redo log from before MySQL 5.7.9, with corrupted log checkpoint
 --remove_file $newdir/ib_logfile0
 --copy_file $newdir/ib_logfile1  $newdir/ib_logfile0
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log was created before MySQL 5\\.7\\.9, and we did not find a valid checkpoint;
 --source include/search_pattern_in_file.inc
@@ -24,7 +24,7 @@ let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log
 --echo # redo log from before MySQL 5.7.9, with corrupted log block
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption0.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log was created before MySQL 5\\.7\\.9, and it appears corrupted;
 --source include/search_pattern_in_file.inc
@@ -32,7 +32,7 @@ let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log
 --echo # redo log from "after" MySQL 5.7.9, but with invalid header checksum
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption1.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Invalid redo log header checksum;
 --source include/search_pattern_in_file.inc
@@ -40,7 +40,7 @@ let SEARCH_PATTERN=InnoDB: Invalid redo log header checksum;
 --echo # distant future redo log format, with valid header checksum
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption2.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\. Please follow the instructions at http://dev.mysql.com/doc/refman/5.7/en/upgrading-downgrading.html;
 --source include/search_pattern_in_file.inc
@@ -48,7 +48,7 @@ let SEARCH_PATTERN=InnoDB: Unsupported redo log format. The redo log was created
 --echo # valid header, but old-format checkpoint blocks
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption3.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: No valid checkpoint found .corrupted redo log;
 --source include/search_pattern_in_file.inc
@@ -58,7 +58,7 @@ let SEARCH_PATTERN=InnoDB: No valid checkpoint found .corrupted redo log;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4.zip -d $newdir > $SEARCH_FILE
 # Anything below innodb_force_recovery=6 must find a valid redo log.
 # Missing tablespace files are tolerated already with innodb_force_recovery=1.
---error 1
+--error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
 let SEARCH_PATTERN=InnoDB: Log block 2372 at lsn 1213952 has valid header, but checksum field contains 144444122, should be 3362026715;
 --source include/search_pattern_in_file.inc
@@ -67,7 +67,7 @@ let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT 
 let SEARCH_PATTERN=Plugin 'InnoDB' registration as a STORAGE ENGINE failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
---error 1
+--error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
 let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in read-only mode;
 --source include/search_pattern_in_file.inc
@@ -77,14 +77,14 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4a.zip -d $newdir > $SEARCH_FILE
 # Anything below innodb_force_recovery=6 must find a valid redo log.
 # Missing tablespace files are tolerated already with innodb_force_recovery=1.
---error 1
+--error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
 let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT between the checkpoint 1213964 and the end 1213952\.;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=Plugin 'InnoDB' registration as a STORAGE ENGINE failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
---error 1
+--error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
 let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in read-only mode;
 --source include/search_pattern_in_file.inc
@@ -93,7 +93,7 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --echo # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption5.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Log scan progressed past the checkpoint lsn 1213964;
 --source include/search_pattern_in_file.inc
@@ -110,7 +110,7 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --echo # valid header, invalid checkpoint 1, valid checkpoint 2
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption6.zip -d $newdir > $SEARCH_FILE
---error 1
+--error 1,42
 --exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\. The following crash recovery is part of a normal restore\.;
 --source include/search_pattern_in_file.inc

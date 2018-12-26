@@ -1,0 +1,88 @@
+#
+# WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+#
+SET @saved_global_read_only= @@global.transaction_read_only;
+# Case 1: Check the influence of --transaction_read_only on
+# @@session.transaction_read_only and @@global.transaction_read_only,
+# @@session.tx_read_only, @@global.tx_read_only.
+SELECT @@session.transaction_read_only, @@global.transaction_read_only,
+@@session.tx_read_only, @@global.tx_read_only;
+@@session.transaction_read_only	@@global.transaction_read_only	@@session.tx_read_only	@@global.tx_read_only
+1	1	1	1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+# Case 2: Check that the change to tx_read_only is reflected
+# to transaction_read_only.
+SET tx_read_only= OFF;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET @@global.tx_read_only= ON;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+0	1	0	1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET tx_read_only= ON;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET @@global.tx_read_only= OFF;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+1	0	1	0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET tx_read_only= DEFAULT;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET  @@global.tx_read_only= DEFAULT;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+0	0	0	0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+# Case 3: Check that the change to transaction_read_only is reflected
+# to tx_read_only.
+SET transaction_read_only= OFF;
+SET @@global.transaction_read_only= ON;
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+0	1	0	1
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET transaction_read_only= ON;
+SET @@global.transaction_read_only= OFF;
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+1	0	1	0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET transaction_read_only= DEFAULT;
+SET @@global.transaction_read_only= DEFAULT;
+SELECT @@session.tx_read_only, @@global.tx_read_only,
+@@session.transaction_read_only, @@global.transaction_read_only;
+@@session.tx_read_only	@@global.tx_read_only	@@session.transaction_read_only	@@global.transaction_read_only
+0	0	0	0
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET @@global.tx_read_only= @saved_global_read_only;
+Warnings:
+Warning	1287	'@@tx_read_only' is deprecated and will be removed in a future release. Please use '@@transaction_read_only' instead
+SET @@global.transaction_read_only= @saved_global_read_only;

@@ -1,0 +1,31 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-slave-updates
+log-bin=server1-bin
+
+[mysqld.2]
+master-info-repository=TABLE
+relay-log-info-repository=TABLE
+log-slave-updates
+log-bin=server2-bin
+
+[mysqld.3]
+master-info-repository=TABLE
+relay-log-info-repository=TABLE
+log-slave-updates
+log-bin=server3-bin
+
+[mysqld.4]
+master-info-repository=TABLE
+relay-log-info-repository=TABLE
+relay-log=msr-relaylog
+log-slave-updates
+log-bin=server4-bin
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket
+
+SERVER_MYPORT_4=		@mysqld.4.port
+SERVER_MYSOCK_4=		@mysqld.4.socket

@@ -22,15 +22,19 @@ namespace xpl
 {
 
 int          Plugin_system_variables::max_connections;
-unsigned int Plugin_system_variables::xport;
+unsigned int Plugin_system_variables::port;
 unsigned int Plugin_system_variables::min_worker_threads;
 unsigned int Plugin_system_variables::idle_worker_thread_timeout;
 unsigned int Plugin_system_variables::max_allowed_packet;
 unsigned int Plugin_system_variables::connect_timeout;
+char        *Plugin_system_variables::socket;
+unsigned int Plugin_system_variables::port_open_timeout;
+char        *Plugin_system_variables::bind_address;
 
 Ssl_config Plugin_system_variables::ssl_config;
 
 std::vector<Plugin_system_variables::Value_changed_callback> Plugin_system_variables::m_callbacks;
+
 
 void Plugin_system_variables::clean_callbacks()
 {
@@ -42,8 +46,39 @@ void Plugin_system_variables::registry_callback(Value_changed_callback callback)
   m_callbacks.push_back(callback);
 }
 
+const char *Plugin_system_variables::get_system_variable_impl(const char *cnf_option, const char *env_variable, const char *compile_option)
+{
+  if (NULL != cnf_option)
+  {
+    return cnf_option;
+  }
+
+  const char *variable_from_env = env_variable ? getenv(env_variable) : NULL;
+
+  if (NULL != variable_from_env)
+    return variable_from_env;
+
+  return compile_option;
+}
+
+void Plugin_system_variables::setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option)
+{
+  char *value_old = cnf_option;
+  const char *result = get_system_variable_impl(cnf_option, env_variable, compile_option);
+
+  if (NULL != result)
+    cnf_option = my_strdup(PSI_NOT_INSTRUMENTED, const_cast<char *>(result), MYF(MY_WME));
+  else
+    cnf_option = NULL;
+
+  if (NULL != value_old)
+    my_free(value_old);
+}
+
+
 Ssl_config::Ssl_config()
-: ssl_key(NULL), ssl_ca(NULL), ssl_capath(NULL), ssl_cert(NULL), ssl_cipher(NULL), ssl_crl(NULL), ssl_crlpath(NULL), m_null_char(0)
+: ssl_key(NULL), ssl_ca(NULL), ssl_capath(NULL), ssl_cert(NULL), ssl_cipher(NULL),
+  ssl_crl(NULL), ssl_crlpath(NULL), m_null_char(0)
 {
 }
 
@@ -57,24 +92,6 @@ bool Ssl_config::is_configured() const
          has_value(ssl_crl) ||
          has_value(ssl_crlpath);
 }
-
-/*void Ssl_config::set_not_null_value()
-{
-  if (!has_value(ssl_key))
-    ssl_key = &m_null_char;
-  if (!has_value(ssl_ca))
-    ssl_ca = &m_null_char;
-  if (!has_value(ssl_capath))
-    ssl_capath = &m_null_char;
-  if (!has_value(ssl_cert))
-    ssl_cert = &m_null_char;
-  if (!has_value(ssl_cipher))
-    ssl_cipher = &m_null_char;
-  if (!has_value(ssl_crl))
-    ssl_crl = &m_null_char;
-  if (!has_value(ssl_crlpath))
-    ssl_crlpath = &m_null_char;
-}*/
 
 bool Ssl_config::has_value(const char *ptr) const
 {

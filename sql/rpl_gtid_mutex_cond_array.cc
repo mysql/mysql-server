@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -69,8 +69,6 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
   int max_index= get_max_index();
   if (n > max_index)
   {
-    if (m_array.reserve(n + 1))
-      goto error;
     for (int i= max_index + 1; i <= n; i++)
     {
       Mutex_cond *mutex_cond=

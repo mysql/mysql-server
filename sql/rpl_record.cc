@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -350,18 +350,18 @@ unpack_row(Relay_log_info const *rli,
           DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
         }
         /*
-          For a virtual generated column of blob type, we have to keep
-          both the old and new value for the blob since this might be
+          For a virtual generated column based on the blob type, we have to keep
+          both the old and new value for the field since this might be
           needed by the storage engine during updates.
 
           The reason why this needs special handling is that the virtual
-          generated blobs are neither stored in the record buffers nor
-          stored by the storage engine. This special handling for blobs
-          is normally taken care of in update_generated_write_fields()
+          generated blob-based fields are neither stored in the record buffers
+          nor stored by the storage engine. This special handling for blob-based
+          fields is normally taken care of in update_generated_write_fields()
           but this function is not called when applying updated records
           in replication.
         */
-        if (f->type() == MYSQL_TYPE_BLOB && f->is_virtual_gcol())
+        if ((f->flags & BLOB_FLAG) != 0 && f->is_virtual_gcol())
           (down_cast<Field_blob*>(f))->keep_old_value();
         pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
 	DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
@@ -504,11 +504,30 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
   */
   
   DBUG_PRINT_BITSET("debug", "cols: %s", cols);
+  /**
+    Save a reference to the original write set bitmaps.
+    We will need this to restore the bitmaps at the end.
+  */
+  MY_BITMAP *old_write_set= table->write_set;
+  /**
+    Just to be sure that tmp_set is currently not in use as
+    the read_set already.
+  */
+  DBUG_ASSERT(table->write_set != &table->tmp_set);
+  /* set the temporary write_set */
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      &table->tmp_set);
+  /**
+    Set table->write_set bits for all the columns as they
+    will be checked in set_default() function.
+  */
+  bitmap_set_all(table->write_set);
+
   for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
   {
-    if ((uint) (field_ptr - table->field) >= cols->n_bits ||
-        !bitmap_is_set(cols, field_ptr - table->field))
-    {   
+    uint field_index= (uint) (field_ptr - table->field);
+    if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index))
+    {
       Field *const f= *field_ptr;
       if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
           (f->real_type() != MYSQL_TYPE_ENUM))
@@ -520,8 +539,16 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);
       }
+      else if (f->has_insert_default_function())
+      {
+        f->set_default();
+      }
     }
   }
+
+  /* set the write_set back to original*/
+  table->column_bitmaps_set_no_signal(table->read_set,
+                                      old_write_set);
 
   DBUG_RETURN(0);
 }

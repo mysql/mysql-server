@@ -1,0 +1,224 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Before start Group Replication channels are not present
+#    on common replication P_S tables.
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 2. After start Group Replication channels are present
+#    on common replication P_S tables.
+include/start_and_bootstrap_group_replication.inc
+include/start_group_replication.inc
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 3. Group Replication running channels sample output
+#    on common replication P_S tables.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+#group_replication_recovery channel configuration
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery";
+CHANNEL_NAME	group_replication_recovery
+HOST	<NULL>
+PORT	0
+USER	root
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	1
+HEARTBEAT_INTERVAL	60.000
+TLS_VERSION	
+#group_replication_applier channel configuration
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+HOST	<NULL>
+PORT	0
+USER	
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	10
+HEARTBEAT_INTERVAL	60.000
+TLS_VERSION	
+
+SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+GROUP_NAME	8a94f357-aab4-11df-86ab-c80aa9429444
+SOURCE_UUID	8a94f357-aab4-11df-86ab-c80aa9429444
+THREAD_ID	NULL
+SERVICE_STATE	ON
+COUNT_RECEIVED_HEARTBEATS	0
+LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429444:2-4
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+
+SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+DESIRED_DELAY	0
+
+SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+SERVICE_STATE	ON
+REMAINING_DELAY	NULL
+COUNT_TRANSACTIONS_RETRIES	0
+
+SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier";
+
+SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	0
+THREAD_ID	[THREAD_ID]
+SERVICE_STATE	ON
+LAST_SEEN_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429444:4
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+
+############################################################
+# 4. Clean up data.
+DROP TABLE t1;
+include/rpl_sync.inc
+
+############################################################
+# 5. Stop Group Replication, channels must continue to be
+#    present on common replication P_S tables.
+include/stop_group_replication.inc
+include/stop_group_replication.inc
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is still no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is still a Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 6. Group Replication stopped channels sample output
+#    on common replication P_S tables.
+#group_replication_recovery channel configuration
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_recovery";
+CHANNEL_NAME	group_replication_recovery
+HOST	<NULL>
+PORT	0
+USER	root
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	1
+HEARTBEAT_INTERVAL	60.000
+TLS_VERSION	
+#group_replication_applier channel configuration
+SELECT * FROM performance_schema.replication_connection_configuration WHERE channel_name LIKE "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+HOST	<NULL>
+PORT	0
+USER	
+NETWORK_INTERFACE	
+AUTO_POSITION	1
+SSL_ALLOWED	NO
+SSL_CA_FILE	
+SSL_CA_PATH	
+SSL_CERTIFICATE	
+SSL_CIPHER	
+SSL_KEY	
+SSL_VERIFY_SERVER_CERTIFICATE	NO
+SSL_CRL_FILE	
+SSL_CRL_PATH	
+CONNECTION_RETRY_INTERVAL	60
+CONNECTION_RETRY_COUNT	10
+HEARTBEAT_INTERVAL	60.000
+TLS_VERSION	
+
+SELECT * FROM performance_schema.replication_connection_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+GROUP_NAME	8a94f357-aab4-11df-86ab-c80aa9429444
+SOURCE_UUID	8a94f357-aab4-11df-86ab-c80aa9429444
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+COUNT_RECEIVED_HEARTBEATS	0
+LAST_HEARTBEAT_TIMESTAMP	0000-00-00 00:00:00
+RECEIVED_TRANSACTION_SET	8a94f357-aab4-11df-86ab-c80aa9429444:2-5
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+
+SELECT * FROM performance_schema.replication_applier_configuration WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+DESIRED_DELAY	0
+
+SELECT * FROM performance_schema.replication_applier_status WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+SERVICE_STATE	OFF
+REMAINING_DELAY	NULL
+COUNT_TRANSACTIONS_RETRIES	0
+
+SELECT * FROM performance_schema.replication_applier_status_by_coordinator WHERE channel_name = "group_replication_applier";
+
+SELECT * FROM performance_schema.replication_applier_status_by_worker WHERE channel_name = "group_replication_applier";
+CHANNEL_NAME	group_replication_applier
+WORKER_ID	0
+THREAD_ID	NULL
+SERVICE_STATE	OFF
+LAST_SEEN_TRANSACTION	8a94f357-aab4-11df-86ab-c80aa9429444:5
+LAST_ERROR_NUMBER	0
+LAST_ERROR_MESSAGE	
+LAST_ERROR_TIMESTAMP	0000-00-00 00:00:00
+
+############################################################
+# 7. Group Replication channel must not be present on common
+#    replication P_S tables after a RESET ALL command.
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_connection_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_configuration table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_coordinator table']
+include/assert.inc ['There is no Group Replication applier channel on performance_schema.replication_applier_status_by_worker table']
+
+############################################################
+# 8. Test end.
+include/group_replication_end.inc

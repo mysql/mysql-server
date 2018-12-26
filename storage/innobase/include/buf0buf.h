@@ -1760,23 +1760,58 @@ struct buf_block_t{
 	/* @} */
 
 	/** @name Hash search fields
-	These 5 fields may only be modified when we have
-	an x-latch on search system AND
-	- we are holding an s-latch or x-latch on buf_block_t::lock or
-	- we know that buf_block_t::buf_fix_count == 0.
+	These 5 fields may only be modified when:
+	we are holding the appropriate x-latch in btr_search_latches[], and
+	one of the following holds:
+	(1) the block state is BUF_BLOCK_FILE_PAGE, and
+	we are holding an s-latch or x-latch on buf_block_t::lock, or
+	(2) buf_block_t::buf_fix_count == 0, or
+	(3) the block state is BUF_BLOCK_REMOVE_HASH.
 
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.cc.
 
-	Another exception is that assigning block->index = NULL
-	is allowed whenever holding an x-latch on search system. */
+	Another exception for buf_pool_clear_hash_index() is that
+	assigning block->index = NULL (and block->n_pointers = 0)
+	is allowed whenever btr_search_own_all(RW_LOCK_X).
+
+	Another exception is that ha_insert_for_fold_func() may
+	decrement n_pointers without holding the appropriate latch
+	in btr_search_latches[]. Thus, n_pointers must be
+	protected by atomic memory access.
+
+	This implies that the fields may be read without race
+	condition whenever any of the following hold:
+	- the btr_search_latches[] s-latch or x-latch is being held, or
+	- the block state is not BUF_BLOCK_FILE_PAGE or BUF_BLOCK_REMOVE_HASH,
+	and holding some latch prevents the state from changing to that.
+
+	Some use of assert_block_ahi_empty() or assert_block_ahi_valid()
+	is prone to race conditions while buf_pool_clear_hash_index() is
+	executing (the adaptive hash index is being disabled). Such use
+	is explicitly commented. */
 
 	/* @{ */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ulint		n_pointers;	/*!< used in debugging: the number of
 					pointers in the adaptive hash index
-					pointing to this frame */
+					pointing to this frame;
+					protected by atomic memory access
+					or btr_search_own_all(). */
+# define assert_block_ahi_empty(block)					\
+	ut_a(os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
+# define assert_block_ahi_empty_on_init(block) do {			\
+	UNIV_MEM_VALID(&(block)->n_pointers, sizeof (block)->n_pointers); \
+	assert_block_ahi_empty(block);					\
+} while (0)
+# define assert_block_ahi_valid(block)					\
+	ut_a((block)->index						\
+	     || os_atomic_increment_ulint(&(block)->n_pointers, 0) == 0)
+#else /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+# define assert_block_ahi_empty(block) /* nothing */
+# define assert_block_ahi_empty_on_init(block) /* nothing */
+# define assert_block_ahi_valid(block) /* nothing */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	unsigned	curr_n_fields:10;/*!< prefix length for hash indexing:
 					number of full fields */
@@ -1792,6 +1827,7 @@ struct buf_block_t{
 					complete, though: there may
 					have been hash collisions,
 					record deletions, etc. */
+	/* @} */
 	bool		made_dirty_with_no_latch;
 					/*!< true if block has been made dirty
 					without acquiring X/SX latch as the
@@ -1801,7 +1837,6 @@ struct buf_block_t{
 	bool		skip_flush_check;
 					/*!< Skip check in buf_dblwr_check_block
 					during bulk load, protected by lock.*/
-	/* @} */
 # ifdef UNIV_DEBUG
 	/** @name Debug fields */
 	/* @{ */

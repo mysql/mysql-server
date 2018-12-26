@@ -163,8 +163,7 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
   # Query causes error on master but not on slave. This causes the slave to
   # stop with error code 0 (which is wrong: see BUG#57287)
   # A new error code ER_INCONSISTENT_ERROR has been introduced instead of 0. 
-  --let $er_mts_inconsistent_data= convert_error(ER_MTS_INCONSISTENT_DATA)
-  --let $slave_sql_errno= $er_mts_inconsistent_data,$er_inconsistent_error
+  --let $slave_sql_errno= $er_inconsistent_error
   --source include/wait_for_slave_sql_error.inc
   drop table t1, t2;
 }

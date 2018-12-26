@@ -72,6 +72,7 @@ while ($restarts)
 }
 
 --echo # Stop the SQL thread (it should be in the middle of the transaction/group)
+--let $slave_sql_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
 --source include/stop_slave_sql.inc
 
 --echo # Remove the debug point and restart the both threads

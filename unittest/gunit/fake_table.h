@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,8 +103,6 @@ class Fake_TABLE: public TABLE
 
   void initialize()
   {
-    TABLE *as_table= static_cast<TABLE*>(this);
-    memset(as_table, 0, sizeof(*as_table));
     s= &table_share;
     in_use= current_thd;
     null_row= '\0';

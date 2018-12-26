@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -438,13 +438,6 @@ public:
 		const uchar*	record)
 	{
 		Partition_helper::ph_position(record);
-	}
-
-	int
-	rnd_pos_by_record(
-		uchar*	record)
-	{
-		return(Partition_helper::ph_rnd_pos_by_record(record));
 	}
 
 	/* TODO: Implement these! */
@@ -1024,20 +1017,15 @@ private:
 		uchar*		ref,
 		const uchar*	record);
 
-	/** Read record by given record (by its PK) from the last used partition.
-	see handler::rnd_pos_by_record().
-	@param[in,out]	record	Record to position.
-	@return	0 or error number. */
+	/** Read row using position using given record to find.
+	Only useful when position is based on primary key
+	@param[in]	record  Current record in MySQL Row Format.
+	@return error number or 0. */
 	int
-	rnd_pos_by_record_in_last_part(
-		uchar*	record)
-	{
-		/* Not much overhead to use default function.
-		This avoids out-of-sync code. */
-		return(handler::rnd_pos_by_record(record));
-	}
+	rnd_pos_by_record(
+		uchar*  record);
 
-	/** Copy a cached MySQL record.
+        /** Copy a cached MySQL record.
 	@param[out]	to_record	Where to copy the MySQL record.
 	@param[in]	from_record	Which record to copy. */
 	void
@@ -1232,9 +1220,12 @@ protected:
 		uchar*	record,
 		uchar*	pos);
 
+#ifdef WL6742
+	/* Removing WL6742 as part of Bug 23046302 */
 	int
 	records(
 		ha_rows*	num_rows);
+#endif
 
 	int
 	index_next(

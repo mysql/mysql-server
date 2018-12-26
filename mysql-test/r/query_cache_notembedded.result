@@ -1,7 +1,15 @@
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 drop table if exists t1, t2, t3, t11, t21;
 create table t1 (a int not null);
@@ -23,6 +31,8 @@ show status like "Qcache_free_blocks";
 Variable_name	Value
 Qcache_free_blocks	2
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_free_blocks";
 Variable_name	Value
 Qcache_free_blocks	1
@@ -73,6 +83,8 @@ show status like "Qcache_free_blocks";
 Variable_name	Value
 Qcache_free_blocks	1
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_total_blocks";
 Variable_name	Value
 Qcache_total_blocks	7
@@ -96,7 +108,11 @@ a
 UNLOCK TABLES;
 drop table t1;
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 create table t1 (s1 int)//
 create procedure f1 () begin
@@ -104,14 +120,24 @@ select sql_cache * from t1;
 select sql_cache * from t1;
 select sql_cache * from t1;
 end;//
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 create procedure f2 () begin
 select sql_cache * from t1 where s1=1;
 select sql_cache * from t1;
 end;//
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 create procedure f3 () begin
 select sql_cache * from t1;
 select sql_cache * from t1 where s1=1;
 end;//
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 create procedure f4 () begin
 select sql_cache * from t1;
 select sql_cache * from t1 where s1=1;
@@ -119,10 +145,20 @@ select sql_cache * from t1;
 select sql_cache * from t1 where s1=1;
 select sql_cache * from t1 where s1=1;
 end;//
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f1();
 s1
 s1
 s1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	3
@@ -151,6 +187,8 @@ s1
 s1
 select sql_cache * from t1;
 s1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
@@ -164,6 +202,8 @@ insert into t1 values (1);
 select sql_cache * from t1;
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -190,6 +230,7 @@ s1
 select sql_cache * from t1;
 s1
 1
+Warnings:
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	4
@@ -200,14 +241,22 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	10
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 select sql_cache * from t1;
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 select sql_cache * from t1 where s1=1;
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f1();
 s1
 1
@@ -220,11 +269,17 @@ s1
 1
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f3();
 s1
 1
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f4();
 s1
 1
@@ -236,6 +291,12 @@ s1
 1
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f4();
 s1
 1
@@ -260,6 +321,7 @@ s1
 select sql_cache * from t1 where s1=1;
 s1
 1
+Warnings:
 insert into t1 values (2);
 call f1();
 s1
@@ -274,10 +336,14 @@ s1
 select sql_cache * from t1 where s1=1;
 s1
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 select sql_cache * from t1;
 s1
 1
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 call f1();
 s1
 1
@@ -318,6 +384,8 @@ drop table t1;
 SET @old_log_bin_trust_function_creators= @@global.log_bin_trust_function_creators;
 SET GLOBAL log_bin_trust_function_creators = 1;
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 drop function if exists f1;
 create table t1 (id int);
 create function f1 ()
@@ -343,12 +411,16 @@ select * from t1;
 id
 3
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 select * from t1;
 id
 3
 drop table t1;
 drop function f1;
 set GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET @@global.log_bin_trust_function_creators = @old_log_bin_trust_function_creators;
 DROP DATABASE IF EXISTS bug30269;
 FLUSH STATUS;
@@ -369,6 +441,8 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 GRANT SELECT ON TABLE bug30269.view1 TO 'bug30269'@'localhost';
 set global query_cache_size= 81920;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 USE bug30269;
 show status like 'Qcache_queries_in_cache';
 Variable_name	Value
@@ -390,5 +464,11 @@ USE test;
 DROP DATABASE bug30269;
 DROP USER 'bug30269'@'localhost';
 set GLOBAL query_cache_limit=default;
+Warnings:
+Warning	1287	'@@query_cache_limit' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_min_res_unit=default;
+Warnings:
+Warning	1287	'@@query_cache_min_res_unit' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

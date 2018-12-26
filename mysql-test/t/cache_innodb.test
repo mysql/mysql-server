@@ -1,3 +1,10 @@
+# Some of the queries give different set of warnings with --ps-protocol
+if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
+{
+   --skip Need normal protocol
+}
+--source include/not_embedded.inc
+
 # t/cache_innodb.test
 #
 # Last update:

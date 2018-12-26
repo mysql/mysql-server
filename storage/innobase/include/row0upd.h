@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,15 +39,6 @@ Created 12/27/1996 Heikki Tuuri
 # include "que0types.h"
 # include "pars0types.h"
 #endif /* !UNIV_HOTBACKUP */
-
-/** The std::deque to store cascade update nodes, that uses mem_heap_t
-as allocator. */
-typedef std::deque<upd_node_t*, mem_heap_allocator<upd_node_t*> >
-	deque_mem_heap_t;
-
-/** Double-ended queue of update nodes to be processed for cascade
-operations */
-typedef deque_mem_heap_t upd_cascade_t;
 
 /*********************************************************************//**
 Creates an update vector object.
@@ -190,7 +181,7 @@ bool
 row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
@@ -221,7 +212,7 @@ row_upd_build_sec_rec_difference_binary(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	MY_ATTRIBUTE((warn_unused_result, nonnull));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -248,7 +239,7 @@ row_upd_build_difference_binary(
 	trx_t*		trx,
 	mem_heap_t*	heap,
 	TABLE*		mysql_table)
-	MY_ATTRIBUTE((nonnull(1,2,3,7), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -268,9 +259,8 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/*!< in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
 				copying the new values */
-	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -286,9 +276,8 @@ row_upd_index_replace_new_col_vals(
 	const upd_t*	update,	/*!< in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
-	mem_heap_t*	heap)	/*!< in: memory heap for allocating and
+	mem_heap_t*	heap);	/*!< in: memory heap for allocating and
 				copying the new values */
-	MY_ATTRIBUTE((nonnull));
 /***********************************************************//**
 Replaces the new column values stored in the update vector. */
 void
@@ -347,7 +336,7 @@ row_upd_changes_ord_field_binary_func(
 				stored columns in the old row */
 	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
 				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
 	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext,0)
@@ -372,7 +361,7 @@ row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
 	upd_field_t*	upd_field)	/*!< in: field to check */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
@@ -532,38 +521,12 @@ struct upd_node_t{
 	dict_foreign_t*	foreign;/* NULL or pointer to a foreign key
 				constraint if this update node is used in
 				doing an ON DELETE or ON UPDATE operation */
-
-	bool		cascade_top;
-				/*!< true if top level in cascade */
-
-	upd_cascade_t*	cascade_upd_nodes;
-				/*!< Queue of update nodes to handle the
-				cascade of update and delete operations in an
-				iterative manner.  Their parent/child
-				relations are properly maintained. All update
-				nodes point to this same queue.  All these
-				nodes are allocated in heap pointed to by
-				upd_node_t::cascade_heap. */
-
-	upd_cascade_t*	new_upd_nodes;
-				/*!< Intermediate list of update nodes in a
-				cascading update/delete operation.  After
-				processing one update node, this will be
-				concatenated to cascade_upd_nodes.  This extra
-				list is needed so that retry because of
-				DB_LOCK_WAIT works corrrectly. */
-
-	upd_cascade_t*	processed_cascades;
-				/*!< List of processed update nodes in a
-				cascading update/delete operation.  All the
-				cascade nodes are stored here, so that memory
-				can be freed. */
-
+        upd_node_t*     cascade_node;/* NULL or an update node template which
+                                is used to implement ON DELETE/UPDATE CASCADE
+                                or ... SET NULL for foreign keys */
 	mem_heap_t*	cascade_heap;
-				/*!< NULL or a mem heap where cascade_upd_nodes
-				are created.  This heap is owned by the node
-				that has cascade_top=true. */
-
+				/*!< NULL or a mem heap where cascade
+				node is created.*/
 	sel_node_t*	select;	/*!< query graph subtree implementing a base
 				table cursor: the rows returned will be
 				updated */
@@ -610,25 +573,8 @@ struct upd_node_t{
 	sym_node_t*	table_sym;/* table node in symbol table */
 	que_node_t*	col_assign_list;
 				/* column assignment list */
-
-	doc_id_t	fts_doc_id;
-				/* The FTS doc id of the row that is now
-				pointed to by the pcur. */
-
-	doc_id_t	fts_next_doc_id;
-				/* The new fts doc id that will be used
-				in update operation */
-
 	ulint		magic_n;
 
-#ifndef DBUG_OFF
-	/** Print information about this object into the trace log file. */
-	void dbug_trace();
-
-	/** Ensure that the member cascade_upd_nodes has only one update node
-	for each of the tables.  This is useful for testing purposes. */
-	void check_cascade_only_once();
-#endif /* !DBUG_OFF */
 };
 
 #define	UPD_NODE_MAGIC_N	1579975

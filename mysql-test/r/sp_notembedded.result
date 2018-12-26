@@ -43,9 +43,15 @@ select c;
 end|
 insert into t1 values ("x", 3), ("y", 5)|
 set @x = @@query_cache_size|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set global query_cache_size = 10*1024*1024|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status|
 flush query cache|
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 show status like 'Qcache_hits'|
 Variable_name	Value
 Qcache_hits	0
@@ -74,8 +80,12 @@ show status like 'Qcache_hits'|
 Variable_name	Value
 Qcache_hits	2
 set global query_cache_size = @x|
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status|
 flush query cache|
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 delete from t1|
 drop procedure bug3583|
 drop table t1|

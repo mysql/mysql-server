@@ -22,6 +22,8 @@
 #include <iostream>
 #include <fstream>
 #include <algorithm> // std::swap
+THD *thd_get_current_thd(); // from sql_class.cc
+
 
 
 #define MAX_DICTIONARY_FILE_LENGTH    1024 * 1024
@@ -88,6 +90,7 @@ static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
 static char *validate_password_dictionary_file_last_parsed= NULL;
 static long long validate_password_dictionary_file_words_count= 0;
+static my_bool check_user_name;
 
 /**
   Activate the new dictionary
@@ -250,6 +253,119 @@ static int validate_dictionary_check(mysql_string_handle password)
   return (1);
 }
 
+
+/**
+  Compare a sequence of bytes in "a" with the reverse sequence of bytes of "b"
+
+  @param a the first sequence
+  @param a_len the length of a
+  @param b the second sequence
+  @param b_len the length of b
+
+  @retval true sequences match
+  @retval false sequences don't match
+*/
+static bool my_memcmp_reverse(const char *a, size_t a_len,
+                              const char *b, size_t b_len)
+{
+  const char *a_ptr;
+  const char *b_ptr;
+
+  if (a_len != b_len)
+    return false;
+
+  for (a_ptr= a, b_ptr= b + b_len - 1; b_ptr >= b; a_ptr++, b_ptr--)
+    if (*a_ptr != *b_ptr)
+      return false;
+  return true;
+}
+
+/**
+  Validate a user name from the security context
+
+  A helper function.
+  Validates one user name (as specified by field_name)
+  against the data in buffer/length by comparing the byte
+  sequences in forward and reverse.
+
+  Logs an error to the error log if it can't pick up the user names.
+
+  @param ctx the current security context
+  @param buffer the password data
+  @param length the length of buffer
+  @param field_name the id of the security context field to use
+  @param logical_name the name of the field to use in the error message
+
+  @retval true name can be used
+  @retval false name is invalid
+*/
+static bool is_valid_user(MYSQL_SECURITY_CONTEXT ctx,
+                          const char *buffer, int length,
+                          const char *field_name,
+                          const char *logical_name)
+{
+  MYSQL_LEX_CSTRING user={ NULL, 0 };
+
+  if (security_context_get_option(ctx, field_name, &user))
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
+                          "Can't retrieve the %s from the"
+                          "security context", logical_name);
+    return false;
+  }
+
+  /* lengths must match for the strings to match */
+  if (user.length != (size_t) length)
+    return true;
+  /* empty strings turn the check off */
+  if (user.length == 0)
+    return true;
+  /* empty strings turn the check off */
+  if (!user.str)
+    return true;
+
+  return (0 != memcmp(buffer, user.str, user.length) &&
+          !my_memcmp_reverse(user.str, user.length, buffer, length));
+}
+
+
+/**
+  Check if the password is not the user name
+
+  Helper function.
+  Checks if the password supplied is valid to use by comparing it
+  the effected and the login user names to it and to the reverse of it.
+  logs an error to the error log if it can't pick up the names.
+
+  @param password the password handle
+  @retval true The password can be used
+  @retval false the password is invalid
+*/
+static bool is_valid_password_by_user_name(mysql_string_handle password)
+{
+  char buffer[MAX_PASSWORD_LENGTH];
+  int length, error;
+  MYSQL_SECURITY_CONTEXT ctx= NULL;
+
+  if (!check_user_name)
+    return true;
+
+  if (thd_get_security_context(thd_get_current_thd(), &ctx) || !ctx)
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
+                          "Can't retrieve the security context");
+    return false;
+  }
+
+  length= mysql_string_convert_to_char_ptr(password, "utf8",
+                                           buffer, MAX_PASSWORD_LENGTH,
+                                           &error);
+
+  return
+    is_valid_user(ctx, buffer, length, "user", "login user name")
+    && is_valid_user(ctx, buffer, length, "priv_user", "effective user name");
+}
+
 static int validate_password_policy_strength(mysql_string_handle password,
                                              int policy)
 {
@@ -280,6 +396,9 @@ static int validate_password_policy_strength(mysql_string_handle password,
   mysql_string_iterator_free(iter);
   if (n_chars >= validate_password_length)
   {
+    if (!is_valid_password_by_user_name(password))
+      return(0);
+
     if (policy == PASSWORD_POLICY_LOW)
       return (1);
     if (has_upper >= validate_password_mixed_case_count &&
@@ -308,10 +427,13 @@ static int get_password_strength(mysql_string_handle password)
   int n_chars= 0;
   mysql_string_iterator_handle iter;
 
+  if (!is_valid_password_by_user_name(password))
+    return 0;
+
   iter = mysql_string_get_iterator(password);
   while(mysql_string_iterator_next(iter))
     n_chars++;
-  
+
   mysql_string_iterator_free(iter);
   if (n_chars < MIN_DICTIONARY_WORD_LENGTH)
     return (policy);
@@ -488,6 +610,12 @@ static MYSQL_SYSVAR_STR(dictionary_file, validate_password_dictionary_file,
   "password_validate_dictionary file to be loaded and check for password",
   NULL, dictionary_update, NULL);
 
+static MYSQL_SYSVAR_BOOL(check_user_name, check_user_name,
+  PLUGIN_VAR_NOCMDARG,
+  "Check if the password matches the login or the effective user names "
+  "or the reverse of them",
+  NULL, NULL, FALSE);
+
 static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(length),
   MYSQL_SYSVAR(number_count),
@@ -495,6 +623,7 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(special_char_count),
   MYSQL_SYSVAR(policy),
   MYSQL_SYSVAR(dictionary_file),
+  MYSQL_SYSVAR(check_user_name),
   NULL
 };
 

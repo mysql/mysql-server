@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -938,7 +938,49 @@ struct Uuid
 
   @section Gtid_event_binary_format Binary Format
 
-  @todo
+  The Body has seven components:
+
+  <table>
+  <caption>Body for Gtid_event</caption>
+
+  <tr>
+    <th>Name</th>
+    <th>Format</th>
+    <th>Description</th>
+  </tr>
+
+  </tr>
+  <tr>
+    <td>GTID_FLAGS</td>
+    <td>1 byte</td>
+    <td>00000001 = Transaction may have changes logged with SBR.
+        In 5.6, 5.7.0-5.7.18, and 8.0.0-8.0.1, this flag is always set.
+        Starting in 5.7.19 and 8.0.2, this flag is cleared if the transaction
+        only contains row events. It is set if any part of the transaction is
+        written in statement format.</td>
+  </tr>
+  <tr>
+    <td>ENCODED_SID_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of SID in event encoding</td>
+  </tr>
+  <tr>
+    <td>ENCODED_GNO_LENGTH</td>
+    <td>4 bytes static const integer</td>
+    <td>Length of GNO in event encoding.</td>
+  </tr>
+  <tr>
+    <td>last_committed</td>
+    <td>8 byte integer</td>
+    <td>Store the transaction's commit parent sequence_number</td>
+  </tr>
+  <tr>
+    <td>sequence_number</td>
+    <td>8 byte integer</td>
+    <td>The transaction's logical timestamp assigned at prepare phase</td>
+  </tr>
+  </table>
+
 */
 class Gtid_event: public Binary_log_event
 {
@@ -951,13 +993,17 @@ public:
   */
   long long int last_committed;
   long long int sequence_number;
+  /** GTID flags constants */
+  unsigned static const char FLAG_MAY_HAVE_SBR= 1;
+  /** Transaction might have changes logged with SBR */
+  bool may_have_sbr_stmts;
   /**
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
-    +-------------+-------------+------------+---------+----------------+
-    | commit flag | ENCODED SID | ENCODED GNO| TS_TYPE | logical ts(:s) |
-    +-------------+-------------+------------+---------+----------------+
+    +----------+-----------+-- --------+-------+--------------+
+    |gtid flags|ENCODED SID|ENCODED GNO|TS_TYPE|logical ts(:s)|
+    +----------+-----------+-----------+-------+--------------+
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
 
     @param buffer             Contains the serialized event.
@@ -978,10 +1024,12 @@ public:
     Constructor.
   */
   explicit Gtid_event(long long int last_committed_arg,
-                      long long int sequence_number_arg)
+                      long long int sequence_number_arg,
+                      bool may_have_sbr_stmts_arg)
     : Binary_log_event(GTID_LOG_EVENT),
       last_committed(last_committed_arg),
-      sequence_number(sequence_number_arg)
+      sequence_number(sequence_number_arg),
+      may_have_sbr_stmts(may_have_sbr_stmts_arg)
   {}
 #ifndef HAVE_MYSYS
   //TODO(WL#7684): Implement the method print_event_info and print_long_info
@@ -1106,7 +1154,7 @@ protected:
 
   <tr>
     <td>thread_id</td>
-    <td>long long type variable</td>
+    <td>4 byte integer</td>
     <td>The identifier for the thread executing the transaction.</td>
   </tr>
 
@@ -1178,8 +1226,9 @@ public:
 
   virtual ~Transaction_context_event();
 
-  static const char *read_data_set(const char *pos, uint16_t set_len,
-                                   std::list<const char*> *set);
+  static const char *read_data_set(const char *pos, uint32_t set_len,
+                                   std::list<const char*> *set,
+                                   uint32_t remaining_buffer);
 
   static void clear_set(std::list<const char*> *set);
 
@@ -1190,7 +1239,7 @@ public:
 
 protected:
   const char *server_uuid;
-  long long int thread_id;
+  uint32_t thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;
@@ -1202,16 +1251,16 @@ protected:
 
   // 1 byte length.
   static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
-  // 8 bytes length.
+  // 4 bytes length.
   static const int ENCODED_THREAD_ID_OFFSET= 1;
   // 1 byte length.
-  static const int ENCODED_GTID_SPECIFIED_OFFSET= 9;
+  static const int ENCODED_GTID_SPECIFIED_OFFSET= 5;
   // 4 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 10;
-  // 2 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 14;
-  // 2 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  16;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 6;
+  // 4 bytes length.
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 10;
+  // 4 bytes length.
+  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
 
   // The values mentioned on the next class's constants is the length of the
   // data that will be copied in the buffer.
@@ -1284,7 +1333,8 @@ public:
   virtual ~View_change_event();
 
   static char *read_data_map(char *pos, uint32_t map_len,
-                             std::map<std::string, std::string> *map);
+                             std::map<std::string, std::string> *map,
+                             uint32_t consumable);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info) { }

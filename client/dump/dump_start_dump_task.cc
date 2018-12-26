@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -19,6 +19,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-Dump_start_dump_task::Dump_start_dump_task()
-  : Abstract_dump_task(NULL)
+Dump_start_dump_task::Dump_start_dump_task(std::string gtid_mode,
+  std::string gtid_executed)
+  : Abstract_dump_task(NULL),
+    m_gtid_mode(gtid_mode),
+    m_gtid_executed(gtid_executed)
 {}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,6 +232,13 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
 
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
+    // There's no valid conversion for geometry values.
+    if (field->type() == MYSQL_TYPE_GEOMETRY)
+    {
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
+
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
@@ -318,9 +325,23 @@ static void do_copy_next_number(Copy_field *copy)
 
 static void do_copy_blob(Copy_field *copy)
 {
-  ulong length=((Field_blob*) copy->from_field())->get_length();
-  ((Field_blob*) copy->to_field())->store_length(length);
+  ulong from_length=((Field_blob*) copy->from_field())->get_length();
+  ((Field_blob*) copy->to_field())->store_length(from_length);
   memcpy(copy->to_ptr, copy->from_ptr, sizeof(char*));
+  ulong to_length=((Field_blob*) copy->to_field())->get_length();
+  if (to_length < from_length)
+  {
+    if (copy->to_field()->table->in_use->is_strict_mode())
+    {
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    ER_DATA_TOO_LONG, 1);
+    }
+    else
+    {
+      copy->to_field()->set_warning(Sql_condition::SL_WARNING,
+                                    WARN_DATA_TRUNCATED, 1);
+    }
+  }
 }
 
 static void do_conv_blob(Copy_field *copy)

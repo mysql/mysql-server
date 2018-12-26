@@ -1,0 +1,127 @@
+################################################################################
+# This test verifies that recovery SSL connection options work properly when the
+# server restarts.
+# Placing the connection credentials in server1 options file, and setting the
+# start on boot option to 1, when the server is restarted we verify that group
+# replication is running fine and recovery was successful.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+#    Set group name and ssl options in opt file.
+# 1. Restart member M1 with group_replication_start_on_boot=ON.
+# 2. Stop GR on M1.
+# 3. Create a replication user that requires SSL then bootstrap start GR on M2.
+# 4. Add some data for recovery on M2.
+# 5. Configure M1 to use replication user on recovery. Restart server M1. Group
+#    replication should start on boot and come ONLINE.
+# 6. On M1 check that recovery is successful. Check all is fine.
+# 7. Clean up.
+################################################################################
+
+--let $group_replication_group_name= 7e8daba0-e793-11e4-b571-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+# We need to restart server 1 to simulate start_on_boot option since
+# on MTR it is impossible to compute ports on configuration files.
+--connection server1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+--connection server2
+#Connection options (Update the options file if changed)
+--let $recovery_user= rec_ssl_user
+
+--echo #
+--echo # On server 1 stop group replication that started at boot
+--echo #
+
+--connection server1
+--source include/stop_group_replication.inc
+
+--echo #
+--echo # On server 2 before start, create a replication user that requires SSL
+--echo #
+
+--connection server2
+
+# create a user for replication that requires ssl encryption
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+
+--echo #
+--echo # Start the member and add some data
+--echo #
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo # On server 1 restart the server. Group replication should start at boot
+--echo #
+
+--connection server1
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER= 'rec_ssl_user' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
+
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo #
+--echo # On server 1 after restart, recovery should be successful
+--echo #
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements;
+--let $assert_cond= [select count(*) from t1] = 1;
+--source include/assert.inc
+
+INSERT INTO t1 VALUES (2);
+
+--connection server2
+
+--let $wait_condition= SELECT count(*)=2 FROM t1;
+--source include/wait_condition.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--connection server1
+
+DROP TABLE t1;
+
+--connection server2
+
+--let $wait_condition= SELECT count(*)=0 FROM information_schema.tables WHERE table_name = "t1";
+--source include/wait_condition.inc
+
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+
+--source include/stop_group_replication.inc
+
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;
+
+--connection server1
+
+--source include/stop_group_replication.inc
+
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;
+
+--source ../inc/gr_clear_configuration.inc

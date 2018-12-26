@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -224,8 +224,6 @@ table_events_transactions_common::table_events_transactions_common
 */
 void table_events_transactions_common::make_row(PFS_events_transactions *transaction)
 {
-  const char *base;
-  const char *safe_source_file;
   ulonglong timer_end;
 
   m_row_exists= false;
@@ -255,15 +253,8 @@ void table_events_transactions_common::make_row(PFS_events_transactions *transac
   m_row.m_name= klass->m_name;
   m_row.m_name_length= klass->m_name_length;
 
-  safe_source_file= transaction->m_source_file;
-  if (unlikely(safe_source_file == NULL))
-    return;
-
-  base= base_name(safe_source_file);
-  m_row.m_source_length= (uint)my_snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                     "%s:%d", base, transaction->m_source_line);
-  if (m_row.m_source_length > sizeof(m_row.m_source))
-    m_row.m_source_length= sizeof(m_row.m_source);
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
 
   /* A GTID consists of the SID (source id) and GNO (transaction number).
      The SID is stored in transaction->m_sid and the GNO is stored in

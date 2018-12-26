@@ -1,0 +1,13 @@
+## Simple list objects with case sensitive names
+
+--source include/have_case_sensitive_file_system.inc
+--source ../include/xplugin_preamble.inc
+
+--let $expect_case_sensitive_variant= 0
+--let $expect_table_error= ER_SUCCESS
+--let $expect_db_error= ER_SUCCESS
+--source ../include/admin_list_objects_table_names.inc
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;
+

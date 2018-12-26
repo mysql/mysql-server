@@ -1,0 +1,119 @@
+################################################################################
+# Test case to test deprecation warning message to be thrown when a partition  #
+# of a partitioned table is found in a shared tablespace.                      #
+#                                                                              #
+# This test case will test                                                     #
+#    - Partitioned Table create/alter with different combination of tablespace #
+#      at table level and partition level.                                     #
+################################################################################
+
+--source include/no_valgrind_without_big.inc
+CREATE TABLESPACE ts add datafile 'ts.ibd';
+
+--echo #########################################################################
+--echo # Partitioned Table                                                     #
+--echo #########################################################################
+--echo
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Create table without explicit tablespace name
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+
+--echo # Try to ALTER TABLE to have general tablespace at table level
+ALTER TABLE t1 TABLESPACE=ts;
+DROP TABLE t1;
+
+--echo # Create table with general tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=ts
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+DROP TABLE t1;
+
+--echo # Create table with system tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=innodb_system
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+DROP TABLE t1;
+
+--echo # Create table with innodb_file_per_table tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=innodb_file_per_table
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+DROP TABLE t1;
+
+--echo # Create table with general tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=ts);
+DROP TABLE t1;
+
+--echo # Create table with system tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=innodb_system);
+DROP TABLE t1;
+
+--echo # Create table with innodb_file_per_table tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30),
+		PARTITION p3 VALUES LESS THAN (40) TABLESPACE=innodb_file_per_table);
+
+--echo # Alter table to move a partition to general tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P0 INTO (
+	PARTITION P0 VALUES LESS THAN (10) TABLESPACE=ts);
+
+--echo # Alter table to move a partition to system tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P1 INTO (
+	PARTITION P1 VALUES LESS THAN (20) TABLESPACE=innodb_system);
+
+--echo # Alter table to move a partition to file_per_table tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+	PARTITION P2 VALUES LESS THAN (30) TABLESPACE=innodb_file_per_table);
+
+SHOW CREATE TABLE t1;
+
+--echo # Alter table to add a new partition in general tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p4 VALUES LESS THAN (50) tablespace=ts);
+
+--echo # Alter table to add a new partition in innodb_system tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p5 VALUES LESS THAN (60) tablespace=innodb_system);
+
+--echo # Alter table to add a new partition in innodb_file_per_table tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p6 VALUES LESS THAN (70) tablespace=innodb_file_per_table);
+
+--echo # Alter table to add a new partition without giving tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p7 VALUES LESS THAN (80));
+
+SHOW CREATE TABLE t1;
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+DROP TABLE t1;
+DROP TABLESPACE ts;

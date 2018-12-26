@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,13 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 # 
 # Test session API
+
+# Silence warnings in test code for now.
+# Bug#27572037 REFACTOR CODE IN TEST_SERVICE_SQL_API
+MY_CHECK_CXX_COMPILER_FLAG("-Wstringop-truncation" HAVE_STRINGOP_TRUNCATION)
+IF(HAVE_STRINGOP_TRUNCATION)
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-stringop-truncation")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(test_session_in_thd test_session_in_thd.cc
   MODULE_ONLY MODULE_OUTPUT_NAME "libtest_session_in_thd")

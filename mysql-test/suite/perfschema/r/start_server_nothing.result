@@ -18,6 +18,8 @@ count(*) > 4
 select count(*) from performance_schema.setup_timers;
 count(*)
 5
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -304,6 +306,8 @@ wait
 stage
 statement
 transaction
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;

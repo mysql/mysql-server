@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -274,7 +274,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                       (char **) &my_login_path, found_no_defaults);
 
     if (! my_defaults_group_suffix)
-      my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+      my_defaults_group_suffix= getenv("MYSQL_GROUP_SUFFIX");
 
     if (forced_extra_defaults && !defaults_already_read)
     {
@@ -588,6 +588,8 @@ int load_defaults(const char *conf_file, const char **groups,
   return my_load_defaults(conf_file, groups, argc, argv, &default_directories);
 }
 
+/** A global to turn off or on reading the mylogin file. On by default */
+my_bool my_defaults_read_login_file= TRUE;
 /*
   Read options from configurations files
 
@@ -672,16 +674,18 @@ int my_load_defaults(const char *conf_file, const char **groups,
     DBUG_RETURN(error);
   }
 
-  /* Read options from login group. */
-  if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
-      (error= my_search_option_files(my_login_file,argc, argv, &args_used,
+  if (my_defaults_read_login_file)
+  {
+    /* Read options from login group. */
+    if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
+      (error= my_search_option_files(my_login_file, argc, argv, &args_used,
                                      handle_default_option, (void *) &ctx,
                                      dirs, true, found_no_defaults)))
-  {
-    free_root(&alloc,MYF(0));
-    DBUG_RETURN(error);
+    {
+      free_root(&alloc, MYF(0));
+      DBUG_RETURN(error);
+    }
   }
-
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file

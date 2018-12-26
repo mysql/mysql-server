@@ -426,6 +426,8 @@ c int not null,
 primary key(a,b))
 partition by list (a)
 (partition x1 values in (1,2,9,4) tablespace ts1);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

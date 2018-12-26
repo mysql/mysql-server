@@ -1,0 +1,62 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Add the same data to member 2 before the joining phase
+#
+server2
+# Add some data to crash recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (2);
+#
+# Start group replication on member 2 and it goes to an ERROR state
+#
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists'*");
+call mtr.add_suppression("Slave: Table 't1' already exists*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker .* failed executing transaction .*; Error 'Table 't1' already exists' on query.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped.*");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression(".*This member has more executed transactions *.*");
+call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin= 1;
+SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
+SET GLOBAL group_replication_recovery_retry_count= 1;
+SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+include/start_group_replication.inc
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+#
+# Remove the conflicting data and see that all goes fine now
+#
+include/stop_group_replication.inc
+DROP TABLE t1;
+RESET MASTER;
+SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
+SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
+Warnings:
+Warning	1681	'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should exist and have 1 elements]
+#
+# Cleaning up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

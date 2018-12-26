@@ -9025,15 +9025,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -9097,13 +9097,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                     {
                       "rows_to_scan": 4,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 4,
                       "cost": 2.8068,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 25,
                 "rows_for_plan": 1,
                 "cost_for_plan": 2.8068,
                 "semijoin_strategy_choice": [
@@ -9218,7 +9218,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t6`.`d` = `f1`()) and (`t2`.`s` = arg@0))",
+              "original_condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -9228,7 +9228,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 },
                 {
                   "table": "`t2`",
-                  "attached": "((`t6`.`d` = `f1`()) and (`t2`.`s` = arg@0))"
+                  "attached": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10955,15 +10955,15 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(1 and multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(1 and multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "(1 and (`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(multiple equal(arg@0, `t2`.`s`) and multiple equal(`f1`(), `t6`.`d`))"
+                  "resulting_condition": "((`t6`.`d` = `f1`()) and multiple equal(arg@0, `t2`.`s`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -11057,13 +11057,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                     {
                       "rows_to_scan": 4,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 4,
                       "cost": 2.8068,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 100,
+                "condition_filtering_pct": 25,
                 "rows_for_plan": 1,
                 "cost_for_plan": 2.8068,
                 "semijoin_strategy_choice": [
@@ -11189,7 +11189,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t6`.`d` = `f1`()) and (`t2`.`s` = arg@0))",
+              "original_condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -11199,7 +11199,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 },
                 {
                   "table": "`t2`",
-                  "attached": "((`t6`.`d` = `f1`()) and (`t2`.`s` = arg@0))"
+                  "attached": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

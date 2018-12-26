@@ -1,0 +1,39 @@
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_address;
+
+########################
+##  FAILING SCENARIO  ##
+########################
+
+[connection server1]
+# restart:--group_replication_group_name=MEMBER_UUID --group_replication_bootstrap_group=ON --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_start_on_boot=1
+include/assert.inc ['Assert server1 do not join group when server_uuid and group_name are same.']
+
+###########################
+##  SUCCESSFUL SCENARIO  ##
+###########################
+
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_bootstrap_group=ON --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_start_on_boot=1
+include/assert.inc ['Assert server1 joins group when server_uuid and group_name are different.']
+[connection server2]
+SET GLOBAL group_replication_bootstrap_group=OFF;
+include/start_group_replication.inc
+include/assert.inc ['Assert server2 joins group when server_uuid and group_name are different.']
+
+############################
+##  VALIDATE ERROR LOGGED ##
+############################
+
+include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
+
+###############
+##  Cleanup  ##
+###############
+
+SET @@GLOBAL.group_replication_local_address= @debug_group_replication_local_address;
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc

@@ -1,0 +1,73 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+PREPARE stmt1 FROM "CREATE TABLE t1 (a INT PRIMARY KEY)";
+EXECUTE stmt1;
+PREPARE stmt2 FROM "INSERT INTO t1(a) value (?)";
+SET @val=1;
+EXECUTE stmt2 USING @val;
+SET @val=2;
+EXECUTE stmt2 USING @val;
+SET @val=3;
+EXECUTE stmt2 USING @val;
+PREPARE stmt3 FROM "SELECT * FROM t1 WHERE a>?";
+SET @val=0;
+EXECUTE stmt3 USING @val;
+a
+1
+2
+3
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+
+[connection server2]
+PREPARE stmt4 FROM "INSERT INTO t1(a) value (?)";
+SET @val=4;
+EXECUTE stmt4 USING @val;
+SET @val=5;
+EXECUTE stmt4 USING @val;
+SET @val=6;
+EXECUTE stmt4 USING @val;
+EXECUTE stmt4 USING @val;
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+PREPARE stmt5 FROM "UPDATE t1 SET a=a+?";
+SET @val=10;
+EXECUTE stmt5 USING@val;
+PREPARE stmt FROM "UPDATE t1 SET a=11 WHERE a=?";
+SET @val=12;
+EXECUTE stmt USING@val;
+ERROR 23000: Duplicate entry '11' for key 'PRIMARY'
+PREPARE stmt6 FROM "DELETE from t1 WHERE a=?";
+SET @val=11;
+EXECUTE stmt6 USING @val;
+SET @val=12;
+EXECUTE stmt6 USING @val;
+PREPARE stmt7 FROM "SELECT * FROM t1 WHERE a>?";
+SET @val=10;
+EXECUTE stmt7 USING @val;
+a
+13
+14
+15
+16
+DEALLOCATE PREPARE stmt4;
+DEALLOCATE PREPARE stmt5;
+DEALLOCATE PREPARE stmt6;
+DEALLOCATE PREPARE stmt7;
+
+[connection server1]
+PREPARE stmt8 FROM "SELECT * FROM t1";
+EXECUTE stmt8;
+a
+13
+14
+15
+16
+DEALLOCATE PREPARE stmt8;
+PREPARE stmt9 FROM "DROP TABLE t1";
+EXECUTE stmt9;
+DEALLOCATE PREPARE stmt9;
+include/group_replication_end.inc

@@ -41,7 +41,7 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 # wait for error 1593 (ER_SLAVE_FATAL_ERROR)
 --let $slave_sql_errno=1593 
 --source include/wait_for_slave_sql_error.inc
---source include/stop_slave.inc
+--source include/stop_slave_io.inc
 
 # clean up
 SET GLOBAL debug="-d,inject_tblmap_same_id_maps_diff_table";

@@ -47,6 +47,9 @@ PARTITION p4 VALUES LESS THAN (5),
 PARTITION p5 VALUES LESS THAN (6),
 PARTITION max VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7),(8);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE a < 1;
 a
 -1
@@ -484,6 +487,9 @@ PARTITION p3 VALUES LESS THAN (4),
 PARTITION p4 VALUES LESS THAN (5),
 PARTITION max VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (-1),(0),(1),(2),(3),(4),(5),(6),(7);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE a < 1;
 a
 -1
@@ -2114,6 +2120,9 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
 (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
 (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	9	NULL	#	33.33	Using where; Using index
@@ -2385,6 +2394,9 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
 (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
 (1, '2009-04-07');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p20090401,p20090402	index	NULL	PRIMARY	7	NULL	#	33.33	Using where; Using index
@@ -2655,6 +2667,9 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-02 23:59:59'),
 (1, '2009-04-03'), (2, '2009-04-03'), (1, '2009-04-04'), (2, '2009-04-04'),
 (1, '2009-04-05'), (1, '2009-04-06'), (1, '2009-04-07');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
@@ -2925,6 +2940,9 @@ INSERT INTO t1 VALUES (1, '2009-01-01'), (1, '2009-04-01'), (2, '2009-04-01'),
 (1, '2009-04-02'), (2, '2009-04-02'), (1, '2009-04-03'), (2, '2009-04-03'),
 (1, '2009-04-04'), (2, '2009-04-04'), (1, '2009-04-05'), (1, '2009-04-06'),
 (1, '2009-04-07');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-03' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p20090401,p20090402	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
@@ -3192,6 +3210,9 @@ PARTITION p20090403 VALUES LESS THAN (TO_DAYS('2009-04-04')),
 PARTITION p20090404 VALUES LESS THAN (TO_DAYS('2009-04-05')),
 PARTITION p20090405 VALUES LESS THAN MAXVALUE);
 INSERT INTO t1 VALUES (1, '2009-01-01'), (2, NULL);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # test with an invalid date, which lead to item->null_value is set.
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE b < CAST('2009-04-99' AS DATETIME);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3221,6 +3242,9 @@ Warning	1292	Incorrect datetime value: '2009-12-00' for column 'b' at row 1
 DROP TABLE t1;
 create table t1 ( a int not null) partition by hash(a) partitions 2;
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 where a=5 and a=6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	Impossible WHERE
@@ -3231,6 +3255,9 @@ create table t1 (
 a int(11) not null
 ) partition by hash (a) partitions 2;
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
@@ -3254,6 +3281,9 @@ a int not null,
 b int not null
 ) partition by key(a,b) partitions 2;
 insert into t2 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain partitions select * from t2 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
@@ -3280,6 +3310,9 @@ partition p0 values less than (10),
 partition p1 values less than (20)
 );
 insert into t3 values (5),(15);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 explain partitions select * from t3 where a=11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3309,6 +3342,9 @@ partition p0 values in (12),
 partition p1 values in (14)
 );
 insert into t4 values (10,2), (10,4);
+ANALYZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	analyze	status	OK
 explain partitions select * from t4 where (a=10 and b=1) or (a=10 and b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3350,6 +3386,9 @@ partition p0 values in (12),
 partition p1 values in (14)
 );
 insert into t5 values (10,2,0,0), (10,4,0,0), (10,2,0,1), (10,4,0,1);
+ANALYZE TABLE t5;
+Table	Op	Msg_type	Msg_text
+test.t5	analyze	status	OK
 explain partitions select * from t5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	p0_p0sp0,p0_p0sp1,p1_p1sp0,p1_p1sp1	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
@@ -3404,6 +3443,9 @@ partition p7 values in (7),
 partition p9 values in (9)
 );
 insert into t6 values (1),(3),(5);
+ANALYZE TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	analyze	status	OK
 explain partitions select * from t6 where a <  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3479,6 +3521,9 @@ partition p7 values in (7),
 partition p9 values in (9)
 );
 insert into t6 values (1),(3),(5);
+ANALYZE TABLE t6;
+Table	Op	Msg_type	Msg_text
+test.t6	analyze	status	OK
 explain partitions select * from t6 where a <  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3553,6 +3598,9 @@ partition p70 values less than (70),
 partition p90 values less than (90)
 );
 insert into t7 values (10),(30),(50);
+ANALYZE TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	analyze	status	OK
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3700,6 +3748,9 @@ partition p70 values less than (70),
 partition p90 values less than (90)
 );
 insert into t7 values (10),(30),(50);
+ANALYZE TABLE t7;
+Table	Op	Msg_type	Msg_text
+test.t7	analyze	status	OK
 explain partitions select * from t7 where a < 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	p10	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3844,6 +3895,9 @@ partition p1 values less than (1990),
 partition p2 values less than (2000)
 );
 insert into t8 values ('1985-05-05'),('1995-05-05');
+ANALYZE TABLE t8;
+Table	Op	Msg_type	Msg_text
+test.t8	analyze	status	OK
 explain partitions select * from t8 where a < '1980-02-02';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t8	p0,p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3856,6 +3910,9 @@ partition p1 values less than (732468), -- 2005-06-06
 partition p2 values less than (732664)  -- 2005-12-19
 );
 insert into t9 values ('2005-05-05'), ('2005-04-04');
+ANALYZE TABLE t9;
+Table	Op	Msg_type	Msg_text
+test.t9	analyze	status	OK
 explain partitions select * from t9 where a <  '2004-12-19';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t9	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3878,6 +3935,9 @@ partition p1 values less than (6),
 partition p2 values less than (9)
 );
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a1 > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p1,p2	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3905,6 +3965,9 @@ partition p2 values in (3),
 partition p3 values in (4)
 );
 insert into t3 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t3;
+Table	Op	Msg_type	Msg_text
+test.t3	analyze	status	OK
 explain partitions select * from t3 where a=2 or b=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	p0_p0sp1,p1_p1sp0,p1_p1sp1,p1_p1sp2,p1_p1sp3,p2_p2sp1,p3_p3sp1	ALL	NULL	NULL	NULL	NULL	#	75.00	Using where
@@ -3926,6 +3989,9 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` fr
 drop table t3;
 create table t1 (a int) partition by hash(a) partitions 2;
 insert into t1 values (1),(2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3942,6 +4008,9 @@ drop table t1;
 create table t1 (a int not null, b int not null, key(a), key(b))
 partition by hash(a) partitions 4;
 insert into t1 values (1,1),(2,2),(3,3),(4,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions
 select * from t1 x, t1 y
 where x.b = y.b and (x.a=1 or x.a=2) and (y.a=2 or y.a=3);
@@ -3962,6 +4031,9 @@ Note	1003	/* select#1 */ select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`tes
 drop table t1;
 create table t1 (a int) partition by hash(a) partitions 20;
 insert into t1 values (1),(2),(3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a >  1 and a < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p2	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -3996,6 +4068,9 @@ partition p2 values in (2),
 partition p3 values in (3)
 );
 insert into t1 values (1,1),(2,2),(3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where b >  1 and b < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0_p0sp2,p1_p1sp2,p2_p2sp2,p3_p3sp2	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -4014,6 +4089,9 @@ partition p0 values in (1,2),
 partition p1 values in (3,4)
 );
 insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # This won't do any table access
 explain extended update t1 set a=100 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4165,9 +4243,15 @@ a
 4
 4
 insert into t1 values (1), (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 # Same as above multi-table UPDATE/DELETE
 create table t2 like t1;
 insert into t2 select * from t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain extended update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -4267,6 +4351,9 @@ KEY `a` (`a`)
 ) ;
 insert into t2 select A.a + 10*(B.a + 10* C.a) from t1 A, t1 B, t1 C ;
 insert into t1 select a from t2;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 drop table t2;
 CREATE TABLE `t2` (
 `a` int(11) default NULL,
@@ -4293,6 +4380,9 @@ insert into t2 select a,2 from t1 where a >= 200 and a < 400;
 insert into t2 select a,3 from t1 where a >= 400 and a < 600;
 insert into t2 select a,4 from t1 where a >= 600 and a < 800;
 insert into t2 select a,5 from t1 where a >= 800 and a < 1001;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain partitions select * from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
@@ -4747,6 +4837,9 @@ partition part2 values in (1),
 partition part4 values in (null)
 );
 insert into t1 set f_int1 = null;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where f_int1 is null;
 f_int1
 NULL
@@ -4767,6 +4860,9 @@ partition p2 values in (3)
 );
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
 (2,1),(2,2),(2,3),(2,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a=1 AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0_p0sp1,p0_p0sp2	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
@@ -4785,6 +4881,9 @@ partition pn values in (NULL)
 );
 insert into t1 values (1,1),(1,2),(1,3),(1,4),
 (2,1),(2,2),(2,3),(2,4), (NULL,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a IS NULL AND (b=1 OR b=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	pn_pnsp0,pn_pnsp1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -4817,6 +4916,9 @@ partition p4 values in (4), partition p5 values in (5),
 partition p6 values in (6), partition pn values in (NULL)
 );
 insert into t1 values (NULL), (0),(1),(2),(3),(4),(5),(6);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a is null or a < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,pn	ALL	NULL	NULL	NULL	NULL	#	41.66	Using where
@@ -4829,6 +4931,9 @@ create table t1 (s1 int) partition by list (s1)
 partition p2 values in (1),
 partition p3 values in (null));
 insert into t1 values (0),(1),(null);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select count(*) from t1 where s1 < 0 or s1 is null;
 count(*)
 1
@@ -4843,6 +4948,9 @@ create table t1 (a char(32) primary key)
 partition by key()
 partitions 100;
 insert into t1 values ('na');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1;
 a
 na
@@ -4854,6 +4962,9 @@ create table t1 (s1 varchar(15)) partition by key (s1);
 select * from t1 where s1 = 0 or s1 is null;
 s1
 insert into t1 values ('aa'),('bb'),('0');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where s1 = 0 or s1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	55.56	Using where
@@ -4867,6 +4978,9 @@ subpartition by HASH(b) subpartitions 40
 ( partition p_0_long_partition_name values in(1),
 partition p_1_long_partition_name values in(2));
 insert into t2 values (1,1),(2,2);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain partitions select * from t2;
 id	1
 select_type	SIMPLE
@@ -4907,6 +5021,9 @@ partition p4 values less than (18446744073709551614)
 insert into t1 values (5),(15),(105),(1005);
 insert into t1 values (18446744073709551000+1);
 insert into t1 values (18446744073709551614-1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
@@ -4960,6 +5077,12 @@ partition p2 values less than (255)
 );
 insert into t1 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
 insert into t2 values (0x20), (0x20), (0x41), (0x41), (0xFE), (0xFE);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain partitions select * from t1 where a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	50.00	Using where
@@ -5042,6 +5165,9 @@ partition p4 values less than (2305561538531950591)
 );
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
 insert into t1 values (9),(19),(0xFFFF0000FFFF000-1), (0xFFFF0000FFFFFFF-1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where
 a >= 2305561538531885056-10 and a <= 2305561538531885056-8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5070,6 +5196,9 @@ partition p3 values less than (10),
 partition p4 values less than (1000)
 );
 insert into t1 values (-15),(-5),(5),(15),(-15),(-5),(5),(15);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a>-2 and a <=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p3	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
@@ -5086,6 +5215,9 @@ INSERT INTO t1 VALUES ('2007-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-15 12:00:00');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 must use p0 only:
 explain partitions select * from t1 where recdate < '2007-03-08 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5103,6 +5235,9 @@ INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2005-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
 INSERT INTO t1 VALUES ('2006-03-01 12:00:00');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 must use p0 only:
 explain partitions select * from t1 where recdate < '2006-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5123,6 +5258,9 @@ partition p1 values less than (128),
 partition p2 values less than (255)
 );
 insert into t1 select A.a + 10*B.a from t0 A, t0 B;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain partitions select * from t1 where a between 10 and 13;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
@@ -5150,6 +5288,9 @@ PARTITION BY LIST COLUMNS (c2)
 PARTITION p2 VALUES IN (3,4));
 INSERT INTO t1 VALUES (1, 1, 1, 1), (2, 3, 1, 1);
 INSERT INTO t1 VALUES (1, 2, 1, 1), (2, 4, 1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM t1 WHERE c1 = 1 AND c2 < 1;
 c1	c2	c3	c4
 SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 1;

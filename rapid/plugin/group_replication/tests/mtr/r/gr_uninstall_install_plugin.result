@@ -1,0 +1,31 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap start GR.
+#    Verify that group replication specific P_S tables are not empty.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [P_S table replication_group_members should not be empty]
+include/assert.inc [P_S table replication_group_member_stats should not be empty]
+
+# 2. Uninstall plugin.
+#    Then uninstall it again twice; expect ER_SP_DOES_NOT_EXIST.
+#    Verify that group replication specific P_S tables are empty.
+UNINSTALL PLUGIN group_replication;
+UNINSTALL PLUGIN group_replication;
+ERROR 42000: PLUGIN group_replication does not exist
+include/assert.inc [P_S table replication_group_members should be empty]
+include/assert.inc [P_S table replication_group_member_stats should be empty]
+
+# 3. Install plugin.
+#    Then Install it again twice; expect ER_UDF_EXISTS.
+#    Verify that GR specific two P_S tables are are not empty.
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+ERROR HY000: Function 'group_replication' already exists
+include/assert.inc [P_S table replication_group_members should not be empty]
+include/assert.inc [P_S table replication_group_member_stats should not be empty]
+include/group_replication_end.inc

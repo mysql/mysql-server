@@ -20,19 +20,18 @@
 #ifndef _NGS_CAPABILITIES_CONFIGURATOR_H_
 #define _NGS_CAPABILITIES_CONFIGURATOR_H_
 
-#include <boost/function.hpp>
 #include <string>
 #include <vector>
 
 #include "ngs_common/protocol_protobuf.h"
 #include "ngs/capabilities/handler.h"
 #include "ngs/error_code.h"
+#include "ngs/memory.h"
 
 namespace ngs
 {
 
-
-  class Client;
+  class Client_interface;
 
 
   class Capabilities_configurator

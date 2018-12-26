@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -375,7 +375,7 @@ innodb_bk_thread(
 				/* binlog is running, make the thread
 				attach to conn_data->thd for binlog
 				committing */
-				if (thd) {
+				if (thd && conn_data->thd) {
 					handler_thd_attach(
 						conn_data->thd, NULL);
 				}
@@ -700,7 +700,7 @@ innodb_conn_clean(
 				UT_LIST_REMOVE(conn_list, engine->conn_data,
 					       conn_data);
 
-				if (thd) {
+				if (thd && conn_data->thd ) {
 					handler_thd_attach(conn_data->thd,
 							   NULL);
 				}
@@ -1135,6 +1135,9 @@ have_conn:
 			}
 		}
 	} else {
+        bool auto_commit = (engine->read_batch_size == 1 &&
+                !(engine->cfg_status & IB_CFG_DISABLE_ROWLOCK)) ? true : false;
+
 		assert(conn_option == CONN_MODE_READ);
 
 		if (!read_crsr) {
@@ -1142,15 +1145,12 @@ have_conn:
 				/* This is read operation, start a trx
 				with "read_write" parameter set to false */
 				conn_data->crsr_trx = ib_cb_trx_begin(
-					engine->trx_level, false,
-					engine->read_batch_size == 1);
+					engine->trx_level, false, auto_commit);
 				trx_updated = true;
 			} else {
 				ib_cb_trx_start(conn_data->crsr_trx,
 						engine->trx_level,
-						false,
-						engine->read_batch_size == 1,
-						NULL);
+						false, auto_commit, NULL);
 			}
 
 			err = innodb_api_begin(
@@ -1183,8 +1183,7 @@ have_conn:
 			/* This is read operation, start a trx
 			with "read_write" parameter set to false */
 			conn_data->crsr_trx = ib_cb_trx_begin(
-				engine->trx_level, false,
-				engine->read_batch_size == 1);
+				engine->trx_level, false, auto_commit);
 
 			trx_updated = true;
 
@@ -1230,8 +1229,7 @@ have_conn:
 			with "read_write" parameter set to false */
 			ib_cb_trx_start(conn_data->crsr_trx,
 					engine->trx_level,
-					false,
-					engine->read_batch_size == 1,
+					false, auto_commit,
 					NULL);
 
 			ib_cb_cursor_stmt_begin(conn_data->read_crsr);

@@ -72,6 +72,8 @@ DROP TABLE t1;
 include/rpl_reset.inc
 **** On Slave **** 
 SET GLOBAL QUERY_CACHE_SIZE=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on table test.t1.* Error_code: 1032");
 **** On Master **** 
 CREATE TABLE t1 (a INT);
@@ -79,6 +81,8 @@ INSERT INTO t1 VALUES (1),(2),(3);
 **** On Slave **** 
 include/sync_slave_sql_with_master.inc
 SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 **** On Master **** 
 INSERT INTO t1 VALUES (4),(5),(6);
 **** On Slave **** 
@@ -107,6 +111,8 @@ a
 8
 9
 SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 ================ Test for BUG#22550 ================
 include/rpl_reset.inc

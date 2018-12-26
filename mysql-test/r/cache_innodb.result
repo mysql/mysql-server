@@ -1,7 +1,11 @@
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 drop table if exists t1,t2,t3;
 set @save_query_cache_size = @@global.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size = 1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status;
 set autocommit=0;
 create table t1 (a int not null);
@@ -136,6 +140,8 @@ SHOW VARIABLES LIKE 'have_query_cache';
 Variable_name	Value
 have_query_cache	YES
 SET GLOBAL query_cache_size = 204800;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status;
 SET @@autocommit=1;
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
@@ -146,10 +152,14 @@ START TRANSACTION;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 0
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 UPDATE t2 SET s2 = 'w' WHERE s1 = 3;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -158,14 +168,20 @@ START TRANSACTION;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 0
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (5,'w');
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 COMMIT;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -173,6 +189,8 @@ connection default
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 COMMIT;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -180,6 +198,8 @@ Qcache_queries_in_cache	0
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -187,32 +207,45 @@ connection connection1
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
 START TRANSACTION;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (6,'w');
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 3
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 connection default
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 START TRANSACTION;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DELETE from t2 WHERE s1=3;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 1
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 COMMIT;
 connection connection1
 COMMIT;
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
 2
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -220,6 +253,8 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 set @@global.query_cache_size = @save_query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 drop table t2;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 BEGIN;

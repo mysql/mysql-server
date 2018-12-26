@@ -1,0 +1,85 @@
+###############################################################################
+# This test confirm the correct behavior on savepoint statement when applied
+# on group replication
+#
+# Test:
+#   0. The test requires two serves
+#   1. Create a table to insert data
+#   2. Two transactions that won't block each other due rollback to savepoint,
+#   shouldn't cause conflict on group replication
+#   3. Two transactions that won't block each other due rollback to savepoint,
+#   shouldn't cause conflict on group replication even without releasing the
+#   savepoing
+#   4. Two transactions that block each other shouldn't change the behavior due
+#   to use of savepoint
+#
+###############################################################################
+
+--source include/have_debug_sync.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1(a int primary key);
+
+--echo #
+--echo # Don't cause conflict due the rollback
+--echo #
+
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES(1); SAVEPOINT A; INSERT INTO t1 values(2); ROLLBACK TO A; RELEASE SAVEPOINT A
+--let $remote_transaction=INSERT INTO t1 VALUES (2)
+ # one means I am waiting that happens a conflict (and in this case it shouldn't)
+--let $conflict_test=0
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--let $assert_text= 'Table t1 has values 1 and 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 1 OR t1.a = 2 , count, 1] = 2
+--source include/assert.inc
+
+--echo #
+--echo # Don't cause conflict due the rollback and the release don't interfere
+--echo #
+
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES(3); SAVEPOINT A; INSERT INTO t1 values(4); ROLLBACK TO A
+--let $remote_transaction=INSERT INTO t1 VALUES (4)
+ # one means I am waiting that happens a conflict (and in this case it shouldn't)
+--let $conflict_test=0
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--let $assert_text= 'Table t1 has values 3 and 4'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 3 OR t1.a = 4 , count, 1] = 2
+--source include/assert.inc
+
+--echo #
+--echo # Using SAVEPOINT don't modify the conflict detection
+--echo #
+
+--let $local_server_connection1=server_1
+--let $local_server_connection2=server1
+--let $remote_server_connection=server2
+--let $local_transaction=INSERT INTO t1 VALUES(5); SAVEPOINT A; INSERT INTO t1 values(6)
+--let $remote_transaction=INSERT INTO t1 VALUES (6); INSERT INTO t1 VALUES(7)
+--let $conflict_test=1
+--source ../inc/gr_parallel_local_and_remote_transactions.inc
+
+--let $assert_text= 'There are six values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 6
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 has values 6 and 7'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 6 OR t1.a = 7 , count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'Table t1 do not have value 5'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.a = 5, count, 1] = 0
+--source include/assert.inc
+
+DROP TABLE t1;
+--source ../inc/group_replication_end.inc

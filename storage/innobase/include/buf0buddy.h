@@ -54,7 +54,7 @@ buf_buddy_alloc(
 				       	storage was allocated from the
 				       	LRU list and buf_pool->mutex was
 				       	temporarily released */
-	MY_ATTRIBUTE((malloc, nonnull));
+	MY_ATTRIBUTE((malloc));
 
 /**********************************************************************//**
 Deallocate a block. */
@@ -66,9 +66,8 @@ buf_buddy_free(
 					the block resides */
 	void*		buf,		/*!< in: block to be freed, must not
 					be pointed to by the buffer pool */
-	ulint		size)		/*!< in: block size,
+	ulint		size);		/*!< in: block size,
 					up to UNIV_PAGE_SIZE */
-	MY_ATTRIBUTE((nonnull));
 
 /** Reallocate a block.
 @param[in]	buf_pool	buffer pool instance

@@ -1,0 +1,278 @@
+################################################################################
+# The intent of this test is to verify if the validations that were
+# created within the Group Replication plugin in the runtime process
+# are fully functional.
+#
+# It will test the invalid scenarios:
+# - Table with no primary key
+# - Table without InnoDB storage engine
+# - Table without both
+# - Table with 'CASCADE' referential key
+# - Table with 'SET NULL' referential key
+#
+# It will cycle all cases in which the runtime validation is verified.
+#
+# Afterwards the plugin will be stopped and one of the cases will be tested in
+# order to assess that the verification is no longer accomplished.
+#
+# One will test in a valid table that dynamic variables that can change in
+# runtime will also cause a failure in validation if they have incorrect values.
+#
+# Table t4 in the test case was added because of BUG#21909427 DMLS ON
+# BLACKHOLE TABLES ARE ALLOWED IN GR, as BLACKHOLE storage engine tables are
+# considered to be transactional.
+
+# Tables t5, t6, t7 and t8 in the test case were added because of
+# BUG#21918361 GR CAN GENERATE INCONSISTENCIES IF THERE ARE MULTIPLE FK
+# DEPENDENCIES. The decision is to block DML updates if the table contains
+# foreign key with 'CASCADE' clause.
+#
+# Test:
+# 0. The test requires one server.
+#
+# 1. With member being ONLINE.
+#  - Create table without primary key.
+#  - Create table with non-transactional(MyISAM) engine.
+#  - Create table without primary key and with non-transactional(MyISAM) engine.
+#  - Create table without InnoDB storage engine.
+#  - Create auxiliary table with primary key and with InnoDB engine.
+#  - Create table with 'ON UPDATE CASCADE' foreign key.
+#  - Create table with 'ON DELETE CASCADE' foreign key.
+#  - Create table with 'ON DELETE SET NULL' foreign key.
+#  - Create table with 'ON UPDATE SET NULL' foreign key.
+#
+# 2. Testing all tables that will fail with following DMLs:
+#    INSERT,  UPDATE,  INSERT...SELECT,  DELETE,  LOAD DATA,  REPLACE,
+#    REPLACE...SELECT,  DELETE_MULTI,  UPDATE_MULTI
+#
+# 3. Test global variables that might change in runtime and which values are
+#    not allowed in GR. Following settings are tested with DML operation on
+#    auxiliary table:
+#    binlog_checksum=CRC32,  binlog_format=STATEMENT,
+#    transaction_write_set_extraction=OFF
+#
+# 4. Stop GR on member. Now, check following must succeed or fail with other
+#    errors that not related to GR:
+#    INSERT,  UPDATE,  INSERT...SELECT,  DELETE,  LOAD DATA,  REPLACE,
+#    REPLACE...SELECT,  DELETE_MULTI,  UPDATE_MULTI
+#
+# 5. Clean up.
+################################################################################
+
+--let $group_replication_group_name= 36236980-4307-11e4-916c-0800200c9a67
+--source ../inc/have_group_replication_plugin.inc
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+#Lets create several tables. They will all breach 1 or more rules
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Table .* does not use the InnoDB storage engine. This is not compatible with Group Replication");
+SET SESSION sql_log_bin= 1;
+
+#Wrong table without Primary Key
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+
+#Wrong table without Transactional engine
+CREATE TABLE t2 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=MyISAM;
+
+#Wrong table with both criteria
+CREATE TABLE t3 (c1 char(50)) ENGINE=MyISAM;
+
+#Wrong table without InnoDB storage engine
+CREATE TABLE t4 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=Blackhole;
+
+#Auxiliary test table
+CREATE TABLE tn (cn char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+# Wrong table with 'ON UPDATE CASCADE' foreign key.
+CREATE TABLE t5 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tn(cn) ON UPDATE CASCADE) ENGINE = InnoDB;
+
+# Wrong table with 'ON UPDATE CASCADE' foreign key.
+CREATE TABLE t6 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON UPDATE CASCADE ON DELETE RESTRICT) ENGINE = InnoDB;
+
+# Wrong table with 'ON DELETE CASCADE' foreign key.
+CREATE TABLE t7 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tn(cn) ON DELETE CASCADE) ENGINE = InnoDB;
+
+# Wrong table with 'ON DELETE CASCADE' foreign key.
+CREATE TABLE t8 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON DELETE CASCADE ON UPDATE RESTRICT) ENGINE = InnoDB;
+
+# Wrong table with 'ON DELETE SET NULL' foreign key.
+CREATE TABLE t9 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON DELETE SET NULL) ENGINE = InnoDB;
+
+# Wrong table with 'ON UPDATE SET NULL' foreign key.
+CREATE TABLE t10 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+                 tn(cn) ON UPDATE SET NULL) ENGINE = InnoDB;
+
+#
+# The tests begin here.
+#
+# The use cases to test are the following:
+# - SQLCOM_UPDATE
+# - SQLCOM_INSERT
+# - SQLCOM_INSERT_SELECT
+# - SQLCOM_DELETE
+# - SQLCOM_LOAD
+# - SQLCOM_REPLACE
+# - SQLCOM_REPLACE_SELECT
+# - SQLCOM_DELETE_MULTI
+# - SQLCOM_UPDATE_MULTI
+#
+
+--echo #
+--echo # Testing all tables that will fail.
+--echo #
+
+--let $wrong_tables_count=10
+while ($wrong_tables_count)
+{
+   #Test the INSERT instruction
+   if ($wrong_tables_count >= 9)
+   {
+     --error ER_BEFORE_DML_VALIDATION_ERROR
+     --eval INSERT INTO t$wrong_tables_count VALUES('a','a')
+   }
+   if ($wrong_tables_count < 9)
+   {
+     --error ER_BEFORE_DML_VALIDATION_ERROR
+     --eval INSERT INTO t$wrong_tables_count VALUES('a')
+   }
+
+  #Test the UPDATE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$wrong_tables_count SET c1 = 'a'
+
+  #Test the INSERT...SELECT instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$wrong_tables_count SET c1 = 'a'
+
+  #Test the INSERT...SELECT instruction
+  if ($wrong_tables_count >= 9)
+  {
+    --error ER_BEFORE_DML_VALIDATION_ERROR
+    --eval INSERT INTO t$wrong_tables_count (c1,c2) SELECT tn.cn,'a' FROM tn
+  }
+  if ($wrong_tables_count < 9)
+  {
+    --error ER_BEFORE_DML_VALIDATION_ERROR
+    --eval INSERT INTO t$wrong_tables_count (c1) SELECT tn.cn FROM tn
+  }
+
+  #Test the DELETE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval DELETE FROM t$wrong_tables_count
+
+  #Test the load instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t$wrong_tables_count
+
+  #Test the REPLACE instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval REPLACE INTO t$wrong_tables_count(c1) VALUES('a')
+
+  #Test the REPLACE...SELECT instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval REPLACE INTO t$wrong_tables_count (c1) SELECT tn.cn FROM tn
+
+  #Test the DELETE_MULTI instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval DELETE t$wrong_tables_count, tn FROM t$wrong_tables_count, tn
+
+  #Test the UPDATE_MULTI instruction
+  --error ER_BEFORE_DML_VALIDATION_ERROR
+  --eval UPDATE t$wrong_tables_count, tn SET c1 = 'a'
+
+  #clean up this table
+  --eval DROP TABLE t$wrong_tables_count
+
+  --dec $wrong_tables_count
+}
+
+--echo #
+--echo # Lets test the global variables that might change in
+--echo # runtime and which values are not allowed.
+--echo #
+
+#Test the value of binlog checksum.
+
+--let $binlog_checksum_backup= `SELECT @@GLOBAL.binlog_checksum;`
+SET GLOBAL binlog_checksum= CRC32;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO tn VALUES ('a');
+
+--eval SET GLOBAL binlog_checksum= $binlog_checksum_backup
+
+#Test the value of binlog format.
+
+--let $binlog_format_backup= `SELECT @@GLOBAL.binlog_format`
+
+SET SESSION binlog_format= STATEMENT;
+
+--error ER_BEFORE_DML_VALIDATION_ERROR
+INSERT INTO tn VALUES ('a');
+
+--eval SET SESSION binlog_format= $binlog_format_backup
+
+#Test the value of transaction_write_set_extraction cannot be changed
+
+--let $transaction_write_set_extraction_backup= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+--error ER_GROUP_REPLICATION_RUNNING
+SET SESSION transaction_write_set_extraction=OFF;
+
+INSERT INTO tn VALUES ('hash');
+
+--echo #
+--echo # Now, lets repeat all the tests with group replication stopped.
+--echo # They all must succeed or fail with other errors that not the
+--echo # ones from validation.
+--echo #
+--echo # It will be a single table simpler test just to assess that the
+--echo # hook is not longer active.
+--echo #
+--source include/stop_group_replication.inc
+
+#Wrong table without Primary Key
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+
+#Test the UPDATE instruction
+--eval UPDATE t1 SET c1 = 'a'
+
+#Test the INSERT instruction
+--eval INSERT INTO t1 VALUES('a')
+
+#Test the INSERT...SELECT instruction
+--eval INSERT INTO t1 (c1) SELECT tn.cn FROM tn
+
+#Test the DELETE instruction
+--eval DELETE FROM t1
+
+#Test the load instruction
+--eval LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE t1
+
+#Test the REPLACE instruction
+--eval REPLACE INTO t1(c1) VALUES('a')
+
+#Test the REPLACE...SELECT instruction
+--eval REPLACE INTO t1 (c1) SELECT tn.cn FROM tn
+
+#Test the DELETE_MULTI instruction
+--eval DELETE t1, tn FROM t1, tn
+
+#Test the UPDATE_MULTI instruction
+--eval UPDATE t1, tn SET c1 = 'a'
+
+#clean up
+DROP TABLE t1, tn;
+
+call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication");
+call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
+--source ../inc/gr_clear_configuration.inc

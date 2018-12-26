@@ -74,8 +74,7 @@ DEALLOCATE PREPARE stmt;
 #
 # With a LIMIT Clause
 #
---echo Expected error : Update without key in safe mode
---error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+--echo No error : Update without key in safe mode but with LIMIT
 DELETE FROM t1 LIMIT 2;
 SELECT * FROM t1;
 
@@ -93,7 +92,7 @@ SELECT * FROM t1;
 # With a key WHERE Clause
 #
 --echo This one should work
-DELETE FROM t1 WHERE a=1;
+DELETE FROM t1 WHERE a=3;
 SELECT * FROM t1;
 
 --echo
@@ -118,7 +117,7 @@ SELECT * FROM t1;
 # With a key WHERE Clause
 #
 --echo This one should work
-DELETE FROM t1 WHERE a=1;
+DELETE FROM t1 WHERE a=5;
 SELECT * FROM t1;
 
 --echo '#-----------------------------FN_DYNVARS_164_08------------------------------------#'

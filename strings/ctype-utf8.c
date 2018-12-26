@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5060,15 +5060,30 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
 */
 
 static size_t
-my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend, size_t nweights)
+my_strxfrm_pad_nweights_unicode(uchar *str,
+                                const uchar *const strend,
+                                size_t nweights)
 {
-  uchar *str0;
-  DBUG_ASSERT(str && str <= strend); 
-  for (str0= str; str < strend && nweights; nweights--)
+  const uchar *const str0 = str;
+  const uchar *const weightend = str + (nweights*2);
+  const uchar *const end = (weightend < strend) ? weightend : strend;
+  DBUG_ASSERT(str && str <= strend);
+
+  while (str < end-3)
   {
     *str++= 0x00;
-    if (str < strend)
-      *str++= 0x20;
+    *str++= 0x20;
+    *str++= 0x00;
+    *str++= 0x20;
+  }
+  if (str < end-1)
+  {
+    *str++= 0x00;
+    *str++= 0x20;
+  }
+  if (str < end)
+  {
+    *str++= 0x00;
   }
   return str - str0;
 }
@@ -5089,15 +5104,26 @@ my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend, size_t nweights)
 */
 
 static size_t
-my_strxfrm_pad_unicode(uchar *str, uchar *strend)
+my_strxfrm_pad_unicode(uchar *str, const uchar *const strend)
 {
-  uchar *str0= str;
+  const uchar *const str0 = str;
   DBUG_ASSERT(str && str <= strend); 
-  for ( ; str < strend ; )
+
+  while (str < strend-3)
   {
     *str++= 0x00;
-    if (str < strend)
-      *str++= 0x20;
+    *str++= 0x20;
+    *str++= 0x00;
+    *str++= 0x20;
+  }
+  if (str < strend-1)
+  {
+    *str++= 0x00;
+    *str++= 0x20;
+  }
+  if (str < strend)
+  {
+    *str++= 0x00;
   }
   return str - str0;
 }
@@ -5119,9 +5145,9 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
 {
   my_wc_t wc= 0;
   int res;
-  uchar *dst0= dst;
-  uchar *de= dst + dstlen;
-  const uchar *se= src + srclen;
+  uchar *const dst0= dst;
+  const uchar *const de= dst + dstlen;
+  const uchar *const se= src + srclen;
   const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
                                      NULL : cs->caseinfo;
   DBUG_ASSERT(src);
@@ -5161,9 +5187,9 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
                              const uchar *src, size_t srclen, uint flags)
 {
   my_wc_t wc= 0;
-  uchar *dst0= dst;
-  uchar *de= dst + dstlen;
-  const uchar *se = src + srclen;
+  uchar *const dst0= dst;
+  const uchar *const de= dst + dstlen;
+  const uchar *const se= src + srclen;
 
   DBUG_ASSERT(src);
   DBUG_ASSERT(cs->state & MY_CS_BINSORT);
@@ -5185,7 +5211,17 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
 
   if (flags & MY_STRXFRM_PAD_WITH_SPACE)
   {
-    for ( ; dst < de && nweights; nweights--)
+    const uchar *const weightend = dst + (nweights*3);
+    const uchar *const end = (weightend < de) ? weightend : de;
+
+    while (dst < end-2)
+    {
+      *dst++= 0x00;
+      *dst++= 0x00;
+      *dst++= 0x20;
+      nweights--;
+    }
+    if (dst < de && nweights > 0)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5201,7 +5237,13 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
 
   if (flags & MY_STRXFRM_PAD_TO_MAXLEN)
   {
-    while (dst < de)
+    while (dst < de-2)
+    {
+      *dst++= 0x00;
+      *dst++= 0x00;
+      *dst++= 0x20;
+    }
+    if (dst < de)
     {
       *dst++= 0x00;
       if (dst < de)
@@ -5417,9 +5459,8 @@ static int my_uni_utf8 (const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800; // Fall through
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;  // Fall through
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -5446,9 +5487,8 @@ static int my_uni_utf8_no_range(const CHARSET_INFO *cs
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800; // Fall through
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;  // Fall through
     case 1: r[0]= (uchar) wc;
   }
   return count;
@@ -7968,10 +8008,9 @@ my_wc_mb_utf8mb4(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     return MY_CS_TOOSMALLN(count);
 
   switch (count) {
-    /* Fall through all cases!!! */
-    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000;
-    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;
-    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;
+    case 4: r[3] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x10000; // Fall through
+    case 3: r[2] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0x800;   // Fall through
+    case 2: r[1] = (uchar) (0x80 | (wc & 0x3f)); wc = wc >> 6; wc |= 0xc0;    // Fall through
     case 1: r[0] = (uchar) wc;
   }
   return count;
@@ -8000,10 +8039,9 @@ my_wc_mb_utf8mb4_no_range(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   switch (count)
   {
-    /* Fall through all cases!!! */
-    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000;
-    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;
-    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;
+    case 4: r[3]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x10000; // Fall through
+    case 3: r[2]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0x800;   // Fall through
+    case 2: r[1]= (uchar) (0x80 | (wc & 0x3f)); wc= wc >> 6; wc |= 0xc0;    // Fall through
     case 1: r[0]= (uchar) wc;
   }
   return count;

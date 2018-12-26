@@ -6698,9 +6698,13 @@ INSERT INTO t1 VALUES (0), (1);
 CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
 SET SESSION sql_safe_updates = 1;
 EXPLAIN EXTENDED UPDATE IGNORE v1 SET a = 1;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t11	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t12	NULL	index	NULL	a	5	NULL	2	100.00	Using index
+Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 UPDATE IGNORE v1 SET a = 1;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SET SESSION sql_safe_updates = DEFAULT;
 DROP TABLE t1;
 DROP VIEW v1;

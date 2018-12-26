@@ -1,0 +1,544 @@
+################################################################################
+# The aim of the testcase is to test parameter
+# 'group_replication_transaction_size_limit'
+#
+# 'group_replication_transaction_size_limit' should
+# 1. limit size of transaction, roll-back larger transactions
+# 2. Should not rollback/impact DDLs
+# 3. If group_replication_transaction_size_limit is set to 0 it will be
+#    turned off
+# 4. Transaction size limit of each server
+#    4.1 Server 1 should allow transactions of all size
+#    4.2 Server 2 should not allow any transaction(DML)
+#    4.3 Server 3 should allow transactions of size less than equal to 1024(DML)
+#
+# Test:
+# 0. Start 3 servers with GR
+#    0.1 For server 1 'group_replication_transaction_size_limit=0'
+#    0.2 For server 2 'group_replication_transaction_size_limit=1'
+#    0.3 For server 3 'group_replication_transaction_size_limit=1024'
+# 1. Connect to server 1, create a table (t1)
+#    Table t1 will be used later in step 3
+# 2. Check DDLs
+#    2.1 Create table t2 on server 1 and t3 on server 2.
+#    2.2 Validate tables t2 and t3 are created on each server.
+#    2.3 Drop table t2 on server 1 and table t3 on server 2.
+#    2.4 Validate tables t2 and t3 are dropped on each server.
+#    2.5 Create table using select statement, table should not be created
+#        CREATE TABLE .. SELECT is not allowed in GR
+#        since it does not support GTID
+# 3. Check DMLs
+#    3.1 Insert some data in table t1 on server 2,
+#        transaction should be rolledback
+#    3.2 Insert some data in table t1 on server 1, data should be inserted
+#    3.3 Insert some data in table t1 on server 3, data should be inserted
+#    3.4 Insert large sample data in table t1 on server 3,
+#        transaction should be rolledback
+#    3.5 Insert large sample data in table t1 on server 1,
+#        data should be inserted
+#    3.6 Delete all data from table t1 on server 2,
+#        transaction should be rolledback
+#    3.7 Delete all data from table t1 on server 3,
+#        transaction should be rolledback
+#    3.8 Delete all data from table t1 on server 1, table will be empty
+# 4. Validate that server1, server2 and server 3 has same set of data
+# 5. Clean-up
+################################################################################
+--echo
+--echo ## 0. Start 3 servers with GR
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Configure group replication on three servers
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("Error on session .*. Transaction of size .* exceeds specified limit 1. To increase the limit please adjust group_replication_transaction_size_limit option.");
+set session sql_log_bin=1;
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+call mtr.add_suppression("Error on session .*. Transaction of size .* exceeds specified limit 1024. To increase the limit please adjust group_replication_transaction_size_limit option.");
+set session sql_log_bin=1;
+
+# Make sure number of servers in the group is 3
+--echo
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+################################################################################
+--echo
+--echo ## 1. Connect to server 1, create a table (t1)
+--echo ##    Table t1 will be used later in step 3
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+--source include/rpl_sync.inc
+################################################################################
+--echo
+--echo ## 2.1 Create table t2 on server 1 and t3 on server 2.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t2 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+CREATE TABLE t3 (a INT PRIMARY KEY);
+--source include/rpl_sync.inc
+################################################################################
+--echo
+--echo ## 2.2 Validate tables t2 and t3 are created on each server.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 exist on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 exist on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 1
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 exist on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 exist on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 1
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 exist on server 3'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 exist on server 3'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 1
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 2.3 Drop table t2 on server 1 and table t3 on server 2.
+
+## Since DDLs are not blocked CREATE and DROP statements should be replicated
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t2;
+--source include/rpl_sync.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+DROP TABLE t3;
+--source include/rpl_sync.inc
+################################################################################
+--echo
+--echo ## 2.4 Validate tables t2 and t3 are dropped on each server.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 dropped on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 0
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 dropped on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 dropped on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 0
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 dropped on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Check table t2 dropped on server 3'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t2\"]" = 0
+--source include/assert.inc
+
+--let $assert_text= 'Check table t3 dropped on server 3'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t3\"]" = 0
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 2.5 Create table using select statement, table should not be created
+--echo ##     CREATE TABLE .. SELECT is not allowed in GR
+--echo ##     since it does not support GTID
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_GTID_UNSAFE_CREATE_SELECT
+--eval CREATE TABLE t4 AS SELECT * FROM t1
+
+## Assert: Table t4 was not created on any server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Table t4 does not exist on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t4\"]" = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Table t4 does not exist on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t4\"]" = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Table t4 does not exist on server 3'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t4\"]" = 0
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.1 Insert some data in table t1 on server 2,
+--echo ##     transaction should be rolledback
+
+## Reason of rollback is Server 2 allows transaction of size <= 1 byte
+## Its expected all DMLs will be of size greater then 1 and will be rolledback
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error ER_RUN_HOOK_ERROR
+--eval INSERT INTO t1 VALUES (10)
+--source include/rpl_sync.inc
+
+## Assert : Confirm table t1 has 0 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.2 Insert some data in table t1 on server 1, data should be inserted
+
+## In server 1 all transactions should work since tx size switch is OFF
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (10);
+--source include/rpl_sync.inc
+
+## Assert : Confirm table t1 has 1 row on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 1
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 1
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 1
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.3 Insert some data in table t1 on server 3, data should be inserted
+
+## In sever 3 transactions of size <= 1024 should work
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (20);
+--source include/rpl_sync.inc
+
+## In section 3.2, 1 records was inserted so total records now are 2
+## Assert : Confirm table t1 has 2 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 2
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 2
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 2
+--source include/assert.inc
+
+# In next section  we will insert 100 records
+# There are already 2 records inserted in 3.2 and 3.3
+# To avoid confusion later we will clean this 2 records for next operations
+--echo
+DELETE FROM t1;
+--source include/rpl_sync.inc
+################################################################################
+--echo
+--echo ## 3.4 Insert large sample data in table t1 on server 3,
+--echo ##     transaction should be rolledback
+
+## We will insert 100 records, so size of transaction will go beyond 1024 limit
+## of server 3
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+BEGIN;
+--disable_query_log
+--let $rows= 100
+WHILE($rows)
+{
+  --eval INSERT INTO t1 (a) VALUES ( $rows )
+  --dec $rows
+}
+--enable_query_log
+--error ER_RUN_HOOK_ERROR
+COMMIT;
+--source include/rpl_sync.inc
+
+## Since there is rollback, records should not be present
+## Assert : Confirm table t1 has 0 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 0
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.5 Insert large sample data in table t1 on server 1,
+--echo ##     data should be inserted
+
+## We will insert 100 records, for server 1 switch is off
+## so transaction should be committed successfully from server 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+BEGIN;
+--disable_query_log
+--let $rows=100
+WHILE($rows)
+{
+  --eval INSERT INTO t1 (a) VALUES ( $rows )
+  --dec $rows
+}
+--enable_query_log
+COMMIT;
+--source include/rpl_sync.inc
+
+## Assert : Confirm table t1 has 100 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.6 Delete all data from table t1 on server 2,
+--echo ##     transaction should be rolledback
+
+## Since 100 records will be deleted, transaction size is big and will be
+## rolledback
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error ER_RUN_HOOK_ERROR
+--eval DELETE FROM t1
+--source include/rpl_sync.inc
+
+## Confirm rows are not deleted
+## Assert : Confirm table t1 has 100 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.7 Delete all data from table t1 on server 3,
+--echo ##     transaction should be rolledback
+## Since 100 records will be deleted, transaction size is big and will be
+## rolledback
+
+## Transaction size is sum of (Transaction changes + Transaction hash)
+## This test is important because in below transaction:
+## Transaction Change size is 667
+## Transaction Hash size is 1614
+## Limit of transaction size is 1024 for server 3
+##
+## Since 667+1614 > 1024 transaction should be rolledback
+## If transaction succedds, wait_condition will fail because of different
+## number of records before and after transaction indicating issues with code
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--error ER_RUN_HOOK_ERROR
+--eval DELETE FROM t1
+--source include/rpl_sync.inc
+
+# Confirm rows are not deleted
+## Assert : Confirm table t1 has 100 rows on each server
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $assert_text= 'Checking the number of records in table t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM t1,count, 1] = 100
+--source include/assert.inc
+################################################################################
+--echo
+--echo ## 3.8 Delete all data from table t1 on server 1, table will be empty
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DELETE FROM t1;
+--source include/rpl_sync.inc
+################################################################################
+--echo
+--echo ## 4. Validate that server1, server2 and server 3 has same set of data
+
+--let $diff_tables= server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+################################################################################
+--echo
+--echo ## 5. Clean-up
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc
+################################################################################

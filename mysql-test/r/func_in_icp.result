@@ -936,6 +936,8 @@ DROP TABLE t1;
 SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"");
 LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.query_cache_type,1,"")
 0
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 # End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

@@ -1,0 +1,155 @@
+###############################################################################
+# Variable Name: binlog_transaction_dependency_tracking
+# Scope: global
+# Access Type: dynamic
+# Data Type: enum
+#
+# Description: Test Cases of Dynamic System Variable
+#              "binlog_transaction_dependency_history_size" that checks
+#              behavior of this variable in the following ways
+#              * Scope & Access type
+#              * Valid & Default value
+#              * Invalid values
+#              * Dependency on transaction_write_set_extraction
+#
+# Reference: WL#9556
+###############################################################################
+
+--source include/not_embedded.inc
+--source include/have_binlog_format_row.inc
+
+# Save initial value
+--let $saved_binlog_transaction_dependency_tracking= `SELECT @@global.binlog_transaction_dependency_tracking`
+--let $saved_transaction_write_set_extraction= `SELECT @@global.transaction_write_set_extraction`
+
+# Set initial values to test further
+SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
+SET GLOBAL transaction_write_set_extraction= 'XXHASH64';
+
+#
+# Scope: Global only
+#
+SELECT COUNT(@@GLOBAL.binlog_transaction_dependency_tracking);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.binlog_transaction_dependency_tracking);
+
+--disable_warnings
+SELECT VARIABLE_NAME FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_transaction_dependency_tracking';
+SELECT VARIABLE_NAME FROM performance_schema.session_variables WHERE variable_name='binlog_transaction_dependency_tracking';
+--enable_warnings
+
+#
+# Access Type: Dynamic
+#
+SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
+--let $assert_text= 'binlog_transaction_dependency_tracking is a dynamic variable'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+#
+# Valid values and Default value
+#
+SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
+--let $assert_text= 'binlog_transaction_dependency_tracking should be COMMIT_ORDER'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= 0;
+--let $assert_text= 'binlog_transaction_dependency_tracking should be COMMIT_ORDER'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
+--let $assert_text= 'binlog_transaction_dependency_tracking should be WRITESET'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= 1;
+--let $assert_text= 'binlog_transaction_dependency_tracking should be WRITESET'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
+--let $assert_text= 'binlog_transaction_dependency_tracking should be WRITESET_SESSION'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET_SESSION"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= 2;
+--let $assert_text= 'binlog_transaction_dependency_tracking should be WRITESET_SESSION'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "WRITESET_SESSION"
+--source include/assert.inc
+
+SET GLOBAL binlog_transaction_dependency_tracking= DEFAULT;
+--let $assert_text= 'binlog_transaction_dependency_tracking should be COMMIT_ORDER'
+--let $assert_cond= "[SELECT @@GLOBAL.binlog_transaction_dependency_tracking]" = "COMMIT_ORDER"
+--source include/assert.inc
+
+#
+# Invalid values
+#
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= NULL;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= '';
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= 1.0;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= 'GARBAGE';
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= ON;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= OFF;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL binlog_transaction_dependency_tracking= 3;
+
+--echo Expect value still set to "COMMIT_ORDER"
+SELECT @@global.binlog_transaction_dependency_tracking;
+
+#
+# Test usage: Dependency on transaction_write_set_extraction
+#
+--echo Case1 a): "When binlog_transaction_dependency_tracking != COMMIT_ORDER,
+--echo  transaction_write_set_extraction cannot be changed."
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
+--error ER_WRONG_USAGE
+SET GLOBAL transaction_write_set_extraction= OFF;
+--error ER_WRONG_USAGE
+SET GLOBAL transaction_write_set_extraction= MURMUR32;
+--echo Expect value still set to XXHASH64
+SELECT @@global.transaction_write_set_extraction;
+
+--echo Case1 b): "When binlog_transaction_dependency_tracking != COMMIT_ORDER,
+--echo  transaction_write_set_extraction cannot be changed."
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
+--error ER_WRONG_USAGE
+SET GLOBAL transaction_write_set_extraction= OFF;
+--error ER_WRONG_USAGE
+SET GLOBAL transaction_write_set_extraction= MURMUR32;
+--echo Expect value still set to XXHASH64
+SELECT @@global.transaction_write_set_extraction;
+
+--echo Case2: "When transaction_write_set_extraction = OFF,
+--echo  binlog_transaction_dependency_tracking cannot be set to WRITESET%"
+SET GLOBAL binlog_transaction_dependency_tracking= 'COMMIT_ORDER';
+SET GLOBAL transaction_write_set_extraction= OFF;
+--error ER_WRONG_USAGE
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
+--error ER_WRONG_USAGE
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
+--echo Expect value still set to COMMIT_ORDER
+SELECT @@global.binlog_transaction_dependency_tracking;
+
+SET GLOBAL transaction_write_set_extraction= XXHASH64;
+
+# Clean up
+--disable_query_log
+--eval SET GLOBAL binlog_transaction_dependency_tracking= '$saved_binlog_transaction_dependency_tracking';
+--eval SET GLOBAL transaction_write_set_extraction= '$saved_transaction_write_set_extraction';
+--enable_query_log

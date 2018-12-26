@@ -1,0 +1,38 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+# Creating a connection on the first server to be used by the recovery channel
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+[connection server2]
+# CHANGE MASTER with options apart from the MASTER_USER and
+# MASTER_PASSWORD will cause error.
+CHANGE MASTER TO MASTER_USER='MANISH', MASTER_PASSWORD='abc_manish_abc', MASTER_PORT=13000 FOR CHANNEL 'group_replication_recovery';
+ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
+include/assert.inc [No new user is created after the execution of the change master]
+# MASTER_PASSWORD value for the CHANGE MASTER command will not be logged in the error log.
+Occurrences of 'master_password' in the input file: 0
+# The password value 'unique_password' is not logged in the error log.
+Occurrences of 'abc_manish_abc' in the input file: 0
+# Second CHANGE MASTER with valid options will work fine.
+CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+include/assert.inc [A new user is created after the execution of the change master]
+include/start_group_replication.inc
+# Ensuring the the two members are online.
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_sync.inc
+include/diff_tables.inc [server1:t1,server2:t1]
+DROP TABLE t1;
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
+include/group_replication_end.inc

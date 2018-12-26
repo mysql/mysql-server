@@ -251,6 +251,7 @@ source include/assert.inc;
 --echo # after STOP SLAVE, thread_id changes to NULL and service_state to "off".
 --echo
 
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
 source include/stop_slave.inc;
 
 --echo

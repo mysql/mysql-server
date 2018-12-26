@@ -334,30 +334,40 @@ select @a:=f1, count(f1) from t1 group by 1 desc;
 3	2
 2	1
 1	4
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select @a:=f1, count(f1) from t1 group by 1 asc;
 @a:=f1	count(f1)
 1	4
 2	1
 3	2
 4	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select @a:=f2, count(f2) from t1 group by 1 desc;
 @a:=f2	count(f2)
 d	1
 c	2
 b	1
 a	4
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select @a:=f3, count(f3) from t1 group by 1 desc;
 @a:=f3	count(f3)
 4.5	1
 3.5	2
 2.5	1
 1.5	4
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select @a:=f4, count(f4) from t1 group by 1 desc;
 @a:=f4	count(f4)
 4.6	1
 3.6	2
 2.6	1
 1.6	4
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 drop table t1;
 create table t1 (f1 int);
 insert into t1 values (2), (1);

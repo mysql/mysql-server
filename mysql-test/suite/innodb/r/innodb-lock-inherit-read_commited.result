@@ -11,7 +11,11 @@ SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
 SET @old_tx_isolation = @@tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET GLOBAL tx_isolation = 'READ-COMMITTED';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -43,6 +47,8 @@ test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
 SET GLOBAL tx_isolation = @old_tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';
 CREATE TABLE t1 (
@@ -55,7 +61,11 @@ SET @old_innodb_stats_auto_recalc = @@innodb_stats_auto_recalc;
 SET GLOBAL innodb_stats_auto_recalc = OFF;
 SET GLOBAL innodb_purge_stop_now = ON;
 SET @old_tx_isolation = @@tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET GLOBAL tx_isolation = 'READ-COMMITTED';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET @old_innodb_lock_wait_timeout = @@innodb_lock_wait_timeout;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (1,1),(2,2);
@@ -87,5 +97,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 SET GLOBAL innodb_stats_auto_recalc = @old_innodb_stats_auto_recalc;
 SET GLOBAL tx_isolation = @old_tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET GLOBAL innodb_lock_wait_timeout = @old_innodb_lock_wait_timeout;
 SET DEBUG_SYNC= 'RESET';

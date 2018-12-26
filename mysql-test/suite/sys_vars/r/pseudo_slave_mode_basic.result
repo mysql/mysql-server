@@ -111,6 +111,33 @@ Warning	1231	Slave applier execution mode not active, statement ineffective.
 SELECT @@session.pseudo_slave_mode;
 @@session.pseudo_slave_mode
 0
+'#---------------------FN_DYNVARS_156_10----------------------#'
+BEGIN;
+SET @@session.pseudo_slave_mode = TRUE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@session.pseudo_slave_mode = FALSE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+COMMIT;
+XA START 'xa1';
+SET @@session.pseudo_slave_mode = TRUE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@session.pseudo_slave_mode = FALSE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+XA END 'xa1';
+SET @@session.pseudo_slave_mode = TRUE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@session.pseudo_slave_mode = FALSE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+XA PREPARE 'xa1';
+SET @@session.pseudo_slave_mode = TRUE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+SET @@session.pseudo_slave_mode = FALSE;
+ERROR HY000: The system variable pseudo_slave_mode cannot be set when there is an ongoing transaction.
+XA COMMIT 'xa1';
+SET @@session.pseudo_slave_mode = TRUE;
+SET @@session.pseudo_slave_mode = FALSE;
+Warnings:
+Warning	1231	Slave applier execution mode not active, statement ineffective.
 SET @@session.pseudo_slave_mode = @session_start_value;
 Warnings:
 Warning	1231	'pseudo_slave_mode' change was ineffective.

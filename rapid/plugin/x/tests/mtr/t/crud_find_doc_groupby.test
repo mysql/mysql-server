@@ -1,5 +1,6 @@
 ## Doc: Find with group by clause
 ## BUG#22950240
+## BUG#23738896
 
 --source ../include/xplugin_preamble.inc
 
@@ -18,7 +19,7 @@ INSERT INTO xtest.xcoll (doc) VALUES
 --write_file $MYSQL_TMP_DIR/crud_find_doc_groupby.tmp
 -->quiet
 
-# group by name
+-->echo group by name
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -35,18 +36,18 @@ Mysqlx.Crud.Find {
     }
   }
   grouping {
-      type: IDENT
-      identifier {
-        document_path {
-          type: MEMBER
-          value: "name"
-        }
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
       }
+    }
   }
 }
 -->recvresult
 
-# group by name and count
+-->echo group by name and count
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -90,7 +91,7 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 
-# group by name, age and count
+-->echo group by name, age and count
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
@@ -155,11 +156,30 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 
-## no projection - error expected
+-->echo no projection - error expected
 Mysqlx.Crud.Find {
   collection { name: "xcoll" schema: "xtest" }
   data_model: DOCUMENT
   grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+}
+-->expecterror ER_X_BAD_PROJECTION
+-->recvresult
+
+-->echo group by name, count name and criteria on count
+Mysqlx.Crud.Find {
+  collection { name: "xcoll" schema: "xtest" }
+  data_model: DOCUMENT
+  projection {
+    alias: "name"
+    source {
       type: IDENT
       identifier {
         document_path {
@@ -167,9 +187,144 @@ Mysqlx.Crud.Find {
           value: "name"
         }
       }
+    }
+  }
+  projection {
+    alias: "count"
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "count"
+        }
+        param {
+          type: OPERATOR operator {
+            name: "*"
+          }
+        }
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "count"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
   }
 }
--->expecterror 5114
+-->expecterror ER_X_EXPR_BAD_VALUE
+-->recvresult
+
+
+-->echo group by name, criteria on max(age)
+Mysqlx.Crud.Find {
+  collection { name: "xcoll" schema: "xtest" }
+  data_model: DOCUMENT
+  projection {
+    source {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "name"
+        }
+      }
+    }
+    alias: "my_name"
+  }
+  projection {
+    source {
+      type: FUNC_CALL
+      function_call {
+        name {
+          name: "max"
+        }
+        param {
+          type: IDENT
+          identifier {
+            document_path {
+              type: MEMBER
+              value: "age"
+            }
+          }
+        }
+      }
+    }
+    alias: "my_age"
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "my_age"
+      }
+    }
+  }
+  grouping {
+    type: IDENT
+    identifier {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+  }
+  grouping_criteria {
+    type: OPERATOR
+    operator {
+      name: ">"
+      param {
+        type: FUNC_CALL
+        function_call {
+          name {
+            name: "max"
+          }
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "age"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_UINT
+          v_unsigned_int: 5
+        }
+      }
+    }
+  }
+}
 -->recvresult
 EOF
 

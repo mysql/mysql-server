@@ -1,0 +1,42 @@
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+#
+# On server 1 stop group replication that started at boot
+#
+include/stop_group_replication.inc
+#
+# On server 2 before start, create a replication user that requires SSL
+#
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+set session sql_log_bin=1;
+#
+# Start the member and add some data
+#
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# On server 1 restart the server. Group replication should start at boot
+#
+CHANGE MASTER TO MASTER_USER= 'rec_ssl_user' FOR CHANNEL 'group_replication_recovery';
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1
+include/gr_wait_for_member_state.inc
+#
+# On server 1 after restart, recovery should be successful
+#
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+INSERT INTO t1 VALUES (2);
+#
+# Cleanup
+#
+DROP TABLE t1;
+set session sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+set session sql_log_bin=1;
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET MASTER;

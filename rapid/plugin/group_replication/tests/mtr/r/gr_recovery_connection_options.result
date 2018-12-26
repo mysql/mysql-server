@@ -1,0 +1,104 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Start the donor member
+#
+include/start_and_bootstrap_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+#
+# Install a rpl user for the donor connection
+#
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+FLUSH PRIVILEGES;
+#
+# Set valid options
+#
+CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';;
+#
+# Start the joiner member with the given credentials and check if it is OK
+#
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Create a new member and give it a bad password, watching it fail
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("The member is leaving a group without being on one");
+call mtr.add_suppression("The member is already leaving or joining a group.");
+call mtr.add_suppression("Error leaving the group");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
+set session sql_log_bin=1;
+CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_bad_password' FOR CHANNEL 'group_replication_recovery';
+# Set the retry count to try only twice. One time for each member.
+SET GLOBAL group_replication_recovery_retry_count= 2;;
+# Set the reconnect interval to one. To prevent timeout on recovery.
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;;
+include/assert.inc [The value of the recovery retry count should be equal to 2]
+# Start recovery and wait to verify the member is in recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
+include/start_group_replication.inc
+# Wake up recovery
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+# The member should error out as it can't connect
+include/gr_wait_for_member_state.inc
+#
+# Set MASTER_USER to an empty user name, watching it fail
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+include/stop_group_replication.inc
+CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+# Start recovery and wait to verify the member is in recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
+include/start_group_replication.inc
+# Wake up recovery
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+include/gr_wait_for_member_state.inc
+# Verify that the show slave status shows specific IO_error
+include/stop_group_replication.inc
+#
+# Set MASTER_USER to non existing user, watching it fail
+#
+SET @debug_save= @@GLOBAL.DEBUG;
+CHANGE MASTER TO MASTER_USER= 'parveez', MASTER_PASSWORD= 'me' FOR CHANNEL 'group_replication_recovery';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+# Start recovery and wait to verify the member is in recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
+include/start_group_replication.inc
+# Wake up recovery
+SET DEBUG_SYNC= 'RESET';
+SET @@GLOBAL.DEBUG= @debug_save;
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+include/gr_wait_for_member_state.inc
+# Verify that show slave status shows specific IO_ERROR
+include/stop_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+#
+# Clean up
+#
+DROP USER "recovery_user";
+SET DEBUG_SYNC='RESET';
+SET GLOBAL group_replication_recovery_retry_count= 10;
+SET GLOBAL group_replication_recovery_reconnect_interval= 60;
+DROP TABLE t1;
+include/group_replication_end.inc

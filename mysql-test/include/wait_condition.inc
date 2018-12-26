@@ -9,6 +9,7 @@
 #
 #    let $wait_condition=
 #      SELECT c = 3 FROM t;
+#    [let $explicit_default_wait_timeout= N] # to override the default reset
 #    --source include/wait_condition.inc
 #
 #   OR
@@ -31,7 +32,14 @@ if ($wait_timeout)
 }
 # Reset $wait_timeout so that its value won't be used on subsequent
 # calls, and default will be used instead.
-let $wait_timeout= 0;
+if ($explicit_default_wait_timeout)
+{
+  --let $wait_timeout= $explicit_default_wait_timeout
+}
+if (!$explicit_default_wait_timeout)
+{
+  --let $wait_timeout= 0
+}
 
 # Keep track of how many times the wait condition is tested
 # This is used by some tests (e.g., main.status)

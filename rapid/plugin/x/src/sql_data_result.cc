@@ -18,7 +18,7 @@
  */
 
 #include "sql_data_result.h"
-
+#include "ngs/memory.h"
 
 xpl::Sql_data_result::Sql_data_result(Sql_data_context &context)
 : m_field_index(0), m_context(context)
@@ -39,17 +39,16 @@ void xpl::Sql_data_result::restore_binlog()
   query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
 }
 
-void xpl::Sql_data_result::query(const std::string &query)
+void xpl::Sql_data_result::query(const ngs::PFS_string &query)
 {
   m_result_set.clear();
 
   m_field_index = 0;
 
-  ngs::Error_code error = m_context.execute_sql_and_collect_results(query, m_field_types, m_result_set, m_result_info);
+  ngs::Error_code error = m_context.execute_sql_and_collect_results(query.data(), query.length(), m_field_types, m_result_set, m_result_info);
 
   if (error)
   {
-    error.message = query + ": " + error.message;
     throw error;
   }
 

@@ -1,10 +1,6 @@
 #
 # WL#6409: CREATE/ALTER USER
 #
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "storing table level and column level grants in the privilege tables.");
 call mtr.add_suppression("\\[Warning\\] Server shutdown in progress");
 # CREATE USER
 
@@ -2100,7 +2096,6 @@ DROP USER u1;
 
 Bug #20364862 MYSQLADMIN PASSWORD AFFECTS EXTERNAL AUTH ACCOUNTS
 
-call mtr.add_suppression("Did not write failed");
 CREATE USER bug20364862_user@localhost IDENTIFIED WITH test_plugin_server AS 'bug20364862_dest';
 CREATE USER bug20364862_dest@localhost IDENTIFIED BY 'dest_password';
 GRANT PROXY ON bug20364862_dest@localhost TO bug20364862_user@localhost;
@@ -2227,6 +2222,6 @@ SHOW CREATE USER bug20625566_user@localhost;
 ERROR 42000: Access denied for user 'bug20625566_dest'@'localhost' to database 'mysql'
 SHOW CREATE USER bug20625566_dest@localhost;
 CREATE USER for bug20625566_dest@localhost
-CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*64AC67AF30F51749441BE9044F20D83D608F4B33' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+CREATE USER 'bug20625566_dest'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
 DROP USER user1@localhost, user1@47.9.9.9, user2,
 bug20625566_user@localhost, bug20625566_dest@localhost;

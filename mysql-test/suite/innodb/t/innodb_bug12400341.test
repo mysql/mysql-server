@@ -13,15 +13,15 @@ if (`select count(*)=0 from information_schema.global_variables where variable_n
 # and cause unstable result.
 --source include/not_valgrind.inc
 
+--disable_query_log
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot find a free slot for an undo log. Do you have too");
 
---disable_query_log
 set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
 set global innodb_trx_rseg_n_slots_debug = 32;
 --enable_query_log
 
-set @old_innodb_undo_logs = @@innodb_undo_logs;
-set global innodb_undo_logs=1;
+set @old_innodb_rollback_segments = @@innodb_rollback_segments;
+set global innodb_rollback_segments=1;
 
 show variables like "max_connections";
 show variables like "innodb_thread_concurrency";
@@ -107,7 +107,7 @@ while ($c)
 #
 drop database mysqltest;
 
-set global innodb_undo_logs = @old_innodb_undo_logs;
+set global innodb_rollback_segments = @old_innodb_rollback_segments;
 
 --disable_query_log
 set global innodb_trx_rseg_n_slots_debug = @old_innodb_trx_rseg_n_slots_debug;

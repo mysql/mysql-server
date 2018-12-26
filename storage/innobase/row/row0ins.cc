@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -230,7 +230,7 @@ Does an insert operation by updating a delete-marked existing record
 in the index. This situation can occur if the delete-marked record is
 kept in the index for consistent reads.
 @return DB_SUCCESS or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_sec_index_entry_by_modify(
 /*==============================*/
@@ -324,7 +324,7 @@ Does an insert operation by delete unmarking and updating a delete marked
 existing record in the index. This situation can occur if the delete marked
 record is kept in the index for consistent reads.
 @return DB_SUCCESS, DB_FAIL, or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
@@ -447,7 +447,7 @@ row_ins_cascade_ancestor_updates_table(
 Returns the number of ancestor UPDATE or DELETE nodes of a
 cascaded update/delete node.
 @return number of ancestors */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ulint
 row_ins_cascade_n_ancestors(
 /*========================*/
@@ -473,7 +473,7 @@ a cascaded update.
 can also be 0 if no foreign key fields changed; the returned value is
 ULINT_UNDEFINED if the column type in the child table is too short to
 fit the new value in the parent table: that means the update fails */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ulint
 row_ins_cascade_calc_update_vec(
 /*============================*/
@@ -484,10 +484,10 @@ row_ins_cascade_calc_update_vec(
 	mem_heap_t*	heap,		/*!< in: memory heap to use as
 					temporary storage */
 	trx_t*		trx,		/*!< in: update transaction */
-	ibool*		fts_col_affected,
+	ibool*		fts_col_affected)
 					/*!< out: is FTS column affected */
-	upd_node_t*	cascade)	/*!< in: cascade update node */
 {
+	upd_node_t*     cascade         = node->cascade_node;
 	dict_table_t*	table		= foreign->foreign_table;
 	dict_index_t*	index		= foreign->foreign_index;
 	upd_t*		update;
@@ -710,13 +710,13 @@ row_ins_cascade_calc_update_vec(
 			fts_get_next_doc_id(table, next_doc_id);
 			doc_id = fts_update_doc_id(table, ufield, next_doc_id);
 			n_fields_updated++;
-			cascade->fts_next_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
 		} else  {
 			if (doc_id_updated) {
 				ut_ad(new_doc_id);
-				cascade->fts_next_doc_id = new_doc_id;
+				fts_trx_add_op(trx, table, new_doc_id,
+					       FTS_INSERT, NULL);
 			} else {
-				cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
 				ib::error() << "FTS Doc ID must be updated"
 					" along with FTS indexed column for"
 					" table " << table->name;
@@ -1043,7 +1043,7 @@ Perform referential actions or checks when a parent row is deleted or updated
 and the constraint had an ON DELETE or ON UPDATE condition which was not
 RESTRICT.
 @return DB_SUCCESS, DB_LOCK_WAIT, or error code */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_ins_foreign_check_on_constraint(
 /*================================*/
@@ -1118,20 +1118,15 @@ row_ins_foreign_check_on_constraint(
 		DBUG_RETURN(DB_ROW_IS_REFERENCED);
 	}
 
-	cascade = row_create_update_node_for_mysql(table, node->cascade_heap);
-	que_node_set_parent(cascade, node);
+	if (node->cascade_node == NULL) {
+		node->cascade_heap = mem_heap_create(128);
+		node->cascade_node = row_create_update_node_for_mysql(
+			table, node->cascade_heap);
+		que_node_set_parent(node->cascade_node, node);
 
-	/* For the cascaded operation, all the update nodes are allocated in
-	the same heap.  All the update nodes will point to the same heap.
-	This heap is owned by the first update node. And it must be freed
-	only in the first update node */
-	cascade->cascade_heap = node->cascade_heap;
-	cascade->cascade_upd_nodes = node->cascade_upd_nodes;
-	cascade->new_upd_nodes = node->new_upd_nodes;
-	cascade->processed_cascades = node->processed_cascades;
-
+	}
+	cascade = node->cascade_node;
 	cascade->table = table;
-
 	cascade->foreign = foreign;
 
 	if (node->is_delete
@@ -1274,17 +1269,8 @@ row_ins_foreign_check_on_constraint(
 	if (node->is_delete
 	    ? (foreign->type & DICT_FOREIGN_ON_DELETE_SET_NULL)
 	    : (foreign->type & DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-
 		/* Build the appropriate update vector which sets
 		foreign->n_fields first fields in rec to SQL NULL */
-		if (table->fts) {
-
-			/* For the clause ON DELETE SET NULL, the cascade
-			operation is actually an update operation with the new
-			values being null.  For FTS, this means that the old
-			values be deleted and no new values to be added.*/
-			cascade->fts_next_doc_id = FTS_NULL_DOC_ID;
-		}
 
 		update = cascade->update;
 
@@ -1319,7 +1305,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 
 		if (foreign->v_cols != NULL
@@ -1347,7 +1333,7 @@ row_ins_foreign_check_on_constraint(
 		}
 
 		if (fts_col_affacted) {
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -1358,8 +1344,8 @@ row_ins_foreign_check_on_constraint(
 		foreign->n_fields first fields in rec to new values */
 
 		n_to_update = row_ins_cascade_calc_update_vec(
-			node, foreign, cascade->cascade_heap,
-			trx, &fts_col_affacted, cascade);
+			node, foreign, tmp_heap,
+			trx, &fts_col_affacted);
 
 
 		if (foreign->v_cols != NULL
@@ -1402,7 +1388,7 @@ row_ins_foreign_check_on_constraint(
 		/* Mark the old Doc ID as deleted */
 		if (fts_col_affacted) {
 			ut_ad(table->fts);
-			cascade->fts_doc_id = doc_id;
+			fts_trx_add_op(trx, table, doc_id, FTS_DELETE, NULL);
 		}
 	}
 
@@ -1423,11 +1409,8 @@ row_ins_foreign_check_on_constraint(
 
 	cascade->state = UPD_NODE_UPDATE_CLUSTERED;
 
-	node->new_upd_nodes->push_back(cascade);
-
-	os_atomic_increment_ulint(&table->n_foreign_key_checks_running, 1);
-
-	ut_ad(foreign->foreign_table->n_foreign_key_checks_running > 0);
+	err = row_update_cascade_for_mysql(thr, cascade,
+                                           foreign->foreign_table);
 
 	/* Release the data dictionary latch for a while, so that we do not
 	starve other threads from doing CREATE TABLE etc. if we have a huge
@@ -1454,7 +1437,6 @@ row_ins_foreign_check_on_constraint(
 	DBUG_RETURN(err);
 
 nonstandard_exit_func:
-	que_graph_free_recursive(cascade);
 
 	if (tmp_heap) {
 		mem_heap_free(tmp_heap);
@@ -1575,6 +1557,10 @@ row_ins_check_foreign_constraint(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
 
+	bool		skip_gap_lock;
+
+	skip_gap_lock = (trx->isolation_level <= TRX_ISO_READ_COMMITTED);
+
 	DBUG_ENTER("row_ins_check_foreign_constraint");
 
 	rec_offs_init(offsets_);
@@ -1632,7 +1618,8 @@ row_ins_check_foreign_constraint(
 
 	if (check_table == NULL
 	    || check_table->ibd_file_missing
-	    || check_index == NULL) {
+	    || check_index == NULL
+	    || fil_space_is_being_truncated(check_table->space)) {
 
 		if (!srv_read_only_mode && check_ref) {
 			FILE*	ef = dict_foreign_err_file;
@@ -1654,7 +1641,8 @@ row_ins_check_foreign_constraint(
 			ut_print_name(ef, trx,
 				      foreign->referenced_table_name);
 			fputs("\nor its .ibd file does"
-			      " not currently exist!\n", ef);
+			      " not currently exist!, or"
+			      " is undergoing truncate!\n", ef);
 			mutex_exit(&dict_foreign_err_mutex);
 
 			err = DB_NO_REFERENCED_ROW;
@@ -1702,6 +1690,11 @@ row_ins_check_foreign_constraint(
 
 		if (page_rec_is_supremum(rec)) {
 
+			if (skip_gap_lock) {
+
+				continue;
+			}
+
 			err = row_ins_set_shared_rec_lock(LOCK_ORDINARY, block,
 							  rec, check_index,
 							  offsets, thr);
@@ -1717,10 +1710,17 @@ row_ins_check_foreign_constraint(
 		cmp = cmp_dtuple_rec(entry, rec, offsets);
 
 		if (cmp == 0) {
+
+			ulint	lock_type;
+
+			lock_type = skip_gap_lock
+				? LOCK_REC_NOT_GAP
+				: LOCK_ORDINARY;
+
 			if (rec_get_deleted_flag(rec,
 						 rec_offs_comp(offsets))) {
 				err = row_ins_set_shared_rec_lock(
-					LOCK_ORDINARY, block,
+					lock_type, block,
 					rec, check_index, offsets, thr);
 				switch (err) {
 				case DB_SUCCESS_LOCKED_REC:
@@ -1794,9 +1794,13 @@ row_ins_check_foreign_constraint(
 		} else {
 			ut_a(cmp < 0);
 
-			err = row_ins_set_shared_rec_lock(
-				LOCK_GAP, block,
-				rec, check_index, offsets, thr);
+			err = DB_SUCCESS;
+
+			if (!skip_gap_lock) {
+				err = row_ins_set_shared_rec_lock(
+					LOCK_GAP, block,
+					rec, check_index, offsets, thr);
+			}
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:
@@ -1848,9 +1852,16 @@ do_possible_lock_wait:
 		os_atomic_increment_ulint(
 			&check_table->n_foreign_key_checks_running, 1);
 
+		trx_kill_blocking(trx);
+
 		lock_wait_suspend_thread(thr);
 
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
+
+		if(trx->error_state != DB_SUCCESS) {
+		    err = trx->error_state;
+		    goto exit_func;
+		}
 
 		DBUG_PRINT("to_be_dropped",
 			   ("table: %s", check_table->name.m_name));
@@ -1861,7 +1872,6 @@ do_possible_lock_wait:
 
 			goto exit_func;
 		}
-
 	}
 
 
@@ -1870,6 +1880,7 @@ exit_func:
 		mem_heap_free(heap);
 	}
 
+	DEBUG_SYNC_C("finished_scanning_index");
 	DBUG_RETURN(err);
 }
 
@@ -1907,6 +1918,7 @@ row_ins_check_foreign_constraints(
 
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
+			dict_table_t*   foreign_table = foreign->foreign_table;
 			dict_table_t*	referenced_table
 						= foreign->referenced_table;
 
@@ -1923,6 +1935,11 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
+                        if (referenced_table) {
+				os_atomic_increment_ulint(
+					&foreign_table->n_foreign_key_checks_running, 1);
+                        }
+
 			/* NOTE that if the thread ends up waiting for a lock
 			we will release dict_operation_lock temporarily!
 			But the counter on the table protects the referenced
@@ -1930,6 +1947,11 @@ row_ins_check_foreign_constraints(
 
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
+
+                        if (referenced_table) {
+				os_atomic_decrement_ulint(
+					&foreign_table->n_foreign_key_checks_running, 1);
+                        }
 
 			if (got_s_lock) {
 				row_mysql_unfreeze_data_dictionary(trx);
@@ -2557,7 +2579,9 @@ err_exit:
 		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		err = row_ins_clust_index_entry_by_modify(
 			&pcur, flags, mode, &offsets, &offsets_heap,
@@ -3110,7 +3134,9 @@ row_ins_sec_index_entry_low(
 		is doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
-		index->last_sel_cur->invalid = true;
+		if(index->last_sel_cur) {
+			index->last_sel_cur->invalid = true;
+		}
 
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
@@ -3213,6 +3239,7 @@ row_ins_index_entry_big_rec_func(
 	ut_ad(dict_index_is_clust(index));
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
+	DEBUG_SYNC_C("before_insertion_of_blob");
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
@@ -3289,6 +3316,12 @@ row_ins_clust_index_entry(
 
 	if (dict_table_is_intrinsic(index->table)
 	    && dict_index_is_auto_gen_clust(index)) {
+
+		/* Check if the memory allocated for intrinsic cache*/
+		if(!index->last_ins_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+		}
+
 		err = row_ins_sorted_clust_index_entry(
 			BTR_MODIFY_LEAF, index, entry, n_ext, thr);
 	} else {
@@ -3309,6 +3342,9 @@ row_ins_clust_index_entry(
 	/* Try then pessimistic descent to the B-tree */
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
+	} else if(!index->last_sel_cur) {
+		dict_allocate_mem_intrinsic_cache(index);
+		index->last_sel_cur->invalid = true;
 	} else {
 		index->last_sel_cur->invalid = true;
 	}
@@ -3388,6 +3424,9 @@ row_ins_sec_index_entry(
 
 		if (!dict_table_is_intrinsic(index->table)) {
 			log_free_check();
+		} else if(!index->last_sel_cur) {
+			dict_allocate_mem_intrinsic_cache(index);
+			index->last_sel_cur->invalid = true;
 		} else {
 			index->last_sel_cur->invalid = true;
 		}

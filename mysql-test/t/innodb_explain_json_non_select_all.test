@@ -21,12 +21,10 @@ set @save_storage_engine= @@session.default_storage_engine;
 set session default_storage_engine = InnoDB;
 --let $innodb = 1
 
-# Next 2 variables control the JSON format output and validation in explain_utils.
+# Next variable controls the JSON format output in explain_utils.
 # 1 = enable, 0 = disable
 --let $json   = 1
-# Validation disabled due to not having Python with JSON on all PB machines.
---let $validation = 0
---file_exists $MYSQL_TEST_DIR/suite/opt_trace/validate_json.py
+--file_exists $MYSQL_TEST_DIR/suite/opt_trace/validate_json.pl
 
 --source include/explain_non_select.inc
 set default_storage_engine= @save_storage_engine;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "my_default.h"
 #include <my_time.h>
 #include <sslopt-vars.h>
+#include <caching_sha2_passwordopt-vars.h>
 /* That one is necessary for defines of OPTION_NO_FOREIGN_KEY_CHECKS etc */
 #include "query_options.h"
 #include <signal.h>
@@ -85,8 +86,10 @@ std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
 */
 inline void reset_temp_buf_and_delete(Log_event *ev)
 {
+  char *event_buf= ev->temp_buf;
   ev->temp_buf= NULL;
   delete ev;
+  my_free(event_buf);
 }
 
 static bool
@@ -122,7 +125,7 @@ rewrite_db(char **buf, ulong *buf_size,
             *buf_size - (offset_db + old_db_len));
 
   // Write new_db and new_db_len.
-  strncpy((*buf) + offset_db, new_db, new_db_len);
+  memcpy((*buf) + offset_db, new_db, new_db_len);
   (*buf)[offset_len]= (char) new_db_len;
 
   // Update event length in header.
@@ -218,6 +221,7 @@ Query_log_event::rewrite_db_in_buffer(char **buf, ulong *event_len,
   char* ptr= *buf;
   uint sv_len= 0;
 
+  DBUG_EXECUTE_IF("simulate_corrupt_event_len", *event_len=0;);
   /* Error if the event content is too small */
   if (*event_len < (common_header_len + query_header_len))
     return true;
@@ -1164,11 +1168,14 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info)
   Print the given event, and either delete it or delegate the deletion
   to someone else.
 
-  The deletion may be delegated in two cases: (1) the event is a
-  Format_description_log_event, and is saved in
-  glob_description_event; (2) the event is a Create_file_log_event,
-  and is saved in load_processor.
-
+  The deletion may be delegated in these cases:
+  (1) the event is a Format_description_log_event, and is saved in
+      glob_description_event.
+  (2) the event is a Create_file_log_event, and is saved in load_processor.
+  (3) the event is an Intvar, Rand or User_var event, it will be kept until
+      the subsequent Query_log_event.
+  (4) the event is a Table_map_log_event, it will be kept until the subsequent
+      Rows_log_event.
   @param[in,out] print_event_info Parameters and context state
   determining how to print.
   @param[in] ev Log_event to process.
@@ -1309,8 +1316,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (head->error == -1)
         goto err;
       break;
-      
-      destroy_evt= TRUE;
     }
           
     case binary_log::INTVAR_EVENT:
@@ -1459,17 +1464,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (head->error == -1)
         goto err;
-      if (opt_remote_proto == BINLOG_LOCAL)
-      {
-        ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
-      }
-      else
-      {
-        /*
-          disassociate but not free dump_remote_log_entries time memory
-        */
-        ev->temp_buf= 0;
-      }
+      ev->free_temp_buf();
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -1535,6 +1530,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         goto end;
       }
     }
+    // Fall through.
     case binary_log::ROWS_QUERY_LOG_EVENT:
     case binary_log::WRITE_ROWS_EVENT:
     case binary_log::DELETE_ROWS_EVENT:
@@ -1716,14 +1712,9 @@ err:
   retval= ERROR_STOP;
 end:
   rec_count++;
-  /*
-    Destroy the log_event object. If reading from a remote host,
-    set the temp_buf to NULL so that memory isn't freed twice.
-  */
+  /* Destroy the log_event object. */
   if (ev)
   {
-    if (opt_remote_proto != BINLOG_LOCAL)
-      ev->temp_buf= 0;
     if (destroy_evt) /* destroy it later if not set (ignored table map) */
       delete ev;
   }
@@ -1880,6 +1871,7 @@ static struct my_option my_long_options[] =
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
+#include <caching_sha2_passwordopt-longopts.h>
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
    "posterior to the argument; the argument must be a date and time "
@@ -2257,6 +2249,12 @@ static int parse_args(int *argc, char*** argv)
 */
 static Exit_status safe_connect()
 {
+  /*
+    A possible old connection's resources are reclaimed now
+    at new connect attempt. The final safe_connect resources
+    are mysql_closed at the end of program, explicitly.
+  */
+  mysql_close(mysql);
   mysql= mysql_init(NULL);
 
   if (!mysql)
@@ -2287,6 +2285,9 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+
+  set_server_public_key(mysql);
+  set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
@@ -2526,7 +2527,8 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval= OK_CONTINUE;
   enum enum_server_command command= COM_END;
-
+  char *event_buf= NULL;
+  ulong event_len;
   DBUG_ENTER("dump_remote_log_entries");
 
   fname[0]= log_file_name[0]= 0;
@@ -2685,23 +2687,34 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     if (type == binary_log::HEARTBEAT_LOG_EVENT)
       continue;
+    event_len= len - 1;
+    if (!(event_buf = (char*) my_malloc(key_memory_log_event,
+                                        event_len+1, MYF(0))))
+    {
+      error("Out of memory.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    memcpy(event_buf, net->buff + 1, event_len);
+    if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
+    {
+      error("Got a fatal error while applying rewrite db filter.");
+      my_free(event_buf);
+      DBUG_RETURN(ERROR_STOP);
+    }
 
     if (!raw_mode || (type == binary_log::ROTATE_EVENT) ||
         (type == binary_log::FORMAT_DESCRIPTION_EVENT))
     {
-      if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
-                                          len - 1, &error_msg,
+      if (!(ev= Log_event::read_log_event((const char*) event_buf,
+                                          event_len, &error_msg,
                                           glob_description_event,
                                           opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
+        my_free(event_buf);
         DBUG_RETURN(ERROR_STOP);
       }
-      /*
-        If reading from a remote host, ensure the temp_buf for the
-        Log_event class is pointing to the incoming stream.
-      */
-      ev->register_temp_buf((char *) net->read_pos + 1);
+      ev->register_temp_buf(event_buf);
     }
     if (raw_mode || (type != binary_log::LOAD_EVENT))
     {
@@ -2762,6 +2775,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
          */
           old_off= start_position_mot;
           len= 1; // fake Rotate, so don't increment old_off
+          event_len= 0;
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2775,7 +2789,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+        {
           len= 1;
+          event_len= 0;
+        }
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
@@ -2784,6 +2801,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                        MYF(MY_WME))))
           {
             error("Could not create log file '%s'", log_file_name);
+            reset_temp_buf_and_delete(ev);
             DBUG_RETURN(ERROR_STOP);
           }
           DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
@@ -2792,6 +2810,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                         BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
           {
             error("Could not write into log file '%s'", log_file_name);
+            reset_temp_buf_and_delete(ev);
             DBUG_RETURN(ERROR_STOP);
           }
           /*
@@ -2818,13 +2837,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, (const uchar*)event_buf, event_len,
+                      MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
         if (ev)
           reset_temp_buf_and_delete(ev);
+        else
+          my_free(event_buf);
+
+        /* Flush result_file after every event */
+        fflush(result_file);
       }
       else
       {
@@ -2842,7 +2867,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       File file;
 
       if ((file= load_processor.prepare_new_file_for_old_format(le,fname)) < 0)
+      {
+        reset_temp_buf_and_delete(ev);
         DBUG_RETURN(ERROR_STOP);
+      }
 
       retval= process_event(print_event_info, ev, old_off, logname);
       if (retval != OK_CONTINUE)

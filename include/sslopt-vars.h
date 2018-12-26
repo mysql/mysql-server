@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ static void set_client_ssl_options(MYSQL *mysql)
       opt_ssl_mode < SSL_MODE_VERIFY_CA &&
       (opt_ssl_ca || opt_ssl_capath))
   {
-    printf("WARNING: no verification of server certificate will be done. "
-           "Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.\n");
+    fprintf(stderr, "WARNING: no verification of server certificate will be done. "
+                    "Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.\n");
   }
    
   /* Set SSL parameters: key, cert, ca, capath, cipher, clr, clrpath. */

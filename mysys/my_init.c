@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #pragma comment(lib, "ws2_32")
 my_bool have_tcpip=0;
 static void my_win_init();
+my_bool win_init_get_system_time_as_file_time();
 #endif
 
 #define SCALE_SEC       100
@@ -102,10 +103,10 @@ my_bool my_init()
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0640);
+    my_umask= (int) (atoi_octal(str) | 0600);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0750);
+    my_umask_dir= (int) (atoi_octal(str) | 0700);
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
@@ -126,6 +127,8 @@ my_bool my_init()
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
 #ifdef _WIN32
     my_win_init();
+    if (win_init_get_system_time_as_file_time())
+      DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
     DBUG_RETURN(FALSE);

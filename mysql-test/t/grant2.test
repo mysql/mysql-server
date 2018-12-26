@@ -4,8 +4,10 @@
 --source include/force_myisam_default.inc
 
 # Store the time of password_last_changed column from mysql.user table
-# to restore it back later.
-let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
+# to restore it back later for the different users.
+let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
+let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
+let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
 # Grant tests not performed with embedded server
 -- source include/not_embedded.inc
 
@@ -39,11 +41,6 @@ delete from mysql.db where user like 'mysqltest\_%';
 delete from mysql.tables_priv where user like 'mysqltest\_%';
 delete from mysql.columns_priv where user like 'mysqltest\_%';
 flush privileges;
-
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "granting/revoking privileges in databases.");
-call mtr.add_suppression("Did not write failed .* into binary log while "
-                         "revoking all_privileges from a list of users.");
 
 grant all privileges on `my\_1`.* to mysqltest_1@localhost with grant option;
 grant create user on *.* to mysqltest_1@localhost;
@@ -1049,8 +1046,11 @@ DROP USER mysqltest_u3@localhost;
 DROP USER mysqltest_u4@localhost;
 DROP USER mysqltest_u5@localhost;
 
---disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore'
+--disable_query_log
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--enable_query_log
 --echo # mysql.user table restored to original values.
 
 set GLOBAL sql_mode= @orig_sql_mode_global;

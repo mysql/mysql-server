@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -748,7 +748,7 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
+static Sys_var_long Sys_binlog_group_commit_sync_delay(
        "binlog_group_commit_sync_delay",
        "The number of microseconds the server waits for the "
        "binary log group commit sync queue to fill before "
@@ -1873,6 +1873,18 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
              var->var->name.str);
     return true;
   }
+  /*
+    Disallow changing variable 'transaction_write_set_extraction' while
+    binlog_transaction_dependency_tracking is different from COMMIT_ORDER.
+  */
+  if (mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode
+      != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "transaction_write_set_extraction (changed)",
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)");
+    return true;
+  }
   return false;
 }
 
@@ -1955,7 +1967,9 @@ static Sys_var_charptr Sys_log_error(
        "log_error", "Error log file",
        READ_ONLY GLOBAL_VAR(log_error_dest),
        CMD_LINE(OPT_ARG, OPT_LOG_ERROR),
-       IN_FS_CHARSET, DEFAULT(disabled_my_option));
+       IN_FS_CHARSET, DEFAULT(disabled_my_option), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       NULL, sys_var::PARSE_EARLY);
 
 static Sys_var_mybool Sys_log_queries_not_using_indexes(
        "log_queries_not_using_indexes",
@@ -3311,17 +3325,21 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_size(
        "query_cache_size",
-       "The memory allocated to store results from old queries",
+       "The memory allocated to store results from old queries. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_query_cache_size));
+       ON_UPDATE(fix_query_cache_size), DEPRECATED(""));
 
 static Sys_var_ulong Sys_query_cache_limit(
        "query_cache_limit",
-       "Don't cache results that are bigger than this",
+       "Don't cache results that are bigger than this. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache.query_cache_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3331,11 +3349,12 @@ static bool fix_qcache_min_res_unit(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_ulong Sys_query_cache_min_res_unit(
        "query_cache_min_res_unit",
-       "The minimum size for blocks allocated by the query cache",
+       "The minimum size for blocks allocated by the query cache. "
+       "This variable is deprecated and will be removed in a future release.",
        GLOBAL_VAR(query_cache_min_res_unit), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(QUERY_CACHE_MIN_RESULT_DATA_SIZE),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_qcache_min_res_unit));
+       ON_UPDATE(fix_qcache_min_res_unit), DEPRECATED(""));
 
 static const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND", 0 };
 static bool check_query_cache_type(sys_var *self, THD *thd, set_var *var)
@@ -3357,16 +3376,19 @@ static Sys_var_enum Sys_query_cache_type(
        "query_cache_type",
        "OFF = Don't cache or retrieve results. ON = Cache all results "
        "except SELECT SQL_NO_CACHE ... queries. DEMAND = Cache only "
-       "SELECT SQL_CACHE ... queries",
+       "SELECT SQL_CACHE ... queries. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
        query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_query_cache_type));
+       ON_CHECK(check_query_cache_type), ON_UPDATE(NULL), DEPRECATED(""));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "query_cache_wlock_invalidate",
-       "Invalidate queries in query cache on LOCK for write",
+       "Invalidate queries in query cache on LOCK for write. "
+       "This variable is deprecated and will be removed in a future release.",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
-       DEFAULT(FALSE));
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), DEPRECATED(""));
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
@@ -3538,6 +3560,68 @@ static Sys_var_enum Mts_parallel_type(
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
+static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd, set_var *var)
+{
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && var->save_result.ulonglong_value != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)",
+             "transaction_write_set_extraction (= OFF)");
+
+    return true;
+  }
+  return false;
+}
+
+static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd, enum_var_type v)
+{
+  /*
+    the writeset_history_start needs to be set to 0 whenever there is a
+    change in the transaction dependency source so that WS and COMMIT
+    transition smoothly.
+  */
+  mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+  return false;
+}
+
+void PolyLock_lock_log::rdlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::wrlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::unlock()
+{
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+}
+
+static PolyLock_lock_log PLock_log;
+static const char *opt_binlog_transaction_dependency_tracking_names[]=
+       {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
+static Sys_var_enum Binlog_transaction_dependency_tracking(
+       "binlog_transaction_dependency_tracking",
+       "Selects the source of dependency information from which to "
+       "assess which transactions can be executed in parallel by the "
+       "slave's multi-threaded applier. "
+       "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+       CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
+       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_log,
+       NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
+       ON_UPDATE(update_binlog_transaction_dependency_tracking));
+static Sys_var_ulong Binlog_transaction_dependency_history_size(
+       "binlog_transaction_dependency_history_size",
+       "Maximum number of rows to keep in the writeset history.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
+       CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
+       BLOCK_SIZE(1), &PLock_log, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL));
+
 static Sys_var_mybool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
@@ -3552,6 +3636,12 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3585,7 +3675,7 @@ static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
        "default is CRC32.",
        GLOBAL_VAR(binlog_checksum_options), CMD_LINE(REQUIRED_ARG),
        binlog_checksum_type_names, DEFAULT(binary_log::BINLOG_CHECKSUM_ALG_CRC32),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_outside_trx));
 
 static Sys_var_mybool Sys_master_verify_checksum(
        "master_verify_checksum",
@@ -3709,6 +3799,22 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
                           ER_WARN_DEPRECATED_SQLMODE,
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
+    }
+    static const sql_mode_t deprecated_mask= MODE_DB2 | MODE_MAXDB |
+      MODE_MSSQL | MODE_MYSQL323 | MODE_MYSQL40 | MODE_ORACLE |
+      MODE_POSTGRESQL | MODE_NO_FIELD_OPTIONS | MODE_NO_KEY_OPTIONS |
+      MODE_NO_TABLE_OPTIONS;
+    sql_mode_t deprecated_modes=
+      var->save_result.ulonglong_value & deprecated_mask;
+    if (deprecated_modes != 0)
+    {
+      LEX_STRING buf;
+      if (sql_mode_string_representation(thd, deprecated_modes, &buf))
+        return true; // OOM
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          buf.str);
     }
   }
 
@@ -3939,37 +4045,55 @@ static Sys_var_ulong Sys_thread_cache_size(
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 #endif // !EMBEDDED_LIBRARY
 
-/**
-  Can't change the 'next' tx_isolation if we are already in a
-  transaction.
-*/
 
-static bool check_tx_isolation(sys_var *self, THD *thd, set_var *var)
+/**
+  Function to check if the 'next' transaction isolation level
+  ('tx_isolation'/ its alternative 'transaction_isolation')
+  can be changed.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool check_transaction_isolation(sys_var *self, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
     DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
-    return TRUE;
+    return true;
   }
-  return FALSE;
+  return false;
 }
 
+
+/**
+  This function sets the session variable thd->variables.tx_isolation/
+  thd->variables.transaction_isolation to reflect changes
+  to @@session.tx_isolation/@@session.transaction_isolation.
+  'tx_isolation' is deprecated and 'transaction_isolation' is its
+  alternative.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
 
 bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_enum::session_update(thd, var))
     return TRUE;
+
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
-    Transaction_state_tracker *tst= NULL;
-
-    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
-      tst= (Transaction_state_tracker *)
-             thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER);
-
     /*
       Update the isolation level of the next transaction.
       I.e. if one did:
@@ -3989,54 +4113,92 @@ bool Sys_var_tx_isolation::session_update(THD *thd, set_var *var)
       TRANSACTION would always succeed making the characteristics
       effective for the next transaction that starts.
      */
-    thd->tx_isolation= (enum_tx_isolation) var->save_result.ulonglong_value;
-
-    if (var->type == OPT_DEFAULT)
-    {
-      enum enum_tx_isol_level l;
-      switch (thd->tx_isolation) {
-      case ISO_READ_UNCOMMITTED:
-        l=  TX_ISOL_UNCOMMITTED;
-        break;
-      case ISO_READ_COMMITTED:
-        l=  TX_ISOL_COMMITTED;
-        break;
-      case ISO_REPEATABLE_READ:
-        l= TX_ISOL_REPEATABLE;
-        break;
-      case ISO_SERIALIZABLE:
-        l= TX_ISOL_SERIALIZABLE;
-        break;
-      default:
-        DBUG_ASSERT(0);
-        return TRUE;
-      }
-      if (tst)
-        tst->set_isol_level(thd, l);
-    }
-    else if (tst)
-    {
-      tst->set_isol_level(thd, TX_ISOL_INHERIT);
-    }
+    enum_tx_isolation tx_isol;
+    tx_isol= (enum_tx_isolation) var->save_result.ulonglong_value;
+    bool one_shot= (var->type == OPT_DEFAULT);
+    return set_tx_isolation(thd, tx_isol, one_shot);
   }
   return FALSE;
 }
 
 
-// NO_CMD_LINE - different name of the option
-static Sys_var_tx_isolation Sys_tx_isolation(
-       "tx_isolation", "Default transaction isolation level",
-       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
-       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_isolation));
+/**
+  This function updates the thd->variables.transaction_isolation
+  to reflect the changes made to @@session.tx_isolation. 'tx_isolation' is
+  deprecated and 'transaction_isolation' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool update_transaction_isolation(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->transaction_isolation= sv->tx_isolation;
+  return false;
+}
 
 
 /**
-  Can't change the tx_read_only state if we are already in a
-  transaction.
+  This function updates thd->variables.tx_isolation to reflect the
+  changes to @@session.transaction_isolation. 'tx_isolation' is
+  deprecated and 'transaction_isolation' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
+*/
+static bool update_tx_isolation(sys_var *self, THD *thd,
+                                enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->tx_isolation= sv->transaction_isolation;
+  return false;
+}
+
+
+// NO_CMD_LINE - different name of the option
+static Sys_var_tx_isolation Sys_tx_isolation(
+       "tx_isolation", "Default transaction isolation level."
+       "This variable is deprecated and will be removed in a future release.",
+       UNTRACKED_DEFAULT SESSION_VAR(tx_isolation), NO_CMD_LINE,
+       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
+       ON_UPDATE(update_transaction_isolation),
+       DEPRECATED("'@@transaction_isolation'"));
+
+
+// NO_CMD_LINE
+static Sys_var_tx_isolation Sys_transaction_isolation(
+       "transaction_isolation", "Default transaction isolation level",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_isolation), NO_CMD_LINE,
+       tx_isolation_names, DEFAULT(ISO_REPEATABLE_READ),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_isolation),
+       ON_UPDATE(update_tx_isolation));
+
+
+/**
+  Function to check if the state of deprecated variable 'tx_read_only'/
+  its alternative 'transaction_read_only' can be changed. The state cannot
+  be changed if there is already a transaction in progress.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler
+  @param[in] var    A pointer to set_var holding the specified list of
+                    system variable names.
+
+  @retval   FALSE   Success.
+  @retval   TRUE    Error.
 */
 
-static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
+static bool check_transaction_read_only(sys_var *self, THD *thd, set_var *var)
 {
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
@@ -4049,10 +4211,22 @@ static bool check_tx_read_only(sys_var *self, THD *thd, set_var *var)
 }
 
 
+/**
+  This function sets the session variable thd->variables.tx_read_only/
+  thd->variables.transaction_read_only to reflect changes to
+  @@session.tx_read_only/@@session.transaction_read_only. 'tx_read_only'
+  is deprecated and 'transaction_read_only' is its alternative.
+
+  @param[in] thd    Thread handler.
+  @param[in] var    A pointer to the set_var.
+
+  @retval   FALSE   Success.
+*/
 bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 {
   if (var->type == OPT_SESSION && Sys_var_mybool::session_update(thd, var))
     return true;
+
   if (var->type == OPT_DEFAULT || !(thd->in_active_multi_stmt_transaction() ||
                                     thd->in_sub_stmt))
   {
@@ -4075,10 +4249,64 @@ bool Sys_var_tx_read_only::session_update(THD *thd, set_var *var)
 }
 
 
+/**
+  This function updates the session variable thd->variables.tx_read_only
+  to reflect changes made to  @@session.transaction_read_only. The variable
+  'tx_read_only' is deprecated and 'transaction_read_only' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+*/
+static bool update_tx_read_only(sys_var *self, THD *thd,
+                                enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->tx_read_only= sv->transaction_read_only;
+  return false;
+}
+
+
+/**
+  This function updates the session variable
+  thd->variables.transaction_read_only to reflect changes made to
+  @@session.tx_read_only. 'tx_read_only' is deprecated and
+  'transaction_read_only' is its alternative.
+
+  @param[in] self   A pointer to the sys_var.
+  @param[in] thd    Thread handler.
+  @param[in] type   The type SESSION, GLOBAL or DEFAULT.
+
+  @retval   FALSE   Success.
+*/
+static bool update_transaction_read_only(sys_var *self, THD *thd,
+                                         enum_var_type type)
+{
+  SV *sv= type == OPT_GLOBAL ? &global_system_variables : &thd->variables;
+  sv->transaction_read_only= sv->tx_read_only;
+  return false;
+}
+
+
 static Sys_var_tx_read_only Sys_tx_read_only(
-       "tx_read_only", "Set default transaction access mode to read only.",
+       "tx_read_only", "Set default transaction access mode to read only."
+       "This variable is deprecated and will be removed in a future release.",
        UNTRACKED_DEFAULT SESSION_VAR(tx_read_only), NO_CMD_LINE, DEFAULT(0),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_tx_read_only));
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_transaction_read_only),
+       ON_UPDATE(update_transaction_read_only),
+       DEPRECATED("'@@transaction_read_only'"));
+
+
+static Sys_var_tx_read_only Sys_transaction_read_only(
+       "transaction_read_only",
+       "Set default transaction access mode to read only.",
+       UNTRACKED_DEFAULT SESSION_VAR(transaction_read_only), NO_CMD_LINE,
+       DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_transaction_read_only),
+       ON_UPDATE(update_tx_read_only));
+
 
 static Sys_var_ulonglong Sys_tmp_table_size(
        "tmp_table_size",
@@ -4658,6 +4886,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
   if (!var->save_result.string_value.str)
     return true;
 
+  if (!is_valid_log_name(var->save_result.string_value.str,
+                         var->save_result.string_value.length))
+  {
+    my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
+             self->name.str, var->save_result.string_value.str);
+    return true;
+  }
+
   if (var->save_result.string_value.length > FN_REFLEN)
   { // path is too long
     my_error(ER_PATH_LENGTH, MYF(0), self->name.str);
@@ -4787,8 +5023,12 @@ static Sys_var_have Sys_have_profiling(
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
-       "have_query_cache", "have_query_cache",
-       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE);
+       "have_query_cache",
+       "have_query_cache. "
+       "This variable is deprecated and will be removed in a future release.",
+       READ_ONLY GLOBAL_VAR(have_query_cache), NO_CMD_LINE,
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL),
+       DEPRECATED(""));
 
 static Sys_var_have Sys_have_rtree_keys(
        "have_rtree_keys", "have_rtree_keys",
@@ -5272,6 +5512,8 @@ static Sys_var_ulong Sys_sp_cache_size(
 
 static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_outside_trx(self, thd, var))
+    return true;
   longlong previous_val= thd->variables.pseudo_slave_mode;
   longlong val= (longlong) var->save_result.ulonglong_value;
   bool rli_fake= false;
@@ -5413,7 +5655,12 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
     purged gtid set in the table
   */
   thd->lex->autocommit= true;
-
+  /*
+    SET GITD_PURGED command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
@@ -5663,3 +5910,48 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+static Sys_var_mybool Sys_show_create_table_verbosity(
+       "show_create_table_verbosity",
+       "When this option is enabled, it increases the verbosity of "
+       "'SHOW CREATE TABLE'.",
+        SESSION_VAR(show_create_table_verbosity),
+        CMD_LINE(OPT_ARG),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0));
+
+static bool check_keyring_access(sys_var*, THD* thd, set_var*)
+{
+  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  {
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "SUPER");
+    return true;
+  }
+  return false;
+}
+
+/**
+  This is a mutex used to protect global variable @@keyring_operations.
+*/
+static PolyLock_mutex PLock_keyring_operations(&LOCK_keyring_operations);
+/**
+  This variable provides access to keyring service APIs. When this variable
+  is disabled calls to keyring_key_generate(), keyring_key_store() and
+  keyring_key_remove() will report error until this variable is enabled.
+  This variable is protected under a mutex named PLock_keyring_operations.
+  To access this variable you must first set this mutex.
+
+  @sa PLock_keyring_operations
+*/
+static Sys_var_mybool Sys_keyring_operations(
+       "keyring_operations",
+       "This variable provides access to keyring service APIs. When this "
+       "option is disabled calls to keyring_key_generate(), keyring_key_store() "
+       "and keyring_key_remove() will report error until this variable is enabled.",
+       GLOBAL_VAR(opt_keyring_operations),
+       NO_CMD_LINE, DEFAULT(TRUE),
+       &PLock_keyring_operations,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_keyring_access),
+       ON_UPDATE(0));

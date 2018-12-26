@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,8 @@ Created 10/25/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "trx0purge.h"
 #include "ut0new.h"
+#include "btr0sea.h"
+#include "log0log.h"
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
@@ -230,7 +232,7 @@ bool
 fil_is_user_tablespace_id(
 	ulint	space_id)
 {
-	return(space_id > srv_undo_tablespaces_open
+	return(!srv_is_undo_tablespace(space_id)
 	       && space_id != srv_tmp_space.space_id());
 }
 
@@ -543,15 +545,13 @@ Try and enable FusionIO atomic writes.
 @param[in] file		OS file handle
 @return true if successful */
 bool
-fil_fusionio_enable_atomic_write(os_file_t file)
+fil_fusionio_enable_atomic_write(pfs_os_file_t file)
 {
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
 		uint	atomic = 1;
-
-		ut_a(file != -1);
-
-		if (ioctl(file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
+		ut_a(file.m_file != -1);
+		if (ioctl(file.m_file, DFS_IOCTL_ATOMIC_WRITE_SET, &atomic) != -1) {
 
 			return(true);
 		}
@@ -2972,20 +2972,43 @@ fil_prepare_for_truncate(
 	return(err);
 }
 
-/**********************************************************************//**
-Reinitialize the original tablespace header with the same space id
-for single tablespace */
+/** Reinitialize the original tablespace header with the same space id
+for single tablespace
+@param[in]      table		table belongs to tablespace
+@param[in]      size            size in blocks
+@param[in]      trx             Transaction covering truncate */
 void
-fil_reinit_space_header(
-/*====================*/
-	ulint		id,	/*!< in: space id */
-	ulint		size)	/*!< in: size in blocks */
+fil_reinit_space_header_for_table(
+	dict_table_t*	table,
+	ulint		size,
+	trx_t*		trx)
 {
+	ulint	id = table->space;
+
 	ut_a(!is_system_tablespace(id));
 
 	/* Invalidate in the buffer pool all pages belonging
-	to the tablespace */
+	to the tablespace. The buffer pool scan may take long
+	time to complete, therefore we release dict_sys->mutex
+	and the dict operation lock during the scan and aquire
+	it again after the buffer pool scan.*/
+
+	/* Release the lock on the indexes too. So that
+	they won't violate the latch ordering. */
+	dict_table_x_unlock_indexes(table);
+	row_mysql_unlock_data_dictionary(trx);
+	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
+
+	/* Lock the search latch in shared mode to prevent user
+	from disabling AHI during the scan */
+	btr_search_s_lock_all();
+	DEBUG_SYNC_C("simulate_buffer_pool_scan");
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
+	btr_search_s_unlock_all();
+
+	row_mysql_lock_data_dictionary(trx);
+
+	dict_table_x_lock_indexes(table);
 
 	/* Remove all insert buffer entries for the tablespace */
 	ibuf_delete_for_discarded_space(id);
@@ -3482,7 +3505,7 @@ fil_ibd_create(
 	ulint		flags,
 	ulint		size)
 {
-	os_file_t	file;
+	pfs_os_file_t	file;
 	dberr_t		err;
 	byte*		buf2;
 	byte*		page;
@@ -3551,7 +3574,7 @@ fil_ibd_create(
 	if (fil_fusionio_enable_atomic_write(file)) {
 
 		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(file, 0, size * UNIV_PAGE_SIZE);
+		int     ret = posix_fallocate(file.m_file, 0, size * UNIV_PAGE_SIZE);
 
 		if (ret != 0) {
 
@@ -3603,9 +3626,7 @@ fil_ibd_create(
 	if (punch_hole) {
 
 		dberr_t	punch_err;
-
-		punch_err = os_file_punch_hole(file, 0, size * UNIV_PAGE_SIZE);
-
+		punch_err = os_file_punch_hole(file.m_file, 0, size * UNIV_PAGE_SIZE);
 		if (punch_err != DB_SUCCESS) {
 			punch_hole = false;
 		}
@@ -3714,6 +3735,8 @@ fil_ibd_create(
 #endif /* !UNIV_HOTBACKUP */
 	space = fil_space_create(name, space_id, flags, is_temp
 				 ? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
+
+	DEBUG_SYNC_C("fil_ibd_created_space");
 
 	if (!fil_node_create_low(
 			path, size, space, false, punch_hole, atomic_write)) {
@@ -4921,7 +4944,7 @@ fil_write_zeros(
 			request, node->name, node->handle, buf, offset,
 			n_bytes);
 #else
-		err = os_aio(
+		err = os_aio_func(
 			request, OS_AIO_SYNC, node->name,
 			node->handle, buf, offset, n_bytes, read_only_mode,
 			NULL, NULL);
@@ -5047,27 +5070,41 @@ retry:
 		ut_ad(len > 0);
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-		/* This is required by FusionIO HW/Firmware */
-		int	ret = posix_fallocate(node->handle, node_start, len);
+		int     ret = posix_fallocate(node->handle.m_file, node_start, len);
 
-		/* We already pass the valid offset and len in, if EINVAL
-		is returned, it could only mean that the file system doesn't
-		support fallocate(), currently one known case is
-		ext3 FS with O_DIRECT. We ignore EINVAL here so that the
-		error message won't flood. */
-		if (ret != 0 && ret != EINVAL) {
-			ib::error()
-				<< "posix_fallocate(): Failed to preallocate"
-				" data for file "
-				<< node->name << ", desired size "
-				<< len << " bytes."
-				" Operating system error number "
-				<< ret << ". Check"
-				" that the disk is not full or a disk quota"
-				" exceeded. Make sure the file system supports"
-				" this function. Some operating system error"
-				" numbers are described at " REFMAN
-				" operating-system-error-codes.html";
+		DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr",
+				ret = EINTR;);
+
+		DBUG_EXECUTE_IF("ib_posix_fallocate_fail_einval",
+				ret = EINVAL;);
+
+		if (ret != 0) {
+			/* We already pass the valid offset and len in,
+			if EINVAL is returned, it could only mean that the
+			file system doesn't support fallocate(), currently
+			one known case is ext3 with O_DIRECT.
+
+			Also because above call could be interrupted,
+			in this case, simply go to plan B by writing zeroes.
+
+			Both error messages for above two scenarios are
+			skipped in case of flooding error messages, because
+			they can be ignored by users. */
+			if (ret != EINTR && ret != EINVAL) {
+				ib::error()
+					<< "posix_fallocate(): Failed to"
+					" preallocate data for file "
+					<< node->name << ", desired size "
+					<< len << " bytes."
+					" Operating system error number "
+					<< ret << ". Check"
+					" that the disk is not full or a disk"
+					" quota exceeded. Make sure the file"
+					" system supports this function."
+					" Some operating system error"
+					" numbers are described at " REFMAN
+					"operating-system-error-codes.html";
+			}
 
 			err = DB_IO_ERROR;
 		}
@@ -5869,7 +5906,7 @@ fil_flush(
 				log files or a tablespace of the database) */
 {
 	fil_node_t*	node;
-	os_file_t	file;
+	pfs_os_file_t	file;
 
 	mutex_enter(&fil_system->mutex);
 
@@ -6256,7 +6293,7 @@ fil_buf_block_init(
 }
 
 struct fil_iterator_t {
-	os_file_t	file;			/*!< File handle */
+	pfs_os_file_t	file;			/*!< File handle */
 	const char*	filepath;		/*!< File path name */
 	os_offset_t	start;			/*!< From where to start */
 	os_offset_t	end;			/*!< Where to stop */
@@ -6437,7 +6474,7 @@ fil_tablespace_iterate(
 	PageCallback&	callback)
 {
 	dberr_t		err;
-	os_file_t	file;
+	pfs_os_file_t	file;
 	char*		filepath;
 	bool		success;
 
@@ -6728,9 +6765,12 @@ fil_node_next(
 			space->n_pending_ops--;
 			space = UT_LIST_GET_NEXT(space_list, space);
 
-			/* Skip spaces that are being dropped or truncated. */
+			/* Skip spaces that are being
+			created by fil_ibd_create(),
+			or dropped or truncated. */
 			while (space != NULL
-			       && (space->stop_new_ops
+			       && (UT_LIST_GET_LEN(space->chain) == 0
+				   || space->stop_new_ops
 				   || space->is_being_truncated)) {
 				space = UT_LIST_GET_NEXT(space_list, space);
 			}
@@ -6948,6 +6988,12 @@ fil_names_clear(
 	bool	do_write)
 {
 	mtr_t	mtr;
+	ulint	mtr_checkpoint_size = LOG_CHECKPOINT_FREE_PER_THREAD;
+
+	DBUG_EXECUTE_IF(
+		"increase_mtr_checkpoint_size",
+		mtr_checkpoint_size = 75 * 1024;
+		);
 
 	ut_ad(log_mutex_own());
 
@@ -6981,11 +7027,24 @@ fil_names_clear(
 		fil_names_write(space, &mtr);
 		do_write = true;
 
+		const mtr_buf_t* mtr_log = mtr_get_log(&mtr);
+
+		/** If the mtr buffer size exceeds the size of
+		LOG_CHECKPOINT_FREE_PER_THREAD then commit the multi record
+		mini-transaction, start the new mini-transaction to
+		avoid the parsing buffer overflow error during recovery. */
+
+		if (mtr_log->size() > mtr_checkpoint_size) {
+			ut_ad(mtr_log->size() < (RECV_PARSING_BUF_SIZE / 2));
+			mtr.commit_checkpoint(lsn, false);
+			mtr.start();
+		}
+
 		space = next;
 	}
 
 	if (do_write) {
-		mtr.commit_checkpoint(lsn);
+		mtr.commit_checkpoint(lsn, true);
 	} else {
 		ut_ad(!mtr.has_modifications());
 	}

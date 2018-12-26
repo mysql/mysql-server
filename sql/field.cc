@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1366,11 +1366,14 @@ void Field_num::prepend_zeros(String *value)
   int diff;
   if ((diff= (int) (field_length - value->length())) > 0)
   {
-    memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
+    const bool error= value->mem_realloc(field_length);
+    if (!error)
+    {
+      memmove(const_cast<char*>(value->ptr()) + field_length - value->length(),
             value->ptr(), value->length());
-    memset(const_cast<char*>(value->ptr()), '0', diff);
-    value->length(field_length);
-    (void) value->c_ptr_quick();		// Avoid warnings in purify
+      memset(const_cast<char*>(value->ptr()), '0', diff);
+      value->length(field_length);
+    }
   }
 }
 
@@ -6389,7 +6392,7 @@ Field_year::store(const char *from, size_t len,const CHARSET_INFO *cs)
 
 type_conversion_status Field_year::store(double nr)
 {
-  if (nr < 0.0 || nr >= 2155.0)
+  if (nr < 0.0 || nr > 2155.0)
   {
     (void) Field_year::store((longlong) -1, FALSE);
     return TYPE_WARN_OUT_OF_RANGE;
@@ -6950,7 +6953,7 @@ type_conversion_status Field_datetimef::store_packed(longlong nr)
   @param  cs                         character set of the string
 
   @return TYPE_OK, TYPE_NOTE_TRUNCATED, TYPE_WARN_TRUNCATED,
-          TYPE_WARN_ALL_TRUNCATED
+          TYPE_WARN_INVALID_STRING
 
 */
 
@@ -6980,8 +6983,8 @@ Field_longstr::check_string_copy_error(const char *original_string,
                       "string", tmp, field_name,
                       thd->get_stmt_da()->current_row_for_condition());
 
-  if (well_formed_error_pos == original_string)
-    return TYPE_WARN_ALL_TRUNCATED;
+  if (well_formed_error_pos != NULL)
+    return TYPE_WARN_INVALID_STRING;
 
   return TYPE_WARN_TRUNCATED;
 }
@@ -8726,17 +8729,17 @@ type_conversion_status
 Field_geom::store_internal(const char *from, size_t length,
                            const CHARSET_INFO *cs)
 {
-  DBUG_ASSERT(length > 0);
-
   // Check that the given WKB
-  // 1. isn't marked as bad geometry data
-  // 2. isn't shorter than empty geometrycollection
-  // 3. is a valid geometry type
-  // 4. is well formed
-  if (from == Geometry::bad_geometry_data.ptr() ||                    // 1
-      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 2
-      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 3
-      !Geometry::is_well_formed(from, length,                         // 4
+  // 1. is at least 13 bytes long (length of GEOMETRYCOLLECTION EMPTY)
+  // 2. isn't marked as bad geometry data
+  // 3. isn't shorter than empty geometrycollection
+  // 4. is a valid geometry type
+  // 5. is well formed
+  if (length < 13 ||                                                  // 1
+      from == Geometry::bad_geometry_data.ptr() ||                    // 2
+      length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32) ||        // 3
+      !Geometry::is_valid_geotype(uint4korr(from + SRID_SIZE + 1)) || // 4
+      !Geometry::is_well_formed(from, length,                         // 5
                                 geometry_type_to_wkb_type(geom_type),
                                 Geometry::wkb_ndr))
   {
@@ -8963,9 +8966,7 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  json_binary::Value json_val= json->to_value();
-  if (json_val.type() == json_binary::Value::ERROR ||
-      json_val.raw_binary(&value))
+  if (json->to_binary(&value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -9161,37 +9162,52 @@ enum ha_base_keytype Field_enum::key_type() const
 void Field_enum::store_type(ulonglong value)
 {
   switch (packlength) {
-  case 1: ptr[0]= (uchar) value;  break;
+  case 1: ptr[0]= (uchar) value;
+    break;
   case 2:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int2store(ptr,(unsigned short) value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int2store(ptr,(unsigned short) value);
+    }
+    else
+    {
+      shortstore(ptr,(unsigned short) value);
+    }
+#else
     shortstore(ptr,(unsigned short) value);
-  break;
-  case 3: int3store(ptr,(long) value); break;
+#endif
+    break;
+  case 3: int3store(ptr,(long) value);
+    break;
   case 4:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int4store(ptr,value);
-  }
-  else
-#endif
+    if (table->s->db_low_byte_first)
+    {
+      int4store(ptr,value);
+    }
+    else
+    {
+      longstore(ptr,(long) value);
+    }
+#else
     longstore(ptr,(long) value);
-  break;
+#endif
+    break;
   case 8:
 #ifdef WORDS_BIGENDIAN
-  if (table->s->db_low_byte_first)
-  {
-    int8store(ptr,value);
-  }
-  else
+    if (table->s->db_low_byte_first)
+    {
+      int8store(ptr,value);
+    }
+    else
+    {
+      longlongstore(ptr,value);
+    }
+#else
+    longlongstore(ptr,value);
 #endif
-    longlongstore(ptr,value); break;
+    break;
   }
 }
 
@@ -10878,7 +10894,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_DATE:
     /* Old date type. */
     sql_type= MYSQL_TYPE_NEWDATE;
-    /* fall trough */
+    /* fall through */
   case MYSQL_TYPE_NEWDATE:
     length= MAX_DATE_WIDTH;
     break;
@@ -11595,4 +11611,13 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
          !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
       set_warning(level, code, cut_increment))
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
+}
+
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
+{
+  return
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
+    !(cur_index_info->flags & HA_NOSAME) ?
+    part_of_key.is_set(cur_index) :
+    part_of_key_not_extended.is_set(cur_index);
 }

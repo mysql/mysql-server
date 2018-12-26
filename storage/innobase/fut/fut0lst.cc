@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -382,115 +382,6 @@ flst_remove(
 	ut_ad(len > 0);
 
 	mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES, mtr);
-}
-
-/********************************************************************//**
-Cuts off the tail of the list, including the node given. The number of
-nodes which will be removed must be provided by the caller, as this function
-does not measure the length of the tail. */
-void
-flst_cut_end(
-/*=========*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node2,	/*!< in: first node to remove */
-	ulint			n_nodes,/*!< in: number of nodes to remove,
-					must be >= 1 */
-	mtr_t*			mtr)	/*!< in: mini-transaction handle */
-{
-	ulint		space;
-	flst_node_t*	node1;
-	fil_addr_t	node1_addr;
-	fil_addr_t	node2_addr;
-	ulint		len;
-
-	ut_ad(mtr && node2 && base);
-	ut_ad(mtr_memo_contains_page_flagged(mtr, base,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-	ut_ad(mtr_memo_contains_page_flagged(mtr, node2,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-	ut_ad(n_nodes > 0);
-
-	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
-
-	node1_addr = flst_get_prev_addr(node2, mtr);
-
-	if (!fil_addr_is_null(node1_addr)) {
-
-		/* Update next field of node1 */
-
-		if (node1_addr.page == node2_addr.page) {
-
-			node1 = page_align(node2) + node1_addr.boffset;
-		} else {
-			bool			found;
-			const page_size_t&	page_size
-				= fil_space_get_page_size(space, &found);
-
-			ut_ad(found);
-
-			node1 = fut_get_ptr(space, page_size,
-					    node1_addr, RW_SX_LATCH, mtr);
-		}
-
-		flst_write_addr(node1 + FLST_NEXT, fil_addr_null, mtr);
-	} else {
-		/* node2 was first in list: update the field in base */
-		flst_write_addr(base + FLST_FIRST, fil_addr_null, mtr);
-	}
-
-	flst_write_addr(base + FLST_LAST, node1_addr, mtr);
-
-	/* Update len of base node */
-	len = flst_get_len(base);
-	ut_ad(len >= n_nodes);
-
-	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
-}
-
-/********************************************************************//**
-Cuts off the tail of the list, not including the given node. The number of
-nodes which will be removed must be provided by the caller, as this function
-does not measure the length of the tail. */
-void
-flst_truncate_end(
-/*==============*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
-	flst_node_t*		node2,	/*!< in: first node not to remove */
-	ulint			n_nodes,/*!< in: number of nodes to remove */
-	mtr_t*			mtr)	/*!< in: mini-transaction handle */
-{
-	fil_addr_t	node2_addr;
-	ulint		len;
-	ulint		space;
-
-	ut_ad(mtr && node2 && base);
-	ut_ad(mtr_memo_contains_page_flagged(mtr, base,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-	ut_ad(mtr_memo_contains_page_flagged(mtr, node2,
-					     MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-	if (n_nodes == 0) {
-
-		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr)));
-
-		return;
-	}
-
-	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
-
-	/* Update next field of node2 */
-	flst_write_addr(node2 + FLST_NEXT, fil_addr_null, mtr);
-
-	flst_write_addr(base + FLST_LAST, node2_addr, mtr);
-
-	/* Update len of base node */
-	len = flst_get_len(base);
-	ut_ad(len >= n_nodes);
-
-	mlog_write_ulint(base + FLST_LEN, len - n_nodes, MLOG_4BYTES, mtr);
 }
 
 /********************************************************************//**

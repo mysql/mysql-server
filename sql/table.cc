@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -392,7 +392,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
-    memset(share, 0, sizeof(*share));
+    new (share) TABLE_SHARE;
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -458,7 +458,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_ENTER("init_tmp_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'", key, table_name));
 
-  memset(share, 0, sizeof(*share));
+  new (share) TABLE_SHARE;
   init_sql_alloc(key_memory_table_share,
                  &share->mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
   share->table_category=         TABLE_CATEGORY_TEMPORARY;
@@ -897,18 +897,22 @@ void KEY_PART_INFO::init_from_field(Field *fld)
 /**
   Setup key-related fields of Field object for given key and key part.
 
-  @param[in]     share         Pointer to TABLE_SHARE
-  @param[in]     handler       Pointer to handler
-  @param[in]     primary_key_n Primary key number
-  @param[in]     keyinfo       Pointer to processed key
-  @param[in]     key_n         Processed key number
-  @param[in]     key_part_n    Processed key part number
-  @param[in,out] usable_parts  Pointer to usable_parts variable
+  @param[in]     share                    Pointer to TABLE_SHARE
+  @param[in]     handler_file             Pointer to handler
+  @param[in]     primary_key_n            Primary key number
+  @param[in]     keyinfo                  Pointer to processed key
+  @param[in]     key_n                    Processed key number
+  @param[in]     key_part_n               Processed key part number
+  @param[in,out] usable_parts             Pointer to usable_parts variable
+  @param[in]     part_of_key_not_extended Set when column is part of the Key
+                                          and not appended by the storage
+                                          engine from primary key columns.
 */
 
 static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                                  uint primary_key_n, KEY *keyinfo, uint key_n,
-                                 uint key_part_n, uint *usable_parts)
+                                 uint key_part_n, uint *usable_parts,
+                                 bool part_of_key_not_extended)
 {
   KEY_PART_INFO *key_part= &keyinfo->key_part[key_part_n];
   Field *field= key_part->field;
@@ -928,7 +932,8 @@ static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
     {
       share->keys_for_keyread.set_bit(key_n);
       field->part_of_key.set_bit(key_n);
-      field->part_of_key_not_clustered.set_bit(key_n);
+      if (part_of_key_not_extended)
+        field->part_of_key_not_extended.set_bit(key_n);
     }
     if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
       field->part_of_sortkey.set_bit(key_n);
@@ -1007,7 +1012,7 @@ static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
 
       *current_key_part= *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
-                           sk->actual_key_parts, usable_parts);
+                           sk->actual_key_parts, usable_parts, false);
       sk->actual_key_parts++;
       sk->unused_key_parts--;
       sk->rec_per_key[sk->actual_key_parts - 1]= 0;
@@ -1931,6 +1936,27 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       else if (!tmp_plugin && str_db_type_length == 9 &&
                !strncmp((char *) next_chunk + 2, "partition", 9))
       {
+        /*
+          An I_S query during server restart will provoke deprecation warnings.
+          Since there is no client connection for this query, make sure we
+          write the deprecation warning in the error log. Otherwise, push
+          warnings to the client.
+        */
+        if (mysqld_server_started)
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER_THD(thd,
+                                     ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                              share->db.str, share->table_name.str);
+        else
+          /*
+            Use the same string as above, not for localization, but for
+            making sure the wording is equal.
+          */
+          sql_print_warning(
+                  ER_DEFAULT(ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                  share->db.str, share->table_name.str);
+
         /* Check if the partitioning engine is ready */
         if (!ha_checktype(thd, DB_TYPE_PARTITION_DB, true, false))
         {
@@ -2449,7 +2475,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->flags|= HA_VIRTUAL_GEN_KEY;
 
         setup_key_part_field(share, handler_file, primary_key,
-                             keyinfo, key, i, &usable_parts);
+                             keyinfo, key, i, &usable_parts, true);
 
         field->flags|= PART_KEY_FLAG;
         if (key == primary_key)
@@ -2750,9 +2776,21 @@ static bool fix_fields_gcol_func(THD *thd, Field *field)
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
 
-  /* Fix fields referenced to by the generated column function */
+  bool charset_switched= false;
+  const CHARSET_INFO *saved_collation_connection= func_expr->default_charset();
+  if (saved_collation_connection != table->s->table_charset)
+  {
+   thd->variables.collation_connection= table->s->table_charset;
+   charset_switched= true;
+  }
+
   Item *new_func= func_expr;
   error= func_expr->fix_fields(thd, &new_func);
+
+  /* Restore the current connection character set and collation. */
+  if (charset_switched)
+    thd->variables.collation_connection=  saved_collation_connection;
+
   /* Restore the original context*/
   thd->lex->use_only_table_context= save_use_only_table_context;
   context->table_list= save_table_list;
@@ -2937,6 +2975,10 @@ static bool unpack_gcol_info_from_frm(THD *thd,
   /* Validate the Item tree. */
   status= fix_fields_gcol_func(thd, field);
 
+  // Permanent changes to the item_tree are completed.
+  if (!thd->lex->is_ps_or_view_context_analysis())
+    field->gcol_info->permanent_changes_completed= true;
+
   if (disable_strict_mode)
   {
     thd->pop_internal_handler();
@@ -3024,7 +3066,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                       share->table_name.str, (long) outparam));
 
   error= 1;
-  memset(outparam, 0, sizeof(*outparam));
+  new (outparam) TABLE;
   outparam->in_use= thd;
   outparam->s= share;
   outparam->db_stat= db_stat;
@@ -3477,7 +3519,7 @@ void free_blobs(TABLE *table)
 
 /**
   Reclaims temporary blob storage which is bigger than a threshold.
-  Resets blob pointer.
+  Resets blob pointer. Unsets m_keep_old_value.
 
   @param table A handle to the TABLE object containing blob fields
   @param size The threshold value.
@@ -3494,6 +3536,9 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
     if (blob->get_field_buffer_size() > size)
       blob->mem_free();
     blob->reset();
+
+    if (blob->is_virtual_gcol())
+      blob->set_keep_old_value(false);
   }
 }
 
@@ -4254,11 +4299,7 @@ bool check_column_name(const char *name)
                                and type)
 
   @retval  FALSE  OK
-  @retval  TRUE   There was an error. An error message is output
-                  to the error log.  We do not push an error
-                  message into the error stack because this
-                  function is currently only called at start up,
-                  and such errors never reach the user.
+  @retval  TRUE   There was an error.
 */
 
 bool
@@ -4273,7 +4314,7 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(FALSE);
+    goto end;
 
   if (table->s->fields != table_def->count)
   {
@@ -4349,28 +4390,28 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
       if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
                   field_def->type.length - 1))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected column '%s' at position %d to have type "
-                     "%s, found type %s.", table->s->db.str, table->alias,
-                     field_def->name.str, i, field_def->type.str,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected column '%s' at position %d to "
+                     "have type %s, found type %s.", table->s->db.str,
+                     table->alias, field_def->name.str, i, field_def->type.str,
                      sql_type.c_ptr_safe());
         error= TRUE;
       }
       else if (field_def->cset.str && !field->has_charset())
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but the type has no "
-                     "character set.", table->s->db.str, table->alias,
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but the type "
+                     "has no character set.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
       else if (field_def->cset.str &&
                strcmp(field->charset()->csname, field_def->cset.str))
       {
-        report_error(0, "Incorrect definition of table %s.%s: "
-                     "expected the type of column '%s' at position %d "
-                     "to have character set '%s' but found "
+        report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                     "table %s.%s: expected the type of column '%s' at "
+                     "position %d to have character set '%s' but found "
                      "character set '%s'.", table->s->db.str, table->alias,
                      field_def->name.str, i, field_def->cset.str,
                      field->charset()->csname);
@@ -4379,9 +4420,9 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
     }
     else
     {
-      report_error(0, "Incorrect definition of table %s.%s: "
-                   "expected column '%s' at position %d to have type %s "
-                   " but the column is not found.",
+      report_error(ER_CANNOT_LOAD_FROM_TABLE_V2, "Incorrect definition of "
+                   "table %s.%s: expected column '%s' at position %d to "
+                   "have type %s but the column is not found.",
                    table->s->db.str, table->alias,
                    field_def->name.str, i, field_def->type.str);
       error= TRUE;
@@ -4390,6 +4431,15 @@ Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 
   if (! error)
     table->s->table_field_def_cache= table_def;
+
+end:
+
+  if (has_keys && !error && !table->key_info)
+  {
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    error= TRUE;
+  }
 
   DBUG_RETURN(error);
 }
@@ -4661,8 +4711,24 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
-  DBUG_ASSERT(!error);
+  /*
+    Do not call refix_gc_items() for tables which are not directly used by the
+    statement (i.e. used by the substatements of routines or triggers to be
+    invoked by the statement).
+
+    Firstly, there will be call to refix_gc_items() at the start of execution
+    of substatement which directly uses this table anyway.Secondly, cleanup of
+    generated column (call to cleanup_gc_items()) for the table will be done
+    only at the end of execution of substatement which uses it. Because of this
+    call to refix_gc_items() for prelocking placeholder will miss corresponding
+    call to cleanup_gc_items() if substatement which uses the table is not
+    executed for some reason.
+  */
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+  }
 }
 
 
@@ -4677,17 +4743,28 @@ bool TABLE::refix_gc_items(THD *thd)
       if (!vfield->gcol_info->expr_item->fixed)
       {
         bool res= false;
-        /**
-          We should keep all the newly-created Items during fixing fields
-          in the same life span as the ones created parsing the generated
-          expression string.
+        /*
+          The call to fix_fields_gcol_func() may create new item objects in the
+          item tree for the generated column expression. If these are permanent
+          changes to the item tree, the new items must have the same life-span
+          as the ones created during parsing of the generated expression
+          string. We achieve this by temporarily switching to use the TABLE's
+          mem_root if the permanent changes to the item tree haven't been
+          completed (by checking the status of
+          gcol_info->permanent_changes_completed) and this call is not part of
+          context analysis (like prepare or show create table).
         */
         Query_arena *backup_stmt_arena_ptr= thd->stmt_arena;
         Query_arena backup_arena;
         Query_arena gcol_arena(&vfield->table->mem_root,
                                Query_arena::STMT_CONVENTIONAL_EXECUTION);
-        thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
-        thd->stmt_arena= &gcol_arena;
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          thd->set_n_backup_active_arena(&gcol_arena, &backup_arena);
+          thd->stmt_arena= &gcol_arena;
+        }
+
         /* 
           Temporarily disable privileges check; already done when first fixed,
           and then based on definer's (owner's) rights: this thread has
@@ -4699,8 +4776,23 @@ bool TABLE::refix_gc_items(THD *thd)
         if (fix_fields_gcol_func(thd, vfield))
           res= true;
 
-        thd->stmt_arena= backup_stmt_arena_ptr;
-        thd->restore_active_arena(&gcol_arena, &backup_arena);
+        if (!vfield->gcol_info->permanent_changes_completed &&
+            !thd->lex->is_ps_or_view_context_analysis())
+        {
+          // Switch back to the original stmt_arena.
+          thd->stmt_arena= backup_stmt_arena_ptr;
+          thd->restore_active_arena(&gcol_arena, &backup_arena);
+
+          // Append the new items to the original item_free_list.
+          Item *item= vfield->gcol_info->item_free_list;
+          while (item->next)
+            item= item->next;
+          item->next= gcol_arena.free_list;
+
+          // Permanent changes to the item_tree are completed.
+          vfield->gcol_info->permanent_changes_completed= true;
+        }
+
         // Restore any privileges check
         thd->want_privilege= sav_want_priv;
         get_fields_in_item_tree= FALSE;
@@ -4708,12 +4800,6 @@ bool TABLE::refix_gc_items(THD *thd)
         /* error occurs */
         if (res)
           return res;
-
-        // We need append the new items to orignal item lists
-        Item *item= vfield->gcol_info->item_free_list;
-        while(item->next)
-          item= item->next;
-        item->next= gcol_arena.free_list;
       }
     }
   }
@@ -4809,14 +4895,16 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   DBUG_ASSERT(belongs_to && select);
 
   TABLE_LIST *const join_nest=
-    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                                    sizeof(NESTED_JOIN));
+    (TABLE_LIST*) alloc_root(allocator, sizeof(TABLE_LIST));
   if (join_nest == NULL)
     return NULL;
+  new (join_nest) TABLE_LIST;
 
-  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
   join_nest->nested_join=
-    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+    (NESTED_JOIN*) alloc_root(allocator, sizeof(NESTED_JOIN));
+  if (join_nest->nested_join == NULL)
+    return NULL;
+  new (join_nest->nested_join) NESTED_JOIN;
 
   join_nest->db= (char *)"";
   join_nest->db_length= 0;
@@ -5733,6 +5821,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                Name_resolution_context *context)
 {
   Item *field= *field_ref;
+  const char *table_name;
   DBUG_ENTER("create_view_field");
 
   if (view->schema_table_reformed)
@@ -5755,15 +5844,36 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   }
 
   /*
+    Original table name of a field is calculated as follows:
+    - For a view or base table, the view or base table name.
+    - For a derived table, the base table name.
+    - For an expression that is not a simple column reference, an empty string.
+  */
+  if (view->is_derived())
+  {
+    while (field->type() == Item::REF_ITEM)
+    {
+      field= down_cast<Item_ref *>(field)->ref[0];
+    }
+    if (field->type() == Item::FIELD_ITEM)
+      table_name= down_cast<Item_field *>(field)->table_name;
+    else
+      table_name= "";
+  }
+  else
+  {
+    table_name= view->table_name;
+  }
+  /*
     @note Creating an Item_direct_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
-  */ 
+  */
   Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, view->table_name,
+                                       view->alias, table_name,
                                        name, view);
   DBUG_RETURN(item);
 }
@@ -6343,7 +6453,7 @@ void TABLE::mark_columns_needed_for_delete()
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
 
-    If this is no the case, we do like in the delete case and mark
+    If this is not the case, we do like in the delete case and mark
     if neeed, either the primary key column or all columns to be read.
     (see mark_columns_needed_for_delete() for details)
 
@@ -6351,17 +6461,29 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
-    
+
     Unlike other similar methods, it doesn't mark fields used by triggers,
     that is the responsibility of the caller to do, by using
     Table_trigger_dispatcher::mark_used_fields(TRG_EVENT_UPDATE)!
+
+    Note: Marking additional columns as per binlog_row_image requirements will
+    influence query execution plan. For example in the case of
+    binlog_row_image=FULL the entire read_set and write_set needs to be flagged.
+    This will influence update query to think that 'used key is being modified'
+    and query will create a temporary table to process the update operation.
+    Which will result in performance degradation. Hence callers who don't want
+    their query execution to be influenced as per binlog_row_image requirements
+    can skip marking binlog specific columns here and they should make an
+    explicit call to 'mark_columns_per_binlog_row_image()' function to mark
+    binlog_row_image specific columns.
 */
 
-void TABLE::mark_columns_needed_for_update()
+void TABLE::mark_columns_needed_for_update(bool mark_binlog_columns)
 {
 
   DBUG_ENTER("mark_columns_needed_for_update");
-  mark_columns_per_binlog_row_image();
+  if (mark_binlog_columns)
+    mark_columns_per_binlog_row_image();
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -7635,8 +7757,11 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (!vfield->stored_in_db &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
-      if (vfield->type() == MYSQL_TYPE_BLOB)
-        (down_cast<Field_blob*>(vfield))->need_to_keep_old_value();
+      if ((vfield->flags & BLOB_FLAG) != 0)
+      {
+        (down_cast<Field_blob*>(vfield))->keep_old_value();
+        (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
+      }
 
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
@@ -7706,12 +7831,15 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
     if (bitmap_is_set(bitmap, vfield->field_index))
     {
       /*
-        For a virtual generated column of blob type, we have to keep
+        For a virtual generated column based on the blob type, we have to keep
         the current blob value since this might be needed by the
         storage engine during updates.
       */
-      if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
+      {
         (down_cast<Field_blob*>(vfield))->keep_old_value();
+        (down_cast<Field_blob*>(vfield))->set_keep_old_value(true);
+      }
 
       /* Generate the actual value of the generated fields */
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
@@ -7774,5 +7902,32 @@ void TABLE::mark_gcol_in_maps(Field *field)
       if (this->field[i]->is_virtual_gcol())
         bitmap_set_bit(write_set, i);
     }
+  }
+}
+
+bool TABLE::contains_records(THD *thd, bool *retval)
+{
+  READ_RECORD info_read_record;
+  *retval= true;
+  if (init_read_record(&info_read_record, thd, this, NULL, 1, 1, FALSE))
+    return true;
+
+  // read_record returns -1 for EOF.
+  *retval= (info_read_record.read_record(&info_read_record) != -1);
+  end_read_record(&info_read_record);
+
+  return false;
+}
+
+void TABLE::blobs_need_not_keep_old_value()
+{
+  for (Field **vfield_ptr= vfield; *vfield_ptr; vfield_ptr++)
+  {
+    Field *vfield= *vfield_ptr;
+    /*
+      Set this flag so that all blob columns can keep the old value.
+    */
+    if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+      (down_cast<Field_blob*>(vfield))->set_keep_old_value(false);
   }
 }

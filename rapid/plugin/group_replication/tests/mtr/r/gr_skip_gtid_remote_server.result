@@ -1,0 +1,43 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SET GTID_NEXT= "32e153f8-01d2-11e6-a992-02420ef39c5b:3";
+CREATE TABLE t1 (i INT PRIMARY KEY);
+include/rpl_sync.inc
+SET GTID_NEXT='AUTOMATIC';
+include/assert.inc [GTID_EXECUTED must contain two transactions, one from view change and other being the create table.]
+[connection server2]
+include/start_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain three transactions, two from view change and other being the create.]
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain three transactions, two from view change and other being the create.]
+[connection server1]
+INSERT INTO t1 VALUES(1);
+include/rpl_sync.inc
+include/assert.inc [GTID_EXECUTED must contain four transactions, the new one from the insert.]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*) # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Begin # Table_map # Write_rows # !Commit]
+[connection server2]
+include/assert_binlog_events.inc [Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Q(CREATE.*) # Gtid # Query/BEGIN # View_change # Query/COMMIT # Gtid # !Begin # Table_map # Write_rows # !Commit]
+include/assert.inc [GTID_EXECUTED must contain four transactions, the new one from the insert.]
+DROP TABLE t1;
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

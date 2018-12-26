@@ -1,0 +1,102 @@
+################################################################################
+# Test to verify group_replication gets successfully loaded even when
+# it fails to start when `INSTALL PLUGIN ..` command is executed with
+# group_replication_start_on_boot ON.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. We need to restart M2 to simulate start_on_boot option since on MTR
+#    it is impossible to compute ports on configuration files. Bootstrap start
+#    M2, but, without group_name set.
+# 2. Uninstall and install group_replication plugin on M2. validate group_name,
+#    local_address, group_seeds.
+# 3. Verify group_replication failed to start but gets successfully loaded.
+# 4. Now define group name. Bootstrap start GR should be successful on M2.
+#    Start GR on M1. Add some data on M2.
+# 5. Verify data is correctly replicated on M1.
+# 6. Clean up.
+################################################################################
+
+--let $group_replication_group_name= 6a63a135-5c92-11e5-914e-e8b1fc3848de
+--source ../inc/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# We need to restart server 2 to simulate start_on_boot option since
+# on MTR it is impossible to compute ports on configuration files.
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+SET SESSION SQL_LOG_BIN=0;
+call mtr.add_suppression("The group name option is mandatory");
+call mtr.add_suppression("Unable to start Group Replication on boot");
+SET SESSION SQL_LOG_BIN=1;
+
+# uninstall and install group_replication plugin
+UNINSTALL PLUGIN group_replication;
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--let $assert_text= The value of group name should be empty
+--let $assert_cond= "[SELECT @@group_replication_group_name]" = ""
+--source include/assert.inc
+
+--let $assert_text= The value of local address should be the configured one
+--let $assert_cond= "[SELECT @@group_replication_local_address]" = "$_group_replication_local_address"
+--source include/assert.inc
+
+--let $assert_text= The value of peer addresses should be the configured one
+--let $assert_cond= "[SELECT @@group_replication_group_seeds]" = "$_group_replication_group_seeds"
+--source include/assert.inc
+
+# Verify group_replication failed to start but gets successfully loaded
+--let $assert_text= group_replication plugin is loaded
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.plugin WHERE name="group_replication", count, 1] = 1
+--source include/assert.inc
+
+--let $_member_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--let $assert_text= The group_replication failed to start
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$_member_id"] = 0
+--source include/assert.inc
+
+# Now that group name is defined, start group_replication should be successful
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+# Verify data is correctly replicated
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= Table t1 contains row in server1 after the above execution
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1
+--source include/assert.inc
+
+# Clean the status
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

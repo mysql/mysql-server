@@ -162,7 +162,7 @@ DROP DATABASE test;
 
 # Remove residue files and data folder of page size 32K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -223,7 +223,7 @@ DROP DATABASE test;
 
 # Remove residue files and data folder of page size 16K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 
 # Create datadir path,rathan than mtr defaults path
 --mkdir $MYSQL_TMP_DIR/datadir1/data
@@ -275,6 +275,6 @@ call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/data;
---source ../include/cleanup_folder.inc
+--source include/cleanup_folder.inc
 --rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/wl5757.sql

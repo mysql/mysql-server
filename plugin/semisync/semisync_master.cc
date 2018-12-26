@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -720,6 +720,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
   TranxNode* entry= NULL;
   mysql_cond_t* thd_cond= NULL;
+  bool is_semi_sync_trans= true;
   if (active_tranxs_ != NULL && trx_wait_binlog_name)
   {
     entry=
@@ -783,6 +784,25 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
           break;
         }
       }
+      /*
+        When code reaches here an Entry object may not be present in the
+        following scenario.
+
+        Semi sync was not enabled when transaction entered into ordered_commit
+        process. During flush stage, semi sync was not enabled and there was no
+        'Entry' object created for the transaction being committed and at a
+        later stage it was enabled. In this case trx_wait_binlog_name and
+        trx_wait_binlog_pos are set but the 'Entry' object is not present. Hence
+        dump thread will not wait for reply from slave and it will not update
+        reply_file_name. In such case the committing transaction should not wait
+        for an ack from slave and it should be considered as an async
+        transaction.
+      */
+      if (!entry)
+      {
+        is_semi_sync_trans= false;
+        goto l_end;
+      }
 
       /* Let us update the info about the minimum binlog position of waiting
        * threads.
@@ -845,7 +865,15 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       entry->n_waiters++;
       wait_result= mysql_cond_timedwait(&entry->cond, &LOCK_binlog_, &abstime);
       entry->n_waiters--;
-      rpl_semi_sync_master_wait_sessions--;
+      /*
+        After we release LOCK_binlog_ above while waiting for the condition,
+        it can happen that some other parallel client session executed
+        RESET MASTER. That can set rpl_semi_sync_master_wait_sessions to zero.
+        Hence check the value before decrementing it and decrement it only if it is
+        non-zero value.
+      */
+      if (rpl_semi_sync_master_wait_sessions > 0)
+        rpl_semi_sync_master_wait_sessions--;
       
       if (wait_result != 0)
       {
@@ -885,7 +913,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
 l_end:
     /* Update the status counter. */
-    if (is_on())
+    if (is_on() && is_semi_sync_trans)
       rpl_semi_sync_master_yes_transactions++;
     else
       rpl_semi_sync_master_no_transactions++;

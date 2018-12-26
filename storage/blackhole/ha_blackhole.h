@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -69,7 +69,9 @@ public:
 #define BLACKHOLE_MAX_KEY_LENGTH 1000
   uint max_supported_keys()          const { return BLACKHOLE_MAX_KEY; }
   uint max_supported_key_length()    const { return BLACKHOLE_MAX_KEY_LENGTH; }
-  uint max_supported_key_part_length() const { return BLACKHOLE_MAX_KEY_LENGTH; }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                        *create_info MY_ATTRIBUTE((unused))) const
+  { return BLACKHOLE_MAX_KEY_LENGTH; }
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
   int truncate();

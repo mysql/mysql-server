@@ -135,7 +135,7 @@ XA PREPARE 'x';
 
 -- echo # Attempt to start without an *.ibd file.
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
--- error 3
+-- error 3,42
 -- exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
 let SEARCH_PATTERN= \[ERROR\] InnoDB: Tablespace [0-9]+ was not found at .*test.bug16735660.ibd;

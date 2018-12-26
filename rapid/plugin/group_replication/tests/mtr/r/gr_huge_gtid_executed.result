@@ -1,0 +1,59 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+################################################################
+# 1. Generate a huge GTID_EXECUTED with 70043 characters length.
+#    It will be like:
+#    aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10000:10002:...:120000
+
+################################################################
+# 2. Set huge GTID_EXECUTED on both servers.
+[connection server2]
+Set GTID_PURGED to huge gtid executed
+include/assert.inc [GTID_EXECUTED must contain all 70043 characters]
+[connection server1]
+Set GTID_PURGED to huge gtid executed
+include/assert.inc [GTID_EXECUTED must contain all 70043 characters]
+
+################################################################
+# 3. Start Group Replication.
+#    The huge GTID_EXECUTED will be exchanged on distributed
+#    recovery process on server1.
+[connection server2]
+include/start_and_bootstrap_group_replication.inc
+[connection server1]
+include/start_group_replication.inc
+
+################################################################
+# 4. Execute some transactions and check that nothing bad happens.
+#    Validate that data is delivered to both members.
+[connection server2]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+[connection server2]
+include/assert.inc ['There is a value 1 in table t1']
+[connection server1]
+include/assert.inc ['There is a value 1 in table t1']
+
+############################################################
+# 5. Wait for stable set propagation and certification info
+#    garbage collection.
+[connection server2]
+
+############################################################
+# 6. Check that stable set is properly updated after stable
+#    set propagation and certification info garbage
+#    collection.
+[connection server2]
+include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
+[connection server1]
+include/assert.inc ['Transactions_committed_all_members must be equal to GTID_EXECUTED']
+
+############################################################
+# 7. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

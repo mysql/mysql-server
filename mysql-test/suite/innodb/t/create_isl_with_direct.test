@@ -7,6 +7,8 @@ CALL mtr.add_suppression("\\[Warning\\] InnoDB: Failed to set O_DIRECT on file\.
 
 # The below mtr suppression to avoid failure in solaris platform.
 CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to set DIRECTIO_ON on file.*");
+
+CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to create check sector file*");
 --enable_query_log
 
 SHOW VARIABLES LIKE 'innodb_flush_method';

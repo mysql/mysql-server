@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1031,29 +1031,6 @@ bool Item_field::find_item_in_field_list_processor(uchar *arg)
       return TRUE;
   }
   return FALSE;
-}
-
-
-/**
-  Mark field in read or write map of a table.
-
-  @param arg Struct that tells which map to update and how
-           table If = NULL, update map of any table
-                 If <> NULL, update map only if field is from this table
-           mark  How to mark current column
-*/
-
-bool Item_field::mark_field_in_map(uchar *arg)
-{
-  Mark_field *mark_field= (Mark_field *)arg;
-  TABLE *table= mark_field->table;
-  if (table != NULL && table != field->table)
-    return false;
-
-  table= field->table;
-  table->mark_column_used(table->in_use, field, mark_field->mark);
-
-  return false;
 }
 
 
@@ -2228,17 +2205,28 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
       Exception is Item_direct_view_ref which we need to convert to
       Item_ref to allow fields from view being stored in tmp table.
     */
-    Item_aggregate_ref *item_ref;
     uint el= fields.elements;
     Item *real_itm= real_item();
+    SELECT_LEX *base_select;
+    SELECT_LEX *depended_from= NULL;
 
-    ref_pointer_array[el]= real_itm;
-    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select()->context,
-                                           &ref_pointer_array[el], 0,
-                                           item_name.ptr())))
-      return;                                   // fatal_error is set
     if (type() == SUM_FUNC_ITEM)
-      item_ref->depended_from= ((Item_sum *) this)->depended_from(); 
+    {
+      Item_sum *const item= down_cast<Item_sum *>(this);
+      base_select= item->base_select;
+      depended_from= item->depended_from();
+    }
+    else
+    {
+      base_select= thd->lex->current_select();
+    }
+    ref_pointer_array[el]= real_itm;
+    Item_aggregate_ref *const item_ref=
+      new Item_aggregate_ref(&base_select->context, &ref_pointer_array[el],
+                             0, item_name.ptr());
+    if (!item_ref)
+      return;                      /* purecov: inspected */
+    item_ref->depended_from= depended_from;
     fields.push_front(real_itm);
     thd->change_item_tree(ref, item_ref);
   }
@@ -2650,6 +2638,9 @@ Item_field::Item_field(Field *f)
    item_equal(NULL), no_const_subst(false),
    have_privileges(0), any_privileges(false)
 {
+  if (f->table->pos_in_table_list != NULL)
+    context= &(f->table->pos_in_table_list->select_lex->context);
+
   set_field(f);
   /*
     field_name and table_name should not point to garbage
@@ -3865,12 +3856,11 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
 
   value.time= *tm;
   value.time.time_type= time_type;
+  decimals= tm->second_part ? DATETIME_MAX_DECIMALS : 0;
 
   if (check_datetime_range(&value.time))
   {
-    make_truncated_value_warning(ErrConvString(&value.time,
-                                               MY_MIN(decimals,
-                                                      DATETIME_MAX_DECIMALS)),
+    make_truncated_value_warning(ErrConvString(&value.time, decimals),
                                  time_type);
     set_zero_time(&value.time, MYSQL_TIMESTAMP_ERROR);
   }
@@ -3878,7 +3868,6 @@ void Item_param::set_time(MYSQL_TIME *tm, timestamp_type time_type,
   state= TIME_VALUE;
   maybe_null= 0;
   max_length= max_length_arg;
-  decimals= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -4849,6 +4838,7 @@ Item_copy_json::save_in_field_inner(Field *field, bool no_conversions)
   }
   else
   {
+    str_value.length(0);
     if (m_value->to_string(&str_value, true, item_name.ptr()))
       return set_field_to_null(field);        /* purecov: inspected */
     return save_str_value_in_field(field, &str_value);
@@ -9101,7 +9091,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args)
 bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == INSERT_VALUE_ITEM &&
-    ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+    (down_cast<const Item_insert_value *>(item))->arg->eq(arg, binary_cmp);
 }
 
 
@@ -9381,7 +9371,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     {
       Json_wrapper wr;
       if (item->val_json(&wr))
-        break;
+        return true;
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
@@ -9975,18 +9965,15 @@ bool Item_cache_json::cache_value()
   if (!example || !m_value)
     return false;
 
-  if (json_value(&example, 0, m_value))
-    return false;
-
+  value_cached= !json_value(&example, 0, m_value);
   null_value= example->null_value;
-  value_cached= true;
 
-  if (!null_value)
+  if (value_cached && !null_value)
   {
     m_value->to_dom(); // the row buffer might change, so need own copy
   }
 
-  return true;
+  return value_cached;
 }
 
 
@@ -10531,7 +10518,8 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   DBUG_PRINT("info:", ("in type %d len %d, dec %d",
                        get_real_type(item),
                        item->max_length, item->decimals));
-  fld_type= Field::field_type_merge(fld_type, get_real_type(item));
+  fld_type= real_type_to_type(Field::field_type_merge(fld_type,
+                                                      get_real_type(item)));
   {
     int item_decimals= item->decimals;
     /* fix variable decimals which always is NOT_FIXED_DEC */
@@ -10541,6 +10529,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
   }
   if (Field::result_merge_type(fld_type) == DECIMAL_RESULT)
   {
+    collation.set_numeric();
     decimals= min<int>(max(decimals, item->decimals), DECIMAL_MAX_SCALE);
     int item_int_part= item->decimal_int_part();
     int item_prec = max(prev_decimal_int_part, item_int_part) + decimals;
@@ -10707,12 +10696,13 @@ uint32 Item_type_holder::display_length(Item *item)
   of UNION result.
 
   @param table  temporary table for which we create fields
+  @param strict If strict mode is on
 
   @return
     created field
 */
 
-Field *Item_type_holder::make_field_by_type(TABLE *table)
+Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict)
 {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
@@ -10729,7 +10719,7 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                           enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(enum_set_typelib);
     field= new Field_set((uchar *) 0, max_length, null_ptr, 0,
@@ -10738,13 +10728,26 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          enum_set_typelib, collation.collation);
     if (field)
       field->init(table);
-    return field;
+    break;
   case MYSQL_TYPE_NULL:
-    return make_string_field(table);
+    field= make_string_field(table);
+    break;
   default:
+    field= tmp_table_field_from_field_type(table, 0);
     break;
   }
-  return tmp_table_field_from_field_type(table, 0);
+  if (strict &&
+      field && field->is_temporal_with_date() && !field->real_maybe_null())
+  {
+    /*
+      This function is used for CREATE SELECT UNION [ALL] ... , and, if
+      expression is non-nullable, the resulting column is declared
+      non-nullable with a default of 0. However, in strict mode, for dates,
+      0000-00-00 is invalid; in that case, don't give any default.
+    */
+    field->flags|= NO_DEFAULT_VALUE_FLAG;
+  }
+  return field;
 }
 
 
@@ -10978,4 +10981,26 @@ bool Item_ident::is_column_not_in_fd(uchar *arg)
 {
   Group_check *const gc= reinterpret_cast<Group_check *>(arg);
   return gc->do_ident_check(this, 0, Group_check::CHECK_COLUMN);
+}
+
+/**
+   The aim here is to find a real_item() which is of type Item_field.
+*/
+bool Item_ref::repoint_const_outer_ref(uchar *arg)
+{
+  *(pointer_cast<bool*>(arg))= true;
+  return false;
+}
+
+/**
+   If this object is the real_item of an Item_ref, repoint the result_field to
+   field.
+*/
+bool Item_field::repoint_const_outer_ref(uchar *arg)
+{
+  bool *is_outer_ref= pointer_cast<bool*>(arg);
+  if (*is_outer_ref)
+    result_field= field;
+  *is_outer_ref= false;
+  return false;
 }

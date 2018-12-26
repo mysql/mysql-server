@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,8 +193,8 @@ public:
 
   bool fix_fields(THD *, Item **ref);
   bool fix_func_arg(THD *, Item **arg);
-  void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select);
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
@@ -2718,6 +2718,9 @@ public:
   table_map get_initial_pseudo_tables() const;
   void update_used_tables();
 
+  virtual void fix_after_pullout(st_select_lex *parent_select,
+                                 st_select_lex *removed_select);
+
   void cleanup();
 
   const char *func_name() const;
@@ -2805,6 +2808,22 @@ public:
   }
 
   virtual void update_null_value();
+
+  /**
+    Ensure that deterministic functions are not evaluated in preparation phase
+    by returning false before tables are locked and true after they are locked.
+    (can_be_evaluated_now() handles this because a function has the
+    has_subquery() property).
+
+     @retval true if tables are locked for deterministic functions
+     @retval false Otherwise
+  */
+  bool const_item() const
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
 };
 
 

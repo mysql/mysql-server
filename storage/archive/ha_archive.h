@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -118,7 +118,9 @@ public:
                                   ulonglong *nb_reserved_values);
   uint max_supported_keys()          const { return 1; }
   uint max_supported_key_length()    const { return sizeof(ulonglong); }
-  uint max_supported_key_part_length() const { return sizeof(ulonglong); }
+  uint max_supported_key_part_length(HA_CREATE_INFO
+                    *create_info MY_ATTRIBUTE((unused))) const
+  { return sizeof(ulonglong); }
   virtual int records(ha_rows *num_rows)
   {
     *num_rows= share->rows_recorded;

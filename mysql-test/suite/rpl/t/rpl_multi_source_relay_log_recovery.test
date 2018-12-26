@@ -4,27 +4,25 @@
 # Problem:
 # ========
 # Enable MTS along with crash-safe replication tables. Make sure that the
-# server
-# is busily inserting data with multiple threads in parallel. Shutdown mysqld
-# uncleanly (kill -9 or power off server without notice).
+# server is busily inserting data with multiple threads in parallel. Shutdown
+# mysqld uncleanly (kill -9 or power off server without notice).
 #
 # Now users are restarting the server with --relay-log-recovery=1 to recover
-# the
-# crashed slave.
+# the crashed slave.
 #
 # This results in following error:
 # ================================
-# 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot
-# be executed when the slave was stopped with an error or
-# killed in MTS mode; consider using RESET SLAVE or restart
-# the server with --relay-log-recovery = 0 followed by
-# START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+# 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot be executed
+# when the slave was stopped with an error or killed in MTS mode; consideri
+# using RESET SLAVE or restart the server with --relay-log-recovery = 0
+# followed by # START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
 #
 # i.e relay-log-recovery will not work in MTS mode.
 ###############################################################################
 # Following test demonstrates that when gaps are generated due to MTS crash
 # but not due to an error then recovery should be successful with
 # --relay-log-recovery=1 option.
+#
 # In case of Multi source replication all channels will go through the relay
 # log recovery process and gaps will be filled.
 
@@ -66,7 +64,7 @@ SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
 --source extra/rpl_tests/rpl_multi_source_generate_mts_gap.test
 
 --echo #
---echo # Generate MTS gaps for channel2.
+--echo # Generate MTS gaps for channel3.
 --echo #
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc

@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -201,6 +201,14 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Warning: set address range perms: large range"),
  /* valgrind-3.5.0 dumps this */
  ("==[0-9]*== Command: "),
+ /* Messages from valgrind tools */
+ ("==[0-9]*== Callgrind"),
+ ("==[0-9]*== For interactive control, run 'callgrind_control -h'"),
+ ("==[0-9]*== Events    :"),
+ ("==[0-9]*== Collected : [0-9]+"),
+ ("==[0-9]*== I   refs:      [0-9]+"),
+ ("==[0-9]*== Massif"),
+ ("==[0-9]*== Helgrind"),
 
  /* valgrind warnings: invalid file descriptor -1 in syscall
     write()/read(). Bug #50414 */
@@ -252,6 +260,43 @@ INSERT INTO global_suppressions VALUES
    Warnings related to --secure-file-priv
  */
  ("Insecure configuration for --secure-file-priv:*"),
+
+ /*
+   Bug#26585560, warning related to --pid-file
+ */
+ ("Insecure configuration for --pid-file:*"),
+ ("Few location(s) are inaccessible while checking PID filepath"),
+
+ /*
+   On slow runs (valgrind) the message may be sent twice.
+  */
+ ("The member with address .* has already sent the stable set. Therefore discarding the second message."),
+
+ /*
+   We do have offline members on some Group Replication tests, XCom
+   will throw warnings when trying to connect to them.
+ */
+ ("Connection to socket .* failed with error .*.*"),
+ ("select - Timeout! Cancelling connection..."),
+ ("connect - Error connecting .*"),
+ ("\\[GCS\\] The member is already leaving or joining a group."),
+ ("\\[GCS\\] The member is leaving a group without being on one."),
+ ("\\[GCS\\] Processing new view on handler without a valid group configuration."),
+ ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
+ ("\\[GCS\\] Error pushing message into group communication engine."),
+ ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
+ ("\\[GCS\\] Automatically adding IPv4 localhost address to the whitelist. It is mandatory that it is added."),
+ ("Slave SQL for channel 'group_replication_recovery': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*"),
+ ("Member with address .* has become unreachable."),
+ ("This server is not able to reach a majority of members in the group.*"),
+ ("Member with address .* is reachable again."),
+ ("The member has resumed contact with a majority of the members in the group.*"),
+ ("Members removed from the group.*"),
+ /*
+   Missing Private/Public key files
+ */
+ ("RSA private key file not found"),
+ ("RSA public key file not found"),
 
  ("THE_LAST_SUPPRESSION")||
 

@@ -21,7 +21,15 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --error 0, 1
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 --error 0, 1
@@ -71,7 +79,15 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server 
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --exec echo "restart: --auto_generate_certs=0 --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -129,7 +145,15 @@ disconnect test_root_2;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --exec echo "restart:--auto_generate_certs --skip-sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -159,7 +183,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --file_exists $MYSQLTEST_VARDIR/mysqld.1/data/public_key.pem
 
 --echo # Ensure that server is ssl enabled
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
@@ -172,7 +196,15 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --exec echo "restart: --skip-ssl --skip-auto_generate_certs --sha256_password_auto_generate_rsa_keys" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -213,7 +245,15 @@ let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --send_shutdown
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --exec echo "restart:--auto_generate_certs=1 --sha256_password_auto_generate_rsa_keys=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -245,7 +285,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -268,7 +308,14 @@ disconnect test_root_4;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --send_shutdown
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
@@ -304,7 +351,7 @@ show variables like 'sha256%';
 
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
@@ -315,7 +362,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
@@ -339,7 +386,14 @@ disconnect test_root_6;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --send_shutdown
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
 
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
@@ -423,7 +477,14 @@ disconnect test_root_7;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --send_shutdown
 --source include/wait_until_disconnected.inc
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
 
 --exec echo "restart:--auto_generate_certs=ON --skip-sha256_password_auto_generate_rsa_keys --ssl-cipher=DHE-RSA-AES256-SHA" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect

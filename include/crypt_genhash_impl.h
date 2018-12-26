@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #define CRYPT_HASHGEN_IMPL_H
 #define	ROUNDS_DEFAULT	5000
 #define	ROUNDS_MIN	1000
-#define	ROUNDS_MAX	999999999
+#define	ROUNDS_MAX	ROUNDS_DEFAULT
 #define	MIXCHARS	32
 #define CRYPT_SALT_LENGTH  20
 #define CRYPT_MAGIC_LENGTH  3
@@ -27,6 +27,8 @@
                                  SHA256_HASH_LENGTH + \
                                  CRYPT_MAGIC_LENGTH + \
                                  CRYPT_PARAM_LENGTH)
+
+#define MAX_PLAINTEXT_LENGTH 256
 
 #include <stddef.h>
 #include <my_global.h>

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -176,6 +176,18 @@ buf_read_page_low(
 		dst = ((buf_block_t*) bpage)->frame;
 	}
 
+	/* This debug code is only for 5.7. In trunk, with newDD,
+	the space->name is no longer same as table name. */
+	DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+		fil_space_t*	space = fil_space_get(page_id.space());
+
+		if (space != NULL && strcmp(space->name, "test/t1") == 0
+		    && page_id.page_no() == space->size - 1) {
+			type = IORequest::READ;
+			sync = true;
+		}
+	);
+
 	IORequest	request(type | IORequest::READ);
 
 	*err = fil_io(
@@ -280,6 +292,22 @@ buf_read_ahead_random(
 	below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
 	do not try to read outside the bounds of the tablespace! */
 	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+
+#ifdef UNIV_DEBUG
+		if (srv_file_per_table) {
+			ulint	size = 0;
+
+			for (const fil_node_t*	node =
+				UT_LIST_GET_FIRST(space->chain);
+			     node != NULL;
+			     node = UT_LIST_GET_NEXT(chain, node)) {
+
+				size += os_file_get_size(node->handle)
+					/ page_size.physical();
+			}
+		}
+#endif /* UNIV_DEBUG */
+
 		if (high > space->size) {
 			high = space->size;
 		}
@@ -301,6 +329,19 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
+		/* This debug code is only for 5.7. In trunk, with newDD,
+		the space->name is no longer same as table name. */
+		DBUG_EXECUTE_IF("innodb_invalid_read_after_truncate",
+			fil_space_t*	space = fil_space_get(page_id.space());
+
+			if (space != NULL
+			    && strcmp(space->name, "test/t1") == 0) {
+				high = space->size;
+				buf_pool_mutex_exit(buf_pool);
+				goto read_ahead;
+			}
+		);
+
 		const buf_page_t*	bpage = buf_page_hash_get(
 			buf_pool, page_id_t(page_id.space(), i));
 

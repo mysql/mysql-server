@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -475,11 +475,20 @@ dict_mem_table_col_rename_low(
 		char*	col_names;
 
 		if (to_len > from_len) {
+			ulint table_size_before_rename_col
+				= mem_heap_get_size(table->heap);
 			col_names = static_cast<char*>(
 				mem_heap_alloc(
 					table->heap,
 					full_len + to_len - from_len));
-
+			ulint table_size_after_rename_col
+				= mem_heap_get_size(table->heap);
+			if (table_size_before_rename_col
+				!= table_size_after_rename_col) {
+				dict_sys->size +=
+					table_size_after_rename_col
+						- table_size_before_rename_col;
+			}
 			memcpy(col_names, t_col_names, prefix_len);
 		} else {
 			col_names = const_cast<char*>(t_col_names);
@@ -613,6 +622,7 @@ dict_mem_table_col_rename(
 	/* This could fail if the data dictionaries are out of sync.
 	Proceed with the renaming anyway. */
 	ut_ad(!strcmp(from, s));
+
 
 	dict_mem_table_col_rename_low(table, static_cast<unsigned>(nth_col),
 				      to, s, is_virtual);
@@ -832,7 +842,12 @@ dict_mem_fill_vcol_from_v_indexes(
 		index;
 		index = dict_table_get_next_index(index)) {
 
-		if (!dict_index_has_virtual(index)) {
+		/* Skip if the index have newly added
+		virtual column because field name is NULL.
+		Later virtual column set will be
+		refreshed during loading of table. */
+		if (!dict_index_has_virtual(index)
+		    || index->has_new_v_col) {
 			continue;
 		}
 
@@ -1008,6 +1023,7 @@ dict_mem_index_free(
 		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
+	dict_index_remove_from_v_col_list(index);
 	mem_heap_free(index->heap);
 }
 

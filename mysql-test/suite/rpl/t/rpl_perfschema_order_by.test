@@ -1,0 +1,43 @@
+# === Purpose ===
+#
+# This test verifies that ORDER BY on replication pfs tables returns
+# the correct data set.
+#
+# === Implementation ===
+#
+# 1) Setup a multi-source replication topology.
+# 2) With STS, execute DDLs on both the masters and use SQL ordering
+#    on PFS tables on slave.
+# 3) Repeat step 2 with Multi-threaded Slave.
+#
+# === References ===
+# Bug #22958077: ORDER BY LAST_SEEN_TRANSACTION RESULTS IN EMPTY SET (OR DEBUG
+#                ASSERTION)
+
+--let $rpl_topology= 3->2,1->2
+--let $rpl_multi_source= 1
+--let $rpl_skip_start_slave= 1
+--source include/rpl_init.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+
+--echo # Test for Single Threaded Slave
+SET GLOBAL slave_parallel_workers= 0;
+START SLAVE;
+--source extra/rpl_tests/rpl_perfschema_order_by.test
+
+--echo # Test for Multi Threaded Slave
+STOP SLAVE;
+SET GLOBAL slave_parallel_workers = 2;
+START SLAVE;
+--source extra/rpl_tests/rpl_perfschema_order_by.test
+
+#Cleanup
+STOP SLAVE;
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+START SLAVE;
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc

@@ -1,0 +1,85 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Bug#21225075 GROUP REPLICATION MAY CAUSE INCONSISTENCIES IF SERIALIZABLE IS ENABLED
+#
+[connection server1]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Transaction isolation level \\(tx_isolation\\) is set to SERIALIZABLE, which is not compatible with Group Replication");
+SET SESSION sql_log_bin= 1;
+
+## 1. Create table and insert some sample data to do some DML operations
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUE (1);
+CREATE TEMPORARY TABLE temp1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO temp1 VALUE (1);
+
+## 2. Change Isolation level to SERIALIZABLE.
+SET @tx_isolation_orig = @@session.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+
+## 3. DDLs are allowed irrespective of transaction isolation value
+CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+## 4. DMLs should be blocked if isolation level is SERIALIZABLE.
+INSERT INTO t1 VALUES (2);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1=c1+1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO temp1 VALUES (2);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE temp1 SET c1=c1+1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM temp1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+CREATE PROCEDURE dml_procedure()
+BEGIN
+INSERT INTO t1 VALUES (2);
+END |
+CREATE FUNCTION dml_function() RETURNS INTEGER MODIFIES SQL DATA
+BEGIN
+INSERT INTO t1 VALUES (2);
+RETURN 1;
+END|
+CALL dml_procedure();
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SELECT dml_function();
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+START TRANSACTION;
+SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+INSERT INTO t1 VALUES (2);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+COMMIT;
+include/assert.inc ['tx_isolation should be REPEATABLE-READ']
+START TRANSACTION;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+
+## 5. Isolation value change is effective only from the next transaction.
+##    So this insert should be allowed as the current transaction's
+##    isolation level is 'REPEATABLE-READ';
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+## 6. Cleaning up
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE temp1;
+DROP PROCEDURE dml_procedure;
+DROP FUNCTION dml_function;
+SET SESSION tx_isolation=@tx_isolation_orig;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+include/group_replication_end.inc

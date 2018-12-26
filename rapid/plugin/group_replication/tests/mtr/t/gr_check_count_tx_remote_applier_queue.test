@@ -1,0 +1,109 @@
+################################################################################
+# COUNT_TRANSACTIONS_REMOTE_IN_APPLIER_QUEUE is set to some garbage value when
+# group_replication_recovery_complete_at= "transactions_certified"
+#
+# Transactions received during recovery, when
+# group_replication_recovery_complete_at was set to "transactions_certified",
+# made counter go negative.
+#
+# Scenario:
+# 1.  This test requires 2 servers.
+# 2.  Prepare server1, creating some transactions for recovery.
+# 2A. Create table t1 on server1.
+# 2B. Bootstrap server1.
+# 2C. Insert some records on server1 so recovery runs.
+# 3.  Prepare server2, block server2 on recovery.
+# 3A. Create table t1 on server2.
+# 3B. Set recovery_complete_at=transactions_certified.
+# 3C. Lock table t1, so recovery does not finishes.
+#     (this gives time to create transactions on server1)
+# 3D. Start group replication on server2.
+# 4.  Create some transactions on server1 while server2 is in recovery.
+#     This transactions will be applied by server2 when out of recovery.
+# 5.  Unlock all server2 tables and let recovery finish.
+# 6.  Cleanup.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 2.  Prepare server1, creating some transactions for recovery.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# 2A. Create table t1 on server1.
+SET SESSION sql_log_bin=0;
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin=1;
+
+# 2B. Bootstrap server1.
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# 2C. Insert some records on server1 so recovery runs.
+INSERT INTO test.t1 VALUES (1);
+
+--echo
+--echo 3.  Prepare server2, block server2 on recovery.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @debug_group_replication_recovery_complete_at= @@GLOBAL.group_replication_recovery_complete_at;
+
+# 3A. Create table t1 on server2.
+SET SESSION sql_log_bin=0;
+CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin=1;
+
+# 3B. Set recovery_complete_at=transactions_certified.
+SET @@global.group_replication_recovery_complete_at= "transactions_certified";
+
+# 3C. Lock table t1, so recovery does not finishes.
+#     (this gives time to create transactions on server1)
+LOCK TABLE test.t1 READ;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+# 3D. Start group replication on server2.
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo # 4.  Create some transactions on server1 while server2 is in recovery.
+--echo #     This transactions will be applied by server2 when out of recovery.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+insert into test.t1 values(100);
+insert into test.t1 values(102);
+
+--echo
+--echo # 5.  Unlock all server2 tables and let recovery finish.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+unlock tables;
+
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo
+--echo # 6.  Cleanup.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_recovery_complete_at= @debug_group_replication_recovery_complete_at;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE test.t1;
+--source ../inc/group_replication_end.inc

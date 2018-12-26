@@ -130,7 +130,7 @@ int my_sync(File fd, myf my_flags)
     0 if ok, !=0 if error
 */
 
-#ifdef __linux
+#ifdef __linux__
 static const char cur_dir_name[]= {FN_CURLIB, 0};
 #endif
 

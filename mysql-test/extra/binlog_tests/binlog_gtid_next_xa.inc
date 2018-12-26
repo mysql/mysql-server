@@ -64,6 +64,7 @@ if (!$rpl_skip_log_bin)
   --source include/have_binlog_format_statement.inc
   # --log-bin ON specific error simulation
   call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
+  CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
 }
 --source include/not_gtid_enabled.inc
 

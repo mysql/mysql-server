@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,6 +21,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
+
+/* Deprecation warning text */
+extern const char PARTITION_IN_SHARED_TABLESPACE_WARNING[];
 
 /* "innodb_file_per_table" tablespace name  is reserved by InnoDB in order
 to explicitly create a file_per_table tablespace for the table. */
@@ -91,7 +94,7 @@ public:
 
 	uint max_supported_key_length() const;
 
-	uint max_supported_key_part_length() const;
+	uint max_supported_key_part_length(HA_CREATE_INFO *create_info) const;
 
 	const key_map* keys_to_use_for_scanning();
 
@@ -202,8 +205,10 @@ public:
 
 	void position(uchar *record);
 
+#ifdef WL6742
+	/* Removing WL6742 as part of Bug #23046302 */
 	virtual int records(ha_rows* num_rows);
-
+#endif
 	ha_rows records_in_range(
 		uint			inx,
 		key_range*		min_key,
@@ -668,6 +673,18 @@ const HA_CREATE_INFO*	create_info)
 				reserved_system_space_name)));
 }
 
+/** Check if tablespace is shared tablespace.
+@param[in]      tablespace_name Name of the tablespace
+@return true if tablespace is a shared tablespace. */
+UNIV_INLINE
+bool is_shared_tablespace(const char *tablespace_name) {
+  if (tablespace_name != NULL && tablespace_name[0] != '\0' &&
+      (strcmp(tablespace_name, reserved_file_per_table_space_name) != 0)) {
+    return true;
+  }
+  return false;
+}
+
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
 @param[in]	thd		Connection thread
@@ -1085,3 +1102,4 @@ innobase_build_v_templ_callback(
 /** Callback function definition, used by MySQL server layer to initialized
 the table virtual columns' template */
 typedef void (*my_gcolumn_templatecallback_t)(const TABLE*, void*);
+

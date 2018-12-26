@@ -1,0 +1,42 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave_sql.inc
+[connection master]
+FLUSH LOGS;
+FLUSH LOGS;
+INSERT INTO t1 (c1) VALUES (2);
+include/sync_slave_io_with_master.inc
+call mtr.add_suppression("File '.*slave-relay-bin.");
+call mtr.add_suppression("Could not open log file");
+call mtr.add_suppression("Failed to open the relay log");
+call mtr.add_suppression("Slave failed to initialize relay log info structure");
+call mtr.add_suppression("Could not find target log file mentioned in relay log info in the index file");
+call mtr.add_suppression("Failed to initialize the relay-log-info structure");
+call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("Failed to create or recover replication info repositories");
+include/rpl_stop_server.inc [server_number=2]
+# Removing  file(s)
+include/rpl_start_server.inc [server_number=2]
+START SLAVE;
+ERROR HY000: Slave failed to initialize relay log info structure from the repository
+START SLAVE;
+ERROR HY000: Slave failed to initialize relay log info structure from the repository
+RESET SLAVE;
+RESET MASTER;
+DROP TABLE t1;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

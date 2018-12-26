@@ -1,0 +1,83 @@
+###########################################################################
+# Bug#25695434 MEMORY LEAK IN MULTI-SOURCE REPLICATION WHEN
+#              BINLOG_ROWS_QUERY_LOG_EVENTS=1
+#
+# Problem: In multi source replication, Slave SQL Thread leaks memory
+#          when replicating using two channels from master-master pair
+#          when binlog_rows_query_log_events is enabled.
+#
+# Steps to reproduce:
+#
+# 1) Create a gtid enabled master-slave topology.
+# 2) On master, Set binlog_rows_query_log_events=on
+# 3) Create a sample table on master.
+#
+# 4) Switch to slave and change the slave gtid_next to master_uuid and
+#    execute two empty transactions on slave so that the next two events
+#    from master are skipped on slave.
+#
+# 5) Connect to master, insert two rows and wait till slave is in sync with
+#    master.
+#
+# 6) Cleanup.
+#
+###########################################################################
+
+# This test requires GTIDs to be enabled.
+--source include/have_gtid.inc
+# This test requires the binlog format to be of 'row' type.
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Step 1) Create a basic master-slave topology.
+--echo #
+--source include/master-slave.inc
+--let $master_uuid=`SELECT @@SERVER_UUID`
+
+--echo #
+--echo # Step 2) On master and slave, Set binlog_rows_query_log_events=on
+--echo #
+SET @master_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+--source include/rpl_connection_slave.inc
+SET @slave_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+--source include/rpl_connection_master.inc
+--echo #
+--echo # Step 3) Create a sample table on master.
+--echo #
+CREATE TABLE t1(i INT);
+
+--echo #
+--echo # Step 4) Switch to slave and change the slave gtid_next to master_uuid
+--echo #         and execute two empty transactions so that the next two events
+--echo #         from master are skipped on slave.
+--echo #
+--source include/sync_slave_sql_with_master.inc
+--replace_result $master_uuid MASTER_UUID
+--eval SET GTID_NEXT='$master_uuid:2'
+BEGIN;
+COMMIT;
+--replace_result $master_uuid MASTER_UUID
+--eval SET GTID_NEXT='$master_uuid:3'
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+
+--echo #
+--echo # Step 5) Connect to master, insert two rows and wait till slave is in
+--echo #         sync with master.
+--echo #
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Step 6) Cleanup
+--echo #
+SET @@session.binlog_rows_query_log_events= @slave_binlog_rows_query_log_events;
+--source include/rpl_connection_master.inc
+SET @@session.binlog_rows_query_log_events= @master_binlog_rows_query_log_events;
+DROP TABLE t1;
+--source include/rpl_end.inc

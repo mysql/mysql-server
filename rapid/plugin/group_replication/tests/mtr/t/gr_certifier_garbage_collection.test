@@ -1,0 +1,221 @@
+################################################################################
+# WL#6833: GCS Replication: Read-set free Certification
+#          Module (DBSM Snapshot Isolation)
+#
+# Scenario 4: Check that certifier garbage collector don't remove needed
+#             certification info to detect conflicting transactions.
+#
+# Verify Group Replication certifier garbage collection behavior when we have a
+# slow applying member, that is, server 2 certifies transactions but is unable
+# to apply remote transactions.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Both members are ONLINE. Execute two transactions on M1 and wait until they
+#    are applied on all group members.
+# 2. Stop M2 group replication applier so that certified remote transactions not
+#    applied. This will mimic a slow server.
+# 3. Commit a transaction(T1) on M1, that will be certified on both members but
+#    only applied on M1
+# 4. Wait until M2 receives and certifies T1.
+# 5. Wait for stable set propagation and certification info garbage collection.
+#    After garbage collection certification info will contain:
+#    WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+#    WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+# 6. Execute the same statement of T1 in M2, now named T2. It must be aborted
+#    since it conflicts with T1, despite it is not yet applied on M2.
+#    Snapshot of T2 is: 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+# 7. Start M2 group replication applier so that certified remote transactions
+#    are applied. Wait until all group transactions are applied.
+# 8. Execute a transaction on M2 to verify that everything is OK.
+# 9. Check that GTID_EXECUTED on M1 contains all transactions. Also check that
+#    data is on tables.
+# 10. Check that GTID_EXECUTED on M2 contains all transactions. Also check that
+#     data is on tables.
+# 11. Clean up.
+################################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_gtid_assignment_block_size_1.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9422222
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+# Keep binary logs with only GTIDs from test.
+--connection server1
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+--connection server2
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo #  1. Execute two transactions on server 1 and wait until
+--echo #     they are applied on all group members.
+--connection server1
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo #  2. Stop server 2 group replication applier so that
+--echo #     certified remote transactions are not applied.
+--echo #     This will mimic a slow server.
+--connection server2
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo
+--echo ############################################################
+--echo #  3. Commit a transaction (T1) on server 1, that will be
+--echo #     certified on both members but only applied on server 1.
+--connection server1
+
+--let $assert_text= GTID_EXECUTED must contain first two transactions plus the view changes
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-4")
+--source include/assert.inc
+
+UPDATE t1 SET c1=2 WHERE c1=1;
+
+
+--echo
+--echo ############################################################
+--echo #  4. Wait until server 2 receives and certifies T1.
+--connection server2
+
+--let $wait_condition= SELECT Last_Conflict_Free_Transaction = '8a94f357-aab4-11df-86ab-c80aa9422222:5' from performance_schema.replication_group_member_stats
+--source include/wait_condition.inc
+
+--echo
+--echo ############################################################
+--echo #  5. Wait for stable set propagation and certification info
+--echo #     garbage collection.
+--echo #     After garbage collection certification info will contain:
+--echo #     WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+--echo #     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+--connection server1
+--let $wait_timeout= 65
+--let $wait_condition= SELECT Transactions_committed_all_members<>"" FROM performance_schema.replication_group_member_stats
+--source include/wait_condition.inc
+
+--connection server1
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $assert_text= 'Count_transactions_rows_validating must be 4'
+--let $assert_cond= $count_transactions_validating = 4
+--source include/assert.inc
+
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $assert_text= 'Transactions_committed_all_members must be equal to $group_replication_group_name:1-4'
+--let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", "$group_replication_group_name:1-4")
+--source include/assert.inc
+
+--connection server2
+--let $count_transactions_validating= query_get_value(SELECT Count_transactions_rows_validating from performance_schema.replication_group_member_stats, Count_transactions_rows_validating, 1)
+--let $assert_text= 'Count_transactions_rows_validating must be 4'
+--let $assert_cond= $count_transactions_validating = 4
+--source include/assert.inc
+
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $assert_text= 'Transactions_committed_all_members must be equal to $group_replication_group_name:1-4'
+--let $assert_cond= GTID_IS_EQUAL("$transactions_committed_all_members", "$group_replication_group_name:1-4")
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  6. Execute the same statement of T1 in server 2, now named T2.
+--echo #     It must be aborted since it conflicts with T1, despite
+--echo #     it is not yet applied on server 2. Snapshot of T2 is
+--echo #     8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+--connection server2
+
+--let $assert_text= GTID_EXECUTED must contain first two transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-4")
+--source include/assert.inc
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+UPDATE t1 SET c1=2 WHERE c1=1;
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+--let $assert_text= 'There is no value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo #  7. Start server 2 group replication applier so that
+--echo #     certified remote transactions are applied.
+--echo #     Wait until all group transactions are applied.
+--connection server2
+
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ############################################################
+--echo #  8. Execute a transaction on server 2 to verify that
+--echo #     everything is OK.
+--connection server2
+
+--let $assert_text= GTID_EXECUTED must contain all group transactions
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-5")
+--source include/assert.inc
+
+UPDATE t1 SET c1=3 WHERE c1=2;
+
+--source include/rpl_sync.inc
+
+
+--echo ############################################################
+--echo #  9. Check that GTID_EXECUTED on server 1 contains all
+--echo #     transactions.
+--echo #     Also check that data is on tables.
+--connection server1
+
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-6")
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 3 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo #  10. Check that GTID_EXECUTED on server 2 contains all
+--echo #     transactions.
+--echo #     Also check that data is on tables.
+--connection server2
+
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$group_replication_group_name:1-6")
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 3 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Clean up.
+DROP TABLE t1;
+
+--connection server1
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+--connection server2
+SET SESSION sql_log_bin= 0;
+--source include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+
+--source ../inc/group_replication_end.inc

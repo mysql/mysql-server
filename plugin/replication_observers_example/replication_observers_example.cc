@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,9 @@ int validate_plugin_server_requirements(Trans_param *param);
 int test_channel_service_interface_initialization();
 int test_channel_service_interface();
 int test_channel_service_interface_io_thread();
+bool test_channel_service_interface_is_io_stopping();
+bool test_channel_service_interface_is_sql_stopping();
+bool test_channel_service_interface_relay_log_renamed();
 
 /*
   Will register the number of calls to each method of Server state
@@ -204,6 +207,12 @@ int trans_before_dml(Trans_param *param, int& out_val)
                   test_channel_service_interface_io_thread(););
   DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_channels_init",
                   test_channel_service_interface_initialization(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_is_io_stopping",
+                  test_channel_service_interface_is_io_stopping(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_is_sql_stopping",
+                  test_channel_service_interface_is_sql_stopping(););
+  DBUG_EXECUTE_IF("validate_replication_observers_plugin_server_relay_log_renamed",
+                  test_channel_service_interface_relay_log_renamed(););
   return 0;
 }
 
@@ -336,6 +345,7 @@ Trans_observer trans_observer = {
 */
 static int binlog_relay_thread_start_call= 0;
 static int binlog_relay_thread_stop_call= 0;
+static int binlog_relay_applier_start_call= 0;
 static int binlog_relay_applier_stop_call= 0;
 static int binlog_relay_before_request_transmit_call= 0;
 static int binlog_relay_after_read_event_call= 0;
@@ -356,6 +366,13 @@ static void dump_binlog_relay_calls()
     my_plugin_log_message(&plugin_info_ptr,
                           MY_INFORMATION_LEVEL,
                           "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
+  }
+
+  if (binlog_relay_applier_start_call)
+  {
+    my_plugin_log_message(&plugin_info_ptr,
+                          MY_INFORMATION_LEVEL,
+                          "\nreplication_observers_example_plugin:binlog_relay_applier_start");
   }
 
   if (binlog_relay_applier_stop_call)
@@ -408,6 +425,12 @@ int binlog_relay_thread_stop(Binlog_relay_IO_param *param)
   return 0;
 }
 
+int binlog_relay_applier_start(Binlog_relay_IO_param *param)
+{
+  binlog_relay_applier_start_call++;
+  return 0;
+}
+
 int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
                               bool aborted)
 {
@@ -455,6 +478,7 @@ Binlog_relay_IO_observer relay_io_observer = {
 
   binlog_relay_thread_start,
   binlog_relay_thread_stop,
+  binlog_relay_applier_start,
   binlog_relay_applier_stop,
   binlog_relay_before_request_transmit,
   binlog_relay_after_read_event,
@@ -482,7 +506,8 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   Gtid gtid= { fake_sidno, fake_gno };
   Gtid_specification gtid_spec= { GTID_GROUP, gtid };
-  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, 0, 1, gtid_spec);
+  Gtid_log_event *gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, true, gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -498,7 +523,8 @@ int validate_plugin_server_requirements(Trans_param *param)
     Instantiate a anonymous Gtid_log_event without a THD parameter.
   */
   Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
-  gle= new Gtid_log_event(param->server_id, true, 0, 1, anonymous_gtid_spec);
+  gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, true, anonymous_gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -564,7 +590,12 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   char *hostname, *uuid;
   uint port;
-  get_server_host_port_uuid(&hostname, &port, &uuid);
+  unsigned int server_version;
+  st_server_ssl_variables server_ssl_variables=
+      {false,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
+
+  get_server_parameters(&hostname, &port, &uuid, &server_version,
+                        &server_ssl_variables);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);
@@ -694,6 +725,11 @@ int test_channel_service_interface()
                         3,
                         10000);
     DBUG_ASSERT(!error);
+    //Repeat the stop to check it goes ok
+    error= channel_stop(interface_channel,
+                        3,
+                        10000);
+    DBUG_ASSERT(!error);
 
     DBUG_ASSERT(binlog_relay_applier_stop_call>0);
     DBUG_ASSERT(!thread_aborted);
@@ -812,6 +848,216 @@ int test_channel_service_interface_io_thread()
   DBUG_ASSERT(!running);
 
   return (error && exists && running && num_threads && is_waiting);
+}
+
+bool test_channel_service_interface_is_io_stopping()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  //Initialize the channel to be used with the channel service interface
+  char interface_channel[]= "example_channel";
+  Channel_creation_info info;
+  initialize_channel_creation_info(&info);
+  error= channel_create(interface_channel, &info);
+  DBUG_ASSERT(!error);
+
+  //Reset the I/O stop counter
+  binlog_relay_thread_stop_call= 0;
+
+  //Unregister the thread stop hook
+  error= unregister_binlog_relay_io_observer(&relay_io_observer,
+                                             (void *)plugin_info_ptr);
+  DBUG_ASSERT(!error);
+
+  //Start the I/O thread
+  Channel_connection_info connection_info;
+  initialize_channel_connection_info(&connection_info);
+  error= channel_start(interface_channel,
+                       &connection_info,
+                       CHANNEL_RECEIVER_THREAD,
+                       true);
+  DBUG_ASSERT(!error);
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Wait until I/O thread reached the error and is going to stop
+  DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
+                  {
+                    const char act[]= "now "
+                                      "WAIT_FOR reached_stopping_io_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  //Register the thread stop hook again
+  error= register_binlog_relay_io_observer(&relay_io_observer,
+                                           (void *)plugin_info_ptr);
+  DBUG_ASSERT(!error);
+
+  //Assert that the receiver is stopping
+  bool io_stopping= channel_is_stopping(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(io_stopping);
+
+  //Assert that the receiver is running
+  bool io_running= channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
+  DBUG_ASSERT(io_running);
+
+  //Signal to make the MTR test case to start monitoring the I/O thread
+  DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
+                  {
+                    const char act[]= "now "
+                                      "SIGNAL reached_io_thread_started";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook",
+                  {
+                    const char act[]= "now SIGNAL continue_to_stop_io_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  // The plug-in has missed the stop
+  DBUG_ASSERT(binlog_relay_thread_stop_call==0);
+
+  return (error | exists | io_stopping | io_running);
+}
+
+bool test_channel_service_interface_is_sql_stopping()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  //Initialize the channel to be used with the channel service interface
+  char interface_channel[]= "example_channel";
+  Channel_creation_info info;
+  initialize_channel_creation_info(&info);
+  error= channel_create(interface_channel, &info);
+  DBUG_ASSERT(!error);
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Unregister the thread stop hook
+  error= unregister_binlog_relay_io_observer(&relay_io_observer,
+                                             (void *)plugin_info_ptr);
+  DBUG_ASSERT(!error);
+
+  //Start the I/O thread
+  Channel_connection_info connection_info;
+  initialize_channel_connection_info(&connection_info);
+  error= channel_start(interface_channel,
+                       &connection_info,
+                       CHANNEL_RECEIVER_THREAD,
+                       true);
+  DBUG_ASSERT(!error);
+
+  //Start the SQL thread
+  error= channel_start(interface_channel,
+                       &connection_info,
+                       CHANNEL_APPLIER_THREAD,
+                       true);
+  DBUG_ASSERT(!error);
+
+  //Wait until SQL thread reached the error and is going to stop
+  DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook",
+                  {
+                    const char act[]= "now "
+                                      "WAIT_FOR reached_stopping_sql_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  //Register the thread stop hook again
+  error= register_binlog_relay_io_observer(&relay_io_observer,
+                                           (void *)plugin_info_ptr);
+  DBUG_ASSERT(!error);
+
+  //Assert that the applier is stopping
+  bool sql_stopping= channel_is_stopping(interface_channel, CHANNEL_APPLIER_THREAD);
+  DBUG_ASSERT(sql_stopping);
+
+  //Assert that the applier is running
+  bool sql_running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
+  DBUG_ASSERT(sql_running);
+
+  //Signal to make the MTR test case to start monitoring the SQL thread
+  DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook",
+                  {
+                    const char act[]= "now "
+                                      "SIGNAL reached_sql_thread_started";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook",
+                  {
+                    const char act[]= "now SIGNAL continue_to_stop_sql_thread";
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  //The plug-in has missed the stop
+  DBUG_ASSERT(binlog_relay_applier_stop_call==0);
+
+  return (error | exists | sql_stopping | sql_running);
+}
+
+bool test_channel_service_interface_relay_log_renamed()
+{
+  //The initialization method should return OK
+  int error= initialize_channel_service_interface();
+  DBUG_ASSERT(!error);
+
+  //Initialize the channel to be used with the channel service interface
+  char interface_channel[]= "example_channel";
+  char channel_hostname[]= "127.0.0.1";
+  char channel_user[]= "root";
+  Channel_creation_info info;
+  initialize_channel_creation_info(&info);
+  info.preserve_relay_logs= true;
+  info.hostname= channel_hostname;
+  info.user= channel_user;
+  error= channel_create(interface_channel, &info);
+  DBUG_ASSERT(!error);
+
+  //Assert the channel exists
+  bool exists= channel_is_active(interface_channel, CHANNEL_NO_THD);
+  DBUG_ASSERT(exists);
+
+  //Start the SQL thread
+  Channel_connection_info connection_info;
+  initialize_channel_connection_info(&connection_info);
+  error= channel_start(interface_channel,
+                       &connection_info,
+                       CHANNEL_APPLIER_THREAD,
+                       true);
+
+  if (error)
+  {
+    THD *thd= current_thd;
+    thd->clear_error();
+#if !defined(DBUG_OFF)
+    const char act[]= "now SIGNAL reached_sql_thread_startup_failed";
+    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+#endif
+  }
+  else
+  {
+#if !defined(DBUG_OFF)
+    const char act[]= "now SIGNAL reached_sql_thread_started";
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+#endif
+  }
+
+  return (error | exists);
 }
 
 /*

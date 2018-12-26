@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,9 @@
   
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
+    <Property Id="MYSQL_INSTALLER" Secure="yes" /> 
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="Disable"/>
+
     <!-- Upgrade -->
     <Upgrade Id="@UPGRADE_ID@">
       <?if '@PATCH_VERSION@' != '0'?>
@@ -64,6 +67,34 @@
       <RemoveExistingProducts After="InstallInitialize"/>
     </InstallExecuteSequence>
 
+    <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" ?>
+      <?if "@Platform@"="x64"?>
+        <Property Id="VS12REDISTX64">
+          <RegistrySearch Id="FindRedistVS12"
+              Win64="no"
+              Root="HKLM"
+              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x64"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2013 x64 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS12REDISTX64
+        </Condition>
+      <?elseif "@Platform@"="x86" ?>
+        <Property Id="VS12REDISTX86">
+          <RegistrySearch Id="FindRedistVS12"
+              Win64="no"
+              Root="HKLM"
+              Key="SOFTWARE\Microsoft\VisualStudio\12.0\VC\Runtimes\x86"
+              Name="Version"
+              Type="raw" />
+        </Property>
+        <Condition Message="This application requires Visual Studio 2013 x86 Redistributable. Please install the Redistributable then run this installer again.">
+          Installed OR VS12REDISTX86
+        </Condition>
+      <?endif?>
+    <?endif?> 
+ 
     <!-- Save/restore install location -->
     <CustomAction Id="SaveTargetDir" Property="ARPINSTALLLOCATION" Value="[INSTALLDIR]" />
     <InstallExecuteSequence>
@@ -109,6 +140,13 @@
     <InstallUISequence>
     <Custom Action="SetInstallDir2" After="AppSearch">INSTALLDIR2</Custom> 
     </InstallUISequence>
+    
+    <Property Id="QtRemoveService" Value="&quot;cmd.exe&quot; /S /V:ON /C &quot;echo off &amp; for /F &quot;tokens=*&quot; %i in ('sc query ^| FIND &quot;SERVICE_NAME:&quot;') do (set j=%i &amp; set j=!j:~14! &amp; sc qc !j! | FIND &quot;C:\Program Files\MySQL\MySQL Server 5.7\bin\&quot; >NUL &amp; IF errorlevel 0 IF NOT errorlevel 1 (sc stop !j! > NUL &amp; ( for /L %k IN (1,1,20) do (sc query !j! | FIND &quot;STATE&quot; | FIND &quot;STOPPED&quot; >NUL &amp; (IF errorlevel 0 IF errorlevel 1 timeout /t 5 /nobreak >NUL)) )&amp; sc delete !j!  ) ) &quot;"/>
+    <CustomAction Id="QtRemoveService" BinaryKey="WixCA" DllEntry="CAQuietExec"
+            Execute="deferred" Return="check" Impersonate="no"/>
+    <InstallExecuteSequence>
+      <Custom Action="QtRemoveService" After="InstallInitialize">(NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL") AND (NOT MYSQL_INSTALLER="YES")</Custom>
+    </InstallExecuteSequence>
 
 
     <!-- UI -->
@@ -135,38 +173,6 @@
     <WixVariable
       Id="WixUILicenseRtf"
       Value="@COPYING_RTF@"/>
-
-    <!-- How to remove the service on uninstall -->
-    <Binary Id='wixca.dll' SourceFile='@WIXCA_LOCATION@' />
-    <CustomAction Id="UnregisterProperty" Property="UnregisterService" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="RunPostInstallProperty" Property="RunPostInstall" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="UnregisterPropertySilent" Property="UnregisterServiceSilently" Value="[INSTALLDIR]" Return="check" />
-    <CustomAction Id="UnregisterService"
-                  BinaryKey="wixca.dll"
-                  DllEntry="RemoveService"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="check" />
-    <CustomAction Id="UnregisterServiceSilently"
-                  BinaryKey="wixca.dll"
-                  DllEntry="RemoveServiceNoninteractive"
-                  Execute="deferred"
-                  Impersonate="no"
-                  Return="check" />
-    <CustomAction Id="RunPostInstall" 
-                  BinaryKey="wixca.dll"
-                  DllEntry="RunPostInstall" 
-                  Execute="deferred" 
-                  Impersonate="no" 
-                  Return="asyncWait" />
-    <InstallExecuteSequence>
-      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
-      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL"</Custom>
-      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&gt;4</Custom>
-      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And REMOVE="ALL" And UILevel&lt;=4</Custom>
-      <Custom Action="RunPostInstallProperty" After="InstallFiles">NOT(REMOVE="ALL")</Custom>
-      <Custom Action="RunPostInstall" After="RunPostInstallProperty">NOT(REMOVE="ALL")</Custom>
-    </InstallExecuteSequence>
 
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>

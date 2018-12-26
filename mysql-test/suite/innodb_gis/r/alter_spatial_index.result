@@ -105,7 +105,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2 ASC) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
 ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
-ERROR 22004: Invalid use of NULL value
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;

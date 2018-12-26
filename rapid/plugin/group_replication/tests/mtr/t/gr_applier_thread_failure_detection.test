@@ -1,0 +1,96 @@
+# This test evaluates that group replication can detect SQL thread failures of
+# its applier channel, even when the thread is restarted
+#
+# The test guide is:
+# 0. A two member group with started plugins
+# 1. Create a table t1 on server 1 and replicate
+#    Also insert a value in the table without logging to the binlog
+# 2. Restart the applier SQL thread in server 1.
+# 3. Insert a value on server 2 that will clash with data on server1
+# 4. Check that server1 applier fails and the plugin goes to error mode.
+# 5. Remove the value, restart the plugin and do a cleanup
+#
+
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # 1. Create a table on server 1 and replicate
+--echo # Also add a value in the table without logging to the binlog
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+SET SESSION sql_log_bin= 0;
+INSERT INTO t1 VALUES (1);
+SET SESSION sql_log_bin= 1;
+
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 2. Restart the applier SQL thread in server 1.
+--echo #
+
+--source ../inc/gr_stop_applier_sql_thread.inc
+--source ../inc/gr_start_applier_sql_thread.inc
+
+--echo #
+--echo # 3. Insert a value on server 2 that will clash with data on server1
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);  # Duplicate entry
+
+--echo #
+--echo # 4. Check that server1 applier fails and the plugin goes to error mode.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--echo # Expect ERROR state.
+--let $group_replication_member_state= ERROR
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $group_replication_number_of_members= 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo # Wait for one member on server 2
+--let $group_replication_number_of_members= 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo #
+--echo # 5. Remove the value, restart the plugin and do a cleanup
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+SET SESSION sql_log_bin= 0;
+DELETE FROM t1 WHERE a=1;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+DROP TABLE t1;
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.t1*.*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped,.*");
+SET SESSION sql_log_bin= 1;
+
+--source ../inc/group_replication_end.inc

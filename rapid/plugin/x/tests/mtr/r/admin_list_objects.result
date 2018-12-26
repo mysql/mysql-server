@@ -146,9 +146,11 @@ mytable	TABLE
 mytable2	TABLE
 myview	VIEW
 command ok
+RUN ALTER TABLE xtest.books ADD COLUMN (nothing INT)
 
 0 rows affected
 Records: 0  Duplicates: 0  Warnings: 0
+RUN show columns from xtest.books
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
 _id	varchar(32)	NO	PRI	null	STORED GENERATED

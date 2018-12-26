@@ -381,13 +381,13 @@ drop table t1;
 #
 --source include/shutdown_mysqld.inc
 --echo "try starting server with temp-tablespace size < min. threshold"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile1
 let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo "try starting server with sys-tablespace size < min. threshold"
---error 1
+--error 1,42
 --exec $MYSQLD_CMD $sizeoftempfile2
 let SEARCH_PATTERN = Tablespace size must be at least;
 --source ./include/search_pattern_in_file.inc

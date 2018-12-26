@@ -472,6 +472,7 @@ select master_pos_wait();
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
 select master_pos_wait(1);
 ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
+select master_pos_wait('master-bin.999999', 4, -1);
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
 select round(1, 2, 3);
@@ -731,6 +732,8 @@ SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 PROCEDURE ANALYSE() FOR UPDATE;
 Field_name	Min_value	Max_value	Min_length	Max_length	Empties_or_zeros	Nulls	Avg_value_or_avg_length	Std	Optimal_fieldtype
 1	1	1	1	1	0	0	1.0000	0.0000	ENUM('1') NOT NULL
+Warnings:
+Warning	1681	'PROCEDURE ANALYSE' is deprecated and will be removed in a future release.
 SELECT 1 FROM
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 FOR UPDATE) a;
@@ -1216,3 +1219,23 @@ LOCK=EXCLUSIVE, WITHOUT VALIDATION, ALGORITHM=INPLACE;
 ERROR HY000: Incorrect usage of ALTER and WITH VALIDATION
 DROP TABLE t1;
 #
+# WL#8662: Deprecate "Delphi style" column and table syntax
+#
+CREATE TABLE t1 (.i INT);
+Warnings:
+Warning	1287	'.<column>' is deprecated and will be removed in a future release. Please use the column name without a dot prefix instead
+CREATE TABLE .t2 (i INT);
+Warnings:
+Warning	1287	'.<table>' is deprecated and will be removed in a future release. Please use the table name without a dot prefix instead
+SELECT .t1.i FROM t1;
+i
+Warnings:
+Warning	1287	'.<table>.<column>' is deprecated and will be removed in a future release. Please use the table.column name without a dot prefix instead
+DROP TABLE t1, t2;
+#
+
+Bug #27714748: @@PARSER_MAX_MEM_SIZE DOES NOT WORK FOR ROUTINES
+
+SET parser_max_mem_size = 10000000;
+ERROR HY000: Memory capacity of 10000000 bytes for 'parser_max_mem_size' exceeded. Parser bailed out for this query.
+SET parser_max_mem_size = default;

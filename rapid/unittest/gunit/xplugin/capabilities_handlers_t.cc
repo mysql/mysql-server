@@ -22,7 +22,7 @@
 #include "ngs/capabilities/handler_auth_mech.h"
 #include "mock/session.h"
 #include "mock/capabilities.h"
-#include "mock/connection.h"
+#include "mock/ngs_general.h"
 
 
 namespace ngs
@@ -57,18 +57,28 @@ public:
   }
 
   StrictMock<Mock_connection>        mock_connection;
-  boost::shared_ptr<Mock_options_session>    mock_options;
+  ngs::shared_ptr<Mock_options_session>    mock_options;
   StrictMock<xpl::test::Mock_client> mock_client;
 
   Capability_tls                     sut;
 };
 
 
-TEST_F(CapabilityHanderTlsTestSuite, isSupported_returnsCurrentConnectionOption_always)
+TEST_F(CapabilityHanderTlsTestSuite, isSupported_returnsCurrentConnectionOption_on_supported_connection_type)
 {
   EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true)).WillOnce(Return(false));
+  EXPECT_CALL(mock_connection, connection_type()).WillOnce(Return(Connection_tcpip)).WillOnce(Return(Connection_tcpip));
 
   ASSERT_TRUE(sut.is_supported());
+  ASSERT_FALSE(sut.is_supported());
+}
+
+TEST_F(CapabilityHanderTlsTestSuite, isSupported_returnsFailure_on_unsupported_connection_type)
+{
+  EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true)).WillOnce(Return(false));
+  EXPECT_CALL(mock_connection, connection_type()).WillOnce(Return(Connection_namedpipe)).WillOnce(Return(Connection_namedpipe));
+
+  ASSERT_FALSE(sut.is_supported());
   ASSERT_FALSE(sut.is_supported());
 }
 
@@ -173,20 +183,31 @@ public:
 };
 
 
-TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAndTlsSupported)
+TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAndTlsSupportedOnTcpip)
 {
   Set_params s = GetParam();
 
   EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
   EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true));
+  EXPECT_CALL(mock_connection, connection_type()).WillOnce(Return(Connection_tcpip));
 
   ASSERT_TRUE(sut.set(s.m_any));
 
-  EXPECT_CALL(mock_client, activate_tls());
+  EXPECT_CALL(mock_client, activate_tls_void());
 
   sut.commit();
 }
 
+TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_failure_forValidParametersAndTlsSupportedOnNamedPipe)
+{
+  Set_params s = GetParam();
+
+  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
+  EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true));
+  EXPECT_CALL(mock_connection, connection_type()).WillOnce(Return(Connection_namedpipe));
+
+  ASSERT_FALSE(sut.set(s.m_any));
+}
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_failure_forValidParametersAndTlsIsntSupported)
 {
@@ -194,6 +215,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_failure_forValidParametersAnd
 
   EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
   EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(false));
+  EXPECT_CALL(mock_connection, connection_type()).WillOnce(Return(Connection_tcpip));
 
   ASSERT_FALSE(sut.set(s.m_any));
 }
@@ -248,13 +270,13 @@ public:
   CapabilityHanderAuthMechTestSuite()
   : sut(mock_client)
   {
-    mock_server = boost::make_shared< StrictMock<Mock_server> >();
+    mock_server = ngs::make_shared< StrictMock<Mock_server> >();
 
     EXPECT_CALL(mock_client, connection()).WillRepeatedly(ReturnRef(mock_connection));
-    EXPECT_CALL(mock_client, server()).WillRepeatedly(Return(mock_server.get()));
+    EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  boost::shared_ptr<StrictMock<Mock_server> > mock_server;
+  ngs::shared_ptr<StrictMock<Mock_server> > mock_server;
 
   StrictMock<Mock_connection>        mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;
@@ -295,7 +317,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive)
   Any any;
 
   //EXPECT_CALL(mock_connection, is_option_set(Connection::Option_active_tls)).WillOnce(Return(true));
-  EXPECT_CALL(*mock_server, get_authentication_mechanisms(_, Ref(mock_client))).WillOnce(SetArgReferee<0>(names));
+  EXPECT_CALL(*mock_server, get_authentication_mechanisms_void(_, Ref(mock_client))).WillOnce(DoAll(SetArgReferee<0>(names),Return(true)));
 
   sut.get(any);
 
@@ -312,7 +334,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_returnAuthMethodsFromServer_always
   names.push_back("first");
   names.push_back("second");
 
-  EXPECT_CALL(*mock_server, get_authentication_mechanisms(_, Ref(mock_client))).WillOnce(SetArgReferee<0>(names));
+  EXPECT_CALL(*mock_server, get_authentication_mechanisms_void(_, Ref(mock_client))).WillOnce(DoAll(SetArgReferee<0>(names),Return(true)));
 
   sut.get(any);
 

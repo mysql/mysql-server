@@ -1,5 +1,9 @@
 SET @old_isolation_level= @@session.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET @@session.tx_isolation= 'READ-COMMITTED';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 CREATE DATABASE b42829;
 use b42829;
 CREATE TABLE t1 (x int, y int) engine=InnoDB;
@@ -40,3 +44,5 @@ master-bin.000001	#	Query	#	#	use `b42829`; CREATE TABLE t2 (x int, y int) engin
 DROP DATABASE b42829;
 DROP DATABASE b42829_filtered;
 SET @@session.tx_isolation= @old_isolation_level;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead

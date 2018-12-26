@@ -14,7 +14,7 @@ use events_test;
 # mysql.event intact checking end
 #
 
-create event e_26 on schedule at '2017-01-01 00:00:00' disable do set @a = 5;
+create event e_26 on schedule at '2037-01-01 00:00:00' disable do set @a = 5;
 select db, name, body, definer, convert_tz(execute_at, 'UTC', 'SYSTEM'), on_completion from mysql.event;
 drop event e_26;
 --error ER_WRONG_VALUE

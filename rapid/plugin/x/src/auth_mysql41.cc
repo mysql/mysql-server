@@ -117,11 +117,12 @@ ngs::Error_code Sasl_mysql41_auth::sasl_message(const char *client_hostname, con
     if (strlen(authcid) == 0)
       throw ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
 
-    On_user_password_hash    verify_password_hash = boost::bind(&Sasl_mysql41_auth::check_password_hash, this, passwd, _1);
-    ngs::IOptions_session_ptr options_session = m_session->client().connection().options();
+    On_user_password_hash      verify_password_hash = ngs::bind(&Sasl_mysql41_auth::check_password_hash, this, passwd, ngs::placeholders::_1);
+    ngs::IOptions_session_ptr  options_session = m_session->client().connection().options();
+    const ngs::Connection_type connection_type = m_session->client().connection().connection_type();
 
     return m_session->data_context().authenticate(authcid, client_hostname, client_address, authzid, verify_password_hash,
-                                                  ((xpl::Client&)m_session->client()).supports_expired_passwords(), options_session);
+                                                  ((xpl::Client&)m_session->client()).supports_expired_passwords(), options_session, connection_type);
   }
   catch(const ngs::Error_code &error_code)
   {

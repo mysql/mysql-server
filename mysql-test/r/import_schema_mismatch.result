@@ -1,0 +1,11 @@
+SET GLOBAL innodb_default_row_format = 'compact';
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+DROP TABLE t1;
+SET GLOBAL innodb_default_row_format = 'dynamic';
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Table flags don't match, server table has ROW_TYPE_DYNAMIC and the meta-data file has ROW_TYPE_COMPACT)
+DROP TABLE t1;

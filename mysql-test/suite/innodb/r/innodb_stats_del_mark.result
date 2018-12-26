@@ -1,0 +1,93 @@
+#
+# Bug 23333990	PERSISTENT INDEX STATISTICS UPDATE BEFORE
+#		TRANSACTION IS COMMITTED
+#
+"Test 1:- Uncommited delete test"
+CREATE TABLE t1 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+val INT UNSIGNED NOT NULL,
+INDEX (val)) ENGINE=INNODB
+STATS_PERSISTENT=1,STATS_AUTO_RECALC=1;
+INSERT INTO t1 (val) VALUES (4);
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+INSERT INTO t1 (val) SELECT VAL from t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+262144
+Connection 1
+START TRANSACTION;
+DELETE FROM t1;
+SELECT COUNT(*) FROM t1;
+Connection Default
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+Test correctly estimates the number of rows as > 20000
+even when in other uncommmited transaction
+all rows have been deleted.
+Connection 1
+COUNT(*)
+0
+commit;
+Connection deafult
+Test 2:- Insert and rollback test
+CREATE TABLE t2 (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+val INT UNSIGNED NOT NULL,
+INDEX (val)) ENGINE=INNODB
+STATS_PERSISTENT=1,STATS_AUTO_RECALC=1;
+Connection 1
+START TRANSACTION;
+INSERT INTO t2 (val) VALUES (4);
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+INSERT INTO t2 (val) SELECT VAL from t2;
+SELECT COUNT(*) FROM t2;
+Connection default
+select count(*) from t2;
+count(*)
+0
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+Test correctly estimates the number of rows as > 20000
+even when in other uncommited transaction
+many rows are inserted.
+Connection 1
+COUNT(*)
+262144
+Rollback the insert
+rollback;
+Connection default
+Test correctly estimates the number of rows as 1
+after rollback.
+DROP TABLE t1,t2;

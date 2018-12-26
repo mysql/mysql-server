@@ -1,0 +1,83 @@
+# ==== Purpose ====
+#
+# Verify that we can skip an incident event without a GTID by setting
+# --slave-skip-errors=1590 on cross-version replication.
+#
+# ==== Implementation ====
+#
+# 1. a single statement on non-transactional table causes to log an incident
+#    event withiout a GTID due to the fact that the stmt_cache is not big
+#    enough to accommodate the changes.
+#
+# 2. sync slave sql with master to verify that we can skip the incident event
+#    by setting --slave-skip-errors=1590 on slave.
+#
+# ==== References ====
+#
+# Bug #26266758  SKIPPING MYSQL SLAVE ERROR CODE 1590 (ER_SLAVE_INCIDENT) DOES NOT WORK
+# See mysql-test/suite/rpl/t/rpl_skip_incident_error.test
+
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_myisam.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master.");
+call mtr.add_suppression("The content of the statement cache is corrupted "
+                         "while writing a rollback record of the transaction "
+                         "to the binary log. An incident event has been "
+                         "written to the binary log which will stop the "
+                         "slaves.");
+
+--let $old_max_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "max_binlog_stmt_cache_size", Value, 1)
+--let $old_binlog_stmt_cache_size= query_get_value(SHOW VARIABLES LIKE "binlog_stmt_cache_size", Value, 1)
+SET GLOBAL max_binlog_stmt_cache_size = 4096;
+SET GLOBAL binlog_stmt_cache_size = 4096;
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='d,simulate_write_incident_event_into_binlog_directly';
+
+--disconnect master
+--connect(master,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
+
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
+
+--let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
+--echo #
+--echo # A single statement on non-transactional table causes to log an incident
+--echo # event without a GTID due to the fact that the stmt_cache is not big
+--echo # enough to accommodate the changes.
+--echo #
+--disable_query_log
+--error ER_STMT_CACHE_FULL, ER_ERROR_ON_WRITE
+eval INSERT INTO t1 (c1, data) VALUES (1,
+       CONCAT($data, $data, $data, $data, $data, $data));
+--enable_query_log
+--let $binlog_start= $saved_master_pos
+# Set this option to prove that there is no GTID generated
+# for the incident event.
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+
+--echo #
+--echo # Verify that we can skip the incident event by setting
+--echo # --slave-skip-errors=1590 on slave.
+--echo #
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+SET GLOBAL DEBUG= @save_debug;
+--replace_result $old_max_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL max_binlog_stmt_cache_size= $old_max_binlog_stmt_cache_size
+--replace_result $old_binlog_stmt_cache_size ORIGINAL_VALUE
+--eval SET GLOBAL binlog_stmt_cache_size= $old_binlog_stmt_cache_size
+
+--source include/rpl_end.inc

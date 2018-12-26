@@ -1,0 +1,387 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Error parsing message of type 12: args");
+call mtr.add_suppression("Error handling message: args");
+CREATE USER user_localhost@localhost IDENTIFIED WITH 'mysql_native_password' BY '';
+GRANT ALL ON *.* TO user_localhost@localhost;
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN DROP DATABASE IF EXISTS xplugintest
+
+0 rows affected
+RUN CREATE DATABASE xplugintest
+
+1 rows affected
+RUN USE xplugintest
+
+0 rows affected
+RUN CREATE TABLE table1 ( _id INT PRIMARY KEY, doc JSON ) 
+
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
+Insert multiple rows into a Document column
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Bras\", \"id\": \"1\"\n}"
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"2\",\n         \"name\": \"Omar Mex\", \"id\": \"2\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM xplugintest.table2
+doc	_id
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2
+0 rows affected
+send Mysqlx.Sql.StmtExecute {
+  stmt: "create_collection_index"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table2"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "name_index"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "$.name"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "TEXT(50)"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+  namespace: "xplugin"
+}
+
+
+command ok
+RUN SHOW CREATE TABLE xplugintest.table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.name'))) VIRTUAL NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN SELECT * FROM xplugintest.table2
+doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+{"id": "2", "_id": "2", "name": "Omar Mex"}	2	Omar Mex
+0 rows affected
+Update decimal value with a corner value plus 1
+send Mysqlx.Crud.Update {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\"Omar Argentina\""
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN SHOW CREATE TABLE xplugintest.table2
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.name'))) VIRTUAL NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+0 rows affected
+RUN SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2
+JSON_EXTRACT(doc,'$.name')
+"Omar Bras"
+"\"Omar Argentina\""
+0 rows affected
+RUN SELECT * FROM xplugintest.table2
+doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+{"id": "2", "_id": "2", "name": "\"Omar Argentina\""}	2	"Omar Argentina"
+0 rows affected
+Delete with == operator
+send Mysqlx.Crud.Delete {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 2
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+RUN SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2
+JSON_EXTRACT(doc,'$.name')
+"Omar Bras"
+0 rows affected
+RUN SELECT * FROM xplugintest.table2
+doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+0 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"3\",\n         \"name\": \"Omar Peru\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+}
+
+
+1 rows affected
+send Mysqlx.Crud.Insert {
+  collection {
+    name: "table2"
+    schema: "xplugintest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "\n{\n         \"_id\": \"1\",\n         \"name\": \"Omar Colombia\", \"id\": \"3\"\n}"
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+RUN SELECT * FROM xplugintest.table2
+doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+{"id": "3", "_id": "3", "name": "Omar Peru"}	3	Omar Peru
+0 rows affected
+RUN INSERT INTO xplugintest.table1 VALUES (1,'{"a":["x", "y"]}'), (2,'{"b":["x", "y"]}')
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+RUN INSERT INTO xplugintest.table1 VALUES (3,'{"c":["x", "y"]}'), (2,'{"d":["x", "y"]}')
+While executing INSERT INTO xplugintest.table1 VALUES (3,'{"c":["x", "y"]}'), (2,'{"d":["x", "y"]}'):
+Got expected error: Duplicate entry '2' for key 'PRIMARY' (code 1062)
+RUN SELECT * FROM xplugintest.table1 
+_id	doc
+1	{"a": ["x", "y"]}
+2	{"b": ["x", "y"]}
+0 rows affected
+RUN UPDATE xplugintest.table1 SET doc= '{"m":["x", "y"]}' WHERE _id=1
+
+1 rows affected
+Rows matched: 1  Changed: 1  Warnings: 0
+RUN SELECT * FROM xplugintest.table1 
+_id	doc
+1	{"m": ["x", "y"]}
+2	{"b": ["x", "y"]}
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+include/sync_slave_sql_with_master.inc
+# Connection:slave - Row with value 2 is expected on slave.
+USE xplugintest;
+SHOW CREATE TABLE xplugintest.table2;
+Table	Create Table
+table2	CREATE TABLE `table2` (
+  `doc` json DEFAULT NULL,
+  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$._id'))) STORED NOT NULL,
+  `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,'$.name'))) VIRTUAL NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SELECT * FROM xplugintest.table2;
+doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
+{"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras
+{"id": "3", "_id": "3", "name": "Omar Peru"}	3	Omar Peru
+SELECT * FROM xplugintest.table1;
+_id	doc
+1	{"m": ["x", "y"]}
+2	{"b": ["x", "y"]}
+include/diff_tables.inc [master:xplugintest.table1, slave:xplugintest.table1]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+include/diff_tables.inc [master:xplugintest.table2, slave:xplugintest.table2]
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+DROP DATABASE IF EXISTS xplugintest;
+DROP USER IF EXISTS user_localhost@localhost;
+UNINSTALL PLUGIN mysqlx;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

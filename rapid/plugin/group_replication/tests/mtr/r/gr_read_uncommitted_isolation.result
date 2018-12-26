@@ -1,0 +1,132 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+## 1. Set global isolation level to 'READ-UNCOMMITTED' on server1, server2
+[connection server1]
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-UNCOMMITTED';
+[connection server2]
+SET @transaction_isolation_global_orig = @@global.transaction_isolation;
+SET GLOBAL transaction_isolation= 'READ-UNCOMMITTED';
+SET @transaction_isolation_session_orig = @@global.transaction_isolation;
+SET SESSION transaction_isolation= 'READ-UNCOMMITTED';
+
+## 2. Create table and insert some data
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (10),(20);
+include/rpl_sync.inc
+
+## 3.1 Set a debug sync before broadcast message to group on server1
+##     Commit a transaction that will be blocked before broadcast.
+[connection server_1]
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+UPDATE t1 set a= 1 where a= 10;
+COMMIT;
+
+## 3.2 Wait until server_1 connection reaches the
+##    'group_replication_before_message_broadcast' debug sync point.
+[connection server1]
+include/assert.inc ['Table t1 should contain a row with a=1']
+include/assert.inc ['Table t1 should contain a row with a=20']
+
+## 3.3. Execute a transaction on server2, that will reach first
+##    certification, since server_1 is blocked before broadcast.
+[connection server2]
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=10;
+DELETE FROM t1 where a=20;
+COMMIT;
+
+## 3.4 Signal the waiting thread on server1 to resume.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+## 3.5 It will end up in an error stating that it was aborted, since
+##     transactions are conflicting and server2 was ordered first.
+[connection server2]
+include/sync_slave_sql_with_master.inc
+[connection server_1]
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+
+## 3.6 ROLL BACK a transaction on server1
+[connection server_1]
+BEGIN;
+UPDATE t1 set a= 30 where a= 3;
+ROLLBACK;
+
+## 3.7 Execute a transaction on server2
+[connection server2]
+BEGIN;
+UPDATE t1 SET a=10 WHERE a=3;
+COMMIT;
+include/sync_slave_sql_with_master.inc
+
+## 3.8 Transaction originated on server2 will be successful as ROLLED BACK
+##     transactions are not broadcasted.
+[connection server_1]
+## Validating data on server1 and server2
+[connection server1]
+include/assert.inc ['Table t1 has a row with a=10']
+include/assert.inc ['Table t1 will contain 1 row after the above execution']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+## Checking the positive case in which there is no conflict.
+
+## 4.1 Commit a transaction that will be blocked before broadcast.
+##    Set a debug sync before broadcast message to group on server1
+[connection server_1]
+SELECT * FROM t1;
+a
+10
+SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
+BEGIN;
+INSERT INTO t1 VALUES (2);
+COMMIT;
+
+## 4.2 Wait until server_1 connection reaches the
+## group_replication_before_message_broadcast debug sync point.
+[connection server1]
+
+## 4.3 Execute a non-conflicting transaction on server2, that will reach
+##    first certification, since server_1 is blocked before broadcast.
+[connection server2]
+UPDATE t1 SET a=1 where a=10;
+include/sync_slave_sql_with_master.inc
+
+## 4.4 Signal the waiting thread on server_1 to resume.
+[connection server1]
+SET DEBUG_SYNC='now SIGNAL waiting';
+SET @@GLOBAL.DEBUG= @debug_save;
+
+## 4.5 Transaction will be executed
+[connection server_1]
+include/rpl_sync.inc
+
+## 5. Assert that number of certified transactions are the
+##    expected ones and validate data on server1, server2
+[connection server1]
+include/assert.inc ['Table t1 should contain a row with a=1']
+include/assert.inc ['Table t1 should contain a row with a=2']
+include/assert.inc ['Table t1 will contain 2 rows after the above execution']
+include/assert.inc ['The value of Count_Transactions_Checked should be 7 after starting group replication']
+include/assert.inc ['The value of Count_Conflicts_Detected should be 1 after starting group replication']
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+## 6. Clean up.
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
+SET DEBUG_SYNC='RESET';
+[connection server2]
+SET GLOBAL transaction_isolation= @transaction_isolation_global_orig;
+SET SESSION transaction_isolation= @transaction_isolation_session_orig;
+DROP TABLE t1;
+include/group_replication_end.inc

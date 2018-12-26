@@ -53,6 +53,10 @@ Mysql::Tools::Base::Abstract_program* Abstract_crawler::get_program()
 
 void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
 {
+  /* in case of error stop all further processing */
+  if (get_program()->get_error_code())
+    return;
+
   m_dump_tasks_created.push_back(new_dump_task);
 
   Item_processing_data* main_item_processing_data=

@@ -25,6 +25,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT @@tx_isolation;
 @@tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT a, RIGHT(b,20) FROM t1;
 a	RIGHT(b,20)
 1	aaaaaaaaaaaaaaaaaaaa
@@ -52,6 +54,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT @@tx_isolation;
 @@tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT a, RIGHT(b,20), RIGHT(c,20) FROM t3;
 a	RIGHT(b,20)	RIGHT(c,20)
 2	gggggggggggggggggggg	hhhhhhhhhhhhhhhhhhhh

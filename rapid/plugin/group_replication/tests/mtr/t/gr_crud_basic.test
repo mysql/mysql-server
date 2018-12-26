@@ -1,0 +1,507 @@
+##############################################################################
+#
+# This test checks the basic functionality of group replication plugin along
+# with mysqlx plugin (x mode).
+#
+# NOTE : All the queries through mysqlx plugin is passed using mysqlxtest.
+#
+# Steps involved in this test :
+# 0. This test requires 3 servers.
+# 1. Start 3 servers loaded with both mysqlx and group replication plugin.
+# 2. Start group replication on server1 as bootstrap server for the group.
+# 3. Start group replication on other two servers as non bootstrap server.
+# 4. Wait until all three servers come online.
+# 5. Perform ddl and dml operations on all the three servers.
+#       a) server1 : Create table T1 and perform ddl on T1 using x protocol.
+#       b) server2 : Create table T2 and perform ddl on T1 & T2 using x protocol.
+#       c) server3 : Create table T3 and perform ddl on T1,T2 & T3 using x protocol.
+# 6. Assert for values on three tables from different servers.
+# 7. Stop group replication on all the servers.
+# 8. Clean-Up
+##############################################################################
+
+--source include/have_mysqlx_plugin.inc
+--source ../inc/have_group_replication_plugin_base.inc
+
+--let plugins= MYSQLXPLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+# This initial setup starts three servers with all the prerequisites required
+# for GR to start
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Install Mysqlx plugin on all servers and fetch the mysqlx_port to the local
+# variables
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_regex /\.dll/.so/
+--source suite/x/include/xplugin_install_and_wait.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_regex /\.dll/.so/
+--source suite/x/include/xplugin_install_and_wait.inc
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_regex /\.dll/.so/
+--source suite/x/include/xplugin_install_and_wait.inc
+--source include/start_group_replication.inc
+
+# creating some macros in this file.
+
+--write_file $MYSQL_TMP_DIR/macro.tmp
+
+# Macro to insert values into Table T1
+-->macro insert_t1 %VALUE1% %VALUE2%
+Mysqlx.Crud.Insert {
+	collection {
+		name: "T1"
+		schema: "test"
+	}
+	data_model: TABLE
+	projection {
+		name: "C1"
+	}
+	projection {
+		name: "C2"
+	}
+	row {
+		field {
+			type: LITERAL
+			literal {
+				type: V_SINT
+				v_signed_int: %VALUE1%
+			}
+		}
+		field {
+			type: LITERAL
+			literal {
+				type: V_SINT
+				v_signed_int: %VALUE2%
+			}
+		}
+	}
+}
+-->endmacro
+
+# Macro to insert values into Table T2
+-->macro insert_t2 %VALUE1% %VALUE2%
+Mysqlx.Crud.Insert {
+	collection {
+		name: "T2"
+		schema: "test"
+	}
+	data_model: TABLE
+	projection {
+		name: "C1"
+	}
+	projection {
+		name: "C2"
+	}
+	row {
+		field {
+			type: LITERAL
+			literal {
+				type: V_STRING
+				v_string {
+					value: "%VALUE1%"
+				}
+			}
+		}
+		field {
+			type: LITERAL
+			literal {
+				type: V_SINT
+				v_signed_int: %VALUE2%
+			}
+		}
+	}
+}
+-->endmacro
+
+# Macro to insert values into Table T3
+-->macro insert_t3 %VALUE1% %VALUE2%
+Mysqlx.Crud.Insert {
+	collection {
+		name: "T3"
+		schema: "test"
+	}
+	data_model: TABLE
+	projection {
+		name: "C1"
+	}
+	projection {
+		name: "C2"
+	}
+	row {
+		field {
+			type: LITERAL
+			literal {
+				type: V_SINT
+				v_signed_int: %VALUE1%
+			}
+		}
+		field {
+			type: LITERAL
+			literal {
+				type:V_STRING
+				 v_string {
+				 value: "%VALUE1%"
+				}
+			}
+		}
+	}
+}
+-->endmacro
+EOF
+
+# Performing DDL/DML operations on all the servers
+
+# Temp file for performing ddl and dml on server1.
+# Copying the contents of the "macro.tmp" so that the macros available can be
+# reused
+
+--copy_file $MYSQL_TMP_DIR/macro.tmp $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
+--append_file $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
+-->stmtsql USE test
+-->recvresult
+-->stmtsql CREATE TABLE T1 (C1 INT PRIMARY KEY, C2 INT );
+-->recvresult
+-->callmacro insert_t1 1	12
+-->recvresult
+-->callmacro insert_t1 2	1234
+-->recvresult
+-->callmacro insert_t1 3	98765
+-->recvresult
+Mysqlx.Crud.Update {
+	collection {
+		name: "T1"
+		schema: "test"
+	}
+	data_model: TABLE
+	operation {
+		source {
+			name: "c1"
+		}
+		operation: SET
+		value {
+			type: OPERATOR
+			operator {
+				name: "+"
+				param {
+					type: IDENT
+					identifier {
+						name: "c1"
+					}
+				}
+				param {
+					type: LITERAL
+					literal {
+						type: V_UINT
+						v_unsigned_int: 10
+					}
+				}
+			}
+		}
+	}
+}
+-->recvresult
+Mysqlx.Crud.Delete {
+	collection {
+		name: "T1"
+		schema: "test"
+	}
+	data_model: TABLE
+	criteria {
+		type: OPERATOR
+		operator {
+			name: "=="
+			param {
+				type: IDENT
+				identifier {
+					name: "C2"
+				}
+			}
+			param {
+				type: LITERAL
+				literal {
+					type: V_UINT
+					v_unsigned_int: 0
+				}
+			}
+		}
+	}
+}
+-->recvresult
+EOF
+
+--echo Performing DDL/DML operations on server 1
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
+
+# Temp file for performing ddl and dml on server2
+# Copying the contents of the "macro.tmp" so that the macros available can be
+# reused
+--copy_file $MYSQL_TMP_DIR/macro.tmp $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
+--append_file $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
+-->stmtsql USE test
+-->recvresult
+-->stmtsql CREATE TABLE T2 (C1 CHAR(20) PRIMARY KEY, C2 INT );
+-->recvresult
+-->callmacro insert_t2 ABC	23
+-->recvresult
+
+Mysqlx.Crud.Update {
+	collection {
+		name: "T2"
+		schema: "test"
+	}
+	data_model: TABLE
+	operation {
+		source {
+			name: "C2"
+		}
+		operation: SET
+		value {
+			type: OPERATOR
+			operator {
+				name: "+"
+				param {
+					type: IDENT
+					identifier {
+						name: "C2"
+					}
+				}
+				param {
+					type: LITERAL
+					literal {
+						type: V_UINT
+						v_unsigned_int: 27
+					}
+				}
+			}
+		}
+	}
+}
+-->recvresult
+
+-->callmacro insert_t1 4	34
+-->recvresult
+-->callmacro insert_t2 ABCDEF	23
+-->recvresult
+-->callmacro insert_t1 5	1234
+-->recvresult
+-->callmacro insert_t2 ABCDEFGHIJ	23
+-->recvresult
+
+Mysqlx.Crud.Delete {
+	collection {
+		name: "T2"
+		schema: "test"
+	}
+	data_model: TABLE
+	criteria {
+		type: OPERATOR
+		operator {
+			name: "=="
+			param {
+				type: IDENT
+				identifier {
+					name: "C1"
+				}
+			}
+			param {
+				type: LITERAL
+				literal {
+					type: V_OCTETS
+					v_octets {
+						value: "ABC"
+					}
+				}
+			}
+		}
+	}
+}
+-->recvresult
+EOF
+
+--echo Performing DDL/DML operations on server 2
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
+
+# Temp file for performing ddl and dml on server3
+# Copying the contents of the "macro.tmp" so that the macros available can be
+# reused
+
+--copy_file $MYSQL_TMP_DIR/macro.tmp $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
+--append_file $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
+-->stmtsql USE test;
+-->recvresult
+-->stmtsql CREATE TABLE T3 (C1 INT PRIMARY KEY, C2 VARCHAR(20) );
+-->recvresult
+
+Mysqlx.Crud.Delete {
+	collection {
+		name: "T1"
+		schema: "test"
+	}
+	data_model: TABLE
+}
+-->recvresult
+
+-->callmacro insert_t1 1	12345
+-->recvresult
+-->callmacro insert_t3 1	1234
+-->recvresult
+-->callmacro insert_t2 1234	1234
+-->recvresult
+-->callmacro insert_t1 7	98765
+-->recvresult
+-->callmacro insert_t2 XYZ	23
+-->recvresult
+
+Mysqlx.Crud.Update {
+	collection {
+		name: "T2"
+		schema: "test"
+	}
+	data_model: TABLE
+	criteria {
+		type: OPERATOR
+		operator {
+			name: "=="
+			param {
+				type: IDENT
+				identifier {
+					name: "C1"
+				}
+			}
+			param {
+				type: LITERAL
+				literal {
+					type: V_OCTETS
+					v_octets {
+						value: "XYZ"
+					}
+				}
+			}
+		}
+	}
+	operation {
+		source {
+			name: "C1"
+		}
+		operation: SET
+		value {
+			type: LITERAL
+			literal {
+				type: V_STRING
+				v_string {
+					value: "ABC"
+				}
+			}
+		}
+	}
+}
+-->recvresult
+
+-->callmacro insert_t3 2	23
+-->recvresult
+-->callmacro insert_t3 3	234
+-->recvresult
+Mysqlx.Crud.Delete {
+	collection {
+		name: "T3"
+		schema: "test"
+	}
+	data_model: TABLE
+	criteria {
+		type: OPERATOR
+		operator {
+			name: ">"
+			param {
+				type: IDENT
+				identifier {
+					name: "C1"
+				}
+			}
+			param {
+				type: LITERAL
+				literal {
+					type: V_UINT
+						v_unsigned_int: 0
+				}
+			}
+		}
+	}
+}
+-->recvresult
+EOF
+
+--echo Performing DDL/DML operations on server 3
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
+
+# Wait for synchronization between the nodes.
+
+--source include/rpl_sync.inc
+
+# Asserts for values on each table.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the Value on T1'
+--let $assert_cond= [SELECT C2 FROM test.T1 WHERE C1=1, C2, 1] = 12345
+--source include/assert.inc
+
+--let $assert_text= 'Checking the Value on T2'
+--let $assert_cond= [SELECT C2 FROM test.T2 WHERE C1="ABC", C2, 1] = 23
+--source include/assert.inc
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM test.T3
+--source include/wait_condition.inc
+
+# Creating temp file to delete tables
+
+--copy_file $MYSQL_TMP_DIR/macro.tmp $MYSQL_TMP_DIR/delete_tables.tmp
+--append_file $MYSQL_TMP_DIR/delete_tables.tmp
+-->stmtsql USE test;
+-->recvresult
+-->stmtsql DROP TABLE T1;
+-->recvresult
+-->stmtsql DROP TABLE T2;
+-->recvresult
+-->stmtsql DROP TABLE T3;
+-->recvresult
+EOF
+
+# Deleting tables
+--echo Deleting all the tables.
+--exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN mysqlx;
+
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
+--remove_file $MYSQL_TMP_DIR/delete_tables.tmp
+--remove_file $MYSQL_TMP_DIR/macro.tmp
+--source ../inc/group_replication_end.inc

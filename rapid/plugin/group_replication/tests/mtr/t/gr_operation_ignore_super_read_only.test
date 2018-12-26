@@ -1,0 +1,89 @@
+################################################################################
+# This test validates that group replication start and stop operation can be
+# executed when the super read mode is set.
+#
+# Test:
+# 0. The test requires two servers.
+# 1. Start member 1. Add some data for recovery.
+# 2. Set super_read_only = 1 on server 2 and check it works as expected.
+# 3. Start and stop group replication on server 2 and check all is fine.
+# 4. Clean up.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Setup a new group
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+# Add some data for recovery
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo # Set the super_read_only mode to 1 and check it works as expected
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @saved_value_super= @@GLOBAL.super_read_only;
+SET @saved_value= @@GLOBAL.read_only;
+SET GLOBAL super_read_only= 1;
+
+--error ER_OPTION_PREVENTS_STATEMENT
+INSERT INTO t1 VALUES (2);
+
+--echo #
+--echo # Start group replication. Check all is fine
+--echo #
+
+--source include/start_group_replication.inc
+
+--let $assert_text= On the recovered member, the table should contain 1 element
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Stop group replication. Check all is fine
+--echo #
+
+--let $skip_reset_read_mode= 1
+--source include/stop_group_replication.inc
+
+--let $assert_text= The read mode should still be on
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo #
+--echo # Cleaning up
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL super_read_only= @saved_value_super;
+SET GLOBAL read_only= @saved_value;
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

@@ -6606,6 +6606,13 @@ CREATE TABLE t1
   KEY col_timestamp_4_not_null_key (col_timestamp_4_not_null_key),
   KEY col_timestamp_5_not_null_key (col_timestamp_5_not_null_key)
 ) /*!50100 PARTITION BY KEY (pk)PARTITIONS 2 */;
+# Run an unlogged dummy query to pre-populated the TDC to avoid deprecation warnings for
+# non-PS executions of the test.
+--disable_result_log
+--disable_query_log
+SELECT * FROM t1;
+--enable_query_log
+--enable_result_log
 SELECT
   LEAST('2008-05-18', LOCALTIMESTAMP(), col_timestamp_5_not_null_key ) AS c1
 FROM t1

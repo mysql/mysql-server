@@ -551,7 +551,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 
 	ut_a(it->m_exists);
 
-	if (it->m_handle == OS_FILE_CLOSED) {
+	if (it->m_handle.m_file == OS_FILE_CLOSED) {
 
 		err = it->open_or_create(
 			m_ignore_read_only ?  false : srv_read_only_mode);

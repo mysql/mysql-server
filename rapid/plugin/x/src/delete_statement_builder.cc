@@ -19,17 +19,11 @@
 #include "ngs_common/protocol_protobuf.h"
 
 
-xpl::Delete_statement_builder::Delete_statement_builder(const Delete &msg, Query_string_builder &qb)
-: Statement_builder(qb, msg.args(), msg.collection().schema(), msg.data_model() == Mysqlx::Crud::TABLE),
-  m_msg(msg)
-{}
-
-
-void xpl::Delete_statement_builder::add_statement() const
+void xpl::Delete_statement_builder::build(const Delete &msg) const
 {
   m_builder.put("DELETE FROM ");
-  add_table(m_msg.collection());
-  add_filter(m_msg.criteria());
-  add_order(m_msg.order());
-  add_limit(m_msg.limit(), true);
+  add_collection(msg.collection());
+  add_filter(msg.criteria());
+  add_order(msg.order());
+  add_limit(msg.limit(), true);
 }

@@ -1,7 +1,11 @@
 ---- establish connection con1 (root) ----
 ---- switch to connection default ----
 set @initial_query_cache_size = @@global.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 set @@global.query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status;
 drop table if exists t1;
 create table t1(c1 int);
@@ -170,6 +174,8 @@ Qcache_hits	16
 ---- switch to connection default ----
 prepare stmt1 from "select * from t1 where c1=10";
 set global query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	16
@@ -212,6 +218,8 @@ Variable_name	Value
 Qcache_hits	16
 ---- switch to connection default ----
 set global query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 execute stmt1;
 c1
 10
@@ -251,6 +259,8 @@ Variable_name	Value
 Qcache_hits	21
 ---- switch to connection default ----
 set global query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	21
@@ -293,11 +303,15 @@ Variable_name	Value
 Qcache_hits	21
 ---- switch to connection default ----
 set global query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 prepare stmt1 from "select * from t1 where c1=10";
 ---- switch to connection con1 ----
 prepare stmt3 from "select * from t1 where c1=10";
 ---- switch to connection default ----
 set global query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	21
@@ -343,8 +357,12 @@ Variable_name	Value
 Qcache_hits	21
 ---- switch to connection default ----
 set global query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 prepare stmt1 from "select * from t1 where c1=?";
 set global query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	21
@@ -544,11 +562,15 @@ execute stmt;
 a
 Pack my box with five dozen liquor jugs.
 set @@global.query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 alter table t1 add column b int;
 execute stmt;
 a
 Pack my box with five dozen liquor jugs.
 set @@global.query_cache_size=102400;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 execute stmt;
 a
 Pack my box with five dozen liquor jugs.
@@ -571,4 +593,6 @@ Qcache_queries_in_cache	0
 deallocate prepare stmt;
 drop table t1;
 set @@global.query_cache_size=@initial_query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush status;

@@ -1,0 +1,108 @@
+################################################################################
+# Scenario:
+#  SigCon=    ({R(B), W(B)})
+#  GroupRepApplier=({R(B), W(B), C}, HIGH_PRIORITY).
+#
+# Outcome: SigCon must abort, THe GroupRepApplier must commit.
+#
+# Full details on WL#6835.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. On M1 create table t1 and insert value 0 in
+#    column c1.
+# 2. On M2, create SIGCON connection using DEBUG point.
+# 3. On M2, send update c1 from 0 to 99.
+# 4. On M1, update c1 from 0 to 1.
+# 5. On M2, wait for c1 to be 1.
+# 6. On M2, now signal the waiting thread on sigcon to resume and it should
+#    end up in an error stating that it was aborted.
+# 7. On M2, reap. It should error out on COMMIT.
+# 8. Validate data in c1. It should be 1 on M2.
+# 9. Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429548
+--source ../inc/have_group_replication_plugin.inc
+
+--source ../inc/group_replication.inc
+
+####### SERVER 1 #######
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+####### SIGCON (server2) #######
+--let $rpl_connection_name= sigcon
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
+
+--echo [connection sigcon]
+--let $sync_slave_connection= sigcon
+--source include/sync_slave_sql_with_master.inc
+
+SET DEBUG_SYNC='ha_innobase_end_statement WAIT_FOR waiting1';
+
+BEGIN;
+--send UPDATE t1 SET c1=99 WHERE c1=0
+
+####### SERVER 2 #######
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Wait until sigcon reaches the ha_innobase_update_row_done debug sync point.
+--let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: ha_innobase_end_statement'
+--source include/wait_condition.inc
+
+####### SERVER 1 #######
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+####### SERVER 2 #######
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# Wait for c1 in t1 to be 1
+--let $wait_condition=SELECT COUNT(*)=1 FROM t1 WHERE c1=1
+--source include/wait_condition.inc
+
+# Now signal the waiting thread on sigcon to resume
+# and it should end up in an error stating that it
+# was aborted
+SET DEBUG_SYNC='now SIGNAL waiting1';
+
+####### SIGCON #######
+--echo [connection sigcon]
+--let $rpl_connection_name= sigcon
+--source include/rpl_connection.inc
+--reap
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+
+--disconnect sigcon
+
+####### SERVER 2 #######
+--connection server1
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= 'There is a 1 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no 99 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 99, count, 1] = 0
+--source include/assert.inc
+
+# Clean up.
+--connection server1
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

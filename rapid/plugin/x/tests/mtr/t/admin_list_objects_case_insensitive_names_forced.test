@@ -1,0 +1,23 @@
+## Simple list objects with case insensitive table names
+
+--source include/have_case_insensitive_file_system.inc
+
+
+--let $expect_case_sensitive_variant= 2
+if (`SELECT CONVERT(@@version_compile_os USING LATIN1) RLIKE '^(osx|macos)'`)
+{
+--let $expect_case_sensitive_variant= 1
+}
+
+--replace_regex /=[12]/=$/
+--let $restart_parameters = restart: --lower_case_table_names=$expect_case_sensitive_variant
+--source include/restart_mysqld.inc
+--source ../include/xplugin_preamble.inc
+
+--let $expect_table_error= ER_TABLE_EXISTS_ERROR
+--let $expect_db_error= ER_DB_CREATE_EXISTS
+--replace_regex /XTEST/xtest/ /xTeSt/xtest/ /FRUIT/fruit/ /FrUiT/fruit/
+--source ../include/admin_list_objects_table_names.inc
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;

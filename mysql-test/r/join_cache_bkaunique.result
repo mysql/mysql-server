@@ -2786,9 +2786,9 @@ LEFT JOIN t3 ON t2.pk = t3.pk
 LEFT JOIN t4 ON t4.pk = t2.pk
 WHERE t1.col_int OR t3.col_int;
 col_int
-2
 3
 1
+2
 NULL
 NULL
 DROP TABLE t1, t2, t3, t4;

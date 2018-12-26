@@ -1,0 +1,319 @@
+# WL#9345 - GCS IP Whitelisting option
+
+####
+#### This test case checks ip whitelisting options for group
+#### replication.
+####
+#### First it does negative testing by providing faulty input
+#### to the plugin:
+#### - incorrectly formatted values: -2, NULL
+#### - incorrect IPs: 192.256.1.20, 300.168.1.20
+#### - incorrect hostname: random_hostname/16
+#### - incorrect subnetmasks: 192.168.1.0/33, 192.168.266.0/24
+#### - incorrect lists: 8.9.10.0/20,192.168.1.1,192.168.2.0/44
+#### - try to change while the plugin is running
+####
+#### Then it does positive testing:
+#### - correct IPs: 192.168.1.1, 8.9.10.0/20
+#### - correct subnetmasks: 192.168.1.0/24
+#### - correct hostname: @@hostname/16
+#### - correct lists: 8.9.10.0/20,192.168.1.1,192.168.2.0/24
+#### - empty values, DEFAULT
+#### - assert that the values were logged in the error log
+####   for successful settings
+####
+#### Check that access from localhost is always allowed, even
+#### if setting the list to "" .
+####
+#### Additional testing is done on the unit tests for the
+#### Gcs_ip_whitelist object, together with the
+#### Gcs_xcom_interface testing.
+####
+
+--source include/big_test.inc
+--let $group_replication_group_name= 00000000-1111-2222-3333-444444444444
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--let $incorrect_input1= NULL
+--let $incorrect_ip1= 192.256.1.20
+--let $incorrect_ip2= 300.168.1.20
+--let $incorrect_list1= 8.9.10.0/20,192.168.1.1,192.168.2.0/44
+--let $incorrect_list2= 8.9.10.0/20,192.168.1.1,AUTOMATIC
+--let $incorrect_subnetmask1= 192.168.1.0/33
+--let $incorrect_subnetmask2= 192.168.266.0/24
+--let $correct_ip1= 192.168.1.1
+--let $correct_ip2= 192.168.1.0/24
+--let $correct_ip3= 8.9.10.0/20
+--let $correct_hostname= `SELECT CONCAT((SELECT @@hostname), '/16')`
+--let $correct_list1= fe80::f6dd:5a39:661b:b00b/64,8.9.10.0/20,192.168.1.1,192.168.2.0/24
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--eval SET GLOBAL group_replication_group_name="$group_replication_group_name"
+
+####
+####  Negative testing
+####
+
+#
+# Assert that the wrong inputs will result in errors when
+# trying to start the plugin
+#
+
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_ip_whitelist=$incorrect_input1
+
+#START GROUP_REPLICATION;
+
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_ip1"
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_ip2"
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_subnetmask1"
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_subnetmask2"
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_list1"
+--error ER_GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR
+START GROUP_REPLICATION;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+--eval SET GLOBAL group_replication_ip_whitelist="$incorrect_list2"
+
+####
+####  Positive testing
+####
+
+#
+# Assert that the server successfully starts GR with correct_ip1
+# in the whitelist
+#
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_ip1"
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= "$current" = "$correct_ip1"
+--let $assert_text= Assert value changed to $correct_ip1
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server logs the correct value
+#
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err
+--let $assert_text= ip_whitelist was successfully logged to the error log
+--let $assert_select=.*group_replication_ip_whitelist: "$correct_ip1".*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# Assert that the server successfully starts GR with correct_ip2
+# in the whitelist
+#
+
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_ip2"
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= "$current" = "$correct_ip2"
+--let $assert_text= Assert value changed to $correct_ip2
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server logs the correct value
+#
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err
+--let $assert_text= ip_whitelist was successfully logged to the error log
+--let $assert_select=.*group_replication_ip_whitelist: "$correct_ip2".*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# Assert that the server successfully starts GR with correct_ip3
+# in the whitelist
+#
+
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_ip3"
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= "$current" = "$correct_ip3"
+--let $assert_text= Assert value changed to $correct_ip3
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server logs the correct value
+#
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err
+--let $assert_text= ip_whitelist was successfully logged to the error log
+--let $assert_select=.*group_replication_ip_whitelist: "$correct_ip3".*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# Assert that the server successfully starts GR with correct_ip3
+# in the whitelist
+#
+
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_list1"
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= "$current" = "$correct_list1"
+--let $assert_text= Assert value changed to $correct_list1
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server logs the correct value
+#
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err
+--let $assert_text= ip_whitelist was successfully logged to the error log
+--let $assert_select=.*group_replication_ip_whitelist: "$correct_list1".*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# Assert that the server successfully starts GR with correct_hostname
+# in the whitelist
+# Since MTR does not have name resolution, we are going in a best effort
+# aproach in which we test that the server started and stopped without errors
+#
+
+--replace_result $correct_hostname CORRECT_HOSTNAME
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_hostname"
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= [SELECT @@group_replication_ip_whitelist = ""] = 0
+--let $assert_text= Assert value with hostname is not empty
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server successfully starts GR with ""
+# set to the whitelist
+#
+--eval SET GLOBAL group_replication_ip_whitelist=""
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= [SELECT @@group_replication_ip_whitelist = ""] = 1
+--let $assert_text= Assert value changed to ""
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server logs the correct value
+#
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/group_replication_ip_whitelist_options_mysqld.1.err
+--let $assert_text= ip_whitelist was successfully logged to the error log
+--let $assert_select=.*group_replication_ip_whitelist: ""'.*
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+#
+# Assert that the server successfully starts GR with DEFAULT
+# set to the whitelist
+#
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_ip_whitelist=DEFAULT
+
+--eval SET GLOBAL group_replication_ip_whitelist=AUTOMATIC
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $current= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= [SELECT "$current" = "AUTOMATIC"] = 1
+--let $assert_text= Assert value changed to "AUTOMATIC"
+--source include/assert.inc
+
+#
+# Assert that we cannot change the variable while group replication
+# is running
+#
+--let $before= `SELECT @@group_replication_ip_whitelist`
+
+--error ER_GROUP_REPLICATION_RUNNING
+--eval SET GLOBAL group_replication_ip_whitelist="$correct_ip1"
+
+#
+# Assert that despite the error the value remains unchanged
+#
+--let $after= `SELECT @@group_replication_ip_whitelist`
+--let $assert_cond= [SELECT "$before" = "$after"] = 1
+--let $assert_text= Assert that value remains unchanged
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+#
+# Assert that the server successfully starts GR with ""
+# and that the other server in localhost can connect.
+#
+# Access from localhost is always whitelisted
+#
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval SET GLOBAL group_replication_ip_whitelist=""
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# if localhost was blocked this would not succeed
+--source include/start_group_replication.inc
+
+# execute some load
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+# Assert that the data made it through
+--let $diff_tables= server1:test.t1,server2:test.t1
+--source include/diff_tables.inc
+
+##
+## Clean up
+##
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_ip_whitelist= AUTOMATIC
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+--eval SET GLOBAL group_replication_ip_whitelist= AUTOMATIC
+--source include/start_group_replication.inc
+
+## This is the end... My only friend the end!
+--source ../inc/group_replication_end.inc

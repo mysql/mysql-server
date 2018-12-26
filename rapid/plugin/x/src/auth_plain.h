@@ -24,10 +24,10 @@
 
 #include "ngs/protocol_encoder.h"
 #include "ngs/protocol_authentication.h"
-#include "xpl_client.h"
 #include "xpl_session.h"
 #include "xpl_server.h"
 #include "sql_data_context.h"
+#include "xpl_client.h"
 
 #include "xpl_log.h"
 
@@ -39,7 +39,7 @@ namespace xpl
 class Sasl_plain_auth : public ngs::Authentication_handler
 {
 public:
-  static ngs::Authentication_handler_ptr create(ngs::Session *session)
+  static ngs::Authentication_handler_ptr create(ngs::Session_interface *session)
   {
     return Authentication_handler::wrap_ptr(new Sasl_plain_auth((xpl::Session*)session));
   }
@@ -112,11 +112,12 @@ private:
       if (strlen(authcid) == 0)
         throw ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
       std::string password_hash = *passwd ? compute_password_hash(passwd) : "";
-      On_user_password_hash    check_password_hash = boost::bind(&Sasl_plain_auth::compare_hashes, this, password_hash, _1);
-      ngs::IOptions_session_ptr options_session = m_session->client().connection().options();
+      On_user_password_hash      check_password_hash = ngs::bind(&Sasl_plain_auth::compare_hashes, this, password_hash, ngs::placeholders::_1);
+      ngs::IOptions_session_ptr  options_session = m_session->client().connection().options();
+      const ngs::Connection_type connection_type = m_session->client().connection().connection_type();
 
       return m_session->data_context().authenticate(authcid, client_hostname, client_address, authzid_db, check_password_hash,
-                                                    ((xpl::Client&)m_session->client()).supports_expired_passwords(), options_session);
+                                                    ((xpl::Client&)m_session->client()).supports_expired_passwords(), options_session, connection_type);
     }
     catch(const ngs::Error_code &error_code)
     {

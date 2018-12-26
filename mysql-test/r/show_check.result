@@ -739,14 +739,22 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 1 AS `1`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE 1;
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE 1;
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache 1 AS `1`	binary	binary
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT NOW();
 SHOW CREATE VIEW v1;
@@ -754,14 +762,22 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select now() AS `NOW()`	binary	binary
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE NOW();
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache now() AS `NOW()`	binary	binary
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_no_cache now() AS `NOW()`	binary	binary
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
 ERROR HY000: Incorrect usage of SQL_CACHE and SQL_NO_CACHE
@@ -780,6 +796,8 @@ CALL p1();
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select sql_cache 1 AS `1`	binary	binary
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DROP PROCEDURE p1;
 DROP VIEW v1;
 SHOW TABLES FROM no_such_database;

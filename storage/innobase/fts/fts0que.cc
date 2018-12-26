@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3321,6 +3321,7 @@ func_exit:
 	if (query->total_size > fts_result_cache_limit) {
 		return(DB_FTS_EXCEED_RESULT_CACHE_LIMIT);
 	} else {
+		query->n_docs = 0;
 		return(DB_SUCCESS);
 	}
 }
@@ -3800,6 +3801,11 @@ fts_query_free(
 		fts_doc_ids_free(query->deleted);
 	}
 
+	if (query->intersection) {
+		fts_query_free_doc_ids(query, query->intersection);
+		query->intersection = NULL;
+	}
+
 	if (query->doc_ids) {
 		fts_query_free_doc_ids(query, query->doc_ids);
 	}
@@ -4051,9 +4057,17 @@ fts_query(
 	lc_query_str_len = query_len * charset->casedn_multiply + 1;
 	lc_query_str = static_cast<byte*>(ut_malloc_nokey(lc_query_str_len));
 
+	/* For binary collations, a case sensitive search is
+	performed. Hence don't convert to lower case. */
+	if (my_binary_compare(charset)) {
+	memcpy(lc_query_str, query_str, query_len);
+		lc_query_str[query_len]= 0;
+		result_len= query_len;
+	} else {
 	result_len = innobase_fts_casedn_str(
-		charset, (char*) query_str, query_len,
-		(char*) lc_query_str, lc_query_str_len);
+				charset, (char*)( query_str), query_len,
+				(char*)(lc_query_str), lc_query_str_len);
+	}
 
 	ut_ad(result_len < lc_query_str_len);
 
@@ -4071,6 +4085,7 @@ fts_query(
 	/* Parse the input query string. */
 	if (fts_query_parse(&query, lc_query_str, result_len)) {
 		fts_ast_node_t*	ast = query.root;
+		ast->trx = trx;
 
 		/* Optimize query to check if it's a single term */
 		fts_query_can_optimize(&query, flags);
@@ -4097,6 +4112,11 @@ fts_query(
 		query.error = fts_ast_visit(
 			FTS_NONE, ast, fts_query_visitor,
 			&query, &will_be_ignored);
+		if (query.error == DB_INTERRUPTED) {
+			error = DB_INTERRUPTED;
+			ut_free(lc_query_str);
+			goto func_exit;
+		}
 
 		/* If query expansion is requested, extend the search
 		with first search pass result */
@@ -4121,6 +4141,15 @@ fts_query(
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
 			ut_zalloc_nokey(sizeof(**result)));
+	}
+
+	if (trx_is_interrupted(trx)) {
+		error = DB_INTERRUPTED;
+		ut_free(lc_query_str);
+		if (result != NULL) {
+			fts_query_free_result(*result);
+		}
+		goto func_exit;
 	}
 
 	ut_free(lc_query_str);

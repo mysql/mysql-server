@@ -1,0 +1,92 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils.inc
+SET SESSION sql_log_bin= 1;
+
+############################################################
+#  1. Execute two transactions on server 1 and wait until
+#     they are applied on all group members.
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+#  2. Stop server 2 group replication applier so that
+#     certified remote transactions are not applied.
+#     This will mimic a slow server.
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+############################################################
+#  3. Commit a transaction (T1) on server 1, that will be
+#     certified on both members but only applied on server 1.
+include/assert.inc [GTID_EXECUTED must contain first two transactions plus the view changes]
+UPDATE t1 SET c1=2 WHERE c1=1;
+
+############################################################
+#  4. Wait until server 2 receives and certifies T1.
+
+############################################################
+#  5. Wait for stable set propagation and certification info
+#     garbage collection.
+#     After garbage collection certification info will contain:
+#     WS: t1.c1=1 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+#     WS: t1.c1=2 -> 8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+include/assert.inc ['Count_transactions_rows_validating must be 4']
+include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
+include/assert.inc ['Count_transactions_rows_validating must be 4']
+include/assert.inc ['Transactions_committed_all_members must be equal to 8a94f357-aab4-11df-86ab-c80aa9422222:1-4']
+
+############################################################
+#  6. Execute the same statement of T1 in server 2, now named T2.
+#     It must be aborted since it conflicts with T1, despite
+#     it is not yet applied on server 2. Snapshot of T2 is
+#     8a94f357-aab4-11df-86ab-c80aa9422222:1-4
+include/assert.inc [GTID_EXECUTED must contain first two transactions]
+UPDATE t1 SET c1=2 WHERE c1=1;
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+include/assert.inc ['There is a value 1 in table t1']
+include/assert.inc ['There is no value 2 in table t1']
+
+############################################################
+#  7. Start server 2 group replication applier so that
+#     certified remote transactions are applied.
+#     Wait until all group transactions are applied.
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+include/rpl_sync.inc
+
+############################################################
+#  8. Execute a transaction on server 2 to verify that
+#     everything is OK.
+include/assert.inc [GTID_EXECUTED must contain all group transactions]
+UPDATE t1 SET c1=3 WHERE c1=2;
+include/rpl_sync.inc
+############################################################
+#  9. Check that GTID_EXECUTED on server 1 contains all
+#     transactions.
+#     Also check that data is on tables.
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 3 in table t1']
+############################################################
+#  10. Check that GTID_EXECUTED on server 2 contains all
+#     transactions.
+#     Also check that data is on tables.
+include/assert.inc [GTID_EXECUTED must contain all committed GTIDs]
+include/assert.inc ['There is a value 3 in table t1']
+
+############################################################
+# 11. Clean up.
+DROP TABLE t1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+include/gtid_utils_end.inc
+SET SESSION sql_log_bin= 1;
+include/group_replication_end.inc

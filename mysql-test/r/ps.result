@@ -712,6 +712,8 @@ execute stmt;
 @@time_zone
 Japan
 prepare stmt from "select @@tx_isolation";
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ
@@ -724,6 +726,8 @@ execute stmt;
 @@tx_isolation
 REPEATABLE-READ
 set @@tx_isolation=default;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 execute stmt;
 @@tx_isolation
 REPEATABLE-READ
@@ -1986,7 +1990,11 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 call proc_1();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 call proc_1();
 call proc_1();
 create function func_1() returns int deterministic begin reset query cache; return 1; end|
@@ -1997,6 +2005,8 @@ ERROR 0A000: RESET is not allowed in stored function or trigger
 drop function func_1;
 drop procedure proc_1;
 prepare abc from "reset query cache";
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 execute abc;
 execute abc;
 execute abc;
@@ -3955,3 +3965,30 @@ ERROR 42S22: Unknown column 't2.absent' in 'field list'
 PREPARE s FROM "UPDATE t1 JOIN t2 ON t1.a=t2.b SET t1.a=absent.absent";
 ERROR 42S22: Unknown column 'absent.absent' in 'field list'
 DROP TABLE t1, t2;
+#
+# Bug#19894382 - SERVER SIDE PREPARED STATEMENTS LEADS TO POTENTIAL OFF-BY-SECOND
+#                TIMESTAMP ON SLAVE.
+#
+CREATE TABLE bug19894382(f1 CHAR(64) DEFAULT 'slave',
+f2 TIME, f3 TIMESTAMP NULL, f4 DATETIME,
+f5 TIME(3), f6 TIMESTAMP(3) NULL, f7 DATETIME(3));
+# Execute prepared statements from mysql_client_test.
+# Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.
+# Tuples in the client_test_db.bug19894382 are inserted from the mysql_client_test.
+INSERT INTO bug19894382 SELECT * FROM client_test_db.bug19894382;
+# Replay binlog events
+# Insert tuples from the client_test_db.bug19894382 to the test.bug19894382.
+# Tuples in the client_test_db.bug19894382 are inserted from the binlog.
+INSERT INTO bug19894382(f2, f3, f4, f5, f6, f7)
+SELECT f2, f3, f4, f5, f6, f7 FROM client_test_db.bug19894382;
+# With fix, tuples of "master" and "slave" will be same. There will not be any difference
+# in values inserted for time, timestamp and datetime type columns.
+SELECT * FROM bug19894382 ORDER BY f2;
+f1	f2	f3	f4	f5	f6	f7
+master	07:30:30	2015-04-24 13:30:30	2015-04-24 07:30:30	07:30:30.005	2015-04-24 13:30:30.005	2015-04-24 07:30:30.005
+slave	07:30:30	2015-04-24 13:30:30	2015-04-24 07:30:30	07:30:30.005	2015-04-24 13:30:30.005	2015-04-24 07:30:30.005
+master	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
+slave	07:30:31	2015-04-24 13:30:31	2015-04-24 07:30:31	07:30:30.502	2015-04-24 13:30:30.502	2015-04-24 07:30:30.502
+# Cleanup
+DROP DATABASE client_test_db;
+DROP TABLE bug19894382;

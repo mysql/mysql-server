@@ -1,0 +1,60 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Stage 1. Watch PRIMARY and SECONDARIES being set as we grow the group.
+#
+
+## START SERVER 1
+[connection server1]
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Could not execute Write_rows event on table test.table1; Duplicate entry '1'");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': Worker .* failed executing transaction .*; Could not execute Write_rows event on table test.table1; Duplicate entry '1' for key 'PRIMARY'.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped*");
+call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected");
+SET SQL_LOG_BIN=1;
+include/start_and_bootstrap_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+
+## START SERVERS 2-3
+[connection server2]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+[connection server3]
+include/start_group_replication.inc
+include/gr_wait_primary_member_uuid.inc
+#
+# Stage 2. Disable binlog and insert same data on PRIMARY and on
+#          of SECONDARY servers
+#
+[connection server1]
+CREATE TABLE `table1`(`id` INT PRIMARY KEY AUTO_INCREMENT, `value` VARCHAR(50));
+include/rpl_sync.inc
+
+## INSERT SAME ROW ON SERVER1 AND SERVER2
+SET SQL_LOG_BIN= 0;
+INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
+SET SQL_LOG_BIN= 1;
+[connection server2]
+SET GLOBAL super_read_only= 0;
+INSERT INTO `table1`(`id`, `value`) VALUES(1, "First element");
+[connection server1]
+include/gr_wait_for_member_state.inc
+#
+# Stage 3. Verify state of each server
+#
+include/gr_wait_for_role_count.inc
+include/assert.inc ['Old primary server should be in ERROR state';]
+include/assert.inc ['group_replication_primary_member should be set to UNDEFINED when replication node is in error state';]
+#
+# Stage 4. Clean up.
+#
+DROP TABLE `table1`;
+include/group_replication_end.inc
+[connection server1]
+SET GLOBAL read_only= 0;
+DROP TABLE `table1`;

@@ -17,7 +17,7 @@ perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_4k_size
 
 # Run with innodb_undo_tablespace > 1
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2 --skip-test-list=collections/disabled-per-push.list
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_undo_logs=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=innodb_undo --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=3 --mysqld=--innodb_page_size=64K --bootstrap --innodb_undo_tablespaces=3 --bootstrap --innodb_page_size=64K --bootstrap --innodb_rollback_segments=35 --skip-test-list=collections/disabled-per-push.list --big-test noop
 
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_binlog_n_mix_MTS --vardir=var-mts-rpl-binlog-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --suite=rpl
@@ -40,4 +40,9 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-inn
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --skip-test-list=collections/disabled-daily.list
 # test-sql-api-plugins
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=test_service_sql_api --vardir=var-test_service_sql_api --suite=test_service_sql_api --experimental=collections/default.experimental --skip-ndb
-
+# test x plugin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental
+# cross_plugin_test
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=cross_plugin_test --vardir=var-cross_plugin_test --suite=cross_plugin_test --experimental=collections/default.experimental
+# audit_log
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=audit_log --vardir=var-audit_log --suite=audit_log --experimental=collections/default.experimental --force-restart

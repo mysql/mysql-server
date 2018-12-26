@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "ha_innopart.h"
 #include "partition_info.h"
 #include "key.h"
+#include "dict0priv.h"
 
 #define INSIDE_HA_INNOPART_CC
 
@@ -1120,6 +1121,7 @@ share_error:
 
 	DBUG_ASSERT(table != NULL);
 	m_prebuilt->m_mysql_table = table;
+	m_prebuilt->m_mysql_handler = this;
 
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);
@@ -1398,9 +1400,8 @@ void ha_innopart::clear_ins_upd_nodes()
 		for (uint i = 0; i < m_tot_parts; i++) {
 			if (m_upd_node_parts[i] != NULL) {
 				upd_node_t*	upd = m_upd_node_parts[i];
-				if (upd->cascade_top) {
+				if (upd->cascade_heap) {
 					mem_heap_free(upd->cascade_heap);
-					upd->cascade_top = false;
 					upd->cascade_heap = NULL;
 				}
 				if (upd->in_mysql_interface) {
@@ -2721,6 +2722,8 @@ ha_innopart::create(
 	char		tablespace_name[NAME_LEN + 1];
 	char*		table_name_end;
 	size_t		table_name_len;
+	size_t		db_name_length;
+	ulint		stat_table_name_length;
 	char*		partition_name_start;
 	char		table_data_file_name[FN_REFLEN];
 	char		table_level_tablespace_name[NAME_LEN + 1];
@@ -2736,6 +2739,12 @@ ha_innopart::create(
 				     tablespace_name);
 
 	DBUG_ENTER("ha_innopart::create");
+
+        if (is_shared_tablespace(create_info->tablespace)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+        }
+
 	ut_ad(create_info != NULL);
 	ut_ad(m_part_info == form->part_info);
 	ut_ad(table_share != NULL);
@@ -2759,6 +2768,7 @@ ha_innopart::create(
 		DBUG_RETURN(error);
 	}
 	ut_ad(temp_path[0] == '\0');
+	db_name_length = strchr(table_name,'/') - table_name;
 	strcpy(partition_name, table_name);
 	partition_name_start = partition_name + strlen(partition_name);
 	table_name_len = strlen(table_name);
@@ -2793,6 +2803,33 @@ ha_innopart::create(
 
 	row_mysql_lock_data_dictionary(info.trx());
 
+	/* Mismatch can occur in the length of the column "table_name" in
+	mysql.innodb_table_stats and mysql.innodb_index_stats after the
+	fix to increase the column length of table_name column to accomdate
+	partition_names, so we first need to determine the length of the
+	"table_name" column and accordingly we can decide the length
+	of partition name .*/
+
+	dict_table_t *table = dict_table_get_low(TABLE_STATS_NAME);
+	if (table != NULL) {
+		ulint col_no = dict_table_has_column(table,"table_name",0);
+		ut_ad (col_no != table->n_def);
+		stat_table_name_length =  table->cols[col_no].len;
+		if (stat_table_name_length > NAME_LEN) {
+			/* The maximum allowed length is 597 bytes
+			,but the file name length cannot cross
+			FN_LEN */
+			stat_table_name_length = FN_LEN;
+		} else {
+			stat_table_name_length = NAME_LEN;
+		}
+
+	} else {
+		/* set the old length of 192 bytes in case of failure */
+		stat_table_name_length = NAME_LEN;
+		ib::warn() << TABLE_STATS_NAME << " doesnt exist.";
+	}
+
 	/* TODO: use the new DD tables instead to decrease duplicate info. */
 	List_iterator_fast <partition_element>
 		part_it(form->part_info->partitions);
@@ -2804,8 +2841,22 @@ ha_innopart::create(
 				part_elem->partition_name,
 				part_sep,
 				FN_REFLEN - table_name_len);
-		if ((table_name_len + len) >= FN_REFLEN) {
-			ut_ad(0);
+		/* Report error if the partition name with path separator
+		exceeds maximum path length. */
+		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), FN_REFLEN,
+				partition_name);
+			goto cleanup;
+		}
+
+		/* Report error if table name with partition name exceeds
+		maximum file name length */
+		if ((len + table_name_len - db_name_length - 1)
+		     > stat_table_name_length) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0),
+				 partition_name + db_name_length + 1 );
 			goto cleanup;
 		}
 
@@ -2813,6 +2864,11 @@ ha_innopart::create(
 		set_create_info_dir(part_elem, create_info);
 
 		if (!form->part_info->is_sub_partitioned()) {
+			if (is_shared_tablespace(part_elem->tablespace_name)) {
+				push_deprecated_warn_no_replacement(
+					ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+			}
+
 			error = info.prepare_create_table(partition_name);
 			if (error != 0) {
 				goto cleanup;
@@ -2833,6 +2889,11 @@ ha_innopart::create(
 			while ((sub_elem = sub_it++)) {
 				ut_ad(sub_elem->partition_name != NULL);
 
+				if (is_shared_tablespace(sub_elem->tablespace_name)) {
+					push_deprecated_warn_no_replacement(
+						ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+				}
+
 				/* 'table' will be
 				<name>#P#<part_name>#SP#<subpart_name>.
 				Append the sub-partition name to
@@ -2843,10 +2904,26 @@ ha_innopart::create(
 					sub_elem->partition_name,
 					sub_sep,
 					FN_REFLEN - part_name_len);
-				if ((len + part_name_len) >= FN_REFLEN) {
-					ut_ad(0);
+				/* Report error if the partition name with path separator
+				exceeds maximum path length. */
+				if ((len + part_name_len + sizeof "/") >= FN_REFLEN) {
+					error = HA_ERR_INTERNAL_ERROR;
+					my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0),
+						 FN_REFLEN,
+						 partition_name);
 					goto cleanup;
 				}
+
+				/* Report error if table name with partition
+				name exceeds maximum file name length */
+				if ((len + part_name_len - db_name_length -1)
+				     > stat_table_name_length ) {
+					error = HA_ERR_INTERNAL_ERROR;;
+					my_error(ER_PATH_LENGTH, MYF(0),
+					partition_name + db_name_length + 1);
+					goto cleanup;
+				}
+
 				/* Override part level DATA/INDEX DIRECTORY. */
 				set_create_info_dir(sub_elem, create_info);
 
@@ -2895,11 +2972,12 @@ ha_innopart::create(
 	create_info->data_file_name = NULL;
 	create_info->index_file_name = NULL;
 	while ((part_elem = part_it++)) {
-		Ha_innopart_share::append_sep_and_name(
-			table_name_end,
-			part_elem->partition_name,
-			part_sep,
-			FN_REFLEN - table_name_len);
+		len = Ha_innopart_share::append_sep_and_name(
+				table_name_end,
+				part_elem->partition_name,
+				part_sep,
+				FN_REFLEN - table_name_len);
+
 		if (!form->part_info->is_sub_partitioned()) {
 			error = info.create_table_update_dict();
 			if (error != 0) {
@@ -2913,12 +2991,13 @@ ha_innopart::create(
 				sub_it(part_elem->subpartitions);
 			partition_element* sub_elem;
 			while ((sub_elem = sub_it++)) {
-				Ha_innopart_share::append_sep_and_name(
-					part_name_end,
-					sub_elem->partition_name,
-					sub_sep,
-					FN_REFLEN - table_name_len
-					- part_name_len);
+				len = Ha_innopart_share::append_sep_and_name(
+						part_name_end,
+						sub_elem->partition_name,
+						sub_sep,
+						FN_REFLEN - table_name_len
+						- part_name_len);
+
 				error = info.create_table_update_dict();
 				if (error != 0) {
 					ut_ad(0);
@@ -2939,13 +3018,24 @@ end:
 	DBUG_RETURN(error);
 
 cleanup:
-	trx_rollback_for_mysql(info.trx());
+    trx_rollback_for_mysql(info.trx());
 
-	row_mysql_unlock_data_dictionary(info.trx());
+    row_mysql_unlock_data_dictionary(info.trx());
 
-	trx_free_for_mysql(info.trx());
+    ulint dummy;
+    char norm_name[FN_REFLEN];
 
-	DBUG_RETURN(error);
+    normalize_table_name(norm_name, name);
+
+    uint lent = (uint)strlen(norm_name);
+    ut_a(lent < FN_REFLEN);
+    norm_name[lent] = '#';
+    norm_name[lent + 1] = 0;
+
+    row_drop_database_for_mysql(norm_name, info.trx(), &dummy);
+
+    trx_free_for_mysql(info.trx());
+    DBUG_RETURN(error);
 }
 
 /** Discards or imports an InnoDB tablespace.
@@ -3125,6 +3215,10 @@ ha_innopart::truncate()
 	DBUG_RETURN(error);
 }
 
+#ifdef WL6742
+
+/* Removing Wl6742 as part of Bug#23046302 */
+
 /** Total number of rows in all used partitions.
 Returns the exact number of records that this client can see using this
 handler object.
@@ -3159,6 +3253,7 @@ ha_innopart::records(
 	}
 	DBUG_RETURN(0);
 }
+#endif
 
 /** Estimates the number of index records in a range.
 @param[in]	keynr	Index number.
@@ -3205,14 +3300,11 @@ ha_innopart::records_in_range(
 	set_partition(part_id);
 	index = m_prebuilt->index;
 
-	/* Only validate the first partition, to avoid too much overhead. */
-
 	/* There exists possibility of not being able to find requested
 	index due to inconsistency between MySQL and InoDB dictionary info.
 	Necessary message should have been printed in innopart_get_index(). */
 	if (index == NULL
 	    || dict_table_is_discarded(m_prebuilt->table)
-	    || dict_index_is_corrupted(index)
 	    || !row_merge_is_index_usable(m_prebuilt->trx, index)) {
 
 		n_rows = HA_POS_ERROR;
@@ -3271,6 +3363,17 @@ ha_innopart::records_in_range(
 		     part_id = m_part_info->get_next_used_partition(part_id)) {
 
 			index = m_part_share->get_index(part_id, keynr);
+			/* Individual partitions can be discarded
+			we need to check each partition */
+			if (index == NULL
+			    || dict_table_is_discarded(index->table)
+			    || !row_merge_is_index_usable(m_prebuilt->trx,index))
+			{
+
+				n_rows = HA_POS_ERROR;
+				mem_heap_free(heap);
+				goto func_exit;
+			}
 			int64_t n = btr_estimate_n_rows_in_range(index,
 							       range_start,
 							       mode1,
@@ -4161,6 +4264,15 @@ ha_innopart::external_lock(
 
 				ut_ad(table->quiesce == QUIESCE_START);
 
+				if (dict_table_is_discarded(table)) {
+					ib_senderrf(m_prebuilt->trx->mysql_thd,
+						    IB_LOG_LEVEL_ERROR,
+						    ER_TABLESPACE_DISCARDED,
+						    table->name.m_name);
+
+					return (HA_ERR_NO_SUCH_TABLE);
+				}
+
 				row_quiesce_table_start(table,
 							m_prebuilt->trx);
 
@@ -4328,6 +4440,11 @@ ha_innopart::create_new_partition(
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
+	if (tablespace_is_shared_space(create_info)) {
+		push_deprecated_warn_no_replacement(
+			ha_thd(), PARTITION_IN_SHARED_TABLESPACE_WARNING);
+	}
+
 	error = ha_innobase::create(norm_name, table, create_info);
 	create_info->tablespace = tablespace_name_backup;
 	create_info->data_file_name = data_file_name_backup;
@@ -4450,6 +4567,45 @@ ha_innopart::reset()
 	clear_blob_heaps();
 
 	DBUG_RETURN(ha_innobase::reset());
+}
+
+/**
+ Read row using position using given record to find.
+
+This works as position()+rnd_pos() functions, but does some
+extra work,calculating m_last_part - the partition to where
+the 'record' should go.	Only useful when position is based
+on primary key (HA_PRIMARY_KEY_REQUIRED_FOR_POSITION).
+
+@param[in]	record	Current record in MySQL Row Format.
+@return	0 for success else error code. */
+int
+ha_innopart::rnd_pos_by_record(uchar*  record)
+{
+	int error;
+	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
+	DBUG_ASSERT(ha_table_flags() &
+		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
+	/* Set m_last_part correctly. */
+	if (unlikely(get_part_for_delete(record,
+					 m_table->record[0],
+					 m_part_info,
+					 &m_last_part))) {
+		DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
+	}
+
+	/* Init only the partition in which row resides */
+	error = rnd_init_in_part(m_last_part, false);
+	if (error != 0) {
+		goto err;
+	}
+
+	position(record);
+	error = handler::ha_rnd_pos(record, ref);
+err:
+	rnd_end_in_part(m_last_part,FALSE);
+	DBUG_RETURN(error);
 }
 
 /****************************************************************************

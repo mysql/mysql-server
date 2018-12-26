@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -297,6 +297,10 @@ void test_oom()
   stub_alloc_fails_after_count= 2;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread wait)");
+
+  cleanup_sync_class();
+  cleanup_thread_class();
+  cleanup_file_class();
   cleanup_instruments();
 
   /* Thread waits history sizing. */
@@ -307,6 +311,8 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread waits history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Per thread stages. */
@@ -316,6 +322,9 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread stages)");
+
+  cleanup_stage_class();
+  cleanup_thread_class();
   cleanup_instruments();
   cleanup_stage_class();
 
@@ -326,7 +335,9 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread stages history sizing)");
+  
   cleanup_instruments();
+  cleanup_thread_class();
 
   /* Per thread statements. */
   memset(&param, 0, sizeof(param));
@@ -336,8 +347,11 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread statements)");
-  cleanup_instruments();
+
+  cleanup_stage_class();
   cleanup_statement_class();
+  cleanup_thread_class();
+  cleanup_instruments();
 
   /* Thread statements history sizing. */
   memset(&param, 0, sizeof(param));
@@ -346,6 +360,8 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread statements history sizing)");
+  
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Per thread transactions. */
@@ -356,6 +372,8 @@ void test_oom()
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (per thread transactions)");
   transaction_class_max= 0;
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Thread transactions history sizing. */
@@ -365,6 +383,8 @@ void test_oom()
   stub_alloc_fails_after_count= 3;
   thread= psi->new_thread(thread_key_1, NULL, 0);
   ok(thread == NULL, "oom (thread transactions history sizing)");
+
+  cleanup_thread_class();
   cleanup_instruments();
 
   /* Global stages. */
@@ -379,8 +399,9 @@ void test_oom()
   ok(rc == 0, "init stage class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global stages)");
-  cleanup_instruments();
+
   cleanup_stage_class();
+  cleanup_instruments();
 
   /* Global statements. */
   memset(&param, 0, sizeof(param));
@@ -394,8 +415,9 @@ void test_oom()
   ok(rc == 0, "init statement class");
   rc= init_instruments(&param);
   ok(rc == 1, "oom (global statements)");
-  cleanup_instruments();
+
   cleanup_statement_class();
+  cleanup_instruments();
 
   /* Global memory. */
   memset(&param, 0, sizeof(param));
@@ -409,8 +431,9 @@ void test_oom()
   ok(rc == 0, "init memory class");
   rc= init_instruments(& param);
   ok(rc == 1, "oom (global memory)");
-  cleanup_instruments();
+
   cleanup_memory_class();
+  cleanup_instruments();
 }
 
 void do_all_tests()
@@ -423,6 +446,6 @@ int main(int, char **)
   plan(32);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
-  return 0;
+  return (exit_status());
 }
 

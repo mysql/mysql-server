@@ -30,11 +30,15 @@ call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for ");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Default location:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Dictionary location:");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 11 means 'Resource temporarily unavailable'");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 35 means 'Resource temporarily unavailable'");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 38 means 'Function not implemented'.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`.*` in the cache. Attempting to load");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: In file '.*', tablespace id and flags are .* but in the InnoDB data dictionary they are");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 11 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 35 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 38 in a file operation.");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: Remote location:");
 call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
@@ -365,6 +369,8 @@ INSERT INTO yy VALUES (1, 'yy');
 --echo #
 --echo # Crash the server, copy and remove files.
 --echo #
+--source include/no_checkpoint_start.inc
+
 BEGIN;
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
@@ -378,7 +384,11 @@ SELECT * FROM yn;
 SELECT * FROM yw;
 SELECT * FROM yy;
 
---source include/kill_mysqld.inc
+--let CLEANUP_IF_CHECKPOINT=drop table ny,wy,yn,yw,yy;
+--let CLEANUP_FILES_IF_CHECKPOINT=--source suite/innodb/include/innodb-multiple-tablespaces-cleanup.inc
+
+#This will kill the server
+--source include/no_checkpoint_end.inc
 
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.

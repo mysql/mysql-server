@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -988,6 +988,13 @@ struct trx_t {
 
 	trx_state_t	state;
 
+	/* If set, this transaction should stop inheriting (GAP)locks.
+	Generally set to true during transaction prepare for RC or lower
+	isolation, if requested. Needed for replication replay where
+	we don't want to get blocked on GAP locks taken for protecting
+	concurrent unique insert or replace operation. */
+	bool		skip_lock_inheritance;
+
 	ReadView*	read_view;	/*!< consistent read view used in the
 					transaction, or NULL if not yet set */
 
@@ -1435,10 +1442,30 @@ private:
 			return;
 		}
 
-		/* Avoid excessive mutex acquire/release */
-
 		ut_ad(!is_async_rollback(trx));
 
+		/* If it hasn't already been marked for async rollback.
+		and it will be committed/rolled back. */
+		if (disable) {
+
+			trx_mutex_enter(trx);
+			if (!is_forced_rollback(trx)
+			    && is_started(trx)
+			    && !trx_is_autocommit_non_locking(trx)) {
+
+				ut_ad(trx->killed_by == 0);
+
+				/* This transaction has crossed the point of
+				no return and cannot be rolled back
+				asynchronously now. It must commit or rollback
+				synhronously. */
+
+				trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
+			}
+			trx_mutex_exit(trx);
+		}
+
+		/* Avoid excessive mutex acquire/release */
 		++trx->in_depth;
 
 		/* If trx->in_depth is greater than 1 then
@@ -1456,25 +1483,7 @@ private:
 
 		wait(trx);
 
-		ut_ad((trx->in_innodb & TRX_FORCE_ROLLBACK_MASK)
-		      < (TRX_FORCE_ROLLBACK_MASK - 1));
-
-		/* If it hasn't already been marked for async rollback.
-		and it will be committed/rolled back. */
-
-		if (!is_forced_rollback(trx)
-		    && disable
-		    && is_started(trx)
-		    && !trx_is_autocommit_non_locking(trx)) {
-
-			ut_ad(trx->killed_by == 0);
-
-			/* This transaction has crossed the point of no
-			return and cannot be rolled back asynchronously
-			now. It must commit or rollback synhronously. */
-
-			trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
-		}
+		ut_ad((trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) == 0);
 
 		++trx->in_innodb;
 

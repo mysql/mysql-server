@@ -18,7 +18,10 @@ CREATE VIEW xtest.myview AS SELECT 1;
 
 
 -->sql
-CREATE VIEW xtest.fakecoll AS SELECT * FROM xtest.books
+CREATE VIEW xtest.fakecoll AS SELECT * FROM xtest.books;
+CREATE VIEW xtest.xdoc AS SELECT doc FROM xtest.mytable2;
+CREATE VIEW xtest.fakexview AS SELECT doc, a AS _id FROM xtest.mytable2;
+
 -->endsql
 
 
@@ -65,6 +68,39 @@ USE xtest
 -->stmtadmin list_objects	{"pattern":"books"}
 -->recvresult
 
+
+-->stmtadmin list_objects
+-->recvresult
+-->stmtsql DROP TABLE xtest.books
+-->recvresult
+-->stmtadmin list_objects
+-->recvresult
+
+
+-->stmtadmin list_objects	{"schema":"sys", "pattern":"processlist"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"information_schema", "pattern":"processlist"}
+-->recvresult
+
+-->title -Collection with index
+-->stmtadmin create_collection	{"schema":"xtest", "name":"fruit"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name", "unique": true, "constraint":{"member": "$.name", "type": "text(20)", "required": false}}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
+
+-->title -Removing `_id` from collection
+-->stmtsql ALTER TABLE xtest.fruit DROP COLUMN _id;
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
+
+-->title -Removing `_id` and index from collection
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name"}
+-->recvresult
+-->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1

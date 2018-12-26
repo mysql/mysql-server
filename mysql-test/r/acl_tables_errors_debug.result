@@ -1,4 +1,3 @@
-call mtr.add_suppression("Did not write failed");
 SET @old_debug= @@SESSION.debug;
 SET DEBUG='+d, se_error_replace_user_table_read';
 CREATE USER 'foo'@'localhost' IDENTIFIED BY 'abcd';

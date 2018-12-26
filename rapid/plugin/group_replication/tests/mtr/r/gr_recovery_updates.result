@@ -1,0 +1,79 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Start group replication on the three servers
+# Add some data in to the members
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+server2
+include/start_group_replication.inc
+server3
+include/start_group_replication.inc
+#
+# Phase 1: Change the group when the Joiner did not yet choose a Donor.
+#
+# Start group replication on server 4
+# Wait right after recovery is declared as running.
+#
+server4
+SET @debug_save= @@GLOBAL.DEBUG;
+# Set the debug flag to block recovery
+SET @@GLOBAL.DEBUG='d,recovery_thread_start_wait';
+include/start_group_replication.inc
+#
+# Stop group replication in one of the other servers
+# The recovery process should not be affected.
+#
+server2
+include/stop_group_replication.inc
+server4
+#
+# Resume the recovery process.
+# The data should be there when declared online
+#
+SET @@GLOBAL.DEBUG= 'd,recovery_thread_wait_before_finish';
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
+#
+# Phase 2: Change the group after the state exchange in the Joiner ended.
+#
+# Restart group replication on the stopped member
+#
+server2
+include/start_group_replication.inc
+#
+# Stop 2 servers while recovery is not yet stopped.
+#
+server2
+include/stop_group_replication.inc
+server3
+include/stop_group_replication.inc
+#
+# Resume recovery: All should be OK
+#
+server4
+SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
+SET @@GLOBAL.DEBUG= @debug_save;
+include/gr_wait_for_member_state.inc
+#
+# Test if the servers are working properly
+#
+server1
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+server4
+include/assert.inc [On the recovered member, the table should exist and have 1 elements;]
+#
+# Clean up
+#
+server2
+include/start_group_replication.inc
+server3
+include/start_group_replication.inc
+DROP TABLE t1;
+include/group_replication_end.inc

@@ -18,6 +18,8 @@ a	b
 3	Three
 5	Five
 9	Nine
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE testdb.t_10;
 SELECT * FROM testdb.t_10;
 a	b
@@ -31,6 +33,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE testdb.tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 SELECT * FROM t_10;
 a	b
@@ -44,6 +48,8 @@ a	b
 3	Three
 5	Five
 9	Nine
+Warning	1287	The partition engine, used by table 'testdb.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE testdb.tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 SELECT * FROM t_10;
 a	b
@@ -57,6 +63,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'testdb.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 disconnect test2;
 connection default;
 REVOKE INSERT ON testdb.* FROM test2@localhost;

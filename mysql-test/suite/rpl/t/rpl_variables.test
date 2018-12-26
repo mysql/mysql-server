@@ -63,6 +63,9 @@
 source include/have_binlog_format_mixed_or_row.inc;
 source include/master-slave.inc;
 
+# The hostname needs to be stripped off its extensions as even
+# in code we use the stripped hostname as default basename
+--let $HOST_NAME= `SELECT SUBSTRING_INDEX(@@hostname, '.', 1)`
 
 --echo ==== Initialization ====
 
@@ -123,7 +126,7 @@ connection master;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 query_vertical SELECT @@pid_file, @@datadir;
 --echo **** Relay log variables
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 query_vertical SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
 --echo **** Binary log variables
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -135,7 +138,7 @@ connection slave;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 query_vertical SELECT @@pid_file, @@datadir;
 --echo **** Relay log variables
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $HOST_NAME hostname
 query_vertical SELECT @@relay_log, @@relay_log_index, @@relay_log_basename;
 --echo **** Binary log variables
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

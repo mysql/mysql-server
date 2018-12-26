@@ -133,8 +133,8 @@ send Mysqlx.Crud.Find {
 
 Mysqlx.Error {
   severity: ERROR
-  code: 5156
-  msg: "`city` is not a collection"
+  code: 5117
+  msg: "Unknown column \'doc\' in collection"
   sql_state: "HY000"
 }
 

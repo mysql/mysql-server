@@ -1,0 +1,1 @@
+--performance_schema_events_waits_history_long_size=100000 --innodb_sort_buffer_size=64k --innodb-buffer-pool-size=8M --tmpdir=$MYSQLTEST_VARDIR_ABS

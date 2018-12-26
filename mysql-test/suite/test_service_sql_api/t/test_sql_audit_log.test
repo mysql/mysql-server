@@ -74,6 +74,7 @@ UNINSTALL PLUGIN test_sql_2_sessions;
 --echo ##########################################
 --echo # Stop audit_log plugin
 --echo ##########################################
+move_file $MYSQLTEST_VARDIR/mysqld.1/data/audit.log $MYSQLTEST_VARDIR/mysqld.1/data/audit.log.temp;
 UNINSTALL PLUGIN audit_log;
 
 --echo ##########################################
@@ -86,7 +87,7 @@ remove_file $MYSQLD_DATADIR/test_sql_2_sessions.log;
 --echo ##########################################
 --echo # Check audit log file
 --echo ##########################################
-let $MYSQL_LOGFILE = $MYSQLTEST_VARDIR/mysqld.1/data/audit.log;
+let $MYSQL_LOGFILE = $MYSQLTEST_VARDIR/mysqld.1/data/audit.log.temp;
 CREATE TABLE t1 (c1 text);
 sleep 1;
 --replace_result $MYSQL_LOGFILE MYSQL_LOGFILE

@@ -207,6 +207,8 @@ partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 insert into t1 values (1,1,1);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -255,6 +257,8 @@ partitions 3
 (partition x1 tablespace ts1,
 partition x2 tablespace ts2,
 partition x3 tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 select * from t1;
 a	b	c
 SHOW CREATE TABLE t1;

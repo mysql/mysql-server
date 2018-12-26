@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -311,6 +311,12 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Item *item;
       if (!(item= field_iterator.create_item(thd)))
         DBUG_RETURN(TRUE);
+
+      if (item->field_for_view_update() == NULL)
+      {
+        my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
+        DBUG_RETURN(true);
+      }
       fields_vars.push_back(item->real_item());
     }
     bitmap_set_all(table->write_set);
@@ -441,8 +447,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                        MY_RETURN_REAL_PATH);
     }
 
-    if (thd->slave_thread & ((SYSTEM_THREAD_SLAVE_SQL |
-                             (SYSTEM_THREAD_SLAVE_WORKER))!=0))
+    if ((thd->slave_thread &
+         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
     {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
       Relay_log_info* rli= thd->rli_slave->get_c_rli();
@@ -948,8 +954,9 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1182,8 +1189,9 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1396,8 +1404,9 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     }
 
     if (thd->killed ||
-        fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             table, TRG_EVENT_INSERT,
+        fill_record_n_invoke_before_triggers(thd, &info, set_fields,
+                                             set_values, table,
+                                             TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
@@ -1635,6 +1644,7 @@ int READ_INFO::read_field()
 
   for (;;)
   {
+    bool escaped_mb= false;
     while ( to < end_of_buff)
     {
       chr = GET;
@@ -1656,7 +1666,23 @@ int READ_INFO::read_field()
          */
         if (escape_char != enclosed_char || chr == escape_char)
         {
-          *to++ = (uchar) unescape((char) chr);
+          uint ml;
+          GET_MBCHARLEN(read_charset, chr, ml);
+          /*
+            For escaped multibyte character, push back the first byte,
+            and will handle it below.
+            Because multibyte character's second byte is possible to be
+            0x5C, per Query_result_export::send_data, both head byte and
+            tail byte are escaped for such characters. So mark it if the
+            head byte is escaped and will handle it below.
+          */
+          if (ml == 1)
+            *to++= (uchar) unescape((char) chr);
+          else
+          {
+            escaped_mb= true;
+            PUSH(chr);
+          }
           continue;
         }
         PUSH(chr);
@@ -1748,8 +1774,16 @@ int READ_INFO::read_field()
             to-= i;
             goto found_eof;
           }
+          else if (chr == escape_char && escaped_mb)
+          {
+            // Unescape the second byte if it is escaped.
+            chr= GET;
+            chr= (uchar) unescape((char) chr);
+          }
           *to++ = chr;
         }
+        if (escaped_mb)
+          escaped_mb= false;
         if (my_ismbchar(read_charset,
                         (const char *)p,
                         (const char *)to))
@@ -2160,6 +2194,15 @@ int READ_INFO::read_xml()
       
     case '>': /* end tag - read tag value */
       in_tag= false;
+      /* Skip all whitespaces */
+      while (' ' == (chr= my_tospace(GET)))
+      {
+      }
+      /*
+        Push the first non-whitespace char back to Stack. This char would be
+        read in the upcoming call to read_value()
+       */
+      PUSH(chr);
       chr= read_value('<', &value);
       if(chr == my_b_EOF)
         goto found_eof;

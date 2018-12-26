@@ -26,8 +26,7 @@ IF(UNIX)
   # Left in current directory, to be taken during build
   CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
-  FOREACH(fedfile my.cnf my_config.h mysql_config.sh
-          mysql.init filter-requires.sh filter-provides.sh)
+  FOREACH(fedfile mysql.init)
     CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
   ENDFOREACH()
 ENDIF()

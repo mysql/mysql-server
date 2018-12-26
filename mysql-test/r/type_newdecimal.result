@@ -2211,3 +2211,10 @@ SELECT -1 DIV LEAST(1, JSON_EXTRACT('1', '$.abc'));
 NULL
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+#
+# Bug#25685958 ASSERTION FAILED:
+#              RETVAL == 0 IN ITEM_SUM_HYBRID::VAL_DECIMAL()
+#
+do 1 div nullif(min(from_days(1)),_utf8'1');
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'

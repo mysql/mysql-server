@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -485,8 +485,6 @@ public:
   String *val_str_ascii(String *str);
   void fix_length_and_dec();
   const char *func_name() const { return "password"; }
-  static char *create_password_hash_buffer(THD *thd, const char *password,
-                                           size_t pass_len);
 };
 
 

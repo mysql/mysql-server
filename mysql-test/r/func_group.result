@@ -1108,6 +1108,8 @@ WHERE ttt.a = ccc.b AND ttt.a = t.a GROUP BY ttt.a) AS minid
 FROM t1 t, t2 c WHERE t.a = c.b;
 minid
 1
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1,t2;
 create table t1 select variance(0);
 show create table t1;

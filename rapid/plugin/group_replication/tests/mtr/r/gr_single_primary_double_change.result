@@ -1,0 +1,79 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+set session sql_log_bin=1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET GLOBAL group_replication_member_weight= 70;
+include/start_group_replication.inc
+
+############################################################
+# 1. Configure server 3 recovery user, so it is the only
+# viable donor for server1 on step #4
+[connection server3]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+SET SESSION sql_log_bin= 1;
+include/start_group_replication.inc
+[connection server1]
+include/gr_wait_primary_member_uuid.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+###########################################################
+# 2. Stop server 2 applier thread and insert data server 1.
+# This will prevent server2 from turning off certification
+# once it is elected as primary.
+[connection server2]
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+[connection server1]
+INSERT INTO t1 VALUES(1,1);
+
+###########################################################
+# 3. Stop server 1 (primary) and validate thar server 2 is
+# the new primary. If not skip test, server 2 needs to be
+# the primary to test continue.
+include/stop_group_replication.inc
+[connection server2]
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
+
+###########################################################
+# 4. Configure server 1 with recovery credentials from server
+# 3 and start group replication.
+[connection server1]
+CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
+include/start_group_replication.inc
+
+###########################################################
+# 5. Insert conflicting transaction on server 2. Since
+# conflict detection is still enabled on both the primary
+# and the joiner, the transaction must be certified as
+# being concurrent in all members.
+[connection server2]
+INSERT INTO t1 VALUES(1,2);
+ERROR HY000: Plugin instructed the server to rollback the current transaction.
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+include/assert.inc ['The value of Count_conflicts_detected should be 1 on server 2']
+[connection server1]
+[connection server3]
+
+###########################################################
+# 6. Clean up.
+SET SESSION sql_log_bin= 0;
+SET GLOBAL read_only= 0;
+DROP USER recovery_user;
+SET SESSION sql_log_bin= 1;
+[connection server2]
+DROP TABLE t1;
+SET GLOBAL group_replication_member_weight= DEFAULT;
+include/group_replication_end.inc

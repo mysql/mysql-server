@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ void Abstract_progress_watcher::object_processing_ended(
   Table_rows_dump_task* processed_table_task=
     dynamic_cast<Table_rows_dump_task*>(
     finished_process_data->get_process_task_object());
-  if (processed_table_task != NULL && processed_table_task->is_completed()
+  if (processed_table_task != NULL
     && finished_process_data->had_chain_created())
   {
     m_progress.m_table_count++;

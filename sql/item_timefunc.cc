@@ -3271,7 +3271,7 @@ void Item_func_str_to_date::fix_from_format(const char *format, size_t length)
   const char *val= format;
   const char *end= format + length;
 
-  for (; val != end && val != end; val++)
+  for (; val != end; val++)
   {
     if (*val == '%' && val + 1 != end)
     {

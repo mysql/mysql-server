@@ -2,8 +2,14 @@ drop table if exists t1;
 create table t1 (a int not null);
 insert into t1 values (1), (2), (3);
 SET GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 flush query cache;
+Warnings:
+Warning	1681	'FLUSH QUERY CACHE' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 select * from t1;
 a
@@ -39,6 +45,8 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	{CYCLE_OR_NANOSECOND}
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -54,6 +62,8 @@ NULL
 select * from performance_schema.setup_timers where name='wait';
 NAME	TIMER_NAME
 wait	{CYCLE_OR_NANOSECOND}
+Warnings:
+Warning	1681	'performance_schema.setup_timers' is deprecated and will be removed in a future release.
 show global status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -64,5 +74,7 @@ show global status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 SET GLOBAL query_cache_size= default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 drop table t1;
 flush status;

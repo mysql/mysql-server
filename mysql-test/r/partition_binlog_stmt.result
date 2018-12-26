@@ -11,7 +11,11 @@ name TINYBLOB NOT NULL,
 modified TIMESTAMP DEFAULT '0000-00-00 00:00:00',
 INDEX namelocs (name(255))) ENGINE = MyISAM
 PARTITION BY HASH(id) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/init_file.txt'
 INTO TABLE t1 (name);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 SET sql_mode = default;

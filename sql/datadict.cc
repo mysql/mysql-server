@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,8 +181,6 @@ bool dd_recreate_table(THD *thd, const char *db, const char *table_name)
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                                            db, table_name,
                                                            MDL_EXCLUSIVE));
-
-  memset(&create_info, 0, sizeof(create_info));
 
   /* Create a path to the table, but without a extension. */
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);

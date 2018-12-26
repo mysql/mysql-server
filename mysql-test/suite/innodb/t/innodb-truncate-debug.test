@@ -1,0 +1,189 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+#Enabling valgrind only when this test is run with big test suite
+--source include/no_valgrind_without_big.inc
+
+--echo #
+--echo # Bug #23070734	CONCURRENT TRUNCATE TABLES CAUSE STALLS
+--echo #
+
+--echo Test_1 :- Check if DDL operations are possible on
+--echo		 table being truncated. Also check if
+--echo		 DDL operations on other tables succeed.
+
+create table t1 (f1 int,f2 int,key(f2),f3 int) engine=innodb;
+create index idx1 on t1(f3);
+create table t2 (f1 int,f2 int,key(f2),f3 int) engine=innodb;
+create table t3 (f1 int,f2 int,key(f2)) engine=innodb;
+
+insert into t1 values (10,20,30),(30,40,50),(50,60,70);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t2 values (10,20,30),(30,40,50),(50,60,70);
+
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+insert into t2 select * from t2;
+
+insert into t3 values (10,20),(30,40),(50,50);
+insert into t3 select * from t3;
+insert into t3 select * from t3;
+
+SET session lock_wait_timeout = 1;
+show variables like 'lock_wait_timeout%';
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+--echo connection 1
+connection con1;
+SET DEBUG_SYNC= 'simulate_buffer_pool_scan SIGNAL opened WAIT_FOR finish_scan';
+--send truncate table t1;
+
+--echo connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+
+--echo Check Analyze table. Gives lock time out error.
+analyze table t1;
+
+--echo Check if we can turn off auto recalculation.
+--error ER_LOCK_WAIT_TIMEOUT
+alter table t1 STATS_AUTO_RECALC=0;
+
+--echo Check if we can turn off persistent stats on the table
+--error ER_LOCK_WAIT_TIMEOUT
+alter table t1 STATS_PERSISTENT=0;
+
+--echo Check if DML is possible on table being truncated
+--error ER_LOCK_WAIT_TIMEOUT
+insert into t1 values (10,89,99);
+
+--echo Check if DDL is possible on table being truncated
+--error ER_LOCK_WAIT_TIMEOUT
+alter table t1 add column f4 int;
+
+--echo check if table can be created with the same name
+--error ER_LOCK_WAIT_TIMEOUT
+create table t1 (bd int) engine=innodb;
+
+--echo check if index can be created on table being truncated
+--error ER_LOCK_WAIT_TIMEOUT
+create index idx1 on t1(f1);
+
+--echo Check if DROP of table is possible during truncate
+--error ER_LOCK_WAIT_TIMEOUT
+drop table t1;
+
+--echo Check if select is possible during truncate
+--error ER_LOCK_WAIT_TIMEOUT
+select * from t1;
+
+--error ER_BAD_FIELD_ERROR
+select * from t2 where t2.f1=t1.f1;
+
+--echo Check concurrent truncate operation on table;
+--error ER_LOCK_WAIT_TIMEOUT
+truncate table t1;
+
+--echo Check concurrent selects  and inserts on the other table
+insert into t3 values (10,20),(30,40),(50,50);
+select * from t3 where f1=40;
+
+--echo Concurrent truncate on other tables
+truncate table t2;
+
+--echo Concurrent alters on the other tables
+alter table t2 add column f4 int;
+
+--echo check if index can be created on the other table
+create index idx1 on t2(f3);
+
+
+--echo Check if we can turn off persistent stats off entire instance
+SET GLOBAL innodb_stats_persistent=off;
+
+--echo connection con2
+connection con2;
+--send set global innodb_adaptive_hash_index=off;
+
+--echo connection default
+connection default;
+SET DEBUG_SYNC= 'now SIGNAL finish_scan';
+
+--echo connection con1
+connection con1;
+reap;
+
+--echo connection con2
+connection con2;
+reap;
+
+--echo connection default
+connection default;
+disconnect con1;
+disconnect con2;
+
+SET session lock_wait_timeout=default;
+set global innodb_adaptive_hash_index=default;
+
+drop table t1,t2,t3;
+SET @@global.innodb_stats_persistent=default;
+
+
+--echo Test_2 :- Check if purge thread ignores the undo  
+--echo		 log records of the table being truncated.
+
+let $restart_parameters = restart: --innodb_purge_threads=1 --innodb_purge_batch_size=1 --innodb_stats_persistent=OFF
+--source include/restart_mysqld.inc;
+
+create table t1 (f1 int ,f2 int,key(f2)) engine=innodb;
+insert into t1 values (10,45),(20,78),(30,88),(40,23),(50,78),(60,11),(70,56),(80,90);
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+select count(*) from t1;
+
+--echo Stop the purge thread
+set global innodb_purge_stop_now = 1;
+delete from t1;
+
+connect (con1,localhost,root,,);
+
+--echo connection con1
+connection con1;
+SET DEBUG_SYNC= 'simulate_buffer_pool_scan SIGNAL opened WAIT_FOR finish_scan';
+--send truncate table t1;
+
+--echo Connection default
+connection default;
+
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+set global innodb_purge_run_now=1;
+--sleep 60
+SET DEBUG_SYNC= 'now SIGNAL finish_scan';
+
+--echo connection con1
+connection con1;
+reap;
+
+--echo connection default
+connection default;
+disconnect con1;
+
+drop table t1;
+
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN = InnoDB: Record with space id \d+ belongs to table which is being truncated therefore skipping this undo record.;
+--source include/search_pattern.inc
+
+#cleanup
+--echo # restart server
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

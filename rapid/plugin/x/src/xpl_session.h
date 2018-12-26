@@ -22,7 +22,6 @@
 
 #include <string>
 #include <vector>
-#include <boost/scoped_ptr.hpp>
 #include "ngs/client_session.h"
 
 #include "sql_data_context.h"
@@ -61,30 +60,38 @@ private:
 class Session : public ngs::Session
 {
 public:
-  Session(ngs::Client& client, ngs::Protocol_encoder *proto, Session_id session_id);
-
-  ngs::Error_code init();
-
+  Session(ngs::Client_interface &client, ngs::Protocol_encoder *proto, const Session_id session_id);
   virtual ~Session();
 
-  virtual Sql_data_context &data_context() { return *m_sql; }
-
+public: // impl ngs::Session_interface
+  ngs::Error_code init();
   virtual void on_auth_success(const ngs::Authentication_handler::Response &response);
   virtual void on_auth_failure(const ngs::Authentication_handler::Response &response);
 
+  virtual void mark_as_tls_session();
+  virtual bool is_handled_by(const void *handler) const;
+
+public:
+  virtual Sql_data_context &data_context() { return m_sql; }
   Session_options &options() { return m_options; }
   Session_status_variables &get_status_variables() { return m_status_variables; }
 
+  bool can_see_user(const std::string &user) const;
+
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status();
+  template<Common_status_variables::Variable Common_status_variables::*variable>
+  void update_status(long param);
+
+  void update_status(Common_status_variables::Variable
+                     Common_status_variables::*variable);
+
+private: // reimpl ngs::Session
   virtual void on_kill();
-
-  bool can_see_user(const char *user) const;
-
-  template<void (Common_status_variables::*method)()> void update_status();
-
-protected:
   virtual bool handle_ready_message(ngs::Request &command);
 
-  Sql_data_context *m_sql;
+private:
+  Sql_data_context m_sql;
   Crud_command_handler m_crud_handler;
   Expectation_stack m_expect_stack;
 
@@ -95,6 +102,20 @@ protected:
 };
 
 
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status()
+{
+  ++(m_status_variables.*variable);
+  ++(Global_status_variables::instance().*variable);
+}
+
+
+template<Common_status_variables::Variable Common_status_variables::*variable>
+void Session::update_status(long param)
+{
+  (m_status_variables.*variable) += param;
+  (Global_status_variables::instance().*variable) += param;
+}
 } // namespace xpl
 
 #endif  // _XPL_SESSION_H_

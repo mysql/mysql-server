@@ -1,0 +1,187 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group. Currently there are only
+# two actions: either the server continues running but with super_read_only
+# enabled (READ_ONLY) or it aborts (ABORT_SERVER).
+#
+# This test shall verify that when a join fails after issuing a START
+# GROUP_REPLICATION command, the command returns with the appropriate error
+# and does not crash or abort, even when group_replication_exit_state_action is
+# set to ABORT_SERVER.
+#
+# Test:
+# 0) Setup group of 2 members (M1 and M2).
+# 1) Simulate a higher version on M1.
+# 2) Try to join M2 to the group by issuing START GROUP_REPLICATION.
+# 3) M2 should be in super_read_only mode and in OFFLINE state (since it
+#    failed to join the group).
+# 4) Change the exit_state_action to ABORT_SERVER. Try to join M2 to the group
+#    again.
+# 5) M2 should not abort().
+# 6) Remove the higher version from M1 and try to join M2 again. M2 should be
+#    able to join.
+# 7) Cleanup.
+#
+################################################################################
+# By including have_debug.inc we make sure that we are using the debug version
+# of the server. This is needed because in the debug version (the one without
+# DBUG_OFF defined) the abort_plugin_process() function calls DBUG_SUICIDE()
+# which does not send a SIGABRT to itself but a SIGKILL instead (and in this way
+# MTR won't assume the process crashed).
+--source include/have_debug.inc
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 2 members (M1 and M2).
+--echo #########################################################################
+--echo
+--let $rpl_skip_group_replication_start = 1
+--source ../inc/group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member version is incompatible with the group.");
+SET SESSION sql_log_bin = 1;
+
+--echo
+--echo #########################################################################
+--echo # 1) Simulate a higher version on M1.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo #########################################################################
+--echo # 2) Try to join M2 to the group by issuing START GROUP_REPLICATION.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Save the super_read_only mode, so we can assert the server reverted to it when
+# it failed to join the group
+SET @super_read_only_saved = @@GLOBAL.super_read_only;
+# Save the group_replication_exit_state_action
+SET @exit_state_action_saved = @@GLOBAL.group_replication_exit_state_action;
+# Save the group SID, so the server gets a member ID
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+# We expect a config error since this server's version is different from the
+# group
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo
+--echo #########################################################################
+--echo # 3) M2 should be in super_read_only mode and in OFFLINE state (since it
+--echo # failed to join the group).
+--echo #########################################################################
+--echo
+# Wait for the member to realize that it couldn't join the group
+--let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+--let $group_replication_member_state = OFFLINE
+--let $group_replication_member_id = $member2_uuid
+--source ../inc/gr_wait_for_member_state.inc
+# Verify that super_read_only reverted to its original state
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = @super_read_only_saved;
+--source include/assert.inc
+--let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_start_gr_cmd.2.err
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected incompatibility on member version
+--let $assert_select = Member version is incompatible with the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+# Verify that member 2 didn't join the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 4) Change the exit_state_action to ABORT_SERVER. Try to join M2 to the
+--echo # group again.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Set the exit state action to ABORT_SERVER
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+# We must restart GR to trigger another join
+# We expect a config error since this server's version is different from the
+# group
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo
+--echo #########################################################################
+--echo # 5) M2 should not abort().
+--echo #########################################################################
+--echo
+# Wait for the member to realize that it couldn't join the group
+--let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+--let $group_replication_member_state = OFFLINE
+--let $group_replication_member_id = $member2_uuid
+--source ../inc/gr_wait_for_member_state.inc
+# Verify that super_read_only reverted to its original state
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = @super_read_only_saved;
+--source include/assert.inc
+# Verify that the expected error occurred
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected incompatibility on member version
+--let $assert_select = Member version is incompatible with the group
+--let $assert_count = 2
+--source include/assert_grep.inc
+# Verify that member 2 didn't join the group
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 1
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 6) Remove the higher version from M1 and try to join M2 again. M2
+--echo # should be able to join.
+--echo #########################################################################
+--echo
+# Restore the debug sysvar to its original state on server 1, so that we may
+# finally join server 2
+SET @@GLOBAL.DEBUG = @debug_saved;
+# We must restart the GR plugin because updates on the debug sysvar are not
+# automatically reflected on the plugin if it is already running
+--source include/stop_group_replication.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Start GR on server 2 and verify that the group stabilizes itself
+--source include/start_group_replication.inc
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members = 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo #########################################################################
+--echo # 7) Cleanup.
+--echo #########################################################################
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_exit_state_action = @exit_state_action_saved;
+
+--source ../inc/group_replication_end.inc

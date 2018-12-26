@@ -346,6 +346,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than maxvalue tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
@@ -374,6 +376,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than maxvalue tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 select * from t1;
 a	b	c
 1	1	1
@@ -402,6 +406,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than maxvalue tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
@@ -429,6 +435,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than maxvalue tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 select * from t1;
 a	b	c
 1	1	1
@@ -457,6 +465,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than (15) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 INSERT into t1 values (1, 1, 1);
 INSERT into t1 values (6, 1, 1);
 INSERT into t1 values (10, 1, 1);
@@ -485,6 +495,8 @@ partitions 3
 (partition x1 values less than (5) tablespace ts1,
 partition x2 values less than (10) tablespace ts2,
 partition x3 values less than (15) tablespace ts3);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 select * from t1;
 a	b	c
 1	1	1
@@ -576,8 +588,12 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace t1 engine myisam nodegroup 0,
 subpartition x22 tablespace t2 engine myisam nodegroup 1)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * from t1;
 a	b	c
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -593,6 +609,8 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace ts1 nodegroup 0,
 subpartition x22 tablespace ts2 nodegroup 1)
 );
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SELECT * from t1;
 a	b	c
 SHOW CREATE TABLE t1;
@@ -629,7 +647,11 @@ partition x2 values less than (5)
 ( subpartition x21 engine myisam nodegroup 0,
 subpartition x22 engine myisam nodegroup 1)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (1,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
 ERROR HY000: Table has no partition for value 5
@@ -647,10 +669,14 @@ partition x2 values less than (5)
 ( subpartition x21 engine myisam nodegroup 0,
 subpartition x22 engine myisam nodegroup 1)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * from t1;
 a	b	c
 1	1	1
 4	1	1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -666,7 +692,11 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace t1 engine myisam,
 subpartition x22 tablespace t2 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (1,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
 ERROR HY000: Table has no partition for value 5
@@ -684,10 +714,14 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace t1 engine myisam,
 subpartition x22 tablespace t2 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * from t1;
 a	b	c
 1	1	1
 4	1	1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -703,7 +737,11 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace t1 engine myisam,
 subpartition x22 tablespace t2 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (1,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
 ERROR HY000: Table has no partition for value 5
@@ -721,10 +759,14 @@ partition x2 values less than (5)
 ( subpartition x21 tablespace t1 engine myisam,
 subpartition x22 tablespace t2 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * from t1;
 a	b	c
 1	1	1
 4	1	1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -740,7 +782,11 @@ partition x2 values less than (5)
 ( subpartition x21 engine myisam,
 subpartition x22 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (1,1,1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT into t1 VALUES (4,1,1);
 INSERT into t1 VALUES (5,1,1);
 ERROR HY000: Table has no partition for value 5
@@ -758,10 +804,14 @@ partition x2 values less than (5)
 ( subpartition x21 engine myisam,
 subpartition x22 engine myisam)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * from t1;
 a	b	c
 1	1	1
 4	1	1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (c1 int default NULL, c2 varchar(30) default NULL, 
 c3 date default NULL) engine=myisam
@@ -772,6 +822,8 @@ PARTITION p5 VALUES LESS THAN (2000) , PARTITION p6 VALUES LESS THAN (2001) ,
 PARTITION p7 VALUES LESS THAN (2002) , PARTITION p8 VALUES LESS THAN (2003) ,
 PARTITION p9 VALUES LESS THAN (2004) , PARTITION p10 VALUES LESS THAN (2010),
 PARTITION p11 VALUES LESS THAN MAXVALUE );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, 'testing partitions', '1995-07-17'),
 (3, 'testing partitions','1995-07-31'),
 (5, 'testing partitions','1995-08-13'),
@@ -782,6 +834,8 @@ INSERT INTO t1 VALUES (1, 'testing partitions', '1995-07-17'),
 (4, 'testing partitions','2000-08-05'),
 (6, 'testing partitions','2000-08-19'),
 (8, 'testing partitions','2000-09-01');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t1 WHERE c3 BETWEEN '1996-12-31' AND '2000-12-31';
 COUNT(*)
 5
@@ -943,6 +997,8 @@ insert into t1 values (1, 'abc', '2001-01-15');
 alter table t1
 partition by range (year(c))
 (partition p5 values less than (2000), partition p10 values less than (2010));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 alter table t1
 reorganize partition p5 into
 (partition p1 values less than (1996),
@@ -950,6 +1006,8 @@ partition p2 values less than (1997),
 partition p3 values less than (1998),
 partition p4 values less than (1999),
 partition p5 values less than (2000));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (a date)
 PARTITION BY RANGE (TO_DAYS(a))

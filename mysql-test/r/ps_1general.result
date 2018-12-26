@@ -439,6 +439,8 @@ execute stmt5;
 SET sql_mode="";
 prepare stmt1 from ' flush local privileges ' ;
 prepare stmt1 from ' reset query cache ' ;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 prepare stmt1 from ' KILL 0 ';
 prepare stmt1 from ' explain select a from t1 order by b ';
 execute stmt1;

@@ -31,7 +31,6 @@ include/stop_slave.inc
 SET GLOBAL rpl_semi_sync_slave_enabled = OFF;
 include/start_slave.inc
 UNINSTALL PLUGIN rpl_semi_sync_slave;
-include/assert.inc [semi sync master clients should be 0.]
 UNINSTALL PLUGIN rpl_semi_sync_master;
 CREATE TABLE t1(i int);
 INSERT INTO t1 values (3);

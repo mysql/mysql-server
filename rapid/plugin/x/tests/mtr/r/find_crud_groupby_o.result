@@ -922,7 +922,14 @@ send Mysqlx.Crud.Find {
   }
 }
 
-in main, line 853:ERROR: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'minisakila.actor.actor_id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by (code 1055)
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 1055
+  msg: "Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column \'minisakila.actor.actor_id\' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by"
+  sql_state: "42000"
+}
+
 ================================================================================
 CLEAN UP
 ================================================================================

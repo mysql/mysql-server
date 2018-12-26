@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,12 @@ static struct st_test_statement test_query_plan[]=
   {"test1", false, "UPDATE tbl SET a=2"},
   {"test1", false, "ROLLBACK"},
   {"test1", false, "SELECT IF(SUM(4) = 12, 'OK', 'FAIL') FROM tbl"},
-  // empty cmd
+  // disabled commands
+  {"test1", false, "INSTALL PLUGIN plugin_name SONAME 'shared_library_name'"},
+  {"test1", false, "UNINSTALL PLUGIN plugin_name"},
+  {"test1", false, "START GROUP_REPLICATION"},
+  {"test1", false, "STOP GROUP_REPLICATION"},
+   // empty cmd
   {"test1", true, ""},
 
   {"test1", false, "DROP TABLE tbl"},
@@ -311,7 +316,7 @@ static int sql_get_null(void *ctx)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  strncpy(pctx->sql_str_value[row][col], "[NULL]", sizeof("[NULL]")-1);
+  strcpy(pctx->sql_str_value[row][col], "[NULL]");
   pctx->sql_str_len[row][col]=  sizeof("[NULL]")-1;
 
   DBUG_RETURN(false);

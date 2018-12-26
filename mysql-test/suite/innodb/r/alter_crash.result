@@ -47,6 +47,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # restart
 # Manual *.frm recovery begin.
 # Manual recovery end
+FLUSH TABLES;
 # Drop the orphaned original table.
 # Files in datadir after manual recovery.
 t1.frm
@@ -126,6 +127,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # restart
 # Manual *.frm recovery begin.
 # Manual recovery end
+FLUSH TABLES;
 # Drop the orphaned original table.
 # Files in datadir after manual recovery.
 t1.frm

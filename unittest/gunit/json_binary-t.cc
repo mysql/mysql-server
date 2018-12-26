@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -505,6 +505,59 @@ TEST_F(JsonBinaryTest, LargeDocumentTest)
     SCOPED_TRACE("");
     Value val_a= parse_binary(raw.ptr(), raw.length()).lookup("a", 1);
     validate_array_contents(val_a, array.size());
+  }
+
+  /*
+    Bug#23031146: INSERTING 64K SIZE RECORDS TAKE TOO MUCH TIME
+
+    If a big (>64KB) sub-document was located at a deep nesting level,
+    serialization used to be very slow.
+  */
+  {
+    SCOPED_TRACE("");
+    // Wrap "array" in 50 more levels of arrays.
+    const size_t depth= 50;
+    Json_array deeply_nested_array;
+    Json_array *current_array= &deeply_nested_array;
+    for (size_t i= 1; i < depth; i++)
+    {
+      Json_array *a= new (std::nothrow) Json_array();
+      ASSERT_FALSE(current_array->append_alias(a));
+      current_array= a;
+    }
+    current_array->append_clone(&array);
+    // Serialize it. This used to take "forever".
+    ASSERT_FALSE(serialize(&deeply_nested_array, &buf));
+    // Parse the serialized DOM and verify its contents.
+    Value val= parse_binary(buf.ptr(), buf.length());
+    for (size_t i= 0; i < depth; i++)
+    {
+      ASSERT_EQ(Value::ARRAY, val.type());
+      ASSERT_EQ(1U, val.element_count());
+      val= val.element(0);
+    }
+    validate_array_contents(val, array.size());
+
+    // Now test the same with object.
+    Json_object deeply_nested_object;
+    Json_object *current_object= &deeply_nested_object;
+    for (size_t i= 1; i < depth; i++)
+    {
+      Json_object *o= new (std::nothrow) Json_object();
+      ASSERT_FALSE(current_object->add_alias("key", o));
+      current_object= o;
+    }
+    current_object->add_clone("key", &array);
+    ASSERT_FALSE(serialize(&deeply_nested_object, &buf));
+    val= parse_binary(buf.ptr(), buf.length());
+    for (size_t i= 0; i < depth; i++)
+    {
+      ASSERT_EQ(Value::OBJECT, val.type());
+      ASSERT_EQ(1U, val.element_count());
+      ASSERT_EQ("key", get_string(val.key(0)));
+      val= val.element(0);
+    }
+    validate_array_contents(val, array.size());
   }
 }
 

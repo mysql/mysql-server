@@ -1,6 +1,10 @@
 /*
   This libary has been modified for use by the MySQL Archive Engine.
      -Brian Aker
+
+  This file was modified by Oracle on 02-08-2016.
+  Modifications copyright (c) 2016, Oracle and/or its affiliates.
+  All rights reserved.
 */
 
 /* zlib.h -- interface of the 'zlib' general purpose compression library
@@ -33,7 +37,6 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
-#include "../../mysys/mysys_priv.h"
 #include <my_dir.h>
 #include <zlib.h>
 

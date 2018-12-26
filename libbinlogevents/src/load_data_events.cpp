@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,6 +259,9 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
 
   fields= (char*)field_lens + num_fields;
   table_name= fields + field_block_len;
+  if (strlen(table_name) > NAME_LEN)
+    goto err;
+
   db= table_name + table_name_len + 1;
 
   #ifndef DBUG_OFF

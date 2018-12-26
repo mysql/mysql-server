@@ -1,0 +1,135 @@
+################################################################################
+# Verify that when a member is blocked on a minority and waiting on a blocked
+# query, group replication can be stopped.
+# Steps:
+#   0) The test requires three servers: M1, M2 and M3.
+#   1) Create a group with 3 members.
+#   2) Create a minority situation with only 1 member alive: M1
+#      Assert M2 and M3 are unreachable
+#   3) Execute a query on M1 that will block
+#   4) Stop group replication on M1.
+#      The query should be killed.
+#   5) Clean up.
+################################################################################
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source ../inc/have_group_replication_plugin.inc
+
+
+--echo #
+--echo # 1. Create a group with 3 members
+--echo #    Extract each server uuid
+--echo #    Create a table on it.
+--echo #
+
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--echo #
+--echo # 2. Crash server 2 and server 3
+--echo # Check they are marked as unreachable
+--echo #
+# We do kill the servers, using shutdown_server 0, and then MTR will
+# follow the expect file and restart the server, but we do not wait
+# for the server restart.
+# Since the servers loose its GCS configuration them will not rejoin
+# the group.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.3.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member3_uuid
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $group_replication_member_id= $member1_uuid
+
+--echo #
+--echo # 3. Execute a query that will block
+--echo #
+
+--send INSERT INTO t1 VALUES (2)
+
+#Sleep 2 seconds for the query to block
+--sleep 2
+
+--echo #
+--echo # 4. Stop Group Replication on server 1
+--echo #    The pending query should die
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $$wait_timeout= 120
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+--reap
+
+--echo #
+--echo # 5. Clean up.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
+call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+call mtr.add_suppression("read failed");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+DROP TABLE t1;
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $rpl_server_number= 3
+--source include/rpl_reconnect.inc
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

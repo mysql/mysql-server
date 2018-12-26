@@ -4099,7 +4099,11 @@ PARTITION p4093 VALUES LESS THAN (32752),
 PARTITION p4094 VALUES LESS THAN (32760),
 PARTITION p4095 VALUES LESS THAN (32768)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 32767 inserts;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 select count(*) from t2;
 count(*)
 32767

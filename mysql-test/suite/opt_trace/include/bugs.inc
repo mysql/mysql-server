@@ -470,3 +470,53 @@ EXECUTE stmt;
 EXECUTE stmt;
 
 DROP TABLE B,C,CC;
+
+
+--echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
+
+CREATE TABLE t1 (
+  a TINYTEXT NOT NULL,
+  b TINYINT(3) UNSIGNED NOT NULL,
+  PRIMARY KEY (a(32),b),
+  KEY b_idx(b)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES ('a',1),('a',2),('a',3),('b',1),('c',1),('c',4),('e',2);
+ANALYZE TABLE t1;
+
+SET @optimizer_switch_saved=@@session.optimizer_switch;
+SET @@session.optimizer_switch=default;
+
+SELECT COUNT(*) FROM t1;
+# Uses "access_type_changed" to use range over ref despite b_idx not being the
+# cheapest in range.
+EXPLAIN SELECT * FROM t1 WHERE a IN ('a', 'b') AND b = 2;
+SELECT TRACE into @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "rerunning_range_optimizer_for_single_index";
+
+SET @@session.optimizer_switch=@optimizer_switch_saved;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #23227428: SQL PLAN IS NOT ACCORDING WITH OPTIMIZER_TRACE
+--echo #
+
+CREATE TABLE t1(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                c2 CHAR(12)) ENGINE=INNODB;
+disable_query_log;
+let $1 = 1000;
+while ($1)
+{
+ eval INSERT INTO t1(c2) VALUES ('$1');
+ dec $1;
+}
+enable_query_log;
+
+ANALYZE TABLE t1;
+EXPLAIN SELECT c1, c2 FROM t1 ORDER BY c1 DESC LIMIT 1;
+--replace_regex /"cost": 3/"cost": 1/ /"cost": 4/"cost": 1/ /"cost": 203/"cost": 201/ /"cost": 204/"cost": 201/ /"cost_for_plan": 203/"cost_for_plan": 201/ /"cost_for_plan": 204/"cost_for_plan": 201/
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;

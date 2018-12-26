@@ -410,7 +410,11 @@ b int generated always as (a) virtual,
 c int generated always as (b+a) virtual,
 d int generated always as (b+a) virtual
 ) PARTITION BY LINEAR HASH (b);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1(a) VALUES(0);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DELETE FROM t1 WHERE c=1;
 DROP TABLE t1;
 # Bug #20709487: COLLATE OPTION NOT ACCEPTED IN GENERATED COLUMN
@@ -484,7 +488,11 @@ PARTITION p1 VALUES LESS THAN (11),
 PARTITION p2 VALUES LESS THAN (16),
 PARTITION p3 VALUES LESS THAN (21)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES(1, 2, default);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 # Bug#21465626:ASSERT/CRASH ON DROPPING/ADDING VIRTUAL COLUMN
 CREATE TABLE t (a int(11), b int(11),

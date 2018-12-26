@@ -229,6 +229,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
+Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5117
@@ -321,6 +322,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
+Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5115
@@ -524,9 +526,8 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -806,7 +807,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-in main, line 777:ERROR: Was expecting Error 5017, but got:
+Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 3143
@@ -878,7 +879,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-in main, line 843:ERROR: Was expecting Error 5017, but got:
+Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 3143

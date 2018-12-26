@@ -1,0 +1,398 @@
+
+#Note:- WL6742 has been removed from 5.7 (Bug 23046302),
+#       but we are keeping this test since it tests
+#       count(*) correctness for various isolation
+#       levels.
+
+--echo #
+--echo # WL#6742 - Test the interaction of multiple transactions using
+--echo # different isolation levels to make sure that the value returned
+--echo # by count(*) always reflects the correct view of the table according
+--echo # to the transaction's selected isolation level.
+--echo #
+
+--source include/have_innodb.inc
+
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $initial_timeout=`select @@innodb_lock_wait_timeout`;
+--enable_query_log
+
+--echo #
+--echo # Traverse various indexes to get the right counts.
+--echo # This especially tests count(*) which is pushed down to InnoDB in WL#6742.
+--echo #
+CREATE TABLE t1 (
+	c1 INT AUTO_INCREMENT PRIMARY KEY,
+	c2 INT,
+	c3 INT,
+	c4 INT,
+	INDEX k2(c2)
+) Engine=InnoDB;
+let $1=10;
+while ($1 > 0) {
+  INSERT INTO t1(c2,c3,c4) VALUES (1, 1, 1);
+  dec $1;
+}
+
+CREATE TABLE t2 LIKE t1;
+--enable_info
+INSERT INTO t2 (SELECT * FROM t1);
+--disable_info
+
+CREATE TABLE t3 (
+	c1 INT AUTO_INCREMENT PRIMARY KEY,
+	c2 INT,
+	c3 INT,
+	c4 INT,
+	INDEX k2(c2)
+) Engine=InnoDB PARTITION BY HASH(c1) PARTITIONS 4;
+--enable_info
+INSERT INTO t3 (SELECT * FROM t1);
+--disable_info
+
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Do some DML in the default connection and leave the transaction pending.
+--echo #
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+--enable_info
+UPDATE t1 SET c2 = c2 * 3 WHERE c1 = 1;
+UPDATE t3 SET c2 = c2 * 3 WHERE c1 = 1;
+DELETE FROM t1 WHERE c1 = 6;
+DELETE FROM t3 WHERE c1 = 6;
+--disable_info
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Start transactions of Repeatable Read, Read Committed, and Read Uncommitted
+--echo #
+--echo # Connection 1 REPEATABLE READ
+--echo #
+connect (con1,localhost,root,,);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+--source suite/innodb/include/innodb_isolation_selects.inc
+--enable_info
+UPDATE t1 SET c2 = c2 * 5 WHERE c1 = 2;
+UPDATE t3 SET c2 = c2 * 5 WHERE c1 = 2;
+DELETE FROM t1 WHERE c1 = 7;
+DELETE FROM t3 WHERE c1 = 7;
+INSERT INTO t1(c2,c3,c4) VALUES (100, 1, 1);
+INSERT INTO t3(c2,c3,c4) VALUES (100, 1, 1);
+--disable_info
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Test a lock wait timeout during COUNT(*)
+--echo #
+SET innodb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT COUNT(*) FROM t1 FOR UPDATE;
+
+
+--echo #
+--echo # Connection 2 READ COMMITTED
+--echo #
+connect (con2,localhost,root,,);
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+--source suite/innodb/include/innodb_isolation_selects.inc
+--enable_info
+UPDATE t1 SET c2 = c2 * 7 WHERE c1 = 3;
+DELETE FROM t1 WHERE c1 = 8;
+DELETE FROM t3 WHERE c1 = 8;
+INSERT INTO t1(c2,c3,c4) VALUES (1000, 1, 1);
+INSERT INTO t3(c2,c3,c4) VALUES (1000, 1, 1);
+--disable_info
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 3  READ UNCOMMITTED
+--echo #
+connect (con3,localhost,root,,);
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+--source suite/innodb/include/innodb_isolation_selects.inc
+--enable_info
+UPDATE t1 SET c2 = c2 * 11 WHERE c1 = 4;
+UPDATE t3 SET c2 = c2 * 11 WHERE c1 = 4;
+INSERT INTO t1(c2,c3,c4) VALUES (10000, 1, 1);
+INSERT INTO t3(c2,c3,c4) VALUES (10000, 1, 1);
+DELETE FROM t1 WHERE c1 in(9);
+DELETE FROM t3 WHERE c1 in(9);
+--disable_info
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection default REPEATABLE READ
+--echo #
+connection default;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Commit the 3 extra connections
+--echo #
+--echo # Connection 1 REPEATABLE READ
+--echo #
+connection con1;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 2 READ COMMITTED
+--echo #
+connection con2;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 3  READ UNCOMMITTED
+--echo #
+connection con3;
+--source suite/innodb/include/innodb_isolation_selects.inc
+COMMIT;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 2 READ COMMITTED
+--echo #
+connection con2;
+--source suite/innodb/include/innodb_isolation_selects.inc
+COMMIT;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 1 REPEATABLE READ
+--echo #
+connection con1;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Select the first 5 records FOR UPDATE using count(*) in a subquery.
+--echo # The second record is still pending so we get a lock timeout.
+--echo #
+SET innodb_lock_wait_timeout = 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT c1, c2 FROM t1 WHERE c1 < ((SELECT COUNT(*) FROM t1) / 2) FOR UPDATE;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT COUNT(*) FROM t1 FOR UPDATE;
+COMMIT;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Show The EXPLAIN output for these queries;
+--echo #
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
+# column 10 is the row count provided by handler::info().  In InnoDB, this is
+# a statistical estimate.  After the multi-transactional changes above,
+# Solaris reports 10 rows which is correct, but other OSes report 9.
+--replace_column 10 #
+EXPLAIN SELECT * FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT COUNT(*) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT COUNT(*) FROM t3;
+--replace_column 10 #
+EXPLAIN SELECT COUNT(c1) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT COUNT(c2) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT COUNT(c3) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT SUM(c1) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT SUM(c2) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT AVG(c1), MAX(c1), MIN(c2), AVG(c3), SUM(c4) FROM t1;
+--replace_column 10 #
+EXPLAIN SELECT AVG(c1), MAX(c1), MIN(c2), AVG(c3), SUM(c4) FROM t3;
+--replace_column 10 #
+EXPLAIN SELECT c1, c2 FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t1) / 2);
+--replace_column 10 #
+EXPLAIN SELECT c1, c2 FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t3) / 2);
+--replace_column 10 #
+EXPLAIN SELECT COUNT(c2) FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t1) / 2);
+--replace_column 10 #
+EXPLAIN SELECT COUNT(c2) FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t3) / 2);
+--replace_column 10 #
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c1 > (SELECT AVG(c1) FROM t1);
+--replace_column 10 #
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE c1 > (SELECT AVG(c1) FROM t3);
+
+--echo #
+--echo # Make all indexes in t2 obsolete to the active repeatable read transaction
+--echo # in the default connection.
+--echo #
+ALTER TABLE t2 row_format=redundant;
+
+--echo #
+--echo # Connection default REPEATABLE READ
+--echo # Do more DML in the default REPEATABLE READ transaction in order to use recently committed records.
+--echo #
+connection default;
+--source suite/innodb/include/innodb_isolation_selects.inc
+--enable_info
+UPDATE t1 SET c4 = c2 * 10;
+UPDATE t3 SET c4 = c2 * 10;
+--disable_info
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Table t2 has been altered to a new row format.
+--echo # The index should not be useable.
+--echo #
+--error ER_TABLE_DEF_CHANGED
+SELECT COUNT(*) FROM t2;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2;
+
+COMMIT;
+SELECT COUNT(*) FROM t2;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Connection 2
+--echo #
+connection con2;
+--source suite/innodb/include/innodb_isolation_selects.inc
+
+--echo #
+--echo # Try COUNT(*) on a DISCARDED table.
+--echo #
+connection default;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t4 (SELECT * FROM t1);
+SELECT COUNT(*) FROM t4;
+ALTER TABLE t4 DISCARD TABLESPACE;
+--error ER_TABLESPACE_DISCARDED
+SELECT COUNT(*) FROM t4;
+
+
+--echo #
+--echo # Test the interaction of a repeatable read transaction
+--echo # to changes that happen outside its view.
+--echo #
+
+CREATE TABLE t5 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, aa INT, bb TEXT) Engine=InnoDB;
+INSERT INTO t5(b) VALUES ("inserted by client 1");
+INSERT INTO t5(b) VALUES ("inserted by client 1");
+INSERT INTO t5(b) VALUES ("inserted by client 1");
+INSERT INTO t5(b) VALUES ("inserted by client 1");
+UPDATE t5 SET aa=a, bb=b;
+CREATE TABLE t6 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, aa INT, bb TEXT) Engine=InnoDB;
+INSERT INTO t6(b) VALUES ("inserted by client 1");
+INSERT INTO t6(b) VALUES ("inserted by client 1");
+INSERT INTO t6(b) VALUES ("inserted by client 1");
+INSERT INTO t6(b) VALUES ("inserted by client 1");
+UPDATE t6 SET aa=a, bb=b;
+CREATE TABLE t7 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT, aa INT, bb TEXT) Engine=InnoDB;
+INSERT INTO t7(b) VALUES ("inserted by client 1");
+INSERT INTO t7(b) VALUES ("inserted by client 1");
+INSERT INTO t7(b) VALUES ("inserted by client 1");
+INSERT INTO t7(b) VALUES ("inserted by client 1");
+UPDATE t7 SET aa=a, bb=b;
+BEGIN;
+SELECT * FROM t5;
+SELECT COUNT(*) FROM t5;
+SELECT * FROM t6;
+SELECT COUNT(*) FROM t6;
+SELECT * FROM t7;
+SELECT COUNT(*) FROM t7;
+
+--echo #
+--echo # Connection 1
+--echo #
+connection con1;
+INSERT INTO t5(b) VALUES ("inserted by client 2");
+UPDATE t5 SET a = 10 where a = 1;
+UPDATE t5 SET b = "updated by client 2" where a = 2;
+DELETE FROM t5 WHERE a = 3;
+SELECT * FROM t5;
+SELECT COUNT(*) FROM t5;
+INSERT INTO t6(b) VALUES ("inserted by client 2");
+UPDATE t6 SET a = 10 where a = 1;
+UPDATE t6 SET b = "updated by client 2" where a = 2;
+DELETE FROM t6 WHERE a = 3;
+SELECT * FROM t6;
+SELECT COUNT(*) FROM t6;
+INSERT INTO t7(b) VALUES ("inserted by client 2");
+UPDATE t7 SET a = 10 where a = 1;
+UPDATE t7 SET b = "updated by client 2" where a = 2;
+DELETE FROM t7 WHERE a = 3;
+SELECT * FROM t7;
+SELECT COUNT(*) FROM t7;
+
+--echo #
+--echo # Connection default
+--echo #
+connection default;
+SELECT * FROM t5;
+INSERT INTO t5(b) VALUES ("inserted by client 1");
+SELECT * FROM t5;
+UPDATE t5 SET a = a + 100;
+SELECT * FROM t5;
+SELECT COUNT(*) FROM t5;
+
+UPDATE t6 SET b = "updated by client 2";
+SELECT * FROM t6;
+SELECT COUNT(*) FROM t6;
+
+DELETE FROM t7;
+SELECT * FROM t7;
+SELECT COUNT(*) FROM t7;
+
+COMMIT;
+SELECT * FROM t5;
+SELECT COUNT(*) FROM t5;
+SELECT * FROM t6;
+SELECT COUNT(*) FROM t6;
+SELECT * FROM t7;
+SELECT COUNT(*) FROM t7;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
+disconnect con1;
+disconnect con2;
+disconnect con3;
+--disable_query_log
+eval set global innodb_lock_wait_timeout=$initial_timeout;
+--enable_query_log
+
+--echo #
+--echo # Bug #23596760: FORCE INDEX IS SKIPPED WHILE EXECUTING SELECT COUNT(*)
+--echo #
+
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
+                c2 INT NOT NULL DEFAULT 1,
+                c3 char(20) DEFAULT '',
+                KEY c2_idx (c2));
+
+INSERT INTO t1(c1) VALUES (1), (2), (3);
+INSERT INTO t1(c1) SELECT c1 + 10 FROM t1;
+INSERT INTO t1(c1) SELECT c1 + 100 FROM t1;
+
+CREATE TABLE t2 SELECT * FROM t1;
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
+let query1= SELECT COUNT(*) FROM t1;
+let query2= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx);
+let query3= SELECT COUNT(*) FROM t1, t2;
+let query4= SELECT COUNT(*) FROM t1 FORCE INDEX(c2_idx), t2;
+
+--replace_column 10 #
+eval EXPLAIN $query1;
+--replace_column 10 #
+eval EXPLAIN $query2;
+--replace_column 10 #
+eval EXPLAIN $query3;
+--replace_column 10 #
+eval EXPLAIN $query4;
+
+DROP TABLE t1, t2;

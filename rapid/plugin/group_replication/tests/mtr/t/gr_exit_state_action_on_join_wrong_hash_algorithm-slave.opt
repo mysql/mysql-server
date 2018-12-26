@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_wrong_hash_algorithm.2.err

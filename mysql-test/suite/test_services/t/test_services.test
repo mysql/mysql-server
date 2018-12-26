@@ -19,6 +19,17 @@ let $test_status= `SELECT variable_value FROM information_schema.global_status
 let $run_snprintf_test=`SELECT @@global.test_services_with_snprintf= 1`;
 let $run_log_message_test=`SELECT @@global.test_services_with_log_message= 1`;
 
+
+--echo #
+--echo # Bug #GR VARS ARE ABLE TO SET TO 'DEFAULT' INSTEAD OF ERROR ER3093
+--echo #   WHEN GR IS RUNNING
+--echo #
+
+--echo # Should not work
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.test_services_non_default_variable= DEFAULT;
+
+
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services;
 

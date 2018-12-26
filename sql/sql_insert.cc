@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -428,7 +428,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool is_locked= false;
-  ulong counter = 1;
+  ulong counter= 0;
   ulonglong id;
   /*
     We have three alternative syntax rules for the INSERT statement:
@@ -475,9 +475,6 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   const uint value_count= values->elements;
   TABLE      *insert_table= NULL;
   if (mysql_prepare_insert(thd, table_list, values, false))
-    goto exit_without_my_ok;
-
-  if (select_lex->apply_local_transforms(thd, false))
     goto exit_without_my_ok;
 
   insert_table= lex->insert_table_leaf->table;
@@ -550,18 +547,10 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
     }
   }
 
+  its.rewind();
   while ((values= its++))
   {
     counter++;
-    if (values->elements != value_count)
-    {
-      my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
-      goto exit_without_my_ok;
-    }
-    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
-                     false, false))
-      goto exit_without_my_ok;
-
     /*
       To make it possible to increase concurrency on table level locking
       engines such as MyISAM, we check pruning for each row until we will use
@@ -713,8 +702,8 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
         error= 1;
         break;
       }
-      if (fill_record_n_invoke_before_triggers(thd, insert_field_list, *values,
-                                               insert_table,
+      if (fill_record_n_invoke_before_triggers(thd, &info, insert_field_list,
+                                               *values, insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
       {
@@ -935,6 +924,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   DBUG_RETURN(FALSE);
 
 exit_without_my_ok:
+  thd->lex->clear_values_map();
   if (!joins_freed)
     free_underlaid_joins(thd, select_lex);
   DBUG_RETURN(err);
@@ -1292,22 +1282,33 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     if (!res)
       map= lex->insert_table_leaf->map();
 
-    if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
-                        *values, SELECT_ACL, NULL, false, false);
-    if (!res)
-      res= check_valid_table_refs(table_list, *values, map);
+    // values is reset here to cover all the rows in the VALUES-list.
+    List_iterator_fast<List_item> its(insert_many_values);
 
-    thd->lex->in_update_value_clause= true;
-    if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
-                        insert_value_list, SELECT_ACL, NULL, false, false);
-    if (!res)
-      res= check_valid_table_refs(table_list, insert_value_list, map);
-    if (!res && lex->insert_table_leaf->table->has_gcol())
-      res= validate_gc_assignment(thd, &insert_field_list, values,
-                                  lex->insert_table_leaf->table);
-    thd->lex->in_update_value_clause= false;
+    // Check whether all rows have the same number of fields.
+    const uint value_count= values->elements;
+    ulong counter= 0;
+    while ((values= its++))
+    {
+      counter++;
+      if (values->elements != value_count)
+      {
+        my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
+        DBUG_RETURN(true);
+      }
+
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+                          false, false);
+      if (!res)
+        res= check_valid_table_refs(table_list, *values, map);
+
+      if (!res && lex->insert_table_leaf->table->has_gcol())
+        res= validate_gc_assignment(thd, &insert_field_list, values,
+                                    lex->insert_table_leaf->table);
+    }
+    its.rewind();
+    values= its++;
 
     if (!res && duplicates == DUP_UPDATE)
     {
@@ -1319,6 +1320,17 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
+
+      // Setup the corresponding values
+      thd->lex->in_update_value_clause= true;
+      if (!res)
+        res= setup_fields(thd, Ref_ptr_array(), insert_value_list, SELECT_ACL,
+                          NULL, false, false);
+      thd->lex->in_update_value_clause= false;
+
+      if (!res)
+        res= check_valid_table_refs(table_list, insert_value_list, map);
+
       if (!res && lex->insert_table_leaf->table->has_gcol())
         res= validate_gc_assignment(thd, &insert_update_list,
                                     &insert_value_list,
@@ -1648,7 +1660,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
                     update->update_values->elements);
-        if (fill_record_n_invoke_before_triggers(thd,
+        if (fill_record_n_invoke_before_triggers(thd, update,
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
                                                  table, TRG_EVENT_UPDATE, 0))
@@ -1735,12 +1747,13 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             handled separately by THD::arg_of_last_insert_id_function.
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER, TRUE));
           info->stats.copied++;
         }
 
+        // Execute the 'AFTER, ON UPDATE' trigger
+        trg_error= (table->triggers &&
+                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                      TRG_ACTION_AFTER, TRUE));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -2297,7 +2310,7 @@ void Query_result_insert::store_values(List<Item> &values)
   {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
-      fill_record_n_invoke_before_triggers(thd, *fields, values,
+      fill_record_n_invoke_before_triggers(thd, &info, *fields, values,
                                            table, TRG_EVENT_INSERT,
                                            table->s->fields);
   }
@@ -2917,7 +2930,6 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   int result;
   TABLE_LIST tmp_table_list;
 
-  memset(&tmp_table_list, 0, sizeof(tmp_table_list));
   tmp_table_list.table = *tables;
   query.length(0);      // Have to zero it since constructor doesn't
 
@@ -3115,6 +3127,8 @@ bool Sql_cmd_insert::execute(THD *thd)
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
+
+  thd->lex->clear_values_map();
   return res;
 }
 
@@ -3208,6 +3222,7 @@ bool Sql_cmd_insert_select::execute(THD *thd)
     thd->first_successful_insert_id_in_cur_stmt=
       thd->first_successful_insert_id_in_prev_stmt;
 
+  thd->lex->clear_values_map();
   return res;
 }
 

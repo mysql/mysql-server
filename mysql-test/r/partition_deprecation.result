@@ -1,0 +1,109 @@
+# Verify that there is no deprecation warning when
+# creating a table with native partitioning.
+CREATE TABLE t1 (a INT) ENGINE = InnoDB
+PARTITION BY RANGE (a)
+(
+PARTITION pNeg VALUES LESS THAN (0),
+PARTITION pPosNull VALUES LESS THAN MAXVALUE
+);
+# The table is listed, but there are no warnings from the
+# I_S query.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE CREATE_OPTIONS LIKE '%partitioned%';
+TABLE_SCHEMA	TABLE_NAME
+test	t1
+# Verify that altering the table to use non-native partitioning
+# will give a warning. Altering back to native partitioning
+# does not give a warning.
+ALTER TABLE t1 ENGINE=MyISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION pNeg VALUES LESS THAN (0) ENGINE = InnoDB,
+ PARTITION pPosNull VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+DROP TABLE t1;
+# Verify that there is a deprecation warning when
+# creating a table with non-native partitioning.
+CREATE TABLE t1 (a INT) ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(
+PARTITION pNeg VALUES LESS THAN (0),
+PARTITION pPosNull VALUES LESS THAN MAXVALUE
+);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Verify that there is no deprecation warning when
+# removing partitioning from a non-natively partitioned
+# table.
+ALTER TABLE t1 REMOVE PARTITIONING;
+# Verify that there is a deprecation warning when
+# adding non-native partitioning, dropping or adding
+# individual partitions for a table.
+ALTER TABLE t1 PARTITION BY RANGE (a)
+(
+PARTITION pNeg VALUES LESS THAN (0),
+PARTITION pPosNull VALUES LESS THAN MAXVALUE
+);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION pPosNull;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 ADD PARTITION (PARTITION pPosNull VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Verify that there is a deprecation warning when
+# renaming a non-natively partitioned table.
+ALTER TABLE t1 RENAME TO t2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t2 RENAME TO t1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Verify that we get a warning for SHOW CREATE.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION pNeg VALUES LESS THAN (0) ENGINE = MyISAM,
+ PARTITION pPosNull VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Verify that CHECK lists a warning (but the statement execution
+# itself does not push a warning to the client)..
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t1	check	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW WARNINGS;
+Level	Code	Message
+# Verify that we get a warning for I_S queries.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE CREATE_OPTIONS LIKE '%partitioned%';
+TABLE_SCHEMA	TABLE_NAME
+test	t1
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+# Verify that the startup by default skips the I_S query, since the
+# option --disable-partition-engine-check defaults to TRUE.
+# restart: --no-console --log-error=LOG_FILE
+# No deprecation warning found.
+# Verify that the I_S query on bootstrap prints warnings in the error log
+# when '--disable-partition-engine-check=0'.
+# restart: --disable-partition-engine-check=0 --no-console --log-error=LOG_FILE
+# Deprecation warning found.
+# Restart the server without additional options.
+# restart:
+# Verify that we don't get a warning for I_S queries when the table is dropped.
+DROP TABLE t1;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE CREATE_OPTIONS LIKE '%partitioned%';
+TABLE_SCHEMA	TABLE_NAME

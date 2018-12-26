@@ -1,0 +1,137 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+
+# CHANGE MASTER command is blocked for restricted channels.
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+
+# FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
+FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
+ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
+
+# error when executing START SLAVE IO_THREAD FOR CHANNEL
+START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing STOP SLAVE IO_THREAD FOR CHANNEL
+STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+ERROR HY000: STOP SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing START SLAVE IO_THREAD FOR CHANNEL with UNTIL option
+START SLAVE IO_THREAD UNTIL MASTER_LOG_FILE = 'server-binary-log.000001', MASTER_LOG_POS = 781 FOR CHANNEL 'group_replication_applier';
+ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing START SLAVE FOR CHANNEL
+START SLAVE FOR CHANNEL 'group_replication_applier';
+ERROR HY000: START SLAVE FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing STOP SLAVE FOR CHANNEL
+STOP SLAVE FOR CHANNEL 'group_replication_applier';
+ERROR HY000: STOP SLAVE FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing SHOW SLAVE STATUS FOR CHANNEL
+SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+ERROR HY000: SHOW SLAVE STATUS cannot be performed on channel 'group_replication_applier'.
+
+# START SLAVE SQL_THREAD command will work for group_replication_applier
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+Warnings:
+Note	3083	Replication thread(s) for channel 'group_replication_applier' are already runnning.
+
+# STOP SLAVE SQL_THREAD command will work for group_replication_applier
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+# START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
+START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS='11111111-1111-1111-1111-111111111111:1-23' FOR CHANNEL 'group_replication_applier';
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+# START SLAVE SQL_THREAD with UNTIL option will work for group_replication_applier
+START SLAVE SQL_THREAD UNTIL RELAY_LOG_FILE = 'server-relay-log-group_replication_applier.000002', RELAY_LOG_POS = 10000 FOR CHANNEL 'group_replication_applier';
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# SHOW RELAYLOG EVENTS for channel will work for all channels
+include/assert.inc [Relay log name should not be empty as the command successfully executed.]
+[connection server1]
+include/stop_group_replication.inc
+
+# CHANGE MASTER command is blocked for restricted channels.
+CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
+
+# FLUSH RELAY LOGS for group_replication_applier is blocked in all conditions
+FLUSH RELAY LOGS FOR CHANNEL 'group_replication_applier';
+ERROR HY000: FLUSH RELAY LOGS cannot be performed on channel 'group_replication_applier'.
+
+# error when executing START SLAVE IO_THREAD FOR CHANNEL
+START SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing STOP SLAVE IO_THREAD FOR CHANNEL
+STOP SLAVE IO_THREAD FOR CHANNEL 'group_replication_applier';
+ERROR HY000: STOP SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing START SLAVE FOR CHANNEL
+START SLAVE FOR CHANNEL 'group_replication_applier';
+ERROR HY000: START SLAVE FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing STOP SLAVE FOR CHANNEL
+STOP SLAVE FOR CHANNEL 'group_replication_applier';
+ERROR HY000: STOP SLAVE FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# error when executing SHOW SLAVE STATUS FOR CHANNEL
+SHOW SLAVE STATUS FOR CHANNEL 'group_replication_applier';
+ERROR HY000: SHOW SLAVE STATUS cannot be performed on channel 'group_replication_applier'.
+
+# START SLAVE SQL_THREAD command will work for group_replication_applier
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# STOP SLAVE SQL_THREAD command will work for group_replication_applier
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+# SHOW RELAYLOG EVENTS for channel will work for all channels
+include/assert.inc [Relay log name should not be empty as the command successfully executed.]
+[connection server1]
+include/start_group_replication.inc
+[connection server2]
+
+# RESET SLAVE [ALL] command is blocked only when channel is running.
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+RESET SLAVE FOR CHANNEL "group_replication_applier";
+ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+
+# This is command should work without problem.
+include/stop_group_replication.inc
+RESET SLAVE FOR CHANNEL "group_replication_applier";
+include/start_group_replication.inc
+
+# This is command should work without problem.
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+include/start_group_replication.inc
+include/gr_stop_applier_sql_thread.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+# RESET SLAVE should not be allowed when GR is ONLINE.
+# So this command will fail.
+RESET SLAVE FOR CHANNEL "group_replication_applier";
+ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+# RESET SLAVE ALL should not be allowed when GR is ONLINE.
+# So this command will fail.
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+ERROR HY000: RESET SLAVE [ALL] FOR CHANNEL cannot be performed on channel 'group_replication_applier'.
+include/gr_start_applier_sql_thread.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+# stop the channel and try reset slave for channel again. It should work.
+include/stop_group_replication.inc
+RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+RESET SLAVE FOR CHANNEL "group_replication_applier";
+ERROR HY000: Slave channel 'group_replication_applier' does not exist.
+include/group_replication_end.inc

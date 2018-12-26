@@ -432,3 +432,27 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db1_1gb;
+SHOW VARIABLES LIKE "master_info_repository";
+Variable_name	Value
+master_info_repository	FILE
+SHOW VARIABLES LIKE "relay_log_info_repository";
+Variable_name	Value
+relay_log_info_repository	FILE
+SET GLOBAL master_info_repository= 'TABLE';
+SET GLOBAL relay_log_info_repository= 'TABLE';
+SHOW VARIABLES LIKE "master_info_repository";
+Variable_name	Value
+master_info_repository	TABLE
+SHOW VARIABLES LIKE "relay_log_info_repository";
+Variable_name	Value
+relay_log_info_repository	TABLE
+Pattern "CREATE TABLE `mysql`.`slave_master_info`" not found
+Pattern "CREATE TABLE `mysql`.`slave_relay_log_info`" not found
+SET GLOBAL master_info_repository= 'FILE';
+SET GLOBAL relay_log_info_repository= 'FILE';
+SHOW VARIABLES LIKE "master_info_repository";
+Variable_name	Value
+master_info_repository	FILE
+SHOW VARIABLES LIKE "relay_log_info_repository";
+Variable_name	Value
+relay_log_info_repository	FILE

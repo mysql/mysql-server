@@ -228,7 +228,8 @@ Mysqlx.Sql.StmtExecute {
 }
 
 ## expect Mysqlx.Error
--->recv
+-->recverror ER_X_DOC_REQUIRED_FIELD_MISSING
+
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -315,7 +316,8 @@ Mysqlx.Crud.Insert {
 }
 
 ## expect Mysqlx.Error
--->recv
+-->recverror ER_X_DOC_ID_MISSING
+
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -513,7 +515,8 @@ Mysqlx.Sql.StmtExecute {
 }
 
 ## expect Mysqlx.Error
--->recv
+-->recvresult
+
 Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -779,7 +782,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recverror 5017
+-->recverror ER_INVALID_JSON_PATH
 
 
 Mysqlx.Sql.StmtExecute {
@@ -845,7 +848,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recverror 5017
+-->recverror ER_INVALID_JSON_PATH
 
 
 ## Cleanup

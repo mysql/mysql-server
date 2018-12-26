@@ -1,7 +1,13 @@
 drop table if exists t1;
 set GLOBAL query_cache_type=on;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set GLOBAL query_cache_size=1355776;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 CREATE TABLE t1 ( pk int not null primary key,
 a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
@@ -189,6 +195,8 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 create table t1 (a int primary key,
 b text,
@@ -288,6 +296,8 @@ key(c))
 storage disk tablespace tbsp engine ndb;
 insert into t1 values (1,'Alexandra', 1), (2,'Palace', 2);
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
@@ -368,6 +378,8 @@ alter tablespace tbsp drop datafile 'mydatafile.fil' engine ndb;
 drop tablespace tbsp engine ndb;
 drop logfile group lfg engine ndb;
 reset query cache;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 flush status;
 pk	a	b	c
 1	2	3	First row
@@ -379,3 +391,5 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	1
 SET GLOBAL query_cache_size=0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

@@ -1,0 +1,283 @@
+###########################################################################################################
+# This test checks the behavior of following functions on GR channels:
+# SELECT MASTER_POS_WAIT()
+# WAIT_FOR_EXECUTED_GTID_SET()
+# WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+#
+# Test :
+# 0. This test requires 3 servers.
+# 1. Start two servers (server1 and server2) and form a group.
+# 2. Create a table and insert 1000 records on server1.
+# 3. Check the status of gtids using WAIT_FOR_EXECUTED_GTID_SET on server1.
+# 4. Add a server (server3) to the group using start group_replication command.
+# 5. Wait for recovery channel to be created for a newly added member and call
+#    MASTER_POS_WAIT function to wait for gtid set to reach a stored value and
+#    data to be synced.
+# 6. Stop gr on server3 and validate some error cases for MASTER_POS_WAIT
+#    function when channels are not present.
+# 7. Create a table t2 on server2 and insert 500 records.
+# 8. Start the group replication on server3.
+# 9. Use the WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and WAIT_FOR_EXECUTED_GTID_SET
+#    function calls to make sure data is synced (which is inserted in step6).
+# 10. Check the status of all the nodes and validate the records in server2 and
+#     server3.
+############################################################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Suprress the warning on server1, which is logged due to
+# STOP/START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+# command execution
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
+SET SESSION sql_log_bin= 1;
+
+#
+# Start group replication on two servers
+#
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+# Suprress the warning on server1, which is logged due to
+# STOP/START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier"
+# command execution
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
+SET SESSION sql_log_bin= 1;
+
+# Create a table t1 on server1 and insert 1000 records
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE test.t1 ( a int primary key);
+--source include/rpl_sync.inc
+--disable_query_log
+--let $i=1000
+while($i)
+{
+    --EVAL INSERT INTO t1 VALUES ($i)
+    --dec $i
+}
+--enable_query_log
+
+# Call and wait for gtid set to reach 1003 using WAIT_FOR_EXECUTED_GTID_SET(),
+# After 1000 inserts and all the operations gtid executed will be 1003 for server
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1003');
+
+# This call should wait for 5 seconds and come out as gtid set
+# will not reach the value 1006, and returns 1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1200',5);
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Store the master binlog name and position , which will be used later
+# for calling MASTER_POS_WAIT function
+--let $m1_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $m1_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Store the master binlog name and position , which will be used later
+# for calling MASTER_POS_WAIT function
+--let $m2_saved_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $m2_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Error while sending message for group replication recovery");
+SET SESSION sql_log_bin= 1;
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+# Make sure that recovery channel is created
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON"
+--source include/wait_condition.inc
+
+--let $group_replication_member_state= RECOVERING
+--source ../inc/gr_wait_for_member_state.inc
+
+#Find which member is the donor
+--let $m3_saved_file= $m1_saved_file
+--let $m3_saved_pos= $m1_saved_pos
+if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHERE channel_name='group_replication_recovery' AND service_state='ON' AND source_uuid='$server2_uuid'`)
+{
+  --let $m3_saved_file= $m2_saved_file
+  --let $m3_saved_pos= $m2_saved_pos
+}
+
+# Use MASTER_POS_WAIT() for a server which is getting added and
+# wait till it synchs to certain position.
+# Result log has been disabled because, it prints the difference of positions synced.
+# which may not be same across different runs
+--disable_result_log
+--replace_result $m3_saved_pos SAVED_POS
+--eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
+--enable_result_log
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+# Stop the group replication
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+# Calling MASTER_POS_WAIT in error cases, It should return NULL for both the calls
+--replace_result $m3_saved_pos SAVED_POS
+--eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 0,'group_replication_recovery')
+--replace_result $m3_saved_pos SAVED_POS
+--eval SELECT MASTER_POS_WAIT('$m3_saved_file',$m3_saved_pos, 2,'group_replication_applier')
+
+# Connect to server2 and create table and perform insert
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+CREATE TABLE test.t2 ( a int primary key);
+
+--source include/rpl_sync.inc
+--disable_query_log
+--let $i=500
+while($i)
+{
+    --EVAL INSERT INTO t2 VALUES ($i)
+    --dec $i
+}
+--enable_query_log
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--source include/start_group_replication_command.inc
+
+# Make sure that recovery channel is created
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME="group_replication_recovery" and SERVICE_STATE="ON"
+--source include/wait_condition.inc
+
+--let $group_replication_member_state= RECOVERING
+--source ../inc/gr_wait_for_member_state.inc
+
+# Call and wait for 20 seconds, for gtid set to reach 1256 using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS()
+# Result log has been disabled because, it prints the difference of gtids synced.
+# which may not be same across different runs
+
+--disable_result_log
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1056", 20, "group_replication_recovery");
+--enable_result_log
+
+# Call and wait for 10 seconds, for gtid set to reach 1306 using WAIT_FOR_EXECUTED_GTID_SET()
+--disable_result_log
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1306',10);
+--enable_result_log
+
+# This call should wait for gtid set to reach 1506(wait_time 0 means, wait for
+# infinite time till the gtid values is reached)
+
+# Result log has been disabled because, it prints the difference of gtids synced.
+# which may not be same across different runs
+--disable_result_log
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-1505", 0, "group_replication_recovery");
+--enable_result_log
+
+# Check the gtid executed using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS on group
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-1505", 10, "group_replication_applier");
+
+# Start appliers on server1 and server2 to assist server3 come out of recovery
+# Wait till all the servers are online
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+let $wait_condition=
+  SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+# Validate the record count in server3
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 1000
+--source include/assert.inc
+
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 500
+--source include/assert.inc
+
+# Validate the record count in server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 1000
+--source include/assert.inc
+
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 500
+--source include/assert.inc
+
+# Cleanup
+--echo ## Cleanup ##
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+
+--source ../inc/group_replication_end.inc
+

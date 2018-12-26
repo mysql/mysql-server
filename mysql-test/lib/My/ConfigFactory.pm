@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -93,6 +93,11 @@ sub fix_port {
   return $self->{HOSTS}->{$hostname}++;
 }
 
+sub fix_x_port {
+  my ($self, $config, $group_name, $group)= @_;
+  return $self->{ARGS}->{mysqlxbaseport}++;
+}
+
 sub fix_host {
   my ($self)= @_;
   # Get next host from HOSTS array
@@ -134,6 +139,13 @@ sub fix_server_id {
   return $server_id;
 }
 
+sub fix_x_socket {
+  my $result = fix_socket(@_);
+  $result =~ s/mysqld\.([0-9]+)\.sock$/mysqlx\.$1\.sock/;
+
+  return $result;
+}
+
 sub fix_socket {
   my ($self, $config, $group_name, $group)= @_;
   # Put socket file in tmpdir
@@ -148,6 +160,7 @@ sub fix_socket {
     my $port = $group->value('port');
     $socket = "$dir/mysqld-$port.sock"; 
   }
+
   return $socket;
 }
 
@@ -257,6 +270,8 @@ my @mysqld_rules=
  { '#host' => \&fix_host },
  { 'port' => \&fix_port },
  { 'socket' => \&fix_socket },
+ { 'loose-mysqlx-port' => \&fix_x_port },
+ { 'loose-mysqlx-socket' => \&fix_x_socket },
  { '#log-error' => \&fix_log_error },
  { 'general_log' => 1 },
  { 'general_log_file' => \&fix_log },
@@ -272,6 +287,7 @@ my @mysqld_rules=
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
   );
+
 
 if (IS_WINDOWS)
 {
@@ -378,6 +394,7 @@ my @mysqltest_rules=
 my @mysqlbinlog_rules=
 (
  { 'character-sets-dir' => \&fix_charset_dir },
+ { 'local-load' => sub { return shift->{ARGS}->{tmpdir}; } },
 );
 
 

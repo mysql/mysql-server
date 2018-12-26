@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -151,6 +151,14 @@ public:
     @param len the length of the string to assign
   */
   static void set_field_char_utf8(Field *f, const char *str, uint len);
+  /**
+    Helper, assign a value to a varchar utf8 field.
+    @param f the field to set
+    @param cs the string character set
+    @param str the string to assign
+    @param len the length of the string to assign
+  */
+  static void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str, uint len);
   /**
     Helper, assign a value to a varchar utf8 field.
     @param f the field to set

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,41 +23,14 @@
 #include "replication.h"
 #include "log_event.h"
 
+#include "mysql/plugin_group_replication.h"
 
-/*
-  Group Replication plugin handler.
-*/
-class Group_replication_handler
-{
-public:
-  Group_replication_handler(const char *plugin_name_arg);
-  ~Group_replication_handler();
-  int init();
-  int start();
-  int stop();
-  bool is_running();
-  int set_retrieved_certification_info(View_change_log_event *view_change_event);
-  bool get_connection_status_info(
-      const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
-  bool get_group_members_info(
-      unsigned int index,
-      const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
-  bool get_group_member_stats_info(
-      const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
-  unsigned int get_members_number_info();
+class View_change_log_event;
 
-private:
-  std::string plugin_name;
-  plugin_ref plugin;
-  st_mysql_group_replication *plugin_handle;
-  int plugin_init();
-};
 
 /*
   Group Replication plugin handler function accessors.
 */
-int group_replication_init(const char* plugin_name);
-int group_replication_cleanup();
 bool is_group_replication_plugin_loaded();
 
 int group_replication_start();

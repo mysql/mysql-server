@@ -1,0 +1,119 @@
+--source include/not_embedded.inc
+--source include/have_partition.inc
+--source include/have_innodb.inc
+
+--echo # Verify that there is no deprecation warning when
+--echo # creating a table with native partitioning.
+CREATE TABLE t1 (a INT) ENGINE = InnoDB
+  PARTITION BY RANGE (a)
+    (
+      PARTITION pNeg VALUES LESS THAN (0),
+      PARTITION pPosNull VALUES LESS THAN MAXVALUE
+    );
+
+--echo # The table is listed, but there are no warnings from the
+--echo # I_S query.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE CREATE_OPTIONS LIKE '%partitioned%';
+
+--echo # Verify that altering the table to use non-native partitioning
+--echo # will give a warning. Altering back to native partitioning
+--echo # does not give a warning.
+ALTER TABLE t1 ENGINE=MyISAM;
+ALTER TABLE t1 ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+
+--echo # Verify that there is a deprecation warning when
+--echo # creating a table with non-native partitioning.
+CREATE TABLE t1 (a INT) ENGINE = MyISAM
+  PARTITION BY RANGE (a)
+  (
+    PARTITION pNeg VALUES LESS THAN (0),
+    PARTITION pPosNull VALUES LESS THAN MAXVALUE
+  );
+
+--echo # Verify that there is no deprecation warning when
+--echo # removing partitioning from a non-natively partitioned
+--echo # table.
+ALTER TABLE t1 REMOVE PARTITIONING;
+
+--echo # Verify that there is a deprecation warning when
+--echo # adding non-native partitioning, dropping or adding
+--echo # individual partitions for a table.
+ALTER TABLE t1 PARTITION BY RANGE (a)
+  (
+    PARTITION pNeg VALUES LESS THAN (0),
+    PARTITION pPosNull VALUES LESS THAN MAXVALUE
+  );
+ALTER TABLE t1 DROP PARTITION pPosNull;
+ALTER TABLE t1 ADD PARTITION (PARTITION pPosNull VALUES LESS THAN MAXVALUE);
+
+--echo # Verify that there is a deprecation warning when
+--echo # renaming a non-natively partitioned table.
+ALTER TABLE t1 RENAME TO t2;
+ALTER TABLE t2 RENAME TO t1;
+
+--echo # Verify that we get a warning for SHOW CREATE.
+SHOW CREATE TABLE t1;
+
+--echo # Verify that CHECK lists a warning (but the statement execution
+--echo # itself does not push a warning to the client)..
+CHECK TABLE t1;
+SHOW WARNINGS;
+
+--echo # Verify that we get a warning for I_S queries.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE CREATE_OPTIONS LIKE '%partitioned%';
+
+--echo # Verify that the startup by default skips the I_S query, since the
+--echo # option --disable-partition-engine-check defaults to TRUE.
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/my_restart.err
+--let $restart_parameters= restart: --no-console --log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE LOG_FILE
+--source include/restart_mysqld.inc
+perl;
+  use strict;
+  my $log= $ENV{'SEARCH_FILE'} or die;
+  open(FILE, "$log") or die;
+  my $c_w= grep(/.Warning. The partition engine, used by table/gi,<FILE>);
+  if ($c_w) {
+    print "# Deprecation warning found.\n";
+  }
+  else {
+    print "# No deprecation warning found.\n";
+  }
+  close(FILE);
+EOF
+--remove_file $SEARCH_FILE
+
+--echo # Verify that the I_S query on bootstrap prints warnings in the error log
+--echo # when '--disable-partition-engine-check=0'.
+--let $restart_parameters= restart: --disable-partition-engine-check=0 --no-console --log-error=$SEARCH_FILE
+--replace_result $SEARCH_FILE LOG_FILE
+--source include/restart_mysqld.inc
+perl;
+  use strict;
+  my $log= $ENV{'SEARCH_FILE'} or die;
+  open(FILE, "$log") or die;
+  my $c_w= grep(/.Warning. The partition engine, used by table/gi,<FILE>);
+  if ($c_w) {
+    print "# Deprecation warning found.\n";
+  }
+  else {
+    print "# No deprecation warning found.\n";
+  }
+  close(FILE);
+EOF
+--remove_file $SEARCH_FILE
+
+--echo # Restart the server without additional options.
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+
+--echo # Verify that we don't get a warning for I_S queries when the table is dropped.
+DROP TABLE t1;
+
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE CREATE_OPTIONS LIKE '%partitioned%';

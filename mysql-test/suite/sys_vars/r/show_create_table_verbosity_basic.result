@@ -1,0 +1,80 @@
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+SHOW SESSION VARIABLES LIKE 'show_create_table_verbosity';
+Variable_name	Value
+show_create_table_verbosity	OFF
+SELECT * FROM information_schema.session_variables WHERE variable_name='show_create_table_verbosity';
+VARIABLE_NAME	VARIABLE_VALUE
+SHOW_CREATE_TABLE_VERBOSITY	OFF
+#Also can be set as a global variable.
+SELECT @@global.show_create_table_verbosity;
+@@global.show_create_table_verbosity
+0
+SHOW GLOBAL VARIABLES LIKE 'show_create_table_verbosity';
+Variable_name	Value
+show_create_table_verbosity	OFF
+SELECT * FROM information_schema.global_variables WHERE variable_name='show_create_table_verbosity';
+VARIABLE_NAME	VARIABLE_VALUE
+SHOW_CREATE_TABLE_VERBOSITY	OFF
+#Test setting the variable to various values.
+#Boolean values.
+SET SESSION show_create_table_verbosity= ON;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+1
+SET SESSION show_create_table_verbosity= OFF;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+SET SESSION show_create_table_verbosity= 1;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+1
+SET SESSION show_create_table_verbosity= 0;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+#Test for DEFAULT value.
+SET SESSION show_create_table_verbosity= DEFAULT;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+#Test for invalid value.
+SET SESSION show_create_table_verbosity= 2;
+ERROR 42000: Variable 'show_create_table_verbosity' can't be set to the value of '2'
+#Test for setting the session variable
+#using different syntax.
+SET show_create_table_verbosity= 1;
+#Fetches the current session value for the variable.
+SELECT @@show_create_table_verbosity;
+@@show_create_table_verbosity
+1
+#cleanup
+SET SESSION show_create_table_verbosity= DEFAULT;
+#Test setting the global value of the variable.
+#Boolean values.
+SET GLOBAL show_create_table_verbosity= ON;
+SELECT @@global.show_create_table_verbosity;
+@@global.show_create_table_verbosity
+1
+SET GLOBAL show_create_table_verbosity= OFF;
+SELECT @@global.show_create_table_verbosity;
+@@global.show_create_table_verbosity
+0
+SET GLOBAL show_create_table_verbosity= 1;
+SELECT @@global.show_create_table_verbosity;
+@@global.show_create_table_verbosity
+1
+SET GLOBAL show_create_table_verbosity= 0;
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+#Test for DEFAULT value.
+SET GLOBAL show_create_table_verbosity= DEFAULT;
+SELECT @@global.show_create_table_verbosity;
+@@global.show_create_table_verbosity
+0
+#Test for invalid value.
+SET GLOBAL show_create_table_verbosity= 2;
+ERROR 42000: Variable 'show_create_table_verbosity' can't be set to the value of '2'

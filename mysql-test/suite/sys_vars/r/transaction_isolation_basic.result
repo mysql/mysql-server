@@ -1,0 +1,175 @@
+#
+# WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+#
+#########################################################################
+# Saving initial value of transaction_isolation in a temporary variable #
+#########################################################################
+SET @global_start_value = @@global.transaction_isolation;
+SELECT @global_start_value;
+@global_start_value
+REPEATABLE-READ
+SET @session_start_value = @@session.transaction_isolation;
+SELECT @session_start_value;
+@session_start_value
+REPEATABLE-READ
+#####################################################################
+#           Display the DEFAULT value of transaction_isolation      #
+#####################################################################
+SET @@global.transaction_isolation = 'READ-UNCOMMITTED';
+SET @@global.transaction_isolation = DEFAULT;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = DEFAULT;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+##########################################################
+#       Check if NULL or empty value is accepeted        #
+##########################################################
+SET @@global.transaction_isolation = NULL;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'NULL'
+SET @@global.transaction_isolation = '';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of ''
+SET @@session.transaction_isolation = NULL;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'NULL'
+SET @@session.transaction_isolation = '';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of ''
+#####################################################################
+#     Change the value of transaction_isolation to a valid value    #
+#####################################################################
+SET @@global.transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-UNCOMMITTED
+SET @@global.transaction_isolation = 'read-COMMITTED';
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-COMMITTED
+SET @@global.transaction_isolation = 'REPEATABLE-READ';
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@global.transaction_isolation = 'SERIALIZable';
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+SERIALIZABLE
+SET @@session.transaction_isolation = 'READ-UNCOMMITTED';
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-UNCOMMITTED
+SET @@session.transaction_isolation = 'READ-COMMITTED';
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+READ-COMMITTED
+SET @@session.transaction_isolation = 'REPEATABLE-READ';
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = 'serializable';
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+SERIALIZABLE
+#######################################################################
+#      Change the value of transaction_isolation to invalid value     #
+#######################################################################
+SET @@global.transaction_isolation = -1;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of '-1'
+SET @@global.transaction_isolation = READUNCOMMITTED;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'READUNCOMMITTED'
+SET @@global.transaction_isolation = 'REPEATABLE';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'REPEATABLE'
+SET @@global.transaction_isolation = OFF;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'OFF'
+SET @@global.transaction_isolation = ON;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'ON'
+SET @@global.transaction_isolation = 'NON-SERIALIZABLE';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'NON-SERIALIZABLE'
+SET @@transaction_isolation = -1;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of '-1'
+SET @@transaction_isolation = READUNCOMMITTED;
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'READUNCOMMITTED'
+SET @@transaction_isolation = 'REPEATABLE';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'REPEATABLE'
+SET @@transaction_isolation = 'NONE';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'NONE'
+SET @@transaction_isolation = 'ALL';
+ERROR 42000: Variable 'transaction_isolation' can't be set to the value of 'ALL'
+#########################################################################
+#     Check if the value in session Table matches value in variable     #
+#########################################################################
+SELECT @@session.transaction_isolation = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='transaction_isolation';
+@@session.transaction_isolation = VARIABLE_VALUE
+1
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+SELECT @@global.transaction_isolation = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='transaction_isolation';
+@@global.transaction_isolation = VARIABLE_VALUE
+1
+###################################################################
+#        Check if numbers can be used on variable                 #
+###################################################################
+SET @@global.transaction_isolation = 0;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-UNCOMMITTED
+SET @@global.transaction_isolation = 1;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-COMMITTED
+SET @@global.transaction_isolation = 2;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@global.transaction_isolation = 3;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+SERIALIZABLE
+SET @@global.transaction_isolation = 0.4;
+ERROR 42000: Incorrect argument type to variable 'transaction_isolation'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+SET @@global.transaction_isolation = TRUE;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-COMMITTED
+SET @@global.transaction_isolation = FALSE;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+READ-UNCOMMITTED
+##########################################################################
+# Check if transaction_isolation can be accessed with and without @@ sign#
+##########################################################################
+SET transaction_isolation = 'REPEATABLE-READ';
+SET session.transaction_isolation = 'REPEATABLE-READ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.transaction_isolation = 'REPEATABLE-READ'' at line 1
+SET global.transaction_isolation = 'REPEATABLE-READ';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.transaction_isolation = 'REPEATABLE-READ'' at line 1
+SET session transaction_isolation = 'REPEATABLE-READ';
+SELECT @@transaction_isolation;
+@@transaction_isolation
+REPEATABLE-READ
+SET global transaction_isolation = 'REPEATABLE-READ';
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+##############################
+#   Restore initial value    #
+##############################
+SET @@global.transaction_isolation = @global_start_value;
+SELECT @@global.transaction_isolation;
+@@global.transaction_isolation
+REPEATABLE-READ
+SET @@session.transaction_isolation = @session_start_value;
+SELECT @@session.transaction_isolation;
+@@session.transaction_isolation
+REPEATABLE-READ
+####################################################################
+#                    END OF transaction_isolation TESTS            #
+####################################################################

@@ -200,15 +200,8 @@ wait_for_pid () {
 
 # Get arguments from the my.cnf file,
 # the only group, which is read from now on is [mysqld]
-if test -x ./bin/my_print_defaults
-then
-  print_defaults="./bin/my_print_defaults"
-elif test -x $bindir/my_print_defaults
-then
+if test -x "$bindir/my_print_defaults";  then
   print_defaults="$bindir/my_print_defaults"
-elif test -x $bindir/mysql_print_defaults
-then
-  print_defaults="$bindir/mysql_print_defaults"
 else
   # Try to find basedir in /etc/my.cnf
   conf=/etc/my.cnf
@@ -223,11 +216,6 @@ else
       if test -x "$d/bin/my_print_defaults"
       then
         print_defaults="$d/bin/my_print_defaults"
-        break
-      fi
-      if test -x "$d/bin/mysql_print_defaults"
-      then
-        print_defaults="$d/bin/mysql_print_defaults"
         break
       fi
     done
@@ -246,11 +234,6 @@ extra_args=""
 if test -r "$basedir/my.cnf"
 then
   extra_args="-e $basedir/my.cnf"
-else
-  if test -r "$datadir/my.cnf"
-  then
-    extra_args="-e $datadir/my.cnf"
-  fi
 fi
 
 parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server mysql.server`
@@ -280,7 +263,7 @@ case "$mode" in
     then
       # Give extra arguments to mysqld with the my.cnf file. This script
       # may be overwritten at next upgrade.
-      $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null 2>&1 &
+      $bindir/mysqld_safe --datadir="$datadir" --pid-file="$mysqld_pid_file_path" $other_args >/dev/null &
       wait_for_pid created "$!" "$mysqld_pid_file_path"; return_value=$?
 
       # Make lock for RedHat / SuSE
@@ -362,7 +345,7 @@ case "$mode" in
       fi
     else
       # Try to find appropriate mysqld process
-      mysqld_pid=`pidof $libexecdir/mysqld`
+      mysqld_pid=`@PIDOF@ $libexecdir/mysqld`
 
       # test if multiple pids exist
       pid_count=`echo $mysqld_pid | wc -w`

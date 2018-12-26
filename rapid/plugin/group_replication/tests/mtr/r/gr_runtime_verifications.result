@@ -1,0 +1,273 @@
+include/start_and_bootstrap_group_replication.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Table .* does not use the InnoDB storage engine. This is not compatible with Group Replication");
+SET SESSION sql_log_bin= 1;
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+CREATE TABLE t2 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 char(50)) ENGINE=MyISAM;
+CREATE TABLE t4 (c1 char(50) NOT NULL PRIMARY KEY) ENGINE=Blackhole;
+CREATE TABLE tn (cn char(50) NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t5 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tn(cn) ON UPDATE CASCADE) ENGINE = InnoDB;
+CREATE TABLE t6 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON UPDATE CASCADE ON DELETE RESTRICT) ENGINE = InnoDB;
+CREATE TABLE t7 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES tn(cn) ON DELETE CASCADE) ENGINE = InnoDB;
+CREATE TABLE t8 (c1 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON DELETE CASCADE ON UPDATE RESTRICT) ENGINE = InnoDB;
+CREATE TABLE t9 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON DELETE SET NULL) ENGINE = InnoDB;
+CREATE TABLE t10 (c1 char(50), c2 char(50) NOT NULL PRIMARY KEY, FOREIGN KEY (c1) REFERENCES
+tn(cn) ON UPDATE SET NULL) ENGINE = InnoDB;
+#
+# Testing all tables that will fail.
+#
+INSERT INTO t10 VALUES('a','a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t10 (c1,c2) SELECT tn.cn,'a' FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t10;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t10;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t10(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t10 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t10, tn FROM t10, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t10, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t10;
+INSERT INTO t9 VALUES('a','a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t9 (c1,c2) SELECT tn.cn,'a' FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t9;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t9;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t9(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t9 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t9, tn FROM t9, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t9, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t9;
+INSERT INTO t8 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t8 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t8 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t8 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t8;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t8;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t8(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t8 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t8, tn FROM t8, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t8, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t8;
+INSERT INTO t7 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t7 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t7 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t7 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t7;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t7;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t7(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t7 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t7, tn FROM t7, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t7, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t7;
+INSERT INTO t6 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t6 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t6 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t6 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t6;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t6;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t6(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t6 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t6, tn FROM t6, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t6, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t6;
+INSERT INTO t5 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t5 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t5 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t5 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t5;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t5;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t5(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t5 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t5, tn FROM t5, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t5, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t5;
+INSERT INTO t4 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t4 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t4 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t4 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t4;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t4;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t4(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t4 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t4, tn FROM t4, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t4, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t4;
+INSERT INTO t3 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t3 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t3;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t3(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t3 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t3, tn FROM t3, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t3, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t3;
+INSERT INTO t2 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t2 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t2(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t2 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t2, tn FROM t2, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t2, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t2;
+INSERT INTO t1 VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1 SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+INSERT INTO t1 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE FROM t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t1(c1) VALUES('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+REPLACE INTO t1 (c1) SELECT tn.cn FROM tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DELETE t1, tn FROM t1, tn;
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+UPDATE t1, tn SET c1 = 'a';
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE t1;
+#
+# Lets test the global variables that might change in
+# runtime and which values are not allowed.
+#
+SET GLOBAL binlog_checksum= CRC32;
+INSERT INTO tn VALUES ('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SET GLOBAL binlog_checksum= NONE;
+SET SESSION binlog_format= STATEMENT;
+INSERT INTO tn VALUES ('a');
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+SET SESSION binlog_format= ROW;
+SET SESSION transaction_write_set_extraction=OFF;
+ERROR HY000: The write set algorithm cannot be changed when Group replication is running.
+INSERT INTO tn VALUES ('hash');
+#
+# Now, lets repeat all the tests with group replication stopped.
+# They all must succeed or fail with other errors that not the
+# ones from validation.
+#
+# It will be a single table simpler test just to assess that the
+# hook is not longer active.
+#
+include/stop_group_replication.inc
+CREATE TABLE t1 (c1 char(50)) ENGINE=InnoDB;
+UPDATE t1 SET c1 = 'a';
+INSERT INTO t1 VALUES('a');
+INSERT INTO t1 (c1) SELECT tn.cn FROM tn;
+DELETE FROM t1;
+LOAD DATA INFILE '../../std_data/words2.dat' INTO TABLE t1;
+REPLACE INTO t1(c1) VALUES('a');
+REPLACE INTO t1 (c1) SELECT tn.cn FROM tn;
+DELETE t1, tn FROM t1, tn;
+UPDATE t1, tn SET c1 = 'a';
+DROP TABLE t1, tn;
+call mtr.add_suppression("Table.*is not transactional. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*does not have any PRIMARY KEY. This is not compatible with Group Replication");
+call mtr.add_suppression("Table.*has a foreign key with 'CASCADE' clause. This is not compatible with Group Replication");
+call mtr.add_suppression("binlog_checksum should be NONE for Group Replication");
+call mtr.add_suppression("Binlog format should be ROW for Group Replication");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");

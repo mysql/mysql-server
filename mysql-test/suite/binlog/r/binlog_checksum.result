@@ -3,7 +3,7 @@ set @save_master_verify_checksum = @@global.master_verify_checksum;
 set @@global.binlog_checksum = CRC32;
 set @@global.master_verify_checksum = 1;
 reset master;
-must be master-bin.000001 
+must be master-bin.000001
 show binary logs;
 Log_name	File_size
 master-bin.000001	#

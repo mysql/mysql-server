@@ -3,6 +3,13 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
+connection slave;
+--let $debug_point_silent= 1
+--let $debug_point= extra_row_data_check
+--source include/add_debug_point.inc
+connection master;
+--let $debug_point= extra_row_data_set
+--source include/add_debug_point.inc
 --echo Basic insert, update, delete from Master->Slave
 --echo DBUG code will set + check transfer of extra
 --echo row data in RBR
@@ -60,4 +67,9 @@ source include/check_slave_is_running.inc;
 connection master;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
+--let $debug_point= extra_row_data_check
+--source include/remove_debug_point.inc
+connection master;
+--let $debug_point= extra_row_data_set
+--source include/remove_debug_point.inc
 --source include/rpl_end.inc

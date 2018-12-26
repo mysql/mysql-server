@@ -20,29 +20,25 @@
 #include "xpl_error.h"
 
 
-xpl::Insert_statement_builder::Insert_statement_builder(const Insert &msg, Query_string_builder &qb)
-: Statement_builder(qb, msg.args(), msg.collection().schema(), msg.data_model() == Mysqlx::Crud::TABLE),
-  m_msg(msg)
-{}
-
-
-void xpl::Insert_statement_builder::add_statement() const
+void xpl::Insert_statement_builder::build(const Insert &msg) const
 {
   m_builder.put("INSERT INTO ");
-  add_table(m_msg.collection());
-  add_projection(m_msg.projection());
-  add_values(m_msg.row());
+  add_collection(msg.collection());
+  add_projection(msg.projection(), is_table_data_model(msg));
+  add_values(msg.row(), is_table_data_model(msg) ? msg.projection().size() : 1);
 }
 
 
-void xpl::Insert_statement_builder::add_projection(const Projection_list &projection) const
+void xpl::Insert_statement_builder::add_projection(const Projection_list &projection,
+                                                        const bool is_relational) const
 {
-  if (m_is_relational)
+  if (is_relational)
   {
     if (projection.size() != 0)
-      m_builder.put(" (").put_list(projection,
-                                   boost::bind(&Builder::put_identifier, m_builder,
-                                               boost::bind(&Mysqlx::Crud::Column::name, _1))).put(")");
+      m_builder.put(" (")
+        .put_list(projection, ngs::bind(&Generator::put_identifier, m_builder,
+                                        ngs::bind(&Mysqlx::Crud::Column::name, ngs::placeholders::_1)))
+        .put(")");
   }
   else
   {
@@ -53,22 +49,22 @@ void xpl::Insert_statement_builder::add_projection(const Projection_list &projec
 }
 
 
-void xpl::Insert_statement_builder::add_values(const Row_list &values) const
+void xpl::Insert_statement_builder::add_values(const Row_list &values, const int projection_size) const
 {
   if (values.size() == 0)
     throw ngs::Error_code(ER_X_MISSING_ARGUMENT, "Missing row data for Insert");
 
-  m_builder.put(" VALUES ").put_list(values,
-                                     boost::bind(&Insert_statement_builder::add_row, this,
-                                                 boost::bind(&Mysqlx::Crud::Insert_TypedRow::field, _1),
-                                                 m_is_relational ? m_msg.projection().size() : 1));
+  m_builder.put(" VALUES ")
+    .put_list(values, ngs::bind(&Insert_statement_builder::add_row, this,
+                                ngs::bind(&Insert_statement_builder::get_row_fields, this, ngs::placeholders::_1),
+                                projection_size));
 }
 
 
-void xpl::Insert_statement_builder::add_row(const Field_list &row, int projection_size) const
+void xpl::Insert_statement_builder::add_row(const Field_list &row, const int projection_size) const
 {
   if ((row.size() == 0) || (projection_size && row.size() != projection_size))
     throw ngs::Error_code(ER_X_BAD_INSERT_DATA, "Wrong number of fields in row being inserted");
 
-  m_builder.put("(").put_list(row).put(")");
+  m_builder.put("(").put_list(row, &Generator::put_expr).put(")");
 }

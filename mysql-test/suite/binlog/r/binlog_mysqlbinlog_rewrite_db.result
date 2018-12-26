@@ -10,16 +10,32 @@ DELETE FROM t1 WHERE i=2;
 [Syntax error in the use of the new option: The '->' is missing]
 [Syntax error in the use of the new option: The to database name is missing]
 [VALID SYNTAX,The from->to database names is correctly mentioned]
-#Dropping the database db1 and creating the table in the new database db2.
-CREATE DATABASE db2;
+[VALID SYNTAX read from remote server ,The from->to database names are correctly mentioned]
+[VALID SYNTAX read from remote server in raw mode, the from->to database names are correctly mentioned]
+[VALID SYNTAX, but during the application of rewrite_db filter an invalid event is found. Hence mysqlbinlog tool should exit with an appropriate error]
+[ERROR: Got fatal error while applying rewrite db filter.]
+#Dropping the database db1 and creating the table in the new database new_db1.
+CREATE DATABASE new_db1;
 DROP DATABASE db1;
 RESET MASTER;
-SELECT * FROM db2.t1;
-ERROR 42S02: Table 'db2.t1' doesn't exist
+SELECT * FROM new_db1.t1;
+ERROR 42S02: Table 'new_db1.t1' doesn't exist
 DROP DATABASE db1;
 RESET MASTER;
-[The event of table db1.t1 has been successfully applied to db2.t1]
-include/assert.inc [Assert that table db2.t1 has one row after applying the sql file.]
+[The event of table db1.t1 has been successfully applied to new_db1.t1]
+include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file.]
+DROP DATABASE db1;
+DROP DATABASE new_db1;
+CREATE DATABASE new_db1;
+RESET MASTER;
+[The event of table db1.t1 has been successfully applied to new_db1.t1]
+include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file.]
+DROP DATABASE db1;
+DROP DATABASE new_db1;
+CREATE DATABASE new_db1;
+RESET MASTER;
+[The event of table db1.t1 has been successfully applied to new_db1.t1 from raw mode]
+include/assert.inc [Assert that table new_db1.t1 has one row after applying the sql file from raw binlog dump.]
 CLEANUP
 DROP DATABASE db1;
-DROP DATABASE db2;
+DROP DATABASE new_db1;

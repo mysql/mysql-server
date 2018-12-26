@@ -19,10 +19,16 @@ CREATE TABLE t1 (a INT PRIMARY KEY)
 ENGINE MYISAM
 PARTITION BY HASH (a)
 PARTITIONS 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (12), (13), (14), (15), (16), (17), (18), (19), (20);
 # This changes from auto partitioned to manual partitioned
 ALTER TABLE t1 REORGANIZE PARTITION p0 INTO (PARTITION pHidden);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -31,13 +37,23 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (a)
 (PARTITION pHidden ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD PARTITION
 (PARTITION pNamed1);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD PARTITION
 (PARTITION pNamed2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD PARTITION
 (PARTITION p5);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
 ERROR HY000: Duplicate partition name p5
 SHOW CREATE TABLE t1;
@@ -52,10 +68,20 @@ t1	CREATE TABLE `t1` (
  PARTITION pNamed1 ENGINE = MyISAM,
  PARTITION pNamed2 ENGINE = MyISAM,
  PARTITION p5 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 REBUILD PARTITION all;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 REBUILD PARTITION pNamed1,p5;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 COALESCE PARTITION 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -65,13 +91,21 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (a)
 (PARTITION pHidden ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 CREATE TABLE t1 (a INT PRIMARY KEY)
 ENGINE MYISAM
 PARTITION BY HASH (a)
 PARTITIONS 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 REORGANIZE PARTITION;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 create table t1 (a int)
 partition by range (a)
@@ -85,6 +119,8 @@ ERROR HY000: Wrong number of subpartitions defined, mismatch with previous setti
 drop table t1;
 CREATE TABLE t1 (f_date DATE, f_varchar VARCHAR(30)) ENGINE=MYISAM
 PARTITION BY HASH(YEAR(f_date)) PARTITIONS 2;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -93,7 +129,11 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 PARTITIONS 2 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 COALESCE PARTITION 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -102,6 +142,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 PARTITIONS 1 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 create table t1 (a int)
 partition by list (a)
@@ -170,16 +212,24 @@ PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
 PARTITION p1 VALUES LESS THAN (200),
 PARTITION pmax VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 UPDATE t1 SET b = CONCAT("Filler_", a);
 INSERT INTO t1 SELECT a + 100, CONCAT("Filler_", a + 100) FROM t1;
 INSERT INTO t1 SELECT a + 200, CONCAT("Filler_", a + 200) FROM t1;
 ALTER TABLE t1 UPGRADE PARTITIONING;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ALGORITHM = INPLACE, UPGRADE PARTITIONING;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1 ALGORITHM = COPY, UPGRADE PARTITIONING;
 ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported. Reason: Partition specific operations do not yet support LOCK/ALGORITHM. Try ALGORITHM=DEFAULT.
 ALTER TABLE t1 REMOVE PARTITIONING;

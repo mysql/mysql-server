@@ -1,0 +1,563 @@
+# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+=*= MySQL Group Replication =*=
+===============================
+
+The multi master plugin for MySQL is here. MySQL Group Replication enables
+virtual synchronous updates on any member in a group of MySQL servers, with
+conflict handling and failure detection. Distributed recovery is also in the
+package to ease the process of adding new servers to your group.
+
+
+* == Pre requisites == *
+
+Under the hood, the plugin is powered by group communication protocols.
+They run a failure detection and membership service, safe and totally
+ordered message delivery. All these services are key to make sure that data
+is consistently replicated across a group of servers. At the core, there is
+an implementation of Paxos (code named XCom) which acts as the group
+communication system engine.
+
+
+* == Plugin install == *
+
+Please check http://dev.mysql.com/doc/refman/5.7/en/installing.html
+
+
+* == Plugin's required configurations  == *
+
+As any new feature, the Group Replication plugin includes some limitations and
+requirements that emerge from its underlying characteristics. When configuring
+a server and your data for multi master you will need:
+
+1) Have the binlog active and its logging format set to ROW.
+
+   Like on standard replication, multi master replication is based on the
+   transmission of log events. Its inner mechanism are however based on the
+   write sets generated during row based logging so row based replication is a
+   requirement.
+
+   Server options:
+     -–log-bin
+     --binlog-format=row
+
+2) Have GTIDs enabled.
+   MySQL Group Replication depends on GTIDs, used to identify what
+   transactions were executed in the group, and for that reason vital to the
+   distributed recovery process.
+
+   Server options:
+     --gtid-mode=on
+     --enforce-gtid-consistency
+     --log-slave-updates
+
+3) Use the InnoDB engine.
+   Synchronous multi master is dependent on transactional tables so only
+   InnoDB is supported. Since this is now the default engine, you only have to
+   be careful when creating individual tables.
+
+4) Every table must have a primary key.
+   Multi master concurrency control is based on primary keys. Every change
+   made to a table line is indexed to its primary key so this is a fundamental
+   requirement.
+
+5) Table based repositories
+   The relay log info and master info repositories must have their type set to
+   TABLE. Since group replication relies on channels for its applier and
+   recovery mechanism, table repositories are needed to isolate their
+   execution info.
+
+   Server options:
+     --master-info-repository=TABLE
+     --relay-log-info-repository=TABLE
+
+6) Set the transaction write set extraction algorithm
+   The process of extracting what writes were made during a transaction is
+   crucial for conflict detection on all group servers. This extracted
+   information is then hashed using a specified algorithm that must be chosen
+   upfront. Currently there are two available algorithms: XXHASH64 and
+   MURMUR32.
+
+   Server options:
+     --transaction-write-set-extraction=XXHASH64
+
+ 7) GCS engine
+    The GCS module relies on an implementation of Paxos developed at Oracle
+    (codename: XCom) as the building block to provide distributed agreement
+    between servers.
+
+    To configure the GCS engine there are four options, described here:
+
+    group_replication_local_address
+    -------------------------------
+    The member local address, i.e., host:port that member will expose
+    itself to be contacted by the group.
+    Default value: empty string.
+
+    group_replication_group_seeds
+    --------------------------------
+    The list of peers, comma separated. E.g., host1:port1,host2:port2,
+    that also belong to the group.
+    If the server is not configured to bootstrap a group it will
+    sequentially contact the peers in the group in order to be added or
+    removed from it.
+    If the list contains its member local address, it will be ignored.
+    Default value: empty string.
+
+    group_replication_bootstrap_group
+    ---------------------------------
+    If set to true, the server will bootstrap the group.
+    group_replication_group_seeds has no effect if this option is set
+    to true.
+    Default value: False.
+
+    ==> Sample configuration for a 3 member group
+
+    We are using global variables, but the configuration can be set on
+    configuration files.
+
+    Server 1:
+    > SET GLOBAL group_replication_group_name= "UUID";
+    > SET GLOBAL group_replication_local_address="192.168.0.1:10300";
+    > SET GLOBAL group_replication_group_seeds= \
+      "192.168.0.1:10300,192.168.0.2:10300,192.168.0.3:10300";
+    > SET GLOBAL group_replication_bootstrap_group= 1;
+
+    Server 2:
+    > SET GLOBAL group_replication_group_name= "UUID";
+    > SET GLOBAL group_replication_local_address="192.168.0.2:10300";
+    > SET GLOBAL group_replication_group_seeds= \
+      "192.168.0.1:10300,192.168.0.2:10300,192.168.0.3:10300";
+
+    Server 3:
+    > SET GLOBAL group_replication_group_name= "UUID";
+    > SET GLOBAL group_replication_local_address="192.168.0.3:10300";
+    > SET GLOBAL group_replication_group_seeds= \
+      "192.168.0.1:10300,192.168.0.2:10300,192.168.0.3:10300";
+
+    The group member join order must be:
+     1) server 1 (the one with group_replication_bootstrap_group= 1);
+     2) all others.
+
+    After server 1 bootstraps the group, its
+    group_replication_bootstrap_group must be set to 0, in order to it to
+    be able to leave and rejoin, if needed, the *same* group instead of
+    starting a new one.
+
+
+Other current limitations:
+
+1) Binlog Event checksum use must be OFF.
+   Due to needed changes in the checksum mechanism, multi master is
+   incompatible with these features as of now.
+
+   Server options:
+     --binlog-checksum=NONE
+
+2) No concurrent DDL
+   As of now, DDL statements can't be concurrently executed with other DDL
+   queries or even DML.
+
+* == Hands on with MySQL Group Replication == *
+
+First of all, set-up a group of servers using the provided binaries that come
+with the release or compile them yourself following the generic MySQL
+compilation instructions.
+
+To test this on you desktop, use a group of physical or virtual machines, the
+only requirement is that all your machines are network reachable. In this
+example, three machines are spawn from the same machine with different data
+folders.
+
+
+==> Start the servers with the plugin and all the necessary options
+
+Server 1
+
+  $ ./bin/mysqld --no-defaults --basedir=. --datadir=data01 -P 13001 \
+    --socket=mysqld1.sock --log-bin=master-bin --server-id=1         \
+    --gtid-mode=on --enforce-gtid-consistency --log-slave-updates    \
+    --binlog-checksum=NONE --binlog-format=row                       \
+    --master-info-repository=TABLE --relay-log-info-repository=TABLE \
+    --transaction-write-set-extraction=XXHASH64                      \
+    --plugin-dir=lib/plugin --plugin-load=group_replication.so
+
+Server 2
+
+  $ ./bin/mysqld --no-defaults --basedir=. --datadir=data02 -P 13002 \
+    --socket=mysqld2.sock --log-bin=master-bin --server-id=2         \
+    --gtid-mode=on --enforce-gtid-consistency --log-slave-updates    \
+    --binlog-checksum=NONE --binlog-format=row                       \
+    --master-info-repository=TABLE --relay-log-info-repository=TABLE \
+    --transaction-write-set-extraction=XXHASH64                      \
+    --plugin-dir=lib/plugin --plugin-load=group_replication.so
+
+Server 3
+
+  $ ./bin/mysqld --no-defaults --basedir=. --datadir=data03 -P 13003 \
+    --socket=mysqld3.sock --log-bin=master-bin --server-id=3         \
+    --gtid-mode=on --enforce-gtid-consistency --log-slave-updates    \
+    --binlog-checksum=NONE --binlog-format=row                       \
+    --master-info-repository=TABLE --relay-log-info-repository=TABLE \
+    --transaction-write-set-extraction=XXHASH64                      \
+    --plugin-dir=lib/plugin --plugin-load=group_replication.so
+
+On Windows systems the plugin filename is group_replication.dll
+
+Alternatively, if you have a running server without the plugin loaded
+you can install it on run-time. This implies that you have GTID mode
+ON, row based logging and all the above requirements correctly
+configured.
+
+  $ ./bin/mysql -uroot -h 127.0.0.1 -P 13001 --prompt='server1>'
+
+  server1> INSTALL PLUGIN group_replication SONAME 'group_replication.so';
+
+On Windows systems the plugin filename is group_replication.dll
+
+
+=> Create a replication user
+
+Needed for inter member connections, as described below, all group servers
+should have a valid replication user.
+
+  server> CREATE USER rpl_user@'%';
+  server> GRANT REPLICATION SLAVE ON *.* TO rpl_user@'%' IDENTIFIED BY 'rpl_pass';
+  server> FLUSH PRIVILEGES;
+
+
+==> Configure it
+
+The first step on configuring a MySQL Group server is to define a
+unique name that identifies the group and allows its members to join.
+This name must be defined on every member, and since it works also as the
+group UUID, it must be a valid UUID.
+
+  server1> SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+
+Besides this, you should also configure the access credentials for recovery.
+These settings are used by joining servers to establish a slave connection to a
+donor when entering the group, allowing them to receive missing data. Ignored
+on the first member that forms the group, you should always configure it on
+every server anyway, as they may fail and be reinstated at any moment in time.
+
+By default the configured value of the user and password to be used for
+connecting to the donor is empty i.e. "". To change the values you need to
+execute CHANGE MASTER FOR CHANNEL 'group_replication_recovery' which will
+not only create the recovery channel to connect to the donor but will also set
+the username and password value to be used.
+
+  server1> CHANGE MASTER TO MASTER_USER='rpl_user', MASTER_PASSWORD='rpl_pass' FOR CHANNEL 'group_replication_recovery';
+
+Please note: You can only set the username and password value for the
+group_replication_recovery channel. Any other valid CHANGE MASTER parameter
+set for this channel will return an error.
+
+Most of this channel parameters are automatically configured by the recovery
+process, so you can never define to which server a joiner shall connect for
+example. You can however use the recovery’s retry count and reconnect interval
+variables. These field tells recovery how many times it should try to connect
+to the available donors and how much time to wait when every attempt to connect
+to all group donors fails. By default, retry count is equal to 10 and the
+reconnect interval is set to 60 seconds.
+
+If you want to modify them, just use a variation of the example commands:
+
+  server1> SET GLOBAL group_replication_recovery_retry_count= 2;
+
+  server1> SET GLOBAL group_replication_recovery_reconnect_interval= 120;
+
+Configure group communication settings:
+  server1> SET GLOBAL group_replication_local_address="127.0.0.1:10301";
+  server1> SET GLOBAL group_replication_group_seeds= \
+           "127.0.0.1:10301,127.0.0.1:10302,127.0.0.1:10303";
+  server1> SET GLOBAL group_replication_bootstrap_group= 1;
+
+==> Start multi master replication
+
+  server1> START GROUP_REPLICATION;
+  server1> SET GLOBAL group_replication_bootstrap_group= 0;
+
+==> Check the server status
+
+ server1> SELECT * FROM performance_schema.replication_connection_status\G
+ *************************** 1. row ***************************
+              CHANNEL_NAME: group_replication_applier
+                GROUP_NAME: 8a94f357-aab4-11df-86ab-c80aa9429562
+               SOURCE_UUID: 8a94f357-aab4-11df-86ab-c80aa9429562
+                 THREAD_ID: NULL
+             SERVICE_STATE: ON
+ COUNT_RECEIVED_HEARTBEATS: 0
+  LAST_HEARTBEAT_TIMESTAMP: 0000-00-00 00:00:00
+  RECEIVED_TRANSACTION_SET: 8a94f357-aab4-11df-86ab-c80aa9429562:1
+         LAST_ERROR_NUMBER: 0
+        LAST_ERROR_MESSAGE:
+      LAST_ERROR_TIMESTAMP: 0000-00-00 00:00:00
+
+Here you can see the information about group replication through the status of
+its main channel. Besides the name you know the group replication applier is
+running and that no error was detected.
+
+
+==> Check the group members
+
+  server1> SELECT * FROM performance_schema.replication_group_members;
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | CHANNEL_NAME              | MEMBER_ID                            | MEMBER_HOST   | MEMBER_PORT | MEMBER_STATE |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | group_replication_applier | e221c36c-c652-11e4-956d-6067203feba0 | 127.0.0.1     |       13001 | ONLINE       |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+
+
+==> Test query execution
+
+Start server 2:
+
+  server2> SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+  server2> CHANGE MASTER TO MASTER_USER='rpl_user', MASTER_PASSWORD='rpl_pass' FOR CHANNEL 'group_replication_recovery';
+  server2> SET GLOBAL group_replication_local_address="127.0.0.1:10302";
+  server2> SET GLOBAL group_replication_group_seeds= \
+           "127.0.0.1:10301,127.0.0.1:10302,127.0.0.1:10303";
+  server2> START GROUP_REPLICATION;
+
+  server2> SELECT * FROM performance_schema.replication_group_members;
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | CHANNEL_NAME              | MEMBER_ID                            | MEMBER_HOST   | MEMBER_PORT | MEMBER_STATE |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | group_replication_applier | c55e10ed-c654-11e4-957a-6067203feba0 | 127.0.0.1     |       13002 | ONLINE       |
+  | group_replication_applier | e221c36c-c652-11e4-956d-6067203feba0 | 127.0.0.1     |       13001 | ONLINE       |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+
+Insert some data on server 1:
+
+  server1> CREATE DATABASE test;
+  server1> CREATE TABLE test.t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+  server1> INSERT INTO test.t1 VALUES (1);
+
+
+Alternate between servers and check the data flow:
+
+  server2> SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  +----+
+
+  server2> INSERT INTO test.t1 VALUES (2);
+
+  server1> SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  |  2 |
+  +----+
+
+
+==> See distributed recovery in action
+
+When you start a new server, it will try to get all the data it is missing from
+the other group members. It will use the configured access credentials and
+connect to another member fetching the missing group transactions.
+During this period its state will be shown as 'RECOVERING', and you should not
+preform any action on this server during this phase.
+
+
+  server3> SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-c80aa9429562";
+  server3> CHANGE MASTER TO MASTER_USER='rpl_user', MASTER_PASSWORD='rpl_pass' FOR CHANNEL 'group_replication_recovery';
+  server3> SET GLOBAL group_replication_local_address="127.0.0.1:10303";
+  server3> SET GLOBAL group_replication_group_seeds= \
+           "127.0.0.1:10301,127.0.0.1:10302,127.0.0.1:10303";
+  server3> START GROUP_REPLICATION;
+
+  server3> SELECT * FROM performance_schema.replication_group_members;
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | CHANNEL_NAME              | MEMBER_ID                            | MEMBER_HOST   | MEMBER_PORT | MEMBER_STATE |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | group_replication_applier | 43d16968-c656-11e4-9583-6067203feba0 | 127.0.0.1     |       13003 | RECOVERING   |
+  | group_replication_applier | c55e10ed-c654-11e4-957a-6067203feba0 | 127.0.0.1     |       13002 | ONLINE       |
+  | group_replication_applier | e221c36c-c652-11e4-956d-6067203feba0 | 127.0.0.1     |       13001 | ONLINE       |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+
+Wait for it to be online. Truth is that here, with such a small
+amount of data, this state is hard to spot. However, you should be
+aware of this when dealing with real data sets.
+
+  server3> SELECT * FROM performance_schema.replication_group_members;
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | CHANNEL_NAME              | MEMBER_ID                            | MEMBER_HOST   | MEMBER_PORT | MEMBER_STATE |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+  | group_replication_applier | 43d16968-c656-11e4-9583-6067203feba0 | 127.0.0.1     |       13003 | ONLINE       |
+  | group_replication_applier | c55e10ed-c654-11e4-957a-6067203feba0 | 127.0.0.1     |       13002 | ONLINE       |
+  | group_replication_applier | e221c36c-c652-11e4-956d-6067203feba0 | 127.0.0.1     |       13001 | ONLINE       |
+  +---------------------------+--------------------------------------+---------------+-------------+--------------+
+
+  server3> SELECT * FROM test.t1;
+  +----+
+  | c1 |
+  +----+
+  |  1 |
+  |  2 |
+  +----+
+
+
+==> Be aware of failures on concurrency scenarios
+
+Due to the distributed nature of MySQL group replication, concurrent updates
+can result on query failure if the queries are found to be conflicting. Lets
+perform a concurrent update to the same line in the example table
+
+On server 1
+
+  server1> UPDATE test.t1 SET c1=4 where c1=1;
+
+On server 2
+
+  server2> UPDATE test.t1 SET c1=3 where c1=1;
+
+Execute in parallel
+
+  server1> UPDATE test.t1 SET c1=4 where c1=1;
+  Query OK, 1 row affected (0.06 sec)
+
+  server2> UPDATE test.t1 SET c1=3 where c1=1;
+  ERROR 1181 (HY000): Got error 149 during ROLLBACK
+
+Note that the scenario where the second update succeeds and the first one
+fails is also equally possible and only depends on the order the queries were
+ordered and certified inside the plugin.
+
+Let's check the tables.
+
+server1> SELECT * FROM test.t1;
++----+
+| c1 |
++----+
+|  2 |
+|  4 |
++----+
+
+server2> SELECT * FROM test.t1;
++----+
+| c1 |
++----+
+|  2 |
+|  4 |
++----+
+
+The failed query rollbacks and no server data is affected by it.
+
+
+==> Check the execution stats
+
+Check your GTID stats on each group member
+
+  server1>SELECT @@GLOBAL.GTID_EXECUTED;
+  +------------------------------------------+
+  | @@GLOBAL.GTID_EXECUTED                   |
+  +------------------------------------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562:1-8 |
+  +------------------------------------------+
+
+  server2>SELECT @@GLOBAL.GTID_EXECUTED;
+  +------------------------------------------+
+  | @@GLOBAL.GTID_EXECUTED                   |
+  +------------------------------------------+
+  | 8a94f357-aab4-11df-86ab-c80aa9429562:1-8 |
+  +------------------------------------------+
+
+Note that in all servers the GTID executed set is the same and belongs to the
+group.
+You are maybe asking yourself why the set contains 8 transactions when we only
+executed 5 successful queries in this tutorial. The reason is that whenever a
+member joins or leaves the group a transaction is logged to mark in every member
+this moment for recovery reasons.
+
+The member execution stats are also available on the performance schema
+tables.
+
+  SELECT * FROM performance_schema.replication_group_member_stats\G
+  *************************** 1. row ***************************
+                        CHANNEL_NAME: group_replication_applier
+                             VIEW_ID: 1425918173:3
+                           MEMBER_ID: e221c36c-c652-11e4-956d-6067203feba0
+         COUNT_TRANSACTIONS_IN_QUEUE: 0
+          COUNT_TRANSACTIONS_CHECKED: 6
+            COUNT_CONFLICTS_DETECTED: 1
+       COUNT_TRANSACTIONS_VALIDATING: 0
+  TRANSACTIONS_COMMITTED_ALL_MEMBERS: 8a94f357-aab4-11df-86ab-c80aa9429562:1-8
+      LAST_CONFLICT_FREE_TRANSACTION: 8a94f357-aab4-11df-86ab-c80aa9429562:8
+
+
+Where it can be seen that, from the 6 executed queries on this tutorial, 1 was
+found to be conflicting. We can also see that the transaction in the queue are
+0, so it means no transaction are waiting validation.
+
+On the last fields, the transaction validating field is 0 because all
+transaction that were executed are already considered to be stable on all
+members, as seen in the second last field. In other words, every member knows
+all the data, so the number of possible conflicting transactions is 0.
+
+
+==> Stop group replication
+
+To stop the plugin, you just need to execute:
+
+  server1> STOP GROUP_REPLICATION;
+
+
+==> Reset group replication channels
+
+If after using group replication you want to remove the associated channel and
+files you can execute.
+
+  server1> RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
+Note that the "group_replication_applier" channel is not a normal slave
+channel and will not respond to generic commands like "RESET SLAVE ALL".
+
+
+==> How to start multi master replication at server boot
+
+Before configuring Group replication to start on boot, please remember that at
+least once, you need to configure the recovery access credentials.
+To allow the member to contact other servers, you must at least once start the
+server and execute a CHANGE MASTER command for group_replication_recovery channel
+with the values being set for MASTER_USER and MASTER_PASSWORD. On subsequent
+restarts on these members there is no need to run CHANGE MASTER command again
+since its values are persisted.
+
+From this point on Group Replication can now start along side with the server
+given that you configure the below options:
+
+Set the group name
+
+  --loose-group_replication_group_name
+
+Set the start on boot flag to true
+
+  --loose-group_replication_start_on_boot
+
+When using XCom you will also need the contact options.
+
+--loose-group_replication_local_address="127.0.0.1:10301";
+--loose-group_replication_group_seeds= "127.0.0.1:10301,127.0.0.1:10302,127.0.0.1:10303";
+
+* == Conclusion == *
+
+On his first steps, MySQL Group Replication is still in development. Feel free
+to try it and get back at us so we can make it even better for the community!

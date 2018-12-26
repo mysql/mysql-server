@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,7 @@ const char* Multisource_info::group_replication_channel_names[] = {
   "group_replication_recovery"
 };
 
-bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
-                              enum_channel_type type)
+bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
 {
   DBUG_ENTER("Multisource_info::add_mi");
 
@@ -38,6 +37,8 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi,
   DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
 
   replication_channel_map::iterator map_it;
+  enum_channel_type type= is_group_replication_channel_name(channel_name)
+    ? GROUP_REPLICATION_CHANNEL: SLAVE_REPLICATION_CHANNEL;
 
   map_it= rep_channel_map.find(type);
 

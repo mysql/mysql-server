@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -38,7 +38,7 @@
 #include "sp_head.h"    // struct set_var_base
 #include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 #include "mysqld.h"     // opt_log_builtin_as_identified_by_password
-
+#include "log.h"
 
 /**
   Append a key/value pair to a string, with an optional preceding comma.
@@ -190,12 +190,15 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   LEX        *lex= thd->lex;
   TABLE_LIST *first_table= lex->select_lex->table_list.first;
   bool        comma= FALSE, comma_inner;
+  bool        proxy_grant= lex->type == TYPE_ENUM_PROXY;
   String      cols(1024);
   int         c;
 
   rlb->append(STRING_WITH_LEN("GRANT "));
 
-  if (lex->all_privileges)
+  if (proxy_grant)
+    rlb->append(STRING_WITH_LEN("PROXY"));
+  else if (lex->all_privileges)
     rlb->append(STRING_WITH_LEN("ALL PRIVILEGES"));
   else
   {
@@ -254,12 +257,23 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   rlb->append(STRING_WITH_LEN(" ON "));
   switch(lex->type)
   {
-  case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
-  case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
-  default:                                                              break;
+    case TYPE_ENUM_PROCEDURE: rlb->append(STRING_WITH_LEN("PROCEDURE ")); break;
+    case TYPE_ENUM_FUNCTION:  rlb->append(STRING_WITH_LEN("FUNCTION "));  break;
+    default:                                                              break;
   }
 
-  if (first_table)
+  LEX_USER *user_name, *tmp_user_name;
+  List_iterator <LEX_USER> user_list(lex->users_list);
+  comma= FALSE;
+
+  if (proxy_grant)
+  {
+    tmp_user_name= user_list++;
+    user_name= get_current_user(thd, tmp_user_name);
+    if (user_name)
+      append_user_new(thd, rlb, user_name, comma);
+  }
+  else if (first_table)
   {
     if (first_table->is_view())
     {
@@ -289,10 +303,6 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
 
   rlb->append(STRING_WITH_LEN(" TO "));
   {
-    LEX_USER *user_name, *tmp_user_name;
-    List_iterator <LEX_USER> user_list(lex->users_list);
-    bool comma= FALSE;
-
     while ((tmp_user_name= user_list++))
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
@@ -340,12 +350,14 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 /**
   Rewrite CREATE/ALTER USER statement.
 
-  @param thd      The THD to rewrite for.
-  @param rlb      An empty String object to put the rewritten query in.
+  @param thd                     The THD to rewrite for.
+  @param rlb                     An empty String object to put the rewritten query in.
+  @param hide_password_hash      If password hash has to be shown as <secret> or not.
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log)
+                                     std::set<LEX_USER *> *extra_users,
+                                     bool hide_password_hash)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
@@ -367,16 +379,13 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
 
   while ((tmp_user_name= user_list++))
   {
-    if (users_not_to_log &&
-        users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
-      continue;
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
       if (opt_log_builtin_as_identified_by_password &&
           thd->lex->sql_command != SQLCOM_ALTER_USER)
         append_user(thd, rlb, user_name, comma, true);
       else
-        append_user_new(thd, rlb, user_name, comma);
+        append_user_new(thd, rlb, user_name, comma, hide_password_hash);
       comma= TRUE;
     }
   }
@@ -410,6 +419,57 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   if (lex->alter_password.update_account_locked_column)
   {
     rewrite_account_lock(lex, rlb);
+  }
+
+  if ((lex->sql_command == SQLCOM_CREATE_USER ||
+      lex->sql_command == SQLCOM_ALTER_USER) &&
+      extra_users && extra_users->size())
+  {
+    String warn_user;
+    bool comma= false;
+    bool log_warning= false;
+    std::set<LEX_USER *>::iterator it;
+    for (it = extra_users->begin(); it != extra_users->end(); it++)
+    {
+      /*
+        Consider for warning if one of the following is true:
+        1. If SQLCOM_CREATE_USER and IF NOT EXISTS clause is used and
+           IDENTIFIED WITH clause is not used
+        2. If SQLCOM_ALTER_USER and IF EXISTS clause is used and
+           IDENTIFIED WITH clause is not used
+      */
+      LEX_USER* extra_user= *it;
+      if (!extra_user->uses_identified_with_clause &&
+          (lex->sql_command == SQLCOM_CREATE_USER ||
+          extra_user->uses_identified_by_clause))
+      {
+        append_user(thd, &warn_user, extra_user, comma, false);
+        comma= true;
+        log_warning= true;
+      }
+    }
+    if (log_warning)
+    {
+      if (lex->sql_command == SQLCOM_CREATE_USER)
+      {
+        sql_print_warning("Following users were specified in CREATE USER "
+                          "IF NOT EXISTS but they already exist. "
+                          "Corresponding entry in binary log used default "
+                          "authentication plugin '%s' to rewrite "
+                          "authentication information(if any) for them: %s\n",
+                          default_auth_plugin, warn_user.c_ptr_safe());
+      }
+      else if (lex->sql_command == SQLCOM_ALTER_USER)
+      {
+        sql_print_warning("Following users were specified in ALTER USER "
+                          "IF EXISTS but they do not exist. "
+                          "Corresponding entry in binary log used default "
+                          "authentication plugin '%s' to rewrite "
+                          "authentication information(if any) for them: %s\n",
+                          default_auth_plugin, warn_user.c_ptr_safe());
+      }
+    }
+    warn_user.mem_free();
   }
 }
 

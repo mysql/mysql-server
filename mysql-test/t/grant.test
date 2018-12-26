@@ -4,8 +4,10 @@
 --source include/force_myisam_default.inc
 
 # Store the time of password_last_changed column from mysql.user table
-# to restore it back later.
-let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
+# to restore it back later for the different users.
+let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
+let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
+let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
 # Test of GRANT commands
 
 # Grant tests not performed with embedded server
@@ -31,7 +33,6 @@ drop table if exists t1;
 drop database if exists mysqltest;
 --enable_warnings
 
-call mtr.add_suppression("Did not write failed .* ");
 connect (master,localhost,root,,);
 connection master;
 SET NAMES binary;
@@ -688,7 +689,7 @@ flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
 connect (conn5,localhost,mysqltest_8,,);
 select * from t1;
 disconnect conn5;
@@ -698,7 +699,7 @@ revoke update on t1 from mysqltest_8;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
 --sorted_result
-select * from  information_schema.table_privileges where table_schema NOT IN ('sys');
+select * from  information_schema.table_privileges where table_schema NOT IN ('sys','mysql');
 flush privileges;
 show grants for mysqltest_8@'';
 show grants for mysqltest_8;
@@ -2432,8 +2433,11 @@ SELECT (SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT
 
 DROP USER 'wl7131'@'localhost';
 
---disable_query_log ONCE
---eval UPDATE mysql.user SET password_last_changed = '$date_to_restore'
+--disable_query_log
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--enable_query_log
 --echo # mysql.user table restored to original values.
 
 set GLOBAL sql_mode= @orig_sql_mode_global;

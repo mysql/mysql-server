@@ -506,14 +506,32 @@ private:
 };
 
 #ifdef UNIV_PFS_MUTEX
-/** Latch element
+/** Latch element.
+Used for mutexes which have PFS keys defined under UNIV_PFS_MUTEX.
 @param[in]	id		Latch id
 @param[in]	level		Latch level
 @param[in]	key		PFS key */
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
+
+#ifdef UNIV_PFS_RWLOCK
+/** Latch element.
+Used for rwlocks which have PFS keys defined under UNIV_PFS_RWLOCK.
+@param[in]	id		Latch id
+@param[in]	level		Latch level
+@param[in]	key		PFS key */
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level, key))
 #else
-# define LATCH_ADD(id, level, key)	latch_meta[LATCH_ID_ ## id] =	\
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level,	     \
+		     PSI_NOT_INSTRUMENTED))
+#endif /* UNIV_PFS_RWLOCK */
+
+#else
+# define LATCH_ADD_MUTEX(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
+	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
+# define LATCH_ADD_RWLOCK(id, level, key)	latch_meta[LATCH_ID_ ## id] =\
 	UT_NEW_NOKEY(latch_meta_t(LATCH_ID_ ## id, #id, level, #level))
 #endif /* UNIV_PFS_MUTEX */
 
@@ -920,7 +938,7 @@ sync_latch_get_level(latch_id_t id)
 	return(meta.get_level());
 }
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef UNIV_PFS_MUTEX
 /** Get the latch PFS key from the latch ID
 @param[in]	id		Latch ID
 @return the PFS key */

@@ -1,0 +1,272 @@
+################################################################################
+# This test verifies correctness and stability of WL#7332 implementation
+# of State Exchange subprotocol.
+#
+# The structure is as the following.
+# 0. Initialization:
+#  - The test requires four servers: M1, M2, M3 and M4.
+#  - On M4 create a table t1.
+# 1. Bootstrap start a group on M4. Start GR on M3, M2 and M1. This is general
+#    stability part when servers leave and join randomly. The test implements
+#    the following transition: 4 -> 3 -> 2 -> 3 -> 4. The purpose is to prove no
+#    hangup or crashes.
+# 2. Stop GR on M3, M4. Two members group that demonstrates some (feasible) of
+#    primary component properties.
+#  - Insert data in a table t1 on M1. Verify the same data in M2.
+#  - Verify the number of members is 2 from P_S table on M2.
+#  - Verify view_id is non-zero.
+#  - View_id on M1 and M2 should be same.
+#  - Initiate a transaction on M1 and stop GR on M2. Rollback the transaction.
+# 3. Proof of view-id monotonicity and group-wide consistency.
+#  - Start GR on M2, M3 and M4.
+#  - On M4 fetch view_id from P_S table and compare it with old view_id of M1.
+#    Latest view_id must be an increased value.
+#  - Verify on all the members that view_id is same.
+# 4. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429573
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source ../inc/group_replication.inc
+
+#
+# a counter to be used with source ../inc/gr_error_out.inc
+#
+--let $group_replication_error_connection_number= 4
+
+#
+# First prepare four members and manually create a table on each.
+#
+--connection server1
+
+if (`select view_id <> 0 from performance_schema.replication_group_member_stats`)
+{
+    --echo incorrect non-zero view_id when the Member is never started.
+    --source ../inc/gr_error_out.inc
+    --die
+}
+
+--connection server4
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+#
+# Part I.
+#
+# Restart four members few times to prove general stability. It should
+# be done carefully to not destroy the group by occasional
+# withdrawal more than group.number_of_members / 2 - 1 members at a
+# time, that is not more than 1 in the condition of this test.
+# The test implements the following transition: 4 -> 3 -> 2 -> 3 -> 4.
+#
+
+--disable_query_log
+--disable_result_log
+--let $include_silent= 1
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $s_cnt=3
+while($s_cnt)
+{
+    --connection server$s_cnt
+    --source include/start_group_replication.inc
+
+    --dec $s_cnt
+}
+
+--let $group_replication_number_of_members= 4
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--let $restart_cnt= 10
+while($restart_cnt)
+{
+    --let $s_id1=`select 1 + floor(rand()*100 % 4)`
+
+    --connection server$s_id1
+
+    STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
+
+    --let $s_id2= $s_id1
+    while ($s_id2 == $s_id1)
+    {
+	--let $s_id2=`select 1 + floor(rand()*100 % 4)`
+    }
+    --connection server$s_id2
+
+    #
+    # Here is the care point: don't go stopping the 2nd member until
+    # it's proved the previous one is out of the view.
+    #
+    --let $group_replication_number_of_members= 3
+    --source ../inc/gr_wait_for_number_of_members.inc
+
+    STOP GROUP_REPLICATION;
+    SET GLOBAL read_only= FALSE;
+
+    --connection server$s_id1
+    --source include/start_group_replication_command.inc
+
+    --connection server$s_id2
+    --source include/start_group_replication.inc
+
+    --let $group_replication_number_of_members= 4
+    --source ../inc/gr_wait_for_number_of_members.inc
+
+    --dec $restart_cnt
+}
+--let $include_silent= 0
+--enable_result_log
+--enable_query_log
+
+#Check if all members are online
+--let $group_replication_number_of_members= 4
+--source ../inc/gr_wait_for_number_of_members.inc
+
+#
+# Part II.
+#
+# Form the 2 member group and verify view-id on each member, must be equal.
+# At forming make sure two extra members exits one by one so the quorum
+# is not get lost.
+#
+
+--connection server3
+--source include/stop_group_replication.inc
+
+--connection server4
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--source include/stop_group_replication.inc
+
+--connection server1
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# end of forming.
+
+--connection server1
+INSERT INTO t1 SET c1=1;
+
+--connection server2
+
+#
+# Success in getting expected value indicates the Primary Component
+# is installed. Let's verify the # of members is as PS says
+#
+let $count= 1;
+let $table= t1;
+--source include/wait_until_rows_count.inc
+
+if (`SELECT COUNT(*) <> 2 from performance_schema.replication_group_members`)
+{
+    --echo Unexpected group membership.
+    --source ../inc/gr_error_out.inc
+    --die
+}
+
+# By above the Primary Component of two group members installation is proved.
+# Let's check out view-id values.
+--connection server1
+--let $view_id_server1=`select view_id from performance_schema.replication_group_member_stats`
+
+--connection server2
+--let $view_id_server2=`select view_id from performance_schema.replication_group_member_stats`
+
+if ($view_id_server1 == 0)
+{
+    --echo view_id must be non-zero at this point.
+    --source ../inc/gr_error_out.inc
+    --die
+}
+if ($view_id_server1 != $view_id_server2)
+{
+    --echo inconsistent view_id:s: $view_id_server1 != $view_id_server2
+    --source ../inc/gr_error_out.inc
+    --die
+}
+
+#
+# Verify the Primary Component property of aborting transactions
+# whose originator members left the Primary Component.
+# The policy is tentative, it might (should) be a subject of
+# softer treatment, e.g wait with aborting till a timeout elapses.
+# Yet it's tested 'cos it's there.
+#
+--connection server1
+BEGIN;
+INSERT INTO t1 SET c1=2;
+# Split the group and see that the left alone server1 won't make
+# Primary Component out of itself.
+
+--connection server2
+--source include/stop_group_replication.inc
+
+# TODO: implement COMMIT instead of the coded rollback
+--connection server1
+rollback;
+
+#
+# Part III.
+#
+# Form the four member group, check up monotonic and group consistent view-id.
+#
+--connection server2
+--source include/start_group_replication.inc
+
+--connection server3
+--source include/start_group_replication.inc
+
+--connection server4
+--source include/start_group_replication.inc
+
+--let $s_cnt=4
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    --let $group_replication_number_of_members= 4
+    --source ../inc/gr_wait_for_number_of_members.inc
+
+    --dec $s_cnt
+}
+#
+#  a proof of view-id is monotonic
+#
+--let $view_id_now=`select RIGHT(view_id, 2) from performance_schema.replication_group_member_stats`
+--let $view_id_server1_number= `SELECT RIGHT('$view_id_server1', 2)`
+if ($view_id_now <= $view_id_server1_number)
+{
+    --echo Unexpected non-increased view-id value.
+    --source ../inc/gr_error_out.inc
+    --die
+}
+
+#
+#  view-id cross group consistency
+#
+--let $s_cnt=3
+while ($s_cnt)
+{
+    --connection server$s_cnt
+    --let $view_id_now_s=`select RIGHT(view_id,2) from performance_schema.replication_group_member_stats`
+    if ($view_id_now != $view_id_now_s)
+    {
+      --echo The 4th member view inconsistent with that of $s_cnt.
+      --source ../inc/gr_error_out.inc
+      --die
+    }
+    dec $s_cnt;
+}
+
+
+#
+#  Cleanup
+#
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

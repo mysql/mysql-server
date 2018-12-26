@@ -4130,6 +4130,8 @@ select count(*) from t0;
 count(*)
 0
 set @@session.sql_mode = MAXDB;
+Warnings:
+Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 set @@session.tmp_table_size = 0;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '0'

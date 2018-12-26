@@ -984,6 +984,8 @@ CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
 
 INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
 
+--disable_ps_protocol
+
 # test upper bound
 # count 5
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
@@ -1018,6 +1020,8 @@ SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
 # count 4
 SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+
+--enable_ps_protocol
 
 DROP TABLE t1;
 
@@ -2398,4 +2402,145 @@ SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
 DROP TABLE t1;
 
 --echo #
+--echo # Bug #23259872: OPTIMIZER CHOOSES TO USE NON PRIMARY
+--echo #                INDEX, EVEN THOUGH COST IS HIGHER
+--echo #
 
+CREATE TABLE `giant_table` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `one_id` int(11) NOT NULL,
+  `other_id` bigint(20) NOT NULL DEFAULT '0',
+  `some_other_id` int(11) DEFAULT 0 NOT NULL,
+  `something` double NOT NULL DEFAULT '0',
+  `comment` text COLLATE utf8_unicode_ci,
+  `flags` int(11) NOT NULL DEFAULT '0',
+  `time_created` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `time_created` (`time_created`),
+  KEY `some_other_id` (`some_other_id`),
+  KEY `one_other_idx` (`one_id`,`other_id`),
+  KEY `other_id` (`other_id`,`time_created`)
+) ENGINE=InnoDB AUTO_INCREMENT=101651329
+DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (66136540), (68983250), (89627210), (77869520),
+                      (82543190), (67538270), (77282760), (77908170),
+                      (70923370), (68066360);
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+SET @x = 1;
+REPEAT
+
+INSERT INTO giant_table(id,one_id)
+  SELECT c1 + @x, 0
+  FROM t1
+  WHERE c1 IN (66136540, 68985250, 89627210, 77869520 , 82543190, 67538270,
+               77282760, 77908170, 70923370, 68066360);
+SET @x =  @x + 1;
+
+UNTIL @x > 30 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM giant_table;
+
+INSERT INTO giant_table (id,one_id) VALUES (66136539, 0), (68983258,1),
+                                           (89628210,1), (77869520,2);
+INSERT INTO giant_table (id,one_id, some_other_id) VALUES(84673401, 0, 1),
+                                                         (61069031, 1, 1);
+
+EXPLAIN SELECT id, something, comment, time_created, one_id, other_id,
+               some_other_id, flags
+FROM giant_table
+WHERE id IN (66136539, 68983258, 89628210, 77869520, 82543198, 67538272,
+             84673401, 61069031, 68214385, 77282865, 76991297, 64569216,
+             89481638, 74534074, 70396537, 80076375, 63308530, 77908270,
+             70923271, 68066180)
+  AND (giant_table.flags & 0x01) = 0 AND giant_table.some_other_id = 0;
+
+DROP PROCEDURE p;
+DROP TABLE giant_table, t1;
+
+
+--echo #
+--echo # Bug #26727773: OPTIMIZER CHOSES COMPOSITE INDEX FOR REF OVER RANGE
+--echo #
+
+CREATE TABLE transactions (
+ app_trans_id INT DEFAULT NULL,
+ id INT NOT NULL,
+ tbl INT NOT NULL DEFAULT 1,
+ created TIMESTAMP NOT NULL DEFAULT '2017-01-01 01:01:01',
+ trans_type INT NOT NULL,
+ description BLOB,
+ source_lvl1 INT DEFAULT NULL,
+ source_lvl2 INT DEFAULT NULL,
+ KEY tbl_id_idx (tbl,id),
+ KEY created_idx (created),
+ KEY trans_type_created_idx (trans_type,created),
+ KEY app_trans_id_idx (app_trans_id)
+) ENGINE=INNODB ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (1000), (2000), (3000), (4000), (5000), (6000),
+       (7000), (8000), (9000);
+
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+
+SET @x = 1;
+REPEAT
+
+INSERT IGNORE INTO transactions(id,trans_type, description)
+  SELECT c1 + @x, @x , 'abcd'
+  FROM t1;
+
+SET @x =  @x + 1;
+
+UNTIL @x > 300 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM transactions;
+
+#The qualifying row.
+INSERT IGNORE INTO transactions(id,trans_type, description, created)
+  SELECT 3, 3 , 'abcd', '2018-01-01 01:01:01'
+  FROM dual;
+
+let query1=
+SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
+       COUNT(DISTINCT(app_trans_id))
+FROM transactions
+WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
+GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
+
+
+#UPDATE stats to produce a ref-access plan on 'trans_type_created_idx'
+--disable_query_log
+ALTER TABLE transactions STATS_PERSISTENT=1, STATS_AUTO_RECALC=0;
+
+UPDATE mysql.innodb_index_stats
+SET stat_value=3001
+WHERE index_name ='trans_type_created_idx' AND TABLE_name='transactions';
+
+UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
+
+FLUSH TABLE transactions;
+--enable_query_log
+
+eval EXPLAIN $query1;
+
+SET optimizer_trace="enabled=on";
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "uses_more_keyparts";
+SET optimizer_trace="enabled=off";
+
+DROP PROCEDURE p;
+DROP TABLE t1, transactions;

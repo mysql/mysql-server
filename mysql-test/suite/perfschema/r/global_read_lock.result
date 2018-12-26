@@ -35,7 +35,7 @@ operation
 from performance_schema.events_waits_current
 where event_name like "wait/synch/cond/sql/MDL_context::COND_wait_status";
 event_name	short_source	timer_end	timer_wait	operation
-wait/synch/cond/sql/MDL_context::COND_wait_status	mdl.cc:	SET	SET	timed_wait
+wait/synch/cond/sql/MDL_context::COND_wait_status		SET	SET	timed_wait
 unlock tables;
 update performance_schema.setup_instruments set enabled='NO';
 update performance_schema.setup_instruments set enabled='YES';

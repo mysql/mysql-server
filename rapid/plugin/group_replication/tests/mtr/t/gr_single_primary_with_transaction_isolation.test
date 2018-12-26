@@ -1,0 +1,83 @@
+############################################################
+# WL#9426: Single Primary Mode in Group Replication
+#
+# This test case verifies that one can override the ISOLATION
+# level restrictions in the SINGLE PRIMARY mode.
+############################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("Transaction isolation level .tx_isolation. is set to SERIALIZABLE, which is not compatible with Group Replication");
+SET SQL_LOG_BIN=1;
+
+--let $server1_uuid= `SELECT @@server_uuid`
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 2
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # 1) START GROUP IN SINGLE PRIMARY MODE AND CHECK IF FLAG SET TO FALSE IN
+--echo # `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+--echo # TO IGNORE THE FAULTY CONFIGURATION OF `tx_isolate`
+--echo #
+--let $test_parameter_enforce_checks= FALSE
+--let $test_parameter_single_primary_mode= TRUE
+--let $test_parameter_tx_isolation= 'SERIALIZABLE'
+--let $test_parameter_sql_execution_error= 0
+--let $test_parameter_primary_uuid= $server1_uuid
+--source ../inc/gr_single_primary_with_transaction_isolation.inc
+
+--echo #
+--echo # 2) START GROUP IN MULTI PRIMARY MODE AND CHECK IF FLAG SET TO FALSE IN
+--echo # `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+--echo # TO IGNORE THE FAULTY CONFIGURATION OF `tx_isolate`
+--echo #
+--let $test_parameter_enforce_checks= FALSE
+--let $test_parameter_single_primary_mode= FALSE
+--let $test_parameter_tx_isolation= 'SERIALIZABLE'
+--let $test_parameter_sql_execution_error= 0
+--let $test_parameter_primary_uuid=
+--source ../inc/gr_single_primary_with_transaction_isolation.inc
+
+--echo #
+--echo # 3) START GROUP IN MULTI PRIMARY MODE AND CHECK IF FLAG SET TO TRUE IN
+--echo # `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+--echo # TO THROW AN ERROR WHEN THERE IS FAULTY CONFIGURATION OF `tx_isolate`
+--echo #
+--let $test_parameter_enforce_checks= TRUE
+--let $test_parameter_single_primary_mode= FALSE
+--let $test_parameter_tx_isolation= 'SERIALIZABLE'
+--let $test_parameter_sql_execution_error= 3098
+--let $test_parameter_primary_uuid=
+--source ../inc/gr_single_primary_with_transaction_isolation.inc
+
+--echo #
+--echo # 4) START GROUP IN MULTI PRIMARY MODE AND
+--echo # WITH CORRECT CONFIGURATION OF `tx_isolate` then the flag
+--echo # `group_replication_enforce_update_everywhere_checks` doesn't matter
+--echo #
+--let $test_parameter_enforce_checks= TRUE
+--let $test_parameter_single_primary_mode= FALSE
+--let $test_parameter_tx_isolation= 'REPEATABLE-READ'
+--let $test_parameter_sql_execution_error= 0
+--let $test_parameter_primary_uuid=
+--source ../inc/gr_single_primary_with_transaction_isolation.inc
+
+--echo #
+--echo # 5) START GROUP IN MULTI PRIMARY MODE AND
+--echo # WITH CORRECT CONFIGURATION OF `tx_isolate` then the flag
+--echo # `group_replication_enforce_update_everywhere_checks` doesn't matter
+--echo #
+--let $test_parameter_enforce_checks= FALSE
+--let $test_parameter_single_primary_mode= FALSE
+--let $test_parameter_tx_isolation= 'REPEATABLE-READ'
+--let $test_parameter_sql_execution_error= 0
+--let $test_parameter_primary_uuid=
+--source ../inc/gr_single_primary_with_transaction_isolation.inc
+
+--echo # CLEANUP
+--connection server1
+--source ../inc/group_replication_end.inc

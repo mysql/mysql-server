@@ -27,6 +27,10 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 SELECT c1 FROM t1;
 c1
@@ -61,6 +65,10 @@ Warnings:
 Note	1007	Can't create database 'query_rewrite'; database exists
 Warnings:
 Note	1050	Table 'rewrite_rules' already exists
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 CREATE TABLE IF NOT EXISTS error_log ( line TEXT );
 DELETE FROM error_log;
@@ -88,6 +96,10 @@ Rewriter_number_loaded_rules	0
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 # Query rewrite plugin was queued for uninstalling.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 #
 # We now try 6 rules with various errors in them:

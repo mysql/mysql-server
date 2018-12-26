@@ -1,0 +1,98 @@
+# ==== Purpose ====
+#
+# This test will generate a random workload on the server mixing SBR and RBR
+# on same transaction using SAVEPOINT and ROLLBACK TO SAVEPOINT statements to
+# truncate the binlog cache in a certain point of the transaction and will
+# assert that all generated transactions have the correct transaction
+# "rbr_only" flag on GTID events.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#25040331: INTERLEAVED XA TRANSACTIONS MAY DEADLOCK SLAVE APPLIER WITH
+#               REPEATABLE READ
+#
+--source include/have_binlog_format_mixed.inc
+RESET MASTER;
+
+--let $transactions=200
+# First transaction is a DDL, so rbr_only will be "no"
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT, c3 INT DEFAULT 0);
+--let $rbr_only_flags= no
+
+--echo Generating $transactions transactions using SAVEPOINT/ROLLBACK TO SAVEPOINT
+--disable_query_log
+while ($transactions)
+{
+  --let $rbr_only= yes
+  --let $inserts_before_savepoint=`SELECT FLOOR(1 + RAND() * 9)`
+  --let $inserts_after_savepoint=`SELECT FLOOR(1 + RAND() * 9)`
+  --let $inserts_after_rollback=`SELECT FLOOR(1 + RAND() * 9)`
+
+  BEGIN;
+
+  while ($inserts_before_savepoint)
+  {
+    --let $insert_rbr=`SELECT FLOOR(1 + RAND() * 9) > 2`
+    --let $inserts_before_savepoint=`SELECT FLOOR(1 + RAND() * 9)`
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    if ($insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2, c3) VALUES (REPEAT("X", $string_size), RAND()*100)
+    }
+    if (!$insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2) VALUES (REPEAT("X", $string_size))
+      --let $rbr_only= no
+    }
+    --dec $inserts_before_savepoint
+  }
+
+  SAVEPOINT `a`;
+
+  while ($inserts_after_savepoint)
+  {
+    --let $insert_rbr=`SELECT FLOOR(1 + RAND() * 9) > 2`
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    if ($insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2, c3) VALUES (REPEAT("X", $string_size), RAND()*100)
+    }
+    if (!$insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2) VALUES (REPEAT("X", $string_size))
+    }
+    --dec $inserts_after_savepoint
+  }
+
+  ROLLBACK TO SAVEPOINT `a`;
+
+  while ($inserts_after_rollback)
+  {
+    --let $insert_rbr=`SELECT FLOOR(1 + RAND() * 9) > 2`
+    --let $string_size=`SELECT FLOOR(1 + RAND() * 65534)`
+    if ($insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2, c3) VALUES (REPEAT("X", $string_size), RAND()*100)
+    }
+    if (!$insert_rbr)
+    {
+      --eval INSERT INTO t1 (c2) VALUES (REPEAT("X", $string_size))
+      --let $rbr_only= no
+    }
+    --dec $inserts_after_rollback
+  }
+
+  COMMIT;
+
+  --let $rbr_only_flags= $rbr_only_flags,$rbr_only
+  --dec $transactions
+}
+
+# Assert the "rbr_only" flags on binlog file
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+# The workload is not deterministic, so skipping to print the expected flags
+--let $dont_print_rbr_only_flags= 1
+--source include/assert_rbr_only_flags.inc
+
+# Cleanup
+DROP TABLE t1;

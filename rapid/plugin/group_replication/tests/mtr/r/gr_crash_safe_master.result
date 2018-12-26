@@ -1,0 +1,122 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET sql_log_bin=0;
+call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("allocated tablespace *., old maximum was 0");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Buffered warning: Performance schema disabled");
+SET sql_log_bin=1;
+# Test case1: Set DEBUG POINT before binlog to make
+# the first member crash for transaction
+CREATE TABLE t1(i INT, a LONGBLOB, PRIMARY KEY(i)) ENGINE=INNODB;
+BEGIN;
+INSERT INTO t1 VALUES (3, REPEAT('a',2));;
+INSERT INTO t1 VALUES (2, REPEAT('a',2));;
+INSERT INTO t1 VALUES (1, REPEAT('a',2));;
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the crashed member
+include/rpl_reconnect.inc
+include/assert.inc [On server1, test the data will be rolled back after restart.]
+include/rpl_sync.inc
+# On the second member, test replication will work fine, and the data
+# is not replicated
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+[connection server2]
+include/gr_wait_for_member_state.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/start_group_replication.inc
+CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
+INSERT INTO temp VALUES (1);
+include/rpl_sync.inc
+INSERT INTO temp VALUES (2);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.temp, server2:test.temp]
+DROP TABLE t1;
+DROP TABLE temp;
+include/rpl_sync.inc
+# Test case2: Set DEBUG POINT after binlog, and before the data
+# is committed to make crash for transaction
+CREATE TABLE t1(i INT, a LONGBLOB, PRIMARY KEY(i)) ENGINE=INNODB;
+BEGIN;
+INSERT INTO t1 VALUES (3, REPEAT('a',2));;
+INSERT INTO t1 VALUES (2, REPEAT('a',2));;
+INSERT INTO t1 VALUES (1, REPEAT('a',2));;
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the crashed member
+include/rpl_reconnect.inc
+include/assert.inc [On server1, test the data will be recovered after the server1 restart.]
+# On the second member, test that the replication is working fine, and
+# data gets replicated here.
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+[connection server2]
+include/gr_wait_for_member_state.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/start_group_replication.inc
+CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
+INSERT INTO temp VALUES (1);
+include/rpl_sync.inc
+INSERT INTO temp VALUES (2);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.temp, server2:test.temp]
+DROP TABLE t1;
+DROP TABLE temp;
+include/rpl_sync.inc
+CREATE TABLE t1(i INT AUTO_INCREMENT PRIMARY KEY, a LONGBLOB) ENGINE=INNODB;
+# Test case3: Set DEBUG POINT after binlogging half of the transaction and
+# then crash the member and followed by restarting the member.
+set AUTOCOMMIT=0;
+BEGIN;
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+INSERT INTO t1 (a) VALUES ( REPEAT('a',6144));
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the crashed member
+include/rpl_reconnect.inc
+# Test the data will not be recovered successfully
+# after the crashed first member restarts.
+include/assert.inc [On server1, test the data will be recovered after the server1 restart.]
+[connection server2]
+include/gr_wait_for_member_state.inc
+include/rpl_gr_wait_for_number_of_members.inc
+[connection server1]
+include/start_group_replication.inc
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+include/assert.inc [The table has 24 rows after the restart.]
+CREATE TABLE temp (i INT PRIMARY KEY) engine=INNODB;
+INSERT INTO temp VALUES (1);
+include/rpl_sync.inc
+INSERT INTO temp VALUES (2);
+include/rpl_sync.inc
+include/diff_tables.inc [server1:test.temp, server2:test.temp]
+DROP TABLE t1;
+DROP TABLE temp;
+include/group_replication_end.inc

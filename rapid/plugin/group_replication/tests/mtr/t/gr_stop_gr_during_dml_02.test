@@ -1,0 +1,156 @@
+################################################################################
+# WL#9053
+# Desc : Stop group replication on M1 using a client when some DML's(inserts) are
+# happening in some other clients connected to M1
+# Test:
+# 0. This test requires 3 servers
+#    M1 -> server1,  M2 -> server2, M3 -> server3
+# 1. Start 3 servers and add them to group replication group
+# 2. Start a insert operation on M1 which inserts 500 records
+#    using "send call"
+# 3. perform stop GR on M1 from a parallel client when insert operation is
+#    going on in another client connected to M1
+# 4. Check the number of servers online and status of servers (M1,M2,M3)
+# 5. Join M1 back to the group
+# 6. Validate the record counts on different tables from M1 and M3
+# 7. Cleanup
+################################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is stopping.");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+SET SESSION sql_log_bin= 1;
+
+CREATE TABLE test.t1 ( a int primary key);
+--source include/rpl_sync.inc
+USE test;
+delimiter $$;
+CREATE PROCEDURE insert_into_t1()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<500 do
+     insert into t1 values (x);
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--source include/rpl_sync.inc
+--echo
+
+# Connect a client (server1_1) to server1 and perform insert
+# operation using send call
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--echo ----call procedure----
+--send call insert_into_t1()
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--echo ####### Wait for atleast 50 records to be inserted from the parallel client #######
+--let $wait_condition= SELECT COUNT(*)>=50 FROM test.t1
+--source include/wait_condition.inc
+
+--echo  ###### Stop the group replication from the parallel client on Server 1 ######
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server_1_1
+--source include/rpl_connection.inc
+--echo ####### Performing a reap for send operation #######
+--error ER_RUN_HOOK_ERROR
+--reap
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--echo ####### Checking the member count having online status #######
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--echo ####### Checking the member count having online status #######
+--let $wait_condition=SELECT COUNT(*)=2 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+#
+## Connect a client to S1 and start the group replication again
+#
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE";
+--source include/wait_condition.inc
+
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE test.t2 ( a int primary key);
+--disable_query_log
+--let $i=10
+while($i)
+{
+    --EVAL INSERT INTO t2 VALUES ($i)
+    --dec $i
+}
+--enable_query_log
+--source include/rpl_sync.inc
+
+# Validate the record count in all the tables in server1
+--echo # Validating the records in server1 #
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] >= 50
+--source include/assert.inc
+
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 10
+--source include/assert.inc
+
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] >= 50
+--source include/assert.inc
+
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 10
+--source include/assert.inc
+
+# Validate the record count in all the tables in server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--echo # Validating the records in server2 #
+--let $assert_text= 'Checking the number of records in test.t1'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] >= 50
+--source include/assert.inc
+
+--let $assert_text= 'Checking the number of records in test.t2'
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 10
+--source include/assert.inc
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+--let $diff_tables=server1:t2, server2:t2, server3:t2
+--source include/diff_tables.inc
+
+#Cleanup
+--echo #cleanup#
+
+DROP TABLE test.t2;
+DROP PROCEDURE insert_into_t1;
+DROP TABLE test.t1;
+
+--source ../inc/group_replication_end.inc
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1035,6 +1035,40 @@ public:
                strlen(fill_help_tables[i]));
     }
     if (errno != 0)
+    {
+      info << "failed." << endl;
+      return false;
+    }
+    else
+      info << "done." << endl;
+
+    info << "Creating user for internal session service...";
+
+    string create_session_serv_user(
+      "INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session',"
+        "'N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N',"
+        "'N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,"
+        "'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE',"
+        "'N',CURRENT_TIMESTAMP,NULL,'Y');\n");
+    string select_table_priv(
+      "INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql',"
+        " 'mysql.session', 'user', 'root@localhost', CURRENT_TIMESTAMP,"
+        " 'Select', '');\n"
+      );
+    string select_db_priv(
+      "INSERT IGNORE INTO mysql.db VALUES ('localhost', 'performance_schema',"
+        " 'mysql.session','Y','N','N','N','N','N','N','N','N','N','N','N',"
+        "'N','N','N','N','N','N','N');\n"
+    );
+
+    w1= write(fh, create_session_serv_user.c_str(),
+              create_session_serv_user.length());
+    w2= write(fh, select_table_priv.c_str(), select_table_priv.length());
+    size_t w3= write(fh, select_db_priv.c_str(), select_db_priv.length());
+
+    if (w1 != create_session_serv_user.length() ||
+        w2 != select_table_priv.length() ||
+        w3 != select_db_priv.length())
     {
       info << "failed." << endl;
       return false;

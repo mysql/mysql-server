@@ -1,0 +1,125 @@
+################################################################################
+# This test verifies whether the group_replication works fine when majority loss
+# occurs while there are dml operations running on some server
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Start the group_replication on all the servers.
+# 2. CREATE TABLE ON M1 and CREATE a procedure to perform the dml operations
+#    on the table
+# 3. Call the procedure using send operation
+# 4. Kill and restart the server M2
+# 5. Wait until server M2 is in UNREACHABLE state.
+# 6. SET group_replication_force_members value as local_address of server M1
+# 7. Start GR on server M2.
+# 8. Obtain the result of send command on M1 and wait until both
+#    the servers are ONLINE.
+# 9. Verify that table t1 has same data across all the members.
+# 10.Clean up
+################################################################################
+
+# This test does crashes servers, thence we skip it on asan and valgrind.
+--source include/not_asan.inc
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source ../inc/have_group_replication_plugin.inc
+--source ../inc/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Save the local address of server1
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+CREATE TABLE t1(a int primary key);
+
+--source include/rpl_sync.inc
+
+# Create a procedure to perform the dml operations.
+delimiter $$;
+CREATE PROCEDURE dml_operations()
+     BEGIN
+     declare x INT;
+     set x=1;
+     while x<300 do
+     insert into t1 values (x);
+     update t1 set a=x+300 where a=x;
+     delete from t1 where a<310;
+     set x=x+1;
+     end  while;
+     end$$
+delimiter ;$$
+--echo
+
+--echo ----call procedure----
+--send call dml_operations()
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set sql_log_bin=0;
+call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+set sql_log_bin=1;
+
+# Wait until some data is entered into table t1 to ensure that the server2
+# will get killed while there are dml operations running on server1
+--let $wait_condition= SELECT COUNT(*) >20 FROM t1
+--source include/wait_condition.inc
+
+# Kill server2
+--echo # killing
+--let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+--let $restart_parameters=restart:--group_replication_local_address=$group_replication_local_address --group_replication_group_seeds=$group_replication_group_seeds --group_replication_group_name=$group_replication_group_name
+--replace_result $group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source ../inc/kill_and_restart_mysqld.inc
+--echo # restarting
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+# Verify that there are still two members in the group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Verify that server2 is marked as UNREACHABLE.
+let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where member_state= "UNREACHABLE";
+--source include/wait_condition.inc
+
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER_1
+eval SET @@GLOBAL.group_replication_force_members= "$local_address_server1";
+
+# Wait until there is only one member in group.
+let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Start group replication on server2
+--let $wait_timeout=300
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Obtain the result of send command
+reap;
+
+# Sync all the servers.
+--let $slave_timeout= 100
+--source include/rpl_sync.inc
+
+# Verify that table t1 has same data on both the servers.
+--let $diff_tables=server1:t1, server2:t1
+--source include/diff_tables.inc
+
+# Clean up
+drop table t1;
+drop procedure dml_operations;
+--source ../inc/group_replication_end.inc

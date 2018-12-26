@@ -20,13 +20,11 @@
 #include <stdint.h>
 #include <list>
 #include <algorithm>
-#include <boost/core/noncopyable.hpp>
 
 #include "ngs/protocol/page_pool.h"
 #include "ngs/memory.h"
 
 #include "my_global.h"
-#include "my_atomic.h"
 #include "ngs/log.h"
 
 using namespace ngs;
@@ -48,16 +46,16 @@ Page_pool::Page_pool(const int32_t page_size)
 Page_pool::Page_pool(const Pool_config &pool_config)
 : m_pages_max(pool_config.pages_max),
   m_pages_cache_max(pool_config.pages_cache_max),
-  m_pages_allocated(0),
   m_pages_cached(0),
-  m_page_size(pool_config.page_size)
+  m_page_size(pool_config.page_size),
+  m_pages_allocated(0)
 {
 }
 
 Page_pool::~Page_pool()
 {
   Mutex_lock lock(m_mutex);
-  std::for_each(m_pages_list.begin(), m_pages_list.end(), Memory_delete_array<char>);
+  std::for_each(m_pages_list.begin(), m_pages_list.end(), ngs::free_array<char>);
   m_pages_list.clear();
 }
 
@@ -65,9 +63,9 @@ Page_pool::~Page_pool()
 Resource<Page> Page_pool::allocate()
 {
   // The code is valid only in case when the method is called only by one thread at a time
-  if (m_pages_max != 0 && my_atomic_add32(&m_pages_allocated, 1) > m_pages_max - 1)
+  if (m_pages_max != 0 && (++m_pages_allocated > m_pages_max - 1))
   {
-    my_atomic_add32(&m_pages_allocated, -1);
+    --m_pages_allocated;
     throw No_more_pages_exception();
   }
 
@@ -77,7 +75,7 @@ Resource<Page> Page_pool::allocate()
   {
     size_t memory_to_allocate = m_page_size + sizeof(Page_memory_managed);
 
-    object_data = new char[memory_to_allocate];
+    ngs::allocate_array(object_data, memory_to_allocate, KEY_memory_x_send_buffer);
   }
 
   return Resource<Page>(new (object_data) Page_memory_managed(*this, m_page_size, object_data + sizeof(Page_memory_managed)));
@@ -88,13 +86,13 @@ void Page_pool::deallocate(Page *page)
 {
   // multiple threads
   if (m_pages_max != 0)
-    my_atomic_add32(&m_pages_allocated, -1);
+    --m_pages_allocated;
 
   page->~Page();
 
   if (!push_page((char*)page))
   {
-    delete[] (char*)page;
+    ngs::free_array((char*)page);
   }
 }
 

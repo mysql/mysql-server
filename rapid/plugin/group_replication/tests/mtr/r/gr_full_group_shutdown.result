@@ -1,0 +1,75 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# Setup a new group
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+COMMIT;
+INSERT INTO t1 VALUES (3);
+#
+# 1) Create a 3 member group and verify that it is functional
+#
+#Add 2 more members
+server2
+include/start_group_replication.inc
+server3
+include/start_group_replication.inc
+#After recovery all members must see 3 other members
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+#After recovery all members must have the data present in the donor.
+include/assert.inc [On all members, the table should exist and have 3 elements]
+include/assert.inc [On all members, the table should exist and have 3 elements]
+include/assert.inc [On all members, the table should exist and have 3 elements]
+#
+# 2) Shut down all members until 0. Add some data in the process.
+#
+#Stop the member 3
+server3
+include/stop_group_replication.inc
+#Add some data to future recoveries and ensure that every member has it
+server2
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+include/rpl_sync.inc
+#Stop the member 2
+include/stop_group_replication.inc
+#Add some data to future recoveries
+server1
+INSERT INTO t1 VALUES (6);
+INSERT INTO t1 VALUES (7);
+#Stop the member 1
+include/stop_group_replication.inc
+#
+# 3) Bring up the group back to life. At the end, all data must be in
+#    all three members.
+#
+server1
+include/start_and_bootstrap_group_replication.inc
+server2
+include/start_group_replication.inc
+server3
+include/start_group_replication.inc
+#After recovery all members must see 3 other members
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+include/rpl_gr_wait_for_number_of_members.inc
+#After recovery all members must have the data present in the donor.
+include/assert.inc [On all members, the table should exist and have 7 elements]
+include/assert.inc [On all members, the table should exist and have 7 elements]
+include/assert.inc [On all members, the table should exist and have 7 elements]
+#
+# Cleaning up
+#
+DROP TABLE t1;
+include/group_replication_end.inc

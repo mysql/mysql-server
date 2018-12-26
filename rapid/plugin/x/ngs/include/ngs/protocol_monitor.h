@@ -25,19 +25,21 @@ namespace ngs
 {
 
 
-class IProtocol_monitor
+class Protocol_monitor_interface
 {
 public:
-  virtual ~IProtocol_monitor() {}
+  virtual ~Protocol_monitor_interface() {}
 
   virtual void on_notice_warning_send() = 0;
   virtual void on_notice_other_send() = 0;
-  virtual void on_error_send() = 0;
   virtual void on_fatal_error_send() = 0;
   virtual void on_init_error_send() = 0;
   virtual void on_row_send() = 0;
   virtual void on_send(long bytes_transferred) = 0;
   virtual void on_receive(long bytes_transferred) = 0;
+
+  virtual void on_error_send() = 0;
+  virtual void on_error_unknown_msg_type() = 0;
 };
 
 

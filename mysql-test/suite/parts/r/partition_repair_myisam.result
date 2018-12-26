@@ -8,8 +8,12 @@ CREATE TABLE tp (a INT, KEY (a)) ENGINE=MyISAM
 PARTITION BY RANGE (a)
 (PARTITION pCrashed VALUES LESS THAN (15),
 PARTITION pMAX VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
 INSERT INTO tp VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 # replacing tp#P#pCrashed.MYI with a corrupt + unclosed one created by doing:
 # 'create table t1 (a int key(a))' head -c1024 t1.MYI > corrupt_t1.MYI 
@@ -20,15 +24,18 @@ test.tp	check	error	Size of indexfile is: 1024        Should be: 2048
 test.tp	check	warning	Size of datafile is: 77       Should be: 7
 test.tp	check	error	Partition pCrashed returned error
 test.tp	check	error	Corrupt
+test.tp	check	warning	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 ERROR HY000: Table './test/tp#P#pCrashed' is marked as crashed and should be repaired
 REPAIR TABLE tp;
 Table	Op	Msg_type	Msg_text
 test.tp	repair	warning	Number of rows changed from 1 to 11
 test.tp	repair	status	OK
+test.tp	repair	warning	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CHECK TABLE tp;
 Table	Op	Msg_type	Msg_text
 test.tp	check	status	OK
+test.tp	check	warning	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
@@ -36,6 +43,7 @@ test.t	check	status	OK
 CHECK TABLE tp;
 Table	Op	Msg_type	Msg_text
 test.tp	check	status	OK
+test.tp	check	warning	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
@@ -56,6 +64,7 @@ ALTER TABLE tp EXCHANGE PARTITION pCrashed WITH TABLE t;
 CHECK TABLE tp;
 Table	Op	Msg_type	Msg_text
 test.tp	check	status	OK
+test.tp	check	warning	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -95,7 +104,11 @@ CREATE TABLE t1_will_crash (a INT, KEY (a))
 ENGINE=MyISAM
 PARTITION BY HASH (a)
 PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 # test with CHECK/REPAIR TABLE
 # replacing t1#P#p1.MYI with a corrupt + unclosed one created by doing:
@@ -108,10 +121,12 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 28       Should be: 7
 test.t1_will_crash	check	error	Partition p1 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 REPAIR TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 1 to 4
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1_will_crash;
 a
 3
@@ -125,12 +140,15 @@ a
 5
 8
 11
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 # test with ALTER TABLE ... CHECK/REPAIR PARTITION
 # replacing t1_will_crash#P#p1.MYI with a corrupt + unclosed one
 ALTER TABLE t1_will_crash CHECK PARTITION p0, p2;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	status	OK
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash CHECK PARTITION p0, p1;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	1 client is using or hasn't closed the table properly
@@ -138,6 +156,7 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 28       Should be: 7
 test.t1_will_crash	check	error	Partition p1 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash CHECK PARTITION p1, p2;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	Table is marked as crashed
@@ -146,13 +165,16 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 28       Should be: 7
 test.t1_will_crash	check	error	Partition p1 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p0, p2;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p0, p1;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 1 to 4
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1_will_crash;
 a
 3
@@ -166,6 +188,8 @@ a
 5
 8
 11
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1_will_crash;
 # test of check/repair of a damaged subpartition's MYI-file
 CREATE TABLE t1_will_crash (a INT, KEY (a))
@@ -175,7 +199,11 @@ SUBPARTITION BY HASH (a)
 SUBPARTITIONS 2
 (PARTITION p0 VALUES LESS THAN (7),
 PARTITION p1 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1_will_crash VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1_will_crash;
 a
 2
@@ -199,10 +227,12 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 14       Should be: 7
 test.t1_will_crash	check	error	Subpartition p1sp0 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 REPAIR TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 1 to 2
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1_will_crash;
 a
 2
@@ -216,12 +246,15 @@ a
 7
 9
 11
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 # test with ALTER TABLE ... CHECK/REPAIR PARTITION
 # replacing t1_will_crash#P#p1#SP#p1sp0.MYI with a corrupt + unclosed one
 ALTER TABLE t1_will_crash CHECK PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	status	OK
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash CHECK PARTITION all;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	1 client is using or hasn't closed the table properly
@@ -229,6 +262,7 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 14       Should be: 7
 test.t1_will_crash	check	error	Subpartition p1sp0 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash CHECK PARTITION p1;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	Table is marked as crashed
@@ -237,13 +271,16 @@ test.t1_will_crash	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1_will_crash	check	warning	Size of datafile is: 14       Should be: 7
 test.t1_will_crash	check	error	Subpartition p1sp0 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p0, p1;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 1 to 2
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM t1_will_crash;
 a
 2
@@ -257,6 +294,8 @@ a
 7
 9
 11
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1_will_crash;
 # test of check/repair of crashed partitions in variuos states
 CREATE TABLE t1_will_crash (
@@ -267,6 +306,10 @@ PRIMARY KEY (a, b))
 ENGINE=MyISAM
 PARTITION BY HASH (b)
 PARTITIONS 7;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 33
@@ -323,15 +366,18 @@ FLUSH TABLES;
 ANALYZE TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	analyze	status	OK
+test.t1_will_crash	analyze	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 OPTIMIZE TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	optimize	warning	Number of rows changed from 8 to 7
 test.t1_will_crash	optimize	status	OK
+test.t1_will_crash	optimize	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CHECK TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	error	Size of datafile is: 0         Should be: 164
 test.t1_will_crash	check	error	Partition p0 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 REPAIR TABLE t1_will_crash;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 2 to 0
@@ -339,9 +385,12 @@ test.t1_will_crash	repair	info	Found block that points outside data file at 344
 test.t1_will_crash	repair	warning	Number of rows changed from 5 to 4
 test.t1_will_crash	repair	warning	Number of rows changed from 0 to 5
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 29
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
 partition	rows
 1	4
@@ -388,10 +437,12 @@ ALTER TABLE t1_will_crash CHECK PARTITION p2;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	1 client is using or hasn't closed the table properly
 test.t1_will_crash	check	status	OK
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # crash was when index only marked as opened, no real corruption
 ALTER TABLE t1_will_crash CHECK PARTITION p2;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	status	OK
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 #
 # replacing p4 with updated but not closed index file
@@ -400,6 +451,7 @@ Table	Op	Msg_type	Msg_text
 test.t1_will_crash	optimize	error	Found key at page 2048 that points to record outside datafile
 test.t1_will_crash	optimize	error	Partition p4 returned error
 test.t1_will_crash	optimize	status	Operation failed
+test.t1_will_crash	optimize	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash CHECK PARTITION p4;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	warning	Table is marked as crashed and last repair failed
@@ -408,10 +460,12 @@ test.t1_will_crash	check	warning	Size of datafile is: 368       Should be: 252
 test.t1_will_crash	check	error	Found 4 keys of 3
 test.t1_will_crash	check	error	Partition p4 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p4;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 3 to 4
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 #
 # replacing p6 with a crashed MYD file (2) (splitted dynamic record)
@@ -421,11 +475,13 @@ test.t1_will_crash	check	warning	Size of datafile is: 868       Should be: 604
 test.t1_will_crash	check	error	Unexpected byte: 0 at link: 340
 test.t1_will_crash	check	error	Partition p6 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	info	Delete link points outside datafile at 340
 test.t1_will_crash	repair	info	Delete link points outside datafile at 340
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT (b % 7) AS `partition`, b, a, length(c) FROM t1_will_crash
 WHERE (b % 7) = 6
 ORDER BY `partition`, b, a;
@@ -437,6 +493,8 @@ partition	b	a	length(c)
 6	62	6 row 6	64
 6	83	 	64
 6	97	zzzzzZzzzzz	64
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 #
 # replacing p6 with a crashed MYD file (3) (splitted dynamic record)
@@ -454,6 +512,8 @@ partition	b	a	length(c)
 6	34	6 row 2	64
 6	83	 	64
 6	97	zzzzzZzzzzz	64
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 set @optimizer_switch_saved=@@optimizer_switch;
 set optimizer_switch='derived_merge=off';
 SELECT (b % 7) AS `partition`, b, a FROM (SELECT b,a FROM t1_will_crash) q
@@ -475,13 +535,17 @@ test.t1_will_crash	check	error	Record-count is not ok; is 8   Should be: 7
 test.t1_will_crash	check	warning	Found 10 key parts. Should be: 7
 test.t1_will_crash	check	error	Partition p6 returned error
 test.t1_will_crash	check	error	Corrupt
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE t1_will_crash REPAIR PARTITION p6;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	repair	warning	Number of rows changed from 7 to 8
 test.t1_will_crash	repair	status	OK
+test.t1_will_crash	repair	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT COUNT(*) FROM t1_will_crash;
 COUNT(*)
 29
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT (b % 7) AS `partition`, COUNT(*) AS rows FROM t1_will_crash GROUP BY (b % 7);
 partition	rows
 1	4
@@ -524,4 +588,5 @@ partition	b	a	length(c)
 ALTER TABLE t1_will_crash CHECK PARTITION all EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1_will_crash	check	status	OK
+test.t1_will_crash	check	warning	The partition engine, used by table 'test.t1_will_crash', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1_will_crash;

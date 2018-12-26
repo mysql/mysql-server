@@ -1006,3 +1006,34 @@ R
 select "a" as R;
 R
 R
+#
+# Bug#23280117: 5.7 BUG XXXXX TEST REPLACE NUMBER ROUND+GIS PRECISION
+# DIFFERENCES (CONTRIBUTION)
+#
+# Insert values to be tested into a table
+CREATE TABLE t1(f FLOAT, k DOUBLE);
+INSERT INTO t1 VALUES(124.7892,1.23456e200);
+INSERT INTO t1 VALUES(6.9999999,1.000000000);
+INSERT INTO t1 VALUES(12900.019,37489e-12);
+SELECT * FROM t1;
+f	k
+124.79	1.23e+200
+7	1
+12900	0
+DROP TABLE t1;
+# Verify that the function rounds numeric values when they
+# are padded with characters
+SELECT 'aaaa(12.12348)';
+aaaa(12.12348)
+aaaa(12.12348)
+# Test case with precision 0. Value should be rounded off
+# to nearest whole number.
+SELECT 20;
+20
+20
+# An error is thrown if parameter count is 0
+mysqltest: At line 1: Missing required argument 'precision' to command 'replace_numeric_round'
+# The maximum value which can be passed is 16
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round
+# The minimum value which can be passed is 0
+mysqltest: At line 1: A number between 0 and 16 is required for the precision in replace_numeric_round

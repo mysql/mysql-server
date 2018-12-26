@@ -1,0 +1,43 @@
+#
+# Step 1) Create a basic master-slave topology with
+#         binlog_rows_query_log_events enabled on master.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET @old_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+#
+# Step 2) On master, create a table and wait till it is replicated to
+#         slave.
+CREATE TABLE t1(a INT);
+include/sync_slave_sql_with_master.inc
+#
+# Step 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
+#
+SET @old_debug= @@global.debug;
+# Adding debug point 'after_deleting_the_rows_query_ev' to @@GLOBAL.debug
+#
+# Step 4) On master, do an insert.
+#
+[connection master]
+INSERT INTO t1 VALUES(1);
+#
+# Step 5) SHOW PROCESSLIST on slave should show NULL.
+#
+[connection slave]
+SET DEBUG_SYNC= "now WAIT_FOR deleted_rows_query_ev";
+SELECT state,info FROM information_schema.processlist WHERE state like 'debug%';;
+state	debug sync point: now
+info	NULL
+SET DEBUG_SYNC = "now SIGNAL go_ahead";
+#
+# Step 6) Cleanup
+#
+SET GLOBAL debug= @old_debug;
+[connection master]
+DROP TABLE t1;
+SET @@session.binlog_rows_query_log_events= @old_binlog_rows_query_log_events;
+include/rpl_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
 {
   int error;
   empty_record(table);
-  memset(info, 0, sizeof(*info));
+  new (info) READ_RECORD;
   info->thd= thd;
   info->table= table;
   info->record= table->record[0];
@@ -191,7 +191,7 @@ bool init_read_record(READ_RECORD *info,THD *thd,
   if (!table)
     table= qep_tab->table();
 
-  memset(info, 0, sizeof(*info));
+  new (info) READ_RECORD;
   info->thd=thd;
   info->table=table;
   info->forms= &info->table;		/* Only one table */

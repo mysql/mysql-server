@@ -19,7 +19,7 @@ SET SESSION sql_safe_updates = ON;
 '#-----------------------------FN_DYNVARS_164_02------------------------------------#'
 Expected error : Update without key in safe mode
 DELETE FROM t1;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SELECT * FROM t1;
 a	b
 1	val1
@@ -34,16 +34,13 @@ a	b
 PREPARE stmt FROM 'DELETE FROM t1;';
 Expected error : Update without key in safe mode
 EXECUTE stmt;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 DEALLOCATE PREPARE stmt;
 '#-----------------------------FN_DYNVARS_164_03------------------------------------#'
-Expected error : Update without key in safe mode
+No error : Update without key in safe mode but with LIMIT
 DELETE FROM t1 LIMIT 2;
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
 SELECT * FROM t1;
 a	b
-1	val1
-2	val2
 3	val3
 4	val4
 5	val5
@@ -54,11 +51,9 @@ a	b
 '#-----------------------------FN_DYNVARS_164_04------------------------------------#'
 Expected error : Update without key in safe mode
 DELETE FROM t1 WHERE b='val1';
-ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. 
 SELECT * FROM t1;
 a	b
-1	val1
-2	val2
 3	val3
 4	val4
 5	val5
@@ -68,11 +63,9 @@ a	b
 9	val9
 '#-----------------------------FN_DYNVARS_164_05------------------------------------#'
 This one should work
-DELETE FROM t1 WHERE a=1;
+DELETE FROM t1 WHERE a=3;
 SELECT * FROM t1;
 a	b
-2	val2
-3	val3
 4	val4
 5	val5
 6	val6
@@ -88,8 +81,6 @@ This one should work
 DELETE FROM t1 WHERE b='val1';
 SELECT * FROM t1;
 a	b
-2	val2
-3	val3
 4	val4
 5	val5
 6	val6
@@ -98,13 +89,10 @@ a	b
 9	val9
 '#-----------------------------FN_DYNVARS_164_07------------------------------------#'
 This one should work
-DELETE FROM t1 WHERE a=1;
+DELETE FROM t1 WHERE a=5;
 SELECT * FROM t1;
 a	b
-2	val2
-3	val3
 4	val4
-5	val5
 6	val6
 7	val7
 8	val8
@@ -114,9 +102,6 @@ This one should work
 DELETE FROM t1 LIMIT 2;
 SELECT * FROM t1;
 a	b
-4	val4
-5	val5
-6	val6
 7	val7
 8	val8
 9	val9
@@ -127,9 +112,6 @@ Bug#35392 Unexpected error occurs in this statement Can't change size of the fil
 statement is remarked because the error is uncatchable by testing framework
 SELECT * FROM t1;
 a	b
-4	val4
-5	val5
-6	val6
 7	val7
 8	val8
 9	val9

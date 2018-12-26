@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ table_replication_applier_status_by_worker::m_share=
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_applier_status_by_worker::get_row_count, /*records*/
-  sizeof(PFS_simple_index), /* ref length */
+  sizeof(pos_t), /* ref length */
   &m_table_lock,
   &m_field_def,
   false, /* checked */
@@ -109,8 +109,7 @@ PFS_engine_table* table_replication_applier_status_by_worker::create(void)
 table_replication_applier_status_by_worker
   ::table_replication_applier_status_by_worker()
   : PFS_engine_table(&m_share, &m_pos),
-    m_row_exists(false), m_pos(), m_next_pos(),
-    m_applier_pos(0), m_applier_next_pos(0)
+    m_row_exists(false), m_pos(), m_next_pos()
 {}
 
 table_replication_applier_status_by_worker
@@ -121,8 +120,6 @@ void table_replication_applier_status_by_worker::reset_position(void)
 {
   m_pos.reset();
   m_next_pos.reset();
-  m_applier_pos.m_index=0;
-  m_applier_next_pos.m_index=0;
 }
 
 ha_rows table_replication_applier_status_by_worker::get_row_count()
@@ -138,52 +135,47 @@ int table_replication_applier_status_by_worker::rnd_next(void)
 {
   Slave_worker *worker;
   Master_info *mi;
-  int res= HA_ERR_END_OF_FILE;
+  size_t wc;
 
   channel_map.rdlock();
 
-  /*
-    For each SQL Thread in all channels get the respective Master_info and
-    construct a row to display its status in
-    'replication_applier_status_by_worker' table in case of single threaded
-    slave mode.
-  */
-  for(m_applier_pos.set_at(&m_applier_next_pos);
-      m_applier_pos.m_index < channel_map.get_max_channels();
-      m_applier_pos.next())
-  {
-    mi= channel_map.get_mi_at_pos(m_applier_pos.m_index);
-
-    if (mi && mi->host[0] && mi->rli && mi->rli->get_worker_count()==0)
-    {
-      make_row(mi);
-      m_applier_next_pos.set_after(&m_applier_pos);
-
-      channel_map.unlock();
-      return 0;
-    }
-  }
-
   for (m_pos.set_at(&m_next_pos);
-       m_pos.has_more_channels(channel_map.get_max_channels()) && res != 0;
+       m_pos.has_more_channels(channel_map.get_max_channels());
        m_pos.next_channel())
   {
     mi= channel_map.get_mi_at_pos(m_pos.m_index_1);
 
     if (mi && mi->host[0])
     {
-      worker= mi->rli->get_worker(m_pos.m_index_2);
-      if (worker)
+      wc= mi->rli->get_worker_count();
+
+      if (wc == 0)
       {
-        make_row(worker);
-        m_next_pos.set_after(&m_pos);
-        res= 0;
+        /* Single Thread Slave */
+        make_row(mi);
+        m_next_pos.set_channel_after(&m_pos);
+        channel_map.unlock();
+        return 0;
+      }
+
+      for (; m_pos.m_index_2 < wc; m_pos.next_worker())
+      {
+        /* Multi Thread Slave */
+
+        worker = mi->rli->get_worker(m_pos.m_index_2);
+        if (worker)
+        {
+          make_row(worker);
+          m_next_pos.set_after(&m_pos);
+          channel_map.unlock();
+          return 0;
+        }
       }
     }
   }
 
   channel_map.unlock();
-  return res;
+  return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
@@ -191,6 +183,7 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   Slave_worker *worker;
   Master_info *mi;
   int res= HA_ERR_RECORD_DELETED;
+  size_t wc;
 
   set_position(pos);
 
@@ -201,22 +194,26 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
   if (!mi || !mi->rli || !mi->host[0])
     goto end;
 
-  DBUG_ASSERT(m_pos.m_index_1 < mi->rli->get_worker_count());
-  /*
-    Display SQL Thread's status only in the case of single threaded mode.
-  */
-  if (mi->rli->get_worker_count() == 0)
-  {
-    make_row(mi);
-    res= 0;
-    goto end;
-  }
-  worker= mi->rli->get_worker(m_pos.m_index_2);
+  wc = mi->rli->get_worker_count();
 
-  if (worker != NULL)
+  if (wc == 0)
   {
-    make_row(worker);
-    res= 0;
+    /* Single Thread Slave */
+    make_row(mi);
+    res=0;
+  }
+  else
+  {
+    /* Multi Thread Slave */
+    if (m_pos.m_index_2 < wc)
+    {
+      worker = mi->rli->get_worker(m_pos.m_index_2);
+      if (worker != NULL)
+      {
+        make_row(worker);
+        res=0;
+      }
+    }
   }
 
 end:

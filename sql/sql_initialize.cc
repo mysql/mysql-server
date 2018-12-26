@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,14 +54,26 @@ static const char *initialization_data[] =
   NULL
 };
 
+static const char *session_service_initialization_data[] =
+{
+  "CREATE USER 'mysql.session'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;\n",
+  "GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;\n",
+  "GRANT SUPER ON *.* TO 'mysql.session'@localhost;\n",
+  NULL
+};
 
-static const char** cmds[]= 
+static const char** cmds[]=
 {
   initialization_cmds,
   mysql_system_tables,
   initialization_data,
   mysql_system_data,
   fill_help_tables,
+  session_service_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -74,6 +86,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 1",
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
+  "Creating user for internal session service",
   "Creating the sys schema",
   NULL
 };

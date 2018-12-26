@@ -9,18 +9,14 @@
 #######################################################################
 
 
+# # 1. Need to create table with Innodb
+# # 2. Valgrind would complain about memory leaks when we crash on purpose.
+# # 3. DEBUG_SYNC must be compiled in.
+# # 4. Avoid CrashReporter popup on Mac
 --source include/have_innodb.inc
-
-# DEBUG_SYNC must be compiled in.
---source include/have_debug_sync.inc
-#
-# # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
-# # Embedded server does not support crashing
---source include/not_embedded.inc
-# # Avoid CrashReporter popup on Mac
+--source include/have_debug_sync.inc
 --source include/not_crashrep.inc
-#
 
 --source ../include/xplugin_preamble.inc
 
@@ -107,6 +103,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source ../include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
@@ -279,6 +276,7 @@ EOF
 # Request a crash, and restart the server.
 # Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source ../include/xplugin_wait_for_interfaces.inc
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
 #--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
@@ -296,5 +294,3 @@ SELECT * FROM xplugintest.table2;
 DROP DATABASE IF EXISTS xplugintest;
 ## Postamble
 UNINSTALL PLUGIN mysqlx;
-
-

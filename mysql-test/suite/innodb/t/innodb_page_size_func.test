@@ -120,7 +120,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --innodb-page-si
 #----------------------------------------------------------------------------------
 --echo # 1.1 The value assigned is a number.
 # Detailed explanations of what happens are placed nearby the checks.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size
 if ( $default_page_size != $other_page_size )
 {
@@ -134,7 +134,7 @@ let SEARCH_PATTERN=Data file '.*ibdata1' uses page size $start_page_size, but th
 let SEARCH_PATTERN= \[ERROR\] Aborting;
 --source include/search_pattern_in_file.inc
 --echo # 1.2 The value assigned is a number followed by 'k'.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size_nk
 if ( $default_page_size != $other_page_size )
 {
@@ -159,7 +159,7 @@ let SEARCH_PATTERN= \[ERROR\] Aborting;
 # 1. not supported
 # 2. below the smallest supported one
 # The restart attempt has to fail.
---error 1
+--error 1,42
 --exec $mysqld=$out_range_page_size
 # The innodb page size gets raised to the lowest or biggest legal value.
 let SEARCH_PATTERN= \[Warning\] option 'innodb-page-size': unsigned value $out_range_page_size adjusted to $adjust_page_size;
@@ -185,7 +185,7 @@ if ($zero_test)
    {
      --echo # We do not omit the test.
    }
---error 1
+--error 1,42
 --exec $mysqld=garbage
 # General server properties cause that
 # - the plain wrong value "garbage" assigned to innodb page size gets
@@ -220,7 +220,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Invalid page size=$illegal_pagesize;
 --echo #    <number>k is a legal page size.
 #---------------------------------------------------------------------------------
 # The restart attempt has to fail.
---error 1
+--error 1,42
 --exec $mysqld=$other_page_size_nkaramel
 # The plain wrong value "<number>karamel" assigned to innodb page size seems
 # to get mangled to "<number>k" which is a legal value.

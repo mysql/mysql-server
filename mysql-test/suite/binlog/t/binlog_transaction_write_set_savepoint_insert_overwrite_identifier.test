@@ -1,0 +1,41 @@
+###############################################################################
+# This test confirm that when adding a SAVEPOINT with a identifier already
+# defined in transaction, the older one will be replaced by the new definirtion
+#
+# Test:
+#   0. Enable debug point that asserts that the SAVEPOINT position is equal
+#   to write_set size and when executing ROLLBACK TO the write_set size is 1
+#   1. Create a table to insert data
+#   2. Create SAVEPOINT S0
+#   3. Insert values on t1
+#   4. Redefine SAVEPOINT S0 that will overwrite previous definition
+#   5. ROLLBACK TO S0 that won't modify the content of t1
+#
+###############################################################################
+
+
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+SET @save_session_debug= @@SESSION.debug;
+SET @@SESSION.debug = "+d,transaction_write_set_savepoint_add_savepoint";
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+
+BEGIN;
+
+SAVEPOINT S0;
+INSERT INTO t1 VALUES (0);
+
+SAVEPOINT S0;
+ROLLBACK TO S0;
+
+COMMIT;
+
+--let $assert_text= 'There is one value in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+# Cleanup
+SET @@SESSION.debug= @save_session_debug;
+DROP TABLE t1;

@@ -15,6 +15,8 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 DISABLED_STORAGE_ENGINES
 DISABLED_STORAGE_ENGINES
+KEYRING_OPERATIONS
+KEYRING_OPERATIONS
 TLS_VERSION
 TLS_VERSION
 drop table t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -162,8 +162,6 @@ int table_metadata_locks::rnd_pos(const void *pos)
 void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
 {
   pfs_optimistic_state lock;
-  const char *base;
-  const char *safe_source_file;
 
   m_row_exists= false;
 
@@ -175,20 +173,8 @@ void table_metadata_locks::make_row(PFS_metadata_lock *pfs)
   m_row.m_mdl_duration= pfs->m_mdl_duration;
   m_row.m_mdl_status= pfs->m_mdl_status;
 
-  safe_source_file= pfs->m_src_file;
-  if (safe_source_file != NULL)
-  {
-    base= base_name(safe_source_file);
-    m_row.m_source_length= my_snprintf(m_row.m_source,
-                                       sizeof(m_row.m_source),
-                                       "%s:%d", base, pfs->m_src_line);
-    if (m_row.m_source_length > sizeof(m_row.m_source))
-      m_row.m_source_length= sizeof(m_row.m_source);
-  }
-  else
-  {
-    m_row.m_source_length= 0;
-  }
+  /* Disable source file and line to avoid stale __FILE__ pointers. */
+  m_row.m_source_length= 0;
 
   m_row.m_owner_thread_id= static_cast<ulong>(pfs->m_owner_thread_id);
   m_row.m_owner_event_id= static_cast<ulong>(pfs->m_owner_event_id);

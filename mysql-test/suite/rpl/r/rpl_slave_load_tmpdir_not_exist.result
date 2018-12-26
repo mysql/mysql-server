@@ -6,6 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 START SLAVE;
 call mtr.add_suppression("Slave SQL.*Unable to use slave.s temporary directory.* Error_code: 12");
 include/wait_for_slave_sql_error.inc [errno=12]
+include/wait_for_slave_io_to_start.inc
 include/stop_slave_io.inc
 RESET SLAVE;
 include/rpl_end.inc

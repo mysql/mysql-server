@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ SET (REPLICATION_SOURCES
 # Configure for building static library
 ADD_LIBRARY(binlogstandalone_static STATIC ${REPLICATION_SOURCES})
 
-TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZLIB_LIBRARIES})
+TARGET_LINK_LIBRARIES(binlogstandalone_static ${ZLIB_LIBRARY})
 
 SET_TARGET_PROPERTIES(binlogstandalone_static PROPERTIES
                       OUTPUT_NAME "binlogstandalone")
@@ -38,7 +38,7 @@ SET_TARGET_PROPERTIES(binlogstandalone_static PROPERTIES
 IF (NOT DISABLE_SHARED)
   # Configure for building shared library
   ADD_LIBRARY(binlogstandalone_shared SHARED ${REPLICATION_SOURCES})
-  TARGET_LINK_LIBRARIES(binlogstandalone_shared ${ZLIB_LIBRARIES})
+  TARGET_LINK_LIBRARIES(binlogstandalone_shared ${ZLIB_LIBRARY})
   SET_TARGET_PROPERTIES(binlogstandalone_shared
     PROPERTIES OUTPUT_NAME "binlogstandalone")
   SET_TARGET_PROPERTIES(binlogstandalone_shared

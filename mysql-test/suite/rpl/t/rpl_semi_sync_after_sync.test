@@ -48,6 +48,8 @@ CALL mtr.add_suppression("Failed to run 'after_sync' hook");
 # IO thread might have stopped. Restart it.
 --disable_result_log
 --source include/rpl_connection_slave.inc
+--let $slave_io_errno= 2003 #CR_CONN_HOST_ERROR
+--let $rpl_allow_error= 1
 --source include/start_slave_io.inc
 --enable_result_log
 

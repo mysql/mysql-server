@@ -4,6 +4,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -18,6 +20,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w'), 
@@ -41,6 +45,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -60,6 +66,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
@@ -83,6 +91,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -110,6 +120,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127,'1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
@@ -140,6 +152,8 @@ partition pa1 max_rows=20 min_rows=2,
 partition pa2 max_rows=30 min_rows=3,
 partition pa3 max_rows=30 min_rows=4,
 partition pa4 max_rows=40 min_rows=2);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -183,6 +197,8 @@ t1	CREATE TABLE `t1` (
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM,
  PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, '1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127,'1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, '1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, '1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
@@ -205,10 +221,14 @@ drop table t1;
 #            after timed out COALESCE PARTITION
 CREATE TABLE t1 ( i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f INT )
 ENGINE = MyISAM PARTITION BY HASH(i) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Connection 1 starts transaction and gets lock
 START TRANSACTION;
 SELECT * FROM t1;
 i	f
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET lock_wait_timeout = 2;
 # Connection 2 tries to coalesce partitions (timeout):
 ALTER TABLE t1 COALESCE PARTITION 2;

@@ -19,9 +19,10 @@
 
 #include "ngs_common/connection_vio.h"
 #include "ngs/capabilities/handler_tls.h"
+#include "ngs/interface/client_interface.h"
+
 #include "ngs/mysqlx/getter_any.h"
 #include "ngs/mysqlx/setter_any.h"
-#include "ngs/client.h"
 
 namespace ngs
 {
@@ -31,7 +32,11 @@ using ::Mysqlx::Datatypes::Any;
 
 bool Capability_tls::is_supported() const
 {
-  return m_client.connection().options()->supports_tls();
+  const Connection_type type = m_client.connection().connection_type();
+  const bool is_supported_connection_type = Connection_tcpip == type ||
+      Connection_tls == type;
+
+  return m_client.connection().options()->supports_tls() && is_supported_connection_type;
 }
 
 

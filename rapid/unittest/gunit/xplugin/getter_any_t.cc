@@ -45,13 +45,49 @@ public:
 class Mock_type_handler : public Type_handler
 {
 public:
-  MOCK_METHOD1(put, void (const ::google::protobuf::int64 &));
-  MOCK_METHOD1(put, void (const ::google::protobuf::uint64 &));
-  MOCK_METHOD1(put, void (const double &));
-  MOCK_METHOD1(put, void (const float &));
-  MOCK_METHOD1(put, void (const bool &));
-  MOCK_METHOD1(put, void (const std::string &));
-  MOCK_METHOD0(put, void ());
+  // Workaround for GMOCK undefined behaviour with ResultHolder
+  MOCK_METHOD1(put_void, bool (const ::google::protobuf::int64 &));
+  MOCK_METHOD1(put_void, bool (const ::google::protobuf::uint64 &));
+  MOCK_METHOD1(put_void, bool (const double &));
+  MOCK_METHOD1(put_void, bool (const float &));
+  MOCK_METHOD1(put_void, bool (const bool &));
+  MOCK_METHOD1(put_void, bool (const std::string &));
+  MOCK_METHOD0(put_void, bool ());
+
+  void put(const ::google::protobuf::int64 &arg)
+  {
+    put_void(arg);
+  }
+
+  void put(const ::google::protobuf::uint64 &arg)
+  {
+    put_void(arg);
+  }
+
+  void put(const double &arg)
+  {
+    put_void(arg);
+  }
+
+  void put(const float &arg)
+  {
+    put_void(arg);
+  }
+
+  void put(const bool &arg)
+  {
+    put_void(arg);
+  }
+
+  void put(const std::string &arg)
+  {
+    put_void(arg);
+  }
+
+  void put()
+  {
+    put_void();
+  }
 };
 
 class Getter_any_testsuite : public ::testing::Test
@@ -83,7 +119,7 @@ TEST_F(Getter_any_testsuite, put_executesNullCallback)
   any.set_type(Any_Type_SCALAR);
   any.mutable_scalar()->set_type(Scalar_Type_V_NULL);
 
-  EXPECT_CALL(mock, put());
+  EXPECT_CALL(mock, put_void());
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -96,7 +132,7 @@ TEST_F(Getter_any_testsuite, put_executesSignedIntCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_SINT);
   any.mutable_scalar()->set_v_signed_int(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const ::google::protobuf::int64 &>(expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const ::google::protobuf::int64 &>(expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -109,7 +145,7 @@ TEST_F(Getter_any_testsuite, put_executesUnsignedIntCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_UINT);
   any.mutable_scalar()->set_v_unsigned_int(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const ::google::protobuf::uint64 &>(expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const ::google::protobuf::uint64 &>(expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -122,7 +158,7 @@ TEST_F(Getter_any_testsuite, put_executesBoolCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_BOOL);
   any.mutable_scalar()->set_v_bool(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const bool &> (expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const bool &> (expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -135,7 +171,7 @@ TEST_F(Getter_any_testsuite, put_executesFloatCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_FLOAT);
   any.mutable_scalar()->set_v_float(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const float &> (expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const float &> (expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -148,7 +184,7 @@ TEST_F(Getter_any_testsuite, put_executesDoubleCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_DOUBLE);
   any.mutable_scalar()->set_v_double(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const double &> (expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const double &> (expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -172,7 +208,7 @@ TEST_F(Getter_any_testsuite, put_executesStringCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_STRING);
   any.mutable_scalar()->mutable_v_string()->set_value(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const std::string &> (expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const std::string &> (expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
@@ -185,7 +221,7 @@ TEST_F(Getter_any_testsuite, put_executesOctetsCallback)
   any.mutable_scalar()->set_type(Scalar_Type_V_OCTETS);
   any.mutable_scalar()->mutable_v_octets()->set_value(expected_value);
 
-  EXPECT_CALL(mock, put(::testing::Matcher< const std::string &> (expected_value)));
+  EXPECT_CALL(mock, put_void(::testing::Matcher< const std::string &> (expected_value)));
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }

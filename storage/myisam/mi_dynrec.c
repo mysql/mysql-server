@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -793,6 +793,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
   DBUG_ENTER("update_dynamic_record");
 
   flag=block_info.second_read=0;
+  block_info.next_filepos= HA_OFFSET_ERROR;
   /*
      Check if we have enough room for the record.
      First we do simplified check to make usual case faster.
@@ -1716,6 +1717,12 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");
+
+  DBUG_EXECUTE_IF("catch_file_offset_deviation",
+		 {
+                   if (filepos)
+		     DBUG_RETURN(HA_ERR_RECORD_DELETED);
+                 });
 
   info_read=0;
 

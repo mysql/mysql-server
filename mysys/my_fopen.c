@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,7 +143,68 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
 
   return stream;
 }
+#else
 
+/**
+  Replacement for freopen() which will not close the stream until the
+  new file has been successfully opened. This gives the ability log
+  the reason for reopen's failure to the stream, and also to flush any
+  buffered messages already written to the stream, before terminating
+  the process.
+
+  After a new stream to path has been opened, its file descriptor is
+  obtained, and dup2() is used to associate the original stream with
+  the new file. The newly opened stream and associated file descriptor
+  is then closed with fclose().
+
+  @param path file which the stream should be opened to
+  @param mode FILE mode to use when opening new file
+  @param stream stream to reopen
+
+  @retval FILE stream being passed in if successful,
+  @retval nullptr otherwise
+ */
+static FILE *my_safe_freopen(const char *path, const char *mode, FILE *stream)
+{
+  int streamfd= -1;
+  FILE *pathstream= NULL;
+  int pathfd= -1;
+  int ds= -1;
+
+  DBUG_ASSERT(path != NULL && stream != NULL);
+  streamfd= fileno(stream);
+  if (streamfd == -1)
+  {
+    /* We have not done anything to the stream, but if we cannot
+       get its fd, it is probably in a bad state anyway... */
+    return NULL;
+  }
+  pathstream= fopen(path, mode);
+  if (pathstream == NULL)
+  {
+    /* Failed to open file for some reason. stream should still be
+       usable. */
+    return NULL;
+  }
+
+  pathfd= fileno(pathstream);
+  if (pathfd == -1)
+  {
+    fclose(pathstream);
+    return NULL;
+  }
+  do
+  {
+    ds= fflush(stream);
+    if (ds == 0)
+    {
+      ds= dup2(pathfd, streamfd);
+    }
+  }
+  while (ds == -1 && errno == EINTR);
+  fclose(pathstream);
+  return (ds == -1 ? NULL : stream);
+}
 #endif
 
 
@@ -168,7 +229,7 @@ FILE *my_freopen(const char *path, const char *mode, FILE *stream)
 #if defined(_WIN32)
   result= my_win_freopen(path, mode, stream);
 #else
-  result= freopen(path, mode, stream);
+  result= my_safe_freopen(path, mode, stream);
 #endif
 
   return result;

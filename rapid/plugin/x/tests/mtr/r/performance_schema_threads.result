@@ -1,0 +1,71 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE USER 'user_on_localhost'@localhost;
+CREATE USER 'user_on_127_0_0_1'@127.0.0.1;
+GRANT SELECT ON *.* TO 'user_on_localhost'@localhost;
+GRANT SELECT ON *.* TO 'user_on_127_0_0_1'@127.0.0.1;
+#
+# Get actual number of worker threads
+#
+include/assert.inc [X Plugin must have idle worker threads]
+#
+# Assert all significant columns in thread table
+#
+include/assert.inc [All workers must have NULL in field `CONNECTION_TYPE`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_USER`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_HOST`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_DB`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_TIME`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_STATE`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_INFO`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_ID`]
+Login OK
+Verify [Current process needs to have root in PROCESSLIST_USER column]
+Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
+Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]
+Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+ok
+Login OK
+Verify [Current process needs to have user_on_127_0_0_1 in PROCESSLIST_USER column]
+Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
+Verify [Current process needs to have mysql in PROCESSLIST_DB column]
+Verify [Current process needs to have mysql in PROCESSLIST_DB column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+ok
+Login OK
+Verify [Current process needs to have user_on_localhost in PROCESSLIST_USER column]
+Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
+Verify [Current process needs to have sys in PROCESSLIST_DB column]
+Verify [Current process needs to have sys in PROCESSLIST_DB column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have TCP/IP in CONNECTION_TYPE column]
+Verify [Current process needs to have Query in PROCESSLIST_COMMAND column]
+ok
+#
+# Get actual number of worker threads
+#
+include/assert.inc [X Plugin must have idle worker threads]
+#
+# Assert all significant columns in thread table
+#
+include/assert.inc [All workers must have NULL in field `CONNECTION_TYPE`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_USER`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_HOST`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_DB`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_TIME`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_STATE`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_INFO`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
+include/assert.inc [All workers must have NULL in field `PROCESSLIST_ID`]
+DROP USER 'user_on_localhost'@localhost;
+DROP USER 'user_on_127_0_0_1'@127.0.0.1;
+UNINSTALL PLUGIN mysqlx;

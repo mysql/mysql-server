@@ -4024,3 +4024,37 @@ SET DEBUG_SYNC= 'RESET';
 # Wait for the now unblocked DROP t1, t2 to complete
 # Disconnecting con1
 # Switching to back to default at end of test case
+#
+# Bug#26739438 DEADLOCK ON GET_LOCK(..., 0)
+#
+# Run GET_LOCK(...,0) from two connections to which would previously
+# cause deadlock
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (0), (1);
+# Starting con0
+SELECT i FROM t1 WHERE i = 0 AND GET_LOCK(i, 0);
+i
+0
+# Starting con1
+SELECT i FROM t1 WHERE i = 1 AND GET_LOCK(i, 0);
+i
+1
+# Send query which will do a 0-wait on i=0 while holding lock on i=1
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait0 WAIT_FOR go0';
+SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 0;
+# Switch to con0. Send query which will do a 0-wait on i=1 while
+# holding lock on i=0
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait1 WAIT_FOR go1';
+SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 1;
+# Switch to default connection and wait until both con0 and con1
+# are ready to check for deadlocks 
+SET DEBUG_SYNC='now WAIT_FOR wait0';
+SET DEBUG_SYNC='now WAIT_FOR wait1';
+# Tell both connections to proceed
+SET DEBUG_SYNC='now SIGNAL go0';
+SET DEBUG_SYNC='now SIGNAL go1';
+# Wait for con0
+i
+# Wait for con1 (should not deadlock)
+i
+DROP TABLE t1;

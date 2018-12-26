@@ -1,0 +1,98 @@
+CREATE DATABASE db_25380000;
+USE db_25380000;
+CREATE TABLE t_25380000(a INT);
+INSERT INTO t_25380000 VALUES(1);
+#MYSQLDUMP
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLIMPORT
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQL
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLCHECK
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLBINLOG
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLADMIN
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLSHOW
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLSLAP
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#MYSQLTEST
+#Scenario 1
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY." not found
+#Scenario 2
+WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead.
+WARNING: no verification of server certificate will be done. Use --ssl-mode=VERIFY_CA or VERIFY_IDENTITY.
+Pattern "WARNING: --ssl is deprecated and will be removed in a future version. Use --ssl-mode instead." not found
+#Scenario 3
+WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead.
+Pattern "WARNING: --ssl-verify-server-cert is deprecated and will be removed in a future version. Use --ssl-mode=VERIFY_IDENTITY instead." not found
+#Cleanup
+DROP TABLE t_25380000;
+DROP DATABASE db_25380000;

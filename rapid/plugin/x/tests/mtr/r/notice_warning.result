@@ -311,13 +311,13 @@ Mysqlx.Notice.Frame {
 Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Rows matched: 1  Changed: 0  Warnings: 1\"\n  }\n}\n }"
 }
 
 Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: PRODUCED_MESSAGE\nvalue {\n  type: V_STRING\n  v_string {\n    value: \"Rows matched: 1  Changed: 0  Warnings: 1\"\n  }\n}\n }"
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
 }
 
 Mysqlx.Sql.StmtExecuteOk {

@@ -13,13 +13,6 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-
-#include <boost/bind.hpp>
-#include <boost/range/begin.hpp>
-#include <boost/range/end.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/scoped_ptr.hpp>
-
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -55,18 +48,18 @@ using namespace ::testing;
 class CapabilitiesConfiguratorTestSuite : public Test
 {
 public:
-  typedef boost::shared_ptr<StrictMock<Mock_capability_handler> > Mock_ptr;
+  typedef ngs::shared_ptr<StrictMock<Mock_capability_handler> > Mock_ptr;
 
   void SetUp()
   {
     for(int i = 0; i < NUMBER_OF_HANDLERS; ++i)
     {
-      mock_handlers.push_back(boost::make_shared< StrictMock<Mock_capability_handler> >());
+      mock_handlers.push_back(ngs::make_shared< StrictMock<Mock_capability_handler> >());
     }
 
     std::vector<Capability_handler_ptr> handlers(mock_handlers.begin(), mock_handlers.end());
 
-    std::for_each(boost::begin(mock_handlers), boost::end(mock_handlers), default_is_supported<false>);
+    std::for_each(mock_handlers.begin(), mock_handlers.end(), default_is_supported<false>);
 
     sut.reset(new Capabilities_configurator(handlers));
   }
@@ -88,13 +81,13 @@ public:
 
   static void expect_get_capability(Mock_ptr mock)
   {
-    EXPECT_CALL(*mock, get(_));
+    EXPECT_CALL(*mock, get_void(_));
   }
 
 
   static void expect_commit(Mock_ptr mock)
   {
-    EXPECT_CALL(*mock, commit());
+    EXPECT_CALL(*mock, commit_void());
   }
 
 
@@ -104,7 +97,7 @@ public:
     std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_get_name(NAMES));
     std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_get_capability);
 
-    boost::scoped_ptr<Capabilities> cap(sut->get());
+    ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
     const Capabilities *null_cap = NULL;
     ASSERT_NE(null_cap, cap.get());
     ASSERT_EQ(static_cast<int>(supported_handlers.size()), cap->capabilities_size());
@@ -183,7 +176,7 @@ public:
 
   std::vector<Mock_ptr> mock_handlers;
 
-  boost::scoped_ptr<Capabilities_configurator> sut;
+  ngs::unique_ptr<Capabilities_configurator> sut;
 };
 
 
@@ -214,7 +207,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
 
   Capability * cap = caps->add_capabilities();
 
@@ -230,7 +223,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNoth
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCapsSucceded)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
@@ -249,7 +242,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCap
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
@@ -268,8 +261,8 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_w
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsFirst)
 {
-  boost::scoped_ptr<Capabilities> caps(new Capabilities());
-  std::vector<Mock_ptr>           supported_handlers;
+  ngs::unique_ptr<Capabilities> caps(new Capabilities());
+  std::vector<Mock_ptr> supported_handlers;
 
   std::for_each(mock_handlers.begin(), mock_handlers.end(), default_get_name(NAMES));
 

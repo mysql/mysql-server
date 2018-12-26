@@ -1,0 +1,51 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+[connection server2]
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+[connection server3]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+[connection server1]
+CREATE TABLE test.t1 ( a int primary key);
+include/rpl_sync.inc
+USE test;
+CREATE PROCEDURE insert_into_t1()
+BEGIN
+declare x INT;
+set x=0;
+while x<100 do
+insert into t1 values (x);
+set x=x+1;
+end  while;
+end$$
+
+----call procedure----
+call insert_into_t1();
+
+
+[connection server3]
+START GROUP_REPLICATION;
+
+[connection server1]
+
+[connection server2]
+
+#Validating the records in server3#
+[connection server3]
+include/rpl_sync.inc
+
+#Validating the records in server2#
+[connection server2]
+include/assert.inc ['Checking the number of records in test.t1']
+
+DROP TABLE test.t1;
+DROP PROCEDURE insert_into_t1;
+include/group_replication_end.inc

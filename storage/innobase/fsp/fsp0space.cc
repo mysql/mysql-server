@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -213,9 +213,7 @@ bool
 Tablespace::is_undo_tablespace(
 	ulint	id)
 {
-	return(id <= srv_undo_tablespaces_open
-	       && id != srv_sys_space.space_id()
-	       && id != srv_tmp_space.space_id());
+	return(srv_is_undo_tablespace(id));
 }
 
 /** Use the ADD DATAFILE path to create a Datafile object and add it to the

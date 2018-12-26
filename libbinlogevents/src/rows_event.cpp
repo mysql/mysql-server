@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,15 +91,17 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    memcpy(&m_table_id, post_start, 4);
-    m_table_id= le64toh(m_table_id);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+    m_table_id= le64toh(table_id);
     post_start+= 4;
   }
   else
   {
     BAPI_ASSERT(post_header_len == TABLE_MAP_HEADER_LEN);
-    memcpy(&m_table_id, post_start, 6);
-    m_table_id= le64toh(m_table_id);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
     post_start+= TM_FLAGS_OFFSET;
   }
 
@@ -121,6 +123,15 @@ Table_map_event::Table_map_event(const char *buf, unsigned int event_len,
   unsigned char const *const ptr_colcnt= ptr_tbllen + m_tbllen + 2;
   unsigned char *ptr_after_colcnt= (unsigned char*) ptr_colcnt;
   m_colcnt= get_field_length(&ptr_after_colcnt);
+
+  bytes_read= (unsigned int) ((ptr_after_colcnt + common_header_len) -
+                              (unsigned char *)buf);
+  /* Avoid reading out of buffer */
+  if (event_len <= bytes_read || event_len - bytes_read < m_colcnt)
+  {
+    m_coltype= NULL;
+    return;
+  }
 
   m_coltype= static_cast<unsigned char*>(bapi_malloc(m_colcnt, 16));
   m_dbnam= std::string((const char*)ptr_dblen  + 1, m_dblen);
@@ -154,7 +165,8 @@ Table_map_event::~Table_map_event()
     m_null_bits= NULL;
     bapi_free(m_field_metadata);
     m_field_metadata= NULL;
-    bapi_free(m_coltype);
+    if (m_coltype != NULL)
+      bapi_free(m_coltype);
     m_coltype= NULL;
 }
 
@@ -183,14 +195,16 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   if (post_header_len == 6)
   {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    memcpy(&m_table_id, post_start, 4);
-    m_table_id= le64toh(m_table_id);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 4);
+    m_table_id= le64toh(table_id);
     post_start+= 4;
   }
   else
   {
-    memcpy(&m_table_id, post_start, 6);
-    m_table_id= le64toh(m_table_id);
+    uint64_t table_id = 0;
+    memcpy(&table_id, post_start, 6);
+    m_table_id= le64toh(table_id);
     post_start+= ROWS_FLAGS_OFFSET;
   }
 
@@ -207,7 +221,10 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
     */
     memcpy(&var_header_len, post_start, sizeof(var_header_len));
     var_header_len= le16toh(var_header_len);
-    if (var_header_len < 2)
+    /* Check length and also avoid out of buffer read */
+    if (var_header_len < 2 ||
+        event_len < static_cast<unsigned int>(var_header_len +
+                                              (post_start - buf)))
       return;
 
     var_header_len-= 2;
@@ -254,6 +271,11 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
   unsigned char *ptr_after_width= (unsigned char*) ptr_width;
   m_width = get_field_length(&ptr_after_width);
   n_bits_len= (m_width + 7) / 8;
+  /* Avoid reading out of buffer */
+  if (ptr_after_width + n_bits_len > (const unsigned char *)(buf +
+                                                             event_len -
+                                                             post_header_len))
+    return;
   columns_before_image.reserve((m_width + 7) / 8);
   unsigned char *ch;
   ch= ptr_after_width;
@@ -282,11 +304,20 @@ Rows_event::Rows_event(const char *buf, unsigned int event_len,
 
   const unsigned char* ptr_rows_data= (unsigned char*) ptr_after_width;
 
-  size_t const data_size= event_len -
-                          (ptr_rows_data + common_header_len -
-                          (const unsigned char *) buf);
+  size_t const read_size= ptr_rows_data + common_header_len -
+                          (const unsigned char *) buf;
+  if (read_size > event_len)
+    return;
+  size_t const data_size= event_len - read_size;
 
-  row.assign(ptr_rows_data, ptr_rows_data + data_size + 1);
+  try
+  {
+    row.assign(ptr_rows_data, ptr_rows_data + data_size + 1);
+  }
+  catch (const std::bad_alloc &e)
+  {
+    row.clear();
+  }
   BAPI_ASSERT(row.size() == data_size + 1);
 }
 
@@ -314,12 +345,18 @@ Rows_query_event(const char *buf, unsigned int event_len,
   uint8_t const post_header_len=
     descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
 
+  m_rows_query= NULL;
+
   /*
    m_rows_query length is stored using only one byte, but that length is
    ignored and the complete query is read.
   */
-  int offset= common_header_len + post_header_len + 1;
-  int len= event_len - offset;
+  unsigned int offset= common_header_len + post_header_len + 1;
+  /* Avoid reading out of buffer */
+  if (offset > event_len)
+    return;
+
+  unsigned int len= event_len - offset;
   if (!(m_rows_query= static_cast<char*>(bapi_malloc(len + 1, 16))))
     return;
 

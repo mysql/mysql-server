@@ -160,7 +160,7 @@ Mysqlx.Sql.StmtExecute {
         stmt: "SELECT 1; /* %A% */"
 }
 -->noquiet
--->peerdisc 2000 2000
+-->peerdisc 2000 5000
 
 EOF
 

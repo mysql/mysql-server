@@ -371,7 +371,11 @@ BEGIN
 SELECT * FROM t1 ORDER BY 1;
 END |
 SET GLOBAL query_cache_size=1048576;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -399,6 +403,8 @@ a
 1
 2
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	0
@@ -429,6 +435,8 @@ SHOW STATUS LIKE 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
 SET GLOBAL query_cache_size= default;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 #cleanup
 DROP DATABASE bug19550875;
 -- Tracker : SESSION_TRACK_SCHEMA

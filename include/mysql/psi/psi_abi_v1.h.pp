@@ -550,6 +550,9 @@ typedef void (*start_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
 typedef void (*end_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, int rc);
+typedef void (*end_file_rename_wait_v1_t)
+  (struct PSI_file_locker *locker, const char *old_name,
+   const char *new_name, int rc);
 typedef PSI_stage_progress* (*start_stage_v1_t)
   (PSI_stage_key key, const char *src_file, int src_line);
 typedef PSI_stage_progress* (*get_current_stage_progress_v1_t)(void);
@@ -654,6 +657,9 @@ typedef void (*reprepare_prepared_stmt_v1_t)
   (PSI_prepared_stmt *prepared_stmt);
 typedef void (*execute_prepared_stmt_v1_t)
   (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
+typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
+                                            const char *text,
+                                            uint text_len);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 typedef void (*digest_end_v1_t)
@@ -764,6 +770,7 @@ struct PSI_v1
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;
   end_file_close_wait_v1_t end_file_close_wait;
+  end_file_rename_wait_v1_t end_file_rename_wait;
   start_stage_v1_t start_stage;
   get_current_stage_progress_v1_t get_current_stage_progress;
   end_stage_v1_t end_stage;
@@ -807,6 +814,7 @@ struct PSI_v1
   destroy_prepared_stmt_v1_t destroy_prepared_stmt;
   reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
   execute_prepared_stmt_v1_t execute_prepared_stmt;
+  set_prepared_stmt_text_v1_t set_prepared_stmt_text;
   digest_start_v1_t digest_start;
   digest_end_v1_t digest_end;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;

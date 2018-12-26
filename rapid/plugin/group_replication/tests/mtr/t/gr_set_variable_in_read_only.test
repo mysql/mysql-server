@@ -1,0 +1,200 @@
+################################################################################
+# This test proves that SET variable option works in Read only mode.
+#
+# Test:
+# 0. The test requires two server.
+# 1. Start GR with server1 as Primary and server2 as secondary.
+# 2. Change value of variable binlog_checksum on server2.
+# 3. Stop GR on server1.
+# 4. Assert server is in Read only mode on server1.
+# 5. Test changing value of variables.
+# 6. Cleanup.
+#
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1. Start GR with server1 as Primary and server2 as secondary.
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. Change value of variable binlog_checksum on server2.
+SET @binlog_checksum_save= @@GLOBAL.binlog_checksum;
+SET GLOBAL binlog_checksum=none;
+
+--echo
+--echo # 3. Stop GR on server1.
+--let $skip_reset_read_mode=1
+--source include/stop_group_replication.inc
+
+--let $wait_condition= SELECT count(*) = 1 FROM performance_schema.replication_group_members WHERE MEMBER_STATE = 'OFFLINE';
+--source include/wait_condition.inc
+
+--echo
+--echo # 4. Assert server is in Read only mode on server1.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1
+--let $assert_text= Assert that server is running in super read-only.
+--source include/assert.inc
+
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 1
+--let $assert_text= Assert that server is running in read-only.
+--source include/assert.inc
+
+--echo
+--echo # 5. Test changing value of variables.
+--disable_query_log
+## Save values
+SET @saved_gtid_mode = @@GLOBAL.gtid_mode;
+SET @saved_gtid_executed_compression_period = @@GLOBAL.gtid_executed_compression_period;
+SET @saved_binlog_checksum = @@GLOBAL.binlog_checksum;
+SET @saved_binlog_cache_size = @@GLOBAL.binlog_cache_size;
+SET @saved_binlog_direct_non_transactional_updates = @@GLOBAL.binlog_direct_non_transactional_updates;
+SET @saved_binlog_error_action = @@GLOBAL.binlog_error_action;
+SET @saved_binlog_format = @@GLOBAL.binlog_format;
+SET @saved_binlog_group_commit_sync_delay = @@GLOBAL.binlog_group_commit_sync_delay;
+SET @saved_binlog_group_commit_sync_no_delay_count = @@GLOBAL.binlog_group_commit_sync_no_delay_count;
+SET @saved_binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET @saved_binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
+SET @saved_binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
+
+SET @saved_gr_allow_local_lower_version_join = @@GLOBAL.group_replication_allow_local_lower_version_join;
+SET @saved_gr_auto_increment_increment = @@GLOBAL.group_replication_auto_increment_increment;
+SET @saved_gr_bootstrap_group = @@GLOBAL.group_replication_bootstrap_group;
+SET @saved_gr_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
+SET @saved_gr_compression_threshold = @@GLOBAL.group_replication_compression_threshold;
+SET @saved_gr_force_members = @@GLOBAL.group_replication_force_members;
+SET @saved_gr_group_name = @@GLOBAL.group_replication_group_name;
+SET @saved_gr_gtid_assignment_block_size = @@GLOBAL.group_replication_gtid_assignment_block_size;
+SET @saved_gr_ip_whitelist = @@GLOBAL.group_replication_ip_whitelist;
+SET @saved_gr_local_address = @@GLOBAL.group_replication_local_address;
+SET @saved_gr_group_seeds = @@GLOBAL.group_replication_group_seeds;
+SET @saved_gr_poll_spin_loops = @@GLOBAL.group_replication_poll_spin_loops;
+SET @saved_gr_recovery_complete_at = @@GLOBAL.group_replication_recovery_complete_at;
+SET @saved_gr_recovery_reconnect_interval = @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @saved_gr_recovery_retry_count = @@GLOBAL.group_replication_recovery_retry_count;
+SET @saved_gr_recovery_ssl_ca = @@GLOBAL.group_replication_recovery_ssl_ca;
+SET @saved_gr_recovery_ssl_capath = @@GLOBAL.group_replication_recovery_ssl_capath;
+SET @saved_gr_recovery_ssl_cert = @@GLOBAL.group_replication_recovery_ssl_cert;
+SET @saved_gr_recovery_ssl_cipher = @@GLOBAL.group_replication_recovery_ssl_cipher;
+SET @saved_gr_recovery_ssl_crl = @@GLOBAL.group_replication_recovery_ssl_crl;
+SET @saved_gr_recovery_ssl_crlpath = @@GLOBAL.group_replication_recovery_ssl_crlpath;
+SET @saved_gr_recovery_ssl_key = @@GLOBAL.group_replication_recovery_ssl_key;
+SET @saved_gr_recovery_ssl_verify_server_cert = @@GLOBAL.group_replication_recovery_ssl_verify_server_cert;
+SET @saved_gr_recovery_use_ssl = @@GLOBAL.group_replication_recovery_use_ssl;
+SET @saved_gr_single_primary_mode = @@GLOBAL.group_replication_single_primary_mode;
+SET @saved_gr_ssl_mode = @@GLOBAL.group_replication_ssl_mode;
+SET @saved_gr_start_on_boot = @@GLOBAL.group_replication_start_on_boot;
+SET @saved_gr_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
+SET @saved_gr_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
+SET @saved_gr_member_weight = @@GLOBAL.group_replication_member_weight;
+
+## SET values
+SET GLOBAL gtid_mode= ON_PERMISSIVE;
+SET GLOBAL gtid_executed_compression_period= 2000;
+
+SET GLOBAL binlog_checksum=CRC32;
+SET GLOBAL binlog_cache_size=4096;
+SET GLOBAL binlog_direct_non_transactional_updates=ON;
+SET GLOBAL binlog_error_action=IGNORE_ERROR;
+SET GLOBAL binlog_format=MIXED;
+SET GLOBAL binlog_group_commit_sync_delay=60;
+SET GLOBAL binlog_group_commit_sync_no_delay_count=60;
+SET GLOBAL binlog_order_commits=true;
+SET GLOBAL binlog_rows_query_log_events= ON;
+SET GLOBAL binlog_stmt_cache_size= 4096;
+
+SET GLOBAL group_replication_allow_local_lower_version_join= ON;
+SET GLOBAL group_replication_auto_increment_increment= 5;
+SET GLOBAL group_replication_bootstrap_group= ON;
+SET GLOBAL group_replication_components_stop_timeout= 10;
+SET GLOBAL group_replication_compression_threshold= 10;
+SET GLOBAL group_replication_force_members= "";
+SET GLOBAL group_replication_group_name= "aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa";
+SET GLOBAL group_replication_gtid_assignment_block_size= 2;
+SET GLOBAL group_replication_ip_whitelist= "AUTOMATIC";
+SET GLOBAL group_replication_local_address= "$saved_gr_local_address";
+SET GLOBAL group_replication_group_seeds= "$saved_gr_group_seeds";
+SET GLOBAL group_replication_poll_spin_loops= 10;
+SET GLOBAL group_replication_recovery_complete_at= "TRANSACTIONS_CERTIFIED";
+SET GLOBAL group_replication_recovery_reconnect_interval= 20;
+SET GLOBAL group_replication_recovery_retry_count= 5;
+SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cacert.pem';
+SET GLOBAL group_replication_recovery_ssl_capath= '';
+SET GLOBAL group_replication_recovery_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem';
+SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
+SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
+SET GLOBAL group_replication_recovery_ssl_crlpath= '';
+SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
+SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
+SET GLOBAl group_replication_single_primary_mode= OFF;
+SET GLOBAL group_replication_recovery_use_ssl= ON;
+SET GLOBAL group_replication_ssl_mode= "REQUIRED";
+SET GLOBAL group_replication_start_on_boot= ON;
+SET GLOBAL group_replication_transaction_size_limit= 100000;
+SET GLOBAL group_replication_unreachable_majority_timeout= 100000;
+SET GLOBAL group_replication_member_weight= 70;
+
+--echo
+--echo # 6. Cleanup.
+## Restore values for server1
+SET @@GLOBAL.gtid_mode = @saved_gtid_mode;
+SET @@GLOBAL.gtid_executed_compression_period = @saved_gtid_executed_compression_period;
+SET @@GLOBAL.binlog_checksum = @saved_binlog_checksum;
+SET @@GLOBAL.binlog_cache_size = @saved_binlog_cache_size;
+SET @@GLOBAL.binlog_direct_non_transactional_updates = @saved_binlog_direct_non_transactional_updates;
+SET @@GLOBAL.binlog_error_action = @saved_binlog_error_action;
+SET @@GLOBAL.binlog_format = @saved_binlog_format;
+SET @@GLOBAL.binlog_group_commit_sync_delay = @saved_binlog_group_commit_sync_delay;
+SET @@GLOBAL.binlog_group_commit_sync_no_delay_count = @saved_binlog_group_commit_sync_no_delay_count;
+SET @@GLOBAL.binlog_order_commits = @saved_binlog_order_commits;
+SET @@GLOBAL.binlog_rows_query_log_events = @saved_binlog_rows_query_log_events;
+SET @@GLOBAL.binlog_stmt_cache_size = @saved_binlog_stmt_cache_size;
+
+SET @@GLOBAL.group_replication_allow_local_lower_version_join= @saved_gr_allow_local_lower_version_join;
+SET @@GLOBAL.group_replication_auto_increment_increment= @saved_gr_auto_increment_increment;
+SET @@GLOBAL.group_replication_bootstrap_group= @saved_gr_bootstrap_group;
+SET @@GLOBAL.group_replication_components_stop_timeout= @saved_gr_components_stop_timeout;
+SET @@GLOBAL.group_replication_compression_threshold= @saved_gr_compression_threshold;
+SET @@GLOBAL.group_replication_single_primary_mode= @saved_gr_single_primary_mode;
+SET @@GLOBAL.group_replication_force_members= @saved_gr_force_members;
+SET @@GLOBAL.group_replication_group_name= @saved_gr_group_name;
+SET @@GLOBAL.group_replication_gtid_assignment_block_size= @saved_gr_gtid_assignment_block_size;
+SET @@GLOBAL.group_replication_ip_whitelist= @saved_gr_ip_whitelist;
+SET @@GLOBAL.group_replication_local_address= @saved_gr_local_address;
+SET @@GLOBAL.group_replication_group_seeds= @saved_gr_group_seeds;
+SET @@GLOBAL.group_replication_poll_spin_loops= @saved_gr_poll_spin_loops;
+SET @@GLOBAL.group_replication_recovery_complete_at= @saved_gr_recovery_complete_at;
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @saved_gr_recovery_reconnect_interval;
+SET @@GLOBAL.group_replication_recovery_retry_count= @saved_gr_recovery_retry_count;
+SET @@GLOBAL.group_replication_recovery_ssl_ca= @saved_gr_recovery_ssl_ca;
+SET @@GLOBAL.group_replication_recovery_ssl_capath= @saved_gr_recovery_ssl_capath;
+SET @@GLOBAL.group_replication_recovery_ssl_cert= @saved_gr_recovery_ssl_cert;
+SET @@GLOBAL.group_replication_recovery_ssl_cipher= @saved_gr_recovery_ssl_cipher;
+SET @@GLOBAL.group_replication_recovery_ssl_crl= @saved_gr_recovery_ssl_crl;
+SET @@GLOBAL.group_replication_recovery_ssl_crlpath= @saved_gr_recovery_ssl_crlpath;
+SET @@GLOBAL.group_replication_recovery_ssl_key= @saved_gr_recovery_ssl_key;
+SET @@GLOBAL.group_replication_recovery_ssl_verify_server_cert= @saved_gr_recovery_ssl_verify_server_cert;
+SET @@GLOBAL.group_replication_recovery_use_ssl= @saved_gr_recovery_use_ssl;
+SET @@GLOBAL.group_replication_ssl_mode= @saved_gr_ssl_mode;
+SET @@GLOBAL.group_replication_start_on_boot= @saved_gr_start_on_boot;
+SET @@GLOBAL.group_replication_transaction_size_limit= @saved_gr_transaction_size_limit;
+SET @@GLOBAL.group_replication_unreachable_majority_timeout= @saved_gr_unreachable_majority_timeout;
+SET @@GLOBAL.group_replication_member_weight= @saved_gr_member_weight;
+
+--enable_query_log
+
+## Restore values for server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.binlog_checksum= @binlog_checksum_save;
+--source ../inc/group_replication_end.inc

@@ -22,6 +22,8 @@ SUBPARTITION subpart24),
 PARTITION thousands VALUES LESS THAN (10000)
 (SUBPARTITION subpart31,
 SUBPARTITION subpart32));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SET GLOBAL innodb_file_per_table = ON;
 CREATE TABLE t2 (a INT, b INT)
 ENGINE = InnoDB
@@ -35,11 +37,15 @@ SUBPARTITION subpart22 TABLESPACE=`s``1`),
 PARTITION thousands VALUES LESS THAN (10000)
 (SUBPARTITION subpart31 DATA DIRECTORY 'MYSQL_TMP_DIR',
 SUBPARTITION subpart32 DATA DIRECTORY 'MYSQL_TMP_DIR' TABLESPACE `innodb_file_per_table`));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION tenthousands VALUES LESS THAN (20000));
 ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported. Reason: Partition specific operations do not yet support LOCK/ALGORITHM. Try ALGORITHM=DEFAULT.
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION tenthousands VALUES LESS THAN (20000));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 # Only allow tablespace name as ident, not text. I.e. no 'single' quotes.
 ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
@@ -60,6 +66,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = "innodb_system");
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION thirtythousands VALUES LESS THAN (40000)
 TABLESPACE = `innodb_file_per_table`);
@@ -99,9 +107,13 @@ SUBPARTITION p40k_2 TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_T
 SET GLOBAL innodb_file_per_table = OFF;
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fiftythousands VALUES LESS THAN (60000));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION sixtythousands VALUES LESS THAN (70000)
 TABLESPACE = `innodb_system`);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION seventythousands VALUES LESS THAN (80000)
 TABLESPACE = `innodb_file_per_table`);
@@ -121,6 +133,8 @@ ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION ninetythousands VALUES LESS THAN (100000)
 (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table`,
 SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 FLUSH TABLES;
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
@@ -388,6 +402,8 @@ SUBPARTITION seventythousandssp1 ENGINE = InnoDB),
 PARTITION ninetythousands VALUES LESS THAN (100000)
 (SUBPARTITION p90k_1 ENGINE = InnoDB,
 SUBPARTITION p90k_2 TABLESPACE = innodb_system ENGINE = InnoDB)) */;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 CREATE TABLE `t2` (
 `a` int(11) DEFAULT NULL,
 `b` int(11) DEFAULT NULL
@@ -403,6 +419,8 @@ SUBPARTITION subpart22 TABLESPACE = `s``1` ENGINE = InnoDB),
 PARTITION thousands VALUES LESS THAN (10000)
 (SUBPARTITION subpart31 ENGINE = InnoDB,
 SUBPARTITION subpart32 ENGINE = InnoDB)) */;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 === information_schema.innodb_sys_tables  and innodb_sys_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t1#p#fiftythousands#sp#fiftythousandssp0	s1	161	5	Dynamic	0	General
@@ -531,6 +549,8 @@ CREATE TABLE ti
 ENGINE=INNODB
 PARTITION BY HASH( MONTH(tr_date) )
 PARTITIONS 6;
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 DROP TABLE t1,ti;
 DROP TABLESPACE ts1;
 #

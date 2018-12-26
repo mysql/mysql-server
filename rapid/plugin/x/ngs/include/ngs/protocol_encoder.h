@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,15 +26,12 @@
 #include "ngs/protocol/output_buffer.h"
 #include "ngs/error_code.h"
 #include "ngs/memory.h"
-#include "ngs/ngs_types.h"
 #include "protocol_fwd.h"
 
 #include <vector>
 #include <map>
-#include <boost/shared_ptr.hpp>
-#include <boost/ref.hpp>
-#include <boost/function.hpp>
-#include <boost/core/noncopyable.hpp>
+#include "ngs_common/smart_ptr.h"
+#include "ngs_common/chrono.h"
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/notice_builder.h"
 #include "ngs/protocol/row_builder.h"
@@ -50,28 +47,36 @@ namespace ngs
   typedef uint32_t Prepared_stmt_id;
 
 
-  class Protocol_encoder : private boost::noncopyable
+  class Protocol_encoder
   {
   public:
-    typedef boost::function<void (int error)> Error_handler;
+   enum Notice_type {
+     k_notice_warning = 1,
+     k_notice_session_variable_changed = 2,
+     k_notice_session_state_changed = 3
+   };
 
-    Protocol_encoder(const boost::shared_ptr<Connection_vio> &socket,
+    typedef ngs::function<void (int error)> Error_handler;
+
+    Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
                      Error_handler ehandler,
-                     IProtocol_monitor &pmon);
+                     Protocol_monitor_interface &pmon);
 
     virtual ~Protocol_encoder();
 
     bool send_result(const Error_code &result);
 
+    bool send_ok();
     bool send_ok(const std::string &message);
     bool send_init_error(const Error_code& error_code);
 
-    void send_local_notice(uint32_t type, const std::string &data, bool force_flush = false);
+    void send_local_notice(Notice_type type, const std::string &data,
+                           bool force_flush = false);
     virtual void send_rows_affected(uint64_t value);
 
-    void send_global_notice(uint32_t type, const std::string &data);
+    void send_global_notice(Notice_type type, const std::string &data);
 
-    void send_local_warning(uint32_t type, const std::string &data, bool force_flush = false);
+    void send_local_warning(const std::string &data, bool force_flush = false);
 
     void send_auth_ok(const std::string &data);
     void send_auth_continue(const std::string &data);
@@ -104,13 +109,16 @@ namespace ngs
     virtual bool send_message(int8_t type, const Message &message, bool force_buffer_flush = false);
     virtual void on_error(int error);
 
-    virtual IProtocol_monitor &get_protocol_monitor();
+    virtual Protocol_monitor_interface &get_protocol_monitor();
 
     static void log_protobuf(const char *direction_name, Request &request);
     static void log_protobuf(const char *direction_name, const Message *request);
     static void log_protobuf(int8_t type);
 
   private:
+    Protocol_encoder(const Protocol_encoder &);
+    Protocol_encoder &operator=(const Protocol_encoder &);
+
     enum Frame_scope
     {
       FRAME_SCOPE_LOCAL,
@@ -124,9 +132,9 @@ namespace ngs
     // Temporary solution for all io
     static const Pool_config m_default_pool_config;
     ngs::Page_pool m_pool;
-    boost::shared_ptr<Connection_vio> m_socket;
+    ngs::shared_ptr<Connection_vio> m_socket;
     Error_handler m_error_handler;
-    IProtocol_monitor *m_protocol_monitor;
+    Protocol_monitor_interface *m_protocol_monitor;
 
     Output_buffer_unique_ptr m_buffer;
 

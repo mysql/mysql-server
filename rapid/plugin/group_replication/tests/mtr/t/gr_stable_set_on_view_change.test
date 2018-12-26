@@ -1,0 +1,82 @@
+################################################################################
+# This test checks that the stable set is updated on ONLINE members when a new
+# member joins.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Set DEBUG point to ensure the certification garbage collector is not
+#    executed. Bootstrap start a group on M1.
+# 2. Check the stable set is empty on M1.
+# 3. Add some data on M1.
+# 4. Start GR on M2.
+# 5. On M1, validate that the stable set now contains the transactions previous
+#    to M2 entry.
+# 6. Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--let $group_replication_group_name= 6d387320-185d-11e6-bdf4-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Start the first member
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo #
+--echo # Check the stable set is empty
+--echo #
+
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $assert_text= 'Transactions_committed_all_members should be empty'
+--let $assert_cond= "$transactions_committed_all_members" = ""
+--source include/assert.inc
+
+--echo #
+--echo # Add some data to the group
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo # Add a new guy to the group
+--echo #
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # The stable set now contains the transactions previous to member 2 entry
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# The Stable set update happens before the execution of the View Change event
+--let $wait_condition= SELECT @@GLOBAL.GTID_EXECUTED = "6d387320-185d-11e6-bdf4-0800200c9a66:1-4"
+--source include/wait_condition.inc
+
+--let $transactions_committed_all_members= query_get_value(SELECT Transactions_committed_all_members from performance_schema.replication_group_member_stats, Transactions_committed_all_members, 1)
+--let $assert_text= 'Transactions_committed_all_members should have the transactions previous to member 2 entry'
+--let $assert_cond= "$transactions_committed_all_members" = "6d387320-185d-11e6-bdf4-0800200c9a66:1-3"
+--source include/assert.inc
+
+--echo #
+--echo # Cleaning
+--echo #
+
+DROP TABLE t1;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+
+--source ../inc/group_replication_end.inc

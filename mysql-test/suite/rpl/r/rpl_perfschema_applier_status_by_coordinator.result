@@ -55,6 +55,7 @@ include/stop_slave.inc
 drop table t;
 reset master;
 reset slave;
+reset master;
 
 # Restarting servers and setting up MTS now. Since, SQL thread and
 # coordinator are the same and follow same code path, we can skip

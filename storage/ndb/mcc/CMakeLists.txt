@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,11 @@ if(NOT DEFAULT_MYSQL_HOME)
   enable_testing()
 endif()
 
-option(WITH_MCC "Include MySQL Cluster Configurator" ON)
+IF(WITHOUT_SERVER)
+  option(WITH_MCC "Include MySQL Cluster Configurator" OFF)
+ELSE()
+  option(WITH_MCC "Include MySQL Cluster Configurator" ON)
+ENDIF()
 
 if(NOT WITH_MCC)
   message(STATUS "Skipping mcc")

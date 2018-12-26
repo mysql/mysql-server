@@ -23,27 +23,30 @@
 namespace xpl
 {
 
-class Update_statement_builder: public Statement_builder
+class Update_statement_builder: public Crud_statement_builder
 {
 public:
   typedef ::Mysqlx::Crud::Update Update;
 
-  Update_statement_builder(const Update &msg, Query_string_builder &qb);
+  explicit Update_statement_builder(const Expression_generator &gen)
+      : Crud_statement_builder(gen) {}
+
+  void build(const Update &msg) const;
 
 protected:
   typedef ::Mysqlx::Crud::UpdateOperation Operation_item;
   typedef ::google::protobuf::RepeatedPtrField<Operation_item> Operation_list;
   typedef Operation_list::const_iterator Operation_iterator;
 
-  virtual void add_statement() const;
-
-  void add_operation(const Operation_list &operation) const;
+  void add_operation(const Operation_list &operation, const bool is_relational) const;
   void add_table_operation(const Operation_list &operation) const;
   void add_table_operation_items(Operation_iterator begin, Operation_iterator end) const;
-  void add_document_operation(const Operation_list &operation, const std::string &doc_column) const;
-  void add_document_operation_item(const Operation_item &item, Builder &qb, bool &is_id_synch, int &opeartion_id) const;
-
-  const Update &m_msg;
+  void add_document_operation(const Operation_list &operation) const;
+  void add_document_operation_item(const Operation_item &item, int &opeartion_id) const;
+  void add_member(const Operation_item &item) const;
+  void add_value(const Operation_item &item) const;
+  void add_member_with_value(const Operation_item &item) const;
+  void add_field_with_value(const Operation_item &item) const;
 };
 
 } // namespace xpl

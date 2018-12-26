@@ -1369,7 +1369,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 Doc: Set item and merge with another document
 send Mysqlx.Crud.Update {
   collection {
@@ -1434,7 +1436,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 Doc: Merge with another document and set item
 send Mysqlx.Crud.Update {
   collection {
@@ -1499,7 +1503,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 Doc: merge with NULL
 send Mysqlx.Crud.Update {
   collection {

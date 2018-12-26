@@ -1,6 +1,6 @@
 #! /bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,41 +30,45 @@ get_option () {
 }
 
 install_validate_password_sql_file () {
-    local dir
     local initfile
-    if [ -d /var/lib/mysql-files ]; then
-        dir=/var/lib/mysql-files
-    else
-        dir=/tmp
-    fi
-    initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
-    chown @MYSQLD_USER@:@MYSQLD_USER@ "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
+    initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
+    chmod a+r "$initfile"
+    echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> $initfile
     echo $initfile
 }
 
 install_db () {
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
 
+    # No automatic init wanted
+    [ -e /etc/sysconfig/mysql ] && . /etc/sysconfig/mysql
+    [ -n "$NO_INIT" ] && exit 0
+
     local instance=$1
     datadir=$(get_option mysqld datadir "/var/lib/mysql${instance:+-$instance}" $instance)
-    log=$(get_option mysqld log-error "/var/log/mysql${instance:+-$instance}.log" $instance)
+    log=$(get_option mysqld 'log[_-]error' "/var/log/mysql${instance:+-$instance}.log" $instance)
 
     # Restore log, dir, perms and SELinux contexts
 
-    [ -d "$datadir" ] || install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    if [ ! -d "$datadir" -a ! -h "$datadir" -a "x$(dirname "$datadir")" = "x/var/lib" ]; then
+	install -d -m 0751 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$datadir" || exit 1
+    fi
 
-    [ -e $log ] || touch $log
-    chmod 0640 $log
-    chown @MYSQLD_USER@:@MYSQLD_USER@ $log || exit 1
+    if [ ! -e "$log" -a ! -h "$log" -a x$(dirname "$log") = "x/var/log" ]; then
+	case $(basename "$log") in
+	    mysql*.log) install /dev/null -m0640 -o@MYSQLD_USER@ -g@MYSQLD_USER@ "$log" ;;
+	    *) ;;
+	esac
+    fi
 
     if [ -x /usr/sbin/restorecon ]; then
         /usr/sbin/restorecon "$datadir"
-        /usr/sbin/restorecon $log
+        [ -e "$log" ] && /usr/sbin/restorecon "$log"
 	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
                 /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-                /sbin/restorecon $dir
+                /sbin/restorecon -r $dir
             fi
 	done
     fi

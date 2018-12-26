@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -144,6 +144,7 @@ void test_noop()
   PSI_server->end_file_wait(NULL, 0);
   PSI_server->start_file_close_wait(NULL, NULL, 0);
   PSI_server->end_file_close_wait(NULL, 0);
+  PSI_server->end_file_rename_wait(NULL, NULL, NULL, 0);
   PSI_server->start_stage(1, NULL, 0);
 
   PSI_stage_progress *progress;
@@ -229,6 +230,6 @@ int main(int, char **)
 
   MY_INIT("pfs_noop-t");
   test_noop();
-  return 0;
+  return (exit_status());
 }
 

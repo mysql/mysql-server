@@ -15,6 +15,8 @@
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 # Prepare playground by creating tables, views,
 # routines and triggers used in tests.
 drop table if exists t0, t1, t2, t3, t4, t5;

@@ -1085,7 +1085,8 @@ LET $wait_condition=
 
 SELECT object_type, object_name, lock_type, lock_duration, lock_status
   FROM performance_schema.metadata_locks
-  WHERE object_type LIKE 'TABLESPACE';
+  WHERE object_type LIKE 'TABLESPACE'
+  ORDER BY lock_status;
 
 LET $wait_condition=
   SELECT COUNT(*) = 1 FROM performance_schema.events_waits_current

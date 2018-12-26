@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -278,6 +278,7 @@ row_build_index_entry_low(
 			continue;
 		}
 
+
 		if ((!ind_field || ind_field->prefix_len == 0)
 		    && (!dfield_is_ext(dfield)
 			|| dict_index_is_clust(index))) {
@@ -298,7 +299,8 @@ row_build_index_entry_low(
 		stored off-page. */
 		ut_ad(col->ord_part);
 
-		if (ext) {
+		if (ext && !dict_col_is_virtual(col)) {
+
 			/* See if the column is stored externally. */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);

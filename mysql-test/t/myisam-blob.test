@@ -6,6 +6,7 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
+SET SQL_MODE='';
 #
 # Test bugs in the MyISAM code with blobs
 #
@@ -48,4 +49,5 @@ UPDATE IGNORE t1 set data=repeat('a',18*1024*1024);
 select length(data) from t1;
 drop table t1;
 
+SET SQL_MODE=default;
 # End of 4.1 tests

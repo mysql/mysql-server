@@ -1,0 +1,189 @@
+################################################################################
+# This test verifies that if the number of members in a group is below
+# than the value set for AUTO_INCREMENT_INCREMENT variable on every member,
+# then there won't be any duplication of auto_increment value.
+# And, there won't be any errors and rollback due to this.
+#
+# Test:
+# 0. The test requires four servers: M1, M2, M3 and M4.
+# 1. Start group replication on M1.
+# 2. Executing the same transaction on all members (almost) in parallel, while
+#    starting and stopping GR on M2, M3 and M4. There should be no error.
+# 3. Start group replication on all members and wait for sync.
+# 4. Validate members state is equal.
+# 5. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/not_windows.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 4
+--source ../inc/group_replication.inc
+
+--echo ############################################################
+--echo # 1. Start group replication on member1
+--echo ############################################################
+--connection server1
+--let $rpl_reconnect_server_number= 1
+--source ../inc/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+
+
+--echo ############################################################
+--echo # 2. Executing the same transaction on all members (almost)
+--echo #    in parallel, while starting and stopping group
+--echo #    replication on members 2,3 and 4, there should be
+--echo #    no error
+--echo ############################################################
+
+--let $max_transactions= 60
+--let $mid_transactions= 30
+
+--let $transactions= 1
+--let $rpl_num_server= 1
+while ($transactions <= $max_transactions)
+{
+  ## start or stop group_replication after every 10 transactions
+  --let $trans_mod_10= `SELECT $transactions % 10`
+  --let $i= 1
+
+  ## insert or start group_replication before it reaches mid
+  if ($transactions <= $mid_transactions)
+  {
+    while ($i <= $rpl_num_server)
+    {
+      --connection server$i
+      --send_eval INSERT INTO t1 VALUES(NULL)
+      --inc $i
+    }
+
+    if (!$trans_mod_10)
+    {
+      --inc $rpl_num_server
+      --connection server$rpl_num_server
+      --disable_query_log
+      --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+      --enable_query_log
+      --send START GROUP_REPLICATION
+      --let $group_replication_member_state= ONLINE
+    }
+  }
+
+  ## insert or stop group_replication after it reaches mid
+  --let $rpl_stop_num_server= 0
+  --let $rpl_stop_server_flag= 0
+  if ($transactions > $mid_transactions)
+  {
+    --let $rpl_stop_num_server= $rpl_num_server
+    if (!$trans_mod_10)
+    {
+      --connection server$rpl_num_server
+      --send STOP GROUP_REPLICATION
+      --let $group_replication_member_state= OFFLINE
+      --let $rpl_stop_server_flag = 1
+      --dec $rpl_stop_num_server
+     }
+
+     # insert on members where group_replication is running
+     while ($i <= $rpl_stop_num_server)
+     {
+       --connection server$i
+       --send_eval INSERT INTO t1 VALUES(NULL)
+       --inc $i
+     }
+  }
+
+  --let $i= 1
+  while ($i <= $rpl_num_server)
+  {
+    --connection server$i
+    # verify that there should not be any error
+    --error 0
+    --reap
+    --inc $i
+  }
+
+  if (!$trans_mod_10)
+  {
+    ## verify member state
+    --source ../inc/gr_wait_for_member_state.inc
+
+    --let $i= 1
+    while ($i <= $rpl_num_server)
+    {
+      --disconnect server$i
+      --let $_group_server_port= \$SERVER_MYPORT_$i
+      --connect (server$i, 127.0.0.1,root,,test,$_group_server_port,)
+      --connection server$i
+
+      ## verify auto-inc variables
+      ## stop group_replication resets auto_increment_increment and
+      ## auto_increment_offset to its default value i.e. 1. So if
+      ## stop group_replication was executed verify auto_increment_increment
+      ## and auto_increment_offset is equal to 1, otherwise for start
+      ## group_replication auto_increment_increment should equal to 7
+      ## and auto_increment_offset should be equal to server_id.
+      --let $is_rpl_stop_server= `SELECT $rpl_stop_server_flag && ($rpl_stop_num_server + 1 = $i)`
+      if ($is_rpl_stop_server)
+      {
+        --let $assert_text= The value of auto_increment_increment for server$i should be 1
+        --let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 1
+        --source include/assert.inc
+
+        --let $assert_text= The value of auto_increment_offset for server$i should be 1
+        --let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = 1
+        --source include/assert.inc
+
+        --source include/assert_and_disable_read_only.inc
+      }
+
+      if (!$is_rpl_stop_server)
+      {
+        --let $assert_text= The value of auto_increment_increment for server$i should be 7
+        --let $assert_cond= [SELECT @@GLOBAL.auto_increment_increment] = 7
+        --source include/assert.inc
+
+        --let $assert_text= The value of auto_increment_offset for server$i should be $i
+        --let $assert_cond= [SELECT @@GLOBAL.auto_increment_offset] = $i
+        --source include/assert.inc
+
+      }
+      --inc $i
+    }
+  }
+
+  if ($rpl_stop_server_flag == 1)
+  {
+    --dec $rpl_num_server
+    --let $rpl_stop_server_flag= 0
+    --connection server$rpl_num_server
+  }
+
+  --inc $transactions
+}
+
+--echo ############################################################
+--echo # 3. Start group replication on all members and wait for sync
+--echo ############################################################
+--let $i= 2
+while ($i <= $rpl_server_count)
+{
+  --connection server$i
+  --source include/start_group_replication.inc
+  --inc $i
+}
+
+# sync all members
+--source include/rpl_sync.inc
+
+--echo ############################################################
+--echo # 4. Validate members state is equal.
+--echo ############################################################
+--let $diff_tables= server1:t1, server2:t1, server3:t1, server4:t1
+--source include/diff_tables.inc
+
+--echo ############################################################
+--echo # 5. Clean up and reset auto_inc variables value
+--echo ############################################################
+DROP TABLE t1;
+--source ../inc/group_replication_end.inc

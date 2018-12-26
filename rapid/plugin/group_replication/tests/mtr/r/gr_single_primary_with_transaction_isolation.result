@@ -1,0 +1,142 @@
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("Transaction isolation level .tx_isolation. is set to SERIALIZABLE, which is not compatible with Group Replication");
+SET SQL_LOG_BIN=1;
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+#
+# 1) START GROUP IN SINGLE PRIMARY MODE AND CHECK IF FLAG SET TO FALSE IN
+# `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+# TO IGNORE THE FAULTY CONFIGURATION OF `tx_isolate`
+#
+include/gr_single_primary_with_transaction_isolation.inc
+# CONFIGURE SERVER 1
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# CONFIGURE SERVER 2
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= TRUE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
+# AND VERIFY PRESENCE OF THE DATA ON SERVER 2
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+SELECT * FROM first;
+c1
+2
+4
+DROP TABLE first;
+#
+# 2) START GROUP IN MULTI PRIMARY MODE AND CHECK IF FLAG SET TO FALSE IN
+# `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+# TO IGNORE THE FAULTY CONFIGURATION OF `tx_isolate`
+#
+include/gr_single_primary_with_transaction_isolation.inc
+# CONFIGURE SERVER 1
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# CONFIGURE SERVER 2
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
+# AND VERIFY PRESENCE OF THE DATA ON SERVER 2
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+SELECT * FROM first;
+c1
+2
+4
+DROP TABLE first;
+#
+# 3) START GROUP IN MULTI PRIMARY MODE AND CHECK IF FLAG SET TO TRUE IN
+# `group_replication_enforce_update_everywhere_checks` FORCES THE PLUGIN
+# TO THROW AN ERROR WHEN THERE IS FAULTY CONFIGURATION OF `tx_isolate`
+#
+include/gr_single_primary_with_transaction_isolation.inc
+# CONFIGURE SERVER 1
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# CONFIGURE SERVER 2
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='SERIALIZABLE';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'SERIALIZABLE')
+# AND VERIFY PRESENCE OF THE DATA ON SERVER 2
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+ERROR HY000: The table does not comply with the requirements by an external plugin.
+DROP TABLE first;
+#
+# 4) START GROUP IN MULTI PRIMARY MODE AND
+# WITH CORRECT CONFIGURATION OF `tx_isolate` then the flag
+# `group_replication_enforce_update_everywhere_checks` doesn't matter
+#
+include/gr_single_primary_with_transaction_isolation.inc
+# CONFIGURE SERVER 1
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# CONFIGURE SERVER 2
+SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
+# AND VERIFY PRESENCE OF THE DATA ON SERVER 2
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+SELECT * FROM first;
+c1
+2
+4
+DROP TABLE first;
+#
+# 5) START GROUP IN MULTI PRIMARY MODE AND
+# WITH CORRECT CONFIGURATION OF `tx_isolate` then the flag
+# `group_replication_enforce_update_everywhere_checks` doesn't matter
+#
+include/gr_single_primary_with_transaction_isolation.inc
+# CONFIGURE SERVER 1
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# CONFIGURE SERVER 2
+SET GLOBAL group_replication_enforce_update_everywhere_checks= FALSE;
+SET GLOBAL group_replication_single_primary_mode= FALSE;
+SET SESSION tx_isolation='REPEATABLE-READ';
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+# WRITE DATA ON SERVER 1 (ISOLATION LEVEL 'REPEATABLE-READ')
+# AND VERIFY PRESENCE OF THE DATA ON SERVER 2
+CREATE TABLE first(c1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO first(c1) VALUES(2),(4);
+SELECT * FROM first;
+c1
+2
+4
+DROP TABLE first;
+# CLEANUP
+include/group_replication_end.inc

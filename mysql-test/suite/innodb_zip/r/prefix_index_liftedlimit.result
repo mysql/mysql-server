@@ -30,9 +30,9 @@ col_1_varchar = REPEAT("c", 4000)
 0
 1
 ALTER TABLE worklog5743 ROW_FORMAT=REDUNDANT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 ALTER TABLE worklog5743 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 DROP TABLE worklog5743;
 CREATE TABLE worklog5743 (
@@ -797,6 +797,8 @@ col_1_text = REPEAT("a", 200)	col_2_text  = REPEAT("o", 200)
 select @@session.tx_isolation;
 @@session.tx_isolation
 REPEATABLE-READ
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)
@@ -805,6 +807,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)
@@ -867,6 +871,8 @@ SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 select @@session.tx_isolation;
 @@session.tx_isolation
 READ-UNCOMMITTED
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SELECT col_1_text = REPEAT("b", 200) , col_2_text = REPEAT("o", 200) FROM
 worklog5743;
 col_1_text = REPEAT("b", 200)	col_2_text = REPEAT("o", 200)

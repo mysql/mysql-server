@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1713,7 +1713,7 @@ class PT_transaction_access_mode : public PT_transaction_characteristic
 
 public:
   explicit PT_transaction_access_mode(bool is_read_only)
-  : super("tx_read_only", (int32) is_read_only)
+  : super("transaction_read_only", (int32) is_read_only)
   {}
 };
 
@@ -1724,7 +1724,7 @@ class PT_isolation_level : public PT_transaction_characteristic
 
 public:
   explicit PT_isolation_level(enum_tx_isolation level)
-  : super("tx_isolation", (int32) level)
+  : super("transaction_isolation", (int32) level)
   {}
 };
 

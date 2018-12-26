@@ -1,0 +1,101 @@
+--source include/have_null_audit_plugin.inc
+--source include/not_embedded.inc
+--source include/have_debug.inc
+
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_ERROR' cannot be aborted.");
+
+let $expected_extension= so;
+if(`SELECT CONVERT(@@version_compile_os USING latin1)
+           IN ("Win32","Win64","Windows")`)
+{
+   let $expected_extension= dll;
+}
+
+--echo #
+--echo # Bug #22142209: MY_MESSAGE FAILS TO ABORT MYSQL_AUDIT_SERVER_STARTUP_CLASS EVENT
+--echo #
+
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Shutdown the server
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Load the plugin at startup and abort on STARTUP with default message
+--replace_regex /\.dll/.so/
+--error 1
+--exec $MYSQLD_CMD --loose-console $AUDIT_NULL_OPT --plugin-load=null_audit=adt_null.$expected_extension --null_audit_event_order_check="MYSQL_AUDIT_SERVER_STARTUP_STARTUP;;ABORT_RET" > $error_log 2>&1
+
+--echo # Search for default abort message
+let SEARCH_FILE= $error_log;
+let SEARCH_PATTERN= \[ERROR\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\.;
+--source include/search_pattern_in_file.inc
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Load the plugin at startup and abort on STARTUP event with custom message
+--replace_regex /\.dll/.so/
+--error 1
+--exec $MYSQLD_CMD --loose-console $AUDIT_NULL_OPT --plugin-load=null_audit=adt_null.$expected_extension --null_audit_event_order_check="MYSQL_AUDIT_SERVER_STARTUP_STARTUP;;ABORT_RET" --null_audit_abort_message="Abort message custom" > $error_log 2>&1
+
+--echo # Search for custom abort message
+let SEARCH_PATTERN= \[ERROR\] Abort message custom;
+--source include/search_pattern_in_file.inc
+
+--error 0,1
+--remove_file $error_log
+
+--echo # Startup the server
+--exec echo "restart" > $restart_file
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--echo #
+--echo # Bug #22136709: INFINITE RECURSION BY CALLING MY_MESSAGE FROM
+--echo #   MYSQL_AUDIT_GENERAL_CLASS HANDLER
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+SET @@GLOBAL.null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
+SET @@GLOBAL.null_audit_abort_message= "Abort message.";
+
+--echo # Try to enter error state recursively 2 times.
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 2;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(user1_con,localhost,wrong_root,);
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+
+--echo # Try to enter error state infinitely. my_message calls cause stack overrun.
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 10000;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--disable_result_log
+--error ER_ACCESS_DENIED_ERROR
+connect(user1_con,localhost,wrong_root,);
+--enable_result_log
+SELECT @@null_audit_event_order_check_consume_ignore_count;
+
+# Clean up global variables
+SET @@GLOBAL.null_audit_event_order_check= NULL;
+SET @@GLOBAL.null_audit_abort_message= NULL;
+# Let's hope 10000 calls will overrun the stack frame
+SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc
+
+--echo End of 5.7 tests
+
+--echo # cleanup
+UNINSTALL PLUGIN null_audit;

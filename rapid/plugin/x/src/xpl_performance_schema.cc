@@ -17,12 +17,8 @@
 * 02110-1301  USA
 */
 
-#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
-// Needed for importing PERFORMANCE_SCHEMA plugin API.
-#define MYSQL_DYNAMIC_PLUGIN 1
-#endif // WIN32
-
 #include "xpl_performance_schema.h"
+#include "ngs/memory.h"
 
 
 #ifdef HAVE_PSI_INTERFACE
@@ -60,6 +56,34 @@ static PSI_rwlock_info all_x_rwlocks[] = {
   { &KEY_rwlock_x_client_list_clients, "client_list_clients", 0 },
 };
 
+
+PSI_socket_key KEY_socket_x_tcpip = PSI_NOT_INSTRUMENTED;
+PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
+PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
+
+#ifdef HAVE_PSI_SOCKET_INTERFACE
+
+static PSI_socket_info all_x_sockets[] =
+{
+  { &KEY_socket_x_tcpip, "tcpip_socket", 0 },
+  { &KEY_socket_x_unix, "unix_socket", 0 },
+  { &KEY_socket_x_client_connection, "client_connection", 0 },
+
+};
+
+#endif // HAVE_PSI_SOCKET_INTERFACE
+
+PSI_memory_key KEY_memory_x_objects = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
+PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
+
+static PSI_memory_info all_x_memory[] =
+{
+    { &KEY_memory_x_objects, "objects", PSI_FLAG_GLOBAL },
+    { &KEY_memory_x_recv_buffer, "recv_buffer", PSI_FLAG_GLOBAL },
+    { &KEY_memory_x_send_buffer, "send_buffer", PSI_FLAG_GLOBAL },
+};
+
 #endif // HAVE_PSI_INTERFACE
 
 
@@ -73,6 +97,10 @@ void xpl_init_performance_schema()
   mysql_mutex_register(category, all_x_mutexes, array_elements(all_x_mutexes));
   mysql_cond_register(category, all_x_conds, array_elements(all_x_conds));
   mysql_rwlock_register(category, all_x_rwlocks, array_elements(all_x_rwlocks));
+  mysql_socket_register(category, all_x_sockets, array_elements(all_x_sockets));
+  mysql_memory_register(category, all_x_memory, array_elements(all_x_memory));
+
+  ngs::x_psf_objects_key = KEY_memory_x_objects;
 
 #endif // HAVE_PSI_INTERFACE
 }

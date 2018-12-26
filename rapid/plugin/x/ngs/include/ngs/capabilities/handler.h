@@ -20,7 +20,7 @@
 #ifndef _NGS_CAPABILITIES_HANDLER_H_
 #define _NGS_CAPABILITIES_HANDLER_H_
 
-#include <boost/shared_ptr.hpp>
+#include "ngs_common/smart_ptr.h"
 #include <string>
 
 #include "ngs_common/protocol_protobuf.h"
@@ -28,7 +28,7 @@
 
 namespace ngs
 {
-  class Client;
+  class Client_interface;
 
 
   class Capability_handler
@@ -47,7 +47,7 @@ namespace ngs
   };
 
 
-  typedef boost::shared_ptr<Capability_handler> Capability_handler_ptr;
+  typedef ngs::shared_ptr<Capability_handler> Capability_handler_ptr;
 
 
 } // namespace ngs

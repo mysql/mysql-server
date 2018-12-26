@@ -1,0 +1,522 @@
+CREATE TABLE t1 (c1 TINYINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 SMALLINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 MEDIUMINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 INTEGER NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1 (c1 BIGINT NOT NULL, c2 CHAR(5)) PARTITION BY RANGE ( c1 ) (
+PARTITION p0 VALUES LESS THAN (10),
+PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+INSERT INTO t1 VALUES(0,'abc'),(5,'abc'),(10,'abc'),(15,'abc'),(20,'abc'),(25,'abc'),(30,'abc'),(35,'abc');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (29));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (31));
+ERROR HY000: Reorganize of range partitions cannot change total ranges except for last partition where it can extend the range
+ALTER TABLE t1 REORGANIZE PARTITION p1,p2 INTO (
+PARTITION m0 VALUES LESS THAN (30));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+10	abc
+15	abc
+20	abc
+25	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION m0 VALUES LESS THAN (30) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+ALTER TABLE t1 DROP PARTITION m1;
+ERROR HY000: Error in list of partitions to DROP
+ALTER TABLE t1 DROP PARTITION m0;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+0	abc
+5	abc
+30	abc
+35	abc
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` char(5) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( c1)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = ENGINE,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = ENGINE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

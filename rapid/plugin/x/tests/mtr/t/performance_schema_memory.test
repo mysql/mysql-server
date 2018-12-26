@@ -1,0 +1,118 @@
+## Tests detecting presence of xplugin objects in PERFORMANCE_SCHEMA memory related tables.
+
+## Preamble
+--source ../include/have_performance_schema_threads.inc
+--source ../include/xplugin_preamble.inc
+
+# Tests
+
+--write_file $MYSQL_TMP_DIR/performance_schema_memory.tmp
+-->quiet
+
+update performance_schema.setup_instruments set ENABLED='YES'
+
+-->echo See for existence of required events in the tables
+
+-->macro Read_status_values %TABLE% %EVENT% %VAR_SET_NO%
+-->sql
+SET 
+@MY_COUNT_ALLOC%VAR_SET_NO% = (SELECT SUM(COUNT_ALLOC) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_COUNT_FREE%VAR_SET_NO% = (SELECT SUM(COUNT_FREE) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_SUM_NUMBER_OF_BYTES_ALLOC%VAR_SET_NO% = (SELECT SUM(SUM_NUMBER_OF_BYTES_ALLOC) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_SUM_NUMBER_OF_BYTES_FREE%VAR_SET_NO% = (SELECT SUM(SUM_NUMBER_OF_BYTES_FREE) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_LOW_COUNT_USED%VAR_SET_NO% = (SELECT SUM(LOW_COUNT_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_CURRENT_COUNT_USED%VAR_SET_NO% = (SELECT SUM(CURRENT_COUNT_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_HIGH_COUNT_USED%VAR_SET_NO% = (SELECT SUM(HIGH_COUNT_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_LOW_NUMBER_OF_BYTES_USED%VAR_SET_NO% = (SELECT SUM(LOW_NUMBER_OF_BYTES_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_CURRENT_NUMBER_OF_BYTES_USED%VAR_SET_NO% = (SELECT SUM(CURRENT_NUMBER_OF_BYTES_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%'),
+@MY_HIGH_NUMBER_OF_BYTES_USED%VAR_SET_NO% = (SELECT SUM(HIGH_NUMBER_OF_BYTES_USED) FROM performance_schema.%TABLE% where EVENT_NAME = 'memory/mysqlx/%EVENT%');
+-->endsql
+-->endmacro
+
+-->sql
+select distinct event_name from performance_schema.memory_summary_global_by_event_name where event_name like '%mysqlx%' order by event_name;
+-->endsql
+
+
+-->echo memory_summary_global_by_event_name 'memory/mysqlx/objects'
+
+-->sql
+TRUNCATE TABLE performance_schema.memory_summary_global_by_event_name;
+-->endsql
+
+-->callmacro Read_status_values	memory_summary_global_by_event_name	objects	1
+
+-->sql
+SELECT IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+-->endsql
+
+-->echo second query, more allocations and memory used expected
+
+-->callmacro Read_status_values	memory_summary_global_by_event_name	objects	2
+
+-->sql
+SELECT IF(@MY_COUNT_ALLOC2 >= @MY_COUNT_FREE2, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC2 >= @MY_SUM_NUMBER_OF_BYTES_FREE2, "SUCCESS", "ERROR");
+SELECT IF(@MY_COUNT_ALLOC2 > @MY_COUNT_ALLOC1, "SUCCESS", "ERROR");
+SELECT IF(@MY_COUNT_FREE2 > @MY_COUNT_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC2 > @MY_SUM_NUMBER_OF_BYTES_ALLOC1, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_FREE2 > @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_HIGH_NUMBER_OF_BYTES_USED2 >= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+-->endsql
+
+-->echo memory_summary_global_by_event_name 'memory/mysqlx/recv_buffer'
+
+-->sql
+TRUNCATE TABLE performance_schema.memory_summary_global_by_event_name;
+-->endsql
+
+-->callmacro Read_status_values	memory_summary_global_by_event_name	recv_buffer	1
+
+-->sql
+SELECT IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+-->endsql
+
+-->echo memory_summary_global_by_event_name 'memory/mysqlx/send_buffer'
+
+-->sql
+TRUNCATE TABLE performance_schema.memory_summary_global_by_event_name;
+-->endsql
+
+-->callmacro Read_status_values	memory_summary_global_by_event_name	send_buffer	1
+
+-->sql
+SELECT IF(@MY_COUNT_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_HIGH_NUMBER_OF_BYTES_USED1 > 0, "SUCCESS", "ERROR");
+SELECT IF(@MY_COUNT_ALLOC1 >= @MY_COUNT_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_SUM_NUMBER_OF_BYTES_ALLOC1 >= @MY_SUM_NUMBER_OF_BYTES_FREE1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 <= @MY_HIGH_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "SUCCESS", "ERROR");
+-->endsql
+
+
+EOF
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/performance_schema_memory.tmp 2>&1
+## Cleanup
+--remove_file $MYSQL_TMP_DIR/performance_schema_memory.tmp
+
+
+## Postamble
+UNINSTALL PLUGIN mysqlx;

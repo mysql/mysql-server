@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,8 +24,16 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
 				mi_rfirst.c mi_rlast.c mi_rnext.c mi_rnext_same.c mi_rprev.c mi_rrnd.c
 				mi_rsame.c mi_rsamepos.c mi_scan.c mi_search.c mi_static.c mi_statrec.c
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
-				rt_split.c sort.c sp_key.c mi_extrafunc.h myisamdef.h
+				rt_split.c sort.cc sp_key.c mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.c)
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
+IF(HAVE_CAST_FUNCTION_TYPE)
+  ADD_COMPILE_FLAGS(
+    mi_write.c
+    myisamlog.c
+    COMPILE_FLAGS "-Wno-cast-function-type")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
   STORAGE_ENGINE 
@@ -34,24 +42,34 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
 
 TARGET_LINK_LIBRARIES(myisam mysys)
 
+IF (WITH_EMBEDDED_SERVER)
+  SET(MYISAM_NOPFS myisam_embedded)
+  TARGET_LINK_LIBRARIES(myisam_embedded mysys)
+ELSE()
+  ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
+  ADD_DEPENDENCIES(myisam_nopfs GenError)
+  TARGET_LINK_LIBRARIES(myisam_nopfs mysys)
+  SET(MYISAM_NOPFS myisam_nopfs)
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys_ssl)
+TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)
 SET_TARGET_PROPERTIES(myisam_ftdump PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
-TARGET_LINK_LIBRARIES(myisamchk myisam mysys_ssl)
+TARGET_LINK_LIBRARIES(myisamchk ${MYISAM_NOPFS} mysys_ssl)
 SET_TARGET_PROPERTIES(myisamchk PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
-TARGET_LINK_LIBRARIES(myisamlog myisam ${LIBSOCKET})
+TARGET_LINK_LIBRARIES(myisamlog ${MYISAM_NOPFS} ${LIBSOCKET})
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
-TARGET_LINK_LIBRARIES(myisampack myisam mysys_ssl)
+TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
 SET_TARGET_PROPERTIES(myisampack PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(WITH_UNIT_TESTS AND FALSE)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
-  TARGET_LINK_LIBRARIES(mi_test1 myisam mysys_ssl)
+  TARGET_LINK_LIBRARIES(mi_test1 ${MYISAM_NOPFS} mysys_ssl)
   SET_TARGET_PROPERTIES(mi_test1 PROPERTIES LINKER_LANGUAGE CXX)
 
   ADD_EXECUTABLE(mi_test2 mi_test2.c)

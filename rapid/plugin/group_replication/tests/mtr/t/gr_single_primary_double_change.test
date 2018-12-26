@@ -1,0 +1,184 @@
+###############################################################################
+# This test validates that when the primary has conflict resolution enabled, a
+# new joiner will detect conflicting transactions.
+#
+# Test:
+# 0. Test requires 3 servers.
+# 1. Configure server 3 recovery user, so it is the only viable donor for
+#    server1 on step #4
+# 2. Stop server 2 applier thread and insert data server 1. This will prevent
+#    server2 from turning off certification once it is elected as primary.
+# 3. Stop server 1 (primary) and validate thar server 2 is the new primary. If
+#    not skip test, server 2 needs to be the primary to test continue.
+# 4. Configure server 1 with recovery credentials from server 3 and start group
+#    replication.
+# 5. Insert confliction transaction on server 2. Since conflict detection is
+#    still enabled on both the primary and the joiner, the transaction must be
+#    certified as being concurrent in all members.
+# 6. Clean up.
+#
+###############################################################################
+
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source ../inc/group_replication.inc
+
+--let $recovery_user= recovery_user
+--let $recovery_password= recovery_password
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+set session sql_log_bin=1;
+
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# next primary should be server2 in step3, so setting member weight as 70
+# higher then default member_weight value of 50.
+--eval SET GLOBAL group_replication_member_weight= 70
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Configure server 3 recovery user, so it is the only
+--echo # viable donor for server1 on step #4
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--let $member3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Making sure this is the primary server
+--let $group_replication_expected_uuid= $member1_uuid
+--source ../inc/gr_wait_primary_member_uuid.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo
+--echo ###########################################################
+--echo # 2. Stop server 2 applier thread and insert data server 1.
+--echo # This will prevent server2 from turning off certification
+--echo # once it is elected as primary.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source ../inc/gr_stop_applier_sql_thread.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES(1,1);
+
+--echo
+--echo ###########################################################
+--echo # 3. Stop server 1 (primary) and validate thar server 2 is
+--echo # the new primary. If not skip test, server 2 needs to be
+--echo # the primary to test continue.
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# server1 is stopped, so only server2 and 3 should be in the group
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+# Make sure server2 is the primary now
+--let $assert_text= Verify group_replication_primary_member is SERVER_UUID
+--let $assert_cond= "[SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME= \'group_replication_primary_member\', VARIABLE_VALUE, 1]" = "$member2_uuid"
+--source include/assert.inc
+
+
+--echo
+--echo ###########################################################
+--echo # 4. Configure server 1 with recovery credentials from server
+--echo # 3 and start group replication.
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--disable_warnings
+--eval CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--enable_warnings
+
+--source include/start_group_replication.inc
+
+--echo
+--echo ###########################################################
+--echo # 5. Insert conflicting transaction on server 2. Since
+--echo # conflict detection is still enabled on both the primary
+--echo # and the joiner, the transaction must be certified as
+--echo # being concurrent in all members.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--error 3101
+INSERT INTO t1 VALUES(1,2);
+
+--source ../inc/gr_start_applier_sql_thread.inc
+
+#Waiting for the data to be applied
+--let $wait_condition= SELECT COUNT(*)=1 FROM t1
+--source include/wait_condition.inc
+
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats, Count_conflicts_detected, 1)
+--let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
+--let $assert_cond= $negatively_certified = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT Count_conflicts_detected=1 FROM performance_schema.replication_group_member_stats
+--source include/wait_condition.inc
+
+--echo
+--echo ###########################################################
+--echo # 6. Clean up.
+SET SESSION sql_log_bin= 0;
+SET GLOBAL read_only= 0;
+--eval DROP USER $recovery_user
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+SET GLOBAL group_replication_member_weight= DEFAULT;
+
+--source ../inc/group_replication_end.inc
+

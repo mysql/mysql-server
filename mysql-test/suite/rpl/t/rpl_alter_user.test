@@ -1,0 +1,103 @@
+#
+# === Purpose ===
+# This test script verifies that in a replication environment,
+# the slave correctly parses the hash password in ALTER USER or
+# SET PASSWORD query. It verifies that the slave doesn't
+# encounter an error in parsing a hash string which contains a
+# single quote. The fix ensures escaping the hash string correctly
+# depending on the server mode. Since this issue is sporadic,
+# we have used a debug flag to deterministically generate a
+# hash string which contains a single quote.
+#
+# === Related bugs and worklogs ===
+#
+# Bug#20228478: ON REPLICATION SLAVE, ALTER USER FAILING FOR USER
+#               WITH SHA256_PASSWORD PLUGIN
+#
+
+--source include/have_ssl_communication.inc
+--source include/have_openssl.inc
+--source include/have_ssl.inc
+--source include/master-slave.inc
+--source include/have_debug.inc
+
+#Scenario 1:
+# When NO_BACKSLASH_ESCAPES mode is not set on both master and the slave.
+SET @old_sql_mode_master= @@session.sql_mode;
+SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES',''));
+
+--connection slave
+SET @old_sql_mode_slave= @@session.sql_mode;
+SET @@session.sql_mode= (select replace(@@session.sql_mode,'NO_BACKSLASH_ESCAPES',''));
+
+--connection master
+SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
+CREATE USER 'user1'@'localhost' IDENTIFIED WITH sha256_password AS 'auth_string1';
+# Save master position
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
+# Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 2
+--source include/show_binlog_events.inc
+# Check the binlog contents on the slave
+--source include/sync_slave_sql_with_master.inc
+--source include/show_binlog_events.inc
+# Reset the flag
+--connection master
+SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
+
+# Scenario 2:
+# Make sure that we are successfully able to login to the slave from a
+# user whose password is changed and NO_BACKSLASH_ESCAPES mode is not
+# set on both master and slave. The hash string generated here may or
+# may not contain a single quote within it.
+--connection master
+SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret1';
+--source include/sync_slave_sql_with_master.inc
+--connect(con1, localhost, user1,'auth_secret1',,,,SSL)
+SELECT USER();
+disconnect con1;
+
+# Scenario 3:
+# When NO_BACKSLASH_ESCAPES mode is set on both master and the slave.
+--connection master
+SET GLOBAL DEBUG= '+d,force_hash_string_with_quote';
+SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
+--connection slave
+SET @@session.sql_mode= 'NO_BACKSLASH_ESCAPES';
+--connection master
+# Save master position
+--let $saved_master_pos= query_get_value('SHOW MASTER STATUS', Position, 1)
+SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
+# Check the binlog contents on the master
+--let $binlog_start= $saved_master_pos
+--let $binlog_limit= 2
+--source include/show_binlog_events.inc
+# Check the binlog contents on the slave
+--source include/sync_slave_sql_with_master.inc
+--source include/show_binlog_events.inc
+# Reset the flag
+--connection master
+SET GLOBAL DEBUG= '-d,force_hash_string_with_quote';
+
+# Scenario 4:
+# Make sure that we are successfully able to login to the slave
+# after the password is changed for a user and NO_BACKSLASH_ESCAPES
+# mode is set on both master and slave. This scenario will generate
+# the hash string which may or may not contain a single quote.
+SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret2';
+--source include/sync_slave_sql_with_master.inc
+--connect(con1, localhost, user1,'auth_secret2',,,,SSL)
+SELECT USER();
+disconnect con1;
+
+#Restore the old sql_mode at the master and the slave
+--connection slave
+SET @@session.sql_mode= @old_sql_mode_slave;
+--connection master
+SET @@session.sql_mode= @old_sql_mode_master;
+
+#cleanup
+DROP USER 'user1'@'localhost';
+--source include/rpl_end.inc

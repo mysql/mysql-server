@@ -55,6 +55,7 @@ IS_GRANTABLE	varchar(3)	NO
 SELECT table_catalog, table_schema, table_name, privilege_type
 FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
 table_catalog	table_schema	table_name	privilege_type
+def	mysql	user	SELECT
 def	sys	sys_config	SELECT
 ######################################################################
 # Testcase 3.2.11.2+3.2.11.3+3.2.11.4:

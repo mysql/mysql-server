@@ -1,0 +1,21 @@
+
+############################################################
+# 1. Create a group with 3 members.
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 2. If majority is reachable can't
+#    change group_replication_force_members.
+SET sql_log_bin=0;
+call mtr.add_suppression("force_members can only be updated when Group Replication is running*");
+SET sql_log_bin=1;
+ERROR 42000: Variable 'group_replication_force_members' can't be set to the value of '127.0.0.1:10000'
+include/assert.inc [group_replication_force_members is empty]
+
+############################################################
+# 3. Clean up.
+include/group_replication_end.inc

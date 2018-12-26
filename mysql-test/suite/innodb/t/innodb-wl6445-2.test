@@ -180,7 +180,7 @@ let SEARCH_FILE= $error_log;
 --echo #    This confirms server is not automatically started in read-only mode.
 #----------------------------------------------------------------------------------
 # Detailed explanations of what happens are placed nearby the checks.
---error 1
+--error 1,42
 --exec $MYSQLD_CMD --core-file --loose-console > $error_log 2>&1
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".

@@ -1,0 +1,63 @@
+###############################################################################
+# Bug#25950554:THE FUNCTION RESET_CONNECTION DOES NOT RESET WRITE SET IN      #
+#              WRITESET_SESSION.                                              #
+#                                                                             #
+# Problem: When we do reset_connection which has the same effect as           #
+#          auto-reconnect, the write set session history is not cleared,      #
+#          which in case of auto-reconnect does get cleared.                  #
+#                                                                             #
+# Fix:     Reset the write set session history when mysql_reset_connection    #
+#          is called.                                                         #
+#                                                                             #
+# Steps to reproduce:                                                         #
+#                                                                             #
+# 1) Set the variable transaction_write_set_extraction to 'XXHASH64' which is #
+#    necessary to be able to change the value of the variable                 #
+#    binlog_transaction_dependency_tracking to WRITESET or WRITESET_SESSION   #
+#                                                                             #
+# 2) Set the variable binlog_transaction_dependency_tracking to WRITESET for  #
+#    few coming transactions.                                                 #
+#                                                                             #
+# 3) Create a sample table and do few inserts.                                #
+#                                                                             #
+# 4) Change the value of binlog_transaction_dependency_tracking to            #
+#    WRITESET_SESSION, to check if the write set session history is cleared   #
+#    or not after calling reset_connection.                                   #
+#                                                                             #
+# 5) Call reset_connection.                                                   #
+#                                                                             #
+# 6) Check if the logical timestamp has the correct entry after the reset     #
+#    connection. This will mean that the write set history is cleared after a #
+#    to reset_connection.                                                     #
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+
+--let $saved_binlog_transaction_dependency_tracking= `SELECT @@GLOBAL.binlog_transaction_dependency_tracking`
+--let $saved_transaction_write_set_extraction= `SELECT @@GLOBAL.transaction_write_set_extraction`
+
+SET GLOBAL transaction_write_set_extraction= 'XXHASH64';
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
+
+CREATE TABLE t1(id INT, PRIMARY KEY (id));
+FLUSH LOGS;
+INSERT INTO t1(id) VALUES(1);
+INSERT INTO t1(id) VALUES(2);
+
+SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET_SESSION';
+INSERT INTO t1(id) VALUES(3);
+INSERT INTO t1(id) VALUES(4);
+
+reset_connection;
+
+--source include/save_binlog_position.inc
+
+INSERT INTO t1(id) VALUES(5);
+
+--let $logical_timestamps= 4 5
+--source include/assert_logical_timestamps.inc
+
+# Clean up
+--eval SET GLOBAL binlog_transaction_dependency_tracking= $saved_binlog_transaction_dependency_tracking
+--eval SET GLOBAL transaction_write_set_extraction= $saved_transaction_write_set_extraction
+DROP TABLE t1;

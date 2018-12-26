@@ -1,0 +1,413 @@
+#
+# WL#9636: Rename tx_{read_only,isolation} variables to transaction_*
+#
+# Setup.
+SET @session_transaction_isolation = @@SESSION.transaction_isolation;
+SET @global_transaction_isolation = @@GLOBAL.transaction_isolation;
+# Creating connections
+connect  con0,localhost,root,,;
+connection con0;
+SET SESSION AUTOCOMMIT = OFF;
+connect  con1, localhost, root,,;
+connection con1;
+SET SESSION AUTOCOMMIT = OFF;
+connection default;
+# Creating tables
+CREATE TABLE t1 (a int PRIMARY KEY, b int) ENGINE=INNODB;
+INSERT INTO t1 VALUES(2, 2);
+INSERT INTO t1 VALUES(4, 4);
+INSERT INTO t1 VALUES(6, 6);
+INSERT INTO t1 VALUES(8, 8);
+INSERT INTO t1 VALUES(16, 16);
+INSERT INTO t1 VALUES(18, 18);
+INSERT INTO t1 VALUES(20, 20);
+INSERT INTO t1 VALUES(22, 22);
+INSERT INTO t1 VALUES(24, 24);
+# Testing for value READ-UNCOMMITTED
+connection con0;
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
+connection con1;
+SET SESSION transaction_isolation = 'READ-UNCOMMITTED';
+set binlog_format=mixed;
+# Testing WHERE on keys using IN clause
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a IN (2,4,6,8) FOR UPDATE;
+a	b
+2	2
+4	4
+6	6
+8	8
+UPDATE t1 SET b = 10 WHERE a IN (2,4,6,8);
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	16
+18	18
+20	20
+22	22
+24	24
+INSERT INTO t1 VALUES(1, 1);
+INSERT INTO t1 VALUES(3, 3);
+SELECT * FROM t1;
+a	b
+1	1
+2	10
+3	3
+4	10
+6	10
+8	10
+16	16
+18	18
+20	20
+22	22
+24	24
+COMMIT;
+connection con0;
+DELETE FROM t1 WHERE a = 1 OR a = 3;
+COMMIT;
+# Testing WHERE on keys using # on even rows
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	16
+18	18
+20	20
+22	22
+24	24
+UPDATE t1 SET b = 10 WHERE a % 2 = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	10
+18	10
+20	10
+22	10
+24	10
+INSERT INTO t1 VALUES(23, 23);
+INSERT INTO t1 VALUES(25, 25);
+SELECT * FROM t1;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	10
+18	10
+20	10
+22	10
+23	23
+24	10
+25	25
+COMMIT;
+connection con0;
+COMMIT;
+# Testing for value READ-COMMITTED
+connection con0;
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+connection con1;
+SET SESSION transaction_isolation = 'READ-COMMITTED';
+# Testing WHERE on keys using % on even rows
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	10
+18	10
+20	10
+22	10
+24	10
+UPDATE t1 SET b = 11 WHERE a % 2 = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	10
+4	10
+6	10
+8	10
+16	10
+18	10
+20	10
+22	10
+23	23
+24	10
+25	25
+INSERT INTO t1 VALUES(5, 5);
+INSERT INTO t1 VALUES(7, 7);
+SELECT * FROM t1;
+a	b
+2	10
+4	10
+5	5
+6	10
+7	7
+8	10
+16	10
+18	10
+20	10
+22	10
+23	23
+24	10
+25	25
+COMMIT;
+connection con0;
+COMMIT;
+# Testing for value REPEATABLE-READ
+connection con0;
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+connection con1;
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+# Testing WHERE on keys using % on even rows
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+a	b
+2	11
+4	11
+6	11
+8	11
+16	11
+18	11
+20	11
+22	11
+24	11
+UPDATE t1 SET b = 12 WHERE a % 2 = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	11
+4	11
+5	5
+6	11
+7	7
+8	11
+16	11
+18	11
+20	11
+22	11
+23	23
+24	11
+25	25
+INSERT INTO t1 VALUES(9, 9);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES(13, 13);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expected error "Lock wait timeout"
+SELECT * FROM t1;
+a	b
+2	11
+4	11
+5	5
+6	11
+7	7
+8	11
+16	11
+18	11
+20	11
+22	11
+23	23
+24	11
+25	25
+COMMIT;
+connection con0;
+COMMIT;
+# Testing WHERE on keys using IN clause
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0 FOR UPDATE;
+a	b
+5	5
+7	7
+23	23
+25	25
+UPDATE t1 SET b = 13 WHERE a IN (2,4,6,8,10,12,14,16,18,20,22,24,26) = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	12
+4	12
+5	5
+6	12
+7	7
+8	12
+16	12
+18	12
+20	12
+22	12
+23	23
+24	12
+25	25
+INSERT INTO t1 VALUES(9, 9);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES(13, 13);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expected error "Lock wait timeout"
+SELECT * FROM t1;
+a	b
+2	12
+4	12
+5	5
+6	12
+7	7
+8	12
+16	12
+18	12
+20	12
+22	12
+23	23
+24	12
+25	25
+COMMIT;
+connection con0;
+COMMIT;
+# Testing WHERE on keys using IN clause
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a IN (2,4,6,8) = 0 FOR UPDATE;
+a	b
+5	13
+7	13
+16	12
+18	12
+20	12
+22	12
+23	13
+24	12
+25	13
+UPDATE t1 SET b = 14 WHERE a IN (2,4,6,8) = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+a	b
+2	12
+4	12
+5	13
+6	12
+7	13
+8	12
+16	12
+18	12
+20	12
+22	12
+23	13
+24	12
+25	13
+INSERT INTO t1 VALUES(9, 9);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES(13, 13);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+Expected error "Lock wait timeout"
+SELECT * FROM t1;
+a	b
+2	12
+4	12
+5	13
+6	12
+7	13
+8	12
+16	12
+18	12
+20	12
+22	12
+23	13
+24	12
+25	13
+COMMIT;
+connection con0;
+COMMIT;
+# Testing for value SERIALIZABLE
+connection con0;
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+connection con1;
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+# Testing WHERE on keys using # on even rows
+connection con0;
+START TRANSACTION;
+SELECT * FROM t1 WHERE a % 2 = 0 FOR UPDATE;
+a	b
+2	12
+4	12
+6	12
+8	12
+16	14
+18	14
+20	14
+22	14
+24	14
+UPDATE t1 SET b = 15 WHERE a % 2 = 0;
+connection con1;
+START TRANSACTION;
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES(15, 15);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+INSERT INTO t1 VALUES(17, 17);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+COMMIT;
+connection con0;
+COMMIT;
+# Session data integrity check & GLOBAL Value check
+SET GLOBAL transaction_isolation = 'READ-UNCOMMITTED';
+connect  con_int1,localhost,root,,;
+connection con_int1;
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+READ-UNCOMMITTED
+READ-UNCOMMITTED Expected
+SET SESSION transaction_isolation = 'SERIALIZABLE';
+connect  con_int2,localhost,root,,;
+connection con_int2;
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+READ-UNCOMMITTED
+READ-UNCOMMITTED Expected
+SET SESSION transaction_isolation = 'REPEATABLE-READ';
+connection con_int2;
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+REPEATABLE-READ
+REPEATABLE-READ Expected
+connection con_int1;
+SELECT @@SESSION.transaction_isolation;
+@@SESSION.transaction_isolation
+SERIALIZABLE
+SERIALIZABLE Expected
+SELECT @@GLOBAL.transaction_isolation;
+@@GLOBAL.transaction_isolation
+READ-UNCOMMITTED
+READ-UNCOMMITTED Expected
+connection default;
+disconnect con_int1;
+disconnect con_int2;
+# Cleanup
+SET @@SESSION.transaction_isolation = @session_transaction_isolation;
+SET @@GLOBAL.transaction_isolation = @global_transaction_isolation;
+connection default;
+disconnect con0;
+disconnect con1;
+DROP TABLE t1;

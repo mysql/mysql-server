@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -501,6 +501,9 @@ public:
     @param THD thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
+
+  /* Set true when the Master_info object was cleared by a RESET SLAVE */
+  bool reset;
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

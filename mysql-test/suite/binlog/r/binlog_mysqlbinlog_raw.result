@@ -1,0 +1,20 @@
+RESET MASTER;
+include/stop_dump_threads.inc
+# Step-1: Execute some dummy statements.
+CREATE TABLE t1(i int);
+INSERT INTO t1 values (1);
+# Step-2: Execute MYSQL_BINLOG with --stop-never and --raw option.
+# Step-3: Wait till dump thread transfer is completed.
+# Step-4: copy binary log file that is downloaded till now before
+#         stopping dump thread that is serving mysqlbinlog
+#         --stop-never process.
+# Step-5: kill the dump thread serving the mysqlbinlog --stop-never process
+include/stop_dump_threads.inc
+# Step-6: Cleanup the data, so that it is ready for reapply.
+DROP TABLE t1;
+RESET MASTER;
+# Step-7: Apply the data that we got from --stop-never process.
+# Step-8: Check that the data is there.
+include/assert.inc [Check the table t1 exists and contains one tuple with value 1.]
+# Step-9: Cleanup
+DROP TABLE t1;

@@ -35,9 +35,6 @@
 connect(master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect(master3,127.0.0.1,root,,test,$MASTER_MYPORT,);
 --connection master
-# Create atleast one binary log, otherwise purge logs command, show binary
-# logs command do not hit the DEBUG_SYNC points.
-FLUSH LOGS;
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acquiring_dump_threads_LOCK_thd_data';
 
@@ -46,6 +43,9 @@ SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acqui
 --let $iter=2
 while ($iter)
 {
+  # Create atleast one binary log, otherwise purge logs command, show binary
+  # logs command do not hit the DEBUG_SYNC points.
+  FLUSH LOGS;
   --connection slave
   --source include/stop_slave.inc
   --source include/start_slave.inc
@@ -66,7 +66,7 @@ while ($iter)
   # Thread 3
   --connection master2
   SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go_parked2';
-  --send PURGE BINARY LOGS BEFORE '9999-12-31'
+  --send PURGE BINARY LOGS BEFORE '2038-01-19'
 
   --connection master
   echo "Wait_for parked2";

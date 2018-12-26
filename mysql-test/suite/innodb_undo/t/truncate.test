@@ -10,6 +10,9 @@
 --source include/big_test.inc
 
 
+--let $restart_parameters="restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=35"
+--source include/restart_mysqld.inc
+
 ################################################################################
 # Test-case will test following scenarios.
 #
@@ -64,7 +67,7 @@ print OUT "let \$size1='$size1,$size2';\n";
 close(OUT);
 EOF
 SET GLOBAL innodb_fast_shutdown=0;
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
 --source $CHECKFILE
 perl;
 ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
@@ -75,9 +78,13 @@ open(OUT, ">$ENV{CHECKFILE}") || die;
 print OUT "let \$size2='$size1,$size2';\n";
 close(OUT);
 EOF
+
 --source $CHECKFILE
 
 if ($size1 == $size2)
 {
    echo Truncation did not happen: $size1 == $size2;
 }
+
+--let $restart_parameters=
+--source include/start_mysqld.inc

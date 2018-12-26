@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -23,26 +23,26 @@
 #include <stdint.h>
 #include "ngs/error_code.h"
 
-namespace ngs
-{
-  class Protocol_encoder;
+namespace ngs {
+class Protocol_encoder;
 }
 
-namespace xpl
-{
-  class Sql_data_context;
+namespace xpl {
+class Sql_data_context;
 
-  namespace notices
-  {
-    ngs::Error_code send_warnings(Sql_data_context &da, ngs::Protocol_encoder &proto,
-      bool skip_single_error = false);
+namespace notices {
+ngs::Error_code send_warnings(Sql_data_context &da,
+                              ngs::Protocol_encoder &proto,
+                              bool skip_single_error = false);
+ngs::Error_code send_client_id(ngs::Protocol_encoder &proto,
+                               uint64_t client_id);
+ngs::Error_code send_account_expired(ngs::Protocol_encoder &proto);
+ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder &proto,
+                                         uint64_t i);
+ngs::Error_code send_rows_affected(ngs::Protocol_encoder &proto, uint64_t i);
+ngs::Error_code send_message(ngs::Protocol_encoder &proto,
+                             const std::string &message);
+}  //  namespace notices
+}  // namespace xpl
 
-    ngs::Error_code send_client_id(ngs::Protocol_encoder &proto, uint64_t client_id);
-    ngs::Error_code send_account_expired(ngs::Protocol_encoder &proto);
-    ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder &proto, uint64_t i);
-    ngs::Error_code send_rows_affected(ngs::Protocol_encoder &proto, uint64_t i);
-    ngs::Error_code send_message(ngs::Protocol_encoder &proto, const std::string &message);
-  }
-}
-
-#endif
+#endif  // _XPL_NOTICES_H_

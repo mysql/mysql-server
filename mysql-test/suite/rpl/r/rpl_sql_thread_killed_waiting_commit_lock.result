@@ -23,7 +23,7 @@ FLUSH TABLES WITH READ LOCK;
 SET DEBUG_SYNC= 'now SIGNAL signal.commit_continue';
 # Wait until sql thread enters "Waiting for commit lock" state
 # Kill sql thread
-include/wait_for_slave_sql_error.inc [errno=1317, 1756]
+include/wait_for_slave_sql_error.inc [errno=1317]
 # Restart sql thread to let it finish the replication
 SET @@GLOBAL.DEBUG= '-d,dbug.reached_commit';
 UNLOCK TABLES;

@@ -1,0 +1,170 @@
+# This test checks if the option slave-preserve-commit-order
+# ensures that the transactions commit order is the same as
+# transactions are logged on relay log.
+#
+# We will do some inserts of continious integers into t1 table
+# ensuring that all these transactions can be applied in parallel
+# on remote server.
+#
+# After being applied on both remote servers, we re-apply
+# the transactions on those servers on another table which contains
+# an additional auto increment column (id).
+# If the trasactions are written in order into the remote server
+# binary log, then after reapplying there will be no rows where
+# t.id != t.a.
+#
+--source include/only_mts_slave_parallel_workers.inc
+--source ../inc/have_group_replication_plugin.inc
+
+--echo
+--echo ############################################################
+--echo # 1.  Setup a new group with three members.
+--echo #
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--echo
+--echo # Create four connections to server 1 so that transactions executed
+--echo # on server 1 can be parallel, what would not happen if we only use
+--echo # one client.
+--echo #
+--connect(server1_1, localhost,root,,,$MASTER_MYPORT)
+--connect(server1_2, localhost,root,,,$MASTER_MYPORT)
+--connect(server1_3, localhost,root,,,$MASTER_MYPORT)
+--connect(server1_4, localhost,root,,,$MASTER_MYPORT)
+
+--echo
+--echo # Suppress auto increment warnings, we want the same configuration
+--echo # on all servers.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 3 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'Group contains 2 members which is greater than group_replication_auto_increment_increment value of 1. This can lead to an higher rate of transactional aborts.");
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo # Create a table on all members.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+--echo
+--echo # Force a binary log rotate on remote servers: 2 and 3.
+--echo #
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+FLUSH BINARY LOGS;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+FLUSH BINARY LOGS;
+
+--echo
+--echo ############################################################
+--echo # 2.  Commit 4 groups of 4 transactions, we have 4 configured
+--echo #     parallel workers.
+--echo #     All these transactions will be able to execute in parallel.
+--echo #
+# In each iteration, server 1 generates some transactions which can
+# be applied in parallel. Server 2 and 3 have 4 parallel workers.
+# To guarantee that all transactions are put into the queue together,
+# LOCK TABLES is used to block workers. After all transactions are
+# on the queue, then UNLOCK TABLES is called and all workers can resume.
+--let $iteration= 0
+--let $value= 0
+while ($iteration < 4)
+{
+  # Block parallel appliers workers so that all 4 transactions
+  # are applied in parallel on server 2 and 3.
+  --let $rpl_connection_name= server2
+  --source include/rpl_connection.inc
+  LOCK TABLE t1 WRITE;
+
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+  LOCK TABLE t1 WRITE;
+
+  # Execute 4 transactions on 4 different clients on server 1.
+  --let $rpl_connection_name= server1_1
+  --source include/rpl_connection.inc
+  --inc $value
+  --eval INSERT INTO t1 VALUES ($value)
+
+  --let $rpl_connection_name= server1_2
+  --source include/rpl_connection.inc
+  --inc $value
+  --eval INSERT INTO t1 VALUES ($value)
+
+  --let $rpl_connection_name= server1_3
+  --source include/rpl_connection.inc
+  --inc $value
+  --eval INSERT INTO t1 VALUES ($value)
+
+  --let $rpl_connection_name= server1_4
+  --source include/rpl_connection.inc
+  --inc $value
+  --eval INSERT INTO t1 VALUES ($value)
+
+  # Wait until all workers are blocked by LOCK TABLE t1 WRITE.
+  # It implies all transactions are registered into the order
+  # commit queue.
+  --let $rpl_connection_name= server2
+  --source include/rpl_connection.inc
+  --let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock'
+  --source include/wait_condition.inc
+  UNLOCK TABLES;
+
+  --let $rpl_connection_name= server3
+  --source include/rpl_connection.inc
+  --let $wait_condition= SELECT count(*) = 4 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock'
+  --source include/wait_condition.inc
+  UNLOCK TABLES;
+
+  --inc $iteration
+}
+
+--echo
+--echo # Wait for group synchronization.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3.  Verify that above transactions are committed on server
+--echo #     2 and 3 on the same order they were on server 1.
+--echo #
+--let $server_number= 2
+--let $logical_timestamps= 0 0;0 0;2 3;3 4;3 5;3 6;3 7;3 8;3 9;3 10;3 11;3 12;3 13;3 14;3 15;3 16;3 17;3 18;3 19
+--source ../inc/gr_mts_indexes_commit_order_validation.inc
+
+--let $server_number= 3
+--let $logical_timestamps= 0 0;0 0;0 0;3 4;4 5;4 6;4 7;4 8;4 9;4 10;4 11;4 12;4 13;4 14;4 15;4 16;4 17;4 18;4 19;4 20
+--source ../inc/gr_mts_indexes_commit_order_validation.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4.  Clean up.
+--echo #
+--disconnect server1_1
+--disconnect server1_2
+--disconnect server1_3
+--disconnect server1_4
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

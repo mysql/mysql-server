@@ -15,7 +15,6 @@
 
 
 #include <gtest/gtest.h>
-#include <boost/scoped_ptr.hpp>
 #include <mysql/service_my_snprintf.h>
 
 #include "ngs_common/xdecimal.h"
@@ -32,7 +31,7 @@ TEST(xdecimal, str)
   EXPECT_EQ(std::string("\x00\x1C",2), mysqlx::Decimal::from_str("1").to_bytes());
   EXPECT_EQ(std::string("\x00\x12\x7c",3), mysqlx::Decimal::from_str("127").to_bytes());
   EXPECT_EQ(std::string("\x05\x12\x34\x51\x23\x45\xc0",7), mysqlx::Decimal::from_str("12345.12345").to_bytes());
-  
+
   EXPECT_EQ("12345.12345", mysqlx::Decimal::from_str("12345.12345").str());
   EXPECT_EQ("1234.12345", mysqlx::Decimal::from_str("1234.12345").str());
   EXPECT_EQ("1234.1234", mysqlx::Decimal::from_str("1234.1234").str());

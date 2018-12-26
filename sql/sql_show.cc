@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -627,8 +627,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 
 
 
-  memset(&table_list, 0, sizeof(table_list));
-
   if (!(dirp = my_dir(path,MYF(dir ? MY_WANT_STAT : 0))))
   {
     if (my_errno() == ENOENT)
@@ -826,6 +824,7 @@ public:
         is_handled= false;
         break;
       }
+      // Fall through
     case ER_COLUMNACCESS_DENIED_ERROR:
     // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
@@ -853,6 +852,23 @@ public:
 
     m_handling= false;
     return is_handled;
+  }
+};
+
+
+class Silence_deprecation_warnings : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
+      return true;
+
+    return false;
   }
 };
 
@@ -892,6 +908,15 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
 
+    /*
+      Filter out deprecation warnings caused by deprecation of
+      the partition engine. The presence of these depend on TDC
+      cache behavior. Instead, push a warning later to get
+      deterministic and repeatable behavior.
+    */
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
+
     uint counter;
     bool open_error= open_tables(thd, &table_list, &counter,
                                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
@@ -904,6 +929,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
       */
       open_error= table_list->resolve_derived(thd, true);
     }
+    thd->pop_internal_handler();
     thd->pop_internal_handler();
     if (open_error && (thd->killed || thd->is_error()))
       goto exit;
@@ -921,6 +947,19 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 
   if (table_list->is_view())
     buffer.set_charset(table_list->view_creation_ctx->get_client_cs());
+
+  /*
+    Push deprecation warnings for non-natively partitioned tables. Done here
+    instead of in open_binary_frm (silenced by error handler) to get
+    predictable and repeatable results without having to flush tables.
+  */
+  if (!table_list->is_view() && table_list->table->s->db_type() &&
+      is_ha_partition_handlerton(table_list->table->s->db_type()))
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(thd,
+                               ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                        table_list->db, table_list->table_name);
 
   if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
@@ -1629,7 +1668,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info= table->key_info;
-  memset(&create_info, 0, sizeof(create_info));
   /* Allow update_create_info to update row type */
   create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
@@ -1842,11 +1880,32 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
-    if (create_info.row_type != ROW_TYPE_DEFAULT)
+
+    /*
+      If 'show_create_table_verbosity' is enabled, the row format would
+      be displayed in the output of SHOW CREATE TABLE even if default
+      row format is used. Otherwise only the explicitly mentioned
+      row format would be displayed.
+    */
+    if (thd->variables.show_create_table_verbosity)
+    {
+      enum row_type row_type = file->get_row_type();
+      packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
+      if (row_type == ROW_TYPE_NOT_USED || row_type == ROW_TYPE_DEFAULT)
+      {
+        row_type= ((share->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
+                   ROW_TYPE_COMPRESSED :
+                   (share->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+                   ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
+      }
+      packet->append(ha_row_type[(uint) row_type]);
+    }
+    else if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) create_info.row_type]);
     }
+
     if (table->s->key_block_size)
     {
       char *end;
@@ -2565,7 +2624,7 @@ int add_status_vars(const SHOW_VAR *list)
     while (list->name)
       all_status_vars.push_back(*list++);
   }
-  catch (std::bad_alloc)
+  catch (const std::bad_alloc &)
   {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(Status_var_array::value_type)));
@@ -2785,6 +2844,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
                                  size_t *length)
 {
   const char *value;
+  const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS)
   {
@@ -2794,11 +2854,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     sys_var *var= ((sys_var *) variable->value);
     show_type= var->show_type();
     value= (char*) var->value_ptr(running_thd, target_thd, value_type, &null_lex_str);
-    *charset= var->charset(running_thd);
+    value_charset= var->charset(target_thd);
   }
   else
   {
     value= variable->value;
+    value_charset= system_charset_info;
   }
 
   const char *pos= buff;
@@ -2816,6 +2877,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
       end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONG_STATUS:
@@ -2826,10 +2888,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
      /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
       end= int10_to_str(*(long*) value, buff, -10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_LONGLONG_STATUS:
@@ -2838,22 +2902,27 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_LONGLONG:
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HA_ROWS:
       end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_BOOL:
       end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_MY_BOOL:
       end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+      value_charset= system_charset_info;
       break;
 
     case SHOW_INT:
       end= int10_to_str((long) *(uint32*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_HAVE:
@@ -2861,6 +2930,7 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
       SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
       pos= show_comp_option_name[(int) tmp];
       end= strend(pos);
+      value_charset= system_charset_info;
       break;
     }
 
@@ -2894,11 +2964,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_KEY_CACHE_LONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= int10_to_str(*(long*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
       value= (char*) dflt_key_cache + (ulong)value;
       end= longlong10_to_str(*(longlong*) value, buff, 10);
+      value_charset= system_charset_info;
       break;
 
     case SHOW_UNDEF:
@@ -2912,6 +2984,12 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
   }
 
   *length= (size_t) (end - pos);
+  /* Some callers do not use the result. */
+  if (charset != NULL)
+  {
+    DBUG_ASSERT(value_charset != NULL);
+    *charset= value_charset;
+  }
   return pos;
 }
 
@@ -3863,14 +3941,28 @@ fill_schema_table_by_open(THD *thd, MEM_ROOT *mem_root,
   */
   lex->sql_command= SQLCOM_SHOW_FIELDS;
 
-  result= open_temporary_tables(thd, table_list);
+  /*
+    Filter out deprecation warnings caused by deprecation of
+    the partition engine. The presence of these depend on TDC
+    cache behavior. Instead, push a warning later to get
+    deterministic and repeatable behavior.
+  */
+  {
+    // Put in separate scope due to gotos crossing the initialization.
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
 
-  if (!result)
-    result= open_tables_for_query(thd, table_list,
-                                  MYSQL_OPEN_IGNORE_FLUSH |
-                                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
-                                  (can_deadlock ?
-                                   MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
+    result= open_temporary_tables(thd, table_list);
+
+    if (!result)
+      result= open_tables_for_query(thd, table_list,
+                                    MYSQL_OPEN_IGNORE_FLUSH |
+                                    MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+                                    (can_deadlock ?
+                                     MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
+    thd->pop_internal_handler();
+  }
+
   if (!result && table_list->is_view_or_derived())
   {
     result= table_list->resolve_derived(thd, false);
@@ -4158,8 +4250,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
-  memset(&table_list, 0, sizeof(TABLE_LIST));
-
   DBUG_ASSERT(db_name->length <= NAME_LEN);
   DBUG_ASSERT(table_name->length <= NAME_LEN);
 
@@ -4225,7 +4315,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     {
       TABLE tbl;
 
-      memset(&tbl, 0, sizeof(TABLE));
       init_sql_alloc(key_memory_table_triggers_list,
                      &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
@@ -4245,8 +4334,24 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   key_length= get_table_def_key(&table_list, &key);
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
-  share= get_table_share(thd, &table_list, key,
-                         key_length, OPEN_VIEW, &not_used, hash_value);
+
+  /*
+    Filter out deprecation warnings caused by deprecation of
+    the partition engine. The presence of these depend on TDC
+    cache behavior. Instead, push a warning later to get
+    deterministic and repeatable behavior.
+  */
+  {
+    // Put in separate scope due to gotos crossing the initialization.
+    Silence_deprecation_warnings deprecation_silencer;
+    thd->push_internal_handler(&deprecation_silencer);
+
+    share= get_table_share(thd, &table_list, key,
+                           key_length, OPEN_VIEW, &not_used, hash_value);
+
+    thd->pop_internal_handler();
+  }
+
   if (!share)
   {
     res= 0;
@@ -4290,7 +4395,6 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   {
     TABLE tbl;
-    memset(&tbl, 0, sizeof(TABLE));
     init_sql_alloc(key_memory_table_triggers_list,
                    &tbl.mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
@@ -4376,23 +4480,8 @@ public:
   }
 };
 
-class Silence_deprecation_warnings : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
-                                Sql_condition::enum_severity_level *level,
-                                const char* msg)
-  {
-    if (sql_errno == ER_WARN_DEPRECATED_SYNTAX)
-      return true;
 
-    return false;
-  }
-};
-
-class Silence_deprecation_no_replacement_warnings : public Internal_error_handler
+class Silence_deprecation_no_replacement_warnings: public Internal_error_handler
 {
 public:
   virtual bool handle_condition(THD *thd,
@@ -4407,8 +4496,6 @@ public:
     return false;
   }
 };
-
-
 
 
 /**
@@ -4923,7 +5010,31 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 
     if (is_partitioned)
+    {
       ptr= my_stpcpy(ptr, " partitioned");
+      /*
+        Push deprecation warnings for non-natively partitioned tables. Done here
+        instead of in open_binary_frm (silenced by error handler) to get
+        predictable and repeatable results without having to flush tables.
+      */
+      if (share->db_type() && is_ha_partition_handlerton(share->db_type()))
+      {
+        /*
+          For a bootstrap thread, we only print to the error log, otherwise,
+          the warning is lost since there is no client connection.
+        */
+        if (thd->bootstrap)
+          sql_print_warning(ER_THD(thd,
+                                   ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                            share->db.str, share->table_name.str);
+        else
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_WARN_DEPRECATED_SYNTAX,
+                              ER_THD(thd,
+                                     ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE),
+                              share->db.str, share->table_name.str);
+      }
+    }
 
     table->field[19]->store(option_buff+1,
                             (ptr == option_buff ? 0 : 
@@ -5566,7 +5677,6 @@ bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
   bool free_sp_head;
   DBUG_ENTER("store_schema_params");
 
-  memset(&tbl, 0, sizeof(TABLE));
   (void) build_table_filename(path, sizeof(path), "", "", "", 0);
   init_tmp_table_share(thd, &share, "", 0, "", path);
 
@@ -5779,7 +5889,6 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           Field *field;
           Create_field *field_def= &sp->m_return_field_def;
 
-          memset(&tbl, 0, sizeof(TABLE));
           (void) build_table_filename(path, sizeof(path), "", "", "", 0);
           init_tmp_table_share(thd, &share, "", 0, "", path);
           field= make_field(&share, (uchar*) 0, field_def->length,
@@ -5864,7 +5973,6 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   strxmov(definer, thd->security_context()->priv_user().str, "@",
           thd->security_context()->priv_host().str, NullS);
   /* We use this TABLE_LIST instance only for checking of privileges. */
-  memset(&proc_tables, 0, sizeof(proc_tables));
   proc_tables.db= (char*) "mysql";
   proc_tables.db_length= 5;
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
@@ -6052,7 +6160,6 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
         {
           TABLE_LIST table_list;
           uint view_access;
-          memset(&table_list, 0, sizeof(table_list));
           table_list.db= tables->db;
           table_list.table_name= tables->table_name;
           table_list.grant.privilege= thd->col_access;
@@ -6585,6 +6692,10 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
     table->field[18]->store_time(&time);
     table->field[18]->set_notnull();
   }
+  else
+  {
+    table->field[18]->set_null();
+  }
   if (stat_info.update_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
@@ -6592,12 +6703,20 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
     table->field[19]->store_time(&time);
     table->field[19]->set_notnull();
   }
+  else
+  {
+    table->field[19]->set_null();
+  }
   if (stat_info.check_time)
   {
     thd->variables.time_zone->gmt_sec_to_TIME(&time,
                                               (my_time_t)stat_info.check_time);
     table->field[20]->store_time(&time);
     table->field[20]->set_notnull();
+  }
+  else
+  {
+    table->field[20]->set_null();
   }
   if (file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM)
   {
@@ -8082,7 +8201,7 @@ bool get_schema_tables_result(JOIN *join,
   {
     QEP_TAB *const tab= join->qep_tab + i;
     if (!tab->table() || !tab->table_ref)
-      break;
+      continue;
 
     TABLE_LIST *const table_list= tab->table_ref;
     if (table_list->schema_table && thd->fill_information_schema_tables())

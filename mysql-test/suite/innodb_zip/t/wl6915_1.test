@@ -25,9 +25,9 @@
 # - Check constraints like duplicate key,default value             #
 # - Alter ADD COLUMN , ADD PRIMARY KEY                             #
 # - Flush Tables, logs command                                     #
-# - Vary innodb_undo_tablespaces=0,innodb_undo_logs                # 
+# - Vary innodb_undo_tablespaces=0,innodb_rollback_segments        #
 #    innodb_log_files_in_group                                     #
-# - Verify rseg message from server log                            # 
+# - Verify rseg message from server log                            #
 ####################################################################
 
 # run for page size >= 8k
@@ -515,9 +515,9 @@ disconnect con2;
 
 connection default;
 #
-## trying with VALUES innodb_undo_tablespaces, innodb_undo_logs ,innodb_log_files_in_group
+## trying with VALUES innodb_undo_tablespaces, innodb_rollback_segments, innodb_log_files_in_group
 ##
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_undo_logs=20 --innodb_log_files_in_group=4;
+let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=20 --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 # Create two client for concurrent execution
@@ -573,8 +573,8 @@ DROP TABLE t1_2 ,t2_2 ,t3_2,t4_2;
 disconnect con2;
 
 connection default;
-# innodb_undo_logs > non redo rsegment
-let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_undo_logs=20 --innodb_log_files_in_group=4;
+# innodb_rollback_segments > non redo rsegment
+let $restart_parameters = restart: --innodb_undo_tablespaces=0 --innodb_rollback_segments=30 --innodb_rollback_segments=20 --innodb_log_files_in_group=4;
 --source include/restart_mysqld.inc
 
 connect (con1,localhost,root,,);

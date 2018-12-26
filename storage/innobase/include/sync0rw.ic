@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -665,7 +665,7 @@ pfs_rw_lock_create_func(
 	ut_d(new(lock) rw_lock_t());
 
 	/* Initialize the rwlock for performance schema */
-	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key, lock);
+	lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);
 
 	/* The actual function to initialize an rwlock */
 	rw_lock_create_func(lock,

@@ -1,0 +1,28 @@
+#
+# Bug #26300119	ASSERTION IN PREBUILT->TRX->ISOLATION_LEVEL == TRX_ISO_READ_UNCOMMITTED
+#
+CREATE PROCEDURE populate_t1(IN BASE INT, IN SIZE INT)
+BEGIN
+DECLARE i INT DEFAULT BASE;
+WHILE (i <= SIZE) DO
+INSERT INTO t1 VALUES  (i, repeat('10101010101010101010',2000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE TABLE t1 (
+pk int,
+col_blob_key blob,
+primary key (pk)
+);
+CALL populate_t1(1, 100);
+START TRANSACTION;
+CALL populate_t1(101, 199);
+SET DEBUG_SYNC='before_insertion_of_blob SIGNAL halted_insert WAIT_FOR proceed';
+INSERT INTO t1 VALUES (200, repeat('10101010101010101010',2000));;
+SET DEBUG_SYNC='now WAIT_FOR halted_insert';
+SET DEBUG_SYNC='allow_insert SIGNAL proceed';
+SELECT pk, col_blob_key FROM t1 WHERE pk between 99 and 100;
+COMMIT;
+SET DEBUG_SYNC='RESET';
+DROP PROCEDURE populate_t1;
+DROP TABLE t1;

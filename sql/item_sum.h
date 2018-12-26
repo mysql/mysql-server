@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include "my_tree.h"        // TREE
 #include "item.h"           // Item_result_field
+#include "json_dom.h"       // Json_wrapper
 #include "sql_alloc.h"      // Sql_alloc
 #include "sql_udf.h"        // udf_handler
 #include "mem_root_array.h"
@@ -342,9 +343,21 @@ public:
   bool has_with_distinct()     const { return with_distinct; }
 
   enum Sumfunctype
-  { COUNT_FUNC, COUNT_DISTINCT_FUNC, SUM_FUNC, SUM_DISTINCT_FUNC, AVG_FUNC,
-    AVG_DISTINCT_FUNC, MIN_FUNC, MAX_FUNC, STD_FUNC,
-    VARIANCE_FUNC, SUM_BIT_FUNC, UDF_SUM_FUNC, GROUP_CONCAT_FUNC
+  {
+    COUNT_FUNC,          // COUNT
+    COUNT_DISTINCT_FUNC, // COUNT (DISTINCT)
+    SUM_FUNC,            // SUM
+    SUM_DISTINCT_FUNC,   // SUM (DISTINCT)
+    AVG_FUNC,            // AVG
+    AVG_DISTINCT_FUNC,   // AVG (DISTINCT)
+    MIN_FUNC,            // MIN
+    MAX_FUNC,            // MAX
+    STD_FUNC,            // STD/STDDEV/STDDEV_POP
+    VARIANCE_FUNC,       // VARIANCE/VAR_POP and VAR_SAMP
+    SUM_BIT_FUNC,        // BIT_AND, BIT_OR and BIT_XOR
+    UDF_SUM_FUNC,        // user defined functions
+    GROUP_CONCAT_FUNC,   // GROUP_CONCAT
+    JSON_AGG_FUNC,       // JSON_ARRAYAGG and JSON_OBJECTAGG
   };
 
   Item **ref_by; /* pointer to a ref to the object used to register it */
@@ -356,6 +369,7 @@ public:
   int8 max_arg_level;     /* max level of unbound column references          */
   int8 max_sum_func_level;/* max level of aggregation for embedded functions */
   bool quick_group;			/* If incremental update of fields */
+  st_select_lex *base_select; ///< query block where function is placed
 
 protected:  
   uint arg_count;
@@ -387,6 +401,15 @@ public:
      forced_const(FALSE)
   {
     args[0]=a;
+    init_aggregator();
+  }
+
+  Item_sum(const POS &pos, Item *a, Item *b)
+    :super(pos), next(NULL), quick_group(true), arg_count(2), args(tmp_args),
+     forced_const(false)
+  {
+    args[0]= a;
+    args[1]= b;
     init_aggregator();
   }
 
@@ -855,6 +878,14 @@ public:
   }
   enum Item_result result_type () const { return hybrid_type; }
   bool is_null() { update_null_value(); return null_value; }
+  bool mark_field_in_map(uchar *arg)
+  {
+    /*
+      Filesort (find_all_keys) over a temporary table collects the columns it
+      needs.
+    */
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
 };
 
 
@@ -870,6 +901,82 @@ public:
   String *val_str(String*);
   void fix_length_and_dec() {}
   const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
+};
+
+
+/// Common abstraction for Item_sum_json_array and Item_sum_json_object
+class Item_sum_json : public Item_sum
+{
+protected:
+  /// String used when reading JSON binary values or JSON text values.
+  String m_value;
+  /// String used for converting JSON text values to utf8mb4 charset.
+  String m_conversion_buffer;
+  /// Wrapper around the container (object/array) which accumulates the value.
+  Json_wrapper m_wrapper;
+
+public:
+  Item_sum_json(THD *thd, Item_sum *item)
+    : Item_sum(thd, item)
+  {}
+  Item_sum_json(const POS &pos, Item *a)
+    : Item_sum(pos, a)
+  {}
+  Item_sum_json(const POS &pos, Item *a, Item *b)
+    : Item_sum(pos, a, b)
+  {}
+
+  virtual bool fix_fields(THD *thd, Item **pItem);
+  enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
+  virtual enum Sumfunctype sum_func() const { return JSON_AGG_FUNC; }
+  virtual Item_result result_type() const { return STRING_RESULT; }
+
+  virtual double val_real();
+  virtual longlong val_int();
+  virtual String *val_str(String *str);
+  virtual bool val_json(Json_wrapper *wr);
+  virtual my_decimal *val_decimal(my_decimal *decimal_buffer);
+  virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  virtual bool get_time(MYSQL_TIME *ltime);
+
+  virtual void reset_field();
+  virtual void update_field();
+};
+
+
+/// Implements aggregation of values into an array.
+class Item_sum_json_array : public Item_sum_json
+{
+  /// Accumulates the final value.
+  Json_array m_json_array;
+public:
+  Item_sum_json_array(THD *thd, Item_sum *item)
+    : Item_sum_json(thd, item) { }
+  Item_sum_json_array(const POS &pos, Item *a)
+    : Item_sum_json(pos, a) { }
+  virtual const char *func_name() const { return "json_arrayagg("; }
+  virtual void clear();
+  virtual bool add();
+  virtual Item *copy_or_same(THD* thd);
+};
+
+
+/// Implements aggregation of values into an object.
+class Item_sum_json_object : public Item_sum_json
+{
+  /// Accumulates the final value.
+  Json_object m_json_object;
+  /// Buffer used to get the value of the key.
+  String m_tmp_key_value;
+public:
+  Item_sum_json_object(THD *thd, Item_sum *item)
+    : Item_sum_json(thd, item) { }
+  Item_sum_json_object(const POS &pos, Item *a, Item *b)
+    : Item_sum_json(pos, a, b) { }
+  virtual const char *func_name() const { return "json_objectagg("; }
+  virtual void clear();
+  virtual bool add();
+  virtual Item *copy_or_same(THD* thd);
 };
 
 
@@ -1425,7 +1532,8 @@ class Item_func_group_concat : public Item_sum
   bool warning_for_row;
   bool always_null;
   bool force_copy_fields;
-  bool no_appended;
+  /** True if result has been written to output buffer. */
+  bool m_result_finalized;
   /*
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)

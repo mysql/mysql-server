@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ enum enum_serialization_result
 
 static enum_serialization_result
 serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
-                     size_t depth);
+                     size_t depth, bool small_parent);
 
 bool serialize(const Json_dom *dom, String *dest)
 {
@@ -102,7 +102,7 @@ bool serialize(const Json_dom *dom, String *dest)
   // Reserve space (one byte) for the type identifier.
   if (dest->append('\0'))
     return true;                              /* purecov: inspected */
-  return serialize_json_value(dom, 0, dest, 0) != OK;
+  return serialize_json_value(dom, 0, dest, 0, false) != OK;
 }
 
 
@@ -392,7 +392,7 @@ append_value(String *dest, const Json_dom *value, size_t start_pos,
     return VALUE_TOO_BIG;
 
   insert_offset_or_size(dest, entry_pos + 1, offset, large);
-  return serialize_json_value(value, entry_pos, dest, depth);
+  return serialize_json_value(value, entry_pos, dest, depth, !large);
 }
 
 
@@ -580,11 +580,14 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   @param type_pos  the position of the type specifier to update
   @param dest      the destination string
   @param depth     the current nesting level
+  @param small_parent
+                   tells if @a dom is contained in an array or object
+                   which is stored in the small storage format
   @return          serialization status
 */
 static enum_serialization_result
 serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
-                     size_t depth)
+                     size_t depth, bool small_parent)
 {
   const size_t start_pos= dest->length();
   DBUG_ASSERT(type_pos < start_pos);
@@ -609,6 +612,9 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_ARRAY;
         result= serialize_json_array(array, dest, true, depth);
@@ -631,6 +637,9 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       */
       if (result == VALUE_TOO_BIG)
       {
+        // If the parent uses the small storage format, it needs to grow too.
+        if (small_parent)
+          return VALUE_TOO_BIG;
         dest->length(start_pos);
         (*dest)[type_pos]= JSONB_TYPE_LARGE_OBJECT;
         result= serialize_json_object(object, dest, true, depth);
@@ -746,7 +755,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       if (jd->get_binary(buf))
         return FAILURE;                       /* purecov: inspected */
       Json_opaque o(MYSQL_TYPE_NEWDECIMAL, buf, bin_size);
-      result= serialize_json_value(&o, type_pos, dest, depth);
+      result= serialize_json_value(&o, type_pos, dest, depth, small_parent);
       break;
     }
   case Json_dom::J_DATETIME:
@@ -759,7 +768,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       char buf[Json_datetime::PACKED_SIZE];
       jdt->to_packed(buf);
       Json_opaque o(jdt->field_type(), buf, Json_datetime::PACKED_SIZE);
-      result= serialize_json_value(&o, type_pos, dest, depth);
+      result= serialize_json_value(&o, type_pos, dest, depth, small_parent);
       break;
     }
   default:

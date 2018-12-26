@@ -1,0 +1,57 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+include/sync_slave_sql_with_master.inc
+FLUSH RELAY LOGS;
+CALL mtr.add_suppression("@@SESSION.GTID_NEXT cannot be set to ANONYMOUS when @@GLOBAL.GTID_MODE = ON");
+CALL mtr.add_suppression("When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK");
+CALL mtr.add_suppression("Cannot execute the current event group");
+CALL mtr.add_suppression("The slave coordinator and worker threads are stopped");
+include/stop_slave.inc
+[connection master]
+XA START 'trx1';
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+XA END 'trx1';
+XA PREPARE 'trx1';
+XA COMMIT 'trx1';
+[connection slave]
+include/rpl_receive_event_count.inc
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000005	#	XA_prepare	#	#	XA PREPARE X'74727831',X'',1
+slave-relay-bin.000005	#	Query	#	#	XA COMMIT X'74727831',X'',1
+[connection master]
+include/sync_slave_io_with_master.inc
+include/stop_slave_io.inc
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000005', RELAY_LOG_POS=4;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1782, 1755]
+ALTER TABLE t1 engine=MyISAM;
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+START SLAVE SQL_THREAD;
+include/wait_for_slave_sql_error.inc [errno=1837]
+ALTER TABLE t1 engine=Innodb;
+DELETE FROM t1;
+RESET MASTER;
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+include/stop_slave_sql.inc
+CHANGE MASTER TO RELAY_LOG_FILE='slave-relay-bin.000004', RELAY_LOG_POS=4;
+include/start_slave_sql.inc
+include/sync_slave_sql_with_io.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+include/start_slave_io.inc
+[connection master]
+DROP TABLE t1, t2;
+CALL mtr.add_suppression("Statement is unsafe because it is being used inside a XA transaction");
+include/rpl_end.inc

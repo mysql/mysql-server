@@ -1,0 +1,130 @@
+## Crud views sundries
+
+## Preamble
+--source ../include/xplugin_preamble.inc
+
+## Test data
+--let $xtest_file= $MYSQL_TMP_DIR/crud_view_sundries.tmp
+--write_file $xtest_file
+-->quiet
+
+-->title -Create view on document table created using "Mysqlx.Sql.StmtExecute"
+-->stmtadmin create_collection	{"schema":"xtest", "name":"coll_a"}
+-->recvresult
+-->sql
+CREATE VIEW xtest.view_a AS SELECT * FROM xtest.coll_a;
+CREATE VIEW xtest.view_b AS SELECT doc FROM xtest.coll_a;
+-->endsql
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult
+-->sql
+SHOW CREATE VIEW xtest.view_a;
+SHOW CREATE VIEW xtest.view_b;
+-->endsql
+
+
+-->title -Create view based on another view
+Mysqlx.Crud.CreateView {
+  collection { name: "view_c" schema: "xtest" }
+  algorithm: TEMPTABLE
+  stmt: {
+    collection { name: "view_a" schema: "xtest" }
+    data_model: TABLE
+    projection {
+      source { type: IDENT identifier { name: "doc" } }
+    }
+  }
+}
+-->recvuntil Mysqlx.Ok
+
+-->sql
+SHOW CREATE VIEW xtest.view_c;
+-->endsql
+
+
+-->title -Error when try modify view which is not updatable.
+Mysqlx.Crud.ModifyView {
+  collection { name: "view_c" schema: "xtest" }
+  check: CASCADED
+  stmt: {
+    collection { name: "view_a" schema: "xtest"}
+    data_model: TABLE
+    projection {
+      source { type: IDENT identifier { name: "doc" } }
+    }
+  }
+}
+-->recverror ER_VIEW_NONUPD_CHECK
+
+
+-->title -Run select query on view.
+Mysqlx.Crud.CreateView {
+  collection { name: "view_d" schema: "xtest" }
+  stmt: {
+    collection { name: "tab_a" schema: "xtest" }
+    data_model: TABLE
+    projection {
+      alias: "doc"
+      source { type: IDENT identifier { name: "second" } }
+    }
+  }
+}
+-->recvuntil Mysqlx.Ok
+-->sql
+SELECT * FROM xtest.view_d;
+-->endsql
+Mysqlx.Crud.Find {
+  collection { name: "view_d" schema: "xtest"}
+  data_model: DOCUMENT
+}
+-->recvresult
+
+
+-->title -Error on find if base table alteration invalidates the view.
+-->sql
+ALTER TABLE xtest.tab_a DROP second;
+-->endsql
+Mysqlx.Crud.Find {
+  collection { name: "view_d" schema: "xtest"}
+  data_model: DOCUMENT
+}
+-->recverror ER_VIEW_INVALID
+
+
+-->title -Error on create view for non privilege user
+-->newsessionplain xuser_session	xuser
+Mysqlx.Crud.CreateView {
+  collection { name: "view_e" schema: "xtest" }
+  stmt: {
+    collection { name: "tab_a" schema: "xtest" }
+    data_model: TABLE
+  }
+}
+-->recverror ER_TABLEACCESS_DENIED_ERROR
+-->closesession
+
+
+-->title -Check view details added in information_schema.views
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvresult
+-->sql
+SELECT table_name,check_option,is_updatable,definer,security_type,view_definition
+FROM information_schema.views WHERE table_schema = 'xtest';
+-->endsql
+EOF
+
+
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.tab_a (first INT, second JSON);
+INSERT INTO xtest.tab_a (first, second) VALUES (1, '{"_id":"one", "name":"Adam"}' );
+CREATE USER xuser;
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--remove_file $xtest_file
+
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+DROP USER xuser;
+UNINSTALL PLUGIN mysqlx;

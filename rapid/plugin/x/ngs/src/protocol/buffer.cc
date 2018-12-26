@@ -17,15 +17,14 @@
  * 02110-1301  USA
  */
 
-#include "ngs/protocol/buffer.h"
-#include <new>
-#include <utility>
 #include "my_config.h"
 
-#define LOG_DOMAIN "ngs.ibuffer"
+#include "ngs/protocol/buffer.h"
 #include "ngs/log.h"
 
-#include "my_dbug.h"
+#include <new>
+#include <utility>
+
 
 using namespace ngs;
 

@@ -1,0 +1,82 @@
+################################################################################
+# This test checks that if a joiner has rule that makes it incompatible with
+# another member in the group it wont be able to join it.
+#
+# To test this:
+# 0. The test requires two servers: M1 and M2.
+# 1. We bootstrap GROUP with M1, and add some data for recovery.
+# 2. Try to start M2 where we added a fake rule that makes it incompatible
+#    with the group. Start GR should fail.
+# 3. Restart M2 to have clean compatibility settings post clearing the
+#    incompatibilty rule. Start GR should succeed.
+# 4. Check M2 has all the data.
+# 5. Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--let $group_replication_group_name= 6db14550-03bb-11e5-b939-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Setup a member
+--echo #
+
+--connection server1
+--echo server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--echo # Add some data for recovery
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo # Try to add a new member that was defined as incompatible with member 1
+--echo #
+
+--connection server2
+--echo server2
+
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+
+SET @debug_saved= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET GLOBAL group_replication_group_name= "6db14550-03bb-11e5-b939-0800200c9a66";
+
+# The start will fail as the node is declared incompatible with the group
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo #
+--echo # Check all is fine when we clean the rules
+--echo #
+
+SET @@GLOBAL.DEBUG= @debug_save;
+
+# restart the server so we have clean compatibility settings.
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text= On the recovered member, the table should contain 1 elements
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Clean up
+--echo #
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

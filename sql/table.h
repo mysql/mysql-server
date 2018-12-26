@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -245,6 +245,13 @@ typedef struct st_order {
 */
 struct st_grant_internal_info
 {
+  st_grant_internal_info()
+    : m_schema_lookup_done(false),
+      m_schema_access(NULL),
+      m_table_lookup_done(false),
+      m_table_access(NULL)
+  {}
+
   /** True if the internal lookup by schema name was done. */
   bool m_schema_lookup_done;
   /** Cached internal schema access. */
@@ -496,10 +503,11 @@ typedef struct st_table_field_def
 class Table_check_intact
 {
 protected:
+  bool has_keys;
   virtual void report_error(uint code, const char *fmt, ...)= 0;
 
 public:
-  Table_check_intact() {}
+  Table_check_intact() : has_keys(FALSE) {}
   virtual ~Table_check_intact() {}
 
   /** Checks whether a table is intact. */
@@ -553,7 +561,7 @@ typedef I_P_List <Wait_for_flush,
 
 struct TABLE_SHARE
 {
-  TABLE_SHARE() {}                    /* Remove gcc warning */
+  TABLE_SHARE() { memset(this, 0, sizeof(*this)); }
 
   /** Category of this table. */
   TABLE_CATEGORY table_category;
@@ -979,7 +987,7 @@ typedef Bitmap<MAX_FIELDS> Field_map;
 
 struct TABLE
 {
-  TABLE() {}                               /* Remove gcc warning */
+  TABLE() { memset(this, 0, sizeof(*this)); }
   /*
     Since TABLE instances are often cleared using memset(), do not
     add virtual members and do not inherit from TABLE.
@@ -1281,7 +1289,7 @@ public:
                                            uint key_parts= 0);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
-  void mark_columns_needed_for_update(void);
+  void mark_columns_needed_for_update(bool mark_binlog_columns);
   void mark_columns_needed_for_delete(void);
   void mark_columns_needed_for_insert(void);
   void mark_columns_per_binlog_row_image(void);
@@ -1450,6 +1458,22 @@ public:
     the next statement.
   */
   void cleanup_gc_items();
+
+ /**
+   Check if table contains any records.
+
+   @param      thd     The thread object
+   @param[out] retval  Pointer to boolean value (true if table is not empty).
+
+   @returns  false for success, true for error
+ */
+ bool contains_records(THD *thd, bool *retval);
+
+  /**
+    Virtual fields of type BLOB have a flag m_keep_old_value. This flag is set
+    to false for all such fields in this table.
+  */
+  void blobs_need_not_keep_old_value();
 };
 
 
@@ -1629,11 +1653,21 @@ typedef struct st_lex_alter {
   bool account_locked;
 } LEX_ALTER;
 
+/*
+  This structure holds the specifications related to
+  mysql user and the associated auth details.
+*/
 typedef struct	st_lex_user {
   LEX_CSTRING user;
   LEX_CSTRING host;
   LEX_CSTRING plugin;
   LEX_CSTRING auth;
+/*
+  The following flags are indicators for the SQL syntax used while
+  parsing CREATE/ALTER user. While other members are self-explanatory,
+  'uses_authentication_string_clause' signifies if the password is in
+  hash form (if the var was set to true) or not.
+*/
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
@@ -1716,7 +1750,7 @@ public:
 
 struct TABLE_LIST
 {
-  TABLE_LIST() {}                          /* Remove gcc warning */
+  TABLE_LIST() { memset(this, 0, sizeof(*this)); }
 
   /**
     Prepare TABLE_LIST that consists of one table instance to use in
@@ -1730,7 +1764,7 @@ struct TABLE_LIST
                              enum thr_lock_type lock_type_arg,
                              enum enum_mdl_type mdl_type_arg)
   {
-    memset(this, 0, sizeof(*this));
+    new (this) TABLE_LIST;
     m_map= 1;
     db= (char*) db_name_arg;
     db_length= db_length_arg;
@@ -2732,6 +2766,8 @@ struct Semijoin_mat_optimize
 */
 typedef struct st_nested_join
 {
+  st_nested_join() { memset(this, 0, sizeof(*this)); }
+
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
   table_map         used_tables;     /* bitmap of tables in the nested join */
   table_map         not_null_tables; /* tables that rejects nulls           */

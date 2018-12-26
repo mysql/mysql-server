@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -241,6 +241,15 @@ purposes.
 ulint
 ut_time_ms(void);
 /*============*/
+#ifdef _WIN32
+/**********************************************************//**
+Initialise highest available time resolution API on Windows
+@return 0 if all OK else -1 */
+int
+ut_win_init_time();
+
+#endif /* _WIN32 */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**

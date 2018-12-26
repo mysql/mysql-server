@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -558,6 +558,16 @@ extern Query_logger query_logger;
 char *make_query_log_name(char *buff, enum_log_table_type log_type);
 
 /**
+  Check given log name against certain blacklisted names/extensions.
+
+  @param name     Log name to check
+  @param len      Length of log name
+
+  @returns true if name is valid, false otherwise.
+*/
+bool is_valid_log_name(const char *name, size_t len);
+
+/**
   Check whether we need to write the current statement (or its rewritten
   version if it exists) to the slow query log.
   As a side-effect, a digest of suppressed statements may be written.
@@ -892,8 +902,9 @@ void init_error_log();
   have been buffered by calling flush_error_log_messages().
 
   @param filename        Name of error log file
+  @param get_lock        Should we acquire LOCK_error_log?
 */
-bool open_error_log(const char *filename);
+bool open_error_log(const char *filename, bool get_lock);
 
 /**
   Free any error log resources.

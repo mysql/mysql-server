@@ -17,6 +17,7 @@
 # [--let $rpl_channel_name= NAME]
 # [--let $slave_timeout= NUMBER]
 # [--let $rpl_debug= 1]
+# [--let $force_empty_channel_name= 1]
 # --source include/stop_slave.inc
 #
 # Parameters:
@@ -30,6 +31,9 @@
 #
 #   $rpl_channel_name
 #     If this is not '', a FOR CHANNEL  '$rpl_channel_name' is added.
+#
+#   $force_empty_channel_name
+#     If set, a FOR CHANNEL '' is added when '$rpl_channel_name' is empty.
 #
 #   $slave_timeout
 #     See include/wait_for_slave_param.inc
@@ -52,7 +56,13 @@ if ($rpl_channel_name != '')
 {
   --let $_for_channel_clause= FOR CHANNEL  '$rpl_channel_name'
 }
-
+if ($rpl_channel_name == '')
+{
+  if ($force_empty_channel_name)
+  {
+    --let $_for_channel_clause= FOR CHANNEL  '$rpl_channel_name'
+  }
+}
 
 if ($rpl_only_running_threads)
 {

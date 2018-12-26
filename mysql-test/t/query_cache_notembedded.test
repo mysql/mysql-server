@@ -1,3 +1,8 @@
+# Some of the queries give different set of warnings with --ps-protocol
+if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
+{
+   --skip Need normal protocol
+}
 
 -- source include/have_query_cache.inc
 -- source include/not_embedded.inc

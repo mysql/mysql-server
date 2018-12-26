@@ -1,0 +1,32 @@
+################################################################################
+# Validate that when there is a timeout on member join, START
+# GROUP REPLICATION command does throw a error properly.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Set a DEBUG point to inject gcs join error to timeout a member join.
+# 2. Start group replication on server. It should error out.
+# 3. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("Error. Leaving a group without being on one.");
+SET SESSION sql_log_bin= 1;
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_inject_gcs_join_error';
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+SET @@GLOBAL.DEBUG= @debug_saved;
+--source ../inc/group_replication_end.inc

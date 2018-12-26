@@ -274,14 +274,20 @@ drop table t1;
 create table t1 (f1 int not null primary key, f2 varchar(100),
 FTS_DOC_ID bigint(20) unsigned not null auto_increment,
 unique key `FTS_DOC_ID_INDEX` (`FTS_DOC_ID`),
-fulltext key (f2))engine=innodb, auto_increment=100000;
+fulltext key (f2))engine=innodb;
 set auto_increment_increment = 65535;
 insert into t1(f1, f2) values(1, "This is the first record");
 insert into t1(f1, f2) values(2, "This is the second record");
 insert into t1(f1, f2) values(3, "This is the third record");
 select FTS_DOC_ID from t1;
 FTS_DOC_ID
+1
+65536
 131071
-196606
-262141
 drop table t1;
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
+CREATE TABLE t1 (FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200), FULLTEXT(title)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (NULL, NULL), (20030101000000, 20030102000000);
+ERROR HY000: Invalid InnoDB FTS Doc ID
+DROP TABLE t1;

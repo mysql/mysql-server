@@ -33,13 +33,42 @@ select * from t1;
 SET DEBUG_SYNC='trx_kill_blocking_enter SIGNAL enter_innodb';
 UPDATE t1 SET c1=2 WHERE c1=0;
 commit;
---disconnect con1
 
 --connection default
 --error ER_LOCK_DEADLOCK
 --reap
 commit;
 select * from t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25032066: PREPARED TRANSACTION SHOULD NOT BE ROLLED BACK
+--echo #
+
+CREATE TABLE t1(col1 int PRIMARY KEY, col2 int);
+INSERT INTO t1 VALUES(1, 10);
+
+XA START 'xid1';
+UPDATE t1 SET col2 = 20;
+XA END 'xid1';
+XA PREPARE 'xid1';
+
+--connection con1
+--source include/start_transaction_high_prio.inc
+--send UPDATE t1 SET col2 = 30 WHERE col2 = 10;
+--sleep 1
+
+--connection default
+XA COMMIT 'xid1';
+
+--connection con1
+--reap
+COMMIT;
+
+--connection default
+SELECT * FROM t1;
+
+--disconnect con1
 DROP TABLE t1;
 
 --source include/wait_until_count_sessions.inc

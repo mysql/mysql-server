@@ -1,0 +1,200 @@
+################################################################################
+# This test evaluates the functioning of the recovery reconnection options.
+# 1) It sets the retry and reconnection time variables and checks their values
+# 2) It verifies that the reconnection interval is respected by:
+#
+# Test:
+#   0. The test requires three servers.
+#   1. Starting 2 members and some data with no replication user for recovery
+#   2. Set invalid recovery retries and check its value on 3rd member. Set invalid
+#      recovery reconnection interval and check its value on 3rd member.
+#      Start 3rd member with a reconnection interval of 1 minute and 3 retries.
+#   3. With a configured recovery user, start member 3 and watch its state after
+#      10 seconds. Recovery will fail to connect but it wont exhaust its 3
+#      configured retries so the state will still be "RECOVERING".
+#   4. Configure replication users on the available donors.
+#   5. Watch the member turning online after 60 seconds as on the last retry
+#      after the sleep the donors are now configured to accept the connection.
+#   6. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--let $group_replication_group_name=c827dcd0-2646-11e5-867f-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--let $recovery_user= recovery_user
+--let $recovery_password= recovery_password
+
+--echo #
+--echo # Start a group with 2 members and some data but no replication user
+--echo #
+
+--connection server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+#insert some data
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo #
+--echo # Add some extra data on server 2 and then start group replication
+--echo # Create a replication user so recovery can connect
+--echo #
+
+--connection server2
+--source include/start_group_replication.inc
+
+--echo #
+--echo # On member 3:
+--echo # Set the number of recovery retries and check its value
+--echo # Set the recovery reconnection interval and check its value
+--echo #
+
+--connection server3
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET SESSION sql_log_bin= 1;
+
+SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
+
+# Set invalid values. These should fail.
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_reconnect_interval= NULL;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_reconnect_interval= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_reconnect_interval= 1.2;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_retry_count= NULL;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_retry_count= "a";
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL group_replication_recovery_retry_count= 1.2;
+
+# Set out of range values. These must truncate.
+--disable_warnings
+SET GLOBAL group_replication_recovery_reconnect_interval= -1;
+--enable_warnings
+--let $assert_text= The value for group_replication_recovery_reconnect_interval should be 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_reconnect_interval]" = 0
+--source include/assert.inc
+
+--disable_warnings
+SET GLOBAL group_replication_recovery_reconnect_interval= 31536001;
+--enable_warnings
+--let $assert_text= The value for group_replication_recovery_reconnect_interval should be 31536000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_reconnect_interval]" = 31536000
+--source include/assert.inc
+
+--disable_warnings
+SET GLOBAL group_replication_recovery_retry_count= -1;
+--enable_warnings
+--let $assert_text= The value for group_replication_recovery_retry_count should be 0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_retry_count]" = 0
+--source include/assert.inc
+
+--disable_warnings
+SET GLOBAL group_replication_recovery_retry_count= 31536001;
+--enable_warnings
+--let $assert_text= The value for group_replication_recovery_retry_count should be 31536000
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_retry_count]" = 31536000
+--source include/assert.inc
+
+# Set the retry count to 3, one for each possible donor, plus one
+--eval SET GLOBAL group_replication_recovery_retry_count= 3
+
+--let $assert_text= The value of the recovery retry count should be 3
+--let $assert_cond= "[SELECT @@group_replication_recovery_retry_count]" = "3"
+--source include/assert.inc
+
+# Wait one minute between attempts to connect to the group (the 2 donors)
+--eval SET GLOBAL group_replication_recovery_reconnect_interval= 60
+
+--let $assert_text= The value of the recovery reconnection interval should be 60 sec
+--let $assert_cond= "[SELECT @@group_replication_recovery_reconnect_interval]" = "60"
+--source include/assert.inc
+
+
+--echo #
+--echo # On member 3:
+--echo # Set the recovery user and pass so it can't connect to any of the donors
+--echo # After 10 second it should still be recovering, as the process is sleeping
+--echo #
+
+--disable_warnings
+--eval CHANGE MASTER TO MASTER_USER="$recovery_user", MASTER_PASSWORD="$recovery_password" FOR CHANNEL 'group_replication_recovery'
+--enable_warnings
+
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name";
+--source include/start_group_replication_command.inc
+
+#give it time to fail twice and sleep
+--sleep 10
+
+--let $group_replication_member_state= RECOVERING
+--source ../inc/gr_wait_for_member_state.inc
+
+--echo #
+--echo # Create the recovery user on server 1 and server 2
+--echo # The joiner should now connect to server 1 or 2 when failing over.
+--echo #
+
+--connection server1
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--connection server2
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--echo # After a minute, the node should failover on the last try and recover
+--connection server3
+
+# 80 sec sleep (the member should be online in 50 sec + 30 sec margin)
+--let $wait_timeout= 80
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $assert_text= On the recovered member, the table should exist and have 1 elements
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 1;
+--source include/assert.inc
+
+--echo #
+--echo # Cleaning up
+--echo #
+
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
+SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
+
+DROP TABLE t1;
+
+--connection server2
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--connection server1
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--source ../inc/group_replication_end.inc

@@ -8,6 +8,8 @@ b VARCHAR(200),
 c TEXT)
 ENGINE=MyISAM
 PARTITION BY HASH(a) PARTITIONS 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE FULLTEXT INDEX msg ON t1 (b, c);
 ERROR HY000: FULLTEXT index is not supported for partitioned tables.
 DROP TABLE t1;
@@ -30,14 +32,22 @@ PARTITION BY RANGE (i)
 (PARTITION p3 VALUES LESS THAN (3),
 PARTITION p5 VALUES LESS THAN (5),
 PARTITION pMax VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CHECKSUM TABLE t1;
 Table	Checksum
 test.t1	2653438147
 ALTER TABLE t1 CHECKSUM = 1;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	2653438147
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Before patch this returned 0!
 CHECKSUM TABLE t1;
 Table	Checksum
@@ -51,6 +61,8 @@ t1	CREATE TABLE `t1` (
 (PARTITION p3 VALUES LESS THAN (3) ENGINE = MyISAM,
  PARTITION p5 VALUES LESS THAN (5) ENGINE = MyISAM,
  PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 # Same test without partitioning
 CREATE TABLE t1 (
@@ -100,6 +112,8 @@ ERROR HY000: The mix of handlers in the partitions is not allowed in this versio
 CREATE TABLE t1 (a INT)
 ENGINE = MyISAM
 PARTITION BY HASH (a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 FLUSH TABLES;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -141,8 +155,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY)
 ENGINE = MyISAM
 PARTITION BY KEY(a);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET INSERT_ID= 13;
 INSERT INTO t1 VALUES (NULL);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SET INSERT_ID= 12;
 INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
 ERROR 23000: Duplicate entry '13' for key 'PRIMARY'
@@ -153,6 +171,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM AUTO_INCREMENT=14 DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (NULL);
 SELECT * FROM t1;
 a
@@ -167,6 +187,8 @@ PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (6),
 PARTITION `p1....................` VALUES LESS THAN (9),
 PARTITION p2 VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # List of files in database `test`, all original t1-files here
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -177,6 +199,8 @@ t1#P#p2.MYI
 t1.frm
 t1.par
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Renaming to a file name where the first partition is 250 chars
 # and the second partition is 350 chars
 RENAME TABLE t1 TO `t2_new..............................................end`;
@@ -203,6 +227,8 @@ a
 7
 8
 9
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 # List of files in database `test`, should be all t1-files here
 t1#P#p0.MYD
 t1#P#p0.MYI
@@ -238,6 +264,8 @@ a
 7
 8
 9
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 DROP TABLE t1;
 # Should not be any files left here
 # End of bug#30102 test.
@@ -248,7 +276,11 @@ PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (0) MAX_ROWS=100,
 PARTITION p1 VALUES LESS THAN (100) MAX_ROWS=100,
 PARTITION pMax VALUES LESS THAN MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO t1 VALUES (1, "Partition p1, first row");
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 DROP TABLE t1;
 #
 # bug#11760213-52599: ALTER TABLE REMOVE PARTITIONING ON NON-PARTITIONED

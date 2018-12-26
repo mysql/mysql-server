@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,62 +55,11 @@ case "$1" in
 			invoke-rc.d mysql stop || exit $?
 			server_stop
 		fi
-
-		MYSQLDATA=/var/lib/mysql
-		MYSQLFILES=/var/lib/mysql-files
-		MYSQLKEYRING=/var/lib/mysql-keyring
-		MYSQLLOG=/var/log/mysql
+		# Native 5.5 packages create a /var/run/mysqld owned by root. This can cause
+		# errors in the systemd service, so we reset ownership if it exists.
 		MYSQLRUN=/var/run/mysqld
-
-		if ! getent group mysql >/dev/null;
-		then
-			addgroup --system mysql >/dev/null
-		fi
-
-		if ! getent passwd mysql >/dev/null;
-		then
-			adduser --ingroup mysql --system --disabled-login --no-create-home --home ${MYSQLDATA} --shell /bin/false --gecos "MySQL Server" mysql >/dev/null
-		fi
-
-		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
-		then
-			mkdir ${MYSQLDATA}
-			chown mysql:mysql ${MYSQLDATA}
-			chmod 750 ${MYSQLDATA}
-		fi
-
-		if [ ! -d ${MYSQLFILES} -a ! -L ${MYSQLFILES} ];
-		then
-			mkdir ${MYSQLFILES}
-			chown mysql:mysql ${MYSQLFILES}
-			chmod 770 ${MYSQLFILES}
-		fi
-
-		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
-		then
-			mkdir ${MYSQLKEYRING}
-			chown mysql:mysql ${MYSQLKEYRING}
-			chmod 750 ${MYSQLKEYRING}
-		fi
-
-		if [ ! -d ${MYSQLLOG} -a ! -L ${MYSQLLOG} ];
-		then
-			mkdir ${MYSQLLOG}
-			chown mysql:adm ${MYSQLLOG}
-			chmod 750 ${MYSQLLOG}
-			touch ${MYSQLLOG}/error.log
-			chmod 640 ${MYSQLLOG}/error.log
-			chown mysql:adm ${MYSQLLOG}/error.log
-		fi
-
-		if [ ! -d ${MYSQLRUN} -a ! -L ${MYSQLRUN} ];
-		then
-			mkdir ${MYSQLRUN}
-		fi
-		if [ -d ${MYSQLRUN} ];
-		then
-			chown mysql:mysql ${MYSQLRUN}
-			chmod 755 ${MYSQLRUN}
+		if [ -d ${MYSQLRUN} ]; then
+			install -d -m0755 -omysql -gmysql ${MYSQLRUN}
 		fi
 
 		set +e

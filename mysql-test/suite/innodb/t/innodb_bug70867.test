@@ -25,7 +25,7 @@ let $args = --loose-console --core-file > $SEARCH_FILE 2>&1;
 
 --mkdir $MYSQL_DATA_DIR/tmpdata
 --chmod 0400 $MYSQL_DATA_DIR/tmpdata
---error 1
+--error 1,42
 --exec $MYSQLD_CMD --innodb_data_home_dir=$MYSQL_DATA_DIR/tmpdata $args
 let SEARCH_PATTERN = returned OS error 113;
 --source ./include/search_pattern.inc

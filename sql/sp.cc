@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -356,7 +356,9 @@ private:
   bool silence_error;
 
 public:
-  Proc_table_intact() : m_print_once(TRUE), silence_error(FALSE) {}
+  Proc_table_intact() : m_print_once(TRUE), silence_error(FALSE)
+                      { has_keys= TRUE; }
+
   my_bool check_proc_table(TABLE *table);
 
 protected:
@@ -381,7 +383,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buf, sizeof(buf), fmt, args);
   va_end(args);
 
-  if (code)
+  if (code == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
     my_message(code, buf, MYF(0));
   else
     my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "proc");
@@ -443,17 +445,9 @@ TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup)
   if (open_nontrans_system_tables_for_read(thd, &table, backup))
     DBUG_RETURN(NULL);
    
-  if (!table.table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table.table->s->db.str,
-             table.table->s->table_name.str);
-    goto err;
-  }
-
   if(!proc_table_intact.check_proc_table(table.table))
     DBUG_RETURN(table.table);
 
-err:
   close_nontrans_system_tables(thd, backup);
   DBUG_RETURN(NULL);
 }
@@ -972,8 +966,7 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   TABLE table;
   TABLE_SHARE share;
   Field *field;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
+
   table.in_use= thd;
   table.s = &share;
   field= sp->create_result_field(0, 0, &table);
@@ -2807,6 +2800,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str)
     if (item->field_type() != MYSQL_TYPE_BIT)
       return item->val_str(str);
     else {/* Bit type is handled as binary string */}
+    // Fall through
   case STRING_RESULT:
     {
       String *result= item->val_str(str);

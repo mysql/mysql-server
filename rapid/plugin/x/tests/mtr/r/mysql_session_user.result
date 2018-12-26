@@ -1,0 +1,75 @@
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+#
+# Assert the user exist from the start
+#
+include/assert.inc [session_user should exist before X plugin install]
+#
+# Start X plugin and check all is OK
+#
+install plugin mysqlx soname "mysqlx.so";
+include/assert.inc [session_user should exist after X plugin install]
+#
+# Delete the user
+#
+DROP USER "mysql.session"@"localhost";
+call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
+call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
+#
+# Recreate the user with an upgrade and see that X plugin works
+#
+Run mysql_upgrade
+mysql.columns_priv                                 OK
+mysql.db                                           OK
+mysql.engine_cost                                  OK
+mysql.event                                        OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.ndb_binlog_index                             OK
+mysql.plugin                                       OK
+mysql.proc                                         OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+include/assert.inc [session_user should exist after upgrade]
+RUN SELECT CURRENT_USER()
+
+CURRENT_USER()
+root@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+#
+# Uninstall plugin and verify that user is still there
+#
+UNINSTALL PLUGIN mysqlx;
+include/assert.inc [session_user should exist after install]
+#
+# Cleaning
+#
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Unable to use user mysql.session context *.*");
+call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings. Try to reset it manually.");

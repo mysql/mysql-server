@@ -1,0 +1,110 @@
+--source include/have_innodb_max_16k.inc
+--source include/not_valgrind.inc
+--source include/not_embedded.inc
+--source include/big_test.inc
+--source include/have_debug.inc
+
+# Create custom datadir path
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+# Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+let $page_size = `select @@innodb_page_size`;
+
+# Stop the MTR default datadir, as it was started with default 16k page size
+--echo # Stop DB server which was created by MTR default
+--source include/shutdown_mysqld.inc
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+# Set the bootstrap parameter with 2 undo tablespaces of different space id
+# other than 1
+
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure $KEYRING_PLUGIN_OPT --lc_messages_dir=$MYSQL_SHAREDIR --innodb-page-size=$page_size --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --debug=d,innodb_undo_upgrade --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=2 --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+--echo # Run the bootstrap command with 2 undo tablespaces
+--exec $NEW_CMD
+
+--echo # Start the DB server with 2 undo tablespaces
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $page_size page_size
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_undo_tablespaces=2"
+--source include/start_mysqld.inc
+
+CREATE TABLE t1
+	(keyc INT, c1 CHAR(100), c2 CHAR(100),
+	 PRIMARY KEY(keyc))ENGINE=INNODB;
+DELIMITER |;
+
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+	while (i <= 40000) DO
+		insert into t1 values (i, 'a', 'b');
+		SET i = i + 1;
+	END WHILE;
+END |
+DELIMITER ;|
+
+BEGIN;
+CALL populate_t1();
+DELETE FROM t1 WHERE keyc < 20000;
+UPDATE t1 SET c1 = 'mysql' WHERE keyc > 20000;
+UPDATE t1 SET c1 = 'oracle' WHERE keyc > 20000;
+COMMIT;
+DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+
+let CHECKFILE = $MYSQLTEST_VARDIR/log/check.txt;
+
+let MYSQLD_DATADIR = `select @@datadir`;
+
+--echo # Read the file size of undo tablespace before truncation
+perl;
+
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo004");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo005");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$size1='$size1,$size2';\n";
+close(OUT);
+EOF
+
+SET GLOBAL innodb_fast_shutdown=0;
+
+--replace_result $page_size page_size
+--let $restart_parameters="restart: --innodb-page-size=$page_size"
+--source include/restart_mysqld.inc
+
+--source $CHECKFILE
+
+let MYSQLD_DATADIR = $MYSQLD_DATADIR1;
+
+--echo # Read the file size of undo tablespace after truncation
+
+perl;
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size1)
+	= stat("$ENV{MYSQLD_DATADIR}/undo004");
+($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size2)
+	= stat("$ENV{MYSQLD_DATADIR}/undo005");
+open(OUT, ">$ENV{CHECKFILE}") || die;
+print OUT "let \$size2='$size1,$size2';\n";
+close(OUT);
+EOF
+
+--source $CHECKFILE
+
+if ($size1 == $size2)
+{
+   echo Truncation did not happen: $size1 == $size2;
+}
+
+--remove_file $BOOTSTRAP_SQL
+let CLEANUP_FOLDER= $MYSQL_TMP_DIR/datadir1;
+--source include/cleanup_folder.inc

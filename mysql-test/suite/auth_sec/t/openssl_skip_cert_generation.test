@@ -21,8 +21,15 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
 --shutdown_server
 --source include/wait_until_disconnected.inc
---error 0, 1
---remove_file $server_log
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca.pem
 
 --exec echo "restart:--auto_generate_certs --sha256_password_auto_generate_rsa_keys=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -39,7 +46,14 @@ let SEARCH_PATTERN= Skipping generation of SSL certificates as certificate files
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---remove_file $server_log
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/ca-key.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-cert.pem
 --remove_file $MYSQLTEST_VARDIR/mysqld.1/data/server-key.pem

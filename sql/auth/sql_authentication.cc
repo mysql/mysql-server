@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/x509v3.h>
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
 #include "auth_internal.h"
@@ -80,6 +81,7 @@ my_bool disconnect_on_expired_password= TRUE;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 #if !defined(HAVE_YASSL)
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
@@ -135,8 +137,11 @@ Rsa_authentication_keys::get_key_file_path(char *key, String *key_file_path)
      If a fully qualified path is entered use that, else assume the keys are 
      stored in the data directory.
    */
-  if (strchr(key, FN_LIBCHAR) != NULL ||
-      strchr(key, FN_LIBCHAR2) != NULL)
+  if (strchr(key, FN_LIBCHAR) != NULL
+#ifdef _WIN32
+      || strchr(key, FN_LIBCHAR2) != NULL
+#endif
+     )
     key_file_path->set_quick(key, strlen(key), system_charset_info);
   else
   {
@@ -184,9 +189,9 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
   */
   if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
   {
-    sql_print_information("RSA %s key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          key_type, key_file_path.c_ptr());
+    sql_print_warning("RSA %s key file not found: %s."
+                      " Some authentication plugins will not work.",
+                      key_type, key_file_path.c_ptr());
   }
   else
   {
@@ -210,6 +215,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
     }
 
     /* For public key, read key file content into a char buffer. */
+    bool read_error= false;
     if (!is_priv_key)
     {
       int filesize;
@@ -217,10 +223,18 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       filesize= ftell(key_file);
       fseek(key_file, 0, SEEK_SET);
       *key_text_buffer= new char[filesize+1];
-      (void) fread(*key_text_buffer, filesize, 1, key_file);
+      int items_read= fread(*key_text_buffer, filesize, 1, key_file);
+      read_error= items_read != 1;
+      if (read_error)
+      {
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        sql_print_error("Failure to read key file: %s",
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      }
       (*key_text_buffer)[filesize]= '\0';
     }
     fclose(key_file);
+    return read_error;
   }
   return false;
 }
@@ -446,7 +460,11 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
 {
   THD *thd= current_thd;
-  if (passwd_used == 2)
+
+  if (thd->is_error())
+    sql_print_information("%s", thd->get_stmt_da()->message_text());
+
+  else if (passwd_used == 2)
   {
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
@@ -869,7 +887,7 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
 {
 #if defined(HAVE_OPENSSL)
   Vio *vio= thd->get_protocol_classic()->get_vio();
-  SSL *ssl= thd->get_protocol()->get_ssl();
+  SSL *ssl= (SSL*) vio->ssl_arg;
   X509 *cert;
 #endif /* HAVE_OPENSSL */
 
@@ -1230,6 +1248,9 @@ char *get_56_lenc_string(char **buffer,
 {
   static char empty_string[1]= { '\0' };
   char *begin= *buffer;
+  uchar *pos= (uchar *)begin;
+  size_t required_length= 9;
+
 
   if (*max_bytes_available == 0)
     return NULL;
@@ -1250,6 +1271,27 @@ char *get_56_lenc_string(char **buffer,
     return empty_string;
   }
 
+  /* Make sure we have enough bytes available for net_field_length_ll */
+  DBUG_EXECUTE_IF("buffer_too_short_3",
+                  *pos= 252; *max_bytes_available= 2;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_4",
+                  *pos= 253; *max_bytes_available= 3;
+  );
+  DBUG_EXECUTE_IF("buffer_too_short_9",
+                  *pos= 254; *max_bytes_available= 8;
+  );
+
+  if (*pos <= 251)
+    required_length= 1;
+  if (*pos == 252)
+    required_length= 3;
+  if (*pos == 253)
+    required_length= 4;
+
+  if (*max_bytes_available < required_length)
+    return NULL;
+
   *string_length= (size_t)net_field_length_ll((uchar **)buffer);
 
   DBUG_EXECUTE_IF("sha256_password_scramble_too_long",
@@ -1257,6 +1299,9 @@ char *get_56_lenc_string(char **buffer,
   );
 
   size_t len_len= (size_t)(*buffer - begin);
+
+  DBUG_ASSERT((*max_bytes_available >= len_len) &&
+              (len_len == required_length));
   
   if (*string_length > *max_bytes_available - len_len)
     return NULL;
@@ -1758,6 +1803,10 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
   It transparently extracts the client plugin data, if embedded into
   a client authentication handshake packet, and handles plugin negotiation
   with the client, if necessary.
+
+  RETURN
+    -1          Protocol failure
+    >= 0        Success and also the packet length
 */
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
@@ -1943,7 +1992,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip_length= sctx_host_or_ip.length;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (thd->get_protocol()->get_ssl())
+  Vio *vio= thd->get_protocol_classic()->get_vio();
+  if (vio->ssl_arg)
     mpvio->vio_is_encrypted= 1;
   else
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
@@ -2033,6 +2083,12 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
                   {
                     if (!acl_user->use_default_password_lifetime &&
                         acl_user->password_lifetime)
+                      password_time_expired= true;
+                  });
+  DBUG_EXECUTE_IF("force_password_interval_expire_for_time_type",
+                  {
+                    if (acl_user->password_last_changed.time_type !=
+                        MYSQL_TIMESTAMP_ERROR)
                       password_time_expired= true;
                   });
   return password_time_expired;
@@ -2144,8 +2200,7 @@ acl_authenticate(THD *thd, enum_server_command command)
     if (parse_com_change_user_packet(&mpvio,
                                      mpvio.protocol->get_packet_length()))
     {
-      if (!thd->is_error())
-        login_failed_error(&mpvio, mpvio.auth_info.password_used);
+      login_failed_error(&mpvio, mpvio.auth_info.password_used);
       server_mpvio_update_thd(thd, &mpvio);
       DBUG_RETURN(1);
     }
@@ -2263,8 +2318,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
-    if (!thd->is_error())
-      login_failed_error(&mpvio, mpvio.auth_info.password_used);
+    login_failed_error(&mpvio, mpvio.auth_info.password_used);
     DBUG_RETURN (1);
   }
 
@@ -2303,8 +2357,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         Host_errors errors;
         errors.m_proxy_user= 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
         DBUG_RETURN(1);
       }
 
@@ -2323,8 +2376,7 @@ acl_authenticate(THD *thd, enum_server_command command)
         Host_errors errors;
         errors.m_proxy_user_acl= 1;
         inc_host_errors(mpvio.ip, &errors);
-        if (!thd->is_error())
-          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        login_failed_error(&mpvio, mpvio.auth_info.password_used);
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
@@ -2362,8 +2414,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       Host_errors errors;
       errors.m_ssl= 1;
       inc_host_errors(mpvio.ip, &errors);
-      if (!thd->is_error())
-        login_failed_error(&mpvio, thd->password);
+      login_failed_error(&mpvio, thd->password);
       DBUG_RETURN(1);
     }
 
@@ -2489,6 +2540,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       Host_errors errors;
       errors.m_default_database= 1;
       inc_host_errors(mpvio.ip, &errors);
+      login_failed_error(&mpvio, mpvio.auth_info.password_used);
       DBUG_RETURN(1);
     }
   }
@@ -2590,7 +2642,8 @@ int set_native_salt(const char* password, unsigned int password_len,
 int generate_sha256_password(char *outbuf, unsigned int *buflen,
                              const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -2888,8 +2941,12 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   /*
     If first packet is a 0 byte then the client isn't sending any password
     else the client will send a password.
+
+    The original intention was that the password is a string[NUL] but this
+    never got enforced properly so now we have to accept that an empty packet
+    is a blank password, thus the check for pkt_len == 0 has to be made too.
   */
-  if (pkt_len == 1 && *pkt == 0)
+  if ((pkt_len == 0 || pkt_len == 1) && *pkt == 0)
   {
     info->password_used= PASSWORD_USED_NO;
     /*
@@ -2985,6 +3042,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     DBUG_RETURN(CR_ERROR);
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
+
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
 
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
@@ -3298,7 +3359,24 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
-    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    RSA *rsa= RSA_new();
+    if (!rsa)
+      return NULL;
+    BIGNUM *e= BN_new();
+    if (!e)
+    {
+      RSA_free(rsa);
+      return NULL;
+    }
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
     return rsa; // pass ownership
   }
 
@@ -3398,21 +3476,68 @@ public:
                     EVP_PKEY *ca_pkey= NULL)
   {
     X509 *x509= X509_new();
-    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
-    ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
-    X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
-    X509_gmtime_adj(X509_get_notAfter(x509), notafter);
-    /* Set public key */
-    X509_set_pubkey(x509, pkey);
-    X509_NAME *name= X509_get_subject_name(x509);
-    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-      (const unsigned char *)cn.c_str(), -1, -1, 0);
+    X509_EXTENSION *ext= 0;
+    X509V3_CTX v3ctx;
+    X509_NAME *name= 0;
 
-    X509_set_issuer_name(x509,
-                         self_sign ? name : X509_get_subject_name(ca_x509));
-    X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256());
+    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
+    DBUG_ASSERT(serial != 0);
+    DBUG_ASSERT(self_sign || (ca_x509 != NULL && ca_pkey != NULL));
+    if (!x509)
+      goto err;
+
+    /** Set certificate version */
+    if (!X509_set_version(x509, 2))
+      goto err;
+
+    /** Set serial number */
+    if (!ASN1_INTEGER_set(X509_get_serialNumber(x509), serial))
+      goto err;
+
+    /** Set certificate validity */
+    if (!X509_gmtime_adj(X509_get_notBefore(x509), notbefore) ||
+        !X509_gmtime_adj(X509_get_notAfter(x509), notafter))
+      goto err;
+
+    /** Set public key */
+    if (!X509_set_pubkey(x509, pkey))
+      goto err;
+
+    /** Set CN value in subject */
+    name= X509_get_subject_name(x509);
+    if (!name)
+      goto err;
+
+    if (!X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                                    (const unsigned char *)cn.c_str(),
+                                    -1, -1, 0))
+      goto err;
+
+    /** Set Issuer */
+    if (!X509_set_issuer_name(x509, self_sign ? name :
+                                      X509_get_subject_name(ca_x509)))
+      goto err;
+
+    /** Add X509v3 extensions */
+    X509V3_set_ctx(&v3ctx, self_sign ? x509 : ca_x509, x509, NULL, NULL, 0);
+
+    /** Add CA:TRUE / CA:FALSE inforamation */
+    if (!(ext= X509V3_EXT_conf_nid(NULL, &v3ctx, NID_basic_constraints,
+                                   self_sign ?(char *)"critical,CA:TRUE" :
+                                              (char *)"critical,CA:FALSE")))
+      goto err;
+    X509_add_ext(x509, ext, -1);
+    X509_EXTENSION_free(ext);
+
+    /** Sign using SHA256 */
+    if (!X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256()))
+      goto err;
 
     return x509;
+err:
+    if (x509)
+      X509_free(x509);
+    return 0;
   }
 };
 

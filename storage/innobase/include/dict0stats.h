@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,9 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "dict0types.h"
 #include "trx0types.h"
+
+#define TABLE_STATS_NAME        "mysql/innodb_table_stats"
+#define INDEX_STATS_NAME        "mysql/innodb_index_stats"
 
 enum dict_stats_upd_option_t {
 	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
@@ -182,6 +185,9 @@ This function creates its own transaction and commits it.
 dberr_t
 dict_stats_rename_table(
 /*====================*/
+	bool		dict_locked,	/*!< in: true if dict_sys mutex
+                                        and dict_operation_lock are held,
+                                        otherwise false*/
 	const char*	old_name,	/*!< in: old table name */
 	const char*	new_name,	/*!< in: new table name */
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS

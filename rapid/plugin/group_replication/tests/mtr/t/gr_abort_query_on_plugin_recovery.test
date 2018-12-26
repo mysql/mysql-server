@@ -1,0 +1,127 @@
+################################################################################
+# This test proves that no query can be executed by a user when the group
+# replication plugin is on recovery mode as it could cause deadlocks and/or
+# conflicts.
+#
+# To test this, we start a server, but on the donor the applier thread is stopped
+# so the joiner will be stuck on recovery as the view change packet wont arrive.
+# While stuck on recovery, we execute a query on this server and check that it
+# fails
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap start a group on M1, create a table 't1', and stop the applier
+#    thread.
+# 2. Start GR on M2. M2 should go to RECOVERING state. Wait for recovery to
+#    create table t1.
+# 3. Expect ER_OPTION_PREVENTS_STATEMENT on DML execution because M2 is in
+#    super_read_only mode during recovery.
+# 4. Start applier thread on M1. Wait for M2 to come ONLINE and re-execute
+#    DML.
+# 5. Assert check that M1 and M2 have the same data and gtid_executed.
+# 6. Cleanup.
+################################################################################
+
+--let $group_replication_group_name= 49adfac0-b156-11e4-ab27-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #################################################################
+--echo # Start group replication on server 1 and stop the applier thread.
+
+--connection server1
+--echo server1
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo
+--echo #####################################################################
+--echo # Start group replication on server2 and wait for the state to change.
+
+--connection server2
+--echo server2
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Transaction cannot be executed while Group Replication is recovering.*");
+call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
+set session sql_log_bin=1;
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo
+--echo ###################################################
+--echo # On server 2 wait for recovery to create the table.
+
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.tables WHERE (table_schema = 'test') AND (table_name = 't1');
+--source include/wait_condition.inc
+
+--echo
+--echo ##########################################################
+--echo # On server 2 try to execute a query and see that it fails as the
+--echo # server is in super-read-only mode during recovery.
+
+--error ER_OPTION_PREVENTS_STATEMENT
+INSERT INTO test.t1 (b) VALUES (1);
+
+--echo
+--echo ####################################################################
+--echo # On server 1 restart the applier thread so now server 2 can recover.
+
+--connection server1
+--echo server1
+
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo
+--echo ###################################################################
+--echo # On server 2 wait for it to become online and re-execute the query
+
+--connection server2
+--echo server2
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+INSERT INTO test.t1 (b) VALUES (1);
+
+--source include/rpl_sync.inc
+
+--echo
+--echo #######################################################################
+--echo # Assert that server1 and server2 have the same data and GTID_EXECUTED.
+
+--connection server1
+--echo server1
+--let $assert_text= 'There is a value 1 in table t1 on server1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--connection server2
+--echo server2
+--let $assert_text= 'There is a value 1 in table t1 on server2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 1
+--source include/assert.inc
+
+--connection server1
+--echo server1
+--let $server1_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--connection server2
+--echo server2
+--let $server2_gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
+--let $assert_text= 'server1 and server2 GTID_EXECUTED must be equal'
+--let $assert_cond= "$server1_gtid_executed" = "$server2_gtid_executed"
+--source include/assert.inc
+
+--echo
+--echo #########
+--echo # Cleanup
+
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc
+

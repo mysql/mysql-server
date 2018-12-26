@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -337,7 +337,7 @@ public:
 		}
 
 		bool		ret;
-		os_file_t	handle = os_file_create(
+		pfs_os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
 			OS_LOG_FILE, srv_read_only_mode, &ret);
@@ -464,7 +464,7 @@ public:
 		}
 
 		bool	ret;
-		os_file_t handle = os_file_create_simple_no_error_handling(
+		pfs_os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE,
 			srv_read_only_mode, &ret);
@@ -617,7 +617,7 @@ TruncateLogParser::scan(
 			}
 			memset(log_file_name, 0, sz);
 
-			strncpy(log_file_name, dir_path, dir_len);
+			memcpy(log_file_name, dir_path, dir_len);
 			ulint	log_file_name_len = strlen(log_file_name);
 			if (log_file_name[log_file_name_len - 1]
 				!= OS_PATH_SEPARATOR) {
@@ -653,7 +653,7 @@ TruncateLogParser::parse(
 	/* Open the file and read magic-number to findout if truncate action
 	was completed. */
 	bool		ret;
-	os_file_t	handle = os_file_create_simple(
+	pfs_os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
@@ -1235,6 +1235,11 @@ row_truncate_complete(
 		table->memcached_sync_count = 0;
 	}
 
+	/* Add the table back to FTS optimize background thread. */
+	if (table->fts) {
+		fts_optimize_add_table(table);
+	}
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	DEBUG_SYNC_C("ib_trunc_table_trunc_completing");
@@ -1580,6 +1585,9 @@ row_truncate_update_system_tables(
 
 		/* Reset the Doc ID in cache to 0 */
 		if (has_internal_doc_id && table->fts->cache != NULL) {
+			DBUG_EXECUTE_IF("ib_trunc_sleep_before_fts_cache_clear",
+					os_thread_sleep(10000000););
+
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
 			fts_cache_clear(table->fts->cache);
@@ -1838,6 +1846,13 @@ row_truncate_table_for_mysql(
 
 	/* Step-4: Stop all the background process associated with table. */
 	dict_stats_wait_bg_to_stop_using_table(table, trx);
+	if (table->fts) {
+		/* Remove from FTS optimize thread. Unlock is needed to allow
+		finishing background operations in progress. */
+		row_mysql_unlock_data_dictionary(trx);
+		fts_optimize_remove_table(table);
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	/* Step-5: There are few foreign key related constraint under which
 	we can't truncate table (due to referential integrity unless it is
@@ -2044,9 +2059,22 @@ row_truncate_table_for_mysql(
 	    && !dict_table_is_temporary(table)
 	    && fsp_flags != ULINT_UNDEFINED) {
 
-		fil_reinit_space_header(
-			table->space,
-			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
+		/* A single-table tablespace has initially
+		FIL_IBD_FILE_INITIAL_SIZE number of pages allocated and an
+		extra page is allocated for each of the indexes present. But in
+		the case of clust index 2 pages are allocated and as one is
+		covered in the calculation as part of table->indexes.count we
+		take care of the other page by adding 1. */
+		ulint	space_size = table->indexes.count +
+				FIL_IBD_FILE_INITIAL_SIZE + 1;
+
+		if (has_internal_doc_id) {
+			/* Since aux tables are created for fts indexes and
+			they use seperate tablespaces. */
+			space_size -= ib_vector_size(table->fts->indexes);
+		}
+
+		fil_reinit_space_header_for_table(table, space_size, trx);
 	}
 
 	DBUG_EXECUTE_IF("ib_trunc_crash_with_intermediate_log_checkpoint",

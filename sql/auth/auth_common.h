@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -237,6 +237,56 @@ enum mysql_user_table_field
   MYSQL_USER_FIELD_PASSWORD_LIFETIME,
   MYSQL_USER_FIELD_ACCOUNT_LOCKED,
   MYSQL_USER_FIELD_COUNT
+};
+
+enum mysql_proxies_priv_table_feild
+{
+  MYSQL_PROXIES_PRIV_FIELD_HOST = 0,
+  MYSQL_PROXIES_PRIV_FIELD_USER,
+  MYSQL_PROXIES_PRIV_FIELD_PROXIED_HOST,
+  MYSQL_PROXIES_PRIV_FIELD_PROXIED_USER,
+  MYSQL_PROXIES_PRIV_FIELD_WITH_GRANT,
+  MYSQL_PROXIES_PRIV_FIELD_GRANTOR,
+  MYSQL_PROXIES_PRIV_FIELD_TIMESTAMP,
+  MYSQL_PROXIES_PRIV_FIELD_COUNT
+};
+
+enum mysql_procs_priv_table_field
+{
+  MYSQL_PROCS_PRIV_FIELD_HOST = 0,
+  MYSQL_PROCS_PRIV_FIELD_DB,
+  MYSQL_PROCS_PRIV_FIELD_USER,
+  MYSQL_PROCS_PRIV_FIELD_ROUTINE_NAME,
+  MYSQL_PROCS_PRIV_FIELD_ROUTINE_TYPE,
+  MYSQL_PROCS_PRIV_FIELD_GRANTOR,
+  MYSQL_PROCS_PRIV_FIELD_PROC_PRIV,
+  MYSQL_PROCS_PRIV_FIELD_TIMESTAMP,
+  MYSQL_PROCS_PRIV_FIELD_COUNT
+};
+
+enum mysql_columns_priv_table_field
+{
+  MYSQL_COLUMNS_PRIV_FIELD_HOST = 0,
+  MYSQL_COLUMNS_PRIV_FIELD_DB,
+  MYSQL_COLUMNS_PRIV_FIELD_USER,
+  MYSQL_COLUMNS_PRIV_FIELD_TABLE_NAME,
+  MYSQL_COLUMNS_PRIV_FIELD_COLUMN_NAME,
+  MYSQL_COLUMNS_PRIV_FIELD_TIMESTAMP,
+  MYSQL_COLUMNS_PRIV_FIELD_COLUMN_PRIV,
+  MYSQL_COLUMNS_PRIV_FIELD_COUNT
+};
+
+enum mysql_tables_priv_table_field
+{
+  MYSQL_TABLES_PRIV_FIELD_HOST = 0,
+  MYSQL_TABLES_PRIV_FIELD_DB,
+  MYSQL_TABLES_PRIV_FIELD_USER,
+  MYSQL_TABLES_PRIV_FIELD_TABLE_NAME,
+  MYSQL_TABLES_PRIV_FIELD_GRANTOR,
+  MYSQL_TABLES_PRIV_FIELD_TIMESTAMP,
+  MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV,
+  MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV,
+  MYSQL_TABLES_PRIV_FIELD_COUNT
 };
 
 /* When we run mysql_upgrade we must make sure that the server can be run
@@ -510,6 +560,13 @@ public:
       table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
     return strncmp(password_field->field_name, "Password", 8) == 0;
   }
+
+  virtual bool user_table_schema_check(TABLE* table)
+  {
+    return table->s->fields >
+           Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56;
+  }
+
   virtual ~Acl_load_user_table_schema_factory() {}
 };
 
@@ -551,13 +608,15 @@ bool acl_check_host(const char *host, const char *ip);
 
 /* rewrite CREATE/ALTER/GRANT user */
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
-                                     std::set<LEX_USER *> *users_not_to_log= NULL);
+                                     std::set<LEX_USER *> *extra_users= NULL,
+                                     bool hide_password_hash= false);
 void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
-void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma);
+void append_user_new(THD *thd, String *str, LEX_USER *user, bool comma= true,
+                     bool hide_password_hash= false);
 int check_change_password(THD *thd, const char *host, const char *user,
                           const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
@@ -570,7 +629,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list);
 bool set_and_validate_user_attributes(THD *thd,
                                       LEX_USER *Str,
                                       ulong &what_to_set,
-                                      bool is_privileged_user);
+                                      bool is_privileged_user,
+                                      const char * cmd);
 
 /* sql_auth_cache */
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
@@ -621,7 +681,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
                        const char *db_name, const char *table_name,
                        const char *field_name);
 bool mysql_show_grants(THD *thd, LEX_USER *user);
-bool mysql_show_create_user(THD *thd, LEX_USER *user);
+bool mysql_show_create_user(THD *thd, LEX_USER *user, bool are_both_users_same);
 bool mysql_revoke_all(THD *thd, List <LEX_USER> &list);
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc);
@@ -645,6 +705,7 @@ bool lock_tables_precheck(THD *thd, TABLE_LIST *tables);
 bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd,
+                                  const char *child_table_db,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info);
 bool check_readonly(THD *thd, bool err_if_readonly);

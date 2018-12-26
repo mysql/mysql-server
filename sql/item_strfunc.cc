@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,13 @@
 #include "sha2.h"
 
 #include "item_strfunc.h"
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_CRYPT_H
+#include <crypt.h>
+#endif
 
 #include "base64.h"                  // base64_encode_max_arg_length
 #include "my_aes.h"                  // MY_AES_IV_SIZE
@@ -239,9 +246,9 @@ String *Item_func_sha2::val_str_ascii(String *str)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
+  String *input_string= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
 
-  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -2159,6 +2166,12 @@ static size_t calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
+
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= strlen(buffer) + 1;
@@ -2224,31 +2237,6 @@ String *Item_func_password::val_str_ascii(String *str)
            default_charset());
 
   return str;
-}
-
-char *Item_func_password::
-  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
-{
-  String *password_str= new (thd->mem_root)String(password, thd->variables.
-                                                    character_set_client);
-  my_validate_password_policy(password_str->ptr(), password_str->length());
-
-  char *buff= NULL;
-  if (thd->variables.old_passwords == 0)
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
-    my_make_scrambled_password_sha1(buff, password, pass_len);
-  }
-#if defined(HAVE_OPENSSL)
-  else
-  {
-    /* Allocate memory for the password scramble and one extra byte for \0 */
-    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
-    my_make_scrambled_password(buff, password, pass_len);
-  }
-#endif
-  return buff;
 }
 
 bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
@@ -3198,14 +3186,15 @@ String *Item_func_format::val_str_ascii(String *str)
       str_length >= dec_length + 1 + lc->grouping[0])
   {
     /* We need space for ',' between each group of digits as well. */
-    char buf[2 * FLOATING_POINT_BUFFER];
+    char buf[2 * FLOATING_POINT_BUFFER + 2] = {0};
     int count;
     const char *grouping= lc->grouping;
     char sign_length= *str->ptr() == '-' ? 1 : 0;
     const char *src= str->ptr() + str_length - dec_length - 1;
     const char *src_begin= str->ptr() + sign_length;
-    char *dst= buf + sizeof(buf);
-    
+    char *dst= buf + 2 * FLOATING_POINT_BUFFER;
+    char *start_dst = dst;
+
     /* Put the fractional part */
     if (dec)
     {
@@ -3237,7 +3226,8 @@ String *Item_func_format::val_str_ascii(String *str)
       *--dst= *str->ptr();
     
     /* Put the rest of the integer part without grouping */
-    str->copy(dst, buf + sizeof(buf) - dst, &my_charset_latin1);
+    size_t result_length = start_dst - dst;
+    str->copy(dst, result_length, &my_charset_latin1);
   }
   else if (dec_length && lc->decimal_point != '.')
   {
@@ -3718,6 +3708,7 @@ String *Item_func_rpad::val_str(String *str)
   char *to;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(str);
   String *rpad= args[2]->val_str(&rpad_str);
 
@@ -3761,10 +3752,15 @@ String *Item_func_rpad::val_str(String *str)
 
   const size_t res_char_length= res->numchars();
 
+  // String to pad is big enough
   if (count <= static_cast<longlong>(res_char_length))
-  {						// String to pad is big enough
-    res->length(res->charpos((int) count));	// Shorten result if longer
-    return (res);
+  {
+    int res_charpos= res->charpos((int)count);
+    if (tmp_value.alloc(res_charpos))
+      return NULL;
+    (void)tmp_value.copy(*res);
+    tmp_value.length(res_charpos); // Shorten result if longer
+    return &tmp_value;
   }
   const size_t pad_char_length= rpad->numchars();
 
@@ -3786,6 +3782,10 @@ String *Item_func_rpad::val_str(String *str)
   }
   /* Must be done before alloc_buffer */
   const size_t res_byte_length= res->length();
+  /*
+    alloc_buffer() doesn't modify 'res' because 'res' is guaranteed too short
+    at this stage.
+  */
   if (!(res= alloc_buffer(res, str, &tmp_value,
                           static_cast<size_t>(byte_count))))
   {
@@ -3846,6 +3846,7 @@ String *Item_func_lpad::val_str(String *str)
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
   size_t byte_count;
+  /* Avoid modifying this string as it may affect args[0] */
   String *res= args[0]->val_str(&tmp_value);
   String *pad= args[2]->val_str(&lpad_str);
 
@@ -3886,8 +3887,12 @@ String *Item_func_lpad::val_str(String *str)
 
   if (count <= static_cast<longlong>(res_char_length))
   {
-    res->length(res->charpos((int) count));
-    return res;
+    int res_charpos= res->charpos((int)count);
+   if (tmp_value.alloc(res_charpos))
+     return NULL;
+   (void)tmp_value.copy(*res);
+   tmp_value.length(res_charpos); // Shorten result if longer
+   return &tmp_value;
   }
   
   pad_char_length= pad->numchars();
@@ -4907,6 +4912,16 @@ String *Item_func_quote::val_str(String *str)
   *to= '\'';
 
 ret:
+  if (new_length > current_thd->variables.max_allowed_packet)
+  {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        func_name(),
+                        current_thd->variables.max_allowed_packet);
+    return error_str();
+  }
+
   tmp_value.length(new_length);
   tmp_value.set_charset(collation.collation);
   null_value= 0;

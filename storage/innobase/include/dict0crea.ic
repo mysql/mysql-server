@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,7 +68,7 @@ dict_create_add_foreign_id(
 			sprintf(id, "%s_ibfk_%lu", name,
 				(ulong) (*id_nr)++);
 		} else {
-			char	table_name[MAX_TABLE_NAME_LEN + 20] = "";
+			char	table_name[MAX_TABLE_NAME_LEN + 20 + 1] = "";
 			uint	errors = 0;
 
 			strncpy(table_name, name,

@@ -21,9 +21,8 @@
 #define _NGS_SCHEDULER_H_
 
 #include "ngs/thread.h"
-#include <boost/function.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/scoped_ptr.hpp>
+#include "ngs/memory.h"
+#include "ngs_common/atomic.h"
 #include <string>
 #include <vector>
 #include <list>
@@ -35,10 +34,10 @@ namespace ngs
   class Scheduler_dynamic
   {
   public:
-    class Monitor
+    class Monitor_interface
     {
     public:
-      virtual ~Monitor() {}
+      virtual ~Monitor_interface() {}
 
       virtual void on_worker_thread_create() = 0;
       virtual void on_worker_thread_destroy() = 0;
@@ -46,14 +45,14 @@ namespace ngs
       virtual void on_task_end() = 0;
     };
 
-    typedef boost::function<void()> Task;
+    typedef ngs::function<void()> Task;
 
     Scheduler_dynamic(const char* name, PSI_thread_key thread_key = PSI_NOT_INSTRUMENTED);
     virtual ~Scheduler_dynamic();
 
     virtual void launch();
-    virtual unsigned int set_num_workers(unsigned int n);
     virtual void stop();
+    virtual unsigned int set_num_workers(unsigned int n);
     void set_idle_worker_timeout(unsigned long long milliseconds);
     bool post(Task* task);
     bool post(const Task& task);
@@ -62,7 +61,7 @@ namespace ngs
     virtual bool thread_init() { return true; }
     virtual void thread_end();
 
-    void set_monitor(Monitor *monitor);
+    void set_monitor(Monitor_interface *monitor);
 
     bool is_worker_thread(my_thread_t thread_id);
     bool is_running();
@@ -103,7 +102,7 @@ namespace ngs
         return true;
       }
 
-      bool remove_if(Element_type &result, boost::function<bool(Element_type &)> matches)
+      bool remove_if(Element_type &result, ngs::function<bool(Element_type &)> matches)
       {
         Mutex_lock guard(m_access_mutex);
         for (typename std::list<Element_type>::iterator it = m_list.begin(); it != m_list.end(); ++it)
@@ -150,16 +149,15 @@ namespace ngs
     Mutex m_thread_exit_mutex;
     Cond m_thread_exit_cond;
     Mutex m_post_mutex;
-    volatile int32 m_is_running;
-    volatile int32 m_min_workers_count;
-    volatile int32 m_workers_count;
-    volatile int32 m_tasks_count;
-    volatile int64 m_idle_worker_timeout; // milliseconds
-    //boost::lockfree::queue<Task*> m_tasks;
+    volatile ngs::atomic<int32> m_is_running;
+    volatile ngs::atomic<int32> m_min_workers_count;
+    volatile ngs::atomic<int32> m_workers_count;
+    volatile ngs::atomic<int32> m_tasks_count;
+    volatile ngs::atomic<int64> m_idle_worker_timeout; // milliseconds
     lock_list<Task *> m_tasks;
     lock_list<Thread_t> m_threads;
     lock_list<my_thread_t> m_terminating_workers;
-    boost::scoped_ptr<Monitor> m_monitor;
+    ngs::Memory_instrumented<Monitor_interface>::Unique_ptr m_monitor;
     PSI_thread_key m_thread_key;
   };
 }

@@ -1,0 +1,40 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (a INT);
+TRUNCATE performance_schema.events_waits_summary_by_instance;
+[START] INSERT INTO t1 VALUES (1);
+[START] INSERT INTO t1 VALUES (2);
+[START] INSERT INTO t1 VALUES (3);
+[START] INSERT INTO t1 VALUES (4);
+[START] INSERT INTO t1 VALUES (5);
+[START] INSERT INTO t1 VALUES (6);
+[START] INSERT INTO t1 VALUES (7);
+[START] INSERT INTO t1 VALUES (8);
+[START] INSERT INTO t1 VALUES (9);
+[START] INSERT INTO t1 VALUES (10);
+[END] INSERT INTO t1 VALUES (1);
+[END] INSERT INTO t1 VALUES (2);
+[END] INSERT INTO t1 VALUES (3);
+[END] INSERT INTO t1 VALUES (4);
+[END] INSERT INTO t1 VALUES (5);
+[END] INSERT INTO t1 VALUES (6);
+[END] INSERT INTO t1 VALUES (7);
+[END] INSERT INTO t1 VALUES (8);
+[END] INSERT INTO t1 VALUES (9);
+[END] INSERT INTO t1 VALUES (10);
+[connection server_1_1]
+[connection server_1_2]
+[connection server_1_3]
+[connection server_1_4]
+[connection server_1_5]
+[connection server_1_6]
+[connection server_1_7]
+[connection server_1_8]
+[connection server_1_9]
+[connection server_1_10]
+include/assert.inc [The group commit should acquire sidno_lock for 2 times]
+DROP TABLE t1;
+include/rpl_end.inc

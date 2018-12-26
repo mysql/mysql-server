@@ -167,6 +167,7 @@ id	name	myDate
 # No changes.
 COMMIT;
 DROP TABLE t1;
+SET AUTOCOMMIT= default;
 #
 # Bug#51830: Incorrect partition pruning on range partition (regression)
 #
@@ -282,7 +283,11 @@ engine=memory
 partition by range columns(a)
 ( partition p0 values less than ('m'),
 partition p1 values less than ('za'));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values  ('j');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;
 create table t1 (a varchar(5))
@@ -290,7 +295,11 @@ engine=myisam
 partition by range columns(a)
 ( partition p0 values less than ('m'),
 partition p1 values less than ('za'));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 insert into t1 values  ('j');
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 update t1 set a = 'z' where (a >= 'j');
 drop table t1;
 create table t1 (a varchar(5))
@@ -324,11 +333,16 @@ PARTITION p2 VALUES LESS THAN MAXVALUE
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8),
 (9,9), (10,10), (11,11);
 SET @old_tx_isolation := @@session.tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SET autocommit = 0;
 UPDATE t1 SET DATA = data*2 WHERE id = 3;
 UPDATE t1 SET data = data*2 WHERE data = 2;
 SET @@session.tx_isolation = @old_tx_isolation;
+Warnings:
+Warning	1287	'@@tx_isolation' is deprecated and will be removed in a future release. Please use '@@transaction_isolation' instead
+SET autocommit= default;
 DROP TABLE t1;
 # Bug#37721, test of ORDER BY on PK and WHERE on INDEX
 CREATE TABLE t1 (
@@ -560,6 +574,8 @@ ENGINE = MyISAM
 PARTITION BY RANGE (int_column)
 subpartition by key (char_column) subpartitions 2
 (PARTITION p1 VALUES LESS THAN (5));
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -570,6 +586,8 @@ t1	CREATE TABLE `t1` (
 SUBPARTITION BY KEY (char_column)
 SUBPARTITIONS 2
 (PARTITION p1 VALUES LESS THAN (5) ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 drop table t1;
 CREATE TABLE t1 (a INT) ENGINE=InnoDB
 PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
@@ -1043,6 +1061,8 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1115,6 +1135,8 @@ PRIMARY KEY (`f1`,`f4`)
 PARTITION BY LIST (`f4`)
 (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
 PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1153,6 +1175,8 @@ PARTITION BY LIST (`f4`)
 PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
 PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
 PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
+Warnings:
+Warning	1681	'InnoDB : A table partition in a shared tablespace' is deprecated and will be removed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1183,3 +1207,169 @@ t1	CREATE TABLE `t1` (
  PARTITION p3 VALUES IN (3) TABLESPACE = `innodb_system` ENGINE = InnoDB) */
 DROP TABLE t1;
 DROP TABLESPACE ts1;
+
+Bug #25942592    INNODB: FAILING ASSERTION: INDEX->PAGE != 0XFFFFFFFF
+IN BTR0CUR.CC LINE 816
+
+call mtr.add_suppression("Missing .ibd file for table");
+CREATE TABLE t1(c1 INT,c2 CHAR (1),c3 DATE) ENGINE=InnoDB PARTITION BY HASH
+(TO_DAYS(c3)) PARTITIONS 12;
+ALTER TABLE t1 ADD INDEX(c1);
+ALTER TABLE t1 DISCARD PARTITION p2 TABLESPACE;
+SELECT COUNT(*)FROM t1,t1 AS b WHERE t1.c1=''AND t1.c2=b.c1;
+ERROR HY000: Tablespace has been discarded for table 't1'
+CREATE TABLE t2 (c1 int,c2 CHAR (1),c3 date,key(c1)) ENGINE=InnoDB
+PARTITION BY RANGE (TO_DAYS(c3))
+(
+PARTITION p0 VALUES LESS THAN (TO_DAYS('1979-01-01')),
+PARTITION p1 VALUES LESS THAN (TO_DAYS('1989-01-01')),
+PARTITION p2 VALUES LESS THAN (TO_DAYS('1999-01-01'))
+);
+ALTER TABLE t2 DISCARD PARTITION p2 TABLESPACE;
+SELECT COUNT(*)FROM t2,t2 AS b WHERE t2.c1=''AND t2.c2=b.c1;
+ERROR HY000: Tablespace has been discarded for table 't2'
+DROP TABLE t1,t2;
+
+Bug #26034430	ASSERTION `PART_REC_BUF_PTR' FAILED.
+
+
+CREATE TABLE t1 ( a INT NOT NULL, b INT NOT NULL, c INT NOT NULL, PRIMARY KEY(a,b)) PARTITION BY RANGE (a)(PARTITION x1 VALUES LESS THAN (1));
+SELECT * FROM t1 WHERE (a = 1 and b = 1 and c = 'b') OR (a > 2) ORDER BY a DESC;
+a	b	c
+CREATE TABLE t(id INT(11) UNSIGNED NOT NULL AUTO_INCREMENT, dttm DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, msg TEXT,PRIMARY KEY (id,dttm))ENGINE=INNODB DEFAULT CHARSET=UTF8MB4 ROW_FORMAT=DYNAMIC PARTITION BY RANGE COLUMNS(dttm) (PARTITION pf_201612 VALUES LESS THAN ('20170101') ENGINE = INNODB);
+SELECT * FROM t WHERE dttm > '2017-01-19' ORDER BY id DESC;
+id	dttm	msg
+DROP TABLE t,t1;
+
+Bug #26731025	INNODB PARTITION TABLE WILL LOCK INTO THE NEAR RECORD AS A CONDITION IN THE USE
+
+
+create table test12 (name varchar(30),age bigint,grade bigint,date datetime
+not null,partition_id int not null,
+PRIMARY KEY (`name`,`PARTITION_ID`),
+KEY `IDX_DATE` (`date`,`name`,`partition_id`),
+KEY `IDX_AGE` (`age`,`partition_id`) ) PARTITION BY RANGE
+COLUMNS(PARTITION_ID)
+(PARTITION p0 VALUES LESS THAN (0) ENGINE = InnoDB,
+PARTITION P1 VALUES LESS THAN (1) ENGINE = InnoDB,
+PARTITION P2 VALUES LESS THAN (2) ENGINE = InnoDB,
+PARTITION P3 VALUES LESS THAN (3) ENGINE = InnoDB,
+PARTITION P4 VALUES LESS THAN (4) ENGINE = InnoDB,
+PARTITION P5 VALUES LESS THAN (5) ENGINE = InnoDB,
+PARTITION P6 VALUES LESS THAN (6) ENGINE = InnoDB,
+PARTITION P7 VALUES LESS THAN (7) ENGINE = InnoDB,
+PARTITION P8 VALUES LESS THAN (8) ENGINE = InnoDB,
+PARTITION P9 VALUES LESS THAN (9) ENGINE = InnoDB);
+insert into test12 values('Tom1',20,1,'2017-08-25
+12:12:12',1),('Tom2',21,1,'2017-08-25 12:12:12',1),('Tom3',23,1,'2017-08-25
+12:12:12',1);
+begin;
+update test12 set grade=3,date=now()  where age=23 and
+partition_id=1;
+begin;
+update test12 set grade=1,date=now()  where age=21 and
+partition_id=1;
+begin;
+update test12 set grade=0,date=now()  where age=20 and
+partition_id=1;
+drop table test12;
+
+
+Bug #26390658   RENAMING A PARTITIONED TABLE DOES NOT UPDATE
+MYSQL.INNODB_TABLE_STATS.
+
+CREATE DATABASE test_jfg;
+CREATE TABLE test_jfg.test_jfg1 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC;
+CREATE TABLE test_jfg.test_jfg2 (id int(10) unsigned NOT NULL,PRIMARY
+KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+PARTITION BY RANGE ( id ) (PARTITION p1000 VALUES LESS THAN (1000)
+ENGINE = InnoDB,PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE =
+InnoDB);
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+database_name	table_name
+test_jfg	test_jfg1
+test_jfg	test_jfg2#P#p1000
+test_jfg	test_jfg2#P#pmax
+RENAME TABLE test_jfg.test_jfg1 TO test_jfg.test_jfg11;
+RENAME TABLE test_jfg.test_jfg2 TO test_jfg.test_jfg12;
+SELECT database_name, table_name FROM mysql.innodb_table_stats WHERE
+database_name = 'test_jfg';
+database_name	table_name
+test_jfg	test_jfg11
+test_jfg	test_jfg12#P#p1000
+test_jfg	test_jfg12#P#pmax
+DROP DATABASE test_jfg;
+#
+# Bug#27073100: PARTITION UPDATE_TIME NOT CORRECT AFTER RESTART/REBUILD
+#
+# Set up.
+CREATE TABLE t1 (fld1 INT(11) NOT NULL, fld2 INT(11) NOT NULL,
+fld3 DATE NOT NULL,  fld4 DATE NOT NULL,
+PRIMARY KEY (fld1, fld3),  KEY(fld1)) PARTITION
+BY RANGE (YEAR(fld3))
+(PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
+PARTITION p02 VALUES LESS THAN (1986) ENGINE = InnoDB,
+PARTITION p03 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+INSERT INTO t1 VALUES('11', '11111', '1984-11-16',
+'2008-11-16'), ('12', '11112', '1985-11-16', '2008-11-16'),
+('13', '11113', '1986-11-16', '2008-11-16');
+# Fetch the count of 'update_time' which is not null.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME) FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY
+PARTITION_ORDINAL_POSITION;
+TABLE_NAME	COUNT(UPDATE_TIME)
+t1	3
+# Rebuild the table.
+ALTER TABLE t1 ENGINE=INNODB;
+# After table rebuild, the 'update_time' will be set to NULL.
+# Hence the count would return 0.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME) FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY
+PARTITION_ORDINAL_POSITION;
+TABLE_NAME	COUNT(UPDATE_TIME)
+t1	0
+# Update the table where partition p02 is updated.
+UPDATE t1 SET fld2 = 71000 WHERE fld1 = 12 AND fld3 = '1985-11-16';
+# Without fix, the count for 'update_time' will be 2. After fix,
+# it will be 1 since only partition 'p02' is updated.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME)
+FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = 'test' AND
+TABLE_NAME = 't1' ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	COUNT(UPDATE_TIME)
+t1	1
+DROP TABLE t1;
+
+BUG#26553164 - INNODB PARTITION TABLE HAS UNEXPECTED ROW LOCK
+
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL,
+`dt` datetime NOT NULL,
+`data` varchar(10) DEFAULT NULL,
+PRIMARY KEY (`id`,`dt`),
+KEY `idx_dt` (`dt`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (to_days(dt))
+(PARTITION p20170218 VALUES LESS THAN (736744) ENGINE = InnoDB,
+PARTITION p20170219 VALUES LESS THAN (736745) ENGINE = InnoDB,
+PARTITION pMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+INSERT INTO t1 VALUES (1, '2018-04-25 10:18:00', '1');
+INSERT INTO t1 VALUES (2, '2018-04-25 10:18:01', '2');
+INSERT INTO t1 VALUES (3, '2018-04-25 10:18:02', '3');
+SELECT * FROM t1;
+id	dt	data
+1	2018-04-25 10:18:00	1
+2	2018-04-25 10:18:01	2
+3	2018-04-25 10:18:02	3
+begin;
+UPDATE t1 SET data = '11' WHERE id = 1;
+begin;
+UPDATE t1 SET data = '22' WHERE id = 2;
+commit;
+SELECT * FROM t1;
+id	dt	data
+1	2018-04-25 10:18:00	11
+2	2018-04-25 10:18:01	22
+3	2018-04-25 10:18:02	3
+DROP TABLE t1;

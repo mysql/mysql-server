@@ -1,0 +1,60 @@
+###############################################################################
+# Bug#27294009 - XCOM ENTERS AN INFINITE LOOP IN CASE OF A REQUEST_RETRY
+#
+# This test verifies that when the bootstrap node is not correctly set up in a
+# group, control requests (e.g., join, leave) will fail cleanly. Before fixing
+# this bug, issuing control requests to a group without the boot node correctly
+# set up would lead to nodes hanging indefinitely.
+#
+# The ideal scenario to test this bug fix would be to simultaneously start a
+# group with two (or more) nodes without setting any as the boot node. However,
+# due to the synchronous nature of MTR tests, it is not possible to do so, as
+# nodes will try (and fail) to connect to each other in succession, never
+# getting a chance to actually communicate. Hence, it is necessary to trick a
+# single node into connecting to itself.
+#
+# Test:
+# 0. This test requires one server.
+# 1. Set up seeds with alternative localhost addresses to force the node to
+#    connect to itself.
+# 2. Start group replication without setting the boot node flag to true.
+# 3. The join request fails cleanly without the node hanging.
+# 4. Clean up.
+###############################################################################
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+--echo ############################################################
+--echo # 1. Suppress expected error messages
+--echo ############################################################
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Plugin group_replication reported: 'read failed'");
+call mtr.add_suppression("Plugin group_replication reported: '\\[GCS\\] read failed'");
+call mtr.add_suppression("Plugin group_replication reported: 'Timeout on wait for view after joining group'");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+SET SESSION sql_log_bin= 1;
+
+--echo ############################################################
+--echo # 2. Define and setup seeds to force self connect
+--echo ############################################################
+--let $local_address= `SELECT @@GLOBAL.group_replication_local_address;`
+--let $xcom_port = `SELECT SUBSTR("$local_address",11,5);`
+--let $localhost_addr = `SELECT CONCAT("localhost:","$xcom_port");`
+--let $localhost_alt_addr = `SELECT CONCAT("127.0.0.1:","$xcom_port");`
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--replace_result $xcom_port XCOM_PORT
+--eval SET @@global.group_replication_group_seeds=`localhost:$xcom_port, 127.0.0.1:$xcom_port`
+
+--echo ############################################################
+--echo # 3. Start the node and expect it to fail
+--echo ############################################################
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo ############################################################
+--echo # 4. Clean up
+--echo ############################################################
+--source ../inc/group_replication_end.inc

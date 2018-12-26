@@ -1,0 +1,221 @@
+################################################################################
+# This test evaluates that when the certification information is above the
+# max_allowed_packet value, the garbage collection invoked during view changes
+# can alleviate this restriction.
+#
+# This test assumes an average size of 135 bytes per certification table entry.
+# Assuming this average, for a max packet size of 0.5MB, 3900 individual
+# transactions should be enough to break that limit.
+# In this test we use:
+#   max_allowed_packet = 1024*512  -     0.5 MB
+#   inserted transactions = 7800   -      ~1 MB
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Reduce max_allowed_packet to 0.5 MB on M1 and M2.
+# 2. Set DEBUG point to ensure the certification garbage collector is not
+#    executed on both M1 and M2. Bootstrap start a group on M1. Start GR on M2.
+# 3. Create table and events to insert data on both members.
+# 4. Start GR on M3. Test everything is fine by checking tables on M1 and M2.
+# 5. Clean up.
+################################################################################
+
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+--let $group_replication_group_name= a4eb9320-cf55-11e5-a837-0800200c9a66
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo #
+--echo # Reduce the max_allowed_packet value to just 1MB
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @start_global_value_s1 = @@global.max_allowed_packet;
+SET @@global.max_allowed_packet = 1024*512;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @start_global_value_s2 = @@global.max_allowed_packet;
+SET @@global.max_allowed_packet = 1024*512;
+
+--echo #
+--echo # Initiate a 2 member group
+--echo # Make sure the certification garbage collector is not executed
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Insert queries on both members.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Add some data for recovery
+CREATE TABLE test.mytable (f1 INT NOT NULL AUTO_INCREMENT PRIMARY KEY, f2 VARCHAR(100)) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+SET SESSION sql_log_bin= 0;
+delimiter //;
+CREATE EVENT IF NOT EXISTS test.event1
+ ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  SET v=0;
+  WHILE v < 3900
+  DO
+   INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
+   SET v = v+1;
+ END WHILE;
+END//
+delimiter ;//
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+delimiter //;
+CREATE EVENT IF NOT EXISTS test.event2
+ ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+ ON COMPLETION PRESERVE
+ DISABLE
+ DO
+ BEGIN
+  DECLARE v INTEGER;
+  SET v=0;
+  WHILE v < 3900
+  DO
+   INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
+   SET v = v+1;
+ END WHILE;
+END//
+delimiter ;//
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event1 ENABLE;
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL event_scheduler=on;
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event2 ENABLE;
+SET SESSION sql_log_bin= 1;
+
+--let $wait_timeout=300
+--let $wait_condition= SELECT COUNT(*)= 7800 FROM test.mytable;
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_timeout=300
+--let $wait_condition= SELECT COUNT(*)= 7800 FROM test.mytable;
+--source include/wait_condition.inc
+
+--echo #
+--echo # Start member 3
+--echo # The certification info transmitted to member 3 should be below 1 MB
+--echo #
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $wait_timeout=300
+--source include/start_group_replication.inc
+
+--echo #
+--echo # Test everything is fine
+--echo #
+
+INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are 7801 values in the table'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 7801
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are 7801 values in the table'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM test.mytable, count, 1] = 7801
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event1 DISABLE;
+
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="event1"
+--source include/wait_condition_or_abort.inc
+
+DROP EVENT IF EXISTS test.event1;
+SET SESSION sql_log_bin= 1;
+
+SET GLOBAL event_scheduler=off;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET @@global.max_allowed_packet = @start_global_value_s1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+ALTER EVENT event2 DISABLE;
+
+--let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="event2"
+--source include/wait_condition_or_abort.inc
+
+DROP EVENT IF EXISTS test.event2;
+SET SESSION sql_log_bin= 1;
+
+SET GLOBAL event_scheduler=off;
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+SET @@global.max_allowed_packet = @start_global_value_s2;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE mytable;
+
+--source ../inc/group_replication_end.inc

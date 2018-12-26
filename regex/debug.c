@@ -102,7 +102,7 @@ FILE *d;
 	int col = 0;
 	int last;
 	sopno offset = 2;
-	char buf[10];
+	char buf[20];
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \
 						fprintf(d, "\n\t"); \

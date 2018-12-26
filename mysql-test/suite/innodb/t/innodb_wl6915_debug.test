@@ -23,7 +23,7 @@ call mtr.add_suppression("Found .* prepared XA transactions");
 # Will test following scenarios:
 # 1. Hitting crash while preparing xa trx.
 # 2. Hitting crash while committing normal trx involving temp/non-temp tables.
-# 3. try to start server with different values of innodb_undo_logs.
+# 3. try to start server with different values of innodb_rollback_segments.
 #    (try scenario such that a rollback segment is shared by multiple trxs).
 #
 ################################################################################
@@ -108,10 +108,10 @@ drop procedure populate_t1_t2;
 
 #-----------------------------------------------------------------------------
 #
-# 3. try to start server with different values of innodb_undo_logs.
+# 3. try to start server with different values of innodb_rollback_segments.
 #    (try scenario such that a rollback segment is shared by multiple trxs).
 #
-let $restart_parameters = restart: --innodb_undo_logs=1;
+let $restart_parameters = restart: --innodb_rollback_segments=1;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;
@@ -160,9 +160,9 @@ connection default;
 drop table t2;
 drop procedure populate_t1_t2;
 #
-# trying with value innodb_undo_logs = 10 (so only slot-0 redo rseg is active)
+# trying with value innodb_rollback_segments = 10 (so only slot-0 redo rseg is active)
 #
-let $restart_parameters = restart: --innodb_undo_logs=10;
+let $restart_parameters = restart: --innodb_rollback_segments=10;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;
@@ -174,9 +174,9 @@ insert into t values (2);
 drop table t;
 drop table t2;
 #
-# trying with value innodb_undo_logs = 40 (this will make 8 redo rseg active).
+# trying with value innodb_rollback_segments = 40 (this will make 8 redo rseg active).
 #
-let $restart_parameters = restart: --innodb_undo_logs=40;
+let $restart_parameters = restart: --innodb_rollback_segments=40;
 --source include/restart_mysqld.inc
 #
 create table t (i int) engine=innodb;

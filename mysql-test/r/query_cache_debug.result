@@ -1,6 +1,10 @@
 flush status;
 set query_cache_type=DEMAND;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 set global query_cache_size= 1024*768;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 drop table if exists t1;
 create table t1 (a varchar(100));
 insert into t1 values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
@@ -13,6 +17,8 @@ show status like 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
 set global query_cache_size= 0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 Signal the debug hook to release the lock.
 set debug_sync="now SIGNAL go";
 Show query cache status.
@@ -22,19 +28,29 @@ Qcache_queries_in_cache	0
 a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 set debug_sync= 'RESET';
 set global query_cache_size= 0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 use test;
 drop table t1;
 SET @old_concurrent_insert= @@GLOBAL.concurrent_insert;
 SET @old_query_cache_size= @@GLOBAL.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (a INT);
 CREATE TABLE t2 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 SET GLOBAL concurrent_insert= 1;
 SET GLOBAL query_cache_size= 1024*512;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type= ON;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 # Switch to connection con1
 SET DEBUG_SYNC = "wait_after_query_cache_invalidate SIGNAL parked WAIT_FOR go";
 # Send concurrent insert, will wait in the query cache table invalidate
@@ -71,16 +87,26 @@ Qcache_queries_in_cache	1
 # Restore defaults
 SET DEBUG_SYNC= 'RESET';
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1,t2;
 SET GLOBAL concurrent_insert= DEFAULT;
 SET GLOBAL query_cache_size= DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type= DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 #
 # Bug43758 Query cache can lock up threads in 'freeing items' state
 #
 FLUSH STATUS;
 SET GLOBAL query_cache_type=DEMAND;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_size= 1024*768;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2,t3,t4,t5;
 CREATE TABLE t1 (a VARCHAR(100));
 CREATE TABLE t2 (a VARCHAR(100));
@@ -100,6 +126,8 @@ SELECT SQL_CACHE * FROM t1;
 a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 *************************************************************************
 ** We want to accomplish the following state:
 **  - Query cache status: TABLE_FLUSH_IN_PROGRESS
@@ -171,6 +199,8 @@ SET DEBUG_SYNC="now SIGNAL go1_2";
 a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DELETE FROM t1;
 DELETE FROM t2;
 DELETE FROM t3;
@@ -178,28 +208,44 @@ DELETE FROM t3;
 a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+Warnings:
+Warning	1681	'SQL_CACHE' is deprecated and will be removed in a future release.
 DELETE FROM t4;
 DELETE FROM t5;
 =================================== Connection thd1
 ** Done.
 SET DEBUG_SYNC= 'RESET';
 SET GLOBAL query_cache_size= 0;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 # Restore defaults
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 FLUSH STATUS;
 DROP TABLE t1,t2,t3,t4,t5;
 SET GLOBAL query_cache_size= DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type= DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 #
 # Bug#56822: Add a thread state for sessions waiting on the query cache lock
 #
 SET @old_query_cache_size= @@GLOBAL.query_cache_size;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 SET GLOBAL concurrent_insert= 1;
 SET GLOBAL query_cache_size= 1024*512;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.
 SET GLOBAL query_cache_type= ON;
+Warnings:
+Warning	1287	'@@query_cache_type' is deprecated and will be removed in a future release.
 # Switch to connection con1
 SET DEBUG_SYNC = "wait_in_query_cache_invalidate2 SIGNAL parked WAIT_FOR go";
 # Send INSERT, will wait in the query cache table invalidation
@@ -216,8 +262,14 @@ RESET QUERY CACHE;
 SET DEBUG_SYNC="now SIGNAL go";
 # Reap con1 and disconnect
 # Reap con2 and disconnect
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Restore defaults
 SET DEBUG_SYNC= 'RESET';
 RESET QUERY CACHE;
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 DROP TABLE t1;
 SET GLOBAL query_cache_size= DEFAULT;
+Warnings:
+Warning	1287	'@@query_cache_size' is deprecated and will be removed in a future release.

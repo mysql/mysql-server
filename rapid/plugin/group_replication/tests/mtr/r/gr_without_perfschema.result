@@ -1,0 +1,40 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+####################################################################
+# 1. Create a table on server1 and generate workload to be recovered
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+#################################################################
+# 2. Start group replication on server1, bootstrapping the group
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+
+#################################################################
+# 3. Start group replication on server2 and wait until recovered
+[connection server2]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+Wait until server2 recovered table t1
+Wait until server2 recovered the single row of table t1
+Wait until server2 recovery has finished
+
+#########################################################################
+# 4. Check if GR works fine: generate workload to be certified/replicated
+INSERT INTO t1 VALUES (2);
+[connection server1]
+Wait until server1 has the table with 2 rows
+DROP TABLE t1;
+[connection server2]
+Wait until server2 has dropped table t1
+
+#####################################################
+# 5. Clean up: stop group replication on both members
+STOP GROUP_REPLICATION;
+[connection server1]
+STOP GROUP_REPLICATION;
+include/group_replication_end.inc

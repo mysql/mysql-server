@@ -1,3 +1,4 @@
+# restart: --innodb_undo_tablespaces=2 --innodb_rollback_segments=35
 create table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;

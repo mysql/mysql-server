@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ public:
     /** Error message */
     char message[MAX_SLAVE_ERRMSG];
     /** Error timestamp as string */
-    char timestamp[16];
+    char timestamp[64];
     /** Error timestamp as time_t variable. Used in performance_schema */
     time_t skr;
 

@@ -1,0 +1,46 @@
+################################################################################
+# Bug #26865538  THE ACK RECEIVER DOES NOT WORK WELL WITH YASSL IN SEMISYNC
+#
+# The test verifies that ack receiver works well with yassl in semi-sync.
+#
+# Note: YaSSL code is frozen in 8.0+. Please see WL#8998. So we allow the
+# test fail in 8.0+ before pushing WL#8998. The test will work well with
+# wolfssl after pushing WL#8998. The test works well with opensll in 5.7+.
+#
+# ################################################################################
+--source include/not_group_replication_plugin.inc
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+--source include/have_ssl_communication.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+
+--source include/rpl_connection_slave.inc
+STOP SLAVE IO_THREAD;
+CHANGE MASTER TO MASTER_SSL=1;
+START SLAVE IO_THREAD;
+
+--source include/rpl_connection_master.inc
+SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
+SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
+SET GLOBAL rpl_semi_sync_master_timeout= 6000000;
+
+--let $connections= 11
+--let $loops= 500
+--let $error_simulation= 0
+
+--source extra/rpl_tests/rpl_semi_sync_group_commit_deadlock.inc
+
+--source include/rpl_connection_master.inc
+SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
+--source include/uninstall_semisync.inc
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_SSL = 0;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

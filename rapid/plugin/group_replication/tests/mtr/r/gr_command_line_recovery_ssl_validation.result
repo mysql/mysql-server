@@ -1,0 +1,6 @@
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The given value for recovery ssl option*");
+SET SESSION sql_log_bin= 1;
+SET GLOBAL group_replication_group_name="8a94f357-ee93-11df-8654-c80aa9821323";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.

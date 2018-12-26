@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,12 +37,9 @@
 
 
 /**
-  Server side initializations and cleanup.
+  Server side initializations.
 */
-int group_replication_init(const char* plugin_name);
-int group_replication_cleanup();
-int group_replication_start();
-int group_replication_stop();
+int group_replication_init();
 
 
 /**
@@ -54,16 +51,19 @@ int group_replication_stop();
 */
 my_thread_attr_t *get_connection_attrib();
 
-
 /**
   Returns the server hostname, port and uuid.
 
   @param[out] hostname
   @param[out] port
   @param[out] uuid
-*/
-void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
+  @param[out] server_version
+  @param[out] server_ssl_variables
 
+*/
+void get_server_parameters(char **hostname, uint *port, char **uuid,
+                           unsigned int *server_version,
+                           st_server_ssl_variables* server_ssl_variables);
 
 /**
   Returns the server_id.

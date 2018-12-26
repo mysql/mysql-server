@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -764,7 +764,7 @@ UNIV_INLINE
 void
 pfs_rw_lock_create_func(
 /*====================*/
-	PSI_rwlock_key  key,		/*!< in: key registered with
+	mysql_pfs_key_t	key,		/*!< in: key registered with
 					performance schema */
 	rw_lock_t*	lock,		/*!< in: rw lock */
 #ifdef UNIV_DEBUG

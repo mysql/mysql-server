@@ -1,0 +1,319 @@
+################################################################################
+# Validate that View_change_log_event can be logged in a different order from
+# the group communication order without breaking the group transactions ids
+# generation, even when present to donors failures.
+#
+# Steps:
+#  1. Create a group with 3 members.
+#  2. Start 2 servers.
+#     Only setup recovery_user on server2 for force server3
+#     to recover from it.
+#  3. Stop applier on server 1 to force the delayed
+#     View_change_log_event log to binary log.
+#  4. Execute a transaction on server2.
+#  5. Start Group Replication on server3.
+#     It will recover from server2 and will stay on
+#     RECOVERING state since server2 has applier stopped.
+#  6. Setup recovery user on server1 so that server3 can
+#     failover to it after server2 failure.
+#  7. server2 will leave the group and remove recovery user
+#     to force a server3 to failover recovery to server1.
+#  8. server3 recovery process will failover to server1.
+#  9. Execute 1 transaction on server1 while server3 is on
+#     RECOVERING.
+# 10. Server 3 will apply INSERT (1) through recovery.
+# 11. Start applier on server1.
+#     Server3 state will change to ONLINE.
+# 12. Sync all group members.
+# 13. Execute more transactions on all members.
+#     Transaction on server3 will validate the
+#     group_replication_gtid_assignment_block_size option.
+# 14. Sync all group members.
+# 15. Clean up.
+################################################################################
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+
+
+--echo
+--echo ############################################################
+--echo #  1. Create a group with 3 members.
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+--let $recovery_user= recovery_user
+--let $recovery_password= recovery_password
+--let $vcle_seq= Gtid # Query/BEGIN # View_change # Query/COMMIT
+--let $gtid_assignment_block_size = `SELECT @@GLOBAL.group_replication_gtid_assignment_block_size;`
+
+
+--echo
+--echo ############################################################
+--echo #  2. Start 2 servers.
+--echo #     Only setup recovery_user on server2 for force server3
+--echo #     to recover from it.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--source ../inc/start_and_bootstrap_group_replication.inc
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+
+
+--echo
+--echo ############################################################
+--echo #  3. Stop applier on server 1 to force the delayed
+--echo #     View_change_log_event log to binary log.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+
+
+--echo
+--echo ############################################################
+--echo #  4. Execute a transaction on server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# server1 will only apply this transaction when its applier is
+# resumed.
+INSERT INTO t1 VALUES (2);
+
+
+--echo
+--echo ############################################################
+--echo #  5. Start Group Replication on server3.
+--echo #     It will recover from server2 and will stay on
+--echo #     RECOVERING state since server2 has applier stopped.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+call mtr.add_suppression("There was an error when connecting to the donor server.*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET SESSION sql_log_bin= 1;
+
+--disable_warnings
+--eval CHANGE MASTER TO MASTER_USER= '$recovery_user', MASTER_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--enable_warnings
+
+SET @group_replication_recovery_reconnect_interval_saved= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+
+SET GLOBAL debug= '+d,group_replication_skip_read_mode';
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+# Wait for server2 as donor
+--let $wait_condition= SELECT source_uuid="$server2_uuid" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_recovery" AND service_state="ON"
+--source include/wait_condition.inc
+
+# don't stop server2 until server3 received t1 values or will block on step 10
+--let $wait_condition= SELECT COUNT(*)=1 count FROM t1
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo #  6. Setup recovery user on server1 so that server3 can
+--echo #     failover to it after server2 failure.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo #  7. server2 will leave the group and remove recovery user
+--echo #     to force a server3 to failover recovery to server1.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--source include/stop_dump_threads.inc
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+FLUSH PRIVILEGES;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+--echo
+--echo ############################################################
+--echo #  8. server3 recovery process will failover to server1.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT source_uuid="$server1_uuid" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_recovery" AND service_state="ON"
+--source include/wait_condition.inc
+
+--let $group_replication_member_state= RECOVERING
+--source ../inc/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo #  9. Execute 1 transaction on server1 while server3 is on
+--echo #     RECOVERING.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (1);
+
+# View change (s1) # View change (s2) # Insert
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 10. Server 3 will apply INSERT (1) through recovery.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $expected_gtid_set= $group_replication_group_name:1-3:5
+--disable_query_log
+--disable_result_log
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$expected_gtid_set")
+--enable_query_log
+--enable_result_log
+
+# View change (s1) # View change (s2) # Insert # Insert
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # !Gtid_transaction
+--source include/assert_binlog_events.inc
+
+--let $assert_text= 'There is a value 1 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is a value 2 in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE c1=2, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 11. Start applier on server1.
+--echo #     Server3 state will change to ONLINE.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
+--source include/wait_condition.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 12. Sync all group members.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $expected_gtid_set= $group_replication_group_name:1-5
+--disable_query_log
+--disable_result_log
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$expected_gtid_set")
+--enable_query_log
+--enable_result_log
+
+# View change (s1) # View change (s2) # Insert # Insert # View change (s3)
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq
+--source include/assert_binlog_events.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--disable_query_log
+--disable_result_log
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET("$expected_gtid_set")
+--enable_query_log
+--enable_result_log
+
+# View change (s1) # View change (s2) # Insert # Insert # View change (s3)
+--let $event_sequence= $vcle_seq # $vcle_seq # !Gtid_transaction # !Gtid_transaction # $vcle_seq
+--source include/assert_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 13. Execute more transactions on all members.
+--echo #     Transaction on server3 will validate the
+--echo #     group_replication_gtid_assignment_block_size option.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (11);
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (33);
+--source include/rpl_sync.inc
+
+
+--echo
+--echo ############################################################
+--echo # 14. Sync all group members.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $expected_gtid_set= $group_replication_group_name:1-7
+if ($gtid_assignment_block_size == 1000000)
+{
+  --let $expected_gtid_set= $group_replication_group_name:1-6:1000004
+}
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid_set"
+--source include/assert.inc
+
+--let $assert_text= 'There are 4 values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $assert_text= GTID_EXECUTED must contain all committed GTIDs
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid_set"
+--source include/assert.inc
+
+--let $assert_text= 'There are 4 values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 4
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 15. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_saved;
+SET GLOBAL debug= '-d,group_replication_skip_read_mode';
+
+--source ../inc/group_replication_end.inc

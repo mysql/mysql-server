@@ -38,7 +38,7 @@ INSERT INTO d1_1.t VALUES (2, 'T5');;
 [connection server_2]
 # Now d1_1.t has two rows and d2_.t has one row.
 #
-# Generate MTS gaps for channel2.
+# Generate MTS gaps for channel3.
 #
 [connection server_3]
 [connection server_3]

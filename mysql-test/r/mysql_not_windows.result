@@ -6,10 +6,10 @@ a
 #
 # Filtering out the warning since platforms Solaris and osx set the
 # open_files_limit to too low a value after setrlimit fails to set
-# open_files_limit to 1000000
+# open_files_limit to 10000000
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
-SELECT @@open_files_limit = 1000000;
-@@open_files_limit = 1000000
+SELECT @@open_files_limit = 10000000;
+@@open_files_limit = 10000000
 0
 
 End of tests

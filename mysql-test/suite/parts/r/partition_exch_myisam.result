@@ -112,6 +112,8 @@ a	b
 3	Three
 5	Five
 9	Nine
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
 SELECT * FROM t_10;
 a	b
@@ -125,6 +127,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_empty;
 SELECT * FROM t_empty;
 a	b
@@ -134,6 +138,8 @@ a	b
 8	Eight
 SELECT * FROM tp WHERE a BETWEEN 0 AND 10;
 a	b
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_empty;
 SELECT * FROM t_empty;
 a	b
@@ -143,6 +149,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_null;
 SELECT * FROM t_null;
 a	b
@@ -153,6 +161,8 @@ a	b
 SELECT * FROM tp WHERE a BETWEEN 0 AND 10;
 a	b
 1	NULL
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_null;
 SELECT * FROM t_null;
 a	b
@@ -163,6 +173,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_100;
 SELECT * FROM t_100;
 a	b
@@ -180,6 +192,8 @@ a	b
 93	Ninety-three
 95	Ninety-five
 99	Ninety-nine
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t_100;
 SELECT * FROM t_100;
 a	b
@@ -197,6 +211,8 @@ a	b
 14	Fourteen
 16	Sixteen
 18	Eightteen
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p2 WITH TABLE t_1000;
 SELECT * FROM t_1000;
 a	b
@@ -234,6 +250,8 @@ a	b
 193	Hundred ninety-three
 195	Hundred ninety-five
 199	Hundred ninety-nine
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tp EXCHANGE PARTITION p2 WITH TABLE t_1000;
 SELECT * FROM t_1000;
 a	b
@@ -271,11 +289,21 @@ a	b
 184	Hundred eighty-four
 186	Hundred eighty-six
 188	Hundred eighty-eight
+Warning	1287	The partition engine, used by table 'test.tp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
 ALTER TABLE tsp EXCHANGE PARTITION sp01 WITH TABLE tsp_01;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp02 WITH TABLE tsp_02;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp03 WITH TABLE tsp_03;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp04 WITH TABLE tsp_04;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tsp_00;
 a	b
 SELECT * FROM tsp_01;
@@ -296,11 +324,21 @@ a	b
 3	Three
 5	Five
 9	Nine
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tsp EXCHANGE PARTITION sp00 WITH TABLE tsp_00;
 ALTER TABLE tsp EXCHANGE PARTITION sp01 WITH TABLE tsp_01;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp02 WITH TABLE tsp_02;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp03 WITH TABLE tsp_03;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE tsp EXCHANGE PARTITION sp04 WITH TABLE tsp_04;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM tsp_00;
 a	b
 5	Five
@@ -321,6 +359,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tsp EXCHANGE PARTITION sp01 WITH TABLE t_null;
 SELECT * FROM t_null;
 a	b
@@ -331,6 +371,8 @@ a	b
 2	Two
 4	Four
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 ALTER TABLE tsp EXCHANGE PARTITION sp01 WITH TABLE t_null;
 SELECT * FROM t_null;
 a	b
@@ -341,6 +383,8 @@ a	b
 4	Four
 6	Six
 8	Eight
+Warning	1287	The partition engine, used by table 'test.tsp', is deprecated and will be removed in a future release. Please use native partitioning instead.
+Warnings:
 DROP TABLE IF EXISTS t_10;
 DROP TABLE IF EXISTS t_100;
 DROP TABLE IF EXISTS t_1000;

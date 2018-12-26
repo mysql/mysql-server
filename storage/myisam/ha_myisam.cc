@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -875,7 +875,7 @@ int ha_myisam::write_row(uchar *buf)
     If we have an auto_increment column and we are writing a changed row
     or a new row, then update the auto_increment value in the record.
   */
-  if (table->next_number_field && buf == table->record[0])
+  if (table && table->next_number_field && buf == table->record[0])
   {
     int error;
     if ((error= update_auto_increment()))
@@ -1145,24 +1145,36 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
         /* TODO: respect myisam_repair_threads variable */
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
         thd_proc_info(thd, buf);
+        /*
+          The new file is created with the right stats, so we can skip
+          copying file stats from old to new.
+        */
         error = mi_repair_parallel(&param, file, fixed_name,
-            param.testflag & T_QUICK);
+                                   param.testflag & T_QUICK, TRUE);
         thd_proc_info(thd, "Repair done"); // to reset proc_info, as
                                       // it was pointing to local buffer
       }
       else
       {
         thd_proc_info(thd, "Repair by sorting");
+        /*
+          The new file is created with the right stats, so we can skip
+          copying file stats from old to new.
+        */
         error = mi_repair_by_sort(&param, file, fixed_name,
-            param.testflag & T_QUICK);
+                                  param.testflag & T_QUICK, TRUE);
       }
     }
     else
     {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~T_REP_BY_SORT;
+      /*
+        The new file is created with the right stats, so we can skip
+        copying file stats from old to new.
+      */
       error=  mi_repair(&param, file, fixed_name,
-			param.testflag & T_QUICK);
+			param.testflag & T_QUICK, TRUE);
     }
     if (remap)
       mi_dynmap_file(file, file->state->data_file_length);
@@ -1176,7 +1188,11 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
     {
       optimize_done=1;
       thd_proc_info(thd, "Sorting index");
-      error=mi_sort_index(&param,file,fixed_name);
+      /*
+        The new file is created with the right stats, so we can skip
+        copying file stats from old to new.
+      */
+      error=mi_sort_index(&param,file,fixed_name, TRUE);
     }
     if (!statistics_done && (local_testflag & T_STATISTICS))
     {
@@ -1208,10 +1224,14 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
     if (file->s->base.auto_key)
       update_auto_increment_key(&param, file, 1);
     if (optimize_done)
+    {
+      mysql_mutex_lock(&share->intern_lock);
       error = update_state_info(&param, file,
 				UPDATE_TIME | UPDATE_OPEN_COUNT |
 				(local_testflag &
 				 T_STATISTICS ? UPDATE_STAT : 0));
+      mysql_mutex_unlock(&share->intern_lock);
+    }
     info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
 	 HA_STATUS_CONST);
     if (rows != file->state->records && ! (param.testflag & T_VERY_SILENT))
@@ -2279,7 +2299,8 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->close_connection= myisam_close_connection;
-  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES |
+                      HTON_SUPPORTS_PACKED_KEYS;
   myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
 
   main_thread_keycache_var= st_keycache_thread_var();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ typedef void lf_hash_init_func(uchar *dst, const uchar* src);
 #define LF_HASH_UNIQUE 1
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
-extern const int LF_HASH_OVERHEAD;
+extern MYSQL_PLUGIN_IMPORT const int LF_HASH_OVERHEAD;
 
 typedef struct st_lf_hash {
   LF_DYNARRAY array;                    /* hash itself */

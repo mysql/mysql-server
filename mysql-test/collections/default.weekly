@@ -64,7 +64,7 @@ perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_64k_size --vardir=var-innodb-64k --experimental=collections/default.experimental --skip-test-list=collections/disabled-weekly.list --mysqld=--innodb-page-size=64k --skip-test=innodb_ignore_builtin --suite=innodb
 
 # Run default suites with innodb_undo_tablespace set to > 0
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-undo-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server  --parallel=auto --comment=innodb_undo-2-debug  --vardir=var-innodb-tablespaces-2-debug --experimental=collections/default.experimental --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
 
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60 --skip-test-list=collection/disabled-weekly.list

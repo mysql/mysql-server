@@ -21,10 +21,9 @@
 C_MODE_START
 
 /*
-  HAVE_BACKTRACE - Linux
+  HAVE_BACKTRACE - Linux, FreeBSD, OSX
   HAVE_PRINTSTACK - Solaris
   _WIN32 - Windows
-  Missing: FreeBSD
 */
 #if defined(HAVE_BACKTRACE) || defined(HAVE_PRINTSTACK) || defined(_WIN32)
 #define HAVE_STACKTRACE 1

@@ -19,7 +19,11 @@ DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest'
     INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest'
     (SUBPARTITION sw2, SUBPARTITION sw3)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO emp values(1,'Oracle','NUT',10);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 INSERT INTO emp values(2,'SAP','BOLT',40);
 INSERT INTO emp values(3,'IBM','NAIL',60);
 INSERT INTO emp values(4,'SUN','SCREW',90);
@@ -45,6 +49,8 @@ SUBPARTITION BY HASH (store_id)
  PARTITION southwest VALUES LESS THAN (100)
  (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = MyISAM,
   SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = MyISAM)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ---- MYSQLD_DATADIR/test
 emp#P#northeast#SP#ne0.MYD
 emp#P#northeast#SP#ne0.MYI
@@ -80,6 +86,8 @@ DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north'
     INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north'
     (SUBPARTITION n0, SUBPARTITION n1)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ALTER TABLE emp REORGANIZE PARTITION southwest INTO
 (
 PARTITION west VALUES LESS THAN (75)
@@ -91,12 +99,16 @@ DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south'
     INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south'
     (SUBPARTITION s0, SUBPARTITION s1)
 );
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SELECT * FROM emp;
 id	store_name	parts	store_id
 1	Oracle	NUT	10
 2	SAP	BOLT	40
 3	IBM	NAIL	60
 4	SUN	SCREW	90
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE emp;
 Table	Create Table
 emp	CREATE TABLE `emp` (
@@ -119,6 +131,8 @@ SUBPARTITION BY HASH (store_id)
  PARTITION south VALUES LESS THAN (100)
  (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = MyISAM,
   SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' INDEX DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = MyISAM)) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.emp', is deprecated and will be removed in a future release. Please use native partitioning instead.
 ---- MYSQLD_DATADIR/test
 emp#P#east#SP#e0.MYD
 emp#P#east#SP#e0.MYI

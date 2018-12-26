@@ -1,0 +1,45 @@
+[connection server2]
+SET @debug_group_replication_local_address= @@GLOBAL.group_replication_local_address;
+SET @debug_group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds;
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['Assert server1 bootstraps, server2 will use server1 as seed.']
+
+########################
+##  FAILING SCENARIO  ##
+########################
+
+[connection server2]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group_replication_group_name=MEMBER_UUID
+include/assert.inc ['Assert server2 do not join group when server_uuid and group_name are same.']
+
+###########################
+##  SUCCESSFUL SCENARIO  ##
+###########################
+
+[connection server1]
+include/stop_group_replication.inc
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc ['Assert server1 bootstraps, server2 will use server1 as seed.']
+[connection server2]
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME
+include/assert.inc ['Assert server2 joins group when server_uuid and group_name are different.']
+
+############################
+##  VALIDATE ERROR LOGGED ##
+############################
+
+include/assert_grep.inc [Found the expected error about server_uuid incompatible with the group_name]
+
+###############
+##  Cleanup  ##
+###############
+
+SET @@GLOBAL.group_replication_local_address= @debug_group_replication_local_address;
+SET @@GLOBAL.group_replication_group_seeds= @debug_group_replication_group_seeds;
+include/stop_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc

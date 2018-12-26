@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "field.h"       // Derivation
 #include "parse_tree_node_base.h" // Parse_tree_node
 #include "sql_array.h"   // Bounds_checked_array
+#include "template_utils.h" // pointer_cast
 #include "trigger_def.h" // enum_trigger_variable_type
 #include "table_trigger_field_support.h" // Table_trigger_field_support
 #include "mysql/service_parser.h"
@@ -1865,7 +1866,31 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
+  /**
+    Mark underlying field in read or write map of a table.
+
+    @param arg        Mark_field object
+  */
   virtual bool mark_field_in_map(uchar *arg) { return false; }
+protected:
+  /**
+    Helper function for mark_field_in_map(uchar *arg).
+
+    @param mark_field Mark_field object
+    @param field      Field to be marked for read/write
+  */
+  static inline bool mark_field_in_map(Mark_field *mark_field, Field* field)
+  {
+    TABLE *table= mark_field->table;
+    if (table != NULL && table != field->table)
+      return false;
+
+    table= field->table;
+    table->mark_column_used(table->in_use, field, mark_field->mark);
+
+    return false;
+  }
+public:
   /**
     Return used table information for the specified query block (level).
     For a field that is resolved from this query block, return the table number.
@@ -1900,6 +1925,15 @@ public:
     @see also SELECT_LEX::delete_unused_merged_columns().
   */
   virtual bool propagate_derived_used(uchar *arg) { return is_derived_used(); }
+
+  /**
+    Called by Item::walk() to set all the referenced items' derived_used flag.
+  */
+  bool propagate_set_derived_used(uchar *)
+  {
+    set_derived_used();
+    return false;
+  }
 
   /// @see Distinct_check::check_query()
   virtual bool aggregate_check_distinct(uchar *arg)
@@ -2234,9 +2268,6 @@ public:
   // @return true if an expression in select list of derived table is used
   bool is_derived_used() const { return derived_used; }
 
-  // Set an expression from select list of derived table as used
-  void set_derived_used() { derived_used= true; }
-
   void mark_subqueries_optimized_away()
   {
     if (has_subquery())
@@ -2261,8 +2292,19 @@ public:
     const Type t= type();
     return t == FUNC_ITEM || t == COND_ITEM;
   }
+
+  /**
+    This function applies only to Item_field objects referred to by an Item_ref
+    object that has been marked as a const_item.
+
+    @param arg  Keep track of whether an Item_ref refers to an Item_field.
+  */
+  virtual bool repoint_const_outer_ref(uchar *arg) { return false; }
 private:
   virtual bool subq_opt_away_processor(uchar *arg) { return false; }
+
+  // Set an expression from select list of derived table as used.
+  void set_derived_used() { derived_used= true; }
 };
 
 
@@ -2893,7 +2935,10 @@ public:
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool check_gcol_func_processor(uchar *int_arg);
-  bool mark_field_in_map(uchar *arg);
+  bool mark_field_in_map(uchar *arg)
+  {
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
   bool used_tables_for_level(uchar *arg);
   bool check_column_privileges(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) { return false; }
@@ -2987,7 +3032,9 @@ public:
   { return m_alias_of_expr ||
       // maybe the qualifying table was given an alias ("t1 AS foo"):
       (field ? field->table->alias_name_used : false);
- }
+  }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 class Item_null :public Item_basic_constant
@@ -4189,6 +4236,8 @@ public:
   {
     return (*ref)->created_by_in2exists();
   }
+
+  bool repoint_const_outer_ref(uchar *arg);
 };
 
 
@@ -4262,6 +4311,38 @@ public:
   }
 
   bool fix_fields(THD *, Item **);
+
+  /**
+    Takes into account whether an Item in a derived table / view is part of an
+    inner table of an outer join.
+
+    1) If the field is an outer reference, return OUTER_TABLE_REF_BIT.
+    2) Else
+       2a) If the field is const_for_execution and the field is used in the
+           inner part of an outer join, return the inner tables of the outer
+           join. (A 'const' field that depends on the inner table of an outer
+           join shouldn't be interpreted as const.)
+       2b) Else return the used_tables info of the underlying field.
+
+    @note The call to const_for_execution has been replaced by
+          "!(inner_map & ~INNER_TABLE_BIT)" to avoid multiple and recursive
+          calls to used_tables. This can create a problem when Views are
+          created using other views
+ */
+  table_map used_tables() const
+  {
+    if (depended_from != NULL)
+      return OUTER_REF_TABLE_BIT;
+
+    table_map inner_map= (*ref)->used_tables();
+    return
+      inner_map == 0 && first_inner_table != NULL ?
+        (*ref)->real_item()->type() == FIELD_ITEM ?
+          down_cast<Item_field *>((*ref)->real_item())->table_ref->map() :
+          first_inner_table->map() :
+        inner_map;
+  }
+
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {
@@ -4280,7 +4361,10 @@ public:
     */
     Mark_field *mark_field= (Mark_field *)arg;
     if (mark_field->mark != MARK_COLUMNS_NONE)
-      (*ref)->set_derived_used();
+      // Set the same flag for all the objects that *ref depends on.
+      (*ref)->walk(&Item::propagate_set_derived_used,
+                   Item::WALK_SUBQUERY_POSTFIX, NULL);
+
     return false;
   }
   virtual longlong val_int();
@@ -4422,6 +4506,8 @@ public:
 
 class Item_int_with_ref :public Item_int
 {
+private:
+  enum_field_types cached_field_type;
 protected:
   Item *ref;
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
@@ -4429,13 +4515,16 @@ protected:
     return ref->save_in_field(field, no_conversions);
   }
 public:
-  Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
-    Item_int(i), ref(ref_arg)
+  Item_int_with_ref(enum_field_types field_type_arg,
+                    longlong i, Item *ref_arg, my_bool unsigned_arg) :
+    Item_int(i), cached_field_type(field_type_arg), ref(ref_arg)
+
   {
     unsigned_flag= unsigned_arg;
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
+  enum_field_types field_type() const { return cached_field_type; }
 };
 
 
@@ -4444,18 +4533,14 @@ public:
 */
 class Item_temporal_with_ref :public Item_int_with_ref
 {
-private:
-  enum_field_types cached_field_type;
 public:
   Item_temporal_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg,
                          bool unsigned_flag):
-    Item_int_with_ref(i, ref_arg, unsigned_flag),
-    cached_field_type(field_type_arg)
+    Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_flag)
   {
     decimals= decimals_arg;
   }
-  enum_field_types field_type() const { return cached_field_type; }
   void print(String *str, enum_query_type query_type);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
@@ -4957,6 +5042,7 @@ public:
     return super::itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
+  enum Type type() const { return INSERT_VALUE_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const;
   bool fix_fields(THD *, Item **);
   virtual void print(String *str, enum_query_type query_type);
@@ -5508,7 +5594,7 @@ public:
     return true;
   }
   bool join_types(THD *thd, Item *);
-  Field *make_field_by_type(TABLE *table);
+  Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
   static enum_field_types get_real_type(Item *);
   Field::geometry_type get_geometry_type() const { return geometry_type; };

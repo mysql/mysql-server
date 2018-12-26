@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -497,6 +497,12 @@ bool Diagnostics_area::has_sql_condition(uint sql_errno) const
   return false;
 }
 
+const char * Diagnostics_area::get_first_condition_message()
+{
+  if (m_conditions_list.elements())
+    return m_conditions_list.front()->message_text();
+  return "";
+}
 
 void Diagnostics_area::reset_condition_info(THD *thd)
 {

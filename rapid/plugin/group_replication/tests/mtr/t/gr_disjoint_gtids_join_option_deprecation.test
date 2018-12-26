@@ -1,0 +1,53 @@
+################################################################################
+# Validate that group_replication_allow_local_disjoint_gtids_join deprecation
+# warning is thrown when set through configuration file.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Validate that the group_replication_allow_local_disjoint_gtids_join
+#    option deprecation warning is thrown.
+# 2. Validate that the group_replication_allow_local_disjoint_gtids_join
+#    option deprecation warning is logged on server start.
+# 3. Clean up.
+################################################################################
+--source include/big_test.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Validate that the group_replication_allow_local_disjoint_gtids_join
+--echo #    option deprecation warning is thrown.
+--source ../inc/start_and_bootstrap_group_replication.inc
+--source include/stop_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Validate that the group_replication_allow_local_disjoint_gtids_join
+--echo #    option deprecation warning is logged on server start.
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disjoint_gtids_join_option_deprecation.1.err
+--let $assert_count = 1
+--let $assert_select = 'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+--let $assert_text = Found the expected deprecation log message.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source ../inc/group_replication_end.inc

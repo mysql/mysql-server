@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ SET(TAR_EXECUTABLE "@TAR_EXECUTABLE@")
 SET(CMAKE_GENERATOR "@CMAKE_GENERATOR@")
 SET(CMAKE_MAKE_PROGRAM "@CMAKE_MAKE_PROGRAM@")
 SET(CMAKE_SYSTEM_NAME "@CMAKE_SYSTEM_NAME@")
+SET(BUILD_IS_SINGLE_CONFIG "@BUILD_IS_SINGLE_CONFIG@")
 
 SET(VERSION "@VERSION@")
 
@@ -102,7 +103,7 @@ IF(NOT GIT_EXECUTABLE)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
        ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPYONLY)
 
-    IF(CMAKE_GENERATOR MATCHES "Makefiles")
+    IF(BUILD_IS_SINGLE_CONFIG)
     # make clean
     EXECUTE_PROCESS(
       COMMAND ${CMAKE_MAKE_PROGRAM} clean 

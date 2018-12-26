@@ -1,0 +1,29 @@
+include/group_replication.inc [rpl_server_count=2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Start GR with server1 as Primary and server2 as secondary.
+include/start_and_bootstrap_group_replication.inc
+
+[connection server2]
+include/start_group_replication.inc
+
+# 2. Change value of variable binlog_checksum on server2.
+SET @binlog_checksum_save= @@GLOBAL.binlog_checksum;
+SET GLOBAL binlog_checksum=none;
+
+# 3. Stop GR on server1.
+include/stop_group_replication.inc
+
+# 4. Assert server is in Read only mode on server1.
+include/assert.inc [Assert that server is running in super read-only.]
+include/assert.inc [Assert that server is running in read-only.]
+
+# 5. Test changing value of variables.
+
+# 6. Cleanup.
+[connection server2]
+SET @@GLOBAL.binlog_checksum= @binlog_checksum_save;
+include/group_replication_end.inc

@@ -43,33 +43,33 @@ Mysqlx.Crud.Find {
     }
   }
 }
-%ERROR%
+-->expecterror %ERROR%
 -->recvresult
 -->endmacro
 
 -->title * xcoll is corect collection
--->callmacro Find_value	xcoll	name:"_id"	1	-->echo OK
--->callmacro Find_value	xcoll	name:"_id"	no_data	-->echo OK
--->callmacro Find_value	xcoll	name:"doc"	no_data	-->echo OK
--->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	Anabel	-->echo OK
--->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	no_data	-->echo OK
--->callmacro Find_value	xcoll	name:"name"	no_data	-->expecterror 5121
+-->callmacro Find_value	xcoll	name:"_id"	1	ER_SUCCESS
+-->callmacro Find_value	xcoll	name:"_id"	no_data	ER_SUCCESS
+-->callmacro Find_value	xcoll	name:"doc"	no_data	ER_SUCCESS
+-->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	Anabel	ER_SUCCESS
+-->callmacro Find_value	xcoll	document_path{type:MEMBER value:"name"}	no_data	ER_SUCCESS
+-->callmacro Find_value	xcoll	name:"name"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
 
 -->title * ycoll is not corect collection; missing `doc` column
--->callmacro Find_value	ycoll	name:"_id"	1	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"_id"	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"doc"	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	Anabel	-->expecterror 5156
--->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	no_data	-->expecterror 5156
--->callmacro Find_value	ycoll	name:"name"	no_data	-->expecterror 5156
+-->callmacro Find_value	ycoll	name:"_id"	1	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	ycoll	name:"_id"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	ycoll	name:"doc"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	Anabel	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	ycoll	document_path{type:MEMBER value:"name"}	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	ycoll	name:"name"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
 
 -->title * zcoll is not corect collection; missing `_id` column
--->callmacro Find_value	zcoll	name:"_id"	1	-->expecterror 5156
--->callmacro Find_value	zcoll	name:"_id"	no_data	-->expecterror 5156
--->callmacro Find_value	zcoll	name:"doc"	no_data	-->echo OK
--->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	Anabel	-->echo OK
--->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	no_data	-->echo OK
--->callmacro Find_value	zcoll	name:"name"	no_data	-->expecterror 5121
+-->callmacro Find_value	zcoll	name:"_id"	1	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	zcoll	name:"_id"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
+-->callmacro Find_value	zcoll	name:"doc"	no_data	ER_SUCCESS
+-->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	Anabel	ER_SUCCESS
+-->callmacro Find_value	zcoll	document_path{type:MEMBER value:"name"}	no_data	ER_SUCCESS
+-->callmacro Find_value	zcoll	name:"name"	no_data	ER_X_DOC_REQUIRED_FIELD_MISSING
 EOF
 
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_find_doc_criteria.tmp 2>&1

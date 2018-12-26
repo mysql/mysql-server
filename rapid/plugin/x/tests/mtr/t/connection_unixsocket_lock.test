@@ -1,0 +1,72 @@
+## UNIX Socket connections
+
+## Preamble
+--source include/not_windows.inc
+--source ../include/have_performance_schema_threads.inc
+--source ../include/xplugin_preamble.inc
+ 
+## Test starts here
+--write_file $MYSQL_TMP_DIR/check_unixsocket.tmp
+## Test data
+#Ensure that each of following uses UNIX Socket
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+-->recvresult
+EOF
+
+--write_file $MYSQL_TMP_DIR/check_connection.tmp
+EOF
+
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+
+--echo Test lock file issue
+--write_file $MYSQL_TMP_DIR/mysqlx.custom.lock
+EOF
+
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, lock file is empty");
+--replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
+--let $wait_for_unixsocket_status = undefined_value
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--replace_regex /ERROR: No such file or directory, while connecting to .+\.custom/ERROR: No such file or directory connecting to SOCKET/
+--error 1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+
+--mkdir $MYSQL_TMP_DIR/mysqlx.dir.socket.lock
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.dir.socket. failed, can't read lock file");
+call mtr.add_suppression("Plugin mysqlx reported: .* wasn't allocated by X Plugin ..+/mysqlx.dir.socket.lock");
+--replace_regex /loose-mysqlx-socket=.*socket/loose-mysqlx-socket=SOCKET/
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.dir.socket;
+--let $wait_for_unixsocket_status = undefined_value
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--replace_regex /ERROR: No such file or directory, while connecting to .+\.socket/ERROR: No such file or directory connecting to SOCKET/
+--error 1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.dir.socket -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+
+--remove_file $MYSQL_TMP_DIR/mysqlx.custom.lock
+--write_file $MYSQL_TMP_DIR/mysqlx.custom.lock
+Xinvalid_number
+EOF
+
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket ..+/mysqlx.custom. failed, invalid PID in UNIX socket lock file ");
+--replace_regex /loose-mysqlx-socket=.*custom/loose-mysqlx-socket=SOCKET/
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/mysqlx.custom;
+--let $wait_for_unixsocket_status = undefined_value
+--source ../include/restart_mysqld_and_wait_for_xplugin.inc
+
+--replace_regex /ERROR: No such file or directory, while connecting to .+\.custom/ERROR: No such file or directory connecting to SOCKET/
+--error 1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/mysqlx.custom -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+
+## Postamble
+--remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
+--remove_file $MYSQL_TMP_DIR/check_connection.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx.custom.lock
+--rmdir $MYSQL_TMP_DIR/mysqlx.dir.socket.lock
+
+UNINSTALL PLUGIN mysqlx;

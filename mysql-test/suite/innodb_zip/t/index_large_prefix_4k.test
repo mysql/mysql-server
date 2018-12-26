@@ -334,7 +334,7 @@ create table worklog5743(a TEXT not null, primary key (a(1000)));
 create table worklog5743(a TEXT) ROW_FORMAT=COMPACT;
 
 # Excercise the column length check in ha_innobase::add_index()
--- error ER_INDEX_COLUMN_TOO_LONG
+-- error ER_TOO_LONG_KEY
 create index idx on worklog5743(a(768));
 
 # This should be successful
@@ -385,13 +385,13 @@ drop table worklog5743;
 
 # We have a limit of 767 bytes for Antelope tables
 create table worklog5743(a TEXT not null) ROW_FORMAT=REDUNDANT;
--- error ER_INDEX_COLUMN_TOO_LONG
+-- error ER_TOO_LONG_KEY
 create index idx on worklog5743(a(768));
 create index idx2 on worklog5743(a(767));
 drop table worklog5743;
 
 create table worklog5743(a TEXT not null) ROW_FORMAT=COMPACT;
--- error ER_INDEX_COLUMN_TOO_LONG
+-- error ER_TOO_LONG_KEY
 create index idx on worklog5743(a(768));
 create index idx2 on worklog5743(a(767));
 drop table worklog5743;

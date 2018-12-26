@@ -93,3 +93,83 @@ drop table t1;
 SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, MAX_JOIN_SIZE=DEFAULT;
 
 # End of 4.1 tests
+
+--echo #
+--echo # Bug #28145710: SQL_SAFE_UPDATES ERROR IS INSUFFICIENTLY INFORMATIVE
+--echo #
+
+CREATE TABLE t1 (c1 INT NOT NULL, c2 VARCHAR(200) NOT NULL,
+                 UNIQUE KEY idx1 (c1), UNIQUE KEY idx2 (c2));
+CREATE TABLE t2 (c1 INT NOT NULL, c2 VARCHAR(200) NOT NULL,
+                 UNIQUE KEY idx1 (c1));
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');
+INSERT INTO t2 VALUES (11, 'a'), (12, 'b'), (3, 'c'), (14, 'd');
+ANALYZE TABLE t1, t2;
+
+SET SESSION sql_safe_updates=1;
+
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 1;
+#DELETE with range_optimizer_max_mem_size warning
+let query1= DELETE FROM t1 WHERE c1 IN (1,22);
+#UPDATE with range_optimizer_max_mem_size warning
+let query2= UPDATE t1 SET c1=20 WHERE c1 IN (1,22);
+#multi-table DELETE with conversion warning and target table uses table scan
+let query3= DELETE t1 FROM t1 JOIN t2 ON t1.c2 = t2.c1;
+#multi-table UPDATE with conversion warning and target table uses table scan
+let query4= UPDATE t1, t2 SET t1.c1=20 WHERE t1.c2 = t2.c1;
+#multi-table DELETE with target table uses eq_ref (no error)
+let query5= DELETE t2 FROM t1 JOIN t2 ON t1.c2 = t2.c1;
+#DELETE with conversion warning
+let query6= DELETE FROM t1 WHERE c2 IN(1,2222);
+#DELETE with conversion warning
+let query7= UPDATE t1 SET c1=20 WHERE c2 IN(1,2222);
+#DELETE with non-indexed column returns error
+let query8= DELETE FROM t2 WHERE c2 IN('a','e');
+#DELETE full table and test with binlog disabled
+let query9= DELETE FROM t2;
+
+
+
+eval EXPLAIN $query1;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query1;
+
+eval EXPLAIN $query2;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query2;
+SET RANGE_OPTIMIZER_MAX_MEM_SIZE= default;
+
+eval EXPLAIN $query3;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query3;
+
+eval EXPLAIN $query4;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query4;
+
+eval EXPLAIN $query5;
+eval $query5;
+
+eval EXPLAIN $query6;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query6;
+
+eval EXPLAIN $query7;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query7;
+
+eval EXPLAIN $query8;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query8;
+
+eval EXPLAIN $query9;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query9;
+
+SET sql_log_bin= 0;
+--error ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE
+eval $query9;
+SET sql_log_bin= default;
+
+DROP TABLE t1, t2;
+SET SESSION sql_safe_updates=default;

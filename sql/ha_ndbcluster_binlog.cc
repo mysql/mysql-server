@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
+extern my_bool opt_ndb_log_update_minimal;
 extern my_bool opt_ndb_log_binlog_index;
 extern my_bool opt_ndb_log_apply_status;
 extern ulong opt_ndb_extra_logging;
@@ -355,6 +356,8 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 
   if (shadow_table->s->blob_fields != 0)
     share->flags|= NSF_BLOB_FLAG;
+
+  event_data->init_pk_bitmap();
 
 #ifndef DBUG_OFF
   dbug_print_table("table", shadow_table);
@@ -4283,6 +4286,10 @@ set_binlog_flags(NDB_SHARE *share,
     {
       set_binlog_use_update(share);
     }
+    if (opt_ndb_log_update_minimal)
+    {
+      set_binlog_update_minimal(share);
+    }
     break;
   case NBT_UPDATED_ONLY:
     DBUG_PRINT("info", ("NBT_UPDATED_ONLY"));
@@ -4306,6 +4313,20 @@ set_binlog_flags(NDB_SHARE *share,
     set_binlog_full(share);
     set_binlog_use_update(share);
     break;
+  case NBT_UPDATED_ONLY_MINIMAL:
+    DBUG_PRINT("info", ("NBT_UPDATED_ONLY_MINIMAL"));
+    set_binlog_updated_only(share);
+    set_binlog_use_update(share);
+    set_binlog_update_minimal(share);
+    break;
+  case NBT_UPDATED_FULL_MINIMAL:
+    DBUG_PRINT("info", ("NBT_UPDATED_FULL_MINIMAL"));
+    set_binlog_full(share);
+    set_binlog_use_update(share);
+    set_binlog_update_minimal(share);
+    break;
+  default:
+    DBUG_VOID_RETURN;
   }
   set_binlog_logging(share);
   DBUG_VOID_RETURN;
@@ -5806,10 +5827,10 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   DBUG_PRINT("info", ("Assuming %u columns for table %s",
                       n_fields, table->s->table_name.str));
   MY_BITMAP b;
-  /* Potential buffer for the bitmap */
-  uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-  const bool own_buffer = n_fields <= sizeof(bitbuf) * 8;
-  bitmap_init(&b, own_buffer ? bitbuf : NULL, n_fields, FALSE); 
+  my_bitmap_map bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                            8*sizeof(my_bitmap_map) - 1) /
+                           (8*sizeof(my_bitmap_map))];
+  bitmap_init(&b, bitbuf, n_fields, FALSE);
   bitmap_set_all(&b);
 
   /*
@@ -5954,9 +5975,24 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
         }
         ndb_unpack_record(table, event_data->ndb_value[1], &b, table->record[1]);
         DBUG_EXECUTE("info", print_records(table, table->record[1]););
+
+        MY_BITMAP col_bitmap_before_update;
+        my_bitmap_map bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
+                                  8*sizeof(my_bitmap_map) - 1) /
+                                 (8*sizeof(my_bitmap_map))];
+        bitmap_init(&col_bitmap_before_update, bitbuf, n_fields, FALSE);
+        if (get_binlog_update_minimal(share))
+        {
+          event_data->generate_minimal_bitmap(&col_bitmap_before_update, &b);
+        }
+        else
+        {
+          bitmap_copy(&col_bitmap_before_update, &b);
+        }
+
         ret = trans.update_row(logged_server_id,
                                injector::transaction::table(table, true),
-                               &b, n_fields,
+                               &col_bitmap_before_update, &b, n_fields,
                                table->record[1], // before values
                                table->record[0], // after values
                                extra_row_info_ptr);
@@ -5974,11 +6010,6 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
   {
     my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
     my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
-  }
-
-  if (!own_buffer)
-  {
-    bitmap_free(&b);
   }
 
   return 0;

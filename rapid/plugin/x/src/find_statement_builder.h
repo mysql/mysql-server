@@ -23,27 +23,28 @@
 namespace xpl
 {
 
-class Find_statement_builder: public Statement_builder
+class Find_statement_builder: public Crud_statement_builder
 {
 public:
   typedef ::Mysqlx::Crud::Find Find;
 
-  Find_statement_builder(const Find &msg, Query_string_builder &qb);
+  explicit Find_statement_builder(const Expression_generator &gen)
+      : Crud_statement_builder(gen) {}
+
+  void build(const Find &msg) const;
 
 protected:
   typedef ::Mysqlx::Crud::Projection Projection;
   typedef ::google::protobuf::RepeatedPtrField< Projection > Projection_list;
   typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr > Grouping_list;
-  typedef ::Mysqlx::Expr::Expr Having;
+  typedef ::Mysqlx::Expr::Expr Grouping_criteria;
   typedef void (Find_statement_builder::*Object_item_adder)(const Projection &item) const;
-  typedef void (Find_statement_builder::*Projection_adder)(const Projection_list &list) const;
 
-  virtual void add_statement() const;
-  void add_statement_common(const Projection_adder &projection_adder) const;
-  void add_document_statement_with_grouping() const;
+  void add_statement_common(const Find &msg) const;
+  void add_document_statement_with_grouping(const Find &msg) const;
 
-  void add_projection(const Projection_list &projection) const;
-  void add_grouping(const Grouping_list &group, const Having &having) const;
+  void add_grouping(const Grouping_list &group) const;
+  void add_grouping_criteria(const Grouping_criteria &criteria) const;
   void add_table_projection(const Projection_list &projection) const;
   void add_table_projection_item(const Projection &item) const;
   void add_document_projection(const Projection_list &projection) const;
@@ -51,8 +52,6 @@ protected:
 
   void add_document_object(const Projection_list &projection, const Object_item_adder &adder) const;
   void add_document_primary_projection_item(const Projection &item) const;
-
-  const Find &m_msg;
 };
 
 } // namespace xpl

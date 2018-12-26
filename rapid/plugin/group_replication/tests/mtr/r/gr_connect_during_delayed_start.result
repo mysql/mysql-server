@@ -1,0 +1,53 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server_1]
+SET @@GLOBAL.DEBUG= @debug_save;
+#
+# 1. Check that the delayed thread is not running
+#
+include/assert.inc [The delayed initialization thread is not running]
+#
+# 2. Start group replication. Check the thread is still not there
+#
+include/start_and_bootstrap_group_replication.inc
+include/assert.inc [The delayed initialization thread is not running after start]
+#
+# 3. Restart the server with start on boot enabled
+#
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=1 --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_bootstrap_group=1 --loose-debug=+d,group_replication_before_joining_the_group
+include/rpl_reconnect.inc
+#
+# 3.1 Check the super read only mode is enabled
+#
+include/assert.inc [The super_read_only mode should be 1 here.]
+#
+# 3.2 There is a delayed initialization thread running
+#
+include/assert.inc [The delayed initialization thread is running after boot]
+#
+# 3.3 The member is OFFLINE as the join is stuck
+#
+# Asserting that the member here is offline.
+include/gr_wait_for_member_state.inc
+#
+# 4. Execute a parallel start request that will fail after join
+#
+[connection server_1]
+START GROUP_REPLICATION;;
+#
+# 5. Unblock. The above start should fail and the server should go ONLINE
+#
+[connection server1]
+SET DEBUG_SYNC= "now SIGNAL signal.continue_group_join";
+# Wait for the server to be ONLINE
+include/gr_wait_for_member_state.inc
+[connection server_1]
+ERROR HY000: The START GROUP_REPLICATION command failed since the group is already running.
+#
+# Cleanup
+#
+SET @@GLOBAL.DEBUG= @debug_save;
+include/group_replication_end.inc

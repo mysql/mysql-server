@@ -1,0 +1,184 @@
+##############################################################################
+#
+# This test checks the basic functionality of group replication plugin along
+# with mysqlx plugin.
+#
+# NOTE : All queries will be run through mysqlx plugin using mysqlxtest.
+#
+# Steps involved in this test :
+# 0. This test requires 3 servers.
+# 1. Start 3 servers loaded with both mysqlx and group replication plugin.
+# 2. Start group replication on server1 as bootstrap server for the group.
+# 3. Start group replication on other two servers as non bootstrap server.
+# 4. Wait until all three servers come online.
+# 5. Perform ddl and dml operations on all the three servers.
+#    a) server1 : Create table T1 and perform ddl on T1.
+#    b) server2 : Create table T2 and perform ddl on T1 & T2.
+#    c) server3 : Create table T3 and perform ddl on T1,T2 & T3.
+# 6. Assert for values on three tables from different servers.
+# 7. Stop group replication on all the servers.
+##############################################################################
+
+--source include/have_mysqlx_plugin.inc
+--source ../inc/have_group_replication_plugin_base.inc
+
+--let plugins= MYSQLXPLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+# This initial setup starts three servers with all the prerequisites required
+# for GR to start
+
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source ../inc/group_replication.inc
+
+# Install Mysqlx plugin on all servers and fetch the mysqlx_port to the local
+# variables
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
+--let $mysqlx_port1= `Select @@Global.mysqlx_port`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
+--let $mysqlx_port2= `Select @@Global.mysqlx_port`
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+--replace_regex /\.dll/.so/
+--eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'
+--let $mysqlx_port3= `Select @@Global.mysqlx_port`
+
+# Temp file for performing ddl and dml on server1
+
+--write_file $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
+-->sql
+USE test;
+CREATE TABLE T1 (C1 INT PRIMARY KEY, C2 INT );
+INSERT INTO T1 VALUES (1,12);
+INSERT INTO T1 VALUES (2,1234);
+INSERT INTO T1 VALUES (3,98765);
+UPDATE T1 SET C2 = C2 - 98765;
+DELETE FROM T1 WHERE C2 = 0;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/ddl_dml_on_server1.tmp 2>&1
+
+# Wait for synchronization between the nodes.
+
+--source include/rpl_sync.inc
+
+# Temp file for performing ddl and dml on server2
+
+--write_file $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
+-->sql
+USE test;
+CREATE TABLE T2 (C1 CHAR(20) PRIMARY KEY, C2 INT );
+INSERT INTO T2 VALUES ('ABC',23);
+UPDATE T2 SET C2 = C2 + 27;
+INSERT INTO T1 VALUES (4,34);
+INSERT INTO T2 VALUES ('ABCDEF',23);
+INSERT INTO T1 VALUES (5,1234);
+INSERT INTO T2 VALUES ('ABCDEFGHIJ',23);
+DELETE FROM T2 WHERE C1 = 'ABC';
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u root --port=$mysqlx_port2 --file=$MYSQL_TMP_DIR/ddl_dml_on_server2.tmp 2>&1
+
+# Wait for synchronization between the nodes.
+
+--source include/rpl_sync.inc
+
+# Temp file for performing ddl and dml on server3
+
+--write_file $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
+-->sql
+USE test;
+CREATE TABLE T3 (C1 INT PRIMARY KEY, C2 VARCHAR(20) );
+DELETE FROM T1;
+INSERT INTO T1 VALUES (1,12345);
+INSERT INTO T3 VALUES (1,'1234');
+INSERT INTO T2 VALUES ('1234',1234);
+INSERT INTO T1 VALUES (7,98765);
+INSERT INTO T2 VALUES ('XYZ',23);
+UPDATE T2 SET C1 = 'ABC' WHERE C1 ='XYZ';
+INSERT INTO T3 VALUES (2,'23');
+INSERT INTO T3 VALUES (3,'234');
+DELETE FROM T3 WHERE C1 > 0;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/ddl_dml_on_server3.tmp 2>&1
+
+# Wait for synchronization between the nodes.
+
+--source include/rpl_sync.inc
+
+# Asserts for values on each table.
+
+--write_file $MYSQL_TMP_DIR/assert.tmp
+
+-->echo Checking the Value on T1
+-->wait_for 12345	SELECT C2 FROM test.T1 WHERE C1=1
+
+-->echo Checking the row_count on T2
+-->wait_for 23	SELECT C2 FROM test.T2 WHERE C1="ABC"
+EOF
+
+--exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
+
+--let $wait_condition=SELECT COUNT(*)=0 FROM test.T3
+--source include/wait_condition.inc
+
+# Temp for droping tables in a group.
+
+--write_file $MYSQL_TMP_DIR/delete_tables.tmp
+-->sql
+USE test;
+DROP TABLE T1;
+DROP TABLE T2;
+DROP TABLE T3;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -u root --port=$mysqlx_port3 --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+
+--echo Stopping GR on all the servers
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+UNINSTALL PLUGIN mysqlx;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+UNINSTALL PLUGIN mysqlx;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+--let $group_replication_member_state= OFFLINE
+--source ../inc/gr_wait_for_member_state.inc
+UNINSTALL PLUGIN mysqlx;
+
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server1.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server2.tmp
+--remove_file $MYSQL_TMP_DIR/ddl_dml_on_server3.tmp
+--remove_file $MYSQL_TMP_DIR/delete_tables.tmp
+--remove_file $MYSQL_TMP_DIR/assert.tmp
+--source ../inc/group_replication_end.inc

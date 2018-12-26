@@ -1,0 +1,18 @@
+set debug = "+d, increase_mtr_checkpoint_size";
+set debug = "+d, crash_after_checkpoint";
+set global innodb_log_checkpoint_now = 1;
+ERROR HY000: Lost connection to MySQL server during query
+# Skip MLOG_FILE_NAME redo records during recovery
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_dict_stats_disabled_debug = 1;
+SET GLOBAL innodb_master_thread_disabled_debug = 1;
+set global innodb_log_checkpoint_now = 1;
+# Commit the multi-rec mini transaction if mtr size
+# exceeds LOG_CHECKPOINT_FREE_PER_THREAD size during checkpoint.
+set debug = "+d, crash_after_checkpoint";
+set global innodb_log_checkpoint_now = 1;
+ERROR HY000: Lost connection to MySQL server during query
+# Skip MLOG_FILE_NAME redo records during recovery
+drop procedure create_table;
+drop procedure drop_table;
+deallocate prepare stmt1;

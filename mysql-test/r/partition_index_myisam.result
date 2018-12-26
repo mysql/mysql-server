@@ -9,6 +9,8 @@ KEY  a (a),
 KEY  b (b)
 ) ENGINE = MyISAM
 PARTITION BY HASH (c) PARTITIONS 3;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE TABLE t2 (a tinyint) ENGINE = MyISAM;
 INSERT INTO t2 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
 (14),(15),(16);
@@ -17,6 +19,8 @@ SET SESSION optimizer_switch="index_merge_intersection=on";
 SET SESSION optimizer_switch="index_merge_union=off";
 SET SESSION optimizer_switch="index_merge_sort_union=off";
 INSERT INTO t1 VALUES (1,1,0), (1,1,0), (2,1,0), (2,2,1), (1,1,1), (2,2,4);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Add some rows to make the index_merge_intersect possible
 INSERT INTO t1 SELECT 1,1,0 FROM t2 A, t2 B;
 INSERT INTO t1 SELECT 1,1,1 FROM t2 A, t2 B;
@@ -27,10 +31,12 @@ COUNT(*)
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
+test.t1	analyze	warning	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 EXPLAIN SELECT a,b,c FROM t1 WHERE b = 2 AND a = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2	index_merge	a,b	b,a	3,3	NULL	1	100.00	Using intersect(b,a); Using where
 Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` = 2) and (`test`.`t1`.`b` = 2))
 # Before fix:
 # (p0 - partition 0, R3 - 3rd record in that partition = offset)

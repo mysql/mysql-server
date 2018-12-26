@@ -20,7 +20,6 @@
 #ifndef _NGS_SETTER_ANY_H_
 #define _NGS_SETTER_ANY_H_
 
-#include <boost/function.hpp>
 #include <string>
 #include <vector>
 #include "ngs_common/protocol_protobuf.h"

@@ -1,0 +1,49 @@
+################################################################################
+# This test checks that Group Replication plugin can be automatically started
+# while super_read_only is enabled on server configuration.
+#
+# Test:
+# 1. Restart server with both --group_replication_start_on_boot
+#    and --super_read_only enabled.
+# 2. Wait until server becomes ONLINE and assert
+#    super_read_only value.
+# 3. Leave group and assert super_read_only value.
+################################################################################
+
+--source ../inc/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Restart server with both --group_replication_start_on_boot
+--echo #    and --super_read_only enabled.
+# We need to restart server to simulate start_on_boot option since
+# on MTR it is impossible to compute ports on configuration files.
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1 --super_read_only=1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Wait until server becomes ONLINE and assert
+--echo #    super_read_only value.
+--let $group_replication_member_state= ONLINE
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $assert_text= The super_read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $assert_text= The read_only mode must be 0
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Leave group and assert super_read_only value.
+--source include/stop_group_replication.inc

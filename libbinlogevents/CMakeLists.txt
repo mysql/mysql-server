@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,11 +18,7 @@ INCLUDE(configure.cmake)
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export
-                    # ZLIB_INCLUDE_DIR points to ${CMAKE_SOURCE_DIR}/zlib,
-                    # when compiled with MySQL server version (< 5.7).
-                    # It is NULL otherwise.
-                    ${ZLIB_INCLUDE_DIR})
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 
 CONFIGURE_FILE(binlog_config.h.cmake
                ${CMAKE_CURRENT_BINARY_DIR}/include/binlog_config.h)

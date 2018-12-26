@@ -32,16 +32,16 @@ select event_name, operation,
 left(source, locate(":", source)) as short_source
 from performance_schema.events_waits_current;
 event_name	operation	short_source
-wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	
 select event_name, operation,
 left(source, locate(":", source)) as short_source
 from performance_schema.events_waits_history;
 event_name	operation	short_source
-wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	
 select event_name, operation,
 left(source, locate(":", source)) as short_source
 from performance_schema.events_waits_history_long;
 event_name	operation	short_source
-wait/synch/mutex/mysys/THR_LOCK_myisam	lock	mi_create.c:
+wait/synch/mutex/mysys/THR_LOCK_myisam	lock	
 update performance_schema.setup_instruments set enabled='YES';
 drop table test.t1;

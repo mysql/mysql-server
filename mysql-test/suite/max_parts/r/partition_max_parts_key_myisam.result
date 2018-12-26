@@ -1,5 +1,7 @@
 create table t2 (a int not null, primary key(a)) engine='MyISAM'
 partition by key (a) partitions 8192;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -8,6 +10,8 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (a)
 PARTITIONS 8192 */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t2', is deprecated and will be removed in a future release. Please use native partitioning instead.
 65535 inserts;
 select count(*) from t2;
 count(*)

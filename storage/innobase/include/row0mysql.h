@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +129,7 @@ row_mysql_read_geometry(
 					MySQL format */
 	ulint		col_len)	/*!< in: BLOB reference length
 					(not BLOB length) */
-	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -188,8 +188,7 @@ row_mysql_handle_errors(
 				during the function entry */
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	thr,	/*!< in: query thread, or NULL */
-	trx_savept_t*	savept)	/*!< in: savepoint, or NULL */
-	MY_ATTRIBUTE((nonnull(1,2)));
+	trx_savept_t*	savept);	/*!< in: savepoint, or NULL */
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
 @return own: a prebuilt struct */
@@ -227,7 +226,7 @@ row_lock_table_autoinc_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
@@ -241,9 +240,8 @@ row_lock_table_for_mysql(
 					if prebuilt->table should be
 					locked as
 					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
+	ulint		mode);		/*!< in: lock mode of table
 					(ignored if table==NULL) */
-	MY_ATTRIBUTE((nonnull(1)));
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
@@ -337,6 +335,18 @@ row_create_update_node_for_mysql(
 /*=============================*/
 	dict_table_t*	table,	/*!< in: table to update */
 	mem_heap_t*	heap);	/*!< in: mem heap from which allocated */
+
+/**********************************************************************//**
+Does a cascaded delete or set null in a foreign key operation.
+@return error code or DB_SUCCESS */
+dberr_t
+row_update_cascade_for_mysql(
+/*=========================*/
+        que_thr_t*      thr,    /*!< in: query thread */
+        upd_node_t*     node,   /*!< in: update node used in the cascade
+                                or set null operation */
+        dict_table_t*   table)  /*!< in: table where we do the operation */
+        MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
@@ -464,7 +474,7 @@ row_mysql_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.
@@ -474,7 +484,7 @@ row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
@@ -507,7 +517,7 @@ row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
@@ -517,7 +527,7 @@ row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -540,7 +550,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Renames a partitioned table for MySQL.
 @param[in]	old_name	Old table name.
@@ -549,10 +559,11 @@ row_rename_table_for_mysql(
 @return error code or DB_SUCCESS */
 dberr_t
 row_rename_partitions_for_mysql(
+	THD*		thd,
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
@@ -566,9 +577,11 @@ row_scan_index_for_mysql(
 	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
 						in MySQL handle */
 	const dict_index_t*	index,		/*!< in: index */
+#ifdef WL6742
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
+#endif
 	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
 	MY_ATTRIBUTE((warn_unused_result));
@@ -593,7 +606,7 @@ row_mysql_table_id_reassign(
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx,	/*!< in/out: transaction */
 	table_id_t*	new_id) /*!< out: new table id */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
@@ -652,6 +665,8 @@ struct mysql_row_templ_t {
 
 #define ROW_PREBUILT_ALLOCATED	78540783
 #define ROW_PREBUILT_FREED	26423527
+
+class ha_innobase;
 
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
@@ -725,6 +740,8 @@ struct row_prebuilt_t {
 	mem_heap_t*	heap;		/*!< memory heap from which
 					these auxiliary structures are
 					allocated when needed */
+	mem_heap_t*     cursor_heap;	/*!< memory heap from which
+					innodb_api_buf is allocated per session */
 	ins_node_t*	ins_node;	/*!< Innobase SQL insert node
 					used to perform inserts
 					to the table */
@@ -874,6 +891,9 @@ struct row_prebuilt_t {
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
+	void*           innodb_api_buf; /*!< Buffer holding copy of the physical
+					Innodb API search record */
+	ulint           innodb_api_rec_size; /*!< Size of the Innodb API record */
 	/*----------------------*/
 
 	/*----------------------*/
@@ -903,8 +923,14 @@ struct row_prebuilt_t {
 	/** The MySQL table object */
 	TABLE*		m_mysql_table;
 
+	/** The MySQL handler object. */
+	ha_innobase*	m_mysql_handler;
+
 	/** limit value to avoid fts result overflow */
 	ulonglong	m_fts_limit;
+
+	/** True if exceeded the end_range while filling the prefetch cache. */
+	bool		m_end_range;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

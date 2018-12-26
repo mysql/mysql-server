@@ -19,6 +19,8 @@ ENGINE='Archive'
 PARTITION BY RANGE(id)
 (PARTITION pa100 values less than (100),
 PARTITION paMax values less than MAXVALUE);
+Warnings:
+Warning	1287	The partition engine, used by table 'test.byrange_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 CREATE PROCEDURE test.proc_norm()
 BEGIN
 DECLARE ins_count INT DEFAULT 99;
@@ -68,6 +70,8 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
 /*!50100 PARTITION BY RANGE (id)
 (PARTITION pa100 VALUES LESS THAN (100) ENGINE = ARCHIVE,
  PARTITION paMax VALUES LESS THAN MAXVALUE ENGINE = ARCHIVE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.byrange_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table test.regular_tbl;
 Table	Create Table
 regular_tbl	CREATE TABLE `regular_tbl` (
@@ -84,6 +88,8 @@ SELECT * FROM test.byrange_tbl ORDER BY fkid LIMIT 2;
 id	dt	user	uuidf	fkid	filler
 99	date-time	USER	UUID	1	Non partitioned table! Going to test replication for MySQL
 98	date-time	USER	UUID	2	Non partitioned table! Going to test replication for MySQL
+Warnings:
+Warning	date-time	USER
 SELECT * FROM test.byrange_tbl ORDER BY fkid DESC LIMIT 2;
 id	dt	user	uuidf	fkid	filler
 100	date-time	USER	UUID	201	Partitioned table! Going to test replication for MySQL
@@ -111,6 +117,8 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
 /*!50100 PARTITION BY RANGE (id)
 (PARTITION pa100 VALUES LESS THAN (100) ENGINE = ARCHIVE,
  PARTITION paMax VALUES LESS THAN MAXVALUE ENGINE = ARCHIVE) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.byrange_tbl', is deprecated and will be removed in a future release. Please use native partitioning instead.
 show create table test.regular_tbl;
 Table	Create Table
 regular_tbl	CREATE TABLE `regular_tbl` (

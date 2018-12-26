@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,10 +120,15 @@ public:
     Notify/get permission from interested storage engines before acquiring
     exclusive lock for the key.
 
+    The returned argument 'victimized' specify reason for lock
+    not granted. If 'true', lock was refused in an attempt to 
+    resolve a possible MDL->GSL deadlock. Locking may then be retried.
+
     @return False if notification was successful and it is OK to acquire lock,
             True if one of SEs asks to abort lock acquisition.
   */
-  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key) = 0;
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
+                                                 bool *victimized) = 0;
   /**
     Notify interested storage engines that we have just released exclusive
     lock for the key.
@@ -910,6 +915,8 @@ public:
   }
 
   bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
+
+  bool has_locks_waited_for() const;
 
   MDL_savepoint mdl_savepoint()
   {

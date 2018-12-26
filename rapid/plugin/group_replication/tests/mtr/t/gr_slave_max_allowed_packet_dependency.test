@@ -1,0 +1,165 @@
+################################################################################
+# This test checks that group replication applier thread is dependant upon
+# slave_max_allowed_packet and allows processing of larger View_change packets.
+#
+# Test:
+# 0.  The test requires three servers.
+# 1.  Start three server(disable certification database garbage collection).
+# 1A. Bootstrap server1.
+# 1B. Set slave_max_allowed_packet to lowest value and start server2.
+# 1C. Setup environment on server3, do not start GR yet.
+# 2.  Generate 200 transactions on server1 to increase
+#     certification database size.
+# 3.  Start GR on server3, View_change packet will be high in size.
+# 4.  Server2 can only handle small packet sizes, so it will go in error state.
+# 5.  Server1 can handle 1GB packet size(default) so it will become donor and
+#     assist server3 to come ONLINE.
+# 6.  Restart GR on server2 with large value of slave_max_allowed_packet
+#     to make it ONLINE.
+# 7.  Verification.
+# 8.  Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_server_count= 3
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+--echo
+--echo # 1.  Start three server(disable certification database garbage collection).
+--echo
+
+--echo # 1A. Bootstrap server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+SET @debug_save1= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_do_not_clear_certification_database';
+
+--echo # 1B. Set slave_max_allowed_packet to lowest value and start server2.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @debug_save_slave_max_allowed_packet= @@GLOBAL.slave_max_allowed_packet;
+SET GLOBAL slave_max_allowed_packet=1024;
+--source include/start_group_replication.inc
+SET @debug_save2= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_do_not_clear_certification_database';
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Unable to convert the event into a packet on the applier.*");
+call mtr.add_suppression("Failed to fetch transaction data containing required transaction info for applier");
+call mtr.add_suppression("Error at event handling.*");
+call mtr.add_suppression("Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_applier'.*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+set session sql_log_bin=1;
+
+--echo # 1C. Setup environment on server3, do not start GR yet.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @debug_save3= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_do_not_clear_certification_database';
+
+--echo
+--echo # 2.  Generate 200 transactions on server1 to increase
+--echo #     certification database size.
+--echo
+
+## We have disabled cleaning of certification database.
+## We have limited Member 2, packet size to 1 KB slave_max_allowed_packet.
+## Member2 will go in ERROR state if any packet is bigger then
+## MAX (slave_max_allowed_packet,binlog-row-event-max-size +
+## MAX_LOG_EVENT_HEADER i.e. 12251 as of now)
+## Member1 uses default value which is 1GB as of now. so it will process
+## View_change packet successfully.
+## As of now size of certification database is growing to approx 13339
+## which includes (12+48)*200 and other View_change information.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE TABLE t1 (a INT PRIMARY KEY);
+--disable_query_log
+--let $rows= 200
+WHILE($rows)
+{
+  --eval INSERT INTO t1 (a) VALUES ( $rows )
+  --dec $rows
+}
+--enable_query_log
+
+--echo
+--echo # 3.  Start GR on server3, View_change packet will be high in size.
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo
+--echo # 4.  Server2 can only handle small packet sizes, so it will go in error state.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_member_state= ERROR
+--source ../inc/gr_wait_for_member_state.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_slave_max_allowed_packet_dependency
+--let $assert_count = 1
+--let $assert_select = log event entry exceeded slave_max_allowed_packet; Increase slave_max_allowed_packet
+--let $assert_text = Found the expected error about log event entry exceeded slave_max_allowed_packet.
+--source include/assert_grep.inc
+
+--echo
+--echo # 5.  Server1 can handle 1GB packet size(default) so it will become donor and
+--echo #     assist server3 to come ONLINE.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 6.  Restart GR on server2 with large value of slave_max_allowed_packet
+--echo #     to make it ONLINE.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+SET @@GLOBAL.slave_max_allowed_packet=@debug_save_slave_max_allowed_packet;
+--let $wait_timeout=150
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 3
+--source ../inc/gr_wait_for_number_of_members.inc
+
+--echo
+--echo # 7.  Verification.
+--echo
+
+--let $diff_tables=server1:t1, server2:t1, server3:t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 8.  Cleanup.
+--echo
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_save1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_save2;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_save3;
+
+--source ../inc/group_replication_end.inc

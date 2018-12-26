@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1576,6 +1576,10 @@ void ServerHello::Process(input_buffer& input, SSL& ssl)
     else if (!ssl.isTLS() && (server_version_.major_ == 3 &&
                               server_version_.minor_ >= 1)) {
         ssl.SetError(badVersion_error);
+        return;
+    }
+    if (cipher_suite_[0] != 0x00) {
+        ssl.SetError(unknown_cipher);
         return;
     }
     ssl.set_pending(cipher_suite_[1]);

@@ -2,6 +2,10 @@
 # Tests that the character set setting is properly picked up by the
 # session that reads the rules table.
 #
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 # Query rewrite plugin was installed.
 # Let's be clear on what the global and session values are
 # for this variable.
@@ -18,6 +22,8 @@ DELETE FROM query_rewrite.rewrite_rules;
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT * FROM mydb.mytable WHERE mycol = ?', 'select "rule1"' );
 CALL query_rewrite.flush_rewrite_rules();
+Warnings:
+Warning	1681	'RESET QUERY CACHE' is deprecated and will be removed in a future release.
 CREATE DATABASE mydb;
 CREATE TABLE mydb.mytable ( mycol char(3), mycol2 CHAR(100) );
 INSERT INTO mydb.mytable VALUES ( 'xxx', 'Not supposed to be seeing this.' );

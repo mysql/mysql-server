@@ -1,0 +1,30 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# Commit a transaction (T1) on server 1, that will be
+# certified and applied on both members.
+CREATE TABLE t1(i INT PRIMARY KEY);
+include/rpl_sync.inc
+# Wait for the first round of garbage collection to finish on server 1.
+# Wait for the first round of garbage collection to finish on server 2.
+# First round of garbage collection finished
+############################################################
+# Block garbage collection on server 2.
+include/stop_group_replication.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_garbage_collection_block';
+include/start_group_replication.inc
+############################################################
+# Commit a transaction (T2) on server 1, that will be
+# certified and applied on both members.
+INSERT INTO t1 VALUES(1);
+include/rpl_sync.inc
+# Wait for the second round of garbage collection to finish on server 1.
+# Wait for the third round of garbage collection to finish on server 2.
+# Round on which garbage collection will be unblocked.
+SET @@GLOBAL.DEBUG= @debug_save;
+DROP TABLE t1;
+include/group_replication_end.inc

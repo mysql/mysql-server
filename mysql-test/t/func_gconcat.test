@@ -870,3 +870,23 @@ DROP TABLE t1;
 SET group_concat_max_len= DEFAULT;
 
 --echo End of 5.6 tests
+
+--echo #
+--echo # Bug #25331425: DISTINCT CLAUSE DOES NOT WORK IN GROUP_CONCAT
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(1000), b INT);
+INSERT INTO t1 VALUES ('a', 1), ('b', 2), ('a', 3), ('b', 5), ('c', 5);
+
+let query1= SELECT GROUP_CONCAT(DISTINCT a) FROM t1;
+let query2= SELECT GROUP_CONCAT(DISTINCT a), b FROM t1 GROUP BY b;
+
+eval $query1;
+eval $query2;
+
+SET @@tmp_table_size=1024;
+eval $query1;
+eval $query2;
+
+SET @@tmp_table_size=default;
+DROP TABLE t1;

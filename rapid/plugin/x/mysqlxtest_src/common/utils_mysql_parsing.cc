@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,7 +18,8 @@
  */
 //--------------------------------------------------------------------------------------------------
 #include "utils_mysql_parsing.h"
-#include <boost/algorithm/string/trim.hpp>
+
+#include "utils_string_parsing.h"
 
 namespace shcore
 {
@@ -117,8 +118,8 @@ namespace shcore
                 if (!is_hidden_command && !have_content)
                   head = tail; // Skip over the comment.
 
-                break;
               }
+              break;
 
             case '-': // Possible single line comment.
             {
@@ -202,7 +203,7 @@ namespace shcore
                             run++;
 
                           delimiter = std::string((char *)tail, run - tail);
-                          boost::trim(delimiter);
+                          aux::trim(delimiter);
 
                           delimiter_head = (unsigned char*)delimiter.c_str();
 

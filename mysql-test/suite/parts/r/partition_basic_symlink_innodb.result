@@ -75,6 +75,8 @@ t1	CREATE TABLE `t1` (
 # ALTER TABLE to MyISAM.
 #
 ALTER TABLE t1 engine=MyISAM;
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -83,6 +85,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (c1)
 (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM,
  PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir/' ENGINE = MyISAM) */
+Warnings:
+Warning	1287	The partition engine, used by table 'test.t1', is deprecated and will be removed in a future release. Please use native partitioning instead.
 # Verifying .frm, .par and MyISAM files (.MYD, MYI)
 ---- MYSQLD_DATADIR/test
 t1#P#p0.MYD

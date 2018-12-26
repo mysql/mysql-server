@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 #include "rsa.h"
 
 
-#define YASSL_VERSION "2.3.9b"
+#define YASSL_VERSION "2.4.4"
 
 
 #if defined(__cplusplus)
@@ -179,7 +179,7 @@ enum { /* X509 Constants */
 unsigned long ERR_get_error_line_data(const char**, int*, const char**, int *);
 void          ERR_print_errors_fp(FILE*);
 char*         ERR_error_string(unsigned long,char*);
-void          ERR_remove_state(unsigned long);
+void          ERR_remove_thread_state(const void *);
 unsigned long ERR_get_error(void);
 unsigned long ERR_peek_error(void);
 int           ERR_GET_REASON(int);

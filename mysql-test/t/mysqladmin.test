@@ -45,7 +45,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 --echo #
 
 --echo # Executing mysqladmin with --sleep=1 and --count=2.
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --sleep=1 --count=2 ping > $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --sleep=1 --count=2 ping > $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
 --echo # Done.
 --echo # Displaying the output :
 --cat_file $MYSQLTEST_VARDIR/tmp/mysqladmin.tmp
@@ -62,7 +62,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug10608.cnf;
 EOF
 
 --echo # Using --defaults-extra-file option with 'cnf_file'.
---exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
 --remove_file $MYSQLTEST_VARDIR/tmp/cnf_file
 
@@ -70,7 +70,7 @@ EOF
 --echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
 --echo #
 
---exec $MYSQLADMIN -uroot --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults -uroot --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
 
 --echo #

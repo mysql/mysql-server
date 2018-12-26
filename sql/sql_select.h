@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -700,6 +700,11 @@ public:
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
+  /**
+    Setting this flag means ref is using lesser number of key parts than range
+    and it borrows range's row estimate.
+  */
+  bool dodgy_ref_cost;
 private:
   JOIN_TAB(const JOIN_TAB&);            // not defined
   JOIN_TAB& operator=(const JOIN_TAB&); // not defined
@@ -727,7 +732,8 @@ JOIN_TAB::JOIN_TAB() :
     emb_sj_nest(NULL),
     embedding_map(0),
     join_cache_flags(0),
-    reversed_access(false)
+    reversed_access(false),
+    dodgy_ref_cost(false)
 {
 }
 
@@ -956,7 +962,7 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
-  case TYPE_WARN_ALL_TRUNCATED:
+  case TYPE_WARN_INVALID_STRING:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:

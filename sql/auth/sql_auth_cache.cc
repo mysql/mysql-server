@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_time.h"
 #include "sql_plugin.h"                         // lock_plugin_data etc.
 #include "debug_sync.h"
+#include "sql_user_table.h"
 
 #define INVALID_DATE "0000-00-00 00:00:00"
 
@@ -678,8 +679,12 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine)
   key_length= (strlen(db) + strlen(user) + strlen(tname) + 3);
   hash_key=   (char*) alloc_root(&memex, key_length);
   my_stpcpy(my_stpcpy(my_stpcpy(hash_key,user)+1,db)+1,tname);
-  privs = (ulong) form->field[6]->val_int();
-  privs = fix_rights_for_table(privs);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV])
+  {
+    privs = (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_TABLE_PRIV]->val_int();
+    privs = fix_rights_for_table(privs);
+  }
 }
 
 
@@ -693,8 +698,14 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
     cols= 0;
     return;
   }
-  cols= (ulong) form->field[7]->val_int();
-  cols =  fix_rights_for_column(cols);
+
+  if (form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV])
+  {
+    cols= (ulong) form->field[MYSQL_TABLES_PRIV_FIELD_COLUMN_PRIV]->val_int();
+    cols =  fix_rights_for_column(cols);
+  }
+  else
+    cols= 0;
 
   (void) my_hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (my_hash_get_key) get_key_column,0,0,
@@ -719,7 +730,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 
     if (!col_privs->key_info)
     {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
+      my_error(ER_MISSING_KEY, MYF(0), col_privs->s->db.str,
                col_privs->s->table_name.str);
       return true;
     }
@@ -1484,8 +1495,18 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
    We need to check whether we are working with old database layout. This
    might be the case for instance when we are running mysql_upgrade.
   */
-  table_schema= user_table_schema_factory.get_user_table_schema(table);
-  is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
+  if (user_table_schema_factory.user_table_schema_check(table))
+  {
+    table_schema= user_table_schema_factory.get_user_table_schema(table);
+    is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
+  }
+  else
+  {
+    sql_print_error("[FATAL] mysql.user table is damaged. "
+                    "Please run mysql_upgrade.");
+    end_read_record(&read_record_info);
+    goto end;
+  }
 
   allow_all_hosts=0;
   int read_rec_errcode;
@@ -1836,8 +1857,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   } // END while reading records from the mysql.user table
 
   end_read_record(&read_record_info);
+
+  DBUG_EXECUTE_IF("simulate_acl_init_failure",
+                  read_rec_errcode= HA_ERR_WRONG_IN_RECORD;);
+
   if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
     goto end;
+  }
 
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();
@@ -1922,7 +1950,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   end_read_record(&read_record_info);
   if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
     goto end;
+  }
 
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
   acl_dbs->shrink_to_fit();
@@ -1952,7 +1983,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     end_read_record(&read_record_info);
     if (read_rec_errcode > 0)
+    {
+      table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
       goto end;
+    }
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   }
@@ -2676,7 +2710,8 @@ void acl_update_user(const char *user, const char *host,
                               auth.str, auth.length);
             acl_user->auth_string.length= auth.length;
             set_user_salt(acl_user);
-            acl_user->password_last_changed= password_change_time;
+            if (password_change_time.time_type != MYSQL_TIMESTAMP_ERROR)
+              acl_user->password_last_changed= password_change_time;
           }
         }
         acl_user->access=privileges;

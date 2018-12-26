@@ -1,0 +1,48 @@
+# ==== Purpose ====
+#
+# Verify that Seconds_Behind_Master is calculated correctly on a
+# Multi-threaded Slave.
+#
+# ==== References ====
+# Bug #25407335 SLAVE DON'T REPORT SECONDS_BEHIND_MASTER WHEN RUNNING
+#               SLAVE_PARALLEL_WORKERS > 0
+#
+
+# Must be statement as we rely on PROCESSLIST's Info column
+--source include/have_binlog_format_statement.inc
+# This test uses debug_sync
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Bug #25407335 SLAVE DON'T REPORT SECONDS_BEHIND_MASTER WHEN RUNNING
+#               SLAVE_PARALLEL_WORKERS > 0
+
+# Start slave in MTS mode
+connection slave;
+--let $debug_point= dbug.mts.force_clock_diff_eq_0
+--source include/add_debug_point.inc
+SET @save_slave_parallel_type = @@GLOBAL.slave_parallel_type;
+SET @save.slave_parallel_workers= @@global.slave_parallel_workers;
+SET @save_slave_transaction_retries= @@global.slave_transaction_retries;
+
+--echo # Test for PARALLEL_DATABASE
+SET GLOBAL slave_parallel_type = 'DATABASE';
+SET @@global.slave_parallel_workers= 4;
+--source extra/rpl_tests/rpl_seconds_behind_master_mts_type_database.test
+
+--echo # Test for LOGICAL_CLOCK
+SET GLOBAL slave_parallel_type = 'LOGICAL_CLOCK';
+SET GLOBAL slave_parallel_workers = 3;
+--source extra/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test
+
+#Cleanup
+--let $debug_point= dbug.mts.force_clock_diff_eq_0
+--source include/remove_debug_point.inc
+SET @@GLOBAL.slave_parallel_type= @save_slave_parallel_type;
+SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
+SET @@global.slave_transaction_retries= @save_slave_transaction_retries;
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

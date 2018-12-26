@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -152,7 +152,7 @@ void table_global_variables
   if (system_var->is_null())
     return;
   m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
-  m_row.m_variable_value.make_row(system_var->m_value_str, system_var->m_value_length);
+  m_row.m_variable_value.make_row(system_var);
   m_row_exists= true;
 }
 
@@ -181,7 +181,7 @@ int table_global_variables
         set_field_varchar_utf8(f, m_row.m_variable_name.m_str, m_row.m_variable_name.m_length);
         break;
       case 1: /* VARIABLE_VALUE */
-        set_field_varchar_utf8(f, m_row.m_variable_value.m_str, m_row.m_variable_value.m_length);
+        m_row.m_variable_value.set_field(f);
         break;
       default:
         DBUG_ASSERT(false);

@@ -3825,22 +3825,22 @@ ER_NO_RAID_COMPILED
         swe "Denna version av MySQL är inte kompilerad med RAID"
         ukr "Ця версія MySQL не зкомпільована з підтримкою RAID"
 ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE  
-        cze "Update tabulky bez WHERE s klíčem není v módu bezpečných update dovoleno"
-        dan "Du bruger sikker opdaterings modus ('safe update mode') og du forsøgte at opdatere en tabel uden en WHERE klausul, der gør brug af et KEY felt"
-        nla "U gebruikt 'safe update mode' en u probeerde een tabel te updaten zonder een WHERE met een KEY kolom"
-        eng "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column"
-        est "Katse muuta tabelit turvalises rezhiimis ilma WHERE klauslita"
-        fre "Vous êtes en mode 'safe update' et vous essayez de faire un UPDATE sans clause WHERE utilisant un index"
-        ger "MySQL läuft im sicheren Aktualisierungsmodus (safe update mode). Sie haben versucht, eine Tabelle zu aktualisieren, ohne in der WHERE-Klausel ein KEY-Feld anzugeben"
-        hun "On a biztonsagos update modot hasznalja, es        WHERE that uses a KEY column"
-        ita "In modalita` 'safe update' si e` cercato di aggiornare una tabella senza clausola WHERE su una chiave"
-        jpn "'safe update mode'で、索引を利用するWHERE句の無い更新処理を実行しようとしました。"
-        por "Você está usando modo de atualização seguro e tentou atualizar uma tabela sem uma cláusula WHERE que use uma coluna chave"
-        rus "Вы работаете в режиме безопасных обновлений (safe update mode) и попробовали изменить таблицу без использования ключевого столбца в части WHERE"
-        serbian "Vi koristite safe update mod servera, a probali ste da promenite podatke bez 'WHERE' komande koja koristi kolonu ključa"
-        spa "Tu estás usando modo de actualización segura y tentado actualizar una tabla sin un WHERE que usa una KEY columna"
-        swe "Du använder 'säker uppdateringsmod' och försökte uppdatera en tabell utan en WHERE-sats som använder sig av en nyckel"
-        ukr "Ви у режимі безпечного оновлення та намагаєтесь оновити таблицю без оператора WHERE, що використовує KEY стовбець"
+        cze "Update tabulky bez WHERE s klíčem není v módu bezpečných update dovoleno. %s"
+        dan "Du bruger sikker opdaterings modus ('safe update mode') og du forsøgte at opdatere en tabel uden en WHERE klausul, der gør brug af et KEY felt. %s"
+        nla "U gebruikt 'safe update mode' en u probeerde een tabel te updaten zonder een WHERE met een KEY kolom. %s"
+        eng "You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column. %s"
+        est "Katse muuta tabelit turvalises rezhiimis ilma WHERE klauslita. %s"
+        fre "Vous êtes en mode 'safe update' et vous essayez de faire un UPDATE sans clause WHERE utilisant un index. %s"
+        ger "MySQL läuft im sicheren Aktualisierungsmodus (safe update mode). Sie haben versucht, eine Tabelle zu aktualisieren, ohne in der WHERE-Klausel ein KEY-Feld anzugeben. %s"
+        hun "On a biztonsagos update modot hasznalja, es        WHERE that uses a KEY column. %s"
+        ita "In modalita` 'safe update' si e` cercato di aggiornare una tabella senza clausola WHERE su una chiave. %s"
+        jpn "'safe update mode'で、索引を利用するWHERE句の無い更新処理を実行しようとしました。. %s"
+        por "Você está usando modo de atualização seguro e tentou atualizar uma tabela sem uma cláusula WHERE que use uma coluna chave. %s"
+        rus "Вы работаете в режиме безопасных обновлений (safe update mode) и попробовали изменить таблицу без использования ключевого столбца в части WHERE. %s"
+        serbian "Vi koristite safe update mod servera, a probali ste da promenite podatke bez 'WHERE' komande koja koristi kolonu ključa. %s"
+        spa "Tu estás usando modo de actualización segura y tentado actualizar una tabla sin un WHERE que usa una KEY columna. %s"
+        swe "Du använder 'säker uppdateringsmod' och försökte uppdatera en tabell utan en WHERE-sats som använder sig av en nyckel. %s"
+        ukr "Ви у режимі безпечного оновлення та намагаєтесь оновити таблицю без оператора WHERE, що використовує KEY стовбець. %s"
 ER_KEY_DOES_NOT_EXITS 42000 S1009
         cze "Klíč '%-.192s' v tabulce '%-.192s' neexistuje"
         dan "Nøglen '%-.192s' eksisterer ikke i tabellen '%-.192s'"
@@ -7064,6 +7064,9 @@ ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
 
 ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
   eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
+
+ER_MISSING_KEY
+  eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
 #
 #  End of 5.6 error messages.
 #
@@ -7640,7 +7643,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check keyring plugin is loaded."
+  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
@@ -7665,6 +7668,111 @@ ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
 
 ER_TABLE_REFERENCED
   eng "Cannot complete the operation because table is referenced by another connection."
+
+ER_PARTITION_ENGINE_DEPRECATED_FOR_TABLE
+  eng "The partition engine, used by table '%-.192s.%-.192s', is deprecated and will be removed in a future release. Please use native partitioning instead."
+
+ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID_ZERO 01000
+  eng "%.192s(geometry) is deprecated and will be replaced by st_srid(geometry, 0) in a future version. Use %.192s(st_aswkb(geometry), 0) instead."
+
+ER_WARN_USING_GEOMFROMWKB_TO_SET_SRID 01000
+  eng "%.192s(geometry, srid) is deprecated and will be replaced by st_srid(geometry, srid) in a future version. Use %.192s(st_aswkb(geometry), srid) instead."
+
+ER_XA_RETRY
+  eng "The resource manager is not able to commit the transaction branch at this time. Please retry later."
+
+ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
+  eng "Function %s failed due to: %s."
+
+ER_BINLOG_UNSAFE_XA
+  eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+
+ER_UDF_ERROR
+  eng "%s UDF failed; %s"
+
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"a
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLES
+  eng "Failed to open the %s filter tables."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table."
+
+ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
+  eng "No keyring plugin installed."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_HAS_NOT_BEEN_SET
+  eng "Audit log encryption password has not been set; it will be generated automatically. Use audit_log_encryption_password_get to obtain the password or audit_log_encryption_password_set to set a new one."
+
+ER_AUDIT_LOG_COULD_NOT_CREATE_AES_KEY
+  eng "Could not create AES key. OpenSSL's EVP_BytesToKey function failed."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_CANNOT_BE_FETCHED
+  eng "Audit log encryption password cannot be fetched from the keyring. Password used so far is used for encryption."
+
+ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
+  eng "Audit Log filtering has not been installed."
+
+ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%s'@'%s'. SUPER_ACL needed to perform operation"
+
+ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
+  eng "SUPER privilege required for '%s'@'%s' user."
+
+ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
+  eng "Could not reinitialize audit log filters."
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
+  eng "Invalid argument type"
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_COUNT
+  eng "Invalid argument count"
+
+ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
+  eng "audit_log plugin has not been installed using INSTALL PLUGIN syntax."
+
+ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
+  eng "Invalid \"max_array_length\" argument type."
+
+ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE
+  eng "Invalid \"max_array_length\" argument value."
+
+ER_AUDIT_LOG_JSON_FILTER_PARSING_ERROR
+  eng "%s"
+
+ER_AUDIT_LOG_JSON_FILTER_NAME_CANNOT_BE_EMPTY
+  eng "Filter name cannot be empty."
+
+ER_AUDIT_LOG_JSON_USER_NAME_CANNOT_BE_EMPTY
+  eng "User cannot be empty."
+
+ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXISTS
+  eng "Specified filter has not been found."
+
+ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
+  eng "First character of the user name must be alphanumeric."
+
+ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
+  eng "Invalid character in the user name."
+
+ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
+  eng "Invalid character in the host name."
+
+WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
+  eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
+
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+
+ER_CANT_OPEN_ERROR_LOG
+  eng "Could not open file '%s' for error logging%s%s"
 
 #
 #  End of 5.7 error messages.

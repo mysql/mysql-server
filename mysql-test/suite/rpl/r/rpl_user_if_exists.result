@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 [On Master]
 # No users exist:
+call mtr.add_suppression('Corresponding entry in binary log used default authentication.*');
 DROP USER IF EXISTS wl8540@nohost1, wl8540@nohost2;
 Warnings:
 Note	3162	User 'wl8540'@'nohost1' does not exist.
@@ -96,4 +97,182 @@ Warnings:
 Note	3162	User 'slave_user2'@'localhost' does not exist.
 FLUSH PRIVILEGES;
 include/sync_slave_sql_with_master.inc
+# Search warnings in the server log
+WL11144: Check that ALTER/CREATE/DROP USER IF [NOT] EXISTS will succesfully replicate in multi user scenarios
+[connection master]
+# All users exist on master, some on slave
+CREATE USER u1,u2;
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3163	User 'u1'@'%' already exists.
+Note	3163	User 'u2'@'%' already exists.
+Note	3163	User 'u3'@'%' already exists.
+Note	3163	User 'u4'@'%' already exists.
+DROP USER u1, u2, u3, u4;
+CREATE USER u1,u2;
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+include/sync_slave_sql_with_master.inc
+# All users exist on master, none on slave
+[connection master]
+set @@session.sql_log_bin=0;
+CREATE USER u1,u2,u3,u4;
+set @@session.sql_log_bin=1;
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3163	User 'u1'@'%' already exists.
+Note	3163	User 'u2'@'%' already exists.
+Note	3163	User 'u3'@'%' already exists.
+Note	3163	User 'u4'@'%' already exists.
+DROP USER u1, u2, u3, u4;
+set @@session.sql_log_bin=0;
+CREATE USER u1,u2,u3,u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+include/sync_slave_sql_with_master.inc
+# Some users exist on master, others on slave
+[connection master]
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+include/sync_slave_sql_with_master.inc
+CREATE USER u1,u2;
+[connection master]
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3163	User 'u3'@'%' already exists.
+Note	3163	User 'u4'@'%' already exists.
+set @@session.sql_log_bin=0;
+DROP USER u1,u2;
+set @@session.sql_log_bin=1;
+include/sync_slave_sql_with_master.inc
+DROP USER u3,u4;
+[connection master]
+DROP USER IF EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+# Some users exist on master, all on slave
+include/sync_slave_sql_with_master.inc
+CREATE USER u1,u2;
+[connection master]
+CREATE USER u3,u4;
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3163	User 'u3'@'%' already exists.
+Note	3163	User 'u4'@'%' already exists.
+set sql_log_bin=0;
+DROP USER u1,u2;
+set sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+include/sync_slave_sql_with_master.inc
+# Some users exist on master, none on slave
+[connection master]
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3163	User 'u3'@'%' already exists.
+Note	3163	User 'u4'@'%' already exists.
+DROP USER u1, u2, u3, u4;
+set @@session.sql_log_bin=0;
+CREATE USER u3,u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+# No users exist on master, some on slave
+include/sync_slave_sql_with_master.inc
+CREATE USER u3,u4;
+[connection master]
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+Note	3162	User 'u3'@'%' does not exist.
+Note	3162	User 'u4'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+DROP USER u1, u2;
+set @@session.sql_log_bin=0;
+DROP USER u3,u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+Note	3162	User 'u3'@'%' does not exist.
+Note	3162	User 'u4'@'%' does not exist.
+# No users exist on master, all on slave
+include/sync_slave_sql_with_master.inc
+CREATE USER u1,u2,u3,u4;
+[connection master]
+ALTER USER IF EXISTS u1, u2, u3, u4 ACCOUNT LOCK;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+Note	3162	User 'u3'@'%' does not exist.
+Note	3162	User 'u4'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1, u2, u3, u4;
+set @@session.sql_log_bin=0;
+DROP USER u1, u2, u3, u4;
+set @@session.sql_log_bin=1;
+DROP USER IF EXISTS u1, u2, u3, u4;
+Warnings:
+Note	3162	User 'u1'@'%' does not exist.
+Note	3162	User 'u2'@'%' does not exist.
+Note	3162	User 'u3'@'%' does not exist.
+Note	3162	User 'u4'@'%' does not exist.
+CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
+ERROR HY000: Incorrect DAY value: '66666'
+ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666 DAY;
+ERROR HY000: Incorrect DAY value: '66666'
+CREATE USER IF NOT EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
+ERROR 42000: Only integers allowed as number here near '66666888888888888888 DAY' at line 1
+ALTER USER IF EXISTS u1 PASSWORD EXPIRE INTERVAL 66666888888888888888 DAY;
+ERROR 42000: Only integers allowed as number here near '66666888888888888888 DAY' at line 1
+include/assert.inc [assert that the above Event has not been added to binlog]
+include/assert.inc [assert that the GTID has not been generated]
+CREATE USER u3 IDENTIFIED WITH 'mysql_native_password';
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED WITH 'sha256_password',u3 IDENTIFIED WITH 'sha256_password';
+ERROR HY000: Plugin 'shsh' is not loaded
+include/sync_slave_sql_with_master.inc
+include/assert.inc [assert that u3's auth_plugin has not changed]
+[connection master]
+DROP USER u2;
+CREATE USER u1;
+CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'pass',u3 IDENTIFIED WITH 'sha256_password';
+ERROR HY000: Plugin 'shsh' is not loaded
+include/sync_slave_sql_with_master.inc
+include/assert.inc [assert that u3's auth_plugin has not changed]
+[connection master]
+ALTER USER IF EXISTS u1 IDENTIFIED WITH 'shsh',u2 IDENTIFIED BY 'xyz',u3 IDENTIFIED WITH 'sha256_password';
+ERROR HY000: Plugin 'shsh' is not loaded
+include/sync_slave_sql_with_master.inc
+include/assert.inc [assert that u3's auth_plugin has been changed by alter]
+[connection master]
+DROP USER u1,u2,u3;
 include/rpl_end.inc

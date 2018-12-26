@@ -1,3 +1,9 @@
+# Some of the queries give different set of warnings with --ps-protocol
+if (`SELECT $PS_PROTOCOL + $CURSOR_PROTOCOL > 0`)
+{
+   --skip Need normal protocol
+}
+
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.

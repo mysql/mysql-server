@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,13 +34,12 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   DBUG_ENTER("partition_info::get_clone");
   List_iterator<partition_element> part_it(partitions);
   partition_element *part;
-  partition_info *clone= new partition_info();
+  partition_info *clone= new partition_info(*this);
   if (!clone)
   {
     mem_alloc_error(sizeof(partition_info));
     DBUG_RETURN(NULL);
   }
-  memcpy(clone, this, sizeof(partition_info));
   memset(&(clone->read_partitions), 0, sizeof(clone->read_partitions));
   memset(&(clone->lock_partitions), 0, sizeof(clone->lock_partitions));
   clone->bitmaps_are_initialized= FALSE;
@@ -51,13 +50,12 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
   {
     List_iterator<partition_element> subpart_it(part->subpartitions);
     partition_element *subpart;
-    partition_element *part_clone= new partition_element();
+    partition_element *part_clone= new partition_element(*part);
     if (!part_clone)
     {
       mem_alloc_error(sizeof(partition_element));
       DBUG_RETURN(NULL);
     }
-    memcpy(part_clone, part, sizeof(partition_element));
 
     /*
       Mark that RANGE and LIST values needs to be fixed so that we don't
@@ -81,13 +79,12 @@ partition_info *partition_info::get_clone(bool reset /* = false */)
     part_clone->subpartitions.empty();
     while ((subpart= (subpart_it++)))
     {
-      partition_element *subpart_clone= new partition_element();
+      partition_element *subpart_clone= new partition_element(*subpart);
       if (!subpart_clone)
       {
         mem_alloc_error(sizeof(partition_element));
         DBUG_RETURN(NULL);
       }
-      memcpy(subpart_clone, subpart, sizeof(partition_element));
       part_clone->subpartitions.push_back(subpart_clone);
     }
     clone->partitions.push_back(part_clone);
@@ -1921,7 +1918,6 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
   char *buf_ptr= (char*)&buf;
   TABLE_LIST table_list;
 
-  memset(&table_list, 0, sizeof(table_list));
   table_list.db= table_arg->s->db.str;
   table_list.table_name= table_arg->s->table_name.str;
 
@@ -3228,6 +3224,30 @@ void partition_info::print_debug(const char *str, uint *value)
     DBUG_PRINT("info", ("parser: %s", str));
   DBUG_VOID_RETURN;
 }
+
+bool has_external_data_or_index_dir(partition_info &pi)
+{
+  List_iterator<partition_element> part_it(pi.partitions);
+  for (partition_element *part= part_it++; part; part= part_it++)
+  {
+    if (part->data_file_name != NULL || part->index_file_name != NULL)
+    {
+      return true;
+    }
+    List_iterator<partition_element> subpart_it(part->subpartitions);
+    for (const partition_element *subpart= subpart_it++;
+         subpart;
+         subpart= subpart_it++)
+    {
+      if (subpart->data_file_name != NULL || subpart->index_file_name != NULL)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 
 /**
   Fill the Tablespace_hash_set with the tablespace names

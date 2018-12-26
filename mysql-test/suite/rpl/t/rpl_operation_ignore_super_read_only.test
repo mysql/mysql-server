@@ -4,17 +4,21 @@
 #
 # ==== Implementation ====
 #
-# 1) SET GLOBAL super_read_only to 1 on slave
-# 2) Execute 'STOP SLAVE' command
-# 3) Execute 'CHANGE REPLICATION FILTER' command
-# 4) Execute 'CHANGE MASTER TO' command
-# 5) Execute 'START SLAVE' command
-# 6) Check that replication works fine
-# 7) Restore GLOBAL super_read_only to 0
+# 1) SET AUTOCOMMIT=ON
+# 2) Verify that we permit replication operations with super_read_only=ON
+#    by executing rpl_ignore_super_read_only.test
+# 3) SET AUTOCOMMIT=OFF
+# 2) Verify that we permit replication operations with super_read_only=ON
+#    by executing rpl_ignore_super_read_only.test
 #
 # ==== References ====
 #
-# Bug#22097534  SUPER_READ_ONLY ABORTS STOP SLAVE IF RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22097534: SUPER_READ_ONLY ABORTS STOP SLAVE IF
+#               RELAY_LOG_INFO_REPOSITORY=TABLE, DBG CRASH
+# Bug#22857926: ASSERTION `! IS_SET()' AT SQL_ERROR.CC:38 IN READ_ONLY MODE FOR
+#               MANY RPL CMDS.
+# Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
+#               OPTION
 #
 
 # Test in this file only makes sense in standard replication,
@@ -25,34 +29,10 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
---source include/rpl_connection_master.inc
-CREATE TABLE t1(a INT);
-INSERT INTO t1 VALUES(1);
---source include/sync_slave_sql_with_master.inc
+--let $autocommit_opt= ON
+--source extra/rpl_tests/rpl_ignore_super_read_only.test
 
-SET @saved_value_super= @@GLOBAL.super_read_only;
-SET @saved_value= @@GLOBAL.read_only;
-SET GLOBAL super_read_only= 1;
+--let $autocommit_opt= OFF
+--source extra/rpl_tests/rpl_ignore_super_read_only.test
 
---source include/stop_slave.inc
-CHANGE REPLICATION FILTER REPLICATE_DO_DB=(test);
-CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
-CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
---source include/start_slave.inc
-
-
---source include/rpl_connection_master.inc
-INSERT INTO t1 VALUES(2);
---source include/sync_slave_sql_with_master.inc
-
---let $assert_text= Table t1 must have two records
---let $assert_cond= [SELECT count(*) FROM t1]= 2
---source include/assert.inc
-
-SET GLOBAL super_read_only= @saved_value_super;
-SET GLOBAL read_only= @saved_value;
-
---source include/rpl_connection_master.inc
-DROP TABLE t1;
 --source include/rpl_end.inc
-

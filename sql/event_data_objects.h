@@ -1,6 +1,6 @@
 #ifndef _EVENT_DATA_OBJECTS_H_
 #define _EVENT_DATA_OBJECTS_H_
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,12 +198,25 @@ public:
 private:
   bool
   construct_sp_sql(THD *thd, String *sp_sql);
-  bool
-  construct_drop_event_sql(THD *thd, String *sp_sql);
-
   Event_job_data(const Event_job_data &);       /* Prevent use of these */
   void operator=(Event_job_data &);
 };
+
+/**
+  Build an SQL drop event string.
+
+  @param[in]     thd         Thread handle
+  @param[in,out] sp_sql      Pointer to String object where the SQL query will
+                             be stored
+  @param[in]     db_name     The schema name
+  @param[in]     event_name  The event name
+
+  @retval        false       The drop event SQL query is built
+  @retval        true        Otherwise
+*/
+bool construct_drop_event_sql(THD *thd, String *sp_sql,
+                              const LEX_STRING &db_name,
+                              const LEX_STRING &event_name);
 
 
 /* Compares only the schema part of the identifier */

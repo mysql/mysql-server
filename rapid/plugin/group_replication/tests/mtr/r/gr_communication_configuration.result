@@ -1,0 +1,133 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("Error on group communication engine start");
+call mtr.add_suppression("Invalid hostname or IP address \\(.*\\) assigned to the parameter local_node!");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+call mtr.add_suppression("\\[GCS\\] Unable to join the group: peers not configured. ");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Unable to initialize the group communication engine");
+call mtr.add_suppression("Error on group communication engine initialization");
+call mtr.add_suppression("Peer address .* is not valid.");
+call mtr.add_suppression("Error calling group communication interfaces while trying to leave the group");
+call mtr.add_suppression("\\[GCS\\] The group_name, peer_nodes, local_node or bootstrap_group parameters were not specified.");
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+call mtr.add_suppression("\\[GCS\\] None of the provided peer address is valid.");
+call mtr.add_suppression("\\[GCS\\] read failed");
+SET SESSION sql_log_bin= 1;
+[connection server1]
+[connection server2]
+[connection server1]
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+[connection server2]
+SET @local_address= @@GLOBAL.group_replication_local_address;
+SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+#######################################################
+#  1. Try setting bootstrap_group variable with invalid
+#     values. It must fail.
+SET GLOBAL group_replication_bootstrap_group= NULL;
+ERROR 42000: Variable 'group_replication_bootstrap_group' can't be set to the value of 'NULL'
+SET GLOBAL group_replication_bootstrap_group= "a";
+ERROR 42000: Variable 'group_replication_bootstrap_group' can't be set to the value of 'a'
+SET GLOBAL group_replication_bootstrap_group= 1.2;
+ERROR 42000: Incorrect argument type to variable 'group_replication_bootstrap_group'
+#######################################################
+#  2. Try start Group Replication without configure any
+#     communication engine parameter, start must fail.
+[connection server1]
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  3. Try start Group Replication with only bootstrap
+#     parameter enabled, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= "";
+SET GLOBAL group_replication_group_seeds= "";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  4. Try start Group Replication with invalid
+#     local_address parameter set, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= "ola";
+SET GLOBAL group_replication_group_seeds= "";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  5. Try start Group Replication with only local_address
+#     parameter set, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when joining the communication group.
+#######################################################
+#  6. Try start Group Replication with bootstrap
+#     parameter enable and group_seeds, start must
+#     fail.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= "";
+SET GLOBAL group_replication_group_seeds= @group_seeds;
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  7. Try start Group Replication with bootstrap
+#     parameter enable and local_address, start must
+#     succeed.
+SET GLOBAL group_replication_bootstrap_group= 1;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "";
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+#######################################################
+#  8. Try start Group Replication on server2 with invalid
+#     invalid group_seeds, start must fail.
+[connection server2]
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+SET GLOBAL group_replication_group_seeds= "ola";
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  9. Try start Group Replication on server2 with
+#     invalid group_seeds, start must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  10. Try start Group Replication on server2 with
+#      local_address and group_seeds set to NULL, start
+#      must fail.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= NULL;
+SET GLOBAL group_replication_group_seeds= NULL;
+START GROUP_REPLICATION;
+ERROR HY000: The START GROUP_REPLICATION command failed as there was an error when initializing the group communication layer.
+#######################################################
+#  11. Try start Group Replication on server2 with valid
+#      local_address and some invalid group_seeds, start must
+#      succeed.
+SET GLOBAL group_replication_bootstrap_group= 0;
+SET GLOBAL group_replication_local_address= @local_address;
+CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+#######################################################
+#  12. We must have a group with two members.
+[connection server1]
+[connection server2]
+#######################################################
+#  13. Cleanup.
+SET GLOBAL group_replication_group_seeds= @group_seeds;

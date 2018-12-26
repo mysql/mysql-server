@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H 
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ struct READ_RECORD
   bool print_error, ignore_not_found_rows;
 
 public:
-  READ_RECORD() {}
+  READ_RECORD() { memset(this, 0, sizeof(*this)); }
 };
 
 bool init_read_record(READ_RECORD *info, THD *thd,

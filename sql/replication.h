@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,22 @@ extern "C" {
 #endif
 
 /**
+  Struct to share server ssl variables
+*/
+struct st_server_ssl_variables
+{
+  bool have_ssl_opt;
+  char *ssl_ca;
+  char *ssl_capath;
+  char *tls_version;
+  char *ssl_cert;
+  char *ssl_cipher;
+  char *ssl_key;
+  char *ssl_crl;
+  char *ssl_crlpath;
+};
+
+/**
    Transaction observer flags.
 */
 enum Trans_flags {
@@ -51,6 +67,8 @@ typedef struct Trans_table_info {
   uint number_of_primary_keys;
   /// The db_type of the storage engine used by the table
   int db_type;
+  /// information to store if the table has foreign key with 'CASCADE' clause.
+  bool has_cascade_foreign_key;
 } Trans_table_info;
 
 /**
@@ -80,7 +98,9 @@ typedef struct Trans_context_info {
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;
+  bool parallel_applier_preserve_commit_order;
   enum_tx_isolation tx_isolation;  // enum values in enum_tx_isolation
+  uint lower_case_table_names;
 } Trans_context_info;
 
 /**
@@ -476,6 +496,9 @@ typedef struct Binlog_relay_IO_param {
   uint32 server_id;
   my_thread_id thread_id;
 
+  /* Channel name */
+  char* channel_name;
+
   /* Master host, user and port */
   char *host;
   char *user;
@@ -512,6 +535,16 @@ typedef struct Binlog_relay_IO_observer {
      @retval 1 Failure
   */
   int (*thread_stop)(Binlog_relay_IO_param *param);
+
+  /**
+    This callback is called when a relay log consumer thread starts
+
+    @param param Observer common parameter
+
+    @retval 0 Sucess
+    @retval 1 Failure
+  */
+  int (*applier_start)(Binlog_relay_IO_param *param);
 
   /**
      This callback is called when a relay log consumer thread stops

@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/not_embedded.inc
 
 --echo #
 --echo # Bug #19027905 ASSERT RET.SECOND DICT_CREATE_FOREIGN_CONSTRAINTS_LOW
@@ -85,3 +86,30 @@ SELECT id, b FROM t1 ORDER BY id;
 SELECT a, b FROM t2 ORDER BY a;
 
 DROP TABLE t2, t1;
+
+--echo #
+--echo # bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART
+--echo # base bug#24818604 [GR]
+--echo #
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+CREATE TABLE t2 (c1 INT PRIMARY KEY, FOREIGN KEY (c1) REFERENCES t1(c1));
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+--source include/restart_mysqld.inc
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+SELECT * FROM t1;
+
+SELECT unique_constraint_name FROM information_schema.referential_constraints
+WHERE table_name = 't2';
+
+DROP TABLE t2;
+DROP TABLE t1;

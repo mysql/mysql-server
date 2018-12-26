@@ -5,14 +5,14 @@ CREATE TABLE t1(a int not null,key(a,a)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 ERROR 42S21: Duplicate column name 'a'
 CREATE TABLE t1(a int,b text,key(b(768))) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ROW_FORMAT=COMPACT;
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 CREATE TABLE t1(a int not null,b text) ENGINE=InnoDB DEFAULT CHARSET=latin1
 ROW_FORMAT=COMPACT;
 INSERT INTO t1 VALUES (1,''),(2,''),(3,''),(4,''),(5,''),(6,''),(7,'');
 CREATE INDEX t1aa ON t1(a,a);
 ERROR 42S21: Duplicate column name 'a'
 CREATE INDEX t1b ON t1(b(768));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -35,7 +35,7 @@ INSERT INTO t2 VALUES (1,''),(2,''),(3,''),(4,''),(5,''),(6,''),(7,'');
 CREATE INDEX t2aa ON t2(a,a);
 ERROR 42S21: Duplicate column name 'a'
 CREATE INDEX t2b ON t2(b(768));
-ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+ERROR 42000: Specified key was too long; max key length is 767 bytes
 SELECT * FROM t2;
 a	b
 1	

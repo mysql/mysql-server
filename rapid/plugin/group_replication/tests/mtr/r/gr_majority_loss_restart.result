@@ -1,0 +1,107 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+SET SESSION sql_log_bin= 1;
+
+############################################################
+# 1. Crash server 2.
+[connection server2]
+include/rpl_reconnect.inc
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 2. Execute a transaction on server 1, which will block
+#    since the group does not have majority.
+[connection server_1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+[connection server1]
+
+############################################################
+# 3. Assert that group is still blocked.
+include/rpl_gr_wait_for_number_of_members.inc
+include/assert.inc [server 2 is marked as unreachable]
+
+############################################################
+# 4. Restart server 2 with group_replication_start_on_boot=ON,
+#    server 2 will be refused to join the group.
+[connection server2]
+# Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=ON --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+[connection server1]
+include/assert.inc [server 2 is marked as unreachable]
+
+############################################################
+# 5. Unblock group with server1 as a single member.
+SET GLOBAL group_replication_force_members= "SERVER1_ADDRESS";
+
+############################################################
+# 6. Check that statement did unblock and was applied on
+#    server1.
+[connection server_1]
+[connection server1]
+
+############################################################
+# 7. Rejoin server2
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 8. Execute a transaction on both members.
+[connection server1]
+INSERT INTO t1 VALUES (1);
+[connection server2]
+INSERT INTO t1 VALUES (2);
+include/rpl_sync.inc
+
+############################################################
+# 9. Validate data.
+[connection server1]
+include/assert.inc ['There are two values in table t1']
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
+[connection server2]
+include/assert.inc ['There are two values in table t1']
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000003	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY)
+server-binary-log.000003	#	Query	#	#	BEGIN
+server-binary-log.000003	#	Query	#	#	COMMIT
+server-binary-log.000003	#	Query	#	#	BEGIN
+server-binary-log.000003	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000003	#	Xid	#	#	COMMIT /* XID */
+server-binary-log.000003	#	Query	#	#	BEGIN
+server-binary-log.000003	#	Table_map	#	#	table_id: # (test.t1)
+server-binary-log.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+server-binary-log.000003	#	Xid	#	#	COMMIT /* XID */
+include/diff_tables.inc [server1:test.t1, server2:test.t1]
+
+############################################################
+# 10. Clean up.
+DROP TABLE t1;
+include/group_replication_end.inc

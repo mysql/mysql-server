@@ -1,0 +1,1 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_recovery_lower_max_retry_count.2.err

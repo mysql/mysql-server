@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@
 #include "sql_show.h"          // append_identifier
 #include "transaction.h"       // trans_rollback_stmt
 #include "tztime.h"            // Time_zone
+#include "rpl_msr.h"           // channel_map
+#include "binary_log.h"        // binary_log
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -192,6 +194,8 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            const char *log_name, ulong pos)
 {
   const char *handler_error= (ha_error ? HA_ERR(ha_error) : NULL);
+  bool is_group_replication_applier_channel=
+    channel_map.is_group_replication_channel_name((const_cast<Relay_log_info *>(rli))->get_channel(), true);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end= buff + sizeof(buff);
   size_t len;
@@ -207,21 +211,45 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                      " %s, Error_code: %d;", err->message_text(),
                      err->mysql_errno());
   }
-
-  if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
-                ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
-                "%s handler error %s; "
-                "the event's master log %s, end_log_pos %lu",
-                type, table->s->db.str, table->s->table_name.str,
-                buff, handler_error == NULL ? "<unknown>" : handler_error,
-                log_name, pos);
+  if (is_group_replication_applier_channel)
+  {
+    if (ha_error != 0)
+    {
+      rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
+                  ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
+                  "%s handler error %s",
+                  type, table->s->db.str, table->s->table_name.str,
+                  buff, handler_error == NULL ? "<unknown>" : handler_error);
+    }
+    else
+    {
+      rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
+                  ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
+                  "%s", type, table->s->db.str, table->s->table_name.str,
+                  buff);
+    }
+  }
   else
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
-                ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
-                "%s the event's master log %s, end_log_pos %lu",
-                type, table->s->db.str, table->s->table_name.str,
-                buff, log_name, pos);
+  {
+    if (ha_error != 0)
+    {
+      rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
+                  ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
+                  "%s handler error %s; "
+                  "the event's master log %s, end_log_pos %lu",
+                  type, table->s->db.str, table->s->table_name.str,
+                  buff, handler_error == NULL ? "<unknown>" : handler_error,
+                  log_name, pos);
+    }
+    else
+    {
+      rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
+                  ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
+                  "%s the event's master log %s, end_log_pos %lu",
+                  type, table->s->db.str, table->s->table_name.str,
+                  buff, log_name, pos);
+    }
+  }
 }
 
 static void set_thd_db(THD *thd, const char *db, size_t db_len)
@@ -971,10 +999,19 @@ my_bool Log_event::need_checksum()
 
 bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t size)
 {
+  DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                  {
+                    file->write_pos=file->write_end;
+                    DBUG_SET("+d,simulate_file_write_error");
+                  });
   if (need_checksum() && size != 0)
     crc= checksum_crc32(crc, buf, size);
-
-  return my_b_safe_write(file, buf, size);
+  bool ret = my_b_safe_write(file, buf, size);
+  DBUG_EXECUTE_IF("simulate_temp_file_write_error",
+                  {
+                    DBUG_SET("-d,simulate_file_write_error");
+                  });
+  return ret;
 }
 
 bool Log_event::write_footer(IO_CACHE* file) 
@@ -1122,18 +1159,22 @@ bool Log_event::write_header(IO_CACHE* file, size_t event_data_length)
 /**
   This needn't be format-tolerant, because we only read
   LOG_EVENT_MINIMAL_HEADER_LEN (we just want to read the event's length).
+
+  The caller should allocate the packet buffer before calling this function.
 */
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
                               enum_binlog_checksum_alg checksum_alg_arg,
                               const char *log_file_name_arg,
-                              bool* is_binlog_active)
+                              bool* is_binlog_active,
+                              char *event_header)
 {
 
   ulong data_len;
   int result=0;
-  char buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char local_buf[LOG_EVENT_MINIMAL_HEADER_LEN];
+  char *buf= event_header != NULL ? event_header : local_buf;
   uchar ev_offset= packet->length();
   DBUG_ENTER("Log_event::read_log_event(IO_CACHE *, String *, mysql_mutex_t, uint8)");
 
@@ -1143,20 +1184,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   if (log_file_name_arg)
     *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
 
-  if (my_b_read(file, (uchar*) buf, sizeof(buf)))
+  /* If the event header wasn't passed, we need to read it. */
+  if (buf == local_buf)
   {
-    /*
-      If the read hits eof, we must report it as eof so the caller
-      will know it can go into cond_wait to be woken up on the next
-      update to the log.
-    */
-    DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
-    if (!file->error)
-      result= LOG_READ_EOF;
-    else
-      result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
-    goto end;
+    if (my_b_read(file, (uchar*) buf, LOG_EVENT_MINIMAL_HEADER_LEN))
+    {
+      /*
+        If the read hits eof, we must report it as eof so the caller
+        will know it can go into cond_wait to be woken up on the next
+        update to the log.
+      */
+      DBUG_PRINT("error",("my_b_read failed. file->error: %d", file->error));
+      if (!file->error)
+        result= LOG_READ_EOF;
+      else
+        result= (file->error > 0 ? LOG_READ_TRUNC : LOG_READ_IO);
+      goto end;
+    }
   }
+  else
+    DBUG_PRINT("info",("Skipped reading the event header. Using the provided one."));
+
   data_len= uint4korr(buf + EVENT_LEN_OFFSET);
   if (data_len < LOG_EVENT_MINIMAL_HEADER_LEN ||
       data_len > max(current_thd->variables.max_allowed_packet,
@@ -1168,8 +1216,27 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     goto end;
   }
 
-  /* Append the log event header to packet */
-  if (packet->append(buf, sizeof(buf)))
+  /*
+    If the event header wasn't passed, the caller doesn't know the event size
+    yet, so the packet size may not have enough space to load the entire
+    event. We need to adjust the packet size here since the call to my_b_read()
+    below expects the buffer to be allocated.
+  */
+  if (buf == local_buf)
+  {
+    ulong new_alloc_len= packet->length() + data_len;
+    if (new_alloc_len > packet->alloced_length() &&
+        packet->mem_realloc(new_alloc_len))
+    {
+      /* Failed to allocate packet */
+      result= LOG_READ_MEM;
+      goto end;
+    }
+  }
+
+  /* Check packet buffer size and append the log event header to it */
+  if (packet->alloced_length() - packet->length() < data_len ||
+      packet->append(buf, LOG_EVENT_MINIMAL_HEADER_LEN))
   {
     DBUG_PRINT("info", ("first packet->append failed (out of memory)"));
     /* Failed to allocate packet */
@@ -1179,8 +1246,20 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
   data_len-= LOG_EVENT_MINIMAL_HEADER_LEN;
   if (data_len)
   {
-    /* Append rest of event, read directly from file into packet */
-    if (packet->append(file, data_len))
+    /*
+      Append rest of event, read directly from file into packet.
+
+      We are avoiding to call packet->append(IO_CACHE, size_t) at this point
+      because the String::append logic will call String::mem_realloc() that
+      might resize the buffer (changing its pointer) in order to reserve a
+      space for a trailing '\0' that we don't need.
+    */
+    char *event_data_buffer= const_cast<char*>(packet->ptr() +
+                                               packet->length());
+    result= my_b_read(file,
+                      reinterpret_cast<uchar*>(event_data_buffer),
+                      data_len);
+    if (result)
     {
       /*
         Fatal error occured when appending rest of the event
@@ -1201,6 +1280,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
+      packet->length(packet->length() + data_len);
       /*
         Corrupt the event for Dump thread.
         We also need to exclude Previous_gtids_log_event and Gtid_log_event
@@ -1214,7 +1294,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
             debug_event_buf_c[EVENT_TYPE_OFFSET] != binary_log::GTID_LOG_EVENT)
         {
-          int debug_cor_pos = rand() % (data_len + sizeof(buf) -
+          int debug_cor_pos = rand() % (data_len + LOG_EVENT_MINIMAL_HEADER_LEN -
                               BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
@@ -1228,7 +1308,7 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
       if (opt_master_verify_checksum &&
         Log_event_footer::event_checksum_test((uchar*)packet->ptr() + ev_offset,
-                                              data_len + sizeof(buf),
+                                              data_len + LOG_EVENT_MINIMAL_HEADER_LEN,
                                               checksum_alg_arg))
       {
         DBUG_PRINT("info", ("checksum test failed"));
@@ -2729,8 +2809,12 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
              "The master event is logically timestamped incorrectly.");
+    return true;
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
+    return true;
+  case -1:
+    /* Unable to schedule: wait_for_last_committed_trx has failed */
     return true;
   default:
     return false;
@@ -3192,6 +3276,43 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   DBUG_RETURN (ret_worker);
 }
 
+
+int Log_event::apply_gtid_event(Relay_log_info *rli)
+{
+  DBUG_ENTER("LOG_EVENT:apply_gtid_event");
+
+  int error= 0;
+  if (rli->curr_group_da.size() < 1)
+    DBUG_RETURN(1);
+
+  Log_event* ev= rli->curr_group_da[0].data;
+  DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
+              ev->get_type_code() ==
+              binary_log::ANONYMOUS_GTID_LOG_EVENT);
+
+  error= ev->do_apply_event(rli);
+  /* Clean up */
+  delete ev;
+  rli->curr_group_da.clear();
+  rli->curr_group_seen_gtid= false;
+  /*
+    Removes the job from the (G)lobal (A)ssigned (Q)ueue after
+    applying it.
+  */
+  DBUG_ASSERT(rli->gaq->len > 0);
+  Slave_job_group g= Slave_job_group();
+  rli->gaq->de_tail(&g);
+  /*
+    The rli->mts_groups_assigned is increased when adding the slave job
+    generated for the gtid into the (G)lobal (A)ssigned (Q)ueue. So we
+    decrease it here.
+  */
+  rli->mts_groups_assigned--;
+
+  DBUG_RETURN(error);
+}
+
+
 /**
    Scheduling event to execute in parallel or execute it directly.
    In MTS case the event gets associated with either Coordinator or a
@@ -3261,7 +3382,8 @@ int Log_event::apply_event(Relay_log_info *rli)
           Workers to sync.
         */
         if (rli->curr_group_da.size() > 0 &&
-            is_mts_db_partitioned(rli))
+            is_mts_db_partitioned(rli) &&
+            get_type_code() != binary_log::INCIDENT_EVENT)
         {
           char llbuff[22];
           /*
@@ -3278,6 +3400,28 @@ int Log_event::apply_event(Relay_log_info *rli)
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
 
           goto err;
+        }
+
+        if (get_type_code() == binary_log::INCIDENT_EVENT &&
+            rli->curr_group_da.size() > 0 &&
+            rli->current_mts_submode->get_type() ==
+            MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+        {
+#ifndef DBUG_OFF
+          DBUG_ASSERT(rli->curr_group_da.size() == 1);
+          Log_event* ev= rli->curr_group_da[0].data;
+          DBUG_ASSERT(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
+                      ev->get_type_code() ==
+                      binary_log::ANONYMOUS_GTID_LOG_EVENT);
+#endif
+          /*
+            With MTS logical clock mode, when coordinator is applying an
+            incident event, it must withdraw delegated_job increased by
+            the incident's GTID before waiting for workers to finish.
+            So that it can exit from mts_checkpoint_routine.
+          */
+          ((Mts_submode_logical_clock*)rli->current_mts_submode)->
+            withdraw_delegated_job();
         }
         /*
           Marking sure the event will be executed in sequential mode.
@@ -3297,6 +3441,20 @@ int Log_event::apply_event(Relay_log_info *rli)
         */
         DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_NOT_IN_GROUP
                     || !is_mts_db_partitioned(rli));
+
+        if (get_type_code() == binary_log::INCIDENT_EVENT &&
+            rli->curr_group_da.size() > 0)
+        {
+          DBUG_ASSERT(rli->curr_group_da.size() == 1);
+          /*
+            When MTS is enabled, the incident event must be applied by the
+            coordinator. So the coordinator applies its GTID right before
+            applying the incident event..
+          */
+          int error= apply_gtid_event(rli);
+          if (error)
+            DBUG_RETURN(-1);
+        }
 
 #ifndef DBUG_OFF
         /* all Workers are idle as done through wait_for_workers_to_finish */
@@ -3351,7 +3509,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (rli_thd->is_error())
+  if (rli_thd->is_error() || (!worker && rli->abort_slave))
   {
     DBUG_ASSERT(!worker);
 
@@ -3373,7 +3531,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
-  DBUG_RETURN((!rli_thd->is_error() ||
+  DBUG_RETURN((!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -3780,6 +3938,9 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
             header(), footer()),
   data_buf(0)
 {
+  DBUG_EXECUTE_IF("debug_lock_before_query_log_event",
+                  DBUG_SYNC_POINT("debug_lock.before_query_log_event", 10););
+
   /* save the original thread id; we already know the server id */
   slave_proxy_id= thd_arg->variables.pseudo_thread_id;
   if (query != 0)
@@ -4034,7 +4195,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if (!(fill_data_buf(data_buf, buf_len)))
     DBUG_VOID_RETURN;
 
-  if(query != 0)
+  if (query != 0 && q_len > 0)
     is_valid_param= true;
 
   /**
@@ -4359,7 +4520,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
 
-  DBUG_PRINT("info", ("query=%s", query));
+  DBUG_PRINT("info", ("query=%s, q_len_arg=%lu",
+                      query, static_cast<unsigned long>(q_len_arg)));
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -4376,6 +4538,25 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
   else
     thd->set_catalog(EMPTY_CSTR);
+
+  size_t valid_len;
+  bool len_error;
+  bool is_invalid_db_name= validate_string(system_charset_info, db, db_len,
+                                           &valid_len, &len_error);
+
+  DBUG_PRINT("debug",("is_invalid_db_name= %s, valid_len=%zu, len_error=%s",
+                      is_invalid_db_name ? "true" : "false",
+                      valid_len,
+                      len_error ? "true" : "false"));
+
+  if (is_invalid_db_name || len_error)
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid database name in Query event.");
+    thd->is_slave_error= true;
+    goto end;
+  }
 
   set_thd_db(thd, db, db_len);
 
@@ -4486,6 +4667,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           }
           thd->update_charset(); // for the charset change to take effect
           /*
+            We cannot ask for parsing a statement using a character set
+            without state_maps (parser internal data).
+          */
+          if (!thd->variables.character_set_client->state_maps)
+          {
+            rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                        ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                        "character_set cannot be parsed");
+            thd->is_slave_error= true;
+            goto end;
+          }
+          /*
             Reset thd->query_string.cs to the newly set value.
             Note, there is a small flaw here. For a very short time frame
             if the new charset is different from the old charset and
@@ -4578,12 +4771,42 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                                 thd->query().length);
+
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
         mysql_parse(thd, &parser_state);
+
+        /*
+          Transaction isolation level of pure row based replicated transactions
+          can be optimized to ISO_READ_COMMITTED by the applier when applying
+          the Gtid_log_event.
+
+          If we are applying a statement other than transaction control ones
+          after having optimized the transactions isolation level, we must warn
+          about the non-standard situation we have found.
+        */
+        if (is_sbr_logging_format() &&
+            thd->variables.tx_isolation > ISO_READ_COMMITTED &&
+            thd->tx_isolation == ISO_READ_COMMITTED)
+        {
+          String message;
+          message.append("The isolation level for the current transaction "
+                         "was changed to READ_COMMITTED based on the "
+                         "assumption that it had only row events and was "
+                         "not mixed with statements. "
+                         "However, an unexpected statement was found in "
+                         "the middle of the transaction."
+                         "Query: '");
+          message.append(thd->query().str);
+          message.append("'");
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                      message.c_ptr());
+          thd->is_slave_error= true;
+          goto end;
+        }
+
         /* Finalize server status flags after executing a statement. */
         thd->update_server_status();
         log_slow_statement(thd);
@@ -4623,13 +4846,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       goto end;
     }
 
-    if (is_query_prefix_match(STRING_WITH_LEN("XA START")) && !thd->is_error())
-    {
-      // detach the "native" thd's trx in favor of dynamically created
-      plugin_foreach(thd, detach_native_trx,
-                     MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
-    }
-
     /* If the query was not ignored, it is printed to the general log */
     if (!thd->is_error() ||
         thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE)
@@ -4651,6 +4867,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
 
 compare_errors:
+    /* Parser errors shall be ignored when (GTID) skipping statements */
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_PARSE_ERROR &&
+        gtid_pre_statement_checks(thd) == GTID_STATEMENT_SKIP)
+    {
+      thd->get_stmt_da()->reset_diagnostics_area();
+    }
     /*
       In the slave thread, we may sometimes execute some DROP / * 40005
       TEMPORARY * / TABLE that come from parts of binlogs (likely if we
@@ -4683,13 +4906,30 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
-                  ER_THD(thd, expected_error), expected_error,
-                  (actual_error ?
-                   thd->get_stmt_da()->message_text() :
-                   "no error"),
-                  actual_error, print_slave_db_safe(db), query_arg);
-      thd->is_slave_error= 1;
+      if (!ignored_error_code(ER_INCONSISTENT_ERROR))
+      {
+        rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR,
+                    ER(ER_INCONSISTENT_ERROR),
+                    ER_THD(thd, expected_error), expected_error,
+                    (actual_error ?
+                     thd->get_stmt_da()->message_text() :
+                     "no error"),
+                    actual_error, print_slave_db_safe(db), query_arg);
+        thd->is_slave_error= 1;
+      }
+      else
+      {
+        rli->report(INFORMATION_LEVEL, actual_error,
+                    "The actual error and expected error on slave are"
+                    " different that will result in ER_INCONSISTENT_ERROR but"
+                    " that is passed as an argument to slave_skip_errors so no"
+                    " error is thrown. "
+                    "The expected error was %s with, Error_code: %d. "
+                    "The actual error is %s with ",
+                    ER(expected_error), expected_error,
+                    thd->get_stmt_da()->message_text());
+        clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+      }
     }
     /*
       If we get the same error code as expected and it is not a concurrency
@@ -5162,7 +5402,13 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     */
     break;
   default:
-    /* this case is impossible */
+    /*
+      This case is not expected. It can be either an event corruption or an
+      unsupported binary log version.
+    */
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Binlog version not supported");
     DBUG_RETURN(1);
   }
   DBUG_RETURN(error);
@@ -6443,11 +6689,15 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
+    {
+      bool real_event= server_id && !is_artificial_event();
       rli->reset_notified_checkpoint(0,
-                                     server_id ?
+                                     real_event ?
                                      common_header->when.tv_sec +
                                      (time_t) exec_time : 0,
-                                     true/*need_data_lock=true*/);
+                                     true/*need_data_lock=true*/,
+                                     real_event? true : false);
+    }
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
@@ -6461,6 +6711,31 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
+    /*
+      Rotate_log_events are generated on Slaves with server_id=0
+      for all the ignored events, so that the positions in the repository
+      is updated properly even for ignored events.
+
+      This kind of Rotate_log_event is generated when
+
+        1) the event is generated on the same host and reached due
+           to circular replication (server_id == ::server_id)
+
+        2) the event is from the host which is listed in ignore_server_ids
+
+        3) IO thread is receiving HEARTBEAT event from the master
+
+        4) IO thread is receiving PREVIOUS_GTID_LOG_EVENT from the master.
+
+      We have to free thd's mem_root here after we update the positions
+      in the repository table. Otherwise, imagine a situation where
+      Slave is keep getting ignored events only and no other (non-ignored)
+      events from the Master, Slave never executes free_root (that generally
+      happens from Query_log_event::do_apply_event or
+      Rows_log_event::do_apply_event when they find end of the group event).
+    */
+    if (server_id == 0)
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   }
   else
     rli->inc_event_relay_log_pos();
@@ -6828,6 +7103,21 @@ bool Xid_log_event::do_commit(THD *thd_arg)
   error |= mysql_bin_log.gtid_end_transaction(thd_arg);
 
   /*
+    The parser executing a SQLCOM_COMMIT or SQLCOM_ROLLBACK will reset the
+    tx isolation level and access mode when the statement is finishing a
+    transaction.
+
+    For replicated workload, when dealing with pure transactional workloads,
+    there will be no QUERY(COMMIT) finishing a transaction, but a
+    Xid_log_event instead.
+
+    So, if the slave applier changed the current transaction isolation level,
+    it needs to be restored to the session default value once the current
+    transaction has been committed.
+  */
+  trans_reset_one_shot_chistics(thd);
+
+  /*
     Increment the global status commit count variable
   */
   if (!error)
@@ -7186,6 +7476,25 @@ bool XA_prepare_log_event::do_commit(THD *thd)
   bool error= false;
   xid_t xid;
 
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_EXECUTE)
+  {
+    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+      state= GTID_STATEMENT_CANCEL;
+  }
+  if (state == GTID_STATEMENT_CANCEL)
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    thd->rli_slave->report(ERROR_LEVEL, error,
+                           "Error executing XA PREPARE event: '%s'",
+                           thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    return true;
+  }
+  else if (state == GTID_STATEMENT_SKIP)
+    return false;
+
   xid.set(my_xid.formatID,
           my_xid.data, my_xid.gtrid_length,
           my_xid.data + my_xid.gtrid_length, my_xid.bqual_length);
@@ -7197,8 +7506,6 @@ bool XA_prepare_log_event::do_commit(THD *thd)
     thd->lex->sql_command= SQLCOM_XA_PREPARE;
     thd->lex->m_sql_cmd= new Sql_cmd_xa_prepare(&xid);
     error= thd->lex->m_sql_cmd->execute(thd);
-    if (!error)
-      error|= applier_reset_xa_trans(thd);
   }
   else
   {
@@ -7528,7 +7835,12 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid character set for User var event");
     DBUG_RETURN(1);
+  }
   double real_val;
   longlong int_val;
 
@@ -7546,12 +7858,26 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   {
     switch (type) {
     case REAL_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       float8get(&real_val, val);
       it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
     case INT_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       int_val= (longlong) uint8korr(val);
       it= new Item_int(int_val);
       val= (char*) &int_val;		// Pointer to value in native format
@@ -7559,6 +7885,13 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case DECIMAL_RESULT:
     {
+      if (val_len < 3)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        DBUG_RETURN(1);
+      }
       Item_decimal *dec= new Item_decimal((uchar*) val+2, val[0], val[1]);
       it= dec;
       val= (char *)dec->val_decimal(NULL);
@@ -9316,9 +9649,7 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       DBUG_RETURN(table->s->primary_key);
   }
 
-  DBUG_PRINT("debug", ("Unique keys count: %u", table->s->uniques));
-
-  if (key_type & UNIQUE_KEY_FLAG && table->s->uniques)
+  if (key_type & UNIQUE_KEY_FLAG)
   {
     DBUG_PRINT("debug", ("Searching for UK"));
     for (key=0,keyinfo= table->key_info ;
@@ -9514,7 +9845,7 @@ Rows_log_event::row_operations_scan_and_key_setup()
       DBUG_ASSERT (m_key_index < MAX_KEY);
       // Allocate buffer for key searches
       m_key= (uchar*)my_malloc(key_memory_log_event,
-                               MAX_KEY_LENGTH, MYF(MY_WME));
+                               m_key_info->key_length, MYF(MY_WME));
       if (!m_key)
         error= HA_ERR_OUT_OF_MEM;
       goto err;
@@ -9658,7 +9989,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
          ptr++)
     {
       Field *field= *ptr;
-      if (bitmap_is_set(cols, field->field_index))
+      if (bitmap_is_set(cols, field->field_index) && !field->is_virtual_gcol())
       {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -9707,7 +10038,13 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
 
   if (!m_curr_row_end && !error)
   {
+    const uchar *previous_m_curr_row= m_curr_row;
     error= unpack_current_row(rli, &m_cols);
+
+    if (!error && previous_m_curr_row == m_curr_row)
+    {
+      error= 1;
+    }
   }
 
   // at this moment m_curr_row_end should be set
@@ -9843,20 +10180,19 @@ Rows_log_event::next_record_scan(bool first_read)
     if (!first_read)
     {
       /*
-        if we fail to fetch next record corresponding to an index value, we
+        if we fail to fetch next record corresponding to a key value, we
         move to the next key value. If we are out of key values as well an error
         will be returned.
        */
-      error= table->file->ha_index_next(table->record[0]);
+      error= table->file->ha_index_next_same(table->record[0], m_key,
+                                             m_key_info->key_length);
       if(m_rows_lookup_algorithm == ROW_LOOKUP_HASH_SCAN)
+      {
         /*
-          if we are out of rows for this particular key value
-          or we have jumped to the next key value, we reposition the
-          marker according to the next key value that we have in the
-          list.
+          if we are out of rows for this particular key value, we reposition the
+          marker according to the next key value that we have in the list.
          */
-        if ((error) ||
-            (key_cmp(m_key_info->key_part, m_key, m_key_info->key_length) != 0))
+        if (error)
         {
           if (m_itr != m_distinct_keys.end())
           {
@@ -9867,6 +10203,7 @@ Rows_log_event::next_record_scan(bool first_read)
           else
             error= HA_ERR_KEY_NOT_FOUND;
         }
+      }
     }
 
     if (first_read)
@@ -10061,12 +10398,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     if (m_table->file->inited && (error= m_table->file->ha_index_end()))
       goto end;
 
-    if ((error= m_table->file->ha_rnd_init(FALSE)))
-      goto end;
-
     error= m_table->file->rnd_pos_by_record(m_table->record[0]);
-
-    m_table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));
@@ -10195,7 +10527,11 @@ int Rows_log_event::do_hash_row(Relay_log_info const *rli)
 
   /* create an empty entry to add to the hash table */
   HASH_ROW_ENTRY* entry= m_hash.make_entry();
-
+  if (entry == NULL)
+  {
+    error= 1;
+    goto end;
+  }
   /* Prepare the record, unpack and save positions. */
   entry->positions->bi_start= m_curr_row;        // save the bi start pos
   prepare_record(m_table, &m_cols, false);
@@ -10587,7 +10923,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
+      goto end;
 
     /*
       The current statement is just about to begin and 
@@ -11563,7 +11899,14 @@ enum enum_tbl_map_status
   SAME_ID_MAPPING_DIFFERENT_TABLE= 2,
   
   /* a duplicate identifier was found mapping the same table */
-  SAME_ID_MAPPING_SAME_TABLE= 3
+  SAME_ID_MAPPING_SAME_TABLE= 3,
+
+  /*
+    this table must be filtered out but found an active XA transaction. XA
+    transactions shouldn't be used with replication filters, until disabling
+    the XA read only optimization is a supported feature.
+  */
+  FILTERED_WITH_XA_ACTIVE = 4
 };
 
 /*
@@ -11614,7 +11957,11 @@ check_table_map(Relay_log_info const *rli, RPL_TABLE_LIST *table_list)
   if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
       (!rpl_filter->db_ok(table_list->db) ||
        (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
-    res= FILTERED_OUT;
+    if (rli->info_thd->get_transaction()->xid_state()->has_state(
+            XID_STATE::XA_ACTIVE))
+      res = FILTERED_WITH_XA_ACTIVE;
+    else
+      res = FILTERED_OUT;
   else
   {
     RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(rli->tables_to_lock);
@@ -11719,6 +12066,19 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   }
   else  // FILTERED_OUT, SAME_ID_MAPPING_*
   {
+    if (tblmap_status == FILTERED_WITH_XA_ACTIVE)
+    {
+      if (thd->slave_thread)
+        rli->report(ERROR_LEVEL, ER_XA_REPLICATION_FILTERS,
+                    "%s", ER_THD(thd, ER_XA_REPLICATION_FILTERS));
+      else
+        /*
+          For the cases in which a 'BINLOG' statement is set to
+          execute in a user session
+         */
+        my_printf_error(ER_XA_REPLICATION_FILTERS,
+                        "%s", MYF(0), ER_THD(thd, ER_XA_REPLICATION_FILTERS));
+    }
     /*
       If mapped already but with different properties, we raise an
       error.
@@ -11728,7 +12088,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       In all three cases, we need to free the memory previously 
       allocated.
      */
-    if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE)
+    else if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE)
     {
       /*
         Something bad has happened. We need to stop the slave as strange things
@@ -11925,7 +12285,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
 
     Set 'sql_command' as SQLCOM_INSERT after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_INSERT;
@@ -12150,6 +12510,22 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   /* unpack row into table->record[0] */
   if ((error= unpack_current_row(rli, &m_cols)))
     DBUG_RETURN(error);
+
+  /*
+    When m_curr_row == m_curr_row_end, it means a row that contains nothing,
+    so all the pointers shall be pointing to the same address, or else
+    we have corrupt data and shall throw the error.
+  */
+  DBUG_PRINT("debug",("m_rows_buf= %p, m_rows_cur= %p, m_rows_end= %p",
+                      m_rows_buf, m_rows_cur, m_rows_end));
+  DBUG_PRINT("debug",("m_curr_row= %p, m_curr_row_end= %p",
+                      m_curr_row, m_curr_row_end));
+  if (m_curr_row == m_curr_row_end &&
+      !((m_rows_buf == m_rows_cur) && (m_rows_cur == m_rows_end)))
+  {
+    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+    DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
+  }
 
   if (m_curr_row == m_rows_buf)
   {
@@ -12469,7 +12845,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_DELETE;
@@ -12599,7 +12975,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 
     Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
     When locking the tables, it should be SQLCOM_END.
-    THD::decide_binlog_format which is called from "lock tables"
+    THD::decide_logging_format which is called from "lock tables"
     assumes that row_events will have 'sql_command' as SQLCOM_END.
    */
   thd->lex->sql_command= SQLCOM_UPDATE;
@@ -12742,12 +13118,43 @@ Incident_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Incident_log_event::do_apply_event");
 
+  /*
+    It is not necessary to do GTID related check if the error
+    'ER_SLAVE_INCIDENT' is ignored.
+  */
   if (ignored_error_code(ER_SLAVE_INCIDENT))
   {
     DBUG_PRINT("info", ("Ignoring Incident"));
+    mysql_bin_log.gtid_end_transaction(thd);
     DBUG_RETURN(0);
   }
-   
+
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_EXECUTE)
+  {
+    if (gtid_pre_statement_post_implicit_commit_checks(thd))
+      state= GTID_STATEMENT_CANCEL;
+  }
+
+  if (state == GTID_STATEMENT_CANCEL)
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    rli->report(ERROR_LEVEL, error,
+                "Error executing incident event: '%s'",
+                thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    DBUG_RETURN(-1);
+  }
+  else if (state == GTID_STATEMENT_SKIP)
+  {
+    /*
+      Make slave skip the Incident event through general commands of GTID
+      i.e. 'set gtid_next=<GTID>; begin; commit;'.
+    */
+    DBUG_RETURN(0);
+  }
+
   rli->report(ERROR_LEVEL, ER_SLAVE_INCIDENT,
               ER(ER_SLAVE_INCIDENT),
               description(),
@@ -12837,6 +13244,7 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
     Ignorable_log_event(buf, descr_event),
     binary_log::Rows_query_event(buf, event_len, descr_event)
 {
+  is_valid_param= (m_rows_query != NULL);
 }
 
 #ifndef MYSQL_CLIENT
@@ -12950,8 +13358,10 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 #ifndef MYSQL_CLIENT
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
-                               int64 sequence_number_arg)
-: binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+                               int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg)
+: binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                         may_have_sbr_stmts_arg),
   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -12989,8 +13399,10 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
+                               bool may_have_sbr_stmts_arg,
                                const Gtid_specification spec_arg)
- : binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+ : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                          may_have_sbr_stmts_arg),
    Log_event(header(), footer(),
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
              Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
@@ -13062,11 +13474,30 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\n",
+    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
+                "rbr_only=%s\n",
                 get_type_code() == binary_log::GTID_LOG_EVENT ?
                 "GTID" : "Anonymous_GTID",
-                last_committed, sequence_number);
+                last_committed, sequence_number,
+                may_have_sbr_stmts ? "no" : "yes");
   }
+
+  /*
+    The applier thread can always use "READ COMMITTED" isolation for
+    transactions containing only RBR events (Table_map + Rows).
+
+    This would prevent some deadlock issues because InnoDB doesn't
+    acquire GAP locks in "READ COMMITTED" isolation level since
+    MySQL 5.7.18.
+  */
+  if (!may_have_sbr_stmts)
+  {
+    my_b_printf(head,
+                "/*!50718 SET TRANSACTION ISOLATION LEVEL "
+                "READ COMMITTED*/%s\n",
+                print_event_info->delimiter);
+  }
+
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
 }
@@ -13078,7 +13509,11 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
 
-  *ptr_buffer= 1;
+  /* Encode the GTID flags */
+  uchar gtid_flags= 0;
+  gtid_flags|= may_have_sbr_stmts ?
+               binary_log::Gtid_event::FLAG_MAY_HAVE_SBR : 0;
+  *ptr_buffer= gtid_flags;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
 #ifndef DBUG_OFF
@@ -13133,19 +13568,24 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
   DBUG_ASSERT(rli->info_thd == thd);
 
   /*
-    In rare cases it is possible that we already own a GTID. This can
-    happen if a transaction is truncated in the middle in the relay
-    log and then next relay log begins with a Gtid_log_events without
-    closing the transaction context from the previous relay log.  In
-    this case the only sensible thing to do is to discard the
+    In rare cases it is possible that we already own a GTID (either
+    ANONYMOUS or GTID_GROUP). This can happen if a transaction was truncated
+    in the middle in the relay log and then next relay log begins with a
+    Gtid_log_events without closing the transaction context from the previous
+    relay log. In this case the only sensible thing to do is to discard the
     truncated transaction and move on.
+
+    Note that when the applier is "GTID skipping" a transactions it
+    owns nothing, but its gtid_next->type == GTID_GROUP.
   */
-  if (!thd->owned_gtid.is_empty())
+  const Gtid_specification *gtid_next= &thd->variables.gtid_next;
+  if (!thd->owned_gtid.is_empty() ||
+      (thd->owned_gtid.is_empty() && gtid_next->type == GTID_GROUP))
   {
     /*
       Slave will execute this code if a previous Gtid_log_event was applied
-      but the GTID wasn't consumed yet (the transaction was not committed
-      nor rolled back).
+      but the GTID wasn't consumed yet (the transaction was not committed,
+      nor rolled back, nor skipped).
       On a client session we cannot do consecutive SET GTID_NEXT without
       a COMMIT or a ROLLBACK in the middle.
       Applying this event without rolling back the current transaction may
@@ -13187,6 +13627,38 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_RETURN(1);
 
   thd->set_currently_executing_gtid_for_slave_thread();
+
+  /*
+    If the current transaction contains no changes logged with SBR
+    we can assume this transaction as a pure row based replicated one.
+
+    Based on this assumption, we can set current transaction tx_isolation to
+    READ COMMITTED in order to avoid concurrent transactions to be blocked by
+    InnoDB gap locks.
+
+    The session tx_isolation will be restored:
+    - When the transaction finishes with QUERY(COMMIT|ROLLBACK),
+      as the MySQL server does for ordinary user sessions;
+    - When applying a Xid_log_event, after committing the transaction;
+    - When applying a XA_prepare_log_event, after preparing the transaction;
+    - When the applier needs to abort a transaction execution.
+
+    Notice that when a transaction is being "gtid skipped", its statements are
+    not actually executed (see mysql_execute_command()). So, the call to the
+    function that would restore the tx_isolation after finishing the transaction
+    may not happen.
+  */
+  if (DBUG_EVALUATE_IF("force_trx_as_rbr_only", true,
+                       !may_have_sbr_stmts &&
+                       thd->tx_isolation > ISO_READ_COMMITTED &&
+                       gtid_pre_statement_checks(thd) != GTID_STATEMENT_SKIP))
+  {
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+    DBUG_ASSERT(!thd->lock);
+    DBUG_PRINT("info", ("setting tx_isolation to READ COMMITTED"));
+    set_tx_isolation(thd, ISO_READ_COMMITTED, true/*one_shot*/);
+  }
 
   DBUG_RETURN(0);
 }
@@ -13353,6 +13825,7 @@ Transaction_context_log_event(const char *server_uuid_arg,
               Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
   server_uuid= NULL;
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13404,6 +13877,7 @@ Transaction_context_log_event(const char *buffer, uint event_len,
     Log_event(header(), footer())
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event (const char *, uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
@@ -13422,9 +13896,11 @@ err:
 Transaction_context_log_event::~Transaction_context_log_event()
 {
   DBUG_ENTER("Transaction_context_log_event::~Transaction_context_log_event");
-  my_free((void*)server_uuid);
+  if (server_uuid)
+    my_free((void*)server_uuid);
   server_uuid= NULL;
-  my_free((void*) encoded_snapshot_version);
+  if (encoded_snapshot_version)
+    my_free((void*) encoded_snapshot_version);
   encoded_snapshot_version= NULL;
   delete snapshot_version;
   delete sid_map;
@@ -13497,11 +13973,11 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE* file)
   char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
   buf[ENCODED_SERVER_UUID_LEN_OFFSET] = (char) strlen(server_uuid);
-  int8store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
+  int4store(buf + ENCODED_THREAD_ID_OFFSET, thread_id);
   buf[ENCODED_GTID_SPECIFIED_OFFSET] = gtid_specified;
   int4store(buf + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET, get_snapshot_version_size());
-  int2store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
-  int2store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
+  int4store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
+  int4store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(file, (const uchar *) buf,
                                       Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }
@@ -13625,6 +14101,7 @@ View_change_log_event::View_change_log_event(char* raw_view_id)
               Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;
@@ -13642,6 +14119,7 @@ View_change_log_event(const char *buffer,
 {
   DBUG_ENTER("View_change_log_event::View_change_log_event(const char *,"
              " uint, const Format_description_event*)");
+  common_header->flags|= LOG_EVENT_IGNORABLE_F;
 
   if (strlen(view_id) != 0)
     is_valid_param= true;

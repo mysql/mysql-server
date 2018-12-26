@@ -23,17 +23,15 @@
 namespace xpl
 {
 
-class Delete_statement_builder: public Statement_builder
+class Delete_statement_builder: public Crud_statement_builder
 {
 public:
   typedef ::Mysqlx::Crud::Delete Delete;
 
-  Delete_statement_builder(const Delete &msg, Query_string_builder &qb);
+  explicit Delete_statement_builder(const Expression_generator &gen)
+      : Crud_statement_builder(gen) {}
 
-protected:
-  virtual void add_statement() const;
-
-  const Delete &m_msg;
+  void build(const Delete &msg) const;
 };
 
 } // namespace xpl

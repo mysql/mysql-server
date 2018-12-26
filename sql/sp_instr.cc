@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "prealloced_array.h"
 #include "binlog.h"
 #include "item_cmpfunc.h" // Item_func_eq
+#include "debug_sync.h"   // DEBUG_SYNC
 
 #include <algorithm>
 #include <functional>
@@ -261,6 +262,35 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 ///////////////////////////////////////////////////////////////////////////
 
 
+class SP_instr_error_handler : public Internal_error_handler
+{
+public:
+  SP_instr_error_handler()
+    : cts_table_exists_error(false)
+  {}
+
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
+  {
+    /*
+      Check if the "table exists" error or warning reported for the
+      CREATE TABLE ... SELECT statement.
+    */
+    if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0 &&
+        sql_errno == ER_TABLE_EXISTS_ERROR)
+      cts_table_exists_error= true;
+
+    return false;
+  }
+
+  bool cts_table_exists_error;
+};
+
+
 bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
                                            uint *nextp,
                                            bool open_tables)
@@ -336,6 +366,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     thd->lex->safe_to_cache_query= 0;
 #endif
 
+  SP_instr_error_handler sp_instr_error_handler;
+  thd->push_internal_handler(&sp_instr_error_handler);
+
   /* Open tables if needed. */
 
   if (!error)
@@ -408,10 +441,14 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     }
     else
     {
+      DEBUG_SYNC(thd, "sp_lex_instr_before_exec_core");
       error= exec_core(thd, nextp);
       DBUG_PRINT("info",("exec_core returned: %d", error));
     }
   }
+
+  // Pop SP_instr_error_handler error handler.
+  thd->pop_internal_handler();
 
   if (m_lex->query_tables_own_last)
   {
@@ -435,14 +472,48 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   thd->rollback_item_tree_changes();
 
   /*
-    Update the state of the active arena if no errors on
-    open_tables stage.
+    Change state of current arena according to outcome of execution.
+
+    When entering this function, state is STMT_INITIALIZED_FOR_SP if this is
+    the first execution, otherwise it is STMT_EXECUTED.
+
+    When an error occurs during opening tables, no execution takes place and
+    no state change will take place.
+
+    When a re-prepare error is raised, the next execution will re-prepare the
+    statement. To make sure that items are created in the statement mem_root,
+    change state to STMT_INITIALIZED_FOR_SP.
+
+    In other cases, the state should become (or remain) STMT_EXECUTED.
+    See Query_arena->state definition for explanation.
+
+    Some special handling of CREATE TABLE .... SELECT in an SP is required. The
+    state is set to STMT_INITIALIZED_FOR_SP even in case of "table exists"
+    error situation.
+
+    Why is this necessary? A useful pointer would be to note how
+    PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
+    CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
+    Then there is an attempt to create the table. So in the execution phase,
+    if "table exists" error occurs or flush table preceeds the execute, the
+    item tree of the select is re-created and followed by an attempt to create
+    the table.
+
+    But SP uses mysql_execute_command (which is used by the conventional
+    execute) after doing a parse. This creates a problem for SP since it
+    tries to preserve the item tree from the previous execution.
   */
 
-  if (!error || !thd->is_error() ||
-      (thd->get_stmt_da()->mysql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE &&
-       thd->get_stmt_da()->mysql_errno() != ER_UPDATE_TABLE_USED))
+  bool reprepare_error=
+    error && thd->is_error() &&
+    thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
+
+  if (reprepare_error || sp_instr_error_handler.cts_table_exists_error)
+    thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
+  else if (!error || !thd->is_error() ||
+           (thd->get_stmt_da()->mysql_errno() != ER_CANT_REOPEN_TABLE &&
+            thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE &&
+            thd->get_stmt_da()->mysql_errno() != ER_UPDATE_TABLE_USED))
     thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
@@ -516,7 +587,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     initiated. Also set the statement query arena to the lex mem_root.
   */
   MEM_ROOT *execution_mem_root= thd->mem_root;
-  Query_arena parse_arena(&m_lex_mem_root, STMT_INITIALIZED_FOR_SP);
+  Query_arena parse_arena(&m_lex_mem_root, thd->stmt_arena->state);
 
   thd->mem_root= &m_lex_mem_root;
   thd->stmt_arena->set_query_arena(&parse_arena);

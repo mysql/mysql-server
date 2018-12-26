@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -581,7 +581,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   */
 
   {
-#if defined(__sparcv9) && defined(__sun)
+#if defined(__sparc) && defined(__SUNPRO_CC)
     const int sp_stack_size= 10 * STACK_MIN_SIZE;
 #else
     const int sp_stack_size=  8 * STACK_MIN_SIZE;
@@ -1970,8 +1970,7 @@ bool sp_head::show_routine_code(THD *thd)
     if (ip != i->get_ip())
     {
       const char *format= "Instruction at position %u has m_ip=%u";
-      char tmp[sizeof(format) + 2 * sizeof(uint) + 1];
-
+      char tmp[64 + 2 * MY_INT32_NUM_DECIMAL_DIGITS];
       sprintf(tmp, format, ip, i->get_ip());
       /*
         Since this is for debugging purposes only, we don't bother to
@@ -2170,7 +2169,7 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 bool sp_head::check_show_access(THD *thd, bool *full_access)
 {
   TABLE_LIST tables;
-  memset(&tables, 0, sizeof(tables));
+
   tables.db= (char*) "mysql";
   tables.table_name= tables.alias= (char*) "proc";
 
@@ -2233,6 +2232,8 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp)
   m_saved_free_list= thd->free_list;
 
   thd->mem_root= sp->get_persistent_mem_root();
+  set_memroot_max_capacity(thd->mem_root, m_saved_memroot->max_capacity);
+  set_memroot_error_reporting(thd->mem_root, m_saved_memroot->error_for_capacity_exceeded);
   thd->free_list= NULL;
 }
 

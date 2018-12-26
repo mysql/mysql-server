@@ -19,6 +19,9 @@
 
 #define INNODB_MEMCACHED
 
+extern void my_thread_end();
+extern void my_thread_init();
+
 static char devnull[8192];
 extern volatile sig_atomic_t memcached_shutdown;
 

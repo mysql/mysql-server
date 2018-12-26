@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -59,6 +59,15 @@ void Sql_formatter_options::create_options()
     ->set_value(true);
   this->create_new_option(&m_skip_definer, "skip-definer",
     "Skip DEFINER and SQL SECURITY clauses for Views and Stored Routines.");
+  this->create_new_enum_option(&m_gtid_purged, get_gtid_purged_mode_typelib(), "set-gtid-purged",
+    "Add 'SET @@GLOBAL.GTID_PURGED' to the output. Possible values for "
+    "this option are ON, OFF and AUTO. If ON is used and GTIDs "
+    "are not enabled on the server, an error is generated. If OFF is "
+    "used, this option does nothing. If AUTO is used and GTIDs are enabled "
+    "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
+    "If GTIDs are disabled, AUTO does nothing. If no value is supplied "
+    "then the default (AUTO) value will be considered.")
+    ->set_value(GTID_PURGED_AUTO);
 }
 
 Sql_formatter_options::Sql_formatter_options(

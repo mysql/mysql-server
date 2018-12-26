@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -87,6 +87,7 @@ struct fts_psort_t {
 	ulint			state;		/*!< parent thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
+	os_thread_id_t		thread_hdl;	/*!< thread handle */
 	dberr_t			error;		/*!< db error during psort */
 	ulint			memory_used;	/*!< memory used by fts_doc_list */
 	ib_mutex_t		mutex;		/*!< mutex for fts_doc_list */
@@ -104,6 +105,8 @@ typedef UT_LIST_BASE_NODE_T(row_fts_token_t)     fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
+	fts_tokenize_ctx() { memset(this, 0, sizeof(*this)); }
+
 	ulint			processed_len;  /*!< processed string length */
 	ulint			init_pos;       /*!< doc start position */
 	ulint			buf_used;       /*!< the sort buffer (ID) when
@@ -275,7 +278,6 @@ row_fts_merge_insert(
 	dict_index_t*	index,		/*!< in: index */
 	dict_table_t*	table,		/*!< in: new table */
 	fts_psort_t*	psort_info,	/*!< parallel sort info */
-	ulint		id)		/* !< in: which auxiliary table's data
+	ulint		id);		/* !< in: which auxiliary table's data
 					to insert to */
-	MY_ATTRIBUTE((nonnull));
 #endif /* row0ftsort_h */
